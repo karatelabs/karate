@@ -33,17 +33,7 @@ It is worth pointing out that JSON is a 'first class citizen' of the syntax such
 express payload data without having to use double-quotes and without having to enclose JSON field names
 in quotes.  There is no need to 'escape' characters like you would have had to in Java.
 
-### Example Test Reports
-
-Running a Karate test is no different from how you would run a JUnit test in any Java IDE.
-Here's how running the 'Hello World' would look in IntelliJ:
-
-![intellij](https://github.intuit.com/storage/user/834/files/6fbe78f6-d28e-11e6-8579-13251e37e287)
- 
-Karate can also output reports in HTML or JUnit-XML which should address all your 
-continuous-integration needs.  Here is a sample HTML report:
-
-![html](https://github.intuit.com/storage/user/834/files/19157a1c-d28f-11e6-896f-35459b112d66)
+And you don't need to create Java objects (or POJO-s) for all the payloads that you need to work with.
 
 # Index 
 
@@ -163,7 +153,7 @@ and [Maven](#http://maven.apache.org) to be installed.
 
 ## Maven
 
-This is all you need within your `<dependencies>`:
+This is all that you need within your `<dependencies>`:
 
 ```xml
 <dependency>
