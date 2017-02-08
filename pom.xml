@@ -6,6 +6,30 @@
     <artifactId>karate-parent</artifactId>
     <version>0.1.0</version>
     <packaging>pom</packaging>
+    
+    <name>${project.artifactId}</name>
+    <description>Web-Services Testing Made Simple</description>
+    <url>https://github.com/intuit/karate</url>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <scm>
+        <url>https://github.com/intuit/karate</url>
+        <connection>scm:git:git://github.com/intuit/karate.git</connection>
+        <developerConnection>scm:git:git@github.com:intuit/karate.git</developerConnection>
+    </scm>
+    <developers>
+        <developer>
+            <name>Peter Thomas</name>
+            <id>ptrthomas</id>
+            <organization>Intuit, Inc.</organization>
+            <organizationUrl>http://www.intuit.com</organizationUrl>
+        </developer>
+    </developers>       
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -95,6 +119,7 @@
                         <configuration>
                             <serverId>ossrh</serverId>
                             <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                            <stagingProfileId>476c7dd0c49efa</stagingProfileId>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
                         </configuration>
                     </plugin>                     
