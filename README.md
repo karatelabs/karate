@@ -1,5 +1,4 @@
 # Karate
-![karate logo](karate-core/src/main/resources/karate-logo.png)
 > Web-Services Testing Made **Simple**.
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert
