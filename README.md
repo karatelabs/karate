@@ -33,7 +33,7 @@ It is worth pointing out that JSON is a 'first class citizen' of the syntax such
 express payload data without having to use double-quotes and without having to enclose JSON field names
 in quotes.  There is no need to 'escape' characters like you would have had to in Java.
 
-And you don't need to create Java objects (or POJO-s) for all the payloads that you need to work with.
+And you don't need to create Java objects (or POJO-s) for any of the payloads that you need to work with.
 
 # Index 
 
@@ -47,7 +47,7 @@ And you don't need to create Java objects (or POJO-s) for all the payloads that 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
  | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
- | [`form field`](#form-field) | [`multipart field`](#multipart-field)
+ | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`contains`](#match-contains) | [Ignore / Vallidate](#ignore-or-validate)
 **Special Variables** | [`headers`](#headers) | [`response`](#response) | [`cookies`](#cookies)
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`read`](#read)
@@ -63,6 +63,7 @@ And you don't need to create Java objects (or POJO-s) for all the payloads that 
 * You can choose to define data and functions in-line or extract them into separate re-usable files
 * Invoke and re-use existing Java code if you need to
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
+* Simple plug-in system for handling authentication and setting up HTTP headers
 * Comprehensive support for different flavors of HTTP calls
   * SOAP / XML requests
   * URL-encoded HTML-form submits
@@ -159,7 +160,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-core</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.3</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -175,7 +176,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.1.2 \
+-DarchetypeVersion=0.1.3 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -209,7 +210,7 @@ This is very common in the world of Maven users and keep in mind that these are 
 and not production code.  
 
 With the above in place, you don't have to keep switching between your 'src/test/java' 
-and 'src/test/reources' folders, you can have all your test-code and artifacts under 
+and 'src/test/resources' folders, you can have all your test-code and artifacts under 
 'src/test/java' and everything will work as expected.
 
 Once you get used to this, you may even start wondering why projects need a 'src/test/resources'
@@ -489,10 +490,13 @@ Scenario: a different scenario
 ### Given-When-Then
 The business of web-services testing requires access to low-level aspects such as
 HTTP headers, URL-paths, query-parameters, complex JSON or XML payloads and response-codes.
-Karate gives you this control and therefore does not pretend to be a "true" BDD framework.
+And Karate gives you control over these aspects with the small set of keywords focused on HTTP such as `url`, 
+`path`, `param`, etc.
 
-That said, the syntax is concise and the convention of every step having to start with either 
-`Given`, `And`, `When` or `Then`, does serve to improve readability.
+Karate does not attempt to have tests be in "natural language" like how Cucumber tests are traditionally expected
+to be. That said, the syntax is very concise, and the convention of every step having to start with either 
+`Given`, `And`, `When` or `Then`, makes things very readable. You end up with a decent approximation of BDD even
+though web-services by nature are "headless", without a UI, and not really human-friendly.
 
 One nice thing about the design of the underlying Cucumber framework is that
 script-steps are treated the same no matter whether they start with the keyword 
@@ -661,7 +665,7 @@ This actually is a good example of how you could extend Karate with custom funct
 `read()` is a JavaScript function that is automatically available when Karate starts.
 It takes the name of a file as the only argument.
 
-By default, the file is expected to be in the same folder (package) as the JUnit test-class.
+By default, the file is expected to be in the same folder (package) as the *.feature file.
 But you can prefix the name with `classpath:`.  Prefer `classpath:` when a file is expected
 to be heavily re-used all across your project.  And yes, relative paths will work.
 
@@ -795,23 +799,40 @@ These would be URL-encoded when the HTTP request is submitted (by the [`method`]
 Given form field foo = 'bar'
 ```
 ### `multipart field`
-Use this for building multipart requests.  The submit has to be issued with `multipart post`
-(see below).
+Use this for building multipart named (form) field requests.  The submit has to be issued with 
+[`multipart post`](#multipart-post).
+
  ```cucumber
 Given multipart field file = read('test.pdf')
 And multipart field fileName = 'custom-name.pdf'
 ```
+
+### `multipart entity`
+Use this for multipart content that don't have field-names.  Here below is an example that 
+also demonstrates using the [`multipart/related`](https://tools.ietf.org/html/rfc2387) content-type.
+
+```cucumber
+Given path '/v2/documents'
+And multipart entity read('foo.json')
+And multipart field image = read('bar.jpg')
+And header Content-Type = 'multipart/related'
+When multipart post 
+Then status 201
+```
+
 ## A couple more commands
 ### `multipart post`
 Since a multipart request needs special handling, this is a rare case where the
 [`method`](#method) step is not used to actually fire the request to the server.  The only other
 exception is `soap action` (see below).
 
-The `multipart post` step will also take care of setting the right headers
-such as 'Content-Type: multipart/form-data'.
  ```cucumber
 When multipart post
  ```
+The `multipart post` step will default to setting the `Content-Type` header as `multipart/form-data`.
+You can over-ride it by using the [`header`](#header) keyword before this step.  Look at
+[`multipart entity`](#multipart-entity) for an example.
+
 ### `soap action`
 The name of the SOAP action specified is used as the 'SOAPAction' header.  Here is an example
 which also demonstrates how you could assert for expected values in the response XML.
@@ -1080,10 +1101,12 @@ Refer to the section on [reading files](#reading-files) for how to use this buil
 
 ### `headers`
 This is a convenience feature to make custom header manipulation as easy as possible.
-For every HTTP request made from Karate, internally - a [`call`](#call) is made to the variable 
-`headers` if it exists and it is a JavaScript function.  If the function call returns a 
-map-like (or JSON) object, the key-value pairs in the returned object are added 
-to the HTTP headers.
+For every HTTP request made from Karate, the internal flow is as follows:
+* does a variable called `headers` exist?
+* if it does, is it a JavaScript function?
+* if so, a [`call`](#call) is made to that function
+* did the function call return a map-like (or JSON) object?
+* if so, all the key-value pairs in the returned object are added to the HTTP headers.
 
 This makes setting up of complex authentication schemes for your test-flows really easy.
 It typically ends up being a one-liner that appears in the `Background` section at 

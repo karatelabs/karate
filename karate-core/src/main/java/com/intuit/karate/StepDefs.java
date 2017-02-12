@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.ScriptValue.Type;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import cucumber.api.java.en.Given;
@@ -19,7 +20,7 @@ import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.BodyPart;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
 import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
 import org.slf4j.Logger;
@@ -267,44 +268,68 @@ public class StepDefs {
         }
     }
 
-    private MultiPart multiPart(boolean form) {
+    private MultiPart getMultiPart() {
         MultiPart mp = context.vars.get(VAR_MULTIPART, MultiPart.class);
         if (mp == null) {
-            mp = form ? new FormDataMultiPart() : new MultiPart();
+            mp = new MultiPart();
             context.vars.put(VAR_MULTIPART, mp);
         }
         return mp;
     }
 
-    @When("^multipart part (.+)")
-    public void multiPartBodyPart(String value) {
-        MultiPart mp = multiPart(false);
-        Object o = Script.preEval(value, context).getValue();
-        mp.bodyPart(new BodyPart().entity(o));
+    @When("^multipart entity (.+)")
+    public void multiPartEntity(String value) {
+        multiPart(null, value);
+    }
+    
+    @When("^multipart field (.+) = (.+)")
+    public void multiPartFormField(String name, String value) {
+        multiPart(name, value);
     }
 
-    @When("^multipart field (.+) = (.+)")
-    public void multiPartFormField(String field, String value) {
-        FormDataMultiPart mp = (FormDataMultiPart) multiPart(true);
-        Object o = Script.preEval(value, context).getValue();
-        if (o == null) { // TODO use switch case
-            throw new RuntimeException("multipart field cannot be null: " + field);
+    public void multiPart(String name, String value) {
+        MultiPart mp = getMultiPart();
+        ScriptValue sv = Script.preEval(value, context);
+        if (sv.isNull()) {
+            throw new RuntimeException("multipart field cannot be null: " + name);
         }
-        if (o instanceof InputStream) {
-            InputStream is = (InputStream) o;
-            StreamDataBodyPart part = new StreamDataBodyPart(field, is);
+        if (name == null) {
+            BodyPart bp;
+            switch (sv.getType()) {
+                case JSON:
+                    DocumentContext dc = sv.getValue(DocumentContext.class);                    
+                    bp = new BodyPart().entity(dc.jsonString()).type(MediaType.APPLICATION_JSON_TYPE);
+                    break;
+                case XML:
+                    Document doc = sv.getValue(Document.class);
+                    bp = new BodyPart().entity(XmlUtils.toString(doc)).type(MediaType.APPLICATION_XML_TYPE);
+                    break;
+                default:
+                    bp = new BodyPart().entity(sv.getValue());
+            }
+            mp.bodyPart(bp);
+        } else if (sv.getType() == Type.INPUT_STREAM) {
+            InputStream is = (InputStream) sv.getValue();
+            StreamDataBodyPart part = new StreamDataBodyPart(name, is);
             mp.bodyPart(part);
         } else {
-            String s = o.toString();
-            mp.field(field, s);
+            mp.bodyPart(new FormDataBodyPart(name, sv.getAsString()));
         }
     }
 
     @When("^multipart post")
     public void multiPartPost() {
         String method = "POST";
-        MultiPart mp = multiPart(false);
-        response = prepare().method(method, Entity.entity(mp, mp.getMediaType()));
+        MultiPart mp = getMultiPart();
+        MediaType mediaType = MediaType.MULTIPART_FORM_DATA_TYPE; // default
+        Map<String, Object> headers = context.vars.get(VAR_HEADERS, Map.class);
+        if (headers != null) {
+            String type = (String) headers.get("Content-Type");
+            if (type != null) { // override with user specified
+                mediaType = MediaType.valueOf(type);
+            }
+        }        
+        response = prepare().method(method, Entity.entity(mp, mediaType));
         unprepare();
     }
 
