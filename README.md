@@ -955,11 +955,32 @@ Marker | Description
 ------ | -----------
 #ignore | Skip comparison for this field
 #null | Expects actual value to be null
-#notnull | Excpects actual value to be not-null
-#uuid | Expects actual value to conform to the UUID format
-#regexSTR | Expects actual value to match the regular-expression 'STR'
+#notnull | Expects actual value to be not-null
+#boolean | Expects actual value to be a boolean `true` or `false`
+#number | Expects actual value to be a number
+#string | Expects actual value to be a string
+#uuid | Expects actual (string) value to conform to the UUID format
+#regexSTR | Expects actual (string) value to match the regular-expression 'STR'
+#?EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true (see examples below)
 
-> TODO allow custom validators to be registered, the infrastructure is already in place.
+#### 'Self' Validation Expressions
+The special 'predicate' marker in the last row of the table above is an interesting one.  It is best
+explained via examples.
+
+Observe how the value of the field being validated (or 'self') is injected into
+the 'underscore' expression variable: '`_`'
+```cucumber
+* def date = { month: 3 }
+* match date == { month: '#? _ > 0 && _ < 13' }
+```
+
+What is even more interesting is that expressions can refer to variables:
+```cucumber
+* def date = { month: 3 }
+* def min = 1
+* def max = 12
+* match date == { month: '#? _ >= min && _ <= max' }
+```
 
 ### `match` for Text and Streams
 The special operator `*` represents the entire contents of a string (or stream) and can be used like so:

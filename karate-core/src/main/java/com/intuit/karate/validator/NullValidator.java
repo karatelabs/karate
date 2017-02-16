@@ -11,7 +11,7 @@ public class NullValidator implements Validator {
     @Override
     public ValidationResult validate(ScriptValue value) {
         if (!value.isNull()) {
-            return ValidationResult.fail("not-null but expected null");
+            return ValidationResult.fail("not-null");
         }
         return ValidationResult.PASS;
     }

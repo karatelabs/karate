@@ -257,7 +257,7 @@ public class ScriptTest {
         Script.matchJsonPath(false, "myJson", "$.baz.ban[1]", "2", ctx);
         Script.matchJsonPath(false, "myJson", "$.baz", "{ ban: [1, '#ignore', 3]} }", ctx);
     }
-    
+
     @Test
     public void testMatchJsonPathOnResponse() {
         DocumentContext doc = JsonPath.parse("{ foo: 'bar' }");
@@ -265,7 +265,7 @@ public class ScriptTest {
         ctx.vars.put("response", doc);
         Script.matchNamed("$", null, "{ foo: 'bar' }", ctx);
         Script.matchNamed("$.foo", null, "'bar'", ctx);
-    }    
+    }
 
     private final String ACTUAL = "{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\"},\"primaryId\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\",\"created\":{\"on\":\"2016-02-28T05:56:48.485+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"},\"organization\":{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"631fafe9-8822-4c82-b4a4-8735b202c16c\"},\"created\":{\"on\":\"2016-02-28T05:56:48.486+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"}},\"clientState\":\"ACTIVE\"}";
     private final String EXPECTED = "{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"#ignore\"},\"primaryId\":\"#ignore\",\"created\":{\"on\":\"#ignore\"},\"lastUpdated\":{\"on\":\"#ignore\"},\"organization\":{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"#ignore\"},\"created\":{\"on\":\"#ignore\"},\"lastUpdated\":{\"on\":\"#ignore\"}},\"clientState\":\"ACTIVE\"}";
@@ -289,7 +289,7 @@ public class ScriptTest {
         Script.matchXmlPath(false, "myXml", "/root/foo", "<foo>bar</foo>", ctx);
         Script.matchXmlPath(false, "myXml", "/root/hello", "'world'", ctx);
     }
-    
+
     @Test
     public void testAssignAndMatchXml() {
         ScriptContext ctx = getContext();
@@ -297,7 +297,7 @@ public class ScriptTest {
         Script.assign("myStr", "myXml/root/foo", ctx);
         Script.assertBoolean("myStr == 'bar'", ctx);
     }
-    
+
     @Test
     public void testMatchXmlButUsingJsonPath() {
         ScriptContext ctx = getContext();
@@ -305,7 +305,7 @@ public class ScriptTest {
         ctx.vars.put("myXml", doc);
         Script.matchNamed("myXml/cat/scores/score[2]", null, "'5'", ctx);
         Script.matchNamed("myXml.cat.scores.score[1]", null, "5", ctx);
-    }    
+    }
 
     @Test
     public void testMatchXmlRepeatedElements() {
@@ -328,7 +328,7 @@ public class ScriptTest {
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("baz", testBar.getValue());
     }
-    
+
     @Test
     public void testAssigningAndCallingFunctionThatCanBeUsedToAssignVariable() {
         ScriptContext ctx = getContext();
@@ -336,8 +336,8 @@ public class ScriptTest {
         Script.assign("hello", "call foo", ctx);
         ScriptValue hello = ctx.vars.get("hello");
         assertEquals("world", hello.getValue());
-    } 
-    
+    }
+
     @Test
     public void testAssigningAndCallingFunctionWithArgumentsThatCanBeUsedToAssignVariable() {
         ScriptContext ctx = getContext();
@@ -345,7 +345,7 @@ public class ScriptTest {
         Script.assign("hello", "call foo 'hello'", ctx);
         ScriptValue hello = ctx.vars.get("hello");
         assertEquals("hello world", hello.getValue());
-    }    
+    }
 
     @Test
     public void testCallingFunctionThatTakesPrimitiveArgument() {
@@ -394,9 +394,9 @@ public class ScriptTest {
         Script.setValueByPath("json", "$.foo", "'hello'", ctx);
         assertEquals("hello", Script.evalJsonPathOnVarByName("json", "$.foo", ctx).getValue());
         Script.setValueByPath("$json.foo", null, "'world'", ctx);
-        assertEquals("world", Script.evalJsonPathOnVarByName("json", "$.foo", ctx).getValue());        
+        assertEquals("world", Script.evalJsonPathOnVarByName("json", "$.foo", ctx).getValue());
     }
-    
+
     @Test
     public void testDefaultValidators() {
         ScriptContext ctx = getContext();
@@ -407,19 +407,33 @@ public class ScriptTest {
         assertFalse(Script.matchNamed("json", "$", "{ foo: '#null' }", ctx).pass);
         assertTrue(Script.matchNamed("json", "$", "{ foo: '#regex^bar' }", ctx).pass);
         assertFalse(Script.matchNamed("json", "$", "{ foo: '#regex^baX' }", ctx).pass);
+
         doc = JsonUtils.toJsonDoc("{ foo: null }");
         ctx.vars.put("json", doc);
         assertTrue(Script.matchNamed("json", "$", "{ foo: '#ignore' }", ctx).pass);
         assertTrue(Script.matchNamed("json", "$", "{ foo: '#null' }", ctx).pass);
         assertFalse(Script.matchNamed("json", "$", "{ foo: '#notnull' }", ctx).pass);
+
         doc = JsonUtils.toJsonDoc("{ foo: 'a9f7a56b-8d5c-455c-9d13-808461d17b91' }");
         ctx.vars.put("json", doc);
-        assertTrue(Script.matchNamed("json", "$", "{ foo: '#uuid' }", ctx).pass);   
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#uuid' }", ctx).pass);
+
         doc = JsonUtils.toJsonDoc("{ foo: 'a9f7a56b-8d5c-455c-9d13' }");
         ctx.vars.put("json", doc);
-        assertFalse(Script.matchNamed("json", "$", "{ foo: '#uuid' }", ctx).pass);      
+        assertFalse(Script.matchNamed("json", "$", "{ foo: '#uuid' }", ctx).pass);
+
+        doc = JsonUtils.toJsonDoc("{ foo: 5 }");
+        ctx.vars.put("json", doc);
+        ctx.vars.put("min", 4);
+        ctx.vars.put("max", 6);
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#number' }", ctx).pass);
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#? _ == 5' }", ctx).pass);
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#? _ < 6' }", ctx).pass);
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#? _ > 4' }", ctx).pass);
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#? _ > 4 && _ < 6' }", ctx).pass);
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#? _ > min && _ < max' }", ctx).pass);
     }
-    
+
     @Test
     public void testSimpleJsonMatch() {
         ScriptContext ctx = getContext();
@@ -427,7 +441,7 @@ public class ScriptTest {
         ctx.vars.put("json", doc);
         assertFalse(Script.matchNamed("json", "$", "{ }", ctx).pass);
     }
-    
+
     @Test
     public void testAssignJsonChunkAndUse() {
         ScriptContext ctx = getContext();
@@ -438,23 +452,23 @@ public class ScriptTest {
         //===
         Script.assign("parent", "{ foo: 'bar', 'ban': { a: [1, 2, 3] } }", ctx);
         Script.assign("child", "parent.ban", ctx);
-        assertTrue(Script.matchNamed("child.a[1]", null, "2", ctx).pass);        
+        assertTrue(Script.matchNamed("child.a[1]", null, "2", ctx).pass);
     }
-    
+
     @Test
     public void testEvalUrl() {
         ScriptContext ctx = getContext();
         String url = "'http://localhost:8089/v1/cats'";
         assertEquals("http://localhost:8089/v1/cats", Script.preEval(url, ctx).getAsString());
     }
-    
+
     @Test
     public void testEvalParamWithDot() {
         ScriptContext ctx = getContext();
         String param = "'ACS.Itself'";
         assertEquals("ACS.Itself", Script.preEval(param, ctx).getAsString());
-    }   
-    
+    }
+
     @Test
     public void testMatchJsonArrayContains() {
         ScriptContext ctx = getContext();
@@ -462,7 +476,7 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(false, "foo.bar", null, "[1 ,2, 3]", ctx).pass);
         assertTrue(Script.matchNamed(true, "foo.bar", null, "[1]", ctx).pass);
     }
-    
+
     @Test
     public void testMatchStringContains() {
         ScriptContext ctx = getContext();
@@ -470,7 +484,7 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(true, "foo", null, "'hello'", ctx).pass);
         assertFalse(Script.matchNamed(true, "foo", null, "'zoo'", ctx).pass);
     }
-    
+
     @Test
     public void testKarateEnvAccessFromScript() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
@@ -484,7 +498,7 @@ public class ScriptTest {
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         bar = ctx.vars.get("bar");
-        assertNull(bar.getValue());        
+        assertNull(bar.getValue());
     }
 
 }

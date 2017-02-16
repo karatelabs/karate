@@ -12,7 +12,7 @@ public class UuidValidator implements Validator {
     @Override
     public ValidationResult validate(ScriptValue value) {
         if (!value.isString()) {
-            return ValidationResult.fail("not a string, expected #uuid");
+            return ValidationResult.fail("not a string");
         }
         String strValue = value.getValue(String.class);
         try {

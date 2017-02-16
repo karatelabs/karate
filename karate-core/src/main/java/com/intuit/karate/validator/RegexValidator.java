@@ -21,14 +21,14 @@ public class RegexValidator implements Validator {
     @Override
     public ValidationResult validate(ScriptValue value) {
         if (!value.isString()) {
-            return ValidationResult.fail("not a string, expected regex " + pattern.pattern());
+            return ValidationResult.fail("not a string");
         }
         String strValue = value.getValue(String.class);
         Matcher matcher = pattern.matcher(strValue);
         if (matcher.matches()) {
             return ValidationResult.PASS;
         }
-        return ValidationResult.fail("does not match regex " + pattern.pattern());
+        return ValidationResult.fail("regex match failed");
     }
     
 }

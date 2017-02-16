@@ -1,10 +1,15 @@
 package com.intuit.karate;
 
 import static com.intuit.karate.ScriptValue.Type.*;
+import com.intuit.karate.validator.ArrayValidator;
+import com.intuit.karate.validator.BooleanValidator;
 import com.intuit.karate.validator.IgnoreValidator;
 import com.intuit.karate.validator.NotNullValidator;
 import com.intuit.karate.validator.NullValidator;
+import com.intuit.karate.validator.NumberValidator;
+import com.intuit.karate.validator.ObjectValidator;
 import com.intuit.karate.validator.RegexValidator;
+import com.intuit.karate.validator.StringValidator;
 import com.intuit.karate.validator.UuidValidator;
 import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
@@ -37,6 +42,7 @@ import org.w3c.dom.NodeList;
 public class Script {
 
     public static final String VAR_CONTEXT = "_context";
+    public static final String VAR_SELF = "_";
 
     private Script() {
         // only static methods
@@ -192,8 +198,12 @@ public class Script {
                 throw new RuntimeException("cannot run jsonpath on type: " + value);
         }
     }
-
+    
     public static ScriptValue eval(String exp, ScriptContext context) {
+        return eval(exp, context, null);
+    }
+
+    public static ScriptValue eval(String exp, ScriptContext context, ScriptValue self) {
         ScriptEngineManager manager = new ScriptEngineManager();
         ScriptEngine nashorn = manager.getEngineByName("nashorn");
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
@@ -203,6 +213,9 @@ public class Script {
         }
         // for future function calls if needed, and see FileUtils.getFileReaderFunction()
         bindings.put(VAR_CONTEXT, context);
+        if (self != null) {
+            bindings.put(VAR_SELF, self.getValue());
+        }
         try {
             Object o = nashorn.eval(exp);
             ScriptValue result = new ScriptValue(o);
@@ -380,17 +393,23 @@ public class Script {
                 String regex = validatorName.substring(5);
                 RegexValidator v = new RegexValidator(regex);
                 ValidationResult vr = v.validate(actValue);
-                if (!vr.isPass()) {
-                    return matchFailed(path, actValue.getValue(), expected + " " + vr.getMessage());
+                if (!vr.isPass()) { // TODO wrap string values in quotes
+                    return matchFailed(path, actValue.getValue(), expected + ", reason: " + vr.getMessage());
+                }
+            } else if (validatorName.startsWith("?")) {
+                String exp = validatorName.substring(1);
+                String result = eval(exp, context, actValue).getAsString();
+                if (!"true".equals(result)) {
+                    return matchFailed(path, actValue.getValue(), expected + ", reason: false");
                 }
             } else {
                 Validator v = context.validators.get(validatorName);
                 if (v == null) {
-                    return matchFailed(path, actValue.getValue(), expected + " (unknown validator)");
+                    return matchFailed(path, actValue.getValue(), expected + ", reason: (unknown validator)");
                 } else {
                     ValidationResult vr = v.validate(actValue);
                     if (!vr.isPass()) {
-                        return matchFailed(path, actValue.getValue(), expected + " " + vr.getMessage());
+                        return matchFailed(path, actValue.getValue(), expected + ", reason: " + vr.getMessage());
                     }
                 }
             }
@@ -674,6 +693,11 @@ public class Script {
         map.put("null", NullValidator.INSTANCE);
         map.put("notnull", NotNullValidator.INSTANCE);
         map.put("uuid", UuidValidator.INSTANCE);
+        map.put("string", StringValidator.INSTANCE);
+        map.put("number", NumberValidator.INSTANCE);
+        map.put("boolean", BooleanValidator.INSTANCE);
+        map.put("array", ArrayValidator.INSTANCE);
+        map.put("object", ObjectValidator.INSTANCE);
         return map;
     }
 

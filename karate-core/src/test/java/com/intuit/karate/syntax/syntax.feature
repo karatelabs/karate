@@ -218,7 +218,26 @@ Then match /cat/name == 'Billie'
 Given def cat = { name: 'Billie', type: 'LOL', id: 'a9f7a56b-8d5c-455c-9d13-808461d17b91' }
 Then match cat == { name: '#ignore', type: '#regex[A-Z]{3}', id: '#uuid' }
 # this will fail
-# Then match cat == { name: '#ignore', type: '#regex.{2}', id: '#uuid' }	
+# Then match cat == { name: '#ignore', type: '#regex.{2}', id: '#uuid' }
+Then match cat == { name: '#string', type: '#string', id: '#string'}
+
+* def cat = { foo: 1 }
+* match cat == { foo: '#number' }
+
+* def cat = { foo: true }
+* match cat == { foo: '#boolean' }
+
+* def cat = { foo: [1, 2] }
+* match cat == { foo: '#array' }
+
+* def cat = { foo: { bar: 'baz' } }
+* match cat == { foo: '#object' }
+
+# schema validation on steroids
+* def cat = { foo: 5 }
+* def min = 4
+* def max = 6
+* match cat == { foo: '#? _ > min && _ < max' }
   
 # match contains
 Given def cat = 
