@@ -48,8 +48,8 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`contains`](#match-contains) | [Ignore / Vallidate](#ignore-or-validate)
-**Special Variables** | [`headers`](#headers) | [`response`](#response) | [`cookies`](#cookies)
- | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`read`](#read)
+**Special Variables** | [`headers`](#headers) | [`response`](#response) | [`cookies`](#cookies) | [`read`](#read)
+ | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
  | [Data Driven Tests](#advanced-bdd) | [Auth and Headers](#sign-in-example)
@@ -1091,6 +1091,15 @@ You would normally only need to use the [`status`](#status) keyword.  But if you
 the HTTP response code in an expression or save it for later, you can get it as an integer:
 ```cucumber
 * def uploadStatusCode = responseStatus
+```
+### `responseTime`
+The response time (in milliseconds) for every HTTP request would be available in a variable called
+`responseTime`. You can use this to assert that the response was returned within the expected time
+like so:
+```cucumber
+When method post
+Then status 201
+And assert responseTime < 1000
 ```
 ### `read`
 This is a great example of how you can extend Karate by defining your own functions. Behind the scenes

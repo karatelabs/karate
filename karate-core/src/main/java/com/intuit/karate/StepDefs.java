@@ -46,6 +46,7 @@ public class StepDefs {
     private WebTarget target;
     private Response response;
     private String accept;
+    private long startTime;
 
     private final ScriptContext context;
 
@@ -183,6 +184,17 @@ public class StepDefs {
     public void accept(String expression) {
         this.accept = expression;
     }    
+    
+    private void startTimer() {
+        startTime = System.currentTimeMillis();
+    }
+    
+    private void stopTimer() {
+        long endTime = System.currentTimeMillis();
+        long responseTime = endTime - startTime;
+        logger.debug("response time in milliseconds: {}", responseTime);
+        context.vars.put(ScriptValueMap.VAR_RESPONSE_TIME, responseTime);
+    }
 
     @When("^method (\\w+)")
     public void method(String method) {
@@ -190,7 +202,9 @@ public class StepDefs {
         if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
             MultivaluedMap<String, Object> formFields = context.vars.get(VAR_FORM_FIELDS, MultivaluedMap.class);
             if (formFields != null) {
+                startTimer();
                 response = prepare().method(method, Entity.entity(formFields, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
+                stopTimer();
             } else {
                 ScriptValue sv = context.vars.get(VAR_REQUEST);
                 Entity entity;
@@ -211,10 +225,14 @@ public class StepDefs {
                     default:
                         entity = Entity.text(sv.getAsString());
                 }
+                startTimer();
                 response = prepare().method(method, entity);
+                stopTimer();
             }
         } else {
+            startTimer();
             response = prepare().method(method);
+            stopTimer();
         }
         unprepare();
     }
@@ -259,7 +277,9 @@ public class StepDefs {
         logger.trace("soap action: '{}'", action);
         Document doc = context.vars.get(VAR_REQUEST, Document.class);
         String xml = XmlUtils.toString(doc);
+        startTimer();
         response = target.request().header("SOAPAction", action).method("POST", Entity.entity(xml, MediaType.TEXT_XML));
+        stopTimer();
         String raw = response.readEntity(String.class);
         if (StringUtils.isNotBlank(raw)) {
             context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(raw));
@@ -328,8 +348,10 @@ public class StepDefs {
             if (type != null) { // override with user specified
                 mediaType = MediaType.valueOf(type);
             }
-        }        
+        }
+        startTimer();       
         response = prepare().method(method, Entity.entity(mp, mediaType));
+        stopTimer();
         unprepare();
     }
 
