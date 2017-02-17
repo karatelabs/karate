@@ -44,7 +44,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
- | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action)
+ | [`status`](#status) | [`accept`](#accept) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`contains`](#match-contains) | [Ignore / Vallidate](#ignore-or-validate)
@@ -63,6 +63,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Invoke and re-use existing Java code if you need to
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Simple plug-in system for handling authentication and setting up HTTP headers
+* Support for data-driven tests and being able to tag (or group) tests is built-in, so you don’t have to rely on TestNG or JUnit for those features any more
 * Comprehensive support for different flavors of HTTP calls
   * SOAP / XML requests
   * URL-encoded HTML-form submits
@@ -159,7 +160,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-core</artifactId>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -175,7 +176,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.1.3 \
+-DarchetypeVersion=0.1.4 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -768,6 +769,18 @@ Then status 200
 ```
 And this assertion will cause the test to fail if the HTTP response code is something else.
 
+### `accept`
+By default, Karate tries to determine the right `Accept` HTTP header value from the request payload
+data type (JSON / XML / String / Stream).
+
+You can easily set it explicitly as follows:
+```cucumber
+Given request '<html></html>'
+And accept 'text/html'
+When method post
+Then status 200
+```
+
 See also [`responseStatus`](#responsestatus).
 
 ## Keywords that set key-value pairs
@@ -956,6 +969,8 @@ Marker | Description
 #ignore | Skip comparison for this field
 #null | Expects actual value to be null
 #notnull | Expects actual value to be not-null
+#array | Expects actual value to be a JSON array
+#object | Expects actual value to be a JSON object
 #boolean | Expects actual value to be a boolean `true` or `false`
 #number | Expects actual value to be a number
 #string | Expects actual value to be a string
@@ -1281,6 +1296,25 @@ In fact, this is the mechanism used when [`karate-config.js`](#configuration) is
 You can invoke a function in a [re-usable file](#reading-files) using this short-cut.
 ```cucumber
 * call read('my-function.js')
+```
+### HTTP Basic Authentication
+This should make it clear why Karate does not actually come with support for any authentication scheme
+built-in. Things are designed so that you can plug-in what you need, without needing to compile Java code.
+
+First the JavaScript file, `basic-auth.js`:
+```javascript
+function(creds) {
+  var temp = creds.username + ':' + creds.password;
+  var Base64 = Java.type("java.util.Base64");
+  var encoded = Base64.getEncoder().encodeToString(temp.bytes);
+  return 'Basic ' + encoded;
+}
+```
+And here how it works in a test-script. Note that you need to do this only once within a `Scenario:`,
+perhaps at the beginning.
+```cucumber
+* header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
+
 ```
 
 ## Calling Java

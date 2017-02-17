@@ -3,6 +3,7 @@ package com.intuit.karate;
 import com.intuit.karate.validator.Validator;
 import java.util.Map;
 import java.util.logging.Level;
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -27,11 +28,13 @@ public class ScriptContext {
     protected final String featureDir;
     protected final ClassLoader fileClassLoader;
     protected final String env;
+    protected final ClientBuilder clientBuilder;    
 
+    // needed for 3rd party code
     public ScriptValueMap getVars() {
         return vars;
     }        
-    
+
     public ScriptContext(boolean test, String featureDir, ClassLoader fileClassLoader, String env) {
         this.featureDir = featureDir;
         this.fileClassLoader = fileClassLoader;
@@ -43,17 +46,21 @@ public class ScriptContext {
         if (test) {
             logger.trace("karate init in test mode, http client disabled");
             client = null;
+            clientBuilder = null;
             return;
         }
-        ClientBuilder cb = ClientBuilder.newBuilder()
+        clientBuilder = ClientBuilder.newBuilder()
                 .register(MultiPartFeature.class);
         if (logger.isDebugEnabled()) {
-            cb.register(new LoggingFeature(
+            clientBuilder.register(new LoggingFeature(
                     java.util.logging.Logger.getLogger(LoggingFeature.DEFAULT_LOGGER_NAME),
                     Level.SEVERE,
                     LoggingFeature.Verbosity.PAYLOAD_TEXT, null));
-        }
-        client = cb.build();
+        }          
+        SSLContext sslContext =  SslUtils.getSslContext();
+        clientBuilder.sslContext(sslContext);
+        clientBuilder.hostnameVerifier((host, session) -> true);        
+        client = clientBuilder.build();
         client.register(new RequestFilter(this));                     
         // auto config
         try {

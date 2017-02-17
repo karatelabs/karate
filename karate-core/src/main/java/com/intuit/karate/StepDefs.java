@@ -47,15 +47,15 @@ public class StepDefs {
     private Response response;
     private String accept;
     private long startTime;
-
+    
     private final ScriptContext context;
 
     public ScriptContext getContext() {
         return context;
-    }        
+    }    
 
     @When("^url (.+)")
-    public void url(String expression) {
+    public void url(String expression) {        
         String temp = Script.preEval(expression, context).getAsString();
         this.url = temp;
         target = context.client.target(temp);
@@ -159,7 +159,7 @@ public class StepDefs {
         handleFailure(ar);
     }
 
-    private Invocation.Builder prepare() {
+    private Invocation.Builder prepare() {  
         hasUrlBeenSet();        
         Invocation.Builder builder = target.request();
         Map<String, Object> headers = context.vars.get(VAR_HEADERS, Map.class);
@@ -181,8 +181,8 @@ public class StepDefs {
     }
     
     @When("^accept (.+)")
-    public void accept(String expression) {
-        this.accept = expression;
+    public void accept(String exp) {
+        this.accept = Script.preEval(exp, context).getAsString();
     }    
     
     private void startTimer() {
@@ -207,6 +207,11 @@ public class StepDefs {
                 stopTimer();
             } else {
                 ScriptValue sv = context.vars.get(VAR_REQUEST);
+                if (sv == null || sv.isNull()) {
+                    String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
+                    logger.error(msg);
+                    throw new RuntimeException(msg);
+                }
                 Entity entity;
                 switch (sv.getType()) {
                     case JSON:
@@ -253,7 +258,12 @@ public class StepDefs {
         if (Script.isJson(responseBody)) {
             context.vars.put(ScriptValueMap.VAR_RESPONSE, JsonUtils.toJsonDoc(responseBody));
         } else if (Script.isXml(responseBody)) {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(responseBody));
+            try {
+                context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(responseBody));
+            } catch (Exception e) {
+                logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
+                context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
+            }
         } else {
             context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
         }
