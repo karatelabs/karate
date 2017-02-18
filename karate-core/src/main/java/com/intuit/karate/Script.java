@@ -198,7 +198,7 @@ public class Script {
                 throw new RuntimeException("cannot run jsonpath on type: " + value);
         }
     }
-    
+
     public static ScriptValue eval(String exp, ScriptContext context) {
         return eval(exp, context, null);
     }
@@ -335,10 +335,6 @@ public class Script {
         context.vars.put(name, sv);
     }
 
-    public static boolean isStar(String exp) {
-        return exp.equals("*");
-    }
-
     public static boolean isQuoted(String exp) {
         return exp.startsWith("'") || exp.startsWith("\"");
     }
@@ -362,17 +358,28 @@ public class Script {
         expected = StringUtils.trim(expected);
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
             return matchNamed(contains, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
-        } else if (isStar(path)) {
-            return matchString(contains, name, expected, path, context);
-        } else if (isXmlPath(path)) {
-            return matchXmlPath(contains, name, path, expected, context);
         } else {
-            return matchJsonPath(contains, name, path, expected, context);
+            ScriptValue actual = context.vars.get(name);
+            switch(actual.getType()) {
+                case STRING:
+                case INPUT_STREAM:
+                    return matchString(contains, actual, expected, path, context);
+                case XML:
+                    if ("$".equals(path)) {
+                        path = "/"; // edge case where the name was 'response'
+                    }
+                    if (!isJsonPath(path)) {
+                        return matchXmlPath(contains, actual, path, expected, context);
+                    }
+                    // break; 
+                    // fall through to JSON. yes, dot notation can be used on XML
+                default:
+                    return matchJsonPath(contains, actual, path, expected, context);
+            }
         }
     }
 
-    public static AssertionResult matchString(boolean contains, String name, String expected, String path, ScriptContext context) {
-        ScriptValue actual = context.vars.get(name);
+    public static AssertionResult matchString(boolean contains, ScriptValue actual, String expected, String path, ScriptContext context) {
         ScriptValue expectedValue = preEval(expected, context);
         expected = expectedValue.getAsString();
         return matchStringOrPattern(contains, actual, expected, path, context);
@@ -430,11 +437,7 @@ public class Script {
         return matchNestedObject('/', "", contains, act, exp, context);
     }
 
-    public static AssertionResult matchXmlPath(boolean contains, String name, String path, String expression, ScriptContext context) {
-        ScriptValue actual = context.vars.get(name);
-        if (actual.getType() != XML) {
-            throw new RuntimeException("not xml, cannot do xml path for name: " + name + ", path: " + path);
-        }
+    public static AssertionResult matchXmlPath(boolean contains, ScriptValue actual, String path, String expression, ScriptContext context) {
         Document actualDoc = actual.getValue(Document.class);
         Node actNode = XmlUtils.getNodeByPath(actualDoc, path);
         ScriptValue expected = preEval(expression, context);
@@ -453,9 +456,8 @@ public class Script {
         return matchNestedObject('/', path, contains, actObject, expObject, context);
     }
 
-    public static AssertionResult matchJsonPath(boolean contains, String name, String path, String expression, ScriptContext context) {
+    public static AssertionResult matchJsonPath(boolean contains, ScriptValue actual, String path, String expression, ScriptContext context) {
         DocumentContext actualDoc;
-        ScriptValue actual = context.vars.get(name);
         switch (actual.getType()) {
             case JSON:
                 actualDoc = actual.getValue(DocumentContext.class);
@@ -477,7 +479,7 @@ public class Script {
                     return matchStringOrPattern(contains, actual, expected.getValue(String.class), path, context);
                 }
             default:
-                throw new RuntimeException("not json, cannot do json path for name: " + name + ", path: " + path);
+                throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }
         Object actObject = actualDoc.read(path);
         ScriptValue expected = preEval(expression, context);

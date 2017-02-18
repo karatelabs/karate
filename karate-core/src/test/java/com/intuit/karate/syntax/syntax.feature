@@ -207,6 +207,7 @@ Given def response = <cat><name>Billie</name></cat>
   
 Then match response / == <cat><name>Billie</name></cat>
 Then match response/ == <cat><name>Billie</name></cat>
+Then match response == <cat><name>Billie</name></cat>
 Then match / == <cat><name>Billie</name></cat>    
 
 Then match response /cat/name == 'Billie'
@@ -233,11 +234,20 @@ Then match cat == { name: '#string', type: '#string', id: '#string'}
 * def cat = { foo: { bar: 'baz' } }
 * match cat == { foo: '#object' }
 
-# schema validation on steroids
-* def cat = { foo: 5 }
-* def min = 4
-* def max = 6
-* match cat == { foo: '#? _ > min && _ < max' }
+# schema validation
+* def date = { month: 3 }
+* match date == { month: '#? _ > 0 && _ < 13' }
+
+# validation and variables
+* def date = { month: 3 }
+* def min = 1
+* def max = 12
+* match date == { month: '#? _ >= min && _ <= max' }
+
+# validation and functions !
+* def date = { month: 3 }
+# * def isMonth = function(v) { return v >= 0 && v <= 12 }
+# * match date == { month: '#? isMonth(_)' }
   
 # match contains
 Given def cat = 
@@ -261,7 +271,24 @@ Then match cat.rivals[*] contains [{ id: 42, name: 'Wild' }, { id: 23, name: '#n
 # read from file, text match and contains
 Given def text = read('demo-text.txt')
 Then match text == 'Hello World!'
+Then assert text == 'Hello World!'
+
+# contains for strings
 Then match text contains 'World'
 
+* def hello = 'Hello World!'
+* match hello == 'Hello World!'
+* assert hello == 'Hello World!'
+* match hello contains 'World'
+
 Given def pdf = read('test.pdf')
-Then match pdf * == read('test.pdf')
+Then match pdf == read('test.pdf')
+
+# json and match contains
+* def foo = { bar: 1, baz: 'hello', ban: 'world' }
+* match foo contains { bar: 1 }
+* match foo contains { baz: 'hello' }
+* match foo contains { bar:1, baz: 'hello' }
+# * match foo == { bar:1, baz: 'hello' }
+
+

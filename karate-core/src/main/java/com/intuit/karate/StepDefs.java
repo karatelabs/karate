@@ -33,38 +33,37 @@ public class StepDefs {
 
     private static final Logger logger = LoggerFactory.getLogger(StepDefs.class);
 
-    private static final String VAR_REQUEST = "_request";    
-    private static final String VAR_HEADERS = "_headers";
-    private static final String VAR_MULTIPART = "_multipart";
-    private static final String VAR_FORM_FIELDS = "_formfields";
-
     public StepDefs(String featureDir, ClassLoader fileClassLoader, String env) {
         context = new ScriptContext(false, featureDir, fileClassLoader, env);
-    }     
+    }
 
     private String url;
     private WebTarget target;
     private Response response;
-    private String accept;
     private long startTime;
-    
+
+    private Map<String, Object> headers;
+    private ScriptValue request;
+    private MultiPart multiPart;
+    private MultivaluedMap<String, Object> formFields;
+
     private final ScriptContext context;
 
     public ScriptContext getContext() {
         return context;
-    }    
+    }
 
     @When("^url (.+)")
-    public void url(String expression) {        
+    public void url(String expression) {
         String temp = Script.preEval(expression, context).getAsString();
         this.url = temp;
         target = context.client.target(temp);
     }
-    
+
     private void hasUrlBeenSet() {
         if (target == null) {
             throw new RuntimeException("url not set, please refer to the syntax for 'url'");
-        }        
+        }
     }
 
     @When("^path (.+)")
@@ -100,10 +99,8 @@ public class StepDefs {
     }
 
     private Map<String, Object> getHeaders() {
-        Map<String, Object> headers = context.vars.get(VAR_HEADERS, Map.class);
         if (headers == null) {
             headers = new HashMap<>();
-            context.vars.put(VAR_HEADERS, headers);
         }
         return headers;
     }
@@ -116,20 +113,18 @@ public class StepDefs {
     }
 
     private MultivaluedMap<String, Object> getFormFields() {
-        MultivaluedMap<String, Object> formFields = context.vars.get(VAR_FORM_FIELDS, MultivaluedMap.class);
         if (formFields == null) {
             formFields = new MultivaluedHashMap<>();
-            context.vars.put(VAR_FORM_FIELDS, formFields);
         }
         return formFields;
     }
-    
+
     @When("^form field ([^\\s]+) = (.+)")
     public void formField(String name, String value) {
         MultivaluedMap<String, Object> formFields = getFormFields();
         String temp = Script.preEval(value, context).getAsString();
         formFields.add(name, temp);
-    }    
+    }
 
     @When("^request$")
     public void requestDocString(String requestBody) {
@@ -138,9 +133,8 @@ public class StepDefs {
 
     @When("^request (.+)")
     public void request(String requestBody) {
-        Object value = Script.preEval(requestBody, context).getValue();
-        logger.trace("request value is: {}", value);
-        context.vars.put(VAR_REQUEST, value);
+        request = Script.preEval(requestBody, context);
+        logger.trace("request value is: {}", request);
     }
 
     @When("^def (.+) =$")
@@ -151,7 +145,7 @@ public class StepDefs {
     @When("^def (.+) = (.+)")
     public void def(String name, String expression) {
         Script.assign(name, expression, context);
-    }    
+    }
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {
@@ -159,10 +153,9 @@ public class StepDefs {
         handleFailure(ar);
     }
 
-    private Invocation.Builder prepare() {  
-        hasUrlBeenSet();        
+    private Invocation.Builder prepare() {
+        hasUrlBeenSet();
         Invocation.Builder builder = target.request();
-        Map<String, Object> headers = context.vars.get(VAR_HEADERS, Map.class);
         if (headers != null) {
             for (Map.Entry<String, Object> entry : headers.entrySet()) {
                 builder = builder.header(entry.getKey(), entry.getValue());
@@ -174,21 +167,13 @@ public class StepDefs {
                 builder = builder.cookie(entry.getKey(), entry.getValue());
             }
         }
-        if (accept != null) {
-            builder.accept(MediaType.valueOf(accept));
-        }
         return builder;
     }
-    
-    @When("^accept (.+)")
-    public void accept(String exp) {
-        this.accept = Script.preEval(exp, context).getAsString();
-    }    
-    
+
     private void startTimer() {
         startTime = System.currentTimeMillis();
     }
-    
+
     private void stopTimer() {
         long endTime = System.currentTimeMillis();
         long responseTime = endTime - startTime;
@@ -196,39 +181,58 @@ public class StepDefs {
         context.vars.put(ScriptValueMap.VAR_RESPONSE_TIME, responseTime);
     }
 
+    private String getUserSpecifiedContentType() {
+        if (headers != null) {
+            String type = (String) headers.get("Content-Type");
+            if (type != null) {
+                return type;
+            }
+        }
+        return null;
+    }
+
     @When("^method (\\w+)")
     public void method(String method) {
         method = method.toUpperCase();
         if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
-            MultivaluedMap<String, Object> formFields = context.vars.get(VAR_FORM_FIELDS, MultivaluedMap.class);
             if (formFields != null) {
                 startTimer();
                 response = prepare().method(method, Entity.entity(formFields, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
                 stopTimer();
             } else {
-                ScriptValue sv = context.vars.get(VAR_REQUEST);
-                if (sv == null || sv.isNull()) {
+                if (request == null || request.isNull()) {
                     String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
                     logger.error(msg);
                     throw new RuntimeException(msg);
                 }
+                String mediaType = getUserSpecifiedContentType();
                 Entity entity;
-                switch (sv.getType()) {
+                switch (request.getType()) {
                     case JSON:
-                        DocumentContext request = sv.getValue(DocumentContext.class);
-                        entity = Entity.json(request.jsonString());
+                        DocumentContext doc = request.getValue(DocumentContext.class);
+                        entity = Entity.json(doc.jsonString());
                         break;
                     case MAP:
-                        Map<String, Object> requestMap = sv.getValue(Map.class);
-                        request = JsonPath.parse(requestMap);
-                        entity = Entity.json(request.jsonString());
+                        Map<String, Object> map = request.getValue(Map.class);
+                        doc = JsonPath.parse(map);
+                        entity = Entity.json(doc.jsonString());
                         break;
                     case XML:
-                        Node node = sv.getValue(Node.class);
+                        Node node = request.getValue(Node.class);
                         entity = Entity.xml(XmlUtils.toString(node));
                         break;
+                    case INPUT_STREAM:
+                        InputStream is = request.getValue(InputStream.class);
+                        if (mediaType == null) {
+                            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+                        }
+                        entity = Entity.entity(is, mediaType);
+                        break;
                     default:
-                        entity = Entity.text(sv.getAsString());
+                        if (mediaType == null) {
+                            mediaType = MediaType.TEXT_PLAIN;
+                        }
+                        entity = Entity.entity(request.getAsString(), mediaType);
                 }
                 startTimer();
                 response = prepare().method(method, entity);
@@ -244,7 +248,7 @@ public class StepDefs {
 
     private void unprepare() {
         context.vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
-        context.vars.remove(VAR_FORM_FIELDS);
+        formFields = null; // reset
         for (Map.Entry<String, NewCookie> entry : response.getCookies().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue().getValue();
@@ -254,18 +258,18 @@ public class StepDefs {
         DocumentContext headers = JsonPath.parse(response.getHeaders());
         logger.trace("set response headers: {}", headers.jsonString());
         context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, headers);
-        String responseBody = response.readEntity(String.class);
-        if (Script.isJson(responseBody)) {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, JsonUtils.toJsonDoc(responseBody));
-        } else if (Script.isXml(responseBody)) {
+        String rawResponse = response.readEntity(String.class);
+        if (Script.isJson(rawResponse)) {
+            context.vars.put(ScriptValueMap.VAR_RESPONSE, JsonUtils.toJsonDoc(rawResponse));
+        } else if (Script.isXml(rawResponse)) {
             try {
-                context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(responseBody));
+                context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(rawResponse));
             } catch (Exception e) {
                 logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
-                context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
+                context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
             }
         } else {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
+            context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
         }
         reset();
     }
@@ -285,33 +289,44 @@ public class StepDefs {
             action = "";
         }
         logger.trace("soap action: '{}'", action);
-        Document doc = context.vars.get(VAR_REQUEST, Document.class);
-        String xml = XmlUtils.toString(doc);
+        if (request == null || request.isNull()) {
+            String msg = "request body is requred for a SOAP request, please use the 'request' keyword";
+            logger.error(msg);
+            throw new RuntimeException(msg);
+        }
+        String xml;
+        switch (request.getType()) {
+            case XML:
+                Document doc = request.getValue(Document.class);
+                xml = XmlUtils.toString(doc);
+                break;
+            default:
+                xml = request.getAsString();
+        }
         startTimer();
         response = target.request().header("SOAPAction", action).method("POST", Entity.entity(xml, MediaType.TEXT_XML));
         stopTimer();
-        String raw = response.readEntity(String.class);
-        if (StringUtils.isNotBlank(raw)) {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(raw));
-        } else {
-            logger.warn("empty soap response, not parsing xml (response variable not set)");
-        }
+        String rawResponse = response.readEntity(String.class);
+        try {
+            context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(rawResponse));
+        } catch (Exception e) {
+            logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
+            context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
+        }        
     }
 
     private MultiPart getMultiPart() {
-        MultiPart mp = context.vars.get(VAR_MULTIPART, MultiPart.class);
-        if (mp == null) {
-            mp = new MultiPart();
-            context.vars.put(VAR_MULTIPART, mp);
+        if (multiPart == null) {
+            multiPart = new MultiPart();
         }
-        return mp;
+        return multiPart;
     }
 
     @When("^multipart entity (.+)")
     public void multiPartEntity(String value) {
         multiPart(null, value);
     }
-    
+
     @When("^multipart field (.+) = (.+)")
     public void multiPartFormField(String name, String value) {
         multiPart(name, value);
@@ -327,7 +342,7 @@ public class StepDefs {
             BodyPart bp;
             switch (sv.getType()) {
                 case JSON:
-                    DocumentContext dc = sv.getValue(DocumentContext.class);                    
+                    DocumentContext dc = sv.getValue(DocumentContext.class);
                     bp = new BodyPart().entity(dc.jsonString()).type(MediaType.APPLICATION_JSON_TYPE);
                     break;
                 case XML:
@@ -349,18 +364,16 @@ public class StepDefs {
 
     @When("^multipart post")
     public void multiPartPost() {
-        String method = "POST";
-        MultiPart mp = getMultiPart();
-        MediaType mediaType = MediaType.MULTIPART_FORM_DATA_TYPE; // default
-        Map<String, Object> headers = context.vars.get(VAR_HEADERS, Map.class);
-        if (headers != null) {
-            String type = (String) headers.get("Content-Type");
-            if (type != null) { // override with user specified
-                mediaType = MediaType.valueOf(type);
-            }
+        if (multiPart == null) {
+            throw new RuntimeException("no multipart content set, please use the 'multipart' keywords before a post");
         }
-        startTimer();       
-        response = prepare().method(method, Entity.entity(mp, mediaType));
+        String method = "POST";
+        String mediaType = getUserSpecifiedContentType();
+        if (mediaType == null) {
+            mediaType = MediaType.MULTIPART_FORM_DATA;
+        }
+        startTimer();
+        response = prepare().method(method, Entity.entity(multiPart, mediaType));
         stopTimer();
         unprepare();
     }
@@ -380,21 +393,21 @@ public class StepDefs {
     public void matchVariableDocString(String name, String path, String expected) {
         matchNamed(false, name, path, expected);
     }
-    
+
     @Then("^match ([^\\s]+)( .+)? contains$")
     public void matchContainsDocString(String name, String path, String expected) {
         matchNamed(true, name, path, expected);
-    }    
+    }
 
     @Then("^match ([^\\s]+)( .+)? == (.+)")
     public void matchVariable(String name, String path, String expected) {
         matchNamed(false, name, path, expected);
     }
-    
+
     @Then("^match ([^\\s]+)( .+)? contains (.+)")
     public void matchContains(String name, String path, String expected) {
         matchNamed(true, name, path, expected);
-    }    
+    }
 
     public void matchNamed(boolean contains, String name, String path, String expected) {
         AssertionResult ar = Script.matchNamed(contains, name, path, expected, context);
@@ -419,12 +432,12 @@ public class StepDefs {
     public final void callAndUpdateVars(String name, String arg) {
         Script.callAndUpdateVars(name, arg, context);
     }
-    
+
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {
             logger.error("result: {}", ar);
             fail(ar.message);
-        }       
+        }
     }
 
 }

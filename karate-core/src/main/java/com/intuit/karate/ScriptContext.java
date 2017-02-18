@@ -27,8 +27,7 @@ public class ScriptContext {
     protected final Map<String, Validator> validators;
     protected final String featureDir;
     protected final ClassLoader fileClassLoader;
-    protected final String env;
-    protected final ClientBuilder clientBuilder;    
+    protected final String env; 
 
     // needed for 3rd party code
     public ScriptValueMap getVars() {
@@ -46,10 +45,9 @@ public class ScriptContext {
         if (test) {
             logger.trace("karate init in test mode, http client disabled");
             client = null;
-            clientBuilder = null;
             return;
         }
-        clientBuilder = ClientBuilder.newBuilder()
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .register(MultiPartFeature.class);
         if (logger.isDebugEnabled()) {
             clientBuilder.register(new LoggingFeature(
@@ -59,9 +57,9 @@ public class ScriptContext {
         }          
         SSLContext sslContext =  SslUtils.getSslContext();
         clientBuilder.sslContext(sslContext);
-        clientBuilder.hostnameVerifier((host, session) -> true);        
-        client = clientBuilder.build();
-        client.register(new RequestFilter(this));                     
+        clientBuilder.hostnameVerifier((host, session) -> true);
+        clientBuilder.register(new RequestFilter(this));
+        client = clientBuilder.build();                             
         // auto config
         try {
             Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);

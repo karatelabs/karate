@@ -252,10 +252,11 @@ public class ScriptTest {
         DocumentContext doc = JsonPath.parse("{ foo: 'bar', baz: { ban: [1, 2, 3]} }");
         ScriptContext ctx = getContext();
         ctx.vars.put("myJson", doc);
-        Script.matchJsonPath(false, "myJson", "$.foo", "'bar'", ctx);
-        Script.matchJsonPath(false, "myJson", "$.baz", "{ ban: [1, 2, 3]} }", ctx);
-        Script.matchJsonPath(false, "myJson", "$.baz.ban[1]", "2", ctx);
-        Script.matchJsonPath(false, "myJson", "$.baz", "{ ban: [1, '#ignore', 3]} }", ctx);
+        ScriptValue myJson = ctx.vars.get("myJson");
+        Script.matchJsonPath(false, myJson, "$.foo", "'bar'", ctx);
+        Script.matchJsonPath(false, myJson, "$.baz", "{ ban: [1, 2, 3]} }", ctx);
+        Script.matchJsonPath(false, myJson, "$.baz.ban[1]", "2", ctx);
+        Script.matchJsonPath(false, myJson, "$.baz", "{ ban: [1, '#ignore', 3]} }", ctx);
     }
 
     @Test
@@ -277,7 +278,8 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         ctx.vars.put("actual", actual);
         ctx.vars.put("expected", expected);
-        Script.matchJsonPath(false, "actual", "$", "expected", ctx);
+        ScriptValue act = ctx.vars.get("actual");
+        Script.matchJsonPath(false, act, "$", "expected", ctx);
     }
 
     @Test
@@ -285,9 +287,10 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
-        Script.matchXmlPath(false, "myXml", "/root/foo", "'bar'", ctx);
-        Script.matchXmlPath(false, "myXml", "/root/foo", "<foo>bar</foo>", ctx);
-        Script.matchXmlPath(false, "myXml", "/root/hello", "'world'", ctx);
+        ScriptValue myXml = ctx.vars.get("myXml");
+        Script.matchXmlPath(false, myXml, "/root/foo", "'bar'", ctx);
+        Script.matchXmlPath(false, myXml, "/root/foo", "<foo>bar</foo>", ctx);
+        Script.matchXmlPath(false, myXml, "/root/hello", "'world'", ctx);
     }
 
     @Test
@@ -297,6 +300,16 @@ public class ScriptTest {
         Script.assign("myStr", "myXml/root/foo", ctx);
         Script.assertBoolean("myStr == 'bar'", ctx);
     }
+    
+    @Test
+    public void testXmlShortCutsForResponse() {
+        ScriptContext ctx = getContext();
+        Script.assign("response", "<root><foo>bar</foo></root>", ctx);
+        Script.matchNamed("response", "/", "<root><foo>bar</foo></root>", ctx);
+        Script.matchNamed("response/", null, "<root><foo>bar</foo></root>", ctx);
+        Script.matchNamed("response", null, "<root><foo>bar</foo></root>", ctx);
+        Script.matchNamed("/", null, "<root><foo>bar</foo></root>", ctx);
+    }    
 
     @Test
     public void testMatchXmlButUsingJsonPath() {
@@ -313,9 +326,10 @@ public class ScriptTest {
         String xml = "<foo><bar>baz1</bar><bar>baz2</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         ctx.vars.put(ScriptValueMap.VAR_RESPONSE, doc);
-        Script.matchXmlPath(false, ScriptValueMap.VAR_RESPONSE, "/", "<foo><bar>baz1</bar><bar>baz2</bar></foo>", ctx);
-        Script.matchXmlPath(false, ScriptValueMap.VAR_RESPONSE, "/foo/bar[2]", "<bar>baz2</bar>", ctx);
-        Script.matchXmlPath(false, ScriptValueMap.VAR_RESPONSE, "/foo/bar[1]", "'baz1'", ctx);
+        ScriptValue response = ctx.vars.get(ScriptValueMap.VAR_RESPONSE);
+        Script.matchXmlPath(false, response, "/", "<foo><bar>baz1</bar><bar>baz2</bar></foo>", ctx);
+        Script.matchXmlPath(false, response, "/foo/bar[2]", "<bar>baz2</bar>", ctx);
+        Script.matchXmlPath(false, response, "/foo/bar[1]", "'baz1'", ctx);
     }
 
     @Test

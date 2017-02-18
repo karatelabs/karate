@@ -9,8 +9,8 @@ without being affected by white-space or the order in which data-elements actual
 can opt to ignore fields that you choose.
 
 Since Karate is built on top of
-[Cucumber](http://cucumber.io) and [JUnit](http://junit.org), you can run tests and
-generate reports like any standard Java project. But instead of using Java - you can write 
+[Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and
+generate reports like any standard Java project. But instead of Java - you write 
 tests in a language designed to make dealing with HTTP, JSON or XML - **simple**.
 
 ## Hello World
@@ -22,14 +22,14 @@ Given url 'http://myhost.com/v1/cats'
 And request { name: 'Billie' }
 When method post
 Then status 201
-And match response == { id: '#ignore', name: 'Billie' }
+And match response == { id: '#notnull', name: 'Billie' }
 
 Given path response.id
 When method get
 Then status 200
 ```
 It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can 
-express payload data without having to use double-quotes and without having to enclose JSON field names
+express payload and expected data without having to use double-quotes and without having to enclose JSON field names
 in quotes.  There is no need to 'escape' characters like you would have had to in Java.
 
 And you don't need to create Java objects (or POJO-s) for any of the payloads that you need to work with.
@@ -44,7 +44,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
- | [`status`](#status) | [`accept`](#accept) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action)
+ | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`contains`](#match-contains) | [Ignore / Vallidate](#ignore-or-validate)
@@ -52,24 +52,25 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- | [Data Driven Tests](#advanced-bdd) | [Auth and Headers](#sign-in-example)
+ | [Data Driven Tests](#data-driven-tests) | [Auth and Headers](#sign-in-example) | [Dynamic Port Numbers](#dynamic-port-numbers)
 
 # Features
-* Scripts are plain-text files and require no compilation step
-* Karate is an extension of [Cucumber](https://cucumber.io) - so JUnit integration comes out of the box
-* Syntax 'natively' supports JSON and XML - including full [JSON-path](https://github.com/jayway/JsonPath) and XPath expression support
-* Embedded JavaScript engine that allows you to build a library of re-usable functions that suit your specific environment
-* You can choose to define data and functions in-line or extract them into separate re-usable files
-* Invoke and re-use existing Java code if you need to
+* Scripts are plain-text files and require no compilation step or IDE
+* Java knowledge is not required to write tests
+* Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and XPath expressions
+* Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment
+* Re-use of payload-data and user-defined functions across tests is so easy - that it becomes natural for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
-* Simple plug-in system for handling authentication and setting up HTTP headers
-* Support for data-driven tests and being able to tag (or group) tests is built-in, so you don’t have to rely on TestNG or JUnit for those features any more
-* Comprehensive support for different flavors of HTTP calls
+* Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
+* Easily invoke JDK classes, Java libraries or re-use custom Java code if needed for ultimate extensibility
+* Simple plug-in system for authentication and HTTP header management that will handle any complex real-world scenario
+* Comprehensive support for different flavors of HTTP calls:
   * SOAP / XML requests
-  * URL-encoded HTML-form submits
-  * Multi-part file-upload
+  * HTTPS / SSL - without needing certificates, key-stores or trust-stores
+  * URL-encoded HTML-form data
+  * Multi-part file-upload - including 'multipart/mixed' and 'multipart/related'
   * Browser-like cookie handling
-  * Full control over headers, path and query parameters
+  * Full control over HTTP headers, path and query parameters
   * Intelligent defaults
 
 ## Hello Real World
@@ -132,6 +133,7 @@ Given path 'documents/upload'
 And multipart field file = read('test.pdf')
 # the custom function is used here
 And multipart field sessionIssueDate = dateStringToLong(session.issued)
+And header Accept = 'application/xml'
 When multipart post
 Then status 200
 
@@ -149,8 +151,8 @@ And match response * == read('test.pdf')
 ```
 
 # Getting Started
-Karate requires [Java](#http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 
-and [Maven](#http://maven.apache.org) to be installed.
+Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8
+and [Maven](http://maven.apache.org) to be installed.
 
 ## Maven
 
@@ -308,6 +310,11 @@ a report in JUnit XML format:
 ```
 mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml"
 ```
+Or in HTML format:
+```
+mvn test -Dcucumber.options="--plugin html:target/cucumber-html"
+```
+
 A problem you may run into is that the report is generated for every JUnit class with the
 `@RunWith(Karate.class)` annotation. So if you have multiple JUnit classes involved in a 
 test-run, you will end up with only the report for the last class as it would have over-written
@@ -317,7 +324,7 @@ but the simplest should be to have a JUnit class (with the Karate annotation) at
 of your test packages (`src/test/java`, no package name). With that in position, you can do this:
 
 ```
-mvn test -Dcucumber.options="--plugin html:target/cucumber-html --tags ~@ignore" -Dtest=TestAll
+mvn test -Dcucumber.options="--tags ~@ignore" -Dtest=TestAll
 ```
 Here, `TestAll` is the name of the Java class you designated to run all your tests. And yes, Cucumber
 has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to 
@@ -366,7 +373,8 @@ When the level is 'DEBUG' the entire request and response payloads are logged.
 
 # Configuration
 > You can skip this section and jump straight to the [Syntax Guide](#syntax-guide) 
-if you are in a hurry to get started with Karate.
+if you are in a hurry to get started with Karate. Things will work even if the `karate-config.js`
+file is not present.
 
 The only 'rule' is that on start-up Karate expects a file called `karate-config.js` 
 to exist on the classpath and contain a JavaScript function.  Karate will invoke this
@@ -498,6 +506,21 @@ to be. That said, the syntax is very concise, and the convention of every step h
 `Given`, `And`, `When` or `Then`, makes things very readable. You end up with a decent approximation of BDD even
 though web-services by nature are "headless", without a UI, and not really human-friendly.
 
+#### Cucumber vs Karate
+If you are familiar with Cucumber (JVM), you may be wondering if you need to write 
+[step-definitions](https://cucumber.io/docs/reference/jvm#step-definitions). The answer is **no**.
+
+Karate's approach is that all the step-definitions you need in order to work with HTTP, JSON and XML
+have been already implemented. And since you can easily extend Karate [using JavaScript](#call), there is
+no need to compile Java code any more.
+
+Aspect | Cucumber | Karate
+-------| -------- | ------
+**Step Definitions Needed** | Yes. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation/) | No. They are ready-made.
+**Layers of Code to Maintain** | 2: Cucumber (Gherkin) + Java step-definitions | 1: Cucumber (Karate-DSL)
+**Natural Language** | Yes. Cucumber will read like natural language if you implement the step-definitions right. | No. Although Karate is a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast) it is ultimately a programming language, albeit a very simple one. But for testing web-services at the level of HTTP requests and responses, it is extremely effective. Keep in mind that web-services are not 'human-facing' by design.
+**BDD Syntax** | Yes | Yes
+
 One nice thing about the design of the underlying Cucumber framework is that
 script-steps are treated the same no matter whether they start with the keyword 
 `Given`, `And`, `When` or `Then`.  What this means is that you are free to use 
@@ -513,8 +536,8 @@ think of the `*` as a 'bullet-point'.
 You can read more about the Given-When-Then convention at the
 [Cucumber reference documentation](https://cucumber.io/docs/reference).
 
-Since Karate is based on Cucumber, you can also use [advanced BDD](#advanced-bdd)
-features such as expressing data-tables in test scripts.
+Since Karate is based on Cucumber, you can also employ [data-driven](#data-driven-tests)
+techniques such as expressing data-tables in test scripts.
 
 With the formalities out of the way, let's dive straight into the syntax.
 
@@ -582,6 +605,24 @@ Then match cat/cat/scores/score[2] == '5'
 # but karate allows you to traverse xml like json !!
 Then match cat.cat.scores.score[1] == 5
 ```
+
+#### Embedded Expressions
+In the '[Hello Real World](#hello-real-world)' example, you may have noticed a short-cut 
+hidden in the value of the 'userId' field:
+```cucumber
+And match session == { issued: '#ignore', token: '#ignore', userId: '#(ticket.userId)' }
+```
+So the rule is - if a string value within a JSON (or XML) object declaration is enclosed
+between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are
+alive in the context can be used in this expression.
+
+This comes in useful in some cases - and side-steps having to use JavaScript functions or 
+JSON-Path expressions to manipulate JSON.  So you get the best of both worlds: 
+the elegance of JSON to express complex nested data - while at the same time being 
+able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
+
+The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also includes usage
+of 'embedded expressions'.
 
 #### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as
@@ -769,18 +810,6 @@ Then status 200
 ```
 And this assertion will cause the test to fail if the HTTP response code is something else.
 
-### `accept`
-By default, Karate tries to determine the right `Accept` HTTP header value from the request payload
-data type (JSON / XML / String / Stream).
-
-You can easily set it explicitly as follows:
-```cucumber
-Given request '<html></html>'
-And accept 'text/html'
-When method post
-Then status 200
-```
-
 See also [`responseStatus`](#responsestatus).
 
 ## Keywords that set key-value pairs
@@ -795,10 +824,20 @@ Given param someKey = 'hello'
 And param anotherKey = someVariable
 ```
 ### `header`
-Setting HTTP headers:
+You can even use functions or expressions:
 ```cucumber
 Given header Authorization = myAuthFunction()
 And header transaction-id = 'test-' + myIdString
+```
+Because of how easy it is to set HTTP headers, Karate does not provide any special keywords for things like 
+the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header. You simply do 
+something like this:
+```cucumber
+Given path 'some/path'
+And request { some: 'data' }
+And header Accept = 'application/json'
+When method post
+Then status 200
 ```
 ### `cookie`
 Setting a cookie:
@@ -820,7 +859,11 @@ And multipart field fileName = 'custom-name.pdf'
 ```
 
 ### `multipart entity`
-Use this for multipart content that don't have field-names.  Here below is an example that 
+
+> This is technically not in the key-value form: `multipart field name = 'foo'`, but logically
+belongs here in the documentation.
+
+Use this for multipart content items that don't have field-names.  Here below is an example that 
 also demonstrates using the [`multipart/related`](https://tools.ietf.org/html/rfc2387) content-type.
 
 ```cucumber
@@ -898,7 +941,7 @@ end-user experience (such as adding or removing a field) will not be caught by t
 ### Payload Assertions / Smart Comparison
 The `match` operation is smart because white-space does not matter, and the order of keys 
 (or data elements) does not matter. Karate is even able to [ignore fields you choose](#ignore-or-validate) - 
-which is very useful when you want to ignore server-side dynamically generated fields such as 
+which is very useful when you want to handle server-side dynamically generated fields such as 
 UUID-s, time-stamps, security-tokens and the like.
 
 The match syntax involves a double-equals sign '==' to represent a comparison
@@ -997,15 +1040,36 @@ What is even more interesting is that expressions can refer to variables:
 * match date == { month: '#? _ >= min && _ <= max' }
 ```
 
+And functions work as well ! You can imagine how you could evolve a nice set of utilities that 
+validate all your domain objects.
+```cucumber
+* def date = { month: 3 }
+* def isValidMonth = function(v) { return v >= 0 && v <= 12 }
+* match date == { month: '#? isValidMonth(_)' }
+```
+
 ### `match` for Text and Streams
-The special operator `*` represents the entire contents of a string (or stream) and can be used like so:
+
 ```cucumber
 # when the response is plain-text
-Then match response * == 'Health Check OK'
+Then match response == 'Health Check OK'
 
 # when the response is a file (stream)
-Then match response * == read('test.pdf')
+Then match response == read('test.pdf')
+
+# incidentally, match and assert behave exactly the same way for strings
+* def hello = 'Hello World!'
+* match hello == 'Hello World!'
+* assert hello == 'Hello World!'
 ```
+
+Checking if a string is contained within another string is a very common need and 
+[`match [name] contains`](#match-contains) works just like you'd expect:
+```cucumber
+* def hello = 'Hello World!'
+* match hello contains 'World'
+```
+
 ### `match header`
 Since asserting against header values in the response is a common task - `match header`
 has a special meaning.  It short-cuts to the pre-defined variable [`responseHeaders`](#responseheaders) and
@@ -1020,15 +1084,28 @@ Note the extra convenience where you don't have to enclose the LHS key in quotes
 You can always directly access the variable called [`responseHeaders`](#responseheaders)
 if you wanted to do more checks, but you typically won't need to.
 
-## Advanced JsonPath
-### And a look at fuzzy assertions on JSON Arrays
-JSONPath allows you to perform powerful assertions. It is worth looking at the reference and examples
-[here](https://github.com/jayway/JsonPath#path-examples).
-
-
+## Matching Sub-Sets of JSON Keys and Arrays
 ### `match contains`
-As just one example, let us perform some assertions after scraping out a list of child elements via
-a JSONPath expression. We also introduce a variant of `match ==` which is `match contains`.
+#### JSON Keys
+In some cases where the response JSON is wildly dynamic, you may want to only check for the existence of
+some keys. And `match [name] contains` is how you can do so:
+```cucumber
+* def foo = { bar: 1, baz: 'hello', ban: 'world' }
+* match foo contains { bar: 1 }
+* match foo contains { baz: 'hello' }
+* match foo contains { bar:1, baz: 'hello' }
+# this will fail
+# * match foo == { bar:1, baz: 'hello' }
+```
+
+#### JSON Arrays
+
+This is a good time to discuss JsonPath, which is perfect for slicing and dicing JSON into manageable chunks,
+against which you can run assertions. It is worth looking at the reference and examples here:
+[JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
+
+As just one example, let us perform some assertions after scraping a list of child elements out of the JSON
+below.
 
 ```cucumber
 Given def cat = 
@@ -1062,7 +1139,8 @@ It is worth mentioning that to do the equivalent of the last line in Java, you w
 traverse 2 Java Objects, one of which is within a list, and you would have to check for nulls as well.
 
 When you use Karate, all your data assertions can be done in pure JSON and without needing a whole
-family of companion Java objects.
+forest of companion Java objects. And when you read your JSON objects from (re-usable) files,
+your response payload assertions can be accomplished in just one line.
 
 ## Special Variables
 
@@ -1089,9 +1167,10 @@ Then match $.name == 'Billie'
 ```
 And similarly for XML and XPath, '/' represents the `response`
 ```cucumber
-# the three lines below are equivalent
+# the four lines below are equivalent
 Then match response / == <cat><name>Billie</name></cat>
 Then match response/ == <cat><name>Billie</name></cat>
+Then match response == <cat><name>Billie</name></cat>
 Then match / == <cat><name>Billie</name></cat> 
 
 # the three lines below are equivalent
@@ -1254,14 +1333,17 @@ function(credentials) {
 As demonstrated in the example above, a function invoked with `call` has access to a 
 special object in a variable named: `karate`.  This provides the following methods:
 
-> TODO: right now only JSON HTTP calls are supported
+> TODO: right now only JSON HTTP calls are supported by `karate.request(req)`
 
-* `karate.request(req)` - make HTTP requests.  See the above example for details.
-* `karate.set(key, value)` - explicitly set a variable which takes effect immediately, even before the function returns
+* `karate.request(req)` - make an HTTP request. The JSON argument has the following keys:
+  * `url`: URL of the HTTP call to be made
+  * `method`: HTTP method, can be lower-case
+  * `body`: JSON payload
+* `karate.set(key, value)` - set the value of a variable immediately, which ensures that the [`headers`](#headers) routine for any HTTP calls made before this JavaScript function exits - works as expected
 * `karate.get(key)` - get the value of a variable by name, if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 * `karate.log(... args)` - log to the same logger being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment setting 'karate.env' used for bootstrapping [configuration](#configuration)
-* `karate.properties[key]` - get the value of any Java system-property by name, useful for advanced custom configuration.
+* `karate.properties[key]` - get the value of any Java system-property by name, useful for advanced custom configuration
 
 ## Rules for Passing Arguments
 Only one argument is allowed.  But this does not limit you in any way because you can 
@@ -1297,9 +1379,10 @@ You can invoke a function in a [re-usable file](#reading-files) using this short
 ```cucumber
 * call read('my-function.js')
 ```
-### HTTP Basic Authentication
-This should make it clear why Karate does not actually come with support for any authentication scheme
-built-in. Things are designed so that you can plug-in what you need, without needing to compile Java code.
+### HTTP Basic Authentication Example
+This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme.
+Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to
+manage the environment-specific configuration values such as user-names and passwords.
 
 First the JavaScript file, `basic-auth.js`:
 ```javascript
@@ -1310,7 +1393,7 @@ function(creds) {
   return 'Basic ' + encoded;
 }
 ```
-And here how it works in a test-script. Note that you need to do this only once within a `Scenario:`,
+And here's how it works in a test-script. Note that you need to do this only once within a `Scenario:`,
 perhaps at the beginning.
 ```cucumber
 * header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
@@ -1321,7 +1404,7 @@ perhaps at the beginning.
 There is already an example of calling a built-in Java class in the 
 '[Hello Real World](#hello-real-world)' example.
 
-Calling any Java code is that easy.  Given this Java class:
+Calling any Java code is that easy.  Given this custom / user-defined Java class:
 ```java
 package com.mycompany;
 
@@ -1368,19 +1451,6 @@ function() {
 ```
 
 # Advanced / Tricks
-## Embedded Expressions
-In the '[Hello Real World](#hello-real-world)' example, you may have noticed a short-cut 
-hidden in the value of the 'userId' field:
-```cucumber
-And match session == { issued: '#ignore', token: '#ignore', userId: '#(ticket.userId)' }
-```
-So the rule is - if a string value within a JSON (or XML) object declaration is enclosed
-between `#(` and `)` - it will be evaluated as a JavaScript expression.
-
-This comes in useful in some cases - and avoids having to use JavaScript functions or 
-JSON-Path expressions to manipulate JSON.  So you get the best of both worlds: 
-the elegance of JSON to express complex nested data - while at the same time being 
-able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
 
 ## GraphQL / RegEx replacement example
 As a demonstration of Karate's power and flexibility, here is an example that reads a 
@@ -1433,38 +1503,63 @@ able to selectively execute a sub-set of tests.
 
 Read more at the [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags).
 
-## Advanced BDD
+## Dynamic Port Numbers
+In situations where you start an (embedded) application server as part of the test set-up phase, a typical
+challenge is that the HTTP port may be determined at run-time. So how can you get this value injected
+into the Karate configuration ?
+
+It so happens that the [`karate`](#the-karate-object) object has an accessor called `properties` (of type array) 
+which can read a Java system-property. Since the `karate` object is available for you to use
+within [`karate-config.js`](#configuration), it is a simple and effective way for other processes within 
+the same JVM to pass configuration values into Karate at run-time.
+
+You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
+* [HelloWorldTest.java](karate-core/src/test/java/com/intuit/karate/wiremock/HelloWorldTest.java) - see line #30
+* [karate-config.js](karate-core/src/test/java/karate-config.js) - see line #10
+* [hello-world.feature](karate-core/src/test/java/com/intuit/karate/wiremock/hello-world.feature) - see line #5
+
+## Data Driven Tests
 Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines)
 where you can re-use a set of data-driven steps and assertions, and the data can be declared in a
-very user-friendly fashion.  Here is an example.
+very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the 
+new `Examples:` section.
 
-Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the new `Examples:` section.
+This example is a port of the [REST-Assured](http://rest-assured.io) tutorial by 
+[@Bas Dijkstra](https://twitter.com/_basdijkstra) and you should take a minute to compare the 
+below code with the [original](http://bit.ly/2kGxiU0).
 
 ```cucumber
-Feature: a karate test using cucumber scenario outlines
+Feature: karate answers 2
 
 Background:
-* url 'http://localhost:8089/v1/dogs'
+* url 'http://localhost:8080'
 
-Scenario Outline: create many dogs and retrieve them
+Scenario Outline: given circuit name, validate country
 
-Given request { name: '<name>', age: <age>, height: <height> }
-When method post
-Then status 201
-And match response == { id: '#ignore', name: '<name>', age: <age>, height: <height> }
-
-Given path response.id
+Given path 'api/f1/circuits/<name>.json'
 When method get
-Then status 200
+Then match $.MRData.CircuitTable.Circuits[0].Location.country == '<country>'
 
 Examples:
-|  name  | age | height |
-| Snoopy |  2  | 12.1   |
-| Pluto  |  5  | 20.2   |
-| Scooby | 10  | 40.7   |
-| Spike  |  7  | 35.3   |
+| name   | country  |
+| monza  | Italy    |
+| spa    | Belgium  |
+| sepang | Malaysia |
+
+Scenario Outline: given race number, validate number of pitstops for Max Verstappen in 2015
+
+Given path 'api/f1/2015/<race>/drivers/max_verstappen/pitstops.json'
+When method get
+Then assert response.MRData.RaceTable.Races[0].PitStops.length == <stops>
+
+Examples:
+| race | stops |
+| 1    | 1     |
+| 2    | 3     |
+| 3    | 2     |
+| 4    | 2     |
 ```
 This is great for testing boundary conditions against a single end-point, with the added bonus that
 your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
-who are not programmer-folk, to collaborate on test-scenarios and scripts.
+who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
