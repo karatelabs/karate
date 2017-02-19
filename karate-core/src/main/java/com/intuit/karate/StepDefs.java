@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
@@ -52,6 +53,12 @@ public class StepDefs {
     public ScriptContext getContext() {
         return context;
     }
+    
+    @When("^ssl enabled")
+    public void sslEnabled() {
+        SSLContext ssl = SslUtils.getSslContext();
+        context.buildClient(ssl);
+    }    
 
     @When("^url (.+)")
     public void url(String expression) {
@@ -312,7 +319,7 @@ public class StepDefs {
         } catch (Exception e) {
             logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
             context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
-        }        
+        }
     }
 
     private MultiPart getMultiPart() {
@@ -389,28 +396,37 @@ public class StepDefs {
         assertEquals(status, response.getStatus());
     }
 
-    @Then("^match ([^\\s]+)( .+)? ==$")
-    public void matchVariableDocString(String name, String path, String expected) {
-        matchNamed(false, name, path, expected);
+    private static MatchType toMatchType(String each, boolean contains) {
+        return each == null
+                ? contains ? MatchType.CONTAINS : MatchType.EQUALS
+                : contains ? MatchType.EACH_CONTAINS : MatchType.EACH_EQUALS;
     }
 
-    @Then("^match ([^\\s]+)( .+)? contains$")
-    public void matchContainsDocString(String name, String path, String expected) {
-        matchNamed(true, name, path, expected);
+    @Then("^match (each )?([^\\s]+)( .+)? ==$")
+    public void matchEqualsDocString(String each, String name, String path, String expected) {
+        matchEquals(each, name, path, expected);
     }
 
-    @Then("^match ([^\\s]+)( .+)? == (.+)")
-    public void matchVariable(String name, String path, String expected) {
-        matchNamed(false, name, path, expected);
+    @Then("^match (each )?([^\\s]+)( .+)? contains$")
+    public void matchContainsDocString(String each, String name, String path, String expected) {
+        matchContains(each, name, path, expected);
     }
 
-    @Then("^match ([^\\s]+)( .+)? contains (.+)")
-    public void matchContains(String name, String path, String expected) {
-        matchNamed(true, name, path, expected);
+
+    @Then("^match (each )?([^\\s]+)( .+)? == (.+)")
+    public void matchEquals(String each, String name, String path, String expected) {
+        MatchType mt = toMatchType(each, false);
+        matchNamed(mt, name, path, expected);
     }
 
-    public void matchNamed(boolean contains, String name, String path, String expected) {
-        AssertionResult ar = Script.matchNamed(contains, name, path, expected, context);
+    @Then("^match (each )?([^\\s]+)( .+)? contains (.+)")
+    public void matchContains(String each, String name, String path, String expected) {
+        MatchType mt = toMatchType(each, true);
+        matchNamed(mt, name, path, expected);
+    }
+
+    public void matchNamed(MatchType matchType, String name, String path, String expected) {
+        AssertionResult ar = Script.matchNamed(matchType, name, path, expected, context);
         handleFailure(ar);
     }
 

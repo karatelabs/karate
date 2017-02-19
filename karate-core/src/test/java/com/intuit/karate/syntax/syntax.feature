@@ -291,4 +291,12 @@ Then match pdf == read('test.pdf')
 * match foo contains { bar:1, baz: 'hello' }
 # * match foo == { bar:1, baz: 'hello' }
 
+# match each
+* def data = { foo: [{ bar: 1, baz: 'a' }, { bar: 2, baz: 'b' }, { bar: 3, baz: 'c' }]}
+* match each data.foo == { bar: '#number', baz: '#string' }
+* match each data.foo contains { bar: '#number' }
+* match each data.foo contains { bar: '#? _ != 4' }
+* match each data.foo contains { baz: "#? _ != 'z'" }
+* def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
+* match each data.foo contains { baz: '#? isAbc(_)' }
 

@@ -44,8 +44,7 @@ public class SslUtils {
             ctx.init(null, certs, new SecureRandom());
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-        HttpsURLConnection.setDefaultSSLSocketFactory(ctx.getSocketFactory());
+        }        
         return ctx;
     }
 

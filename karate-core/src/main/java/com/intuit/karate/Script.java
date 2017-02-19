@@ -340,10 +340,10 @@ public class Script {
     }
 
     public static AssertionResult matchNamed(String name, String path, String expected, ScriptContext context) {
-        return matchNamed(false, name, path, expected, context);
+        return matchNamed(MatchType.EQUALS, name, path, expected, context);
     }
 
-    public static AssertionResult matchNamed(boolean contains, String name, String path, String expected, ScriptContext context) {
+    public static AssertionResult matchNamed(MatchType matchType, String name, String path, String expected, ScriptContext context) {
         name = StringUtils.trim(name);
         if (isJsonPath(name) || isXmlPath(name)) { // short-cut for operating on response
             path = name;
@@ -357,39 +357,39 @@ public class Script {
         }
         expected = StringUtils.trim(expected);
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
-            return matchNamed(contains, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
+            return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
         } else {
             ScriptValue actual = context.vars.get(name);
-            switch(actual.getType()) {
+            switch (actual.getType()) {
                 case STRING:
                 case INPUT_STREAM:
-                    return matchString(contains, actual, expected, path, context);
+                    return matchString(matchType, actual, expected, path, context);
                 case XML:
                     if ("$".equals(path)) {
                         path = "/"; // edge case where the name was 'response'
                     }
                     if (!isJsonPath(path)) {
-                        return matchXmlPath(contains, actual, path, expected, context);
+                        return matchXmlPath(matchType, actual, path, expected, context);
                     }
-                    // break; 
-                    // fall through to JSON. yes, dot notation can be used on XML
+                // break; 
+                // fall through to JSON. yes, dot notation can be used on XML !!
                 default:
-                    return matchJsonPath(contains, actual, path, expected, context);
+                    return matchJsonPath(matchType, actual, path, expected, context);
             }
         }
     }
 
-    public static AssertionResult matchString(boolean contains, ScriptValue actual, String expected, String path, ScriptContext context) {
+    public static AssertionResult matchString(MatchType matchType, ScriptValue actual, String expected, String path, ScriptContext context) {
         ScriptValue expectedValue = preEval(expected, context);
         expected = expectedValue.getAsString();
-        return matchStringOrPattern(contains, actual, expected, path, context);
+        return matchStringOrPattern(matchType, actual, expected, path, context);
     }
 
     public static boolean isValidator(String text) {
         return text.startsWith("#");
     }
 
-    public static AssertionResult matchStringOrPattern(boolean contains, ScriptValue actValue, String expected, String path, ScriptContext context) {
+    public static AssertionResult matchStringOrPattern(MatchType matchType, ScriptValue actValue, String expected, String path, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
                 return matchFailed(path, actValue.getValue(), expected);
@@ -422,7 +422,7 @@ public class Script {
             }
         } else {
             String actual = actValue.getAsString();
-            if (contains) {
+            if (matchType == MatchType.CONTAINS) {
                 if (!actual.contains(expected)) {
                     return matchFailed(path, actual, expected + " (not a sub-string)");
                 }
@@ -433,11 +433,11 @@ public class Script {
         return AssertionResult.PASS;
     }
 
-    public static AssertionResult matchXmlObject(boolean contains, Object act, Object exp, ScriptContext context) {
-        return matchNestedObject('/', "", contains, act, exp, context);
+    public static AssertionResult matchXmlObject(MatchType matchType, Object act, Object exp, ScriptContext context) {
+        return matchNestedObject('/', "", matchType, act, exp, context);
     }
 
-    public static AssertionResult matchXmlPath(boolean contains, ScriptValue actual, String path, String expression, ScriptContext context) {
+    public static AssertionResult matchXmlPath(MatchType matchType, ScriptValue actual, String path, String expression, ScriptContext context) {
         Document actualDoc = actual.getValue(Document.class);
         Node actNode = XmlUtils.getNodeByPath(actualDoc, path);
         ScriptValue expected = preEval(expression, context);
@@ -453,10 +453,10 @@ public class Script {
                 actObject = new ScriptValue(actNode).getAsString();
                 expObject = expected.getAsString();
         }
-        return matchNestedObject('/', path, contains, actObject, expObject, context);
+        return matchNestedObject('/', path, matchType, actObject, expObject, context);
     }
 
-    public static AssertionResult matchJsonPath(boolean contains, ScriptValue actual, String path, String expression, ScriptContext context) {
+    public static AssertionResult matchJsonPath(MatchType matchType, ScriptValue actual, String path, String expression, ScriptContext context) {
         DocumentContext actualDoc;
         switch (actual.getType()) {
             case JSON:
@@ -476,7 +476,7 @@ public class Script {
                 if (!expected.isString()) {
                     return matchFailed(path, actualString, expected.getValue());
                 } else {
-                    return matchStringOrPattern(contains, actual, expected.getValue(String.class), path, context);
+                    return matchStringOrPattern(matchType, actual, expected.getValue(String.class), path, context);
                 }
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
@@ -491,15 +491,40 @@ public class Script {
             default:
                 expObject = expected.getValue();
         }
-        return matchNestedObject('.', path, contains, actObject, expObject, context);
+        switch (matchType) {
+            case CONTAINS:
+            case EQUALS:
+                return matchNestedObject('.', path, matchType, actObject, expObject, context);
+            case EACH_EQUALS:
+            case EACH_CONTAINS:
+                if (actObject instanceof List) {
+                    List actList = (List) actObject;
+                    MatchType listMatchType = matchType == MatchType.EACH_CONTAINS ? MatchType.CONTAINS : MatchType.EQUALS;
+                    int actSize = actList.size();
+                    for (int i = 0; i < actSize; i++) {
+                        Object actListObject = actList.get(i);
+                        String listPath = path + "[" + i + "]";
+                        AssertionResult ar = matchNestedObject('.', listPath, listMatchType, actListObject, expObject, context);
+                        if (!ar.pass) {
+                            return ar;
+                        }
+                    }
+                    return AssertionResult.PASS;
+                } else {
+                    throw new RuntimeException("'match all' failed, not a json array: + " + actual + ", path: " + path);
+                }
+            default:
+                // dead code
+                return AssertionResult.PASS;
+        }
     }
 
     public static AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
-        return matchNestedObject('.', "$", false, act, exp, context);
+        return matchNestedObject('.', "$", MatchType.EQUALS, act, exp, context);
     }
 
-    public static AssertionResult matchJsonObject(boolean contains, Object act, Object exp, ScriptContext context) {
-        return matchNestedObject('.', "$", contains, act, exp, context);
+    public static AssertionResult matchJsonObject(MatchType matchType, Object act, Object exp, ScriptContext context) {
+        return matchNestedObject('.', "$", matchType, act, exp, context);
     }
 
     public static AssertionResult matchFailed(String path, Object actObject, Object expObject) {
@@ -508,7 +533,7 @@ public class Script {
         return AssertionResult.fail(message);
     }
 
-    public static AssertionResult matchNestedObject(char delimiter, String path, boolean contains, Object actObject, Object expObject, ScriptContext context) {
+    public static AssertionResult matchNestedObject(char delimiter, String path, MatchType matchType, Object actObject, Object expObject, ScriptContext context) {
         logger.trace("path: {}, actual: '{}', expected: '{}'", path, actObject, expObject);
         if (expObject == null) {
             if (actObject != null) {
@@ -518,20 +543,20 @@ public class Script {
         }
         if (expObject instanceof String) {
             ScriptValue actValue = new ScriptValue(actObject);
-            return matchStringOrPattern(contains, actValue, expObject.toString(), path, context);
+            return matchStringOrPattern(matchType, actValue, expObject.toString(), path, context);
         } else if (expObject instanceof Map) {
             if (!(actObject instanceof Map)) {
                 return matchFailed(path, actObject, expObject);
             }
             Map<String, Object> expMap = (Map) expObject;
             Map<String, Object> actMap = (Map) actObject;
-            if (!contains && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
+            if (matchType != MatchType.CONTAINS && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
                 return matchFailed(path, actObject, expObject);
             }
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
                 String childPath = path + delimiter + key;
-                AssertionResult ar = matchNestedObject(delimiter, childPath, Boolean.FALSE, actMap.get(key), expEntry.getValue(), context);
+                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actMap.get(key), expEntry.getValue(), context);
                 if (!ar.pass) {
                     return ar;
                 }
@@ -542,16 +567,16 @@ public class Script {
             List actList = (List) actObject;
             int actCount = actList.size();
             int expCount = expList.size();
-            if (!contains && actCount != expCount) {
+            if (matchType != MatchType.CONTAINS && actCount != expCount) {
                 return matchFailed(path, actObject, expObject);
             }
-            if (contains) { // just checks for existence
+            if (matchType == MatchType.CONTAINS) { // just checks for existence
                 for (Object expListObject : expList) { // for each expected item in the list
                     boolean found = false;
                     for (int i = 0; i < actCount; i++) {
                         Object actListObject = actList.get(i);
                         String listPath = path + "[" + i + "]";
-                        AssertionResult ar = matchNestedObject(delimiter, listPath, Boolean.FALSE, actListObject, expListObject, context);
+                        AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actListObject, expListObject, context);
                         if (ar.pass) { // exact match, we found it
                             found = true;
                             break;
@@ -567,7 +592,7 @@ public class Script {
                     Object expListObject = expList.get(i);
                     Object actListObject = actList.get(i);
                     String listPath = path + "[" + i + "]";
-                    AssertionResult ar = matchNestedObject(delimiter, listPath, Boolean.FALSE, actListObject, expListObject, context);
+                    AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actListObject, expListObject, context);
                     if (!ar.pass) {
                         return matchFailed(path, actObject, expObject);
                     }

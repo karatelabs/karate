@@ -244,7 +244,7 @@ public class ScriptTest {
         Map<String, Object> rightChild = new HashMap<>();
         rightChild.put("a", 1);
         right.add(rightChild);
-        Script.matchJsonObject(left, right, null);
+        assertTrue(Script.matchJsonObject(left, right, null).pass);
     }
 
     @Test
@@ -253,19 +253,32 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         ctx.vars.put("myJson", doc);
         ScriptValue myJson = ctx.vars.get("myJson");
-        Script.matchJsonPath(false, myJson, "$.foo", "'bar'", ctx);
-        Script.matchJsonPath(false, myJson, "$.baz", "{ ban: [1, 2, 3]} }", ctx);
-        Script.matchJsonPath(false, myJson, "$.baz.ban[1]", "2", ctx);
-        Script.matchJsonPath(false, myJson, "$.baz", "{ ban: [1, '#ignore', 3]} }", ctx);
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, myJson, "$.foo", "'bar'", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, myJson, "$.baz", "{ ban: [1, 2, 3]} }", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, myJson, "$.baz.ban[1]", "2", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, myJson, "$.baz", "{ ban: [1, '#ignore', 3]} }", ctx).pass);
     }
+    
+    @Test
+    public void testMatchAllJsonPath() {
+        DocumentContext doc = JsonPath.parse("{ foo: [{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]}");
+        ScriptContext ctx = getContext();
+        ctx.vars.put("myJson", doc);
+        ScriptValue myJson = ctx.vars.get("myJson");
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, myJson, "$.foo", "[{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EACH_EQUALS, myJson, "$.foo", "{bar:'#number', baz:'#string'}", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EACH_CONTAINS, myJson, "$.foo", "{bar:'#number'}", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EACH_CONTAINS, myJson, "$.foo", "{baz:'#string'}", ctx).pass);
+        assertFalse(Script.matchJsonPath(MatchType.EACH_EQUALS, myJson, "$.foo", "{bar:'#? _ < 3',  baz:'#string'}", ctx).pass);
+    }    
 
     @Test
     public void testMatchJsonPathOnResponse() {
         DocumentContext doc = JsonPath.parse("{ foo: 'bar' }");
         ScriptContext ctx = getContext();
         ctx.vars.put("response", doc);
-        Script.matchNamed("$", null, "{ foo: 'bar' }", ctx);
-        Script.matchNamed("$.foo", null, "'bar'", ctx);
+        assertTrue(Script.matchNamed("$", null, "{ foo: 'bar' }", ctx).pass);
+        assertTrue(Script.matchNamed("$.foo", null, "'bar'", ctx).pass);
     }
 
     private final String ACTUAL = "{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\"},\"primaryId\":\"bef90f66-bb57-4fea-83aa-a0acc42b0426\",\"created\":{\"on\":\"2016-02-28T05:56:48.485+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"},\"organization\":{\"id\":{\"domain\":\"ACS\",\"type\":\"entityId\",\"value\":\"631fafe9-8822-4c82-b4a4-8735b202c16c\"},\"created\":{\"on\":\"2016-02-28T05:56:48.486+0000\"},\"lastUpdated\":{\"on\":\"2016-02-28T05:56:49.038+0000\"}},\"clientState\":\"ACTIVE\"}";
@@ -279,7 +292,7 @@ public class ScriptTest {
         ctx.vars.put("actual", actual);
         ctx.vars.put("expected", expected);
         ScriptValue act = ctx.vars.get("actual");
-        Script.matchJsonPath(false, act, "$", "expected", ctx);
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, act, "$", "expected", ctx).pass);
     }
 
     @Test
@@ -288,9 +301,9 @@ public class ScriptTest {
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
         ScriptValue myXml = ctx.vars.get("myXml");
-        Script.matchXmlPath(false, myXml, "/root/foo", "'bar'", ctx);
-        Script.matchXmlPath(false, myXml, "/root/foo", "<foo>bar</foo>", ctx);
-        Script.matchXmlPath(false, myXml, "/root/hello", "'world'", ctx);
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/foo", "'bar'", ctx).pass);
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/foo", "<foo>bar</foo>", ctx).pass);
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/hello", "'world'", ctx).pass);
     }
 
     @Test
@@ -298,17 +311,17 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
         Script.assign("myStr", "myXml/root/foo", ctx);
-        Script.assertBoolean("myStr == 'bar'", ctx);
+        assertTrue(Script.assertBoolean("myStr == 'bar'", ctx).pass);
     }
     
     @Test
     public void testXmlShortCutsForResponse() {
         ScriptContext ctx = getContext();
         Script.assign("response", "<root><foo>bar</foo></root>", ctx);
-        Script.matchNamed("response", "/", "<root><foo>bar</foo></root>", ctx);
-        Script.matchNamed("response/", null, "<root><foo>bar</foo></root>", ctx);
-        Script.matchNamed("response", null, "<root><foo>bar</foo></root>", ctx);
-        Script.matchNamed("/", null, "<root><foo>bar</foo></root>", ctx);
+        assertTrue(Script.matchNamed("response", "/", "<root><foo>bar</foo></root>", ctx).pass);
+        assertTrue(Script.matchNamed("response/", null, "<root><foo>bar</foo></root>", ctx).pass);
+        assertTrue(Script.matchNamed("response", null, "<root><foo>bar</foo></root>", ctx).pass);
+        assertTrue(Script.matchNamed("/", null, "<root><foo>bar</foo></root>", ctx).pass);
     }    
 
     @Test
@@ -316,8 +329,8 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>");
         ctx.vars.put("myXml", doc);
-        Script.matchNamed("myXml/cat/scores/score[2]", null, "'5'", ctx);
-        Script.matchNamed("myXml.cat.scores.score[1]", null, "5", ctx);
+        assertTrue(Script.matchNamed("myXml/cat/scores/score[2]", null, "'5'", ctx).pass);
+        assertTrue(Script.matchNamed("myXml.cat.scores.score[1]", null, "5", ctx).pass);
     }
 
     @Test
@@ -327,9 +340,9 @@ public class ScriptTest {
         Document doc = XmlUtils.toXmlDoc(xml);
         ctx.vars.put(ScriptValueMap.VAR_RESPONSE, doc);
         ScriptValue response = ctx.vars.get(ScriptValueMap.VAR_RESPONSE);
-        Script.matchXmlPath(false, response, "/", "<foo><bar>baz1</bar><bar>baz2</bar></foo>", ctx);
-        Script.matchXmlPath(false, response, "/foo/bar[2]", "<bar>baz2</bar>", ctx);
-        Script.matchXmlPath(false, response, "/foo/bar[1]", "'baz1'", ctx);
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/", "<foo><bar>baz1</bar><bar>baz2</bar></foo>", ctx).pass);
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/foo/bar[2]", "<bar>baz2</bar>", ctx).pass);
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/foo/bar[1]", "'baz1'", ctx).pass);
     }
 
     @Test
@@ -487,16 +500,16 @@ public class ScriptTest {
     public void testMatchJsonArrayContains() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "{ bar: [1, 2, 3] }", ctx);
-        assertTrue(Script.matchNamed(false, "foo.bar", null, "[1 ,2, 3]", ctx).pass);
-        assertTrue(Script.matchNamed(true, "foo.bar", null, "[1]", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.bar", null, "[1 ,2, 3]", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "foo.bar", null, "[1]", ctx).pass);
     }
 
     @Test
     public void testMatchStringContains() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "'hello world'", ctx);
-        assertTrue(Script.matchNamed(true, "foo", null, "'hello'", ctx).pass);
-        assertFalse(Script.matchNamed(true, "foo", null, "'zoo'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "foo", null, "'hello'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "'zoo'", ctx).pass);
     }
 
     @Test

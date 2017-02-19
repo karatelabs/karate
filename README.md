@@ -40,11 +40,11 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 ----- | ---- | ---- | --- | ---
 **Getting Started** | [Maven](#maven) | [Folder Structure](#recommended-folder-structure) | [File Extension](#file-extension) | [Running with JUnit](#running-with-junit)
  | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
- | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then)
+ | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
- | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action)
+ | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action) | [`ssl enabled`](#ssl-enabled)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`contains`](#match-contains) | [Ignore / Vallidate](#ignore-or-validate)
@@ -52,7 +52,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- | [Data Driven Tests](#data-driven-tests) | [Auth and Headers](#sign-in-example) | [Dynamic Port Numbers](#dynamic-port-numbers)
+ | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) and [Headers](#http-basic-authentication-example) | [Dynamic Port Numbers](#dynamic-port-numbers)
 
 # Features
 * Scripts are plain-text files and require no compilation step or IDE
@@ -324,7 +324,7 @@ but the simplest should be to have a JUnit class (with the Karate annotation) at
 of your test packages (`src/test/java`, no package name). With that in position, you can do this:
 
 ```
-mvn test -Dcucumber.options="--tags ~@ignore" -Dtest=TestAll
+mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml --tags ~@ignore" -Dtest=TestAll
 ```
 Here, `TestAll` is the name of the Java class you designated to run all your tests. And yes, Cucumber
 has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to 
@@ -514,11 +514,11 @@ Karate's approach is that all the step-definitions you need in order to work wit
 have been already implemented. And since you can easily extend Karate [using JavaScript](#call), there is
 no need to compile Java code any more.
 
-Aspect | Cucumber | Karate
--------| -------- | ------
-**Step Definitions Needed** | Yes. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation/) | No. They are ready-made.
-**Layers of Code to Maintain** | 2: Cucumber (Gherkin) + Java step-definitions | 1: Cucumber (Karate-DSL)
-**Natural Language** | Yes. Cucumber will read like natural language if you implement the step-definitions right. | No. Although Karate is a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast) it is ultimately a programming language, albeit a very simple one. But for testing web-services at the level of HTTP requests and responses, it is extremely effective. Keep in mind that web-services are not 'human-facing' by design.
+ -     | Cucumber | Karate
+------ | -------- | ------
+**Must Add Step Definitions** | Yes. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | No.
+**Layers of Code to Maintain** | **2** : Gherkin (custom grammar), and corresponding Java step-definitions | **1** : Karate DSL
+**Natural Language** | Yes. Cucumber will read like natural language if you implement the step-definitions right. | No. Although Karate is a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language, although a very simple one. But for testing web-services at the level of HTTP requests and responses, it is ideal. Keep in mind that web-services are not 'human-facing' by design.
 **BDD Syntax** | Yes | Yes
 
 One nice thing about the design of the underlying Cucumber framework is that
@@ -541,9 +541,9 @@ techniques such as expressing data-tables in test scripts.
 
 With the formalities out of the way, let's dive straight into the syntax.
 
-# Variables
+# Setting and Using Variables
 ## `def`
-### For Setting Variables
+### Set a named variable
 ```cucumber
 # assigning a string value:
 Given def myVar = 'world'
@@ -559,7 +559,7 @@ Keep in mind that the start-up [configuration routine](#configuration) could hav
 initialized some variables before the script even started.
 
 ## `assert`
-### Assert if an Expression evaluates to `true`
+### Assert if an expression evaluates to `true`
 Once defined, you can refer to a variable by name. Expressions are evaluated using the embedded 
 JavaScript engine. The assert keyword can be used to assert that an expression returns a boolean value.
 
@@ -575,7 +575,7 @@ Instead you would typically use the [`match`](#match) keyword, that is designed 
 powerful assertions against JSON and XML response payloads.
 
 ## `print`
-### Ideal for logging a message to the console
+### Log to the console
 You can use `print` to log variables to the console in the middle of a script.
 All of the text to the right of the `print` keyword will be evaluated as a single expression
 (somewhat like [`assert`](#assert)).
@@ -583,12 +583,12 @@ All of the text to the right of the `print` keyword will be evaluated as a singl
 * print 'the value of a is ' + a
 ```
 
-## 'Native' data types
+# 'Native' data types
 Native data types mean that you can insert them into a script without having to worry about
 enclosing them in strings and then having to 'escape' double-quotes all over the place.
 They seamlessly fit 'in-line' within your test script.
 
-### JSON
+## JSON
 Note that the parser is 'lenient' so that you don't have to enclose all keys in double-quotes.
 ```cucumber
 * def cat = { name: 'Billie', scores: [2, 5] }
@@ -597,7 +597,7 @@ Note that the parser is 'lenient' so that you don't have to enclose all keys in 
 When inspecting JSON (or XML) for expected values you are probably better off 
 using [`match`](#match) instead of `assert`.
 
-### XML
+## XML
 ```cucumber
 Given def cat = <cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>
 # sadly, xpath list indexes start from 1
@@ -606,7 +606,7 @@ Then match cat/cat/scores/score[2] == '5'
 Then match cat.cat.scores.score[1] == 5
 ```
 
-#### Embedded Expressions
+### Embedded Expressions
 In the '[Hello Real World](#hello-real-world)' example, you may have noticed a short-cut 
 hidden in the value of the 'userId' field:
 ```cucumber
@@ -616,15 +616,15 @@ So the rule is - if a string value within a JSON (or XML) object declaration is 
 between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are
 alive in the context can be used in this expression.
 
-This comes in useful in some cases - and side-steps having to use JavaScript functions or 
-JSON-Path expressions to manipulate JSON.  So you get the best of both worlds: 
+This comes in useful in some cases - and avoids needing to use JavaScript functions or 
+JSON-Path expressions to [manipulate JSON](#set).  So you get the best of both worlds: 
 the elegance of JSON to express complex nested data - while at the same time being 
 able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
 
-The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also includes usage
-of 'embedded expressions'.
+The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage
+of 'embedded expressions', e.g. `'#(query)'`.
 
-#### Multi-Line Expressions
+### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as
 the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line,
 without having to split it out into a separate [file](#reading-files). Here are some examples:
@@ -701,6 +701,7 @@ If you want to do advanced stuff such as make HTTP requests within a function -
 that is what the [`call`](#call) keyword is for.
 
 [More examples](#calling-java) of calling Java appear later in this document.
+
 ## Reading Files
 This actually is a good example of how you could extend Karate with custom functions.
 `read()` is a JavaScript function that is automatically available when Karate starts.
@@ -737,12 +738,12 @@ which is typically what you would need for [`multipart`](#multipart-field) file 
 * def someStream = read('some-pdf.pdf')
 ```
 
-## Core Keywords
+# Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
 
 These are essential HTTP operations, they focus on setting one (non-keyed) value at a time and 
 don't involve any '=' signs in the syntax.
-### `url`
+## `url`
 ```cucumber
 Given url 'https://myhost.com/v1/cats'
 ```
@@ -754,7 +755,7 @@ can come from global [config](#configuration).
 ```cucumber
 Given url 'https://' + e2eHostName + '/v1/api'
 ```
-### `path`
+## `path`
 REST-style path parameters.  Can be expressions that will be evaluated.  Comma delimited values are 
 supported which can be more convenient, and takes care of URL-encoding and appending '/' where needed.
 ```cucumber
@@ -768,25 +769,33 @@ Given path 'documents'
 And path documentId
 And path 'download'
 ```
-### `request`
+## `request`
 In-line JSON:
 ```cucumber
-When request { name: 'Billie', type: 'LOL' }
+Given request { name: 'Billie', type: 'LOL' }
 ```
 In-line XML:
 ```cucumber
-When request <cat><name>Billie</name><type>Ceiling</type></cat>
+And request <cat><name>Billie</name><type>Ceiling</type></cat>
 ```
 From a [file](#reading-files) in the same package.  Use the `classpath:` prefix to load from the 
 classpath instead.
 ```cucumber
-When request read('my-json.json')
+Given request read('my-json.json')
 ```
 You could always use a variable:
 ```cucumber
-When request myVariable
+And request myVariable
 ```
-### `method`
+Defining the `request` is mandatory if you are using an HTTP `method` that expects a body such as
+`post`. You can always specify an empty body as follows, and force the right `Content-Type` header
+by using the [`header`](#header) keyword.
+```cucumber
+Given request ''
+And header Content-Type = 'text/html'
+```
+
+## `method`
 The HTTP verb - `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, `connect`, `trace`.
 
 Lower-case is fine.
@@ -803,7 +812,7 @@ When method get
 # the step that immediately follows the above would typically be:
 Then status 200
 ```
-### `status`
+## `status`
 This is a shortcut to assert the HTTP response code.
 ```cucumber
 Then status 200
@@ -812,18 +821,18 @@ And this assertion will cause the test to fail if the HTTP response code is some
 
 See also [`responseStatus`](#responsestatus).
 
-## Keywords that set key-value pairs
+# Keywords that set key-value pairs
 They are `param`, `header`, `cookie`, `form field` and `multipart field`.
 
 The syntax will include a '=' sign between the key and the value.  The key does not need to
 be within quotes.
-### `param` 
+## `param` 
 Setting query-string parameters:
 ```cucumber
 Given param someKey = 'hello'
 And param anotherKey = someVariable
 ```
-### `header`
+## `header`
 You can even use functions or expressions:
 ```cucumber
 Given header Authorization = myAuthFunction()
@@ -839,17 +848,17 @@ And header Accept = 'application/json'
 When method post
 Then status 200
 ```
-### `cookie`
+## `cookie`
 Setting a cookie:
 ```cucumber
 Given cookie foo = 'bar'
 ```
-### `form field` 
+## `form field` 
 These would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step).
 ```cucumber
 Given form field foo = 'bar'
 ```
-### `multipart field`
+## `multipart field`
 Use this for building multipart named (form) field requests.  The submit has to be issued with 
 [`multipart post`](#multipart-post).
 
@@ -858,7 +867,7 @@ Given multipart field file = read('test.pdf')
 And multipart field fileName = 'custom-name.pdf'
 ```
 
-### `multipart entity`
+## `multipart entity`
 
 > This is technically not in the key-value form: `multipart field name = 'foo'`, but logically
 belongs here in the documentation.
@@ -875,8 +884,8 @@ When multipart post
 Then status 201
 ```
 
-## A couple more commands
-### `multipart post`
+# Multipart and SOAP
+## `multipart post`
 Since a multipart request needs special handling, this is a rare case where the
 [`method`](#method) step is not used to actually fire the request to the server.  The only other
 exception is `soap action` (see below).
@@ -888,7 +897,7 @@ The `multipart post` step will default to setting the `Content-Type` header as `
 You can over-ride it by using the [`header`](#header) keyword before this step.  Look at
 [`multipart entity`](#multipart-entity) for an example.
 
-### `soap action`
+## `soap action`
 The name of the SOAP action specified is used as the 'SOAPAction' header.  Here is an example
 which also demonstrates how you could assert for expected values in the response XML.
 ```cucumber
@@ -897,6 +906,13 @@ When soap action 'QueryUsageBalance'
 Then status 200
 And match response /Envelope/Body/QueryUsageBalanceResponse/Result/Error/Code == 'DAT_USAGE_1003'
 And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-response.xml')
+```
+
+## `ssl enabled`
+This switches on Karate's support for making HTTPS calls without needing to configure a trusted certificate
+or key-store. It is recommended that you do this at the start of your script or in the `Background:` section.
+```cucumber
+* ssl enabled
 ```
 
 # Preparing, Manipulating and Matching Data
@@ -989,7 +1005,7 @@ XML and XPath is similar.
 * match cat / == <cat><name>Jean</name></cat>
 ```
 
-### Ignore or Validate
+## Ignore or Validate
 When expressing expected results (in JSON or XML) you can mark some fields to be ignored when
 the match (comparison) is performed.  You can even use a regular-expression so that instead of
 checking for equality, Karate will just validate that the actual value conforms to the expected
@@ -1021,7 +1037,7 @@ Marker | Description
 #regexSTR | Expects actual (string) value to match the regular-expression 'STR'
 #?EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true (see examples below)
 
-#### 'Self' Validation Expressions
+### 'Self' Validation Expressions
 The special 'predicate' marker in the last row of the table above is an interesting one.  It is best
 explained via examples.
 
@@ -1044,7 +1060,7 @@ And functions work as well ! You can imagine how you could evolve a nice set of 
 validate all your domain objects.
 ```cucumber
 * def date = { month: 3 }
-* def isValidMonth = function(v) { return v >= 0 && v <= 12 }
+* def isValidMonth = function(m) { return m >= 0 && m <= 12 }
 * match date == { month: '#? isValidMonth(_)' }
 ```
 
@@ -1064,7 +1080,7 @@ Then match response == read('test.pdf')
 ```
 
 Checking if a string is contained within another string is a very common need and 
-[`match [name] contains`](#match-contains) works just like you'd expect:
+[`match` (name) `contains`](#match-contains) works just like you'd expect:
 ```cucumber
 * def hello = 'Hello World!'
 * match hello contains 'World'
@@ -1078,6 +1094,8 @@ reduces some complexity - because strictly, HTTP headers are a 'multi-valued map
 ```cucumber
 # so after a http request
 Then match header Content-Type == 'application/json'
+# 'contains' works as well
+Then match header Content-Type contains 'application'
 ```  
 Note the extra convenience where you don't have to enclose the LHS key in quotes.
 
@@ -1088,9 +1106,10 @@ if you wanted to do more checks, but you typically won't need to.
 ### `match contains`
 #### JSON Keys
 In some cases where the response JSON is wildly dynamic, you may want to only check for the existence of
-some keys. And `match [name] contains` is how you can do so:
+some keys. And `match` (name) `contains` is how you can do so:
 ```cucumber
 * def foo = { bar: 1, baz: 'hello', ban: 'world' }
+
 * match foo contains { bar: 1 }
 * match foo contains { baz: 'hello' }
 * match foo contains { bar:1, baz: 'hello' }
@@ -1100,12 +1119,11 @@ some keys. And `match [name] contains` is how you can do so:
 
 #### JSON Arrays
 
-This is a good time to discuss JsonPath, which is perfect for slicing and dicing JSON into manageable chunks,
-against which you can run assertions. It is worth looking at the reference and examples here:
-[JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
+This is a good time to discuss JsonPath, which is perfect for slicing and dicing JSON into manageable chunks.
+It is worth taking time to go through the documentation and examples here: [JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
 
-As just one example, let us perform some assertions after scraping a list of child elements out of the JSON
-below.
+Here are some example assertions performed while scraping a list of child elements out of the JSON below.
+Observe how you can `match` the result of a JsonPath expression with your expected data.
 
 ```cucumber
 Given def cat = 
@@ -1138,13 +1156,32 @@ Then match cat.rivals[*] contains [{ id: 42, name: '#ignore' }]
 It is worth mentioning that to do the equivalent of the last line in Java, you would typically have to
 traverse 2 Java Objects, one of which is within a list, and you would have to check for nulls as well.
 
-When you use Karate, all your data assertions can be done in pure JSON and without needing a whole
-forest of companion Java objects. And when you read your JSON objects from (re-usable) files,
-your response payload assertions can be accomplished in just one line.
+When you use Karate, all your data assertions can be done in pure JSON and without needing a thick
+forest of companion Java objects. And when you [`read`](#read) your JSON objects from (re-usable) files,
+even complex response payload assertions can be accomplished in just a single line of Karate-script.
 
-## Special Variables
+## Matching All Array Elements
+### `match each`
+Karate has syntax sugar that can iterate over all elements in a JSON array. Here's how it works:
+```cucumber
+* def data = { foo: [{ bar: 1, baz: 'a' }, { bar: 2, baz: 'b' }, { bar: 3, baz: 'c' }]}
 
-### `response`
+* match each data.foo == { bar: '#number', baz: '#string' }
+
+# and you can use 'contains' the way you'd expect
+* match each data.foo contains { bar: '#number' }
+* match each data.foo contains { bar: '#? _ != 4' }
+
+# some more examples of validation macros
+* match each data.foo contains { baz: "#? _ != 'z'" }
+* def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
+* match each data.foo contains { baz: '#? isAbc(_)' }
+
+``` 
+
+# Special Variables
+
+## `response`
 After every HTTP call this variable is set with the response and is available until the next HTTP
 request over-writes it.
 
@@ -1179,7 +1216,7 @@ Then match response/cat/name == 'Billie'
 Then match /cat/name == 'Billie'
 ```
 
-### `cookies`
+## `cookies`
 The `cookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object.
 It can be easily inspected or used in expressions.
 ```cucumber
@@ -1192,7 +1229,7 @@ browser - which makes it easy to script things like HTML-form based authenticati
 Of course you can manipulate `cookies` or even set it to `null` if you wish - at any point
 within a test script.
 
-### `responseHeaders`
+## `responseHeaders`
 See also [`match header`](#match-header) which is what you would normally need.
 
 But if you need to use values in the response headers - they will be in a variable 
@@ -1201,13 +1238,13 @@ like this:
 ```cucumber
 * def contentType = responseHeaders['Content-Type'][0]
 ```
-### `responseStatus`
+## `responseStatus`
 You would normally only need to use the [`status`](#status) keyword.  But if you really need to use 
 the HTTP response code in an expression or save it for later, you can get it as an integer:
 ```cucumber
 * def uploadStatusCode = responseStatus
 ```
-### `responseTime`
+## `responseTime`
 The response time (in milliseconds) for every HTTP request would be available in a variable called
 `responseTime`. You can use this to assert that the response was returned within the expected time
 like so:
@@ -1216,13 +1253,13 @@ When method post
 Then status 201
 And assert responseTime < 1000
 ```
-### `read`
+## `read`
 This is a great example of how you can extend Karate by defining your own functions. Behind the scenes
 the `read(filename)` function is actually implemented in JavaScript.
 
 Refer to the section on [reading files](#reading-files) for how to use this built-in function.
 
-### `headers`
+## `headers`
 This is a convenience feature to make custom header manipulation as easy as possible.
 For every HTTP request made from Karate, the internal flow is as follows:
 * does a variable called `headers` exist?
@@ -1281,9 +1318,8 @@ With this convenience comes the caveat - you could over-write the [`headers`](#h
 But there are cases where you may want to do this intentionally - for example when a few steps in your flow 
 need to change (or completely bypass) the currently-set header-manipulation scheme.
 
-# `call`
-## Advanced JavaScript Function Invocation
-
+# Advanced JavaScript Function Invocation
+## `call`
 This is one of the most powerful features of Karate.  With `call` you can:
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
 * share and re-use functionality across your organization
@@ -1292,7 +1328,7 @@ This is one of the most powerful features of Karate.  With `call` you can:
 
 A very common use-case is the inevitable 'sign-in' that you need to perform at the beginning of every test script.
 
-## Sign-In Example
+### Sign-In Example
 
 This example actually makes two HTTP requests - the first is a standard 'sign-in' POST 
 and then (for illustrative purposes) another GET is made for retrieving a list of projects for the 
@@ -1508,10 +1544,10 @@ In situations where you start an (embedded) application server as part of the te
 challenge is that the HTTP port may be determined at run-time. So how can you get this value injected
 into the Karate configuration ?
 
-It so happens that the [`karate`](#the-karate-object) object has an accessor called `properties` (of type array) 
-which can read a Java system-property. Since the `karate` object is available for you to use
-within [`karate-config.js`](#configuration), it is a simple and effective way for other processes within 
-the same JVM to pass configuration values into Karate at run-time.
+It so happens that the [`karate`](#the-karate-object) object has a field called `properties` 
+which can read a Java system-property by name: `properties[key]`. Since the `karate` object is injected
+within [`karate-config.js`](#configuration) on start-up, it is a simple and effective way for other 
+processes within the same JVM to pass configuration values into Karate at run-time.
 
 You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
 * [HelloWorldTest.java](karate-core/src/test/java/com/intuit/karate/wiremock/HelloWorldTest.java) - see line #30
