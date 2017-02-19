@@ -72,6 +72,11 @@ Then match cat / == <cat><name>Jean</name></cat>
 * set cat/cat/name = 'King'
 * match cat / == <cat><name>King</name></cat>
 
+# set xml chunks
+* def xml = <foo><bar>baz</bar></foo>
+* set xml/foo/bar = <hello>world</hello>
+* match xml == <foo><hello>world</hello></foo>
+
 # assign xpath expressions to variables
 # also note the multi-line option / syntax
 * def myXml =

@@ -94,7 +94,17 @@ public class XmlUtilsTest {
         Document doc = XmlUtils.toXmlDoc(xml);
         XmlUtils.setByPath(doc, "/foo/bar", "hello");
         String result = XmlUtils.toString(doc);
-        assertTrue(result.contains("<foo><bar>hello</bar></foo>"));
+        assertEquals(result, "<foo><bar>hello</bar></foo>");
     }   
+    
+    @Test
+    public void testSetDomNodeByPath() {
+        String xml = "<foo><bar>baz</bar></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        Node temp = XmlUtils.toXmlDoc("<hello>world</hello>");
+        XmlUtils.setByPath(doc, "/foo/bar", temp);
+        String result = XmlUtils.toString(doc);
+        assertEquals(result, "<foo><hello>world</hello></foo>");
+    }       
 
 }

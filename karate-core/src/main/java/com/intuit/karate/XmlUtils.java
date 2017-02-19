@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
@@ -22,6 +23,7 @@ import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
+import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Node;
 
 /**
@@ -29,7 +31,7 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class XmlUtils {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(XmlUtils.class);
 
     private XmlUtils() {
@@ -43,6 +45,7 @@ public class XmlUtils {
         TransformerFactory tf = TransformerFactory.newInstance();
         try {
             Transformer transformer = tf.newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
             transformer.transform(domSource, result);
             return writer.toString();
         } catch (Exception e) {
@@ -87,8 +90,8 @@ public class XmlUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }      
-    
+    }
+
     public static void setByPath(Node doc, String path, String value) {
         Node node = getNodeByPath(doc, path);
         if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
@@ -98,12 +101,21 @@ public class XmlUtils {
         }
     }
 
+    public static void setByPath(Document doc, String path, Node in) {
+        Node node = getNodeByPath(doc, path);
+        if (in.getNodeType() == Node.DOCUMENT_NODE) {
+            in = in.getFirstChild();
+        }
+        Node newNode = doc.importNode(in, true);
+        node.getParentNode().replaceChild(newNode, node);
+    }
+
     public static String toJsonString(Node node) {
         String xml = toString(node);
-        JSONObject json = XML.toJSONObject(xml);        
+        JSONObject json = XML.toJSONObject(xml);
         return json.toString();
-    }   
-    
+    }
+
     public static Map<String, Object> toMap(Node node) {
         return toJsonDoc(node).read("$");
     }
@@ -112,6 +124,5 @@ public class XmlUtils {
         String json = toJsonString(node);
         return JsonPath.parse(json);
     }
-    
 
 }

@@ -641,10 +641,14 @@ public class Script {
         } else if (isXmlPath(path)) {
             Document doc = context.vars.get(name, Document.class);
             ScriptValue sv = preEval(exp, context);
-            if (sv.getType() != STRING) {
-                throw new RuntimeException("TODO set non-string XML values");
-            }
-            XmlUtils.setByPath(doc, path, sv.getAsString());
+            switch(sv.getType()) {
+                case XML:
+                    Node node = sv.getValue(Node.class);
+                    XmlUtils.setByPath(doc, path, node);
+                    break;
+                default:
+                    XmlUtils.setByPath(doc, path, sv.getAsString());
+            }            
         } else {
             throw new RuntimeException("unexpected path: " + path);
         }

@@ -47,12 +47,12 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action) | [`ssl enabled`](#ssl-enabled)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`contains`](#match-contains) | [Ignore / Vallidate](#ignore-or-validate)
+**Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`match contains`](#match-contains) | [`match each`](#match-each)
 **Special Variables** | [`headers`](#headers) | [`response`](#response) | [`cookies`](#cookies) | [`read`](#read)
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) and [Headers](#http-basic-authentication-example) | [Dynamic Port Numbers](#dynamic-port-numbers)
+ | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) and [Headers](#http-basic-authentication-example) | [Dynamic Port Numbers](#dynamic-port-numbers) | [Ignore / Vallidate](#ignore-or-validate)
 
 # Features
 * Scripts are plain-text files and require no compilation step or IDE
@@ -162,7 +162,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-core</artifactId>
-    <version>0.1.4</version>
+    <version>0.1.5</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -178,7 +178,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.1.4 \
+-DarchetypeVersion=0.1.5 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -516,10 +516,10 @@ no need to compile Java code any more.
 
  -     | Cucumber | Karate
 ------ | -------- | ------
-**Must Add Step Definitions** | Yes. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | No.
-**Layers of Code to Maintain** | **2** : Gherkin (custom grammar), and corresponding Java step-definitions | **1** : Karate DSL
-**Natural Language** | Yes. Cucumber will read like natural language if you implement the step-definitions right. | No. Although Karate is a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language, although a very simple one. But for testing web-services at the level of HTTP requests and responses, it is ideal. Keep in mind that web-services are not 'human-facing' by design.
-**BDD Syntax** | Yes | Yes
+**More Step Definitions Needed** | **Yes**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | **No**.
+**Layers of Code to Maintain** | **2** Layers. One is the Gherkin custom grammar for your business domain, and you will also have the corresponding Java step-definitions. | **1** Layer. Just Karate-script, and no Java code needs to be implemented.
+**Natural Language** | **Yes**. Cucumber will read like natural language if you implement the step-definitions right. | **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But for testing web-services at the level of HTTP requests and responses - it is ideal.
+**BDD Syntax** | **Yes** | **Yes**
 
 One nice thing about the design of the underlying Cucumber framework is that
 script-steps are treated the same no matter whether they start with the keyword 
@@ -622,7 +622,7 @@ the elegance of JSON to express complex nested data - while at the same time bei
 able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
 
 The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage
-of 'embedded expressions', e.g. `'#(query)'`.
+of 'embedded expressions', look for: `'#(query)'`.
 
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as
@@ -700,11 +700,11 @@ function(s) {
 If you want to do advanced stuff such as make HTTP requests within a function - 
 that is what the [`call`](#call) keyword is for.
 
-[More examples](#calling-java) of calling Java appear later in this document.
+[More examples](#calling-java) of calling Java appear later on in this document.
 
 ## Reading Files
 This actually is a good example of how you could extend Karate with custom functions.
-`read()` is a JavaScript function that is automatically available when Karate starts.
+The variable `read` is a JavaScript function that is automatically available when Karate starts.
 It takes the name of a file as the only argument.
 
 By default, the file is expected to be in the same folder (package) as the *.feature file.
@@ -884,7 +884,7 @@ When multipart post
 Then status 201
 ```
 
-# Multipart and SOAP
+# Multipart, SOAP and SSL
 ## `multipart post`
 Since a multipart request needs special handling, this is a rare case where the
 [`method`](#method) step is not used to actually fire the request to the server.  The only other
@@ -911,6 +911,7 @@ And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-re
 ## `ssl enabled`
 This switches on Karate's support for making HTTPS calls without needing to configure a trusted certificate
 or key-store. It is recommended that you do this at the start of your script or in the `Background:` section.
+This built-in 'relaxed' mode is not enabled by default.
 ```cucumber
 * ssl enabled
 ```
@@ -994,15 +995,17 @@ Setting values on JSON documents is simple using the `set` keyword and JSON-Path
 # you can ignore fields marked with '#ignore'
 * match myJson == { cat: '#ignore', hey: 'ho', foo: 'world', zee: [5] }
 ```
-XML and XPath is similar.
-> TODO: XML `set` support is limited to text-content and xml-attributes as of now 
-(not XML chunks).
 
+XML and XPath works just like you'd expect.
 ```cucumber
-# xml set
 * def cat = <cat><name>Billie</name></cat>
 * set cat /cat/name = 'Jean'
 * match cat / == <cat><name>Jean</name></cat>
+
+# you can even set whole fragments of xml
+* def xml = <foo><bar>baz</bar></foo>
+* set xml/foo/bar = <hello>world</hello>
+* match xml == <foo><hello>world</hello></foo>
 ```
 
 ## Ignore or Validate
@@ -1160,7 +1163,7 @@ When you use Karate, all your data assertions can be done in pure JSON and witho
 forest of companion Java objects. And when you [`read`](#read) your JSON objects from (re-usable) files,
 even complex response payload assertions can be accomplished in just a single line of Karate-script.
 
-## Matching All Array Elements
+## Validate every element in a JSON array
 ### `match each`
 Karate has syntax sugar that can iterate over all elements in a JSON array. Here's how it works:
 ```cucumber
@@ -1375,7 +1378,7 @@ special object in a variable named: `karate`.  This provides the following metho
   * `url`: URL of the HTTP call to be made
   * `method`: HTTP method, can be lower-case
   * `body`: JSON payload
-* `karate.set(key, value)` - set the value of a variable immediately, which ensures that the [`headers`](#headers) routine for any HTTP calls made before this JavaScript function exits - works as expected
+* `karate.set(key, value)` - set the value of a variable immediately, which ensures that any active [`headers`](#headers) routine does the right thing for future HTTP calls (even those made by this function)
 * `karate.get(key)` - get the value of a variable by name, if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 * `karate.log(... args)` - log to the same logger being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment setting 'karate.env' used for bootstrapping [configuration](#configuration)
@@ -1404,7 +1407,8 @@ Either - it can be assigned to a variable like so.
 Or - if a `call` is made without an assignment, and if the function returns a map-like
 object, it will add each key-value pair returned as a new variable into the execution context.
 ```cucumber
-# while this looks innocent, behind the scenes it could be creating (or over-writing) lots of variables !
+# while this looks innocent ...
+# ... behind the scenes, it could be creating (or over-writing) a bunch of variables !
 * call someFunction
 ```
 While this sounds dangerous and should be used with care (and limits readability), the reason
@@ -1418,7 +1422,7 @@ You can invoke a function in a [re-usable file](#reading-files) using this short
 ### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme.
 Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to
-manage the environment-specific configuration values such as user-names and passwords.
+manage your environment-specific configuration values such as user-names and passwords.
 
 First the JavaScript file, `basic-auth.js`:
 ```javascript
@@ -1490,12 +1494,13 @@ function() {
 
 ## GraphQL / RegEx replacement example
 As a demonstration of Karate's power and flexibility, here is an example that reads a 
-GraphQL string (which could be from a file) and modifies it to build custom queries 
+GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries 
 and filter criteria.
 
 Once the function is declared, observe how calling it and performing the replacement 
 is an elegant one-liner.
 ```cucumber
+# this function would normally reside in a file
 * def replacer = 
 """
 function(args) {
@@ -1509,14 +1514,23 @@ function(args) {
   return query; 
 } 
 """
-# in real life this line would likely read from a file
-* def query = 'query q { company { taxAgencies { } } }'
-# the next line is where the magic happens
+
+# this 'base GraphQL query' would also likely be read from a file in real-life
+* def query = 'query q { company { taxAgencies { edges { node { id, name } } } } }'
+
+# the next line is where the criteria is injected using the regex function
 * def query = call replacer { query: '#(query)', field: 'taxAgencies', criteria: 'first: 5' }
-* assert query == 'query q { company { taxAgencies(first: 5) { } } }'
+
+# here is the result
+* assert query == 'query q { company { taxAgencies(first: 5) { edges { node { id, name } } } } }'
+
 Given request { query: '#(query)' }
+And header Accept = 'application/json'
 When method post
 Then status 200
+
+* def agencies = $.data.company.taxAgencies.edges
+* match agencies[0].node == { id: '#uuid', name: 'John Smith' }
 ```
 ## Multi-line Comments
 ### How do I 'block-comment' multiple lines ?
@@ -1537,7 +1551,9 @@ interesting options when running tests in bulk.  The most common use-case would 
 partition your tests into 'smoke', 'regression' and the like - which enables being 
 able to selectively execute a sub-set of tests.
 
-Read more at the [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags).
+The documentation on how to run tests via the [command line](#command-line) has an example of how to use tags
+to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
+has more information on tags.
 
 ## Dynamic Port Numbers
 In situations where you start an (embedded) application server as part of the test set-up phase, a typical
@@ -1545,7 +1561,7 @@ challenge is that the HTTP port may be determined at run-time. So how can you ge
 into the Karate configuration ?
 
 It so happens that the [`karate`](#the-karate-object) object has a field called `properties` 
-which can read a Java system-property by name: `properties[key]`. Since the `karate` object is injected
+which can read a Java system-property by name like this: `properties['myName']`. Since the `karate` object is injected
 within [`karate-config.js`](#configuration) on start-up, it is a simple and effective way for other 
 processes within the same JVM to pass configuration values into Karate at run-time.
 
