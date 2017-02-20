@@ -8,6 +8,7 @@ public enum MatchType {
     
     EQUALS,
     CONTAINS,
+    CONTAINS_ONLY,
     EACH_EQUALS,
     EACH_CONTAINS
     

@@ -57,7 +57,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 # Features
 * Scripts are plain-text files and require no compilation step or IDE
 * Java knowledge is not required to write tests
-* Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and XPath expressions
+* Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
 * Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes natural for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
@@ -147,7 +147,7 @@ When method get
 Then status 200
 
 # variant of the 'match' syntax to compare file contents
-And match response * == read('test.pdf')
+And match response == read('test.pdf')
 ```
 
 # Getting Started
@@ -1139,7 +1139,7 @@ Given def cat =
   ]
 }
 """
-# normal 'equality' match. note the wildcard '*' in the JSONPath (returns an array)
+# normal 'equality' match. note the wildcard '*' in the JsonPath (returns an array)
 Then match cat.rivals[*].id == [23, 42]
 
 # when inspecting a json array, 'contains' just checks if the expected items exist
@@ -1162,6 +1162,20 @@ traverse 2 Java Objects, one of which is within a list, and you would have to ch
 When you use Karate, all your data assertions can be done in pure JSON and without needing a thick
 forest of companion Java objects. And when you [`read`](#read) your JSON objects from (re-usable) files,
 even complex response payload assertions can be accomplished in just a single line of Karate-script.
+
+#### `match contains only`
+For those cases where you need to assert that **all** array elements are present but in **any order**
+you can do this:
+
+```cucumber
+* def data = { foo: [1, 2, 3] }
+* match data.foo contains [1]
+* match data.foo contains [3, 2]
+* match data.foo contains only [3, 2, 1]
+* match data.foo contains only [2, 3, 1]
+# this will fail
+# * match data.foo contains only [2, 3]
+```
 
 ## Validate every element in a JSON array
 ### `match each`
@@ -1378,7 +1392,7 @@ special object in a variable named: `karate`.  This provides the following metho
   * `url`: URL of the HTTP call to be made
   * `method`: HTTP method, can be lower-case
   * `body`: JSON payload
-* `karate.set(key, value)` - set the value of a variable immediately, which ensures that any active [`headers`](#headers) routine does the right thing for future HTTP calls (even those made by this function)
+* `karate.set(key, value)` - set the value of a variable immediately, which ensures that any active [`headers`](#headers) routine does the right thing for future HTTP calls (even those made by this function being `call`-ed)
 * `karate.get(key)` - get the value of a variable by name, if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 * `karate.log(... args)` - log to the same logger being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment setting 'karate.env' used for bootstrapping [configuration](#configuration)
@@ -1434,7 +1448,7 @@ function(creds) {
 }
 ```
 And here's how it works in a test-script. Note that you need to do this only once within a `Scenario:`,
-perhaps at the beginning.
+perhaps at the beginning, or within the `Background:` section.
 ```cucumber
 * header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
 

@@ -422,12 +422,19 @@ public class Script {
             }
         } else {
             String actual = actValue.getAsString();
-            if (matchType == MatchType.CONTAINS) {
-                if (!actual.contains(expected)) {
-                    return matchFailed(path, actual, expected + " (not a sub-string)");
-                }
-            } else if (!expected.equals(actual)) {
-                return matchFailed(path, actual, expected);
+            switch (matchType) {
+                case CONTAINS:
+                    if (!actual.contains(expected)) {
+                        return matchFailed(path, actual, expected + " (not a sub-string)");
+                    }
+                    break;
+                case EQUALS:
+                    if (!expected.equals(actual)) {
+                        return matchFailed(path, actual, expected);
+                    }
+                    break;
+                default:
+                    throw new RuntimeException("unsupported match type for string: " + matchType);
             }
         }
         return AssertionResult.PASS;
@@ -454,6 +461,14 @@ public class Script {
                 expObject = expected.getAsString();
         }
         return matchNestedObject('/', path, matchType, actObject, expObject, context);
+    }
+    
+    private static MatchType getInnerMatchType(MatchType outerMatchType) {
+        switch (outerMatchType) {
+            case EACH_CONTAINS: return MatchType.CONTAINS;
+            case EACH_EQUALS: return MatchType.EQUALS;
+            default: throw new RuntimeException("unexpected outer match type: " + outerMatchType);
+        }
     }
 
     public static AssertionResult matchJsonPath(MatchType matchType, ScriptValue actual, String path, String expression, ScriptContext context) {
@@ -492,14 +507,15 @@ public class Script {
                 expObject = expected.getValue();
         }
         switch (matchType) {
+            case CONTAINS_ONLY:
             case CONTAINS:
             case EQUALS:
                 return matchNestedObject('.', path, matchType, actObject, expObject, context);
-            case EACH_EQUALS:
             case EACH_CONTAINS:
+            case EACH_EQUALS:            
                 if (actObject instanceof List) {
                     List actList = (List) actObject;
-                    MatchType listMatchType = matchType == MatchType.EACH_CONTAINS ? MatchType.CONTAINS : MatchType.EQUALS;
+                    MatchType listMatchType = getInnerMatchType(matchType);
                     int actSize = actList.size();
                     for (int i = 0; i < actSize; i++) {
                         Object actListObject = actList.get(i);
@@ -511,7 +527,7 @@ public class Script {
                     }
                     return AssertionResult.PASS;
                 } else {
-                    throw new RuntimeException("'match all' failed, not a json array: + " + actual + ", path: " + path);
+                    throw new RuntimeException("'match each' failed, not a json array: + " + actual + ", path: " + path);
                 }
             default:
                 // dead code
@@ -553,7 +569,7 @@ public class Script {
             if (matchType != MatchType.CONTAINS && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
                 return matchFailed(path, actObject, expObject);
             }
-            for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
+            for (Map.Entry<String, Object> expEntry : expMap.entrySet()) { // TDDO should we assert order, maybe XML needs this ?
                 String key = expEntry.getKey();
                 String childPath = path + delimiter + key;
                 AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actMap.get(key), expEntry.getValue(), context);
@@ -570,7 +586,7 @@ public class Script {
             if (matchType != MatchType.CONTAINS && actCount != expCount) {
                 return matchFailed(path, actObject, expObject);
             }
-            if (matchType == MatchType.CONTAINS) { // just checks for existence
+            if (matchType == MatchType.CONTAINS || matchType == MatchType.CONTAINS_ONLY) { // just checks for existence
                 for (Object expListObject : expList) { // for each expected item in the list
                     boolean found = false;
                     for (int i = 0; i < actCount; i++) {
@@ -641,14 +657,14 @@ public class Script {
         } else if (isXmlPath(path)) {
             Document doc = context.vars.get(name, Document.class);
             ScriptValue sv = preEval(exp, context);
-            switch(sv.getType()) {
+            switch (sv.getType()) {
                 case XML:
                     Node node = sv.getValue(Node.class);
                     XmlUtils.setByPath(doc, path, node);
                     break;
                 default:
                     XmlUtils.setByPath(doc, path, sv.getAsString());
-            }            
+            }
         } else {
             throw new RuntimeException("unexpected path: " + path);
         }

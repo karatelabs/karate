@@ -296,6 +296,14 @@ Then match pdf == read('test.pdf')
 * match foo contains { bar:1, baz: 'hello' }
 # * match foo == { bar:1, baz: 'hello' }
 
+# match contains only
+* def data = { foo: [1, 2, 3] }
+* match data.foo contains [1]
+* match data.foo contains [3, 2]
+* match data.foo contains only [3, 2, 1]
+* match data.foo contains only [2, 3, 1]
+# * match data.foo contains only [2, 3]
+
 # match each
 * def data = { foo: [{ bar: 1, baz: 'a' }, { bar: 2, baz: 'b' }, { bar: 3, baz: 'c' }]}
 * match each data.foo == { bar: '#number', baz: '#string' }

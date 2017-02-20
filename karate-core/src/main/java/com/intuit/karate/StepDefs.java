@@ -19,7 +19,6 @@ import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
-import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.BodyPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
@@ -396,10 +395,20 @@ public class StepDefs {
         assertEquals(status, response.getStatus());
     }
 
-    private static MatchType toMatchType(String each, boolean contains) {
-        return each == null
-                ? contains ? MatchType.CONTAINS : MatchType.EQUALS
-                : contains ? MatchType.EACH_CONTAINS : MatchType.EACH_EQUALS;
+    private static MatchType toMatchType(String each, String only, boolean contains) {
+        if (each == null) {
+            if (contains) {
+                return only == null ? MatchType.CONTAINS : MatchType.CONTAINS_ONLY;
+            } else {
+                return MatchType.EQUALS;
+            }
+        } else {
+            if (contains) {
+                return MatchType.EACH_CONTAINS;
+            } else {
+                return MatchType.EACH_EQUALS;
+            }
+        }
     }
 
     @Then("^match (each )?([^\\s]+)( .+)? ==$")
@@ -407,21 +416,21 @@ public class StepDefs {
         matchEquals(each, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( .+)? contains$")
-    public void matchContainsDocString(String each, String name, String path, String expected) {
-        matchContains(each, name, path, expected);
+    @Then("^match (each )?([^\\s]+)( .+)? contains( only)?$")
+    public void matchContainsDocString(String each, String name, String path, String only, String expected) {
+        matchContains(each, name, path, only, expected);
     }
 
 
     @Then("^match (each )?([^\\s]+)( .+)? == (.+)")
     public void matchEquals(String each, String name, String path, String expected) {
-        MatchType mt = toMatchType(each, false);
+        MatchType mt = toMatchType(each, null, false);
         matchNamed(mt, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( .+)? contains (.+)")
-    public void matchContains(String each, String name, String path, String expected) {
-        MatchType mt = toMatchType(each, true);
+    @Then("^match (each )?([^\\s]+)( .+)? contains( only)?(.+)")
+    public void matchContains(String each, String name, String path, String only, String expected) {
+        MatchType mt = toMatchType(each, only, true);
         matchNamed(mt, name, path, expected);
     }
 
