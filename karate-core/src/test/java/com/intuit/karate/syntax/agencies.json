@@ -1,0 +1,22 @@
+{
+   "data":{
+      "company":{
+         "taxAgencies":{
+            "edges":[
+               {
+                  "node":{
+                     "id":"djQuMToxMjMxNDU2ODEzMjI3MzI6M2ZlN2M2MTEwMg:1",
+                     "name":"Test",
+                     "agencyAccount":{
+                        "liabilityAccount":{
+                           "id":"djQuMToxMjMxNDU2ODEzMjI3MzI6NTFjZWQ4NTM2Yw:52",
+                           "currentBalance":"-213993.17"
+                        }
+                     }
+                  }
+               }
+            ]
+         }
+      }
+   }
+}

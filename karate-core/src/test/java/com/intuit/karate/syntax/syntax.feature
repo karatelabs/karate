@@ -319,3 +319,12 @@ Then match pdf == read('test.pdf')
 * match list[0].bar == 1
 * assert list[0].bar == 1
 
+# more json path on list
+* def response = read('agencies.json')
+* def agencies = $.data.company.taxAgencies.edges
+* match agencies[0].node == { id: '#notnull', name: 'Test', agencyAccount: '#object' }
+* def agencyAccount = agencies[0].node.agencyAccount
+* match agencyAccount == { liabilityAccount: { id: '#notnull', currentBalance: '#notnull' }}
+* def currentBalance = agencyAccount.liabilityAccount.currentBalance
+* print 'current balance: ' + currentBalance
+

@@ -194,6 +194,10 @@ public class Script {
                 Map<String, Object> map = value.getValue(Map.class);
                 DocumentContext fromMap = JsonPath.parse(map);
                 return new ScriptValue(fromMap.read(exp));
+            case LIST: // this happens because some jsonpath expressions evaluate to List
+                List list = value.getValue(List.class);
+                DocumentContext fromList = JsonPath.parse(list);
+                return new ScriptValue(fromList.read(exp));                
             default:
                 throw new RuntimeException("cannot run jsonpath on type: " + value);
         }
