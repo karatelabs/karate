@@ -162,7 +162,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-core</artifactId>
-    <version>0.1.5</version>
+    <version>0.1.6</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -178,7 +178,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.1.5 \
+-DarchetypeVersion=0.1.6 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
