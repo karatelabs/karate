@@ -313,3 +313,9 @@ Then match pdf == read('test.pdf')
 * def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
 * match each data.foo contains { baz: '#? isAbc(_)' }
 
+# json path on list
+* def json = { foo: [{ bar: 1}, {bar: 2}, {bar: 3}]}
+* def list = json.foo
+* match list[0].bar == 1
+* assert list[0].bar == 1
+

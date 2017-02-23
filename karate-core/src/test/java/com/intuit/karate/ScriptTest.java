@@ -260,6 +260,17 @@ public class ScriptTest {
     }
     
     @Test
+    public void testMatchJsonPathThatReturnsList() {
+        DocumentContext doc = JsonPath.parse("{ foo: [{ bar: 1}, {bar: 2}, {bar: 3}]}");
+        ScriptContext ctx = getContext();
+        ctx.vars.put("json", doc);
+        Script.assign("list", "json.foo", ctx);
+        ScriptValue list = ctx.vars.get("list");
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, list, "$[0]", "{ bar: 1}", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, list, "$[0].bar", "1", ctx).pass);
+    }    
+    
+    @Test
     public void testMatchAllJsonPath() {
         DocumentContext doc = JsonPath.parse("{ foo: [{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]}");
         ScriptContext ctx = getContext();
@@ -475,7 +486,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testAssignJsonChunkAndUse() {
+    public void testAssignJsonChunkObjectAndUse() {
         ScriptContext ctx = getContext();
         //===
         Script.assign("parent", "{ foo: 'bar', 'ban': { a: 1 } }", ctx);
@@ -486,6 +497,17 @@ public class ScriptTest {
         Script.assign("child", "parent.ban", ctx);
         assertTrue(Script.matchNamed("child.a[1]", null, "2", ctx).pass);
     }
+    
+    @Test
+    public void testAssignJsonChunkListAndUse() {
+        ScriptContext ctx = getContext();
+        //===
+        Script.assign("parent", "{ foo: { bar: [{ baz: 1}, {baz: 2}, {baz: 3}] }}", ctx);
+        Script.assign("child", "parent.foo", ctx);
+        assertTrue(Script.matchNamed("child", null, "{ bar: [{ baz: 1}, {baz: 2}, {baz: 3}]}", ctx).pass);
+        assertTrue(Script.matchNamed("child.bar", null, "[{ baz: 1}, {baz: 2}, {baz: 3}]", ctx).pass);
+        assertTrue(Script.matchNamed("child.bar[0]", null, "{ baz: 1}", ctx).pass);
+    }    
 
     @Test
     public void testEvalUrl() {

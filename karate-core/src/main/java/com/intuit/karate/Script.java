@@ -462,12 +462,15 @@ public class Script {
         }
         return matchNestedObject('/', path, matchType, actObject, expObject, context);
     }
-    
+
     private static MatchType getInnerMatchType(MatchType outerMatchType) {
         switch (outerMatchType) {
-            case EACH_CONTAINS: return MatchType.CONTAINS;
-            case EACH_EQUALS: return MatchType.EQUALS;
-            default: throw new RuntimeException("unexpected outer match type: " + outerMatchType);
+            case EACH_CONTAINS:
+                return MatchType.CONTAINS;
+            case EACH_EQUALS:
+                return MatchType.EQUALS;
+            default:
+                throw new RuntimeException("unexpected outer match type: " + outerMatchType);
         }
     }
 
@@ -480,6 +483,10 @@ public class Script {
             case MAP: // this happens because some jsonpath operations result in Map
                 Map<String, Object> map = actual.getValue(Map.class);
                 actualDoc = JsonPath.parse(map);
+                break;
+            case LIST: // this also happens because some jsonpath operations result in List
+                List list = actual.getValue(List.class);
+                actualDoc = JsonPath.parse(list);
                 break;
             case XML: // auto convert !
                 actualDoc = XmlUtils.toJsonDoc(actual.getValue(Node.class));
@@ -512,7 +519,7 @@ public class Script {
             case EQUALS:
                 return matchNestedObject('.', path, matchType, actObject, expObject, context);
             case EACH_CONTAINS:
-            case EACH_EQUALS:            
+            case EACH_EQUALS:
                 if (actObject instanceof List) {
                     List actList = (List) actObject;
                     MatchType listMatchType = getInnerMatchType(matchType);
