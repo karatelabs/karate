@@ -14,7 +14,7 @@ public class FileUtilsTest {
     @Test
     public void testClassLoading() throws Exception {
         ClassLoader cl = FileUtils.createClassLoader("src/main/java/com/intuit/karate");
-        InputStream is = cl.getResourceAsStream("Karate.java");
+        InputStream is = cl.getResourceAsStream("StepDefs.java");
         String s = IOUtils.toString(is, "utf-8");
         assertTrue(s.trim().startsWith("package "));
     }     

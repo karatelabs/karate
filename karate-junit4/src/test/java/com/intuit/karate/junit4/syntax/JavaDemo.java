@@ -1,4 +1,4 @@
-package com.intuit.karate.syntax;
+package com.intuit.karate.junit4.syntax;
 
 import java.util.HashMap;
 import java.util.Map;

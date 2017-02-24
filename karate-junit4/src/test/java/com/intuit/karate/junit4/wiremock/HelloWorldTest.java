@@ -1,12 +1,11 @@
-package com.intuit.karate.wiremock;
+package com.intuit.karate.junit4.wiremock;
 
-import com.intuit.karate.Karate;
+import com.intuit.karate.junit4.Karate;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
-import cucumber.api.CucumberOptions;
 import java.util.UUID;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -16,7 +15,6 @@ import org.junit.Rule;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(plugin = {"html:target/cucumber-html"})
 public class HelloWorldTest {
 
     @ClassRule

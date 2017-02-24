@@ -1,4 +1,4 @@
-package com.intuit.karate;
+package com.intuit.karate.junit4;
 
 import com.intuit.karate.cucumber.KarateBackend;
 import cucumber.runtime.Backend;

@@ -134,7 +134,7 @@ function(s) {
 * def doWork =
 """
 function() {
-  var JavaDemo = Java.type("com.intuit.karate.syntax.JavaDemo");
+  var JavaDemo = Java.type("com.intuit.karate.junit4.syntax.JavaDemo");
   var jd = new JavaDemo();
   return jd.doWork("world");  
 }
@@ -144,7 +144,7 @@ function() {
 * def staticWork = 
 """
 function() {
-  var JavaDemo = Java.type("com.intuit.karate.syntax.JavaDemo");
+  var JavaDemo = Java.type("com.intuit.karate.junit4.syntax.JavaDemo");
   return JavaDemo.staticMethod()
 }
 """

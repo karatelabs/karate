@@ -4,7 +4,7 @@
 
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-parent</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     
     <name>${project.artifactId}</name>
@@ -35,10 +35,12 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
+        <cucumber.version>1.2.5</cucumber.version>
     </properties>
 
     <modules>
         <module>karate-core</module>
+        <module>karate-junit4</module>
         <module>karate-archetype</module>
     </modules>
 
