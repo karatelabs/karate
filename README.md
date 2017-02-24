@@ -1315,13 +1315,14 @@ the `read(filename)` function is actually implemented in JavaScript.
 
 Refer to the section on [reading files](#reading-files) for how to use this built-in function.
 
+# HTTP Header Manipulation
 ## `configure headers`
-Custom HTTP-header manipulation is something that Karate makes very easy and pluggable.
+Custom header manipulation for every HTTP request is something that Karate makes very easy and pluggable.
 For every HTTP request made from Karate, the internal flow is as follows:
 * did we [`configure`](#configure) the value of `headers` ?
-* if so, is the configured value a JavaScript function?
-* if so, a [`call`](#call) is made to that function
-* did the function call return a map-like (or JSON) object?
+* if so, is the configured value a JavaScript function ?
+* if so, a [`call`](#call) is made to that function.
+* did the function invocation return a map-like (or JSON) object ?
 * if so, all the key-value pairs in the returned object are added to the HTTP headers.
 
 This makes setting up of complex authentication schemes for your test-flows really easy.
