@@ -939,12 +939,13 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the 
 configuration keys supported:
 
-Key | Type | Description
------- | -- | ---------
-headers | JavaScript Function | see [`configure headers`](#configure-headers)
-ssl | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
-connectTimeout | integer | Set the connect timeout (milliseconds). The default is 0 - which means infinity.
-readTimeout | integer | Set the read timeout (milliseconds). The default is 0 - which means infinity.
+ Key | Type | Description
+------ | ---- | ---------
+`headers` | JavaScript Function | see [`configure headers`](#configure-headers)
+`ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
+`connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
+`readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
+
 
 Examples:
 ```cucumber
@@ -952,7 +953,7 @@ Examples:
 * configure ssl = true
 
 # time-out if the response is not forthcoming within 10 seconds
-# configure readTimeout = 10000
+* configure readTimeout = 10000
 ```
 
 # Preparing, Manipulating and Matching Data
