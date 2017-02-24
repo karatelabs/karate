@@ -93,7 +93,8 @@ Background:
 # even though the BDD 'Given-When-Then' convention is encouraged, you can use '*'
 * configure headers = read('classpath:my-headers.js')
 
-# enable SSL (without needing a certificate or keystore)
+# enable SSL (and there is no need for a certificate or keystore)
+* configure ssl = true
 
 # configure time out for the http client (milliseconds), it defaults to 0 (infinite)
 * configure readTimeout = 10000
@@ -102,16 +103,9 @@ Background:
 * def signIn = read('classpath:my-signin.js')
 * def ticket = call signIn { username: 'john@smith.com', password: 'secret1234' }
 
-# create a javascript function on-the-fly that can re-use existing java code
-# note the """ 'doc-string' way to express multi-line text inline
-* def dateStringToLong =
-"""
-function(s) {
-  var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
-  var sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-  return sdf.parse(s).time; // java-bean properties can be accessed by name
-}  
-"""
+# create a javascript function on-the-fly that can re-use JVM code
+* def time = function() { return java.lang.System.currentTimeMillis() }
+
 # since this is also in the 'Background' section it applies to all Scenario-s in this file
 # and the url here comes from the global config
 * url documentsBaseUrl
@@ -138,7 +132,7 @@ And match session == read('expected-session-response.json')
 Given path 'documents/upload'
 And multipart field file = read('test.pdf')
 # the custom function is used here
-And multipart field sessionIssueDate = dateStringToLong(session.issued)
+And multipart field fileTime = time() + ''
 And header Accept = 'application/xml'
 When multipart post
 Then status 200
@@ -152,7 +146,7 @@ Given path 'documents', 'download', documentId
 When method get
 Then status 200
 
-# variant of the 'match' syntax to compare file contents
+# the 'match' syntax auto-converts types, and even binary file contents can be compared
 And match response == read('test.pdf')
 ```
 
