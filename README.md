@@ -161,11 +161,15 @@ This is all that you need within your `<dependencies>`:
 ```xml
 <dependency>
     <groupId>com.intuit.karate</groupId>
-    <artifactId>karate-core</artifactId>
-    <version>0.1.6</version>
+    <artifactId>karate-junit4</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
     <scope>test</scope>
 </dependency>
 ```
+If you want to use TestNG, use the artifactId `karate-testng`. If you are starting a project from scratch,
+we strongly recommend that you use JUnit. Do note that [data-driven](#data-driven-tests) testing and 
+[tag-groups](#cucumber-tags) are built-in to Karate, so you don't need to depend on things like the TestNG 
+[`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
 
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command.
@@ -178,7 +182,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.1.6 \
+-DarchetypeVersion=0.2.0-SNAPSHOT \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -263,7 +267,7 @@ multiple feature files executed by a single JUnit test-class.
 ```java
 package animals.cats;
 
-import com.intuit.karate.Karate;
+import com.intuit.karate.junit4.Karate;
 import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
@@ -285,7 +289,7 @@ you could use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#co
 ```java
 package animals.cats;
 
-import com.intuit.karate.Karate;
+import com.intuit.karate.junit4.Karate;
 import cucumber.api.CucumberOptions;
 import org.junit.runner.RunWith;
 
@@ -459,7 +463,7 @@ forget to remove it, bad things would happen.
 ```java
 package animals.cats;
 
-import com.intuit.karate.Karate;
+import com.intuit.karate.junit4.Karate;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 
