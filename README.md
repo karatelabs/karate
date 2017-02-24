@@ -62,6 +62,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes natural for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
+* Seamless integration into existing Java projects as both JUnit and TestNG are supported
 * Easily invoke JDK classes, Java libraries or re-use custom Java code if needed for ultimate extensibility
 * Simple plug-in system for authentication and HTTP header management that will handle any complex real-world scenario
 * Comprehensive support for different flavors of HTTP calls:
@@ -166,10 +167,14 @@ This is all that you need within your `<dependencies>`:
     <scope>test</scope>
 </dependency>
 ```
+### TestNG instead of JUnit
 If you want to use TestNG, use the artifactId `karate-testng`. If you are starting a project from scratch,
 we strongly recommend that you use JUnit. Do note that [data-driven](#data-driven-tests) testing and 
 [tag-groups](#cucumber-tags) are built-in to Karate, so you don't need to depend on things like the TestNG 
 [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
+
+Use the TestNG test-runner only when you are trying to add Karate tests side-by-side with an existing set of
+TestNG test-classes, possibly as a migration strategy.
 
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command.
@@ -282,10 +287,25 @@ project browser or even within the editor view would bring up the "Run as JUnit 
 in the `com.mycompany` package, *.feature files in `com.mycompany.foo` and `com.mycompany.bar` will also be
 run.
 
+## Running With TestNG
+You extend a class from the `karate-testng` Maven artifact like so. All other behavior
+is the same as if using JUnit.
+
+```java
+package animals.cats;
+
+import com.intuit.karate.testng.KarateTest;
+
+public class CatsTest extends KarateTest {
+    
+}
+```
+
 ## Cucumber Options
 You normally don't need to - but if you want to run only a specific feature file 
 from a JUnit test even if there are multiple *.feature files in the same folder,
 you could use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
+
 ```java
 package animals.cats;
 
@@ -306,6 +326,9 @@ multiple feature files with a JUnit test, you could do this:
     "classpath:animals/cats/cats-post.feature",
     "classpath:animals/cats/cats-get.feature"})
 ```
+
+> For TestNG: The `@CucumberOptions` annotation can be used the same way.
+
 ## Command Line
 It is possible to run tests from the command-line as well.  Refer to the 
 [Cucumber documentation](https://cucumber.io/docs/reference/jvm) for more, including

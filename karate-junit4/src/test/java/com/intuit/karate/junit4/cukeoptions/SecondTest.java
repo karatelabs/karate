@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:com/intuit/karate/cucumber/second.feature")
+@CucumberOptions(features = "classpath:com/intuit/karate/junit4/cukeoptions/second.feature")
 public class SecondTest {
           
     

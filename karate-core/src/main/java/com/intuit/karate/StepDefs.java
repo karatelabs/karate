@@ -25,7 +25,6 @@ import org.glassfish.jersey.media.multipart.MultiPart;
 import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static org.junit.Assert.*;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -392,7 +391,10 @@ public class StepDefs {
 
     @Then("^status (\\d+)")
     public void status(int status) {
-        assertEquals(status, response.getStatus());
+        if (status != response.getStatus()) {
+            AssertionResult ar = AssertionResult.fail("status code was " + response.getStatus() + ", expected " + status);
+            handleFailure(ar);
+        }
     }
 
     private static MatchType toMatchType(String each, String only, boolean contains) {
@@ -461,7 +463,7 @@ public class StepDefs {
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {
             logger.error("result: {}", ar);
-            fail(ar.message);
+            throw new RuntimeException(ar.message);
         }
     }
 

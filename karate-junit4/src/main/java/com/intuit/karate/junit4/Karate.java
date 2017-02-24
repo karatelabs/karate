@@ -11,7 +11,6 @@ import cucumber.runtime.UndefinedStepsTracker;
 import cucumber.runtime.io.MultiLoader;
 import cucumber.runtime.io.ResourceLoader;
 import cucumber.runtime.junit.Assertions;
-import cucumber.runtime.junit.FeatureRunner;
 import cucumber.runtime.junit.JUnitOptions;
 import cucumber.runtime.junit.JUnitReporter;
 import cucumber.runtime.model.CucumberFeature;
@@ -29,16 +28,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * implementation modified from cucumber.api.junit.Cucumber
+ * implementation adapted from cucumber.api.junit.Cucumber
  * 
  * @author pthomas3
  */
-public class Karate extends ParentRunner<FeatureRunner> {
+public class Karate extends ParentRunner<KarateFeatureRunner> {
 
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
     
-    private final JUnitReporter jUnitReporter;
-    private final List<FeatureRunner> children = new ArrayList<>();
+    private final JUnitReporter reporter;
+    private final List<KarateFeatureRunner> children;
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
@@ -50,44 +49,44 @@ public class Karate extends ParentRunner<FeatureRunner> {
         ResourceLoader resourceLoader = new MultiLoader(classLoader);
         final JUnitOptions junitOptions = new JUnitOptions(runtimeOptions.getJunitOptions());
         final List<CucumberFeature> cucumberFeatures = runtimeOptions.cucumberFeatures(resourceLoader);
-        jUnitReporter = new JUnitReporter(runtimeOptions.reporter(classLoader), runtimeOptions.formatter(classLoader), runtimeOptions.isStrict(), junitOptions);
+        reporter = new JUnitReporter(runtimeOptions.reporter(classLoader), runtimeOptions.formatter(classLoader), runtimeOptions.isStrict(), junitOptions);
+        children = new ArrayList<>(cucumberFeatures.size());        
         for (CucumberFeature cucumberFeature : cucumberFeatures) {
             String featurePath = classLoader.getResource(cucumberFeature.getPath()).getFile();
             logger.debug("feature: {}", featurePath);
             String featureDir = new File(featurePath).getParent();
             Runtime runtime = getRuntime(featureDir, resourceLoader, classLoader, runtimeOptions);
-            children.add(new FeatureRunner(cucumberFeature, runtime, jUnitReporter));
+            children.add(new KarateFeatureRunner(cucumberFeature, runtime, reporter));            
         }        
     }      
 
     private Runtime getRuntime(String featureDir, ResourceLoader resourceLoader, ClassLoader classLoader, RuntimeOptions runtimeOptions) {
         Backend backend = new KarateBackend(featureDir, classLoader, null);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
-        return new cucumber.runtime.Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
+        return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
     }
     
     @Override
-    public List<FeatureRunner> getChildren() {
+    public List<KarateFeatureRunner> getChildren() {
         return children;
     }
 
     @Override
-    protected Description describeChild(FeatureRunner child) {
-        return child.getDescription();
+    protected Description describeChild(KarateFeatureRunner child) {
+        return child.runner.getDescription();
     }
 
     @Override
-    protected void runChild(FeatureRunner child, RunNotifier notifier) {
-        child.run(notifier);
-        
+    protected void runChild(KarateFeatureRunner child, RunNotifier notifier) {
+        child.runner.run(notifier);
+        child.runtime.printSummary();
     }
 
     @Override
     public void run(RunNotifier notifier) {
         super.run(notifier);
-        jUnitReporter.done();
-        jUnitReporter.close();
-        // runtime.printSummary();
+        reporter.done();
+        reporter.close();
     }   
 
 }

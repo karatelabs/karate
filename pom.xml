@@ -41,6 +41,7 @@
     <modules>
         <module>karate-core</module>
         <module>karate-junit4</module>
+        <module>karate-testng</module>
         <module>karate-archetype</module>
     </modules>
 
