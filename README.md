@@ -38,17 +38,17 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
  | | | | | 
 ----- | ---- | ---- | --- | ---
-**Getting Started** | [Maven](#maven) | [Folder Structure](#recommended-folder-structure) | [File Extension](#file-extension) | [Running with JUnit](#running-with-junit)
+**Getting Started** | [Maven](#maven) | [Folder Structure](#recommended-folder-structure) | [File Extension](#file-extension) | Running: [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
  | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
  | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
- | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action) | [`ssl enabled`](#ssl-enabled)
+ | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`match contains`](#match-contains) | [`match each`](#match-each)
-**Special Variables** | [`headers`](#headers) | [`response`](#response) | [`cookies`](#cookies) | [`read`](#read)
+**Special Variables** | [`response`](#response) | [`cookies`](#cookies) | [`read`](#read)
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
@@ -76,10 +76,10 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
 ## Hello Real World
 Here below is a slightly more involved example, which can serve as a basic cheat-sheet for you to 
-get started.  This actually demonstrates a whole bunch of capabilities - handling [cookies](#cookie), 
-[headers](#header), [multipart](#multipart-field) file-uploads, html-[forms](#form-field), XML [responses](#response), 
+get started.  This actually demonstrates a whole bunch of capabilities - handling [ssl](#configure), [cookies](#cookie), 
+[headers](#configure-headers), [time-outs](#configure), [multipart](#multipart-field) file-uploads, html-[forms](#form-field), XML [responses](#response), 
 custom [functions](#javascript-functions), calling [Java](#calling-java) code, reading 
-test-data [files](#reading-files), using [configuration](#configuration) variables, and asserting for 
+test-data [files](#reading-files), using [environment variables](#configuration), and asserting for 
 expected results using [`match`](#match).
 
 And still ends up being **very** concise. Keep in mind that there are almost as many comments as actual 
@@ -91,7 +91,12 @@ Feature: a more real-world example of a karate test-case that does a bunch of st
 Background:
 # import re-usable code that manipulates http headers for each request
 # even though the BDD 'Given-When-Then' convention is encouraged, you can use '*'
-* def headers = read('classpath:my-headers.js')
+* configure headers = read('classpath:my-headers.js')
+
+# enable SSL (without needing a certificate or keystore)
+
+# configure time out for the http client (milliseconds), it defaults to 0 (infinite)
+* configure readTimeout = 10000
 
 # invoke re-usable code that performs custom authentication
 * def signIn = read('classpath:my-signin.js')
@@ -288,7 +293,7 @@ in the `com.mycompany` package, *.feature files in `com.mycompany.foo` and `com.
 run.
 
 ## Running With TestNG
-You extend a class from the `karate-testng` Maven artifact like so. All other behavior
+You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior
 is the same as if using JUnit.
 
 ```java
@@ -545,7 +550,7 @@ no need to compile Java code any more.
 ------ | -------- | ------
 **More Step Definitions Needed** | **Yes**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | **No**.
 **Layers of Code to Maintain** | **2** Layers. One is the Gherkin custom grammar for your business domain, and you will also have the corresponding Java step-definitions. | **1** Layer. Just Karate-script, and no Java code needs to be implemented.
-**Natural Language** | **Yes**. Cucumber will read like natural language if you implement the step-definitions right. | **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But for testing web-services at the level of HTTP requests and responses - it is ideal.
+**Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
 **BDD Syntax** | **Yes** | **Yes**
 
 One nice thing about the design of the underlying Cucumber framework is that
@@ -911,7 +916,7 @@ When multipart post
 Then status 201
 ```
 
-# Multipart, SOAP and SSL
+# Multipart, SOAP, configuring SSL and Timeouts
 ## `multipart post`
 Since a multipart request needs special handling, this is a rare case where the
 [`method`](#method) step is not used to actually fire the request to the server.  The only other
@@ -935,12 +940,25 @@ And match response /Envelope/Body/QueryUsageBalanceResponse/Result/Error/Code ==
 And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-response.xml')
 ```
 
-## `ssl enabled`
-This switches on Karate's support for making HTTPS calls without needing to configure a trusted certificate
-or key-store. It is recommended that you do this at the start of your script or in the `Background:` section.
-This built-in 'relaxed' mode is not enabled by default.
+## `configure`
+You can adjust configuration settings for the HTTP client used by Karate using this keyword. The syntax is
+similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the 
+configuration keys supported:
+
+Key | Type | Description
+------ | -- | ---------
+headers | JavaScript Function | see [`configure headers`](#configure-headers)
+ssl | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
+connectTimeout | integer | Set the connect timeout (milliseconds). The default is 0 - which means infinity.
+readTimeout | integer | Set the read timeout (milliseconds). The default is 0 - which means infinity.
+
+Examples:
 ```cucumber
-* ssl enabled
+# enable ssl (and no certificate is required)
+* configure ssl = true
+
+# time-out if the response is not forthcoming within 10 seconds
+# configure readTimeout = 10000
 ```
 
 # Preparing, Manipulating and Matching Data
@@ -1303,11 +1321,11 @@ the `read(filename)` function is actually implemented in JavaScript.
 
 Refer to the section on [reading files](#reading-files) for how to use this built-in function.
 
-## `headers`
-This is a convenience feature to make custom header manipulation as easy as possible.
+## `configure headers`
+Custom HTTP-header manipulation is something that Karate makes very easy and pluggable.
 For every HTTP request made from Karate, the internal flow is as follows:
-* does a variable called `headers` exist?
-* if it does, is it a JavaScript function?
+* did we [`configure`](#configure) the value of `headers` ?
+* if so, is the configured value a JavaScript function?
 * if so, a [`call`](#call) is made to that function
 * did the function call return a map-like (or JSON) object?
 * if so, all the key-value pairs in the returned object are added to the HTTP headers.
@@ -1347,7 +1365,7 @@ And this is how it looks like in action - at the beginning of a test script:
 Feature: some feature
 
 Background:
-* def headers = read('classpath:the-above-function.js')
+* configure headers = read('classpath:the-above-function.js')
 * def signId = read('classpath:sign-in.js')
 * def authToken = call signIn { username: 'john@smith.com', password: 'secret1234' }
 
@@ -1356,11 +1374,12 @@ Scenario:
 ```
 For an example of what the 'sign-in.js' could look like, refer to the documentation
 of [`call`](#call) and the example provided. Notice how once the `authToken` variable is initialized,
-it is used by the `headers` function to generate headers for every HTTP call made as part of the test flow.
+it is used by the configured `headers` function to generate headers for every HTTP call made as part 
+of the test flow.
 
-With this convenience comes the caveat - you could over-write the [`headers`](#headers) variable by mistake.
-But there are cases where you may want to do this intentionally - for example when a few steps in your flow 
-need to change (or completely bypass) the currently-set header-manipulation scheme.
+If a few steps in your flow need to temporarily change (or completely bypass) the currently-set 
+header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the
+middle of a script.
 
 # Advanced JavaScript Function Invocation
 ## `call`
@@ -1434,9 +1453,9 @@ So for the above sign-in example, this is how it can be invoked:
 * def signIn = read('classpath:sign-in.js')
 * def authToken = call signIn { username: 'john@smith.com', password: 'secret1234' }
 ```
-Do look at the documentation and example for [`headers`](#headers) also as it goes hand-in-hand with `call`.
+Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`.
 In the above example, the function (`sign-in.js`) returns an object assigned to the `authToken` variable.
-Take a look at how the [`headers`](#headers) example uses the `authToken` variable.
+Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 ## Return types
 Naturally, only one value can be returned.  But again you can return a JSON object.
 There are two things that can happen to the returned value.

@@ -69,6 +69,10 @@ public class ScriptValue {
         return type == Type.STRING;
     }
     
+    public boolean isBooleanTrue() {
+        return type == Type.PRIMITIVE && "true".equals(value.toString());
+    }
+    
     public String getAsString() {
         switch (type) {
             case NULL:

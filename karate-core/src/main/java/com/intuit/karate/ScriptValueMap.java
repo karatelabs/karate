@@ -11,7 +11,6 @@ public class ScriptValueMap extends HashMap<String, ScriptValue> {
     public static final String VAR_READ = "read";
     public static final String VAR_RESPONSE = "response";
     public static final String VAR_COOKIES = "cookies";
-    public static final String VAR_HEADERS = "headers";
     public static final String VAR_RESPONSE_HEADERS = "responseHeaders";
     public static final String VAR_RESPONSE_STATUS = "responseStatus";
     public static final String VAR_RESPONSE_TIME = "responseTime";

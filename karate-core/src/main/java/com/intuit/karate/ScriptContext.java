@@ -8,6 +8,8 @@ import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.apache.commons.lang3.StringUtils;
+import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
@@ -24,11 +26,16 @@ public class ScriptContext {
     private static final String KARATE_NAME = "karate";
 
     protected final ScriptValueMap vars;
-    protected Client client;
-    protected final Map<String, Validator> validators;
+    
+    protected Client client;    
+    protected final Map<String, Validator> validators;    
     protected final String featureDir;
     protected final ClassLoader fileClassLoader;
     protected final String env;
+    
+    // stateful config
+    protected boolean sslEnabled = false;
+    protected ScriptValue headers = ScriptValue.NULL;
 
     // needed for 3rd party code
     public ScriptValueMap getVars() {
@@ -42,7 +49,6 @@ public class ScriptContext {
         validators = Script.getDefaultValidators();
         vars = new ScriptValueMap();
         Script.assign(ScriptValueMap.VAR_READ, FileUtils.getFileReaderFunction(), this);
-        Script.assign(ScriptValueMap.VAR_HEADERS, "function(){}", this);
         if (test) {
             logger.trace("karate init in test mode, http client disabled");
             client = null;
@@ -55,10 +61,27 @@ public class ScriptContext {
             logger.warn("start-up configuration failed, missing or bad 'karate-config.js' - {}", e.getMessage());
         }
         logger.trace("karate context init - initial properties: {}", vars);
-        buildClient(null);
+        buildClient();
     }
 
-    public void buildClient(SSLContext ssl) {
+    public void configure(String key, String exp) { // TODO use enum
+        key = StringUtils.trimToEmpty(key);
+        ScriptValue value = Script.preEval(exp, this);
+        if (key.equals("headers")) {
+            headers = value;            
+        } else if (key.equals("ssl")) {
+            sslEnabled = value.isBooleanTrue();
+            buildClient();
+        } else if (key.equals("connectTimeout")) {
+            client.property(ClientProperties.CONNECT_TIMEOUT, value.getValue());
+        } else if (key.equals("readTimeout")) {
+            client.property(ClientProperties.READ_TIMEOUT, value.getValue());
+        } else {
+            throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
+        }
+    }
+    
+    public void buildClient() {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().register(MultiPartFeature.class);
         if (logger.isDebugEnabled()) {
             clientBuilder.register(new LoggingFeature(
@@ -67,8 +90,9 @@ public class ScriptContext {
                     LoggingFeature.Verbosity.PAYLOAD_TEXT, null));
         }
         clientBuilder.register(new RequestFilter(this));
-        if (ssl != null) {
+        if (sslEnabled) {
             logger.info("ssl enabled, initializing generic trusted certificate / key-store");
+            SSLContext ssl = SslUtils.getSslContext();
             HttpsURLConnection.setDefaultSSLSocketFactory(ssl.getSocketFactory());
             clientBuilder.sslContext(ssl);
             clientBuilder.hostnameVerifier((host, session) -> true);

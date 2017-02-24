@@ -684,7 +684,7 @@ public class Script {
     public static ScriptValue evalFunctionCall(ScriptObjectMirror som, ScriptValue argValue, ScriptContext context) {
         context.injectInto(som);
         Object result;
-        if (argValue.getType() != NULL) {
+        if (argValue != null && argValue.getType() != NULL) {
             result = som.call(som, argValue.getValue());
         } else {
             result = som.call(som);
@@ -760,8 +760,8 @@ public class Script {
     }
 
     public static AssertionResult assertBoolean(String expression, ScriptContext context) {
-        String result = Script.eval(expression, context).getAsString();
-        if (!"true".equals(result)) {
+        ScriptValue result = Script.eval(expression, context);
+        if (!result.isBooleanTrue()) {
             return AssertionResult.fail("evaluated to false: " + expression);
         }
         return AssertionResult.PASS;

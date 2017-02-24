@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
@@ -52,10 +51,9 @@ public class StepDefs {
         return context;
     }
     
-    @When("^ssl enabled")
-    public void sslEnabled() {
-        SSLContext ssl = SslUtils.getSslContext();
-        context.buildClient(ssl);
+    @When("^configure ([^\\s]+) = (.+)")
+    public void configure(String key, String exp) {
+        context.configure(key, exp);
     }    
 
     @When("^url (.+)")

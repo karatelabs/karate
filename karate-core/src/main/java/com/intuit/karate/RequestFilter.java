@@ -1,5 +1,7 @@
 package com.intuit.karate;
 
+import static com.intuit.karate.Script.evalFunctionCall;
+import static com.intuit.karate.ScriptValue.Type.JS_FUNCTION;
 import java.io.IOException;
 import java.util.Map;
 import javax.ws.rs.client.ClientRequestContext;
@@ -25,7 +27,13 @@ public class RequestFilter implements ClientRequestFilter {
 
     @Override
     public void filter(ClientRequestContext ctx) throws IOException {        
-        ScriptValue sv = Script.call(ScriptValueMap.VAR_HEADERS, null, context);
+        ScriptValue headersFunction = context.headers;
+        if (headersFunction.getType() != JS_FUNCTION) {
+            logger.trace("configured 'headers' is not a js function: {}", headersFunction);
+            return;
+        }
+        ScriptObjectMirror som = headersFunction.getValue(ScriptObjectMirror.class);
+        ScriptValue sv = evalFunctionCall(som, null, context);
         Map<String, Object> callResult;
         switch (sv.getType()) {
             case JS_OBJECT:
