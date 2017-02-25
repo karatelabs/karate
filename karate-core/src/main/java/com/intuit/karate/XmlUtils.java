@@ -6,6 +6,9 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -18,12 +21,11 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
-import org.json.JSONObject;
-import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 /**
  *
@@ -109,19 +111,50 @@ public class XmlUtils {
         node.getParentNode().replaceChild(newNode, node);
     }
 
-    public static String toJsonString(Node node) {
-        String xml = toString(node);
-        JSONObject json = XML.toJSONObject(xml);
-        return json.toString();
-    }
-
-    public static Map<String, Object> toMap(Node node) {
-        return toJsonDoc(node).read("$");
-    }
-
     public static DocumentContext toJsonDoc(Node node) {
-        String json = toJsonString(node);
-        return JsonPath.parse(json);
+        return JsonPath.parse(toMap(node));
+    }
+
+    public static Object toMap(Node node) {
+        switch (node.getNodeType()) {
+            case Node.DOCUMENT_NODE:
+                Map<String, Object> root = new LinkedHashMap<>();
+                node = node.getFirstChild();
+                root.put(node.getNodeName(), toMap(node));
+                return root;
+            case Node.ELEMENT_NODE:
+                NodeList nodes = node.getChildNodes();
+                int childCount = nodes.getLength();
+                Map<String, Object> map = new LinkedHashMap<>(childCount);
+                for (int i = 0; i < childCount; i++) {
+                    Node child = nodes.item(i);
+                    String childName = child.getNodeName();
+                    String value = child.getNodeValue();
+                    if (value != null) { // text node !
+                        return value;
+                    } else if (child.hasChildNodes()) {
+                        Object childValue = toMap(child);
+                        if (map.containsKey(childName)) {
+                            Object temp = map.get(childName);
+                            if (temp instanceof List) {
+                                List list = (List) temp;
+                                list.add(childValue);
+                            } else {
+                                List list = new ArrayList(childCount);
+                                map.put(childName, list);
+                                list.add(temp);
+                                list.add(childValue);
+                            }
+                        } else {
+                            map.put(childName, childValue);
+                        }
+                    }
+                }
+                return map;
+            default:
+                logger.warn("unexpected node: " + node);
+                return new LinkedHashMap<>();
+        }
     }
 
 }

@@ -318,7 +318,6 @@ public class ScriptTest {
         ctx.vars.put("myXml", doc);
         ScriptValue myXml = ctx.vars.get("myXml");
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/foo", "'bar'", ctx).pass);
-        assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/foo", "<foo>bar</foo>", ctx).pass);
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/hello", "'world'", ctx).pass);
     }
 
@@ -357,7 +356,7 @@ public class ScriptTest {
         ctx.vars.put(ScriptValueMap.VAR_RESPONSE, doc);
         ScriptValue response = ctx.vars.get(ScriptValueMap.VAR_RESPONSE);
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/", "<foo><bar>baz1</bar><bar>baz2</bar></foo>", ctx).pass);
-        assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/foo/bar[2]", "<bar>baz2</bar>", ctx).pass);
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/foo/bar[2]", "'baz2'", ctx).pass);
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/foo/bar[1]", "'baz1'", ctx).pass);
     }
 

@@ -197,7 +197,7 @@ public class Script {
             case LIST: // this happens because some jsonpath expressions evaluate to List
                 List list = value.getValue(List.class);
                 DocumentContext fromList = JsonPath.parse(list);
-                return new ScriptValue(fromList.read(exp));                
+                return new ScriptValue(fromList.read(exp));
             default:
                 throw new RuntimeException("cannot run jsonpath on type: " + value);
         }
@@ -626,7 +626,20 @@ public class Script {
                 }
                 return AssertionResult.PASS; // lists (and order) are identical
             }
-        } else if (ClassUtils.isPrimitiveOrWrapper(actObject.getClass())) {
+        } else if (ClassUtils.isPrimitiveOrWrapper(expObject.getClass())) {
+            if (actObject == null) {
+                return matchFailed(path, actObject, expObject);
+            }
+            if (!expObject.getClass().equals(actObject.getClass())) {
+                // types are not the same, use the JS engine for a lenient equality check
+                String exp = actObject + " == " + expObject;
+                ScriptValue sv = eval(exp, context);
+                if (sv.isBooleanTrue()) {
+                    return AssertionResult.PASS;
+                } else {
+                    return matchFailed(path, actObject, expObject);
+                }
+            }
             if (!expObject.equals(actObject)) {
                 return matchFailed(path, actObject, expObject);
             } else {

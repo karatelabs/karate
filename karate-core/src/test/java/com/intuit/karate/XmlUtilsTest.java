@@ -41,8 +41,8 @@ public class XmlUtilsTest {
     public void testConvertingToMap() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Map<String, Object> map = XmlUtils.toMap(doc);
-        logger.debug("map: {}", map);
+        Map<String, Object> map = (Map) XmlUtils.toMap(doc);
+        logger.trace("map: {}", map);
         Map inner = (Map) map.get("foo");
         assertEquals("baz", inner.get("bar"));
     }
@@ -50,8 +50,8 @@ public class XmlUtilsTest {
     @Test
     public void testComplexConversionToMap() {
         Document doc = XmlUtils.toXmlDoc(ACTUAL);
-        Map<String, Object> map = XmlUtils.toMap(doc);
-        logger.debug("map: {}", map);
+        Map<String, Object> map = (Map) XmlUtils.toMap(doc);
+        logger.trace("map: {}", map);
         Map in1 = (Map) map.get("env:Envelope");
         Map in2 = (Map) in1.get("env:Body");
         Map in3 = (Map) in2.get("QueryUsageBalanceResponse");
@@ -64,8 +64,8 @@ public class XmlUtilsTest {
     public void testRepeatedXmlElementsToMap() {
         String xml = "<foo><bar>baz1</bar><bar>baz2</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Map<String, Object> map = XmlUtils.toMap(doc);
-        logger.debug("map: {}", map);
+        Map<String, Object> map = (Map) XmlUtils.toMap(doc);
+        logger.trace("map: {}", map);
         Map in1 = (Map) map.get("foo");
         List list = (List) in1.get("bar");
         assertEquals(2, list.size());
@@ -84,7 +84,7 @@ public class XmlUtilsTest {
                 + "</com.intuit.services.acs.domain.api.ACSDocumentDTO>";
         Document doc = XmlUtils.toXmlDoc(xml);
         String value = XmlUtils.getValueByPath(doc, "/com.intuit.services.acs.domain.api.ACSDocumentDTO/EntityId");
-        logger.debug("value: {}", value);
+        logger.trace("value: {}", value);
         assertEquals("b14712d1-df91-4111-a77f-ce48f066b4ab", value);
     }
 
@@ -105,6 +105,6 @@ public class XmlUtilsTest {
         XmlUtils.setByPath(doc, "/foo/bar", temp);
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><hello>world</hello></foo>");
-    }       
+    }
 
 }
