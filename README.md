@@ -57,7 +57,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 # Features
 * Java knowledge is not required to write tests
 * Scripts are plain-text files and require no compilation step or IDE
-* Syntax is based on the popular Cucumber / Gherkin standard, and IDE support and syntax-coloring options exist
+* Based on the popular Cucumber / Gherkin standard, and IDE support and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
 * Express expected results as well-formed JSON or XML, and assert that the entire response payload (no matter how complex or deeply nested) is as expected
 * Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment
@@ -199,9 +199,9 @@ This will create a folder called 'myproject' (or whatever you set the name to).
 
 ## Recommended Folder Structure
 The Maven tradition is to have non-Java source files in a separate 'src/test/resources'
-folder structure - but we recommend that you keep them side-by-side with your *.java files.
-When you have a large and complex project, you will end up with a few data files (e.g. *.js, *.json, *.txt)
-as well and it is much more convenient to see the *.java and *.feature files and all
+folder structure - but we recommend that you keep them side-by-side with your `*.java` files.
+When you have a large and complex project, you will end up with a few data files (e.g. `*.js`, `*.json`, `*.txt`)
+as well and it is much more convenient to see the `*.java` and `*.feature` files and all
 related artifacts in the same place.
 
 This can be easily achieved with the following tweak to your maven 'build' section.
@@ -264,12 +264,12 @@ src/test/java
             +-- some-helper-function.js
             \-- DogsTest.java
 ```
-For details on what actually goes into a script or *.feature file, refer to the
+For details on what actually goes into a script or `*.feature` file, refer to the
 [syntax guide](#syntax-guide).
 
 ## Running With JUnit
 To run a script `*.feature` file from your Java IDE, you just need the following empty test-class in the same package.
-The name of the class doesn't matter, and it will automatically run any *.feature file in the same package.
+The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package.
 This comes in useful because depending on how you organize your files and folders - you can have 
 multiple feature files executed by a single JUnit test-class.
 ```java
@@ -286,8 +286,8 @@ public class CatsTest {
 Refer to your IDE documentation for how to run a JUnit class.  Typically right-clicking on the file in the
 project browser or even within the editor view would bring up the "Run as JUnit Test" menu option.
 
-> Karate will traverse sub-directories and look for *.feature files. For example if you have the JUnit class
-in the `com.mycompany` package, *.feature files in `com.mycompany.foo` and `com.mycompany.bar` will also be
+> Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class
+in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be
 run.
 
 ## Running With TestNG
@@ -453,11 +453,11 @@ Karate's approach frees you from Maven, is far more expressive, allows you to ey
 all environments in one place, and is still a plain-text file.  If you want, you could even
 create nested chunks of JSON that 'name-space' your config variables.
 
-This approach is indeed slightly more complicated than traditional *.properties files - but you
+This approach is indeed slightly more complicated than traditional `*.properties` files - but you
 _need_ this complexity. Keep in mind that these are tests (not production code) and this config
 is going to be maintained more by the dev or QE team instead of the 'ops' or operations team.
 
-And there is no more worrying about Maven profiles and whether the 'right' *.properties file has been
+And there is no more worrying about Maven profiles and whether the 'right' `*.properties` file has been
 copied to the proper place.
 
 ## Switching the Environment
@@ -509,7 +509,7 @@ public class CatsTest {
 Karate scripts are technically in '[Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin)' 
 format - but all you need to grok as someone who needs to test web-services 
 are the three sections: `Feature`, `Background` and `Scenario`.  There can be multiple Scenario-s 
-in a *.feature file.  
+in a `*.feature` file.  
 
 Lines that start with a '#' are comments.
 ```cucumber
@@ -737,7 +737,7 @@ This actually is a good example of how you could extend Karate with custom funct
 The variable `read` is a JavaScript function that is automatically available when Karate starts.
 It takes the name of a file as the only argument.
 
-By default, the file is expected to be in the same folder (package) as the *.feature file.
+By default, the file is expected to be in the same folder (package) as the `*.feature` file.
 But you can prefix the name with `classpath:`.  Prefer `classpath:` when a file is expected
 to be heavily re-used all across your project.  And yes, relative paths will work.
 
@@ -948,7 +948,7 @@ configuration keys supported:
 ------ | ---- | ---------
 `headers` | JavaScript Function | see [`configure headers`](#configure-headers)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
-`ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above defaults to `TLS`).
+`ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above defaults to `TLS` if set to `true`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
 `proxy` | string | Set the URI of the HTTP proxy to use.
@@ -1619,9 +1619,9 @@ One limitation of the Cucumber / Gherkin format is the lack of a way to denote
 multi-line comments.  This can be a pain during development when you want to comment out
 whole blocks of script.  Fortunately there is a reasonable workaround for this.
 
-Of course, if your [IDE supports the Gherkin / Cucumber format](https://github.com/cucumber/cucumber-jvm/wiki/IDE-support)
-- nothing like it. But since Gherkin comments look exactly like comments in *.properties files, all you need
-to do is tell your IDE that *.feature files should be treated as *.properties files.
+Of course, if your [IDE supports the Gherkin / Cucumber format](https://github.com/cucumber/cucumber-jvm/wiki/IDE-support),
+nothing like it. But since Gherkin comments look exactly like comments in *.properties files, all you need
+to do is tell your IDE that `*.feature` files should be treated as `*.properties` files.
 
 And once that is done, if you hit CTRL + '/' (or Command + '/') with multiple
 lines selected - you can block-comment or un-comment them all in one-shot.
