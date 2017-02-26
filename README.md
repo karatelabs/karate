@@ -943,8 +943,11 @@ configuration keys supported:
 ------ | ---- | ---------
 `headers` | JavaScript Function | see [`configure headers`](#configure-headers)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
+`ssl` | string | Enable SSL and force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). It defaults to TLS.
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
+`proxy` | string | Set the URI of the HTTP proxy to use
+`proxy` | json | Set uri, username and password of the HTTP proxy to use (see example below)
 
 
 Examples:
@@ -952,8 +955,17 @@ Examples:
 # enable ssl (and no certificate is required)
 * configure ssl = true
 
+# enable ssl and force the algorithm to TLSv1.2
+* configure ssl = 'TLSv1.2'
+
 # time-out if the response is not forthcoming within 10 seconds
 * configure readTimeout = 10000
+
+# set the uri of the http proxy server to use
+* configure proxy = 'http://my.proxy.host:8080'
+
+# proxy which needs authentication
+* configure proxy = { uri: 'http://my.proxy.host:8080', username: 'john', password: 'secret' }
 ```
 
 # Preparing, Manipulating and Matching Data
@@ -1553,12 +1565,10 @@ As a demonstration of Karate's power and flexibility, here is an example that re
 GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries 
 and filter criteria.
 
-Once the function is declared, observe how calling it and performing the replacement 
-is an elegant one-liner.
-```cucumber
-# this function would normally reside in a file
-* def replacer = 
-"""
+Here we have this JavaScript utlity function `replacer.js` that uses a regular-expression to 
+replace-inject a criteria expression into the right place, given a GraphQL query.
+
+```javascript
 function(args) {
   var query = args.query;
   karate.log('before replacement: ', query);
@@ -1569,7 +1579,12 @@ function(args) {
   karate.log('after replacement: ', query);
   return query; 
 } 
-"""
+```
+
+Once the function is declared, observe how calling it and performing the replacement 
+is an elegant one-liner.
+```cucumber
+* def replacer = read('replacer.js')
 
 # this 'base GraphQL query' would also likely be read from a file in real-life
 * def query = 'query q { company { taxAgencies { edges { node { id, name } } } } }'
@@ -1577,7 +1592,7 @@ function(args) {
 # the next line is where the criteria is injected using the regex function
 * def query = call replacer { query: '#(query)', field: 'taxAgencies', criteria: 'first: 5' }
 
-# here is the result
+# and here is the result of the 'replace'
 * assert query == 'query q { company { taxAgencies(first: 5) { edges { node { id, name } } } } }'
 
 Given request { query: '#(query)' }
@@ -1622,9 +1637,9 @@ within [`karate-config.js`](#configuration) on start-up, it is a simple and effe
 processes within the same JVM to pass configuration values into Karate at run-time.
 
 You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
-* [HelloWorldTest.java](karate-core/src/test/java/com/intuit/karate/wiremock/HelloWorldTest.java) - see line #30
-* [karate-config.js](karate-core/src/test/java/karate-config.js) - see line #10
-* [hello-world.feature](karate-core/src/test/java/com/intuit/karate/wiremock/hello-world.feature) - see line #5
+* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java) - see line #30
+* [karate-config.js](karate-junit4/src/test/java/karate-config.js) - see line #10
+* [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature) - see line #5
 
 ## Data Driven Tests
 Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines)

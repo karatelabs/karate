@@ -21,7 +21,7 @@ public class SslUtils {
         // only static methods
     }
 
-    public static SSLContext getSslContext() {
+    public static SSLContext getSslContext(String algorithm) {
         TrustManager[] certs = new TrustManager[]{new X509TrustManager() {
             @Override
             public X509Certificate[] getAcceptedIssuers() {
@@ -38,8 +38,12 @@ public class SslUtils {
             }
         }};
         SSLContext ctx = null;
+        if (algorithm == null) {            
+            algorithm = "TLS";
+            logger.warn("ssl algorithm not set, defaulting to: {}", algorithm);
+        }
         try {
-            ctx = SSLContext.getInstance("TLS");
+            ctx = SSLContext.getInstance(algorithm);
             ctx.init(null, certs, new SecureRandom());
         } catch (Exception e) {
             throw new RuntimeException(e);

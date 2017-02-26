@@ -26,16 +26,22 @@ public class ScriptContext {
     private static final String KARATE_NAME = "karate";
 
     protected final ScriptValueMap vars;
-    
-    protected Client client;    
-    protected final Map<String, Validator> validators;    
+
+    protected Client client;
+    protected final Map<String, Validator> validators;
     protected final String featureDir;
     protected final ClassLoader fileClassLoader;
     protected final String env;
-    
+
     // stateful config
-    protected boolean sslEnabled = false;
     protected ScriptValue headers = ScriptValue.NULL;
+    private boolean sslEnabled = false;
+    private String sslAlgorithm = "TLS";
+    private int readTimeout = -1;
+    private int connectTimeout = -1;
+    private String proxyUri;
+    private String proxyUsername;
+    private String proxyPassword;
 
     // needed for 3rd party code
     public ScriptValueMap getVars() {
@@ -68,19 +74,38 @@ public class ScriptContext {
         key = StringUtils.trimToEmpty(key);
         ScriptValue value = Script.preEval(exp, this);
         if (key.equals("headers")) {
-            headers = value;            
+            headers = value;
         } else if (key.equals("ssl")) {
-            sslEnabled = value.isBooleanTrue();
+            if (value.isString()) {
+                sslEnabled = true;
+                sslAlgorithm = value.getAsString();
+            } else {
+                sslEnabled = value.isBooleanTrue();
+            }
             buildClient();
         } else if (key.equals("connectTimeout")) {
-            client.property(ClientProperties.CONNECT_TIMEOUT, value.getValue());
+            connectTimeout = Integer.valueOf(value.getAsString());
+            client.property(ClientProperties.CONNECT_TIMEOUT, connectTimeout);
+            // lightweight operation, no need to re-build client
         } else if (key.equals("readTimeout")) {
-            client.property(ClientProperties.READ_TIMEOUT, value.getValue());
+            readTimeout = Integer.valueOf(value.getAsString());
+            client.property(ClientProperties.READ_TIMEOUT, readTimeout);
+            // lightweight operation, no need to re-build client
+        } else if (key.equals("proxy")) {
+            if (value.isString()) {
+                proxyUri = value.getAsString();
+            } else {
+                Map<String, Object> map = (Map) value.getAfterConvertingToMapIfNeeded();
+                proxyUri = (String) map.get("uri");
+                proxyUsername = (String) map.get("username");
+                proxyPassword = (String) map.get("password");
+            }
+            buildClient();
         } else {
             throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
     }
-    
+
     public void buildClient() {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().register(MultiPartFeature.class);
         if (logger.isDebugEnabled()) {
@@ -91,13 +116,28 @@ public class ScriptContext {
         }
         clientBuilder.register(new RequestFilter(this));
         if (sslEnabled) {
-            logger.info("ssl enabled, initializing generic trusted certificate / key-store");
-            SSLContext ssl = SslUtils.getSslContext();
+            logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
+            SSLContext ssl = SslUtils.getSslContext(sslAlgorithm);
             HttpsURLConnection.setDefaultSSLSocketFactory(ssl.getSocketFactory());
             clientBuilder.sslContext(ssl);
             clientBuilder.hostnameVerifier((host, session) -> true);
         }
         client = clientBuilder.build();
+        if (connectTimeout != -1) {
+            client.property(ClientProperties.CONNECT_TIMEOUT, connectTimeout);
+        }
+        if (readTimeout != -1) {
+            client.property(ClientProperties.READ_TIMEOUT, readTimeout);
+        }
+        if (proxyUri != null) {
+            client.property(ClientProperties.PROXY_URI, proxyUri);
+        }
+        if (proxyUsername != null) {
+            client.property(ClientProperties.PROXY_USERNAME, proxyUsername);
+        }
+        if (proxyPassword != null) {
+            client.property(ClientProperties.PROXY_PASSWORD, proxyPassword);
+        }
     }
 
     public void injectInto(ScriptObjectMirror som) {

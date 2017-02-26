@@ -51,10 +51,15 @@ public class StepDefs {
         return context;
     }
     
+    @When("^configure ([^\\s]+) =$")
+    public void configureDocString(String key, String exp) {
+        configure(key, exp);
+    }      
+    
     @When("^configure ([^\\s]+) = (.+)")
     public void configure(String key, String exp) {
         context.configure(key, exp);
-    }    
+    }   
 
     @When("^url (.+)")
     public void url(String expression) {
