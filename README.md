@@ -47,19 +47,21 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Set, Match, Assert** | [`set`](#set) | [`match`](#match) | [`match contains`](#match-contains) | [`match each`](#match-each)
+**Set, Match, Assert** | [`set`](#set) / [`match ==`](#match) | [`match contains`](#match-contains) | [`match contains only`](#match-contains-only)| [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`cookies`](#cookies) | [`read`](#read)
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) and [Headers](#http-basic-authentication-example) | [Dynamic Port Numbers](#dynamic-port-numbers) | [Ignore / Vallidate](#ignore-or-validate)
+ | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) / [Headers](#http-basic-authentication-example) | [Dynamic Port Numbers](#dynamic-port-numbers) | [Ignore / Vallidate](#ignore-or-validate)
 
 # Features
-* Scripts are plain-text files and require no compilation step or IDE
 * Java knowledge is not required to write tests
+* Scripts are plain-text files and require no compilation step or IDE
+* Syntax is based on the popular Cucumber / Gherkin standard, and IDE support and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
+* Express expected results as well-formed JSON or XML, and assert that the entire response payload (no matter how complex or deeply nested) is as expected
 * Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment
-* Re-use of payload-data and user-defined functions across tests is so easy - that it becomes natural for the test-developer
+* Re-use of payload-data and user-defined functions across tests is so easy - that it becomes a natural habit for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
 * Seamless integration into existing Java projects as both JUnit and TestNG are supported
@@ -645,9 +647,9 @@ between `#(` and `)` - it will be evaluated as a JavaScript expression. And any 
 alive in the context can be used in this expression.
 
 This comes in useful in some cases - and avoids needing to use JavaScript functions or 
-JSON-Path expressions to [manipulate JSON](#set).  So you get the best of both worlds: 
-the elegance of JSON to express complex nested data - while at the same time being 
-able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
+[JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set).  
+So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
+the same time being able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
 
 The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage
 of 'embedded expressions', look for: `'#(query)'`.
@@ -912,7 +914,7 @@ When multipart post
 Then status 201
 ```
 
-# Multipart, SOAP, configuring SSL and Timeouts
+# Multipart and SOAP
 ## `multipart post`
 Since a multipart request needs special handling, this is a rare case where the
 [`method`](#method) step is not used to actually fire the request to the server.  The only other
@@ -936,6 +938,7 @@ And match response /Envelope/Body/QueryUsageBalanceResponse/Result/Error/Code ==
 And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-response.xml')
 ```
 
+# Managing Headers, SSL, Timeouts and HTTP Proxy
 ## `configure`
 You can adjust configuration settings for the HTTP client used by Karate using this keyword. The syntax is
 similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the 
@@ -945,11 +948,11 @@ configuration keys supported:
 ------ | ---- | ---------
 `headers` | JavaScript Function | see [`configure headers`](#configure-headers)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
-`ssl` | string | Enable SSL and force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). It defaults to TLS.
+`ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above defaults to `TLS`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
-`proxy` | string | Set the URI of the HTTP proxy to use
-`proxy` | json | Set uri, username and password of the HTTP proxy to use (see example below)
+`proxy` | string | Set the URI of the HTTP proxy to use.
+`proxy` | json | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
 
 
 Examples:
@@ -1025,13 +1028,15 @@ the examples in the section below.
 ### Manipulating Data
 Game, `set` and `match` - Karate !
 
-Setting values on JSON documents is simple using the `set` keyword and JSON-Path expressions.
+Setting values on JSON documents is simple using the `set` keyword and 
+[JsonPath expressions](https://github.com/jayway/JsonPath#path-examples).
+
 ```cucumber
 * def myJson = { foo: 'bar' }
 * set myJson.foo = 'world'
 * match myJson == { foo: 'world' }
 
-# add new keys.  you can use pure JSON-Path expressions (notice how this is different from the above)
+# add new keys.  you can use pure JsonPath expressions (notice how this is different from the above)
 * set myJson $.hey = 'ho'
 * match myJson == { foo: 'world', hey: 'ho' }
 
@@ -1176,8 +1181,9 @@ some keys. And `match` (name) `contains` is how you can do so:
 
 #### JSON Arrays
 
-This is a good time to discuss JsonPath, which is perfect for slicing and dicing JSON into manageable chunks.
-It is worth taking time to go through the documentation and examples here: [JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
+This is a good time to deep-dive into JsonPath, which is perfect for slicing and dicing JSON into 
+manageable chunks. It is worth taking a few minutes to go through the documentation and examples 
+here: [JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
 
 Here are some example assertions performed while scraping a list of child elements out of the JSON below.
 Observe how you can `match` the result of a JsonPath expression with your expected data.
@@ -1259,8 +1265,10 @@ request over-writes it.
 The response is automatically available as a JSON, XML or String object depending on what the
 response contents are.
 
-As a short-cut, when running JSON-Path expressions - '$' represents the `response`.  This
-has the advantage that you can use pure JSON-Path and be more concise.  For example:
+As a short-cut, when running JsonPath expressions - '$' represents the `response`.  This
+has the advantage that you can use pure [JsonPath](https://github.com/jayway/JsonPath#path-examples)
+and be more concise.  For example:
+
 ```cucumber
 # the three lines below are equivalent
 Then match response $ == { name: 'Billie' }
@@ -1611,8 +1619,8 @@ One limitation of the Cucumber / Gherkin format is the lack of a way to denote
 multi-line comments.  This can be a pain during development when you want to comment out
 whole blocks of script.  Fortunately there is a reasonable workaround for this.
 
-Of course, if your IDE supports the Gherkin / Cucumber format - nothing like it. 
-But since Gherkin comments look exactly like comments in *.properties files, all you need
+Of course, if your [IDE supports the Gherkin / Cucumber format](https://github.com/cucumber/cucumber-jvm/wiki/IDE-support)
+- nothing like it. But since Gherkin comments look exactly like comments in *.properties files, all you need
 to do is tell your IDE that *.feature files should be treated as *.properties files.
 
 And once that is done, if you hit CTRL + '/' (or Command + '/') with multiple
