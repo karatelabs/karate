@@ -38,7 +38,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
  | | | | | 
 ----- | ---- | ---- | --- | ---
-**Getting Started** | [Maven](#maven) | [Folder Structure](#recommended-folder-structure) | [File Extension](#file-extension) | Running: [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
+**Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#recommended-folder-structure) | [File Extension](#file-extension) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
  | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
  | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
@@ -68,6 +68,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Comprehensive support for different flavors of HTTP calls:
   * SOAP / XML requests
   * HTTPS / SSL - without needing certificates, key-stores or trust-stores
+  * Use an HTTP proxy server if required
   * URL-encoded HTML-form data
   * Multi-part file-upload - including 'multipart/mixed' and 'multipart/related'
   * Browser-like cookie handling
@@ -145,6 +146,7 @@ Then status 200
 Given path 'documents', 'download', documentId
 When method get
 Then status 200
+And assert responseTime < 1000
 
 # the 'match' syntax auto-converts types, and even binary file contents can be compared
 And match response == read('test.pdf')
@@ -1089,7 +1091,7 @@ Marker | Description
 #number | Expects actual value to be a number
 #string | Expects actual value to be a string
 #uuid | Expects actual (string) value to conform to the UUID format
-#regexSTR | Expects actual (string) value to match the regular-expression 'STR'
+#regexSTR | Expects actual (string) value to match the regular-expression 'STR' (see examples above)
 #?EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true (see examples below)
 
 ### 'Self' Validation Expressions
@@ -1509,8 +1511,8 @@ perhaps at the beginning, or within the `Background:` section.
 ```
 
 ## Calling Java
-There is already an example of calling a built-in Java class in the 
-'[Hello Real World](#hello-real-world)' example.
+There are examples of calling JVM classes in the '[Hello Real World](#hello-real-world)' example and
+in the section on [Java Interop](#java-interop).
 
 Calling any Java code is that easy.  Given this custom / user-defined Java class:
 ```java
