@@ -4,6 +4,8 @@ Scenario:
 
 Given def temperature = { celsius: 100, fahrenheit: 212 }
 Then match temperature contains { fahrenheit: '#? _ == $.celsius * 1.8 + 32' }
+# using embedded expressions
+Then match temperature == { celsius: '#number', fahrenheit: '#($.celsius * 1.8 + 32)' }
 
 Given def json =
 """
@@ -15,3 +17,5 @@ Given def json =
 }
 """
 Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0].roomPrice' }
+# using embedded expressions
+Then match each json.hotels == { roomInformation: '#array', totalPrice: '#($.roomInformation[0].roomPrice)' }

@@ -208,7 +208,7 @@ public class Script {
         return evalInNashorn(exp, context, null, null);
     }
 
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, ScriptValue thisValue) {
+    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, ScriptValue parentValue) {
         ScriptEngineManager manager = new ScriptEngineManager();
         ScriptEngine nashorn = manager.getEngineByName("nashorn");
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
@@ -221,8 +221,8 @@ public class Script {
         if (selfValue != null) {
             bindings.put(VAR_SELF, selfValue.getValue());
         }
-        if (thisValue != null) {
-            bindings.put(VAR_DOLLAR, thisValue.getAfterConvertingToMapIfNeeded());
+        if (parentValue != null) {
+            bindings.put(VAR_DOLLAR, parentValue.getAfterConvertingToMapIfNeeded());
         }
         try {
             Object o = nashorn.eval(exp);
@@ -390,18 +390,23 @@ public class Script {
     public static AssertionResult matchString(MatchType matchType, ScriptValue actual, String expected, String path, ScriptContext context) {
         ScriptValue expectedValue = eval(expected, context);
         expected = expectedValue.getAsString();
-        return matchStringOrPattern(matchType, null, actual, expected, path, context);
+        return matchStringOrPattern('*', path, matchType, null, actual, expected, context);
     }
 
     public static boolean isValidator(String text) {
         return text.startsWith("#");
     }
 
-    public static AssertionResult matchStringOrPattern(MatchType matchType, Object actRoot, ScriptValue actValue, String expected, String path, ScriptContext context) {
+    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType matchType, Object actRoot, 
+            ScriptValue actValue, String expected, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
                 return matchFailed(path, actValue.getValue(), expected);
             }
+        } else if (isEmbeddedExpression(expected)) {
+            ScriptValue parentValue = getValueOfParentNode(actRoot, path);
+            ScriptValue expValue = evalInNashorn(expected.substring(1), context, actValue, parentValue);
+            return matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
         } else if (isValidator(expected)) {
             String validatorName = expected.substring(1);
             if (validatorName.startsWith("regex")) {
@@ -413,14 +418,8 @@ public class Script {
                 }
             } else if (validatorName.startsWith("?")) {
                 String exp = validatorName.substring(1);
-                ScriptValue thisValue = null;
-                if (actRoot instanceof DocumentContext) {
-                    Pair<String, String> parentAndLeaf = JsonUtils.getParentAndLeafPath(path);
-                    DocumentContext actDoc = (DocumentContext) actRoot;
-                    Object thisObject = actDoc.read(parentAndLeaf.getLeft());
-                    thisValue = new ScriptValue(thisObject);
-                }
-                ScriptValue result = Script.evalInNashorn(exp, context, actValue, thisValue);
+                ScriptValue parentValue = getValueOfParentNode(actRoot, path);
+                ScriptValue result = Script.evalInNashorn(exp, context, actValue, parentValue);
                 if (!result.isBooleanTrue()) {
                     return matchFailed(path, actValue.getValue(), expected + ", reason: did not evaluate to 'true'");
                 }
@@ -453,6 +452,17 @@ public class Script {
             }
         }
         return AssertionResult.PASS;
+    }
+    
+    private static ScriptValue getValueOfParentNode(Object actRoot, String path) {
+        if (actRoot instanceof DocumentContext) {
+            Pair<String, String> parentAndLeaf = JsonUtils.getParentAndLeafPath(path);
+            DocumentContext actDoc = (DocumentContext) actRoot;
+            Object thisObject = actDoc.read(parentAndLeaf.getLeft());
+            return new ScriptValue(thisObject);
+        } else {
+            return null;
+        }
     }
 
     public static AssertionResult matchXmlPath(MatchType matchType, ScriptValue actual, String path, String expression, ScriptContext context) {
@@ -509,7 +519,7 @@ public class Script {
                 if (!expected.isString()) {
                     return matchFailed(path, actualString, expected.getValue());
                 } else {
-                    return matchStringOrPattern(matchType, null, actual, expected.getValue(String.class), path, context);
+                    return matchStringOrPattern('.', path, matchType, null, actual, expected.getValue(String.class), context);
                 }
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
@@ -570,7 +580,7 @@ public class Script {
         }
         if (expObject instanceof String) {
             ScriptValue actValue = new ScriptValue(actObject);
-            return matchStringOrPattern(matchType, actRoot, actValue, expObject.toString(), path, context);
+            return matchStringOrPattern(delimiter, path, matchType, actRoot, actValue, expObject.toString(), context);
         } else if (expObject instanceof Map) {
             if (!(actObject instanceof Map)) {
                 return matchFailed(path, actObject, expObject);
