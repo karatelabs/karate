@@ -63,7 +63,7 @@ public class StepDefs {
 
     @When("^url (.+)")
     public void url(String expression) {
-        String temp = Script.preEval(expression, context).getAsString();
+        String temp = Script.eval(expression, context).getAsString();
         this.url = temp;
         target = context.client.target(temp);
     }
@@ -78,7 +78,7 @@ public class StepDefs {
     public void path(List<String> paths) {
         hasUrlBeenSet();
         for (String path : paths) {
-            String temp = Script.preEval(path, context).getAsString();
+            String temp = Script.eval(path, context).getAsString();
             target = target.path(temp);
         }
     }
@@ -86,7 +86,7 @@ public class StepDefs {
     @When("^param ([^\\s]+) = (.+)")
     public void param(String name, String value) {
         hasUrlBeenSet();
-        String temp = Script.preEval(value, context).getAsString();
+        String temp = Script.eval(value, context).getAsString();
         target = target.queryParam(name, temp);
     }
 
@@ -102,7 +102,7 @@ public class StepDefs {
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
         Map<String, String> cookies = getCookies();
-        String temp = Script.preEval(value, context).getAsString();
+        String temp = Script.eval(value, context).getAsString();
         cookies.put(name, temp);
     }
 
@@ -116,7 +116,7 @@ public class StepDefs {
     @When("^header ([^\\s]+) = (.+)")
     public void header(String name, String value) {
         Map<String, Object> headers = getHeaders();
-        String temp = Script.preEval(value, context).getAsString();
+        String temp = Script.eval(value, context).getAsString();
         headers.put(name, temp);
     }
 
@@ -130,7 +130,7 @@ public class StepDefs {
     @When("^form field ([^\\s]+) = (.+)")
     public void formField(String name, String value) {
         MultivaluedMap<String, Object> formFields = getFormFields();
-        String temp = Script.preEval(value, context).getAsString();
+        String temp = Script.eval(value, context).getAsString();
         formFields.add(name, temp);
     }
 
@@ -141,7 +141,7 @@ public class StepDefs {
 
     @When("^request (.+)")
     public void request(String requestBody) {
-        request = Script.preEval(requestBody, context);
+        request = Script.eval(requestBody, context);
         logger.trace("request value is: {}", request);
     }
 
@@ -292,7 +292,7 @@ public class StepDefs {
     @When("^soap action( .+)?")
     public void soapAction(String action) {
         hasUrlBeenSet();
-        action = Script.preEval(action, context).getAsString();
+        action = Script.eval(action, context).getAsString();
         if (action == null) {
             action = "";
         }
@@ -342,7 +342,7 @@ public class StepDefs {
 
     public void multiPart(String name, String value) {
         MultiPart mp = getMultiPart();
-        ScriptValue sv = Script.preEval(value, context);
+        ScriptValue sv = Script.eval(value, context);
         if (sv.isNull()) {
             throw new RuntimeException("multipart field cannot be null: " + name);
         }
@@ -388,7 +388,7 @@ public class StepDefs {
 
     @Then("^print (.+)")
     public void print(String exp) {
-        String temp = Script.preEval(exp, context).getAsString();
+        String temp = Script.eval(exp, context).getAsString();
         logger.info("[print] {}", temp);
     }
 
@@ -416,24 +416,24 @@ public class StepDefs {
         }
     }
 
-    @Then("^match (each )?([^\\s]+)( .+)? ==$")
+    @Then("^match (each )?([^\\s]+)( [^\\s]+)? ==$")
     public void matchEqualsDocString(String each, String name, String path, String expected) {
         matchEquals(each, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( .+)? contains( only)?$")
+    @Then("^match (each )?([^\\s]+)( [^\\s]+)? contains( only)?$")
     public void matchContainsDocString(String each, String name, String path, String only, String expected) {
         matchContains(each, name, path, only, expected);
     }
 
 
-    @Then("^match (each )?([^\\s]+)( .+)? == (.+)")
+    @Then("^match (each )?([^\\s]+)( [^\\s]+)? == (.+)")
     public void matchEquals(String each, String name, String path, String expected) {
         MatchType mt = toMatchType(each, null, false);
         matchNamed(mt, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( .+)? contains( only)?(.+)")
+    @Then("^match (each )?([^\\s]+)( [^\\s]+)? contains( only)?(.+)")
     public void matchContains(String each, String name, String path, String only, String expected) {
         MatchType mt = toMatchType(each, only, true);
         matchNamed(mt, name, path, expected);

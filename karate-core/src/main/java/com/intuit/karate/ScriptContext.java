@@ -72,7 +72,7 @@ public class ScriptContext {
 
     public void configure(String key, String exp) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
-        ScriptValue value = Script.preEval(exp, this);
+        ScriptValue value = Script.eval(exp, this);
         if (key.equals("headers")) {
             headers = value;
         } else if (key.equals("ssl")) {

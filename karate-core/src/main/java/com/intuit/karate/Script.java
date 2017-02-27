@@ -43,6 +43,7 @@ public class Script {
 
     public static final String VAR_CONTEXT = "_context";
     public static final String VAR_SELF = "_";
+    public static final String VAR_DOLLAR = "$";
 
     private Script() {
         // only static methods
@@ -115,7 +116,7 @@ public class Script {
         return Pair.of(name, path);
     }
 
-    public static ScriptValue preEval(String text, ScriptContext context) {
+    public static ScriptValue eval(String text, ScriptContext context) {
         text = StringUtils.trimToEmpty(text);
         if (text.isEmpty()) {
             logger.trace("script is empty");
@@ -145,7 +146,7 @@ public class Script {
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
         } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
-            return eval(text, context);
+            return evalInNashorn(text, context);
         } else if (isVariableAndJsonPath(text)) {
             Pair<String, String> pair = parseVariableAndPath(text);
             return evalJsonPathOnVarByName(pair.getLeft(), pair.getRight(), context);
@@ -155,7 +156,7 @@ public class Script {
         } else {
             // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, 5, true
             // including function declarations e.g. function() { }
-            return eval(text, context);
+            return evalInNashorn(text, context);
         }
     }
 
@@ -203,11 +204,11 @@ public class Script {
         }
     }
 
-    public static ScriptValue eval(String exp, ScriptContext context) {
-        return eval(exp, context, null);
+    public static ScriptValue evalInNashorn(String exp, ScriptContext context) {
+        return evalInNashorn(exp, context, null, null);
     }
 
-    public static ScriptValue eval(String exp, ScriptContext context, ScriptValue self) {
+    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, ScriptValue thisValue) {
         ScriptEngineManager manager = new ScriptEngineManager();
         ScriptEngine nashorn = manager.getEngineByName("nashorn");
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
@@ -217,8 +218,11 @@ public class Script {
         }
         // for future function calls if needed, and see FileUtils.getFileReaderFunction()
         bindings.put(VAR_CONTEXT, context);
-        if (self != null) {
-            bindings.put(VAR_SELF, self.getValue());
+        if (selfValue != null) {
+            bindings.put(VAR_SELF, selfValue.getValue());
+        }
+        if (thisValue != null) {
+            bindings.put(VAR_DOLLAR, thisValue.getAfterConvertingToMapIfNeeded());
         }
         try {
             Object o = nashorn.eval(exp);
@@ -278,7 +282,7 @@ public class Script {
             value = StringUtils.trim(value);
             if (isEmbeddedExpression(value)) {
                 try {
-                    ScriptValue sv = eval(value.substring(1), context);
+                    ScriptValue sv = evalInNashorn(value.substring(1), context);
                     root.set(path, sv.getValue());
                 } catch (Exception e) {
                     logger.warn("embedded json script eval failed at path {}: {}", path, e.getMessage());
@@ -301,7 +305,7 @@ public class Script {
             value = StringUtils.trimToEmpty(value);
             if (isEmbeddedExpression(value)) {
                 try {
-                    ScriptValue sv = eval(value.substring(1), context);
+                    ScriptValue sv = evalInNashorn(value.substring(1), context);
                     attrib.setValue(sv.getAsString());
                 } catch (Exception e) {
                     logger.warn("embedded xml-attribute script eval failed: {}", e.getMessage());
@@ -317,7 +321,7 @@ public class Script {
                 value = StringUtils.trimToEmpty(value);
                 if (isEmbeddedExpression(value)) {
                     try {
-                        ScriptValue sv = eval(value.substring(1), context);
+                        ScriptValue sv = evalInNashorn(value.substring(1), context);
                         child.setNodeValue(sv.getAsString());
                     } catch (Exception e) {
                         logger.warn("embedded xml-text script eval failed: {}", e.getMessage());
@@ -334,7 +338,7 @@ public class Script {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
-        ScriptValue sv = preEval(exp, context);
+        ScriptValue sv = eval(exp, context);
         logger.trace("assigning {} = {} evaluated to {}", name, exp, sv);
         context.vars.put(name, sv);
     }
@@ -384,16 +388,16 @@ public class Script {
     }
 
     public static AssertionResult matchString(MatchType matchType, ScriptValue actual, String expected, String path, ScriptContext context) {
-        ScriptValue expectedValue = preEval(expected, context);
+        ScriptValue expectedValue = eval(expected, context);
         expected = expectedValue.getAsString();
-        return matchStringOrPattern(matchType, actual, expected, path, context);
+        return matchStringOrPattern(matchType, null, actual, expected, path, context);
     }
 
     public static boolean isValidator(String text) {
         return text.startsWith("#");
     }
 
-    public static AssertionResult matchStringOrPattern(MatchType matchType, ScriptValue actValue, String expected, String path, ScriptContext context) {
+    public static AssertionResult matchStringOrPattern(MatchType matchType, Object actRoot, ScriptValue actValue, String expected, String path, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
                 return matchFailed(path, actValue.getValue(), expected);
@@ -409,9 +413,16 @@ public class Script {
                 }
             } else if (validatorName.startsWith("?")) {
                 String exp = validatorName.substring(1);
-                String result = eval(exp, context, actValue).getAsString();
-                if (!"true".equals(result)) {
-                    return matchFailed(path, actValue.getValue(), expected + ", reason: false");
+                ScriptValue thisValue = null;
+                if (actRoot instanceof DocumentContext) {
+                    Pair<String, String> parentAndLeaf = JsonUtils.getParentAndLeafPath(path);
+                    DocumentContext actDoc = (DocumentContext) actRoot;
+                    Object thisObject = actDoc.read(parentAndLeaf.getLeft());
+                    thisValue = new ScriptValue(thisObject);
+                }
+                ScriptValue result = Script.evalInNashorn(exp, context, actValue, thisValue);
+                if (!result.isBooleanTrue()) {
+                    return matchFailed(path, actValue.getValue(), expected + ", reason: did not evaluate to 'true'");
                 }
             } else {
                 Validator v = context.validators.get(validatorName);
@@ -444,14 +455,10 @@ public class Script {
         return AssertionResult.PASS;
     }
 
-    public static AssertionResult matchXmlObject(MatchType matchType, Object act, Object exp, ScriptContext context) {
-        return matchNestedObject('/', "", matchType, act, exp, context);
-    }
-
     public static AssertionResult matchXmlPath(MatchType matchType, ScriptValue actual, String path, String expression, ScriptContext context) {
         Document actualDoc = actual.getValue(Document.class);
         Node actNode = XmlUtils.getNodeByPath(actualDoc, path);
-        ScriptValue expected = preEval(expression, context);
+        ScriptValue expected = eval(expression, context);
         Object actObject;
         Object expObject;
         switch (expected.getType()) {
@@ -464,7 +471,7 @@ public class Script {
                 actObject = new ScriptValue(actNode).getAsString();
                 expObject = expected.getAsString();
         }
-        return matchNestedObject('/', path, matchType, actObject, expObject, context);
+        return matchNestedObject('/', path, matchType, actualDoc, actObject, expObject, context);
     }
 
     private static MatchType getInnerMatchType(MatchType outerMatchType) {
@@ -497,18 +504,18 @@ public class Script {
                 break;
             case STRING: // an edge case when the variable is a plain string not JSON, so switch to plain string compare
                 String actualString = actual.getValue(String.class);
-                ScriptValue expected = preEval(expression, context);
+                ScriptValue expected = eval(expression, context);
                 // exit the function early
                 if (!expected.isString()) {
                     return matchFailed(path, actualString, expected.getValue());
                 } else {
-                    return matchStringOrPattern(matchType, actual, expected.getValue(String.class), path, context);
+                    return matchStringOrPattern(matchType, null, actual, expected.getValue(String.class), path, context);
                 }
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }
         Object actObject = actualDoc.read(path);
-        ScriptValue expected = preEval(expression, context);
+        ScriptValue expected = eval(expression, context);
         Object expObject;
         switch (expected.getType()) {
             case JSON:
@@ -521,7 +528,7 @@ public class Script {
             case CONTAINS_ONLY:
             case CONTAINS:
             case EQUALS:
-                return matchNestedObject('.', path, matchType, actObject, expObject, context);
+                return matchNestedObject('.', path, matchType, actualDoc, actObject, expObject, context);
             case EACH_CONTAINS:
             case EACH_EQUALS:
                 if (actObject instanceof List) {
@@ -531,7 +538,7 @@ public class Script {
                     for (int i = 0; i < actSize; i++) {
                         Object actListObject = actList.get(i);
                         String listPath = path + "[" + i + "]";
-                        AssertionResult ar = matchNestedObject('.', listPath, listMatchType, actListObject, expObject, context);
+                        AssertionResult ar = matchNestedObject('.', listPath, listMatchType, actualDoc, actListObject, expObject, context);
                         if (!ar.pass) {
                             return ar;
                         }
@@ -546,21 +553,14 @@ public class Script {
         }
     }
 
-    public static AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
-        return matchNestedObject('.', "$", MatchType.EQUALS, act, exp, context);
-    }
-
-    public static AssertionResult matchJsonObject(MatchType matchType, Object act, Object exp, ScriptContext context) {
-        return matchNestedObject('.', "$", matchType, act, exp, context);
-    }
-
     public static AssertionResult matchFailed(String path, Object actObject, Object expObject) {
         String message = String.format("path: %s, actual: %s, expected: %s", path, actObject, expObject);
         logger.trace("assertion failed - {}", message);
         return AssertionResult.fail(message);
     }
 
-    public static AssertionResult matchNestedObject(char delimiter, String path, MatchType matchType, Object actObject, Object expObject, ScriptContext context) {
+    public static AssertionResult matchNestedObject(char delimiter, String path, MatchType matchType,
+            Object actRoot, Object actObject, Object expObject, ScriptContext context) {
         logger.trace("path: {}, actual: '{}', expected: '{}'", path, actObject, expObject);
         if (expObject == null) {
             if (actObject != null) {
@@ -570,7 +570,7 @@ public class Script {
         }
         if (expObject instanceof String) {
             ScriptValue actValue = new ScriptValue(actObject);
-            return matchStringOrPattern(matchType, actValue, expObject.toString(), path, context);
+            return matchStringOrPattern(matchType, actRoot, actValue, expObject.toString(), path, context);
         } else if (expObject instanceof Map) {
             if (!(actObject instanceof Map)) {
                 return matchFailed(path, actObject, expObject);
@@ -583,7 +583,7 @@ public class Script {
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) { // TDDO should we assert order, maybe XML needs this ?
                 String key = expEntry.getKey();
                 String childPath = path + delimiter + key;
-                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actMap.get(key), expEntry.getValue(), context);
+                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap.get(key), expEntry.getValue(), context);
                 if (!ar.pass) {
                     return ar;
                 }
@@ -603,7 +603,7 @@ public class Script {
                     for (int i = 0; i < actCount; i++) {
                         Object actListObject = actList.get(i);
                         String listPath = path + "[" + i + "]";
-                        AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actListObject, expListObject, context);
+                        AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
                         if (ar.pass) { // exact match, we found it
                             found = true;
                             break;
@@ -619,7 +619,7 @@ public class Script {
                     Object expListObject = expList.get(i);
                     Object actListObject = actList.get(i);
                     String listPath = path + "[" + i + "]";
-                    AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actListObject, expListObject, context);
+                    AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
                     if (!ar.pass) {
                         return matchFailed(path, actObject, expObject);
                     }
@@ -633,7 +633,7 @@ public class Script {
             if (!expObject.getClass().equals(actObject.getClass())) {
                 // types are not the same, use the JS engine for a lenient equality check
                 String exp = actObject + " == " + expObject;
-                ScriptValue sv = eval(exp, context);
+                ScriptValue sv = evalInNashorn(exp, context);
                 if (sv.isBooleanTrue()) {
                     return AssertionResult.PASS;
                 } else {
@@ -663,7 +663,7 @@ public class Script {
         }
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
-            ScriptValue value = preEval(exp, context);
+            ScriptValue value = eval(exp, context);
             switch (target.getType()) {
                 case JSON:
                     DocumentContext dc = target.getValue(DocumentContext.class);
@@ -680,7 +680,7 @@ public class Script {
             }
         } else if (isXmlPath(path)) {
             Document doc = context.vars.get(name, Document.class);
-            ScriptValue sv = preEval(exp, context);
+            ScriptValue sv = eval(exp, context);
             switch (sv.getType()) {
                 case XML:
                     Node node = sv.getValue(Node.class);
@@ -706,7 +706,7 @@ public class Script {
     }
 
     public static ScriptValue call(String name, String arg, ScriptContext context) {
-        ScriptValue argValue = preEval(arg, context);
+        ScriptValue argValue = eval(arg, context);
         switch (argValue.getType()) {
             case JSON:
                 // force to java map (or list)
@@ -718,7 +718,7 @@ public class Script {
             default:
                 throw new RuntimeException("only json or primitives allowed as (single) function call argument");
         }
-        ScriptValue sv = preEval(name, context);
+        ScriptValue sv = eval(name, context);
         if (sv.getType() != JS_FUNCTION) {
             logger.warn("not a js function: {} - {}", name, sv);
             return ScriptValue.NULL;
@@ -773,7 +773,7 @@ public class Script {
     }
 
     public static AssertionResult assertBoolean(String expression, ScriptContext context) {
-        ScriptValue result = Script.eval(expression, context);
+        ScriptValue result = Script.evalInNashorn(expression, context);
         if (!result.isBooleanTrue()) {
             return AssertionResult.fail("evaluated to false: " + expression);
         }

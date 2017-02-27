@@ -59,7 +59,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Scripts are plain-text files and require no compilation step or IDE
 * Based on the popular Cucumber / Gherkin standard, and IDE support and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
-* Express expected results as well-formed JSON or XML, and assert that the entire response payload (no matter how complex or deeply nested) is as expected
+* Express expected results as readable, well-formed JSON or XML, and assert (in a single step) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes a natural habit for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
@@ -70,7 +70,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Comprehensive support for different flavors of HTTP calls:
   * SOAP / XML requests
   * HTTPS / SSL - without needing certificates, key-stores or trust-stores
-  * Use an HTTP proxy server if required
+  * HTTP proxy server support
   * URL-encoded HTML-form data
   * Multi-part file-upload - including 'multipart/mixed' and 'multipart/related'
   * Browser-like cookie handling
@@ -102,7 +102,7 @@ Background:
 # configure time out for the http client (milliseconds), it defaults to 0 (infinite)
 * configure readTimeout = 10000
 
-# invoke re-usable code that performs custom authentication
+# invoke re-usable code that performs custom authentication. json makes parameter passing super-readable
 * def signIn = read('classpath:my-signin.js')
 * def ticket = call signIn { username: 'john@smith.com', password: 'secret1234' }
 
@@ -125,10 +125,10 @@ Then status 200
 # save response to a variable.  '$' is shorthand for 'response'
 Given def session = $
 
-# assert that the expected response payload was received
+# assert that the expected response payload was received. observe how the 'userId' is set from a variable
 Then match session == { issued: '#ignore', token: '#ignore', userId: '#(ticket.userId)' }
 
-# for complex payloads, you can also separate them out into separate files
+# and for complex payloads, you can opt to separate them out into (re-usable) files instead of the 'in-line' approach above
 And match session == read('expected-session-response.json')
 
 # multipart upload
@@ -1126,6 +1126,14 @@ validate all your domain objects.
 * match date == { month: '#? isValidMonth(_)' }
 ```
 
+You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional
+validations ! This example uses the [`match contains`](#match-contains) syntax, and situations where
+this comes in useful will be apparent when we discuss [`match each`](#match-each)
+```cucumber
+Given def temperature = { celsius: 100, fahrenheit: 212 }
+Then match temperature contains { fahrenheit: '#? _ == $.celsius * 1.8 + 32' }
+```
+
 ### `match` for Text and Streams
 
 ```cucumber
@@ -1253,8 +1261,22 @@ Karate has syntax sugar that can iterate over all elements in a JSON array. Here
 * match each data.foo contains { baz: "#? _ != 'z'" }
 * def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
 * match each data.foo contains { baz: '#? isAbc(_)' }
-
 ``` 
+
+Here is a contrived example that uses `match each`, `contains` and the `#?` 'predicate' marker to validate that the 
+value of 'totalPrice' is always equal to the 'roomPrice' of the first item in the 'roomInformation' array.
+```cucumber
+Given def json =
+"""
+{
+  "hotels": [
+    { "roomInformation": [{ "roomPrice": 618.4 }], "totalPrice": 618.4  },
+    { "roomInformation": [{ "roomPrice": 679.79}], "totalPrice": 679.79 }
+  ]
+}
+"""
+Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0].roomPrice' }
+```
 
 # Special Variables
 
@@ -1620,7 +1642,7 @@ multi-line comments.  This can be a pain during development when you want to com
 whole blocks of script.  Fortunately there is a reasonable workaround for this.
 
 Of course, if your [IDE supports the Gherkin / Cucumber format](https://github.com/cucumber/cucumber-jvm/wiki/IDE-support),
-nothing like it. But since Gherkin comments look exactly like comments in *.properties files, all you need
+nothing like it. But since Gherkin comments look exactly like comments in `*.properties` files, all you need
 to do is tell your IDE that `*.feature` files should be treated as `*.properties` files.
 
 And once that is done, if you hit CTRL + '/' (or Command + '/') with multiple

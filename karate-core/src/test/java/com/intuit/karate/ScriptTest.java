@@ -26,6 +26,14 @@ public class ScriptTest {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         return new ScriptContext(true, featureDir, getClass().getClassLoader(), "dev");
     }
+    
+    private AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
+        return Script.matchNestedObject('.', "$", MatchType.EQUALS, null, act, exp, context);
+    }   
+    
+    private AssertionResult matchJsonObject(MatchType matchType, Object act, Object exp, ScriptContext context) {
+        return Script.matchNestedObject('.', "$", matchType, null, act, exp, context);
+    }    
 
     @Test
     public void testParsingTextType() {
@@ -48,10 +56,10 @@ public class ScriptTest {
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
         String expression = "foo + 'baz'";
-        ScriptValue value = Script.eval(expression, ctx);
+        ScriptValue value = Script.evalInNashorn(expression, ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("barbaz", value.getValue());
-        value = Script.eval("a + b", ctx);
+        value = Script.evalInNashorn("a + b", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
@@ -68,10 +76,10 @@ public class ScriptTest {
         testMap.put("myList", testList);
         ctx.vars.put("myMap", testMap);
         String expression = "myMap.foo + myMap.baz";
-        ScriptValue value = Script.eval(expression, ctx);
+        ScriptValue value = Script.evalInNashorn(expression, ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar5", value.getValue());
-        value = Script.eval("myMap.myList[0] + myMap.myList[1]", ctx);
+        value = Script.evalInNashorn("myMap.myList[0] + myMap.myList[1]", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
@@ -81,11 +89,11 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: 'bar', baz: [1, 2], ban: { hello: 'world' } }");
         ctx.vars.put("myJson", doc);
-        ScriptValue value = Script.eval("myJson.foo", ctx);
+        ScriptValue value = Script.evalInNashorn("myJson.foo", ctx);
         assertEquals("bar", value.getValue());
-        value = Script.eval("myJson.baz[1]", ctx);
+        value = Script.evalInNashorn("myJson.baz[1]", ctx);
         assertEquals(2, value.getValue());
-        value = Script.eval("myJson.ban.hello", ctx);
+        value = Script.evalInNashorn("myJson.ban.hello", ctx);
         assertEquals("world", value.getValue());
     }
 
@@ -94,7 +102,7 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
-        ScriptValue value = Script.eval("myXml.root.foo", ctx);
+        ScriptValue value = Script.evalInNashorn("myXml.root.foo", ctx);
         assertEquals("bar", value.getValue());
     }
 
@@ -105,11 +113,11 @@ public class ScriptTest {
         ctx.vars.put("myJson", doc);
         ScriptValue value = Script.evalJsonPathOnVarByName("myJson", "$.foo", ctx);
         assertEquals("bar", value.getValue());
-        value = Script.preEval("myJson.foo", ctx);
+        value = Script.eval("myJson.foo", ctx);
         assertEquals("bar", value.getValue());
         value = Script.evalJsonPathOnVarByName("myJson", "$.baz[1]", ctx);
         assertEquals(2, value.getValue());
-        value = Script.preEval("myJson.baz[1]", ctx);
+        value = Script.eval("myJson.baz[1]", ctx);
         assertEquals(2, value.getValue());
         value = Script.evalJsonPathOnVarByName("myJson", "$.baz", ctx);
         assertEquals(ScriptValue.Type.LIST, value.getType());
@@ -125,7 +133,7 @@ public class ScriptTest {
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar", value.getAsString());
-        value = Script.preEval("myXml/root/foo", ctx);
+        value = Script.eval("myXml/root/foo", ctx);
         assertEquals("bar", value.getAsString());
     }
 
@@ -206,32 +214,32 @@ public class ScriptTest {
         left.put("foo", "bar");
         Map<String, Object> right = new HashMap<>();
         right.put("foo", "bar");
-        assertTrue(Script.matchJsonObject(left, right, ctx).pass);
+        assertTrue(matchJsonObject(left, right, ctx).pass);
         right.put("baz", "#ignore");
-        assertTrue(Script.matchJsonObject(left, right, ctx).pass);
+        assertTrue(matchJsonObject(left, right, ctx).pass);
         left.put("baz", Arrays.asList(1, 2, 3));
         right.put("baz", Arrays.asList(1, 2, 3));
-        assertTrue(Script.matchJsonObject(left, right, ctx).pass);
+        assertTrue(matchJsonObject(left, right, ctx).pass);
         left.put("baz", Arrays.asList(1, 2));
-        assertFalse(Script.matchJsonObject(left, right, ctx).pass);
+        assertFalse(matchJsonObject(left, right, ctx).pass);
         Map<String, Object> leftChild = new HashMap<>();
         leftChild.put("a", 1);
         Map<String, Object> rightChild = new HashMap<>();
         rightChild.put("a", 1);
         left.put("baz", leftChild);
         right.put("baz", rightChild);
-        assertTrue(Script.matchJsonObject(left, right, ctx).pass);
+        assertTrue(matchJsonObject(left, right, ctx).pass);
         List<Map> leftList = new ArrayList<>();
         leftList.add(leftChild);
         List<Map> rightList = new ArrayList<>();
         rightList.add(rightChild);
         left.put("baz", leftList);
         right.put("baz", rightList);
-        assertTrue(Script.matchJsonObject(left, right, ctx).pass);
+        assertTrue(matchJsonObject(left, right, ctx).pass);
         rightChild.put("a", 2);
-        assertFalse(Script.matchJsonObject(left, right, ctx).pass);
+        assertFalse(matchJsonObject(left, right, ctx).pass);
         rightChild.put("a", "#ignore");
-        assertTrue(Script.matchJsonObject(left, right, ctx).pass);
+        assertTrue(matchJsonObject(left, right, ctx).pass);
     }
 
     @Test
@@ -244,7 +252,7 @@ public class ScriptTest {
         Map<String, Object> rightChild = new HashMap<>();
         rightChild.put("a", 1);
         right.add(rightChild);
-        assertTrue(Script.matchJsonObject(left, right, null).pass);
+        assertTrue(matchJsonObject(left, right, null).pass);
     }
 
     @Test
@@ -512,14 +520,14 @@ public class ScriptTest {
     public void testEvalUrl() {
         ScriptContext ctx = getContext();
         String url = "'http://localhost:8089/v1/cats'";
-        assertEquals("http://localhost:8089/v1/cats", Script.preEval(url, ctx).getAsString());
+        assertEquals("http://localhost:8089/v1/cats", Script.eval(url, ctx).getAsString());
     }
 
     @Test
     public void testEvalParamWithDot() {
         ScriptContext ctx = getContext();
         String param = "'ACS.Itself'";
-        assertEquals("ACS.Itself", Script.preEval(param, ctx).getAsString());
+        assertEquals("ACS.Itself", Script.eval(param, ctx).getAsString());
     }
 
     @Test

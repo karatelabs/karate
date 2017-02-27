@@ -1,6 +1,5 @@
 package com.intuit.karate;
 
-import static com.intuit.karate.Script.preEval;
 import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
@@ -11,6 +10,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static com.intuit.karate.Script.eval;
 
 /**
  *
@@ -51,7 +51,7 @@ public class FileUtils {
         fileName = StringUtils.trim(fileName);
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
-            return preEval(contents, context);
+            return eval(contents, context);
         } else if (isTextFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
             return new ScriptValue(contents);
