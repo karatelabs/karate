@@ -166,7 +166,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -190,7 +190,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.0 \
+-DarchetypeVersion=0.2.1 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -1128,7 +1128,7 @@ validate all your domain objects.
 
 You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional
 validations ! This example uses the [`match contains`](#match-contains) syntax, and situations where
-this comes in useful will be apparent when we discuss [`match each`](#match-each)
+this comes in useful will be apparent when we discuss [`match each`](#match-each).
 ```cucumber
 Given def temperature = { celsius: 100, fahrenheit: 212 }
 Then match temperature contains { fahrenheit: '#? _ == $.celsius * 1.8 + 32' }
