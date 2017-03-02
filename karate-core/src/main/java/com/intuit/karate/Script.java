@@ -80,11 +80,13 @@ public class Script {
     }
 
     public static final boolean isVariableAndJsonPath(String text) {
-        return !text.endsWith(")") && text.indexOf('.') != -1 && text.matches("^[^.^/][^\\s^/]+");
+        return !text.endsWith(")") // hack, just to ignore JS method calls
+                && text.matches("^" + VARIABLE_PATTERN_STRING + "\\..+");
     }
 
     public static final boolean isVariableAndXmlPath(String text) {
-        return text.matches("^[^\\s^/]+/[^\\s]*");
+        return text.matches("^" + VARIABLE_PATTERN_STRING + "/.*");
+        // return text.matches("^[^\\s^/]+/[^\\s]*");
     }
 
     public static final boolean isStringExpression(String text) {
@@ -247,8 +249,10 @@ public class Script {
         }
         return map;
     }
+    
+    private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
 
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile("[a-zA-Z][\\w]*");
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
 
     public static boolean isValidVariableName(String name) {
         return VARIABLE_PATTERN.matcher(name).matches();

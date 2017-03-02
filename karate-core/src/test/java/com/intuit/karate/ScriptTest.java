@@ -38,6 +38,7 @@ public class ScriptTest {
     @Test
     public void testParsingTextType() {
         assertTrue(Script.isVariableAndJsonPath("foo.bar"));
+        assertFalse(Script.isVariableAndJsonPath("foo.bar()"));
         assertFalse(Script.isVariableAndXmlPath("foo.bar"));
         assertTrue(Script.isVariableAndXmlPath("foo/bar"));
         assertFalse(Script.isVariableAndJsonPath("foo/bar"));
@@ -47,6 +48,7 @@ public class ScriptTest {
         assertFalse(Script.isVariableAndJsonPath("foo"));
         assertFalse(Script.isVariableAndXmlPath("foo"));
         assertTrue(Script.isJavaScriptFunction("function(){ return { bar: 'baz' } }"));
+        assertFalse(Script.isVariableAndXmlPath("read('../syntax/for-demos.js')"));
     }
 
     @Test
