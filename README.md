@@ -102,7 +102,8 @@ Background:
 # configure time out for the http client (milliseconds), it defaults to 0 (infinite)
 * configure readTimeout = 10000
 
-# invoke re-usable code that performs custom authentication. json makes parameter passing super-readable
+# invoke re-usable code that performs custom authentication
+# notice how json makes parameter passing super-readable
 * def signIn = read('classpath:my-signin.js')
 * def ticket = call signIn { username: 'john@smith.com', password: 'secret1234' }
 
@@ -125,16 +126,18 @@ Then status 200
 # save response to a variable.  '$' is shorthand for 'response'
 Given def session = $
 
-# assert that the expected response payload was received. observe how the 'userId' is set from a variable
+# assert that the expected response payload was received
+# observe how the 'userId' is dynamically set from a variable
 Then match session == { issued: '#ignore', token: '#ignore', userId: '#(ticket.userId)' }
 
-# and for complex payloads, you can opt to separate them out into (re-usable) files instead of the 'in-line' approach above
+# and for complex payloads, you can opt to separate them out into (re-usable) files 
+# instead of the 'in-line' approach you see above
 And match session == read('expected-session-response.json')
 
 # multipart upload
 Given path 'documents/upload'
 And multipart field file = read('test.pdf')
-# the custom function is used here
+# the custom function is used here on the next line
 And multipart field fileTime = time() + ''
 And header Accept = 'application/xml'
 When multipart post
@@ -171,9 +174,10 @@ This is all that you need within your `<dependencies>`:
 </dependency>
 ```
 ### TestNG instead of JUnit
-If you want to use TestNG, use the artifactId `karate-testng`. If you are starting a project from scratch,
-we strongly recommend that you use JUnit. Do note that [data-driven](#data-driven-tests) testing and 
-[tag-groups](#cucumber-tags) are built-in to Karate, so you don't need to depend on things like the TestNG 
+If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng).
+If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that
+[data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate,
+so you don't need to depend on things like the TestNG
 [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
 
 Use the TestNG test-runner only when you are trying to add Karate tests side-by-side with an existing set of
@@ -198,13 +202,13 @@ mvn archetype:generate \
 This will create a folder called 'myproject' (or whatever you set the name to).
 
 ## Recommended Folder Structure
-The Maven tradition is to have non-Java source files in a separate 'src/test/resources'
+The Maven tradition is to have non-Java source files in a separate `src/test/resources`
 folder structure - but we recommend that you keep them side-by-side with your `*.java` files.
 When you have a large and complex project, you will end up with a few data files (e.g. `*.js`, `*.json`, `*.txt`)
 as well and it is much more convenient to see the `*.java` and `*.feature` files and all
 related artifacts in the same place.
 
-This can be easily achieved with the following tweak to your maven 'build' section.
+This can be easily achieved with the following tweak to your maven `<build>` section.
 ```xml
 <build>
     <testResources>
@@ -223,11 +227,11 @@ This can be easily achieved with the following tweak to your maven 'build' secti
 This is very common in the world of Maven users and keep in mind that these are tests 
 and not production code.  
 
-With the above in place, you don't have to keep switching between your 'src/test/java' 
-and 'src/test/resources' folders, you can have all your test-code and artifacts under 
-'src/test/java' and everything will work as expected.
+With the above in place, you don't have to keep switching between your `src/test/java`
+and `src/test/resources` folders, you can have all your test-code and artifacts under 
+`src/test/java` and everything will work as expected.
 
-Once you get used to this, you may even start wondering why projects need a 'src/test/resources'
+Once you get used to this, you may even start wondering why projects need a `src/test/resources`
 folder at all !
 
 ### File Extension
@@ -235,7 +239,7 @@ A Karate test script has the file extension `.feature` which is the standard fol
 Cucumber.  You are free to organize your files using regular Java package conventions.
 
 But since these are tests and not production Java code, you don't need to be bound by the 
-'com.mycompany.foo.bar' convention and the un-necessary explosion of sub-folders that ensues. 
+`com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. 
 We suggest that you have a folder hierarchy only one or two levels deep - where the folder 
 names clearly identify which 'resource', 'entity' or API is the web-service under test.
 
@@ -272,6 +276,7 @@ To run a script `*.feature` file from your Java IDE, you just need the following
 The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package.
 This comes in useful because depending on how you organize your files and folders - you can have 
 multiple feature files executed by a single JUnit test-class.
+
 ```java
 package animals.cats;
 
@@ -306,7 +311,7 @@ public class CatsTest extends KarateTest {
 
 ## Cucumber Options
 You normally don't need to - but if you want to run only a specific feature file 
-from a JUnit test even if there are multiple *.feature files in the same folder,
+from a JUnit test even if there are multiple `*.feature` files in the same folder,
 you could use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
 
 ```java
@@ -351,7 +356,7 @@ test-run, you will end up with only the report for the last class as it would ha
 everything else. There are a couple of solutions, one is to use
 [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) -
 but the simplest should be to have a JUnit class (with the Karate annotation) at the 'root' 
-of your test packages (`src/test/java`, no package name). With that in position, you can do this:
+of your test packages (`src/test/java`, no package name). With that in place, you can do this:
 
 ```
 mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml --tags ~@ignore" -Dtest=TestAll
@@ -368,8 +373,8 @@ of running tests via Maven using the command-line.
 console logging may be too verbose for your needs.
 
 Karate uses [LOGBack](http://logback.qos.ch) which looks for a file called logback-test.xml 
-on the classpath.  If you use the Maven test-resources setup described earlier (recommended), 
-keep this file in 'src/test/java', or else it should go into 'src/test/resources'.  
+on the classpath.  If you use the Maven `<test-resources>` tweak described earlier (recommended), 
+keep this file in `src/test/java`, or else it should go into `src/test/resources`.  
 
 Here is a sample `logback-test.xml` for you to get started.
 ```xml
@@ -398,8 +403,8 @@ Here is a sample `logback-test.xml` for you to get started.
   
 </configuration>
 ```
-You can change the 'com.intuit' logger level to 'INFO' to reduce the amount of logging.  
-When the level is 'DEBUG' the entire request and response payloads are logged.
+You can change the `com.intuit` logger level to `INFO` to reduce the amount of logging.  
+When the level is `DEBUG` the entire request and response payloads are logged.
 
 # Configuration
 > You can skip this section and jump straight to the [Syntax Guide](#syntax-guide) 
@@ -486,6 +491,7 @@ which is very convenient when in dev-mode or rapid-prototyping.
 Just for illustrative purposes, you could 'hard-code' the `karate.env` for a specific JUnit test 
 like this. But don't get into the habit of doing this during development though - because if you
 forget to remove it, bad things would happen.
+
 ```java
 package animals.cats;
 
@@ -531,8 +537,9 @@ HTTP headers, URL-paths, query-parameters, complex JSON or XML payloads and resp
 And Karate gives you control over these aspects with the small set of keywords focused on HTTP such as `url`, 
 `path`, `param`, etc.
 
-Karate does not attempt to have tests be in "natural language" like how Cucumber tests are traditionally expected
-to be. That said, the syntax is very concise, and the convention of every step having to start with either 
+Karate does not attempt to have tests be in "natural language" like how Cucumber tests are 
+[traditionally expected to be](https://cucumber.io/docs/reference#gherkin).
+That said, the syntax is very concise, and the convention of every step having to start with either 
 `Given`, `And`, `When` or `Then`, makes things very readable. You end up with a decent approximation of BDD even
 though web-services by nature are "headless", without a UI, and not really human-friendly.
 
@@ -547,7 +554,7 @@ no need to compile Java code any more.
  -     | Cucumber | Karate
 ------ | -------- | ------
 **More Step Definitions Needed** | **Yes**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | **No**.
-**Layers of Code to Maintain** | **2** Layers. One is the Gherkin custom grammar for your business domain, and you will also have the corresponding Java step-definitions. | **1** Layer. Just Karate-script, and no Java code needs to be implemented.
+**Layers of Code to Maintain** | **2** Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | **1** Layer. Only Karate-script (based on Gherkin), and no Java code needs to be implemented.
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
 **BDD Syntax** | **Yes** | **Yes**
 
@@ -557,7 +564,7 @@ script-steps are treated the same no matter whether they start with the keyword
 whatever makes sense for you.  You could even have all the steps start with `When` 
 and Karate won't care.
 
-In fact [Cucumber supports `*`](https://www.relishapp.com/cucumber/cucumber/docs/gherkin/using-star-notation-instead-of-given-when-then)
+In fact Cucumber supports the ['catch-all' symbol `*`](https://www.relishapp.com/cucumber/cucumber/docs/gherkin/using-star-notation-instead-of-given-when-then) -
 instead of forcing you to use `Given`, `When` or `Then`. This is perfect for those
 cases where it really doesn't make sense - for example the [`Background`](#script-structure)
 section or when you use the [`def`](#def) or [`set`](#set) syntax. When eyeballing a test-script,
@@ -948,7 +955,7 @@ configuration keys supported:
 ------ | ---- | ---------
 `headers` | JavaScript Function | see [`configure headers`](#configure-headers)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
-`ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above defaults to `TLS` if set to `true`).
+`ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (Which internally defaults to `TLS` if simply set to `true`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
 `proxy` | string | Set the URI of the HTTP proxy to use.
@@ -1132,7 +1139,7 @@ this comes in useful will be apparent when we discuss [`match each`](#match-each
 ```cucumber
 Given def temperature = { celsius: 100, fahrenheit: 212 }
 Then match temperature contains { fahrenheit: '#? _ == $.celsius * 1.8 + 32' }
-# or using embedded expressions
+# when validation logic is an 'equality' check, an embedded expression works better
 Then match temperature == { celsius: '#number', fahrenheit: '#($.celsius * 1.8 + 32)' }
 ```
 
@@ -1266,7 +1273,7 @@ Karate has syntax sugar that can iterate over all elements in a JSON array. Here
 ``` 
 
 Here is a contrived example that uses `match each`, `contains` and the `#?` 'predicate' marker to validate that the 
-value of 'totalPrice' is always equal to the 'roomPrice' of the first item in the 'roomInformation' array.
+value of `totalPrice` is always equal to the `roomPrice` of the first item in the `roomInformation` array.
 ```cucumber
 Given def json =
 """
@@ -1278,7 +1285,7 @@ Given def json =
 }
 """
 Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0].roomPrice' }
-# or using embedded expressions
+# when validation logic is an 'equality' check, an embedded expression works better
 Then match each json.hotels == { roomInformation: '#array', totalPrice: '#($.roomInformation[0].roomPrice)' }
 ```
 
