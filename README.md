@@ -127,7 +127,7 @@ Then status 200
 Given def session = $
 
 # assert that the expected response payload was received
-# observe how the 'userId' is dynamically set from a variable
+# observe how the expected 'userId' is dynamically set from a variable
 Then match session == { issued: '#ignore', token: '#ignore', userId: '#(ticket.userId)' }
 
 # and for complex payloads, you can opt to separate them out into (re-usable) files 
@@ -955,7 +955,7 @@ configuration keys supported:
 ------ | ---- | ---------
 `headers` | JavaScript Function | see [`configure headers`](#configure-headers)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
-`ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (Which internally defaults to `TLS` if simply set to `true`).
+`ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
 `proxy` | string | Set the URI of the HTTP proxy to use.
@@ -1680,7 +1680,7 @@ within [`karate-config.js`](#configuration) on start-up, it is a simple and effe
 processes within the same JVM to pass configuration values into Karate at run-time.
 
 You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
-* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java) - see line #30
+* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java) - see line #28
 * [karate-config.js](karate-junit4/src/test/java/karate-config.js) - see line #10
 * [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature) - see line #5
 

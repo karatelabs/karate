@@ -405,7 +405,7 @@ public class Script {
             ScriptValue actValue, String expected, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
-                return matchFailed(path, actValue.getValue(), expected);
+                return matchFailed(path, actValue.getValue(), expected, "actual value is not null");
             }
         } else if (isEmbeddedExpression(expected)) {
             ScriptValue parentValue = getValueOfParentNode(actRoot, path);
@@ -418,23 +418,23 @@ public class Script {
                 RegexValidator v = new RegexValidator(regex);
                 ValidationResult vr = v.validate(actValue);
                 if (!vr.isPass()) { // TODO wrap string values in quotes
-                    return matchFailed(path, actValue.getValue(), expected + ", reason: " + vr.getMessage());
+                    return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
                 }
             } else if (validatorName.startsWith("?")) {
                 String exp = validatorName.substring(1);
                 ScriptValue parentValue = getValueOfParentNode(actRoot, path);
                 ScriptValue result = Script.evalInNashorn(exp, context, actValue, parentValue);
                 if (!result.isBooleanTrue()) {
-                    return matchFailed(path, actValue.getValue(), expected + ", reason: did not evaluate to 'true'");
+                    return matchFailed(path, actValue.getValue(), expected, "did not evaluate to 'true'");
                 }
             } else {
                 Validator v = context.validators.get(validatorName);
                 if (v == null) {
-                    return matchFailed(path, actValue.getValue(), expected + ", reason: (unknown validator)");
+                    return matchFailed(path, actValue.getValue(), expected, "unknown validator");
                 } else {
                     ValidationResult vr = v.validate(actValue);
                     if (!vr.isPass()) {
-                        return matchFailed(path, actValue.getValue(), expected + ", reason: " + vr.getMessage());
+                        return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
                     }
                 }
             }
@@ -443,12 +443,12 @@ public class Script {
             switch (matchType) {
                 case CONTAINS:
                     if (!actual.contains(expected)) {
-                        return matchFailed(path, actual, expected + " (not a sub-string)");
+                        return matchFailed(path, actual, expected, "not a sub-string");
                     }
                     break;
                 case EQUALS:
                     if (!expected.equals(actual)) {
-                        return matchFailed(path, actual, expected);
+                        return matchFailed(path, actual, expected, "not equal");
                     }
                     break;
                 default:
@@ -521,7 +521,8 @@ public class Script {
                 ScriptValue expected = eval(expression, context);
                 // exit the function early
                 if (!expected.isString()) {
-                    return matchFailed(path, actualString, expected.getValue());
+                    return matchFailed(path, actualString, expected.getValue(), 
+                            "type of actual value is 'string' but that of expected is " + expected.getType());
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, actual, expected.getValue(String.class), context);
                 }
@@ -567,8 +568,8 @@ public class Script {
         }
     }
 
-    public static AssertionResult matchFailed(String path, Object actObject, Object expObject) {
-        String message = String.format("path: %s, actual: %s, expected: %s", path, actObject, expObject);
+    public static AssertionResult matchFailed(String path, Object actObject, Object expObject, String reason) {
+        String message = String.format("path: %s, actual: %s, expected: %s, reason: %s", path, actObject, expObject, reason);
         logger.trace("assertion failed - {}", message);
         return AssertionResult.fail(message);
     }
@@ -578,7 +579,7 @@ public class Script {
         logger.trace("path: {}, actual: '{}', expected: '{}'", path, actObject, expObject);
         if (expObject == null) {
             if (actObject != null) {
-                return matchFailed(path, actObject, expObject);
+                return matchFailed(path, actObject, expObject, "actual value is not null");
             }
             return AssertionResult.PASS; // both are null
         }
@@ -587,12 +588,12 @@ public class Script {
             return matchStringOrPattern(delimiter, path, matchType, actRoot, actValue, expObject.toString(), context);
         } else if (expObject instanceof Map) {
             if (!(actObject instanceof Map)) {
-                return matchFailed(path, actObject, expObject);
+                return matchFailed(path, actObject, expObject, "actual value is not of type 'map'");
             }
             Map<String, Object> expMap = (Map) expObject;
             Map<String, Object> actMap = (Map) actObject;
             if (matchType != MatchType.CONTAINS && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
-                return matchFailed(path, actObject, expObject);
+                return matchFailed(path, actObject, expObject, "actual value has more keys than expected - " + actMap.size() + ":" + expMap.size());
             }
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) { // TDDO should we assert order, maybe XML needs this ?
                 String key = expEntry.getKey();
@@ -609,7 +610,7 @@ public class Script {
             int actCount = actList.size();
             int expCount = expList.size();
             if (matchType != MatchType.CONTAINS && actCount != expCount) {
-                return matchFailed(path, actObject, expObject);
+                return matchFailed(path, actObject, expObject, "actual and expected arrays are not the same size - " + actCount + ":" + expCount);
             }
             if (matchType == MatchType.CONTAINS || matchType == MatchType.CONTAINS_ONLY) { // just checks for existence
                 for (Object expListObject : expList) { // for each expected item in the list
@@ -624,7 +625,7 @@ public class Script {
                         }
                     }
                     if (!found) {
-                        return matchFailed(path, actObject, expObject + " (not contained in)");
+                        return matchFailed(path, actObject, expObject, "actual value does not contain expected");
                     }
                 }
                 return AssertionResult.PASS; // all items were found
@@ -635,14 +636,14 @@ public class Script {
                     String listPath = path + "[" + i + "]";
                     AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
                     if (!ar.pass) {
-                        return matchFailed(path, actObject, expObject);
+                        return matchFailed(path, actObject, expObject, ar.message);
                     }
                 }
                 return AssertionResult.PASS; // lists (and order) are identical
             }
         } else if (ClassUtils.isPrimitiveOrWrapper(expObject.getClass())) {
             if (actObject == null) {
-                return matchFailed(path, actObject, expObject);
+                return matchFailed(path, actObject, expObject, "actual value is null");
             }
             if (!expObject.getClass().equals(actObject.getClass())) {
                 // types are not the same, use the JS engine for a lenient equality check
@@ -651,11 +652,11 @@ public class Script {
                 if (sv.isBooleanTrue()) {
                     return AssertionResult.PASS;
                 } else {
-                    return matchFailed(path, actObject, expObject);
+                    return matchFailed(path, actObject, expObject, "not equal");
                 }
             }
             if (!expObject.equals(actObject)) {
-                return matchFailed(path, actObject, expObject);
+                return matchFailed(path, actObject, expObject, "not equal");
             } else {
                 return AssertionResult.PASS; // primitives, are equal
             }
@@ -666,9 +667,6 @@ public class Script {
 
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
-        if (name.startsWith("$")) {
-            name = name.substring(1);
-        }
         path = StringUtils.trimToNull(path);
         if (path == null) {
             Pair<String, String> pair = parseVariableAndPath(name);

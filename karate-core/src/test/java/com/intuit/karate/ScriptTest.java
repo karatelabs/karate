@@ -441,11 +441,11 @@ public class ScriptTest {
         ctx.vars.put("json", json);
         Script.setValueByPath("xml", "/root/foo", "'hello'", ctx);
         assertEquals("hello", Script.evalXmlPathOnVarByName("xml", "/root/foo", ctx).getValue());
-        Script.setValueByPath("$xml/root/foo", null, "'world'", ctx);
+        Script.setValueByPath("xml/root/foo", null, "'world'", ctx);
         assertEquals("world", Script.evalXmlPathOnVarByName("xml", "/root/foo", ctx).getValue());
         Script.setValueByPath("json", "$.foo", "'hello'", ctx);
         assertEquals("hello", Script.evalJsonPathOnVarByName("json", "$.foo", ctx).getValue());
-        Script.setValueByPath("$json.foo", null, "'world'", ctx);
+        Script.setValueByPath("json.foo", null, "'world'", ctx);
         assertEquals("world", Script.evalJsonPathOnVarByName("json", "$.foo", ctx).getValue());
     }
 
