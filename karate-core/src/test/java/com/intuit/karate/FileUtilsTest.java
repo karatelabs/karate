@@ -16,7 +16,7 @@ public class FileUtilsTest {
         ClassLoader cl = FileUtils.createClassLoader("src/main/java/com/intuit/karate");
         InputStream is = cl.getResourceAsStream("StepDefs.java");
         String s = IOUtils.toString(is, "utf-8");
-        assertTrue(s.trim().startsWith("package "));
+        assertTrue(s.trim().startsWith("/*"));
     }     
     
 }
