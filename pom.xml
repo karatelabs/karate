@@ -36,11 +36,13 @@
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
         <cucumber.version>1.2.5</cucumber.version>
+        <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
     </properties>
 
     <modules>
         <module>karate-core</module>
         <module>karate-junit4</module>
+        <module>karate-demo</module>
         <module>karate-testng</module>
         <module>karate-archetype</module>
     </modules>
@@ -117,7 +119,7 @@
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.7</version>
+                        <version>${nexus.staging.plugin.version}</version>
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>ossrh</serverId>
