@@ -654,7 +654,7 @@ between `#(` and `)` - it will be evaluated as a JavaScript expression. And any 
 alive in the context can be used in this expression.
 
 This comes in useful in some cases - and avoids needing to use JavaScript functions or 
-[JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set).  
+[JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set).
 So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
 the same time being able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
 
@@ -1489,11 +1489,11 @@ special object in a variable named: `karate`.  This provides the following metho
   * `url`: URL of the HTTP call to be made
   * `method`: HTTP method, can be lower-case
   * `body`: JSON payload
-* `karate.set(key, value)` - set the value of a variable immediately, which ensures that any active [`headers`](#headers) routine does the right thing for future HTTP calls (even those made by this function being `call`-ed)
+* `karate.set(key, value)` - set the value of a variable immediately, which ensures that any active [`headers`](#configure-headers) routine does the right thing for future HTTP calls (even those made by this function being `call`-ed)
 * `karate.get(key)` - get the value of a variable by name, if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 * `karate.log(... args)` - log to the same logger being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment setting 'karate.env' used for bootstrapping [configuration](#configuration)
-* `karate.properties[key]` - get the value of any Java system-property by name, useful for advanced custom configuration
+* `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 
 ## Rules for Passing Arguments
 Only one argument is allowed.  But this does not limit you in any way because you can 
@@ -1680,9 +1680,9 @@ within [`karate-config.js`](#configuration) on start-up, it is a simple and effe
 processes within the same JVM to pass configuration values into Karate at run-time.
 
 You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
-* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java) - see line #28
-* [karate-config.js](karate-junit4/src/test/java/karate-config.js) - see line #10
-* [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature) - see line #5
+* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java#L28) - see line #28
+* [karate-config.js](karate-junit4/src/test/java/karate-config.js#L10) - see line #10
+* [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature#L5) - see line #5
 
 ## Data Driven Tests
 Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines)
