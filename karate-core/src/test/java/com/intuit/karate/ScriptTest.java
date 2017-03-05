@@ -29,11 +29,7 @@ public class ScriptTest {
     
     private AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
         return Script.matchNestedObject('.', "$", MatchType.EQUALS, null, act, exp, context);
-    }   
-    
-    private AssertionResult matchJsonObject(MatchType matchType, Object act, Object exp, ScriptContext context) {
-        return Script.matchNestedObject('.', "$", matchType, null, act, exp, context);
-    }    
+    }  
 
     @Test
     public void testParsingTextType() {
@@ -355,6 +351,11 @@ public class ScriptTest {
         Document doc = XmlUtils.toXmlDoc("<cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>");
         ctx.vars.put("myXml", doc);
         assertTrue(Script.matchNamed("myXml/cat/scores/score[2]", null, "'5'", ctx).pass);
+        // lenient primitive equality check
+        assertTrue(Script.matchNamed("myXml/cat/scores/score[2]", null, "5", ctx).pass);
+        // using json path for xml !
+        assertTrue(Script.matchNamed("myXml.cat.scores.score[1]", null, "'5'", ctx).pass);
+        // lenient primitive equality check
         assertTrue(Script.matchNamed("myXml.cat.scores.score[1]", null, "5", ctx).pass);
     }
 
@@ -531,6 +532,15 @@ public class ScriptTest {
         String param = "'ACS.Itself'";
         assertEquals("ACS.Itself", Script.eval(param, ctx).getAsString());
     }
+    
+    @Test
+    public void testMatchJsonObjectContains() {
+        ScriptContext ctx = getContext();
+        Script.assign("json", "{ foo: 'bar', baz: [1, 2, 3] }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ baz: [1, 2, 3], foo: 'bar' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ baz: [1, 2, 3] }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ foo: 'bar' }", ctx).pass);
+    }    
 
     @Test
     public void testMatchJsonArrayContains() {
@@ -538,6 +548,37 @@ public class ScriptTest {
         Script.assign("foo", "{ bar: [1, 2, 3] }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.bar", null, "[1 ,2, 3]", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "foo.bar", null, "[1]", ctx).pass);
+    }
+    
+    @Test
+    public void testMatchContainsForSingleElements() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ bar: [1, 2, 3] }", ctx);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "foo.bar", null, "1", ctx).pass); 
+        Script.assign("json", "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]", ctx);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ foo: 1 }", ctx).pass);
+        Script.assign("json", "[{ foo: 1 }]", ctx);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS_ONLY, "json", null, "{ foo: 1 }", ctx).pass);
+    }
+    
+    @Test
+    public void testMatchArrayErrorReporting() {
+        ScriptContext ctx = getContext();
+        Script.assign("json", "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]", ctx);
+        AssertionResult ar = Script.matchNamed(MatchType.EQUALS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);
+        assertFalse(ar.pass);
+        assertTrue(ar.message.contains("$[2].foo"));
+        ar = Script.matchNamed(MatchType.CONTAINS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);
+        assertFalse(ar.pass);
+        assertTrue(ar.message.contains("$[*]"));
+        ar = Script.matchNamed(MatchType.CONTAINS_ONLY, "json", null, "[{ foo: 3 }, { foo: 2 }, { foo: 0 }]", ctx);
+        assertFalse(ar.pass);
+        assertTrue(ar.message.contains("$[*]"));
+        ar = Script.matchNamed(MatchType.CONTAINS_ONLY, "json", null, "[{ foo: 3 }, { foo: 2 }, { foo: 1 }]", ctx);
+        assertTrue(ar.pass); 
+        ar = Script.matchNamed(MatchType.CONTAINS_ONLY, "json", null, "[{ foo: 3 }, { foo: 2 }]", ctx);
+        assertFalse(ar.pass);
+        assertTrue(ar.message.contains("not the same size"));      
     }
 
     @Test

@@ -35,6 +35,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
+        <maven.surefire.version>2.10</maven.surefire.version>
         <cucumber.version>1.2.5</cucumber.version>
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
     </properties>
@@ -67,7 +68,12 @@
                     <target>${java.version}</target>
                     <compilerArgument>-Werror</compilerArgument>
                 </configuration>
-            </plugin>                                   
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.version}</version>
+            </plugin>                                                
         </plugins>
     </build>
     

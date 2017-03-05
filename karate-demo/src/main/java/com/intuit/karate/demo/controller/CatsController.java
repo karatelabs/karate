@@ -23,10 +23,15 @@
  */
 package com.intuit.karate.demo.controller;
 
-import com.intuit.karate.demo.domain.Greeting;
+import com.intuit.karate.demo.domain.Cat;
+import java.util.Collection;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -34,15 +39,28 @@ import org.springframework.web.bind.annotation.RestController;
  * @author pthomas3
  */
 @RestController
-@RequestMapping("/greeting")
-public class GreetingController {
-
-    private static final String TEMPLATE = "Hello %s!";
+@RequestMapping("/cats")
+public class CatsController {
+    
     private final AtomicInteger counter = new AtomicInteger();
-
-    @RequestMapping
-    public Greeting greeting(@RequestParam(value = "name", defaultValue = "World") String name) {
-        return new Greeting(counter.incrementAndGet(), String.format(TEMPLATE, name));
+    private final ConcurrentHashMap<Integer, Cat> cats = new ConcurrentHashMap<>();
+    
+    @PostMapping
+    public Cat create(@RequestBody Cat cat) {
+        int id = counter.incrementAndGet();
+        cat.setId(id);
+        cats.put(id, cat);
+        return cat;
     }
-
+    
+    @GetMapping
+    public Collection<Cat> list() {
+        return cats.values();
+    }
+    
+    @GetMapping("/{id:.+}")
+    public Cat get(@PathVariable int id) {
+        return cats.get(id);
+    }
+    
 }

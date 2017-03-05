@@ -38,6 +38,7 @@ import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -237,12 +238,14 @@ public class Script {
         ScriptEngineManager manager = new ScriptEngineManager();
         ScriptEngine nashorn = manager.getEngineByName("nashorn");
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
-        Map<String, Object> simple = simplify(context.vars);
-        for (Map.Entry<String, Object> entry : simple.entrySet()) {
-            bindings.put(entry.getKey(), entry.getValue());
+        if (context != null) {
+            Map<String, Object> simple = simplify(context.vars);
+            for (Map.Entry<String, Object> entry : simple.entrySet()) {
+                bindings.put(entry.getKey(), entry.getValue());
+            }
+            // for future function calls if needed, and see FileUtils.getFileReaderFunction()
+            bindings.put(VAR_CONTEXT, context);
         }
-        // for future function calls if needed, and see FileUtils.getFileReaderFunction()
-        bindings.put(VAR_CONTEXT, context);
         if (selfValue != null) {
             bindings.put(VAR_SELF, selfValue.getValue());
         }
@@ -565,6 +568,9 @@ public class Script {
         switch (matchType) {
             case CONTAINS_ONLY:
             case CONTAINS:
+                if (actObject instanceof List && !(expObject instanceof List)) { // if RHS is not a list, make it so
+                    expObject = Collections.singletonList(expObject);
+                }
             case EQUALS:
                 return matchNestedObject('.', path, matchType, actualDoc, actObject, expObject, context);
             case EACH_CONTAINS:
@@ -671,7 +677,7 @@ public class Script {
             if (!expObject.getClass().equals(actObject.getClass())) {
                 // types are not the same, use the JS engine for a lenient equality check
                 String exp = actObject + " == " + expObject;
-                ScriptValue sv = evalInNashorn(exp, context);
+                ScriptValue sv = evalInNashorn(exp, null);
                 if (sv.isBooleanTrue()) {
                     return AssertionResult.PASS;
                 } else {

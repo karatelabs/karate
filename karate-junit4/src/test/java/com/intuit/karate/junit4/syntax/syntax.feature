@@ -259,19 +259,27 @@ Given def cat =
 """
 {
   name: 'Billie',
-  rivals: [
+  kittens: [
       { id: 23, name: 'Bob' },
       { id: 42, name: 'Wild' }
   ]
 }
 """
-Then match cat.rivals[*].id == [23, 42]
-Then match cat.rivals[*].id contains [23]
-Then match cat.rivals[*].id contains [42]
-Then match cat.rivals[*].id contains [23, 42]
-Then match cat.rivals[*].id contains [42, 23]
+# normal 'equality' match. note the wildcard '*' in the JsonPath (returns an array)
+Then match cat.kittens[*].id == [23, 42]
 
-Then match cat.rivals[*] contains [{ id: 42, name: 'Wild' }, { id: 23, name: '#notnull' }]
+# when inspecting a json array, 'contains' just checks if the expected items exist
+# and the size and order of the actual array does not matter
+Then match cat.kittens[*].id contains [23]
+Then match cat.kittens[*].id contains [42]
+Then match cat.kittens[*].id contains [23, 42]
+Then match cat.kittens[*].id contains [42, 23]
+
+# and yes, you can assert against nested objects within JSON arrays !
+Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
+
+# ... and even ignore fields at the same time !
+Then match cat.kittens contains { id: 42, name: '#ignore' }
 
 # read from file, text match and contains
 Given def text = read('demo-text.txt')
@@ -298,7 +306,8 @@ Then match pdf == read('test.pdf')
 
 # match contains only
 * def data = { foo: [1, 2, 3] }
-* match data.foo contains [1]
+* match data.foo contains 1
+* match data.foo contains [2]
 * match data.foo contains [3, 2]
 * match data.foo contains only [3, 2, 1]
 * match data.foo contains only [2, 3, 1]

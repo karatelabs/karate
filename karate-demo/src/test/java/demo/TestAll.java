@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 pthomas3.
+ * Copyright 2017 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,33 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package karate;
-
-import com.intuit.karate.junit4.Karate;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import test.ServerStart;
+package demo;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-public abstract class BaseTest {
-    
-    private static ServerStart server;
-    
-    @BeforeClass
-    public static void beforeClass() throws Exception {
-        server = new ServerStart();
-        server.start(new String[]{"--server.port=0"}, false);
-        System.setProperty("karate.server.port", server.getPort() + "");
-    }
-    
-    @AfterClass
-    public static void afterClass() {
-        server.stop();
-    }
-    
+public class TestAll extends BaseTest {
+    // this class will automatically pick up all *.feature files
+    // in src/test/java/karate and even recurse sub-directories
 }

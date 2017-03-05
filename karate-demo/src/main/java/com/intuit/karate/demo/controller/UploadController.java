@@ -55,18 +55,15 @@ public class UploadController {
 
     private static final String FILES_BASE = "target/demofiles/";
 
-    public UploadController() {
+    public UploadController() throws Exception {
         File file = new File(FILES_BASE);
-        try {
-            FileUtils.forceMkdir(file);
-            logger.info("created directory: {}", file);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        FileUtils.forceMkdir(file);
+        logger.info("created directory: {}", file);
     }
 
     @PostMapping
-    public @ResponseBody FileInfo upload(@RequestParam("file") MultipartFile multipartFile, @RequestParam String name) throws Exception {
+    public @ResponseBody
+    FileInfo upload(@RequestParam("file") MultipartFile multipartFile, @RequestParam String name) throws Exception {
         String uuid = UUID.randomUUID().toString();
         String filePath = FILES_BASE + uuid;
         FileUtils.copyToFile(multipartFile.getInputStream(), new File(filePath));

@@ -1,4 +1,4 @@
-Feature: sample karate test script
+Feature: sample karate script that calls a live www web-service
 
 Background:
 * url 'https://jsonplaceholder.typicode.com'

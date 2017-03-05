@@ -60,7 +60,8 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Based on the popular Cucumber / Gherkin standard, and IDE support and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
 * Express expected results as readable, well-formed JSON or XML, and assert (in a single step) that the entire response payload (no matter how complex or deeply nested) - is as expected
-* Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment
+* Payload assertion failures clearly report which data element is not as expected (with path), for easy troubleshooting of even large payloads
+* Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes a natural habit for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
@@ -365,6 +366,24 @@ Here, `TestAll` is the name of the Java class you designated to run all your tes
 has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to 
 run all tests _except_ the ones tagged `@ignore`.
 
+You can 'lock down' the fact that you only want to execute this one test (that functions as a test-suite)
+by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
+
+```xml
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.version}</version>
+        <configuration>
+            <includes>
+                <include>TestAll.java</include>
+            </includes>
+        </configuration>
+    </plugin> 
+```
+
+With the above in place, you don't have to use `-Dtest=TestAll` on the command-line any more.
+
 Also refer to the section on [switching the environment](#switching-the-environment) for more ways
 of running tests via Maven using the command-line.
 
@@ -429,7 +448,7 @@ function() {
     appSecret: 'my.secret',
     someUrlBase: 'https://some-host.com/v1/auth/',
     anotherUrlBase: 'https://another-host.com/v1/'
-  }
+  };
   if (env == 'stage') {
     // over-ride only those that need to be
     config.someUrlBase: 'https://stage-host/v1/auth';
@@ -1206,27 +1225,27 @@ Given def cat =
 """
 {
   name: 'Billie',
-  rivals: [
+  kittens: [
       { id: 23, name: 'Bob' },
       { id: 42, name: 'Wild' }
   ]
 }
 """
 # normal 'equality' match. note the wildcard '*' in the JsonPath (returns an array)
-Then match cat.rivals[*].id == [23, 42]
+Then match cat.kittens[*].id == [23, 42]
 
 # when inspecting a json array, 'contains' just checks if the expected items exist
 # and the size and order of the actual array does not matter
-Then match cat.rivals[*].id contains [23]
-Then match cat.rivals[*].id contains [42]
-Then match cat.rivals[*].id contains [23, 42]
-Then match cat.rivals[*].id contains [42, 23]
+Then match cat.kittens[*].id contains [23]
+Then match cat.kittens[*].id contains [42]
+Then match cat.kittens[*].id contains [23, 42]
+Then match cat.kittens[*].id contains [42, 23]
 
 # and yes, you can assert against nested objects within JSON arrays !
-Then match cat.rivals[*] contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
+Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 
 # ... and even ignore fields at the same time !
-Then match cat.rivals[*] contains [{ id: 42, name: '#ignore' }]
+Then match cat.kittens contains { id: 42, name: '#ignore' }
 ```
 
 It is worth mentioning that to do the equivalent of the last line in Java, you would typically have to
@@ -1242,7 +1261,8 @@ you can do this:
 
 ```cucumber
 * def data = { foo: [1, 2, 3] }
-* match data.foo contains [1]
+* match data.foo contains 1
+* match data.foo contains [2]
 * match data.foo contains [3, 2]
 * match data.foo contains only [3, 2, 1]
 * match data.foo contains only [2, 3, 1]

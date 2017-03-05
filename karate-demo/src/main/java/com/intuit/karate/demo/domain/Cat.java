@@ -21,28 +21,52 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.controller;
+package com.intuit.karate.demo.domain;
 
-import com.intuit.karate.demo.domain.Greeting;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import java.util.ArrayList;
+import java.util.List;
+import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
  * @author pthomas3
  */
-@RestController
-@RequestMapping("/greeting")
-public class GreetingController {
-
-    private static final String TEMPLATE = "Hello %s!";
-    private final AtomicInteger counter = new AtomicInteger();
-
-    @RequestMapping
-    public Greeting greeting(@RequestParam(value = "name", defaultValue = "World") String name) {
-        return new Greeting(counter.incrementAndGet(), String.format(TEMPLATE, name));
+@XmlRootElement
+public class Cat {
+    
+    private int id;
+    private String name;
+    private List<Cat> kittens;
+    
+    public void addKitten(Cat kitten) {
+        if (kittens == null) {
+            kittens = new ArrayList<>();
+        }
+        kittens.add(kitten);
     }
 
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }        
+
+    public List<Cat> getKittens() {
+        return kittens;
+    }
+
+    public void setKittens(List<Cat> kittens) {
+        this.kittens = kittens;
+    }        
+    
 }

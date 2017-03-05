@@ -21,10 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package karate.upload;
+package demo.upload;
 
-import karate.greeting.*;
-import karate.BaseTest;
+import demo.BaseTest;
 
 /**
  *
