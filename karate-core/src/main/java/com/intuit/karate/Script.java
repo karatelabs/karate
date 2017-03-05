@@ -648,7 +648,7 @@ public class Script {
                         }
                     }
                     if (!found) {
-                        return matchFailed(path, actObject, expObject, "actual value does not contain expected");
+                        return matchFailed(path + "[*]", actObject, expListObject, "actual value does not contain expected");
                     }
                 }
                 return AssertionResult.PASS; // all items were found
@@ -659,7 +659,7 @@ public class Script {
                     String listPath = path + "[" + i + "]";
                     AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
                     if (!ar.pass) {
-                        return matchFailed(path, actObject, expObject, ar.message);
+                        return matchFailed(listPath, actListObject, expListObject, "[" + ar.message + "]");
                     }
                 }
                 return AssertionResult.PASS; // lists (and order) are identical
