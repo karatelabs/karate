@@ -7,7 +7,7 @@ import demo.BaseTest;
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/cats/cats.feature")
-public class CatsTest extends BaseTest {
+@CucumberOptions(features = "classpath:demo/cats/kittens.feature")
+public class KittensTest extends BaseTest {
     
 }

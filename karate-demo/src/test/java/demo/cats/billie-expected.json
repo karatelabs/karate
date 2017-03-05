@@ -1,0 +1,8 @@
+{ 
+  id: '#number',
+  name: 'Billie',
+  kittens: [
+    { id: '#(bob.id)', name: 'Bob' },
+    { id: '#(wild.id)', name: 'Wild' }
+  ]
+}

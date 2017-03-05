@@ -63,4 +63,9 @@ public class CatsController {
         return cats.get(id);
     }
     
+    @GetMapping("/{id:.+}/kittens")
+    public Collection<Cat> getKittens(@PathVariable int id) {
+        return cats.get(id).getKittens();
+    }    
+    
 }

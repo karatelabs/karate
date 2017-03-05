@@ -52,7 +52,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) / [Headers](#http-basic-authentication-example) | [Dynamic Port Numbers](#dynamic-port-numbers) | [Ignore / Vallidate](#ignore-or-validate)
+ | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) / [Headers](#http-basic-authentication-example) | [Ignore / Vallidate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 
 # Features
 * Java knowledge is not required to write tests
@@ -157,6 +157,8 @@ And assert responseTime < 1000
 # the 'match' syntax auto-converts types, and even binary file contents can be compared
 And match response == read('test.pdf')
 ```
+
+A set of complete real-life examples can be found here: [Karate Demo](karate-demo)
 
 # Getting Started
 Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8
