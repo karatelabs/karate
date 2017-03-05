@@ -52,7 +52,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) / [Headers](#http-basic-authentication-example) | [Ignore / Vallidate](#ignore-or-validate) | [Examples and Demos](karate-demo)
+ | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 
 # Features
 * Java knowledge is not required to write tests
@@ -172,7 +172,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.2</version>
+    <version>0.2.3</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -197,7 +197,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.2 \
+-DarchetypeVersion=0.2.3 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
