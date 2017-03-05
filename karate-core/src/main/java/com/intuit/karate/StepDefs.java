@@ -73,16 +73,16 @@ public class StepDefs {
     public ScriptContext getContext() {
         return context;
     }
-    
+
     @When("^configure ([^\\s]+) =$")
     public void configureDocString(String key, String exp) {
         configure(key, exp);
-    }      
-    
+    }
+
     @When("^configure ([^\\s]+) = (.+)")
     public void configure(String key, String exp) {
         context.configure(key, exp);
-    }   
+    }
 
     @When("^url (.+)")
     public void url(String expression) {
@@ -226,7 +226,15 @@ public class StepDefs {
     public void method(String method) {
         method = method.toUpperCase();
         if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
-            if (formFields != null) {
+            if (multiPart != null) {
+                String mediaType = getUserSpecifiedContentType();
+                if (mediaType == null) {
+                    mediaType = MediaType.MULTIPART_FORM_DATA;
+                }
+                startTimer();
+                response = prepare().method(method, Entity.entity(multiPart, mediaType));
+                stopTimer();
+            } else if (formFields != null) {
                 startTimer();
                 response = prepare().method(method, Entity.entity(formFields, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
                 stopTimer();
@@ -279,7 +287,6 @@ public class StepDefs {
 
     private void unprepare() {
         context.vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
-        formFields = null; // reset
         for (Map.Entry<String, NewCookie> entry : response.getCookies().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue().getValue();
@@ -302,14 +309,10 @@ public class StepDefs {
         } else {
             context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
         }
-        reset();
-    }
-
-    @When("^reset")
-    public void reset() {
-        // reset url
+        // reset url and some state
         target = context.client.target(url);
-        logger.trace("reset to base url: {}", url);
+        formFields = null;
+        multiPart = null;
     }
 
     @When("^soap action( .+)?")
@@ -393,22 +396,6 @@ public class StepDefs {
         }
     }
 
-    @When("^multipart post")
-    public void multiPartPost() {
-        if (multiPart == null) {
-            throw new RuntimeException("no multipart content set, please use the 'multipart' keywords before a post");
-        }
-        String method = "POST";
-        String mediaType = getUserSpecifiedContentType();
-        if (mediaType == null) {
-            mediaType = MediaType.MULTIPART_FORM_DATA;
-        }
-        startTimer();
-        response = prepare().method(method, Entity.entity(multiPart, mediaType));
-        stopTimer();
-        unprepare();
-    }
-
     @Then("^print (.+)")
     public void print(String exp) {
         String temp = Script.eval(exp, context).getAsString();
@@ -448,7 +435,6 @@ public class StepDefs {
     public void matchContainsDocString(String each, String name, String path, String only, String expected) {
         matchContains(each, name, path, only, expected);
     }
-
 
     @Then("^match (each )?([^\\s]+)( [^\\s]+)? == (.+)")
     public void matchEquals(String each, String name, String path, String expected) {

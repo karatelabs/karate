@@ -21,30 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.controller;
-
-import com.intuit.karate.demo.domain.Greeting;
-import java.util.concurrent.atomic.AtomicLong;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+package com.intuit.karate.demo.domain;
 
 /**
  *
  * @author pthomas3
  */
-@RestController
-@RequestMapping("/greeting")
-public class GreetingController {
-
-    private static final String TEMPLATE = "Hello %s!";
-    private final AtomicLong counter = new AtomicLong();
+public class FileInfo {
     
-    @RequestMapping
-    public Greeting greeting(@RequestParam(value = "name", defaultValue = "World") String name) {
-        return new Greeting(counter.incrementAndGet(),
-                String.format(TEMPLATE, name));
+    private final String id;
+    private final String name;
+    
+    public FileInfo(String id, String name) {
+        this.id = id;
+        this.name = name;
     }
 
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }      
+    
 }

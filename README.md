@@ -44,7 +44,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
- | [`status`](#status) | [`multipart post`](#multipart-post) | [`soap action`](#soap-action) | [`configure`](#configure)
+ | [`status`](#status) | [`soap action`](#soap-action) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) / [`match ==`](#match) | [`match contains`](#match-contains) | [`match contains only`](#match-contains-only)| [`match each`](#match-each)
@@ -896,13 +896,18 @@ These would be URL-encoded when the HTTP request is submitted (by the [`method`]
 Given form field foo = 'bar'
 ```
 ## `multipart field`
-Use this for building multipart named (form) field requests.  The submit has to be issued with 
-[`multipart post`](#multipart-post).
+Use this for building multipart named (form) field requests.
 
  ```cucumber
 Given multipart field file = read('test.pdf')
-And multipart field fileName = 'custom-name.pdf'
+And multipart field fileName = 'some-name.pdf'
+When method post
+Then status 200
 ```
+
+When 'multipart' content is involved, the `Content-Type` header defaults to `multipart/form-data`.
+You can over-ride it by using the [`header`](#header) keyword before the `method` step.  Look at
+[`multipart entity`](#multipart-entity) for an example.
 
 ## `multipart entity`
 
@@ -917,22 +922,13 @@ Given path '/v2/documents'
 And multipart entity read('foo.json')
 And multipart field image = read('bar.jpg')
 And header Content-Type = 'multipart/related'
-When multipart post 
+When method post 
 Then status 201
 ```
 
-# Multipart and SOAP
-## `multipart post`
-Since a multipart request needs special handling, this is a rare case where the
-[`method`](#method) step is not used to actually fire the request to the server.  The only other
-exception is `soap action` (see below).
-
- ```cucumber
-When multipart post
- ```
-The `multipart post` step will default to setting the `Content-Type` header as `multipart/form-data`.
-You can over-ride it by using the [`header`](#header) keyword before this step.  Look at
-[`multipart entity`](#multipart-entity) for an example.
+# SOAP
+Since a SOAP request needs special handling, this is the only case where the
+[`method`](#method) step is not used to actually fire the request to the server.
 
 ## `soap action`
 The name of the SOAP action specified is used as the 'SOAPAction' header.  Here is an example

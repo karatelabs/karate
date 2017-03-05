@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package karate.greeting;
+package karate;
 
 import com.intuit.karate.junit4.Karate;
 import org.junit.AfterClass;
@@ -34,7 +34,7 @@ import test.ServerStart;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-public class GreetingTest {
+public abstract class BaseTest {
     
     private static ServerStart server;
     

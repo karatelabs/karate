@@ -1,20 +1,23 @@
-Feature: greeting end-point
+Feature: file upload end-point
 
 Background:
 * url demoBaseUrl
 
-Scenario: get default greeting
+Scenario: upload file
 
-    Given path 'greeting'
-    When method get
-    Then status 200
-    And match response == { id: '#number', content: 'Hello World!' }
+Given path 'files'
+And multipart field file = read('test.pdf')
+And multipart field name = 'test.pdf'
+When method post
+Then status 200
+And match response == { id: '#uuid', name: 'test.pdf' }
 
-Scenario: get custom greeting
+Given path 'files', response.id
+When method get
+Then status 200
+And match response == read('test.pdf')
+And match header Content-Disposition contains 'test.pdf'
+And match header Content-Type == 'application/octet-stream'
 
-    Given path 'greeting'
-    And param name = 'Billie'
-    When method get
-    Then status 200
-    And match response == { id: '#number', content: 'Hello Billie!' }
+
 
