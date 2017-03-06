@@ -1,5 +1,6 @@
 package com.intuit.karate.junit4;
 
+import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.cucumber.KarateBackend;
 import cucumber.runtime.Backend;
 import cucumber.runtime.Runtime;
@@ -61,7 +62,8 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
     }      
 
     private Runtime getRuntime(String featureDir, ResourceLoader resourceLoader, ClassLoader classLoader, RuntimeOptions runtimeOptions) {
-        Backend backend = new KarateBackend(featureDir, classLoader, null);
+        ScriptEnv env = ScriptEnv.init(new File(featureDir), classLoader);
+        Backend backend = new KarateBackend(env);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
         return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
     }

@@ -23,58 +23,38 @@
  */
 package com.intuit.karate.cucumber;
 
-import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.StepDefs;
-import cucumber.api.java.ObjectFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.Serializable;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateObjectFactory implements ObjectFactory {
+public class LogCollector implements Serializable {
     
-    private static final Logger logger = LoggerFactory.getLogger(KarateObjectFactory.class);
-       
-    private StepDefs stepDefs;
-    private final ScriptEnv scriptEnv;
+    private StringBuffer buffer;
+    private LogSink sink;
     
-    public KarateObjectFactory(ScriptEnv scriptEnv) {
-        this.scriptEnv = scriptEnv;
+    public LogCollector() {
+        buffer = new StringBuffer();
     }
 
-    @Override
-    public void start() {
-        logger.trace("start");
-    }
-
-    @Override
-    public void stop() {
-        logger.trace("stop");
-    }
-
-    @Override
-    public boolean addClass(Class<?> glueClass) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("add class: {}", glueClass);
+    public void setSink(LogSink sink) {
+        this.sink = sink;
+    }        
+    
+    public void log(String s) {
+        buffer.append(s).append('\n');
+        if (sink != null) {
+            sink.push(s);
         }
-        return true;
+    }
+    
+    public void clear() {
+        buffer = new StringBuffer();
     }
 
-    @Override
-    public <T> T getInstance(Class<T> glueClass) {
-        if (stepDefs == null) {
-            // the lazy init gives users the chance to over-ride the env
-            // for example using a JUnit @BeforeClass hook
-            logger.trace("lazy init of step defs");
-            stepDefs = new StepDefs(scriptEnv);
-        }
-        return (T) stepDefs;
-    }
-
-    public StepDefs getStepDefs() {
-        return stepDefs;
+    public String getBuffer() {
+        return buffer.toString();
     }        
     
 }

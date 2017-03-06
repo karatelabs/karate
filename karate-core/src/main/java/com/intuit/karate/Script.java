@@ -24,6 +24,8 @@
 package com.intuit.karate;
 
 import static com.intuit.karate.ScriptValue.Type.*;
+import com.intuit.karate.cucumber.CucumberUtils;
+import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.validator.ArrayValidator;
 import com.intuit.karate.validator.BooleanValidator;
 import com.intuit.karate.validator.IgnoreValidator;
@@ -150,7 +152,7 @@ public class Script {
         }
         if (isCallSyntax(text)) { // special case in form "call foo arg"
             text = text.substring(5);
-            int pos = text.indexOf(' ');
+            int pos = text.indexOf(' '); // TODO handle read('file with spaces in the name')
             String arg;
             if (pos != -1) {
                 arg = text.substring(pos);
@@ -262,6 +264,16 @@ public class Script {
         }
     }
 
+    public static ScriptValueMap clone(ScriptValueMap vars) {
+        ScriptValueMap temp = new ScriptValueMap();
+        for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
+            String key = entry.getKey();
+            ScriptValue value = entry.getValue(); // TODO immutable / copy
+            temp.put(key, value);
+        }
+        return temp;
+    }
+
     public static Map<String, Object> simplify(ScriptValueMap vars) {
         Map<String, Object> map = new HashMap<>(vars.size());
         for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
@@ -275,7 +287,7 @@ public class Script {
         }
         return map;
     }
-    
+
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
 
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
@@ -427,7 +439,7 @@ public class Script {
         return text.startsWith("#");
     }
 
-    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType matchType, Object actRoot, 
+    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType matchType, Object actRoot,
             ScriptValue actValue, String expected, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
@@ -483,7 +495,7 @@ public class Script {
         }
         return AssertionResult.PASS;
     }
-    
+
     private static ScriptValue getValueOfParentNode(Object actRoot, String path) {
         if (actRoot instanceof DocumentContext) {
             Pair<String, String> parentAndLeaf = JsonUtils.getParentAndLeafPath(path);
@@ -547,7 +559,7 @@ public class Script {
                 ScriptValue expected = eval(expression, context);
                 // exit the function early
                 if (!expected.isString()) {
-                    return matchFailed(path, actualString, expected.getValue(), 
+                    return matchFailed(path, actualString, expected.getValue(),
                             "type of actual value is 'string' but that of expected is " + expected.getType());
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, actual, expected.getValue(String.class), context);
@@ -748,24 +760,37 @@ public class Script {
 
     public static ScriptValue call(String name, String arg, ScriptContext context) {
         ScriptValue argValue = eval(arg, context);
-        switch (argValue.getType()) {
-            case JSON:
-                // force to java map (or list)
-                argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
-            case STRING:
-            case PRIMITIVE:
-            case NULL:
-                break;
-            default:
-                throw new RuntimeException("only json or primitives allowed as (single) function call argument");
-        }
         ScriptValue sv = eval(name, context);
-        if (sv.getType() != JS_FUNCTION) {
-            logger.warn("not a js function: {} - {}", name, sv);
-            return ScriptValue.NULL;
+        switch (sv.getType()) {
+            case JS_FUNCTION:
+                switch (argValue.getType()) {
+                    case JSON:
+                        // force to java map (or list)
+                        argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
+                    case STRING:
+                    case PRIMITIVE:
+                    case NULL:
+                        break;
+                    default:
+                        throw new RuntimeException("only json or primitives allowed as (single) function call argument");
+                }
+                ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
+                return evalFunctionCall(som, argValue, context);
+            case FEATURE_WRAPPER:
+                Map<String, Object> vars = null;
+                if (argValue.getType() == JSON) {
+                    vars = argValue.getValue(DocumentContext.class).read("$");
+                } else if (!argValue.isNull()) {
+                    throw new RuntimeException("only json allowed as feature call argument");
+                }
+                FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
+                ScriptValueMap svm = CucumberUtils.call(feature, vars);
+                Map<String, Object> map = simplify(svm);
+                return new ScriptValue(map);
+            default:
+                logger.warn("not a js function or feature file: {} - {}", name, sv);
+                return ScriptValue.NULL;
         }
-        ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-        return evalFunctionCall(som, argValue, context);
     }
 
     public static Map<String, Object> toMap(ScriptObjectMirror som) {

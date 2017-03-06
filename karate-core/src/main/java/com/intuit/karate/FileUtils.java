@@ -11,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static com.intuit.karate.Script.eval;
+import com.intuit.karate.cucumber.FeatureWrapper;
 
 /**
  *
@@ -43,6 +44,10 @@ public class FileUtils {
     public static final boolean isTextFile(String text) {
         return text.endsWith(".txt");
     }
+    
+    public static final boolean isFeatureFile(String text) {
+        return text.endsWith(".feature");
+    }    
 
     public static ScriptValue readFile(String text, ScriptContext context) {
         text = StringUtils.trim(text);
@@ -55,11 +60,15 @@ public class FileUtils {
         } else if (isTextFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
             return new ScriptValue(contents);
+        } else if (isFeatureFile(text)) {
+            String contents = readFileAsString(fileName, isClassPath(text), context);
+            FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env); // TODO determine file dir
+            return new ScriptValue(feature);
         } else {
             InputStream is = getFileStream(fileName, isClassPath(text), context);
             return new ScriptValue(is);
         }        
-    }
+    }       
     
     public static String readFileAsString(String path, boolean classpath, ScriptContext context) {
         InputStream is = getFileStream(path, classpath, context);
@@ -74,9 +83,9 @@ public class FileUtils {
     
     public static InputStream getFileStream(String path, boolean classpath, ScriptContext context) {
         if (classpath) {
-            return context.fileClassLoader.getResourceAsStream(path);
+            return context.env.fileClassLoader.getResourceAsStream(path);
         }
-        String fullPath = context.featureDir + File.separator + path;
+        String fullPath = context.env.featureDir + File.separator + path;
         try {
             InputStream is = org.apache.commons.io.FileUtils.openInputStream(new File(fullPath));
             logger.debug("loaded file from: {} - {}: {}", fullPath, path, is);

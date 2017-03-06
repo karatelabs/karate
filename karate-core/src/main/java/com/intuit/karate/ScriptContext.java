@@ -29,9 +29,7 @@ public class ScriptContext {
 
     protected Client client;
     protected final Map<String, Validator> validators;
-    protected final String featureDir;
-    protected final ClassLoader fileClassLoader;
-    protected final String env;
+    protected final ScriptEnv env;
 
     // stateful config
     protected ScriptValue headers = ScriptValue.NULL;
@@ -48,14 +46,12 @@ public class ScriptContext {
         return vars;
     }
 
-    public ScriptContext(boolean test, String featureDir, ClassLoader fileClassLoader, String env) {
-        this.featureDir = featureDir;
-        this.fileClassLoader = fileClassLoader;
-        this.env = env;
+    public ScriptContext(ScriptEnv env) {
+        this.env = env.refresh();
+        vars = env.vars == null ? new ScriptValueMap() : Script.clone(env.vars);
         validators = Script.getDefaultValidators();
-        vars = new ScriptValueMap();
         Script.assign(ScriptValueMap.VAR_READ, FileUtils.getFileReaderFunction(), this);
-        if (test) {
+        if (env.test) {
             logger.trace("karate init in test mode, http client disabled");
             client = null;
             return;

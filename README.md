@@ -44,7 +44,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
- | [`status`](#status) | [`soap action`](#soap-action) | [`configure`](#configure)
+ | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Set, Match, Assert** | [`set`](#set) / [`match ==`](#match) | [`match contains`](#match-contains) | [`match contains only`](#match-contains-only)| [`match each`](#match-each)
@@ -158,7 +158,7 @@ And assert responseTime < 1000
 And match response == read('test.pdf')
 ```
 
-A set of complete real-life examples can be found here: [Karate Demo](karate-demo)
+A set of complete real-life examples can be found here: [Karate Demos](karate-demo)
 
 # Getting Started
 Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8
@@ -679,8 +679,8 @@ This comes in useful in some cases - and avoids needing to use JavaScript functi
 So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
 the same time being able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
 
-The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage
-of 'embedded expressions', look for: `'#(query)'`.
+The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the 
+[Karate Demos](karate-demo).
 
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as
@@ -795,6 +795,8 @@ which is typically what you would need for [`multipart`](#multipart-field) file 
 ```cucumber
 * def someStream = read('some-pdf.pdf')
 ```
+
+Take a look at the [Karate Demos](karate-demo) for real-life examples of reading files.
 
 # Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
@@ -1238,7 +1240,7 @@ Then match cat.kittens[*].id == [23, 42]
 
 # when inspecting a json array, 'contains' just checks if the expected items exist
 # and the size and order of the actual array does not matter
-Then match cat.kittens[*].id contains [23]
+Then match cat.kittens[*].id contains 23
 Then match cat.kittens[*].id contains [42]
 Then match cat.kittens[*].id contains [23, 42]
 Then match cat.kittens[*].id contains [42, 23]
@@ -1247,7 +1249,7 @@ Then match cat.kittens[*].id contains [42, 23]
 Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 
 # ... and even ignore fields at the same time !
-Then match cat.kittens contains { id: 42, name: '#ignore' }
+Then match cat.kittens contains { id: 42, name: '#string' }
 ```
 
 It is worth mentioning that to do the equivalent of the last line in Java, you would typically have to

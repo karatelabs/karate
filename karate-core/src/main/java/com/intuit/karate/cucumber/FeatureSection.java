@@ -23,42 +23,55 @@
  */
 package com.intuit.karate.cucumber;
 
-import cucumber.api.java.en.And;
-import cucumber.api.java.en.But;
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.Then;
-import cucumber.api.java.en.When;
-import cucumber.runtime.ClassFinder;
-import java.util.Arrays;
-import java.util.Collection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class KarateClassFinder implements ClassFinder {
+public class FeatureSection {
     
-    private static final Logger logger = LoggerFactory.getLogger(KarateClassFinder.class);
+    private final int index;
+    private final FeatureWrapper feature;
+    private final ScenarioWrapper scenario;
+    private final ScenarioOutlineWrapper scenarioOutline;    
     
-    private final ClassLoader classLoader;
-    
-    public KarateClassFinder(ClassLoader classLoader) {
-        this.classLoader = classLoader;
+    public FeatureSection(int index, FeatureWrapper feature, ScenarioWrapper scenario, ScenarioOutlineWrapper scenarioOutline) {
+        this.index = index;
+        this.feature = feature;
+        this.scenario = scenario;
+        this.scenarioOutline = scenarioOutline;
+        if (scenario != null) {
+            scenario.setSection(this);
+        } else {
+            scenarioOutline.setSection(this);
+        }
     }
 
-    @Override
-    public <T> Collection<Class<? extends T>> getDescendants(Class<T> parentType, String packageName) {
-        logger.trace("get descendants: {}, {}", parentType, packageName);
-        Class[] classes = new Class[]{And.class, But.class, Given.class, Then.class, When.class};
-        return Arrays.asList(classes);
+    public int getIndex() {
+        return index;
+    }        
+
+    public FeatureWrapper getFeature() {
+        return feature;
+    }   
+
+    public ScenarioWrapper getScenario() {
+        return scenario;
     }
 
-    @Override
-    public <T> Class<? extends T> loadClass(String className) throws ClassNotFoundException {
-        logger.trace("loading class: {}", className);
-        return (Class<? extends T>) classLoader.loadClass(className);
+    public ScenarioOutlineWrapper getScenarioOutline() {
+        return scenarioOutline;
+    }
+    
+    public boolean isOutline() {
+        return scenarioOutline != null;
+    }
+    
+    public int getLine() {
+        if (isOutline()) {
+            return scenarioOutline.getLine();
+        } else {
+            return scenario.getLine();
+        }
     }
     
 }

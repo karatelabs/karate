@@ -2,6 +2,7 @@ package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,7 +25,8 @@ public class ScriptTest {
 
     private ScriptContext getContext() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        return new ScriptContext(true, featureDir, getClass().getClassLoader(), "dev");
+        ScriptEnv env = ScriptEnv.test("dev", new File(featureDir));;
+        return new ScriptContext(env);
     }
     
     private AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
@@ -592,17 +594,41 @@ public class ScriptTest {
     @Test
     public void testKarateEnvAccessFromScript() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        ScriptContext ctx = new ScriptContext(true, featureDir, getClass().getClassLoader(), "baz");
+        ScriptEnv env = ScriptEnv.test("baz", new File(featureDir));
+        ScriptContext ctx = new ScriptContext(env);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         ScriptValue bar = ctx.vars.get("bar");
         assertEquals("baz", bar.getValue());
         // null
-        ctx = new ScriptContext(true, featureDir, getClass().getClassLoader(), null);
+        env = ScriptEnv.test(null, new File(featureDir));
+        ctx = new ScriptContext(env);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         bar = ctx.vars.get("bar");
         assertNull(bar.getValue());
     }
+    
+    @Test
+    public void testCallingFeature() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "call read('test.feature')", ctx);
+        ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
+        assertEquals(1, a.getValue());
+        ScriptValue b = Script.evalJsonPathOnVarByName("foo", "$.b", ctx);
+        assertEquals(2, b.getValue());
+    }
+    
+    @Test
+    public void testCallingFeatureWithVarOverrides() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "call read('test.feature') { c: 3 }", ctx);
+        ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
+        assertEquals(1, a.getValue());
+        ScriptValue b = Script.evalJsonPathOnVarByName("foo", "$.b", ctx);
+        assertEquals(2, b.getValue());
+        ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$.c", ctx);
+        assertEquals(3, c.getValue());        
+    }    
 
 }

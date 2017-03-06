@@ -270,7 +270,7 @@ Then match cat.kittens[*].id == [23, 42]
 
 # when inspecting a json array, 'contains' just checks if the expected items exist
 # and the size and order of the actual array does not matter
-Then match cat.kittens[*].id contains [23]
+Then match cat.kittens[*].id contains 23
 Then match cat.kittens[*].id contains [42]
 Then match cat.kittens[*].id contains [23, 42]
 Then match cat.kittens[*].id contains [42, 23]
@@ -279,7 +279,7 @@ Then match cat.kittens[*].id contains [42, 23]
 Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 
 # ... and even ignore fields at the same time !
-Then match cat.kittens contains { id: 42, name: '#ignore' }
+Then match cat.kittens contains { id: 42, name: '#string' }
 
 # read from file, text match and contains
 Given def text = read('demo-text.txt')

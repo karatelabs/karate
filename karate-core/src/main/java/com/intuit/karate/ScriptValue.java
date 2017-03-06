@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.InputStream;
 import java.util.List;
@@ -33,7 +34,8 @@ public class ScriptValue {
         JS_ARRAY,
         JS_OBJECT,
         JS_FUNCTION,
-        INPUT_STREAM
+        INPUT_STREAM,
+        FEATURE_WRAPPER
     }
 
     private final Object value;
@@ -57,6 +59,7 @@ public class ScriptValue {
             case JS_OBJECT: return "js{}";
             case JS_FUNCTION: return "js()";
             case INPUT_STREAM: return "stream";
+            case FEATURE_WRAPPER: return "feat";
             default: return "??";
         }
     }
@@ -170,6 +173,8 @@ public class ScriptValue {
             type = Type.INPUT_STREAM;
         } else if (ClassUtils.isPrimitiveOrWrapper(value.getClass())) {
             type = Type.PRIMITIVE;
+        } else if (value instanceof FeatureWrapper) {
+            type = Type.FEATURE_WRAPPER;
         } else {
             type = Type.UNKNOWN;
             logger.trace("value init unknown type: {} - {}", value.getClass(), value);
