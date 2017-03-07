@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import cucumber.runtime.Backend;
@@ -34,6 +35,7 @@ import cucumber.runtime.snippets.FunctionNameGenerator;
 import gherkin.formatter.model.Step;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,9 +51,9 @@ public class KarateBackend implements Backend {
     private final KarateObjectFactory objectFactory;
     private Glue glue;
     
-    public KarateBackend(ScriptEnv env) {
+    public KarateBackend(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
         ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);
-        objectFactory = new KarateObjectFactory(env);
+        objectFactory = new KarateObjectFactory(env, parentContext, callArg);
         backend = new JavaBackend(objectFactory, classFinder);        
     }
 

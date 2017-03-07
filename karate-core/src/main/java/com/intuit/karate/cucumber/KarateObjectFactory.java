@@ -23,9 +23,11 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import cucumber.api.java.ObjectFactory;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,9 +41,13 @@ public class KarateObjectFactory implements ObjectFactory {
        
     private StepDefs stepDefs;
     private final ScriptEnv scriptEnv;
+    private final ScriptContext parentContext;
+    private final Map<String, Object> callArg;
     
-    public KarateObjectFactory(ScriptEnv scriptEnv) {
+    public KarateObjectFactory(ScriptEnv scriptEnv, ScriptContext parentContext, Map<String, Object> callArg) {
         this.scriptEnv = scriptEnv;
+        this.parentContext = parentContext;
+        this.callArg = callArg;
     }
 
     @Override
@@ -68,7 +74,7 @@ public class KarateObjectFactory implements ObjectFactory {
             // the lazy init gives users the chance to over-ride the env
             // for example using a JUnit @BeforeClass hook
             logger.trace("lazy init of step defs");
-            stepDefs = new StepDefs(scriptEnv);
+            stepDefs = new StepDefs(scriptEnv, parentContext, callArg);
         }
         return (T) stepDefs;
     }

@@ -46,21 +46,38 @@ public class ScriptContext {
         return vars;
     }
 
-    public ScriptContext(ScriptEnv env) {
+    public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
         this.env = env.refresh();
-        vars = env.vars == null ? new ScriptValueMap() : Script.clone(env.vars);
-        validators = Script.getDefaultValidators();
-        Script.assign(ScriptValueMap.VAR_READ, FileUtils.getFileReaderFunction(), this);
+        if (parent != null) {
+            vars = Script.clone(parent.vars);
+            validators = parent.validators;
+            headers = parent.headers;
+            sslEnabled = parent.sslEnabled;
+            sslAlgorithm = parent.sslAlgorithm;
+            readTimeout = parent.readTimeout;
+            connectTimeout = parent.connectTimeout;
+            proxyUri = parent.proxyUri;
+            proxyUsername = parent.proxyUsername;
+            proxyPassword = parent.proxyPassword;
+            if (arg != null) {
+                for (Map.Entry<String, Object> entry : arg.entrySet()) {
+                    vars.put(entry.getKey(), entry.getValue());
+                }
+            }
+        } else {
+            vars = new ScriptValueMap();
+            validators = Script.getDefaultValidators();
+            Script.assign(ScriptValueMap.VAR_READ, FileUtils.getFileReaderFunction(), this);
+            try {
+                Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);
+            } catch (Exception e) {
+                logger.warn("start-up configuration failed, missing or bad 'karate-config.js' - {}", e.getMessage());
+            }
+        }
         if (env.test) {
             logger.trace("karate init in test mode, http client disabled");
             client = null;
             return;
-        }
-        // auto config
-        try {
-            Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);
-        } catch (Exception e) {
-            logger.warn("start-up configuration failed, missing or bad 'karate-config.js' - {}", e.getMessage());
         }
         logger.trace("karate context init - initial properties: {}", vars);
         buildClient();

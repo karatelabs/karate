@@ -63,7 +63,7 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
 
     private Runtime getRuntime(String featureDir, ResourceLoader resourceLoader, ClassLoader classLoader, RuntimeOptions runtimeOptions) {
         ScriptEnv env = ScriptEnv.init(new File(featureDir), classLoader);
-        Backend backend = new KarateBackend(env);
+        Backend backend = new KarateBackend(env, null, null);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
         return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
     }

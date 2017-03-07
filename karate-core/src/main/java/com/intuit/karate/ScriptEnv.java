@@ -37,28 +37,26 @@ public class ScriptEnv {
     
     private static final Logger logger = LoggerFactory.getLogger(ScriptEnv.class);
     
-    public final boolean test;
+    public final boolean test; // if test mode, skip some init for faster unit tests
     public final String env;
     public final File featureDir;
     public final String featureName;
-    public final ScriptValueMap vars;
     public final ClassLoader fileClassLoader;    
     
-    public ScriptEnv(boolean test, String env, File featureDir, String featureName, ScriptValueMap vars, ClassLoader fileClassLoader) {
+    public ScriptEnv(boolean test, String env, File featureDir, String featureName, ClassLoader fileClassLoader) {
         this.env = env;
         this.test = test;
         this.featureDir = featureDir;
         this.featureName = featureName;
-        this.vars = vars;
         this.fileClassLoader = fileClassLoader;
     }
     
     public static ScriptEnv init(File featureDir, ClassLoader classLoader) {
-        return new ScriptEnv(false, null, featureDir, null, null, classLoader);
+        return new ScriptEnv(false, null, featureDir, null, classLoader);
     }
     
     public static ScriptEnv test(String env, File featureDir) {
-        return new ScriptEnv(true, env, featureDir, null, null, Thread.currentThread().getContextClassLoader());
+        return new ScriptEnv(true, env, featureDir, null, Thread.currentThread().getContextClassLoader());
     }    
     
     public ScriptEnv refresh() { // immutable
@@ -67,18 +65,7 @@ public class ScriptEnv {
             karateEnv = StringUtils.trimToNull(System.getProperty("karate.env"));
             logger.debug("obtained 'karate.env' from system properties: {}", karateEnv);
         }
-        return new ScriptEnv(test, karateEnv, featureDir, featureName, vars, fileClassLoader);
-    }
-    
-    public ScriptEnv merge(Map<String, Object> map) { // immutable
-        ScriptValueMap temp = vars;
-        if (temp == null) {
-            temp = new ScriptValueMap();
-        }
-        for (Map.Entry<String, Object>entry : map.entrySet()) {
-            temp.put(entry.getKey(), entry.getValue());
-        }
-        return new ScriptEnv(test, env, featureDir, featureName, temp, fileClassLoader);
+        return new ScriptEnv(test, karateEnv, featureDir, featureName, fileClassLoader);
     }
     
 }

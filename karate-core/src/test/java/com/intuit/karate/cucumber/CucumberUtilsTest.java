@@ -25,10 +25,14 @@ public class CucumberUtilsTest {
             logger.debug("{}: {}", i + 1, line);
         }        
     }
+    
+    private ScriptEnv getEnv() {
+        return new ScriptEnv(false, "dev", new File("."), null, getClass().getClassLoader());
+    }
 
     @Test
     public void testScenario() {
-        ScriptEnv env = new ScriptEnv(false, "dev", new File("."), null, null, getClass().getClassLoader());
+        ScriptEnv env = getEnv();
         InputStream is = getClass().getResourceAsStream("scenario.feature");
         FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
         List<String> lines = fw.getLines();
@@ -46,7 +50,7 @@ public class CucumberUtilsTest {
         assertEquals("Feature: simple feature file\n\n# some comment\n\nBackground:", stepText);
         assertEquals(5, step.getStartLine());
         File featureDir = FileUtils.getDirContaining(getClass());
-        KarateBackend backend = CucumberUtils.getBackend(env);
+        KarateBackend backend = CucumberUtils.getBackend(env, null, null);
         LogCollector lc = new LogCollector();
         assertTrue(step.run(backend, lc));
         
@@ -73,7 +77,7 @@ public class CucumberUtilsTest {
     @Test
     public void testScenarioOutline() {
         InputStream is = getClass().getResourceAsStream("outline.feature");
-        ScriptEnv env = new ScriptEnv(false, "dev", new File("."), null, null, getClass().getClassLoader());
+        ScriptEnv env = getEnv();
         FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
         List<String> lines = fw.getLines();
         printLines(lines);
@@ -88,7 +92,7 @@ public class CucumberUtilsTest {
     @Test
     public void testInsert() {
         InputStream is = getClass().getResourceAsStream("scenario.feature");
-        ScriptEnv env = new ScriptEnv(false, "dev", new File("."), null, null, getClass().getClassLoader());
+        ScriptEnv env = getEnv();
         FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
         fw = fw.addLine(9, "Then assert 2 == 2");
         List<String> lines = fw.getLines();
@@ -100,7 +104,7 @@ public class CucumberUtilsTest {
     @Test
     public void testEdit() {
         InputStream is = getClass().getResourceAsStream("scenario.feature");
-        ScriptEnv env = new ScriptEnv(false, "dev", new File("."), null, null, getClass().getClassLoader());
+        ScriptEnv env = getEnv();
         FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
         printLines(fw.getLines());
         StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(0);
@@ -115,7 +119,7 @@ public class CucumberUtilsTest {
     @Test
     public void testMultiLineEdit() {
         InputStream is = getClass().getResourceAsStream("scenario.feature");
-        ScriptEnv env = new ScriptEnv(false, "dev", new File("."), null, null, getClass().getClassLoader());
+        ScriptEnv env = getEnv();
         FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
         printLines(fw.getLines());
         StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(2);        
@@ -132,7 +136,7 @@ public class CucumberUtilsTest {
     @Test
     public void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
-        ScriptEnv env = new ScriptEnv(false, "dev", new File("."), null, null, getClass().getClassLoader());
+        ScriptEnv env = getEnv();
         FeatureWrapper fw = FeatureWrapper.fromString(text, env);
         printLines(fw.getLines());
         StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(0);

@@ -758,8 +758,8 @@ public class Script {
         return new ScriptValue(result);
     }
 
-    public static ScriptValue call(String name, String arg, ScriptContext context) {
-        ScriptValue argValue = eval(arg, context);
+    public static ScriptValue call(String name, String argString, ScriptContext context) {
+        ScriptValue argValue = eval(argString, context);
         ScriptValue sv = eval(name, context);
         switch (sv.getType()) {
             case JS_FUNCTION:
@@ -777,14 +777,14 @@ public class Script {
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
                 return evalFunctionCall(som, argValue, context);
             case FEATURE_WRAPPER:
-                Map<String, Object> vars = null;
+                Map<String, Object> callArg = null;
                 if (argValue.getType() == JSON) {
-                    vars = argValue.getValue(DocumentContext.class).read("$");
+                    callArg = argValue.getValue(DocumentContext.class).read("$");
                 } else if (!argValue.isNull()) {
                     throw new RuntimeException("only json allowed as feature call argument");
                 }
                 FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
-                ScriptValueMap svm = CucumberUtils.call(feature, vars);
+                ScriptValueMap svm = CucumberUtils.call(feature, context, callArg);
                 Map<String, Object> map = simplify(svm);
                 return new ScriptValue(map);
             default:

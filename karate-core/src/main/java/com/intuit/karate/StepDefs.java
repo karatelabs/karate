@@ -54,8 +54,8 @@ public class StepDefs {
 
     private static final Logger logger = LoggerFactory.getLogger(StepDefs.class);
 
-    public StepDefs(ScriptEnv env) {
-        context = new ScriptContext(env);
+    public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
+        context = new ScriptContext(env, parentContext, callArg);
     }
 
     private String url;

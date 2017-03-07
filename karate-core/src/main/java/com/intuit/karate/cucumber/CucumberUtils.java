@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
 import cucumber.runtime.FeatureBuilder;
@@ -45,8 +46,8 @@ public class CucumberUtils {
         // only static methods
     }
 
-    public static KarateBackend getBackend(ScriptEnv env) {
-        KarateBackend backend = new KarateBackend(env);
+    public static KarateBackend getBackend(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
+        KarateBackend backend = new KarateBackend(env, parentContext, callArg);
         ClassLoader defaultClassLoader = Thread.currentThread().getContextClassLoader();
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(defaultClassLoader));
         backend.loadGlue(glue, null);
@@ -63,13 +64,10 @@ public class CucumberUtils {
         return cucumberFeature;
     }
 
-    public static ScriptValueMap call(FeatureWrapper feature, Map<String, Object> vars) {
+    public static ScriptValueMap call(FeatureWrapper feature, ScriptContext parentContext, Map<String, Object> callArg) {
         LogCollector lc = new LogCollector();
         ScriptEnv env = feature.getScriptEnv();
-        if (vars != null) {
-            env = env.merge(vars);
-        }
-        KarateBackend backend = getBackend(env);
+        KarateBackend backend = getBackend(env, parentContext, callArg);
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();
