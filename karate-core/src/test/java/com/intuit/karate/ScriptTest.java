@@ -629,6 +629,19 @@ public class ScriptTest {
         assertEquals(2, b.getValue());
         ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$.c", ctx);
         assertEquals(3, c.getValue());        
-    }    
+    } 
+    
+    @Test
+    public void testCallingFeatureWithVarOverrideFromVariable() {
+        ScriptContext ctx = getContext();
+        Script.assign("bar", "{ c: 3 }", ctx);
+        Script.assign("foo", "call read('test.feature') bar", ctx);
+        ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
+        assertEquals(1, a.getValue());
+        ScriptValue b = Script.evalJsonPathOnVarByName("foo", "$.b", ctx);
+        assertEquals(2, b.getValue());
+        ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$.c", ctx);
+        assertEquals(3, c.getValue());        
+    }     
 
 }

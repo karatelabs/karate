@@ -778,10 +778,17 @@ public class Script {
                 return evalFunctionCall(som, argValue, context);
             case FEATURE_WRAPPER:
                 Map<String, Object> callArg = null;
-                if (argValue.getType() == JSON) {
-                    callArg = argValue.getValue(DocumentContext.class).read("$");
-                } else if (!argValue.isNull()) {
-                    throw new RuntimeException("only json allowed as feature call argument");
+                switch (argValue.getType()) {
+                    case JSON:
+                        callArg = argValue.getValue(DocumentContext.class).read("$");
+                        break;
+                    case MAP:
+                        callArg = argValue.getValue(Map.class);
+                        break;
+                    case NULL:
+                        break;
+                    default:
+                        throw new RuntimeException("only json or map allowed as feature call argument");
                 }
                 FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
                 ScriptValueMap svm = CucumberUtils.call(feature, context, callArg);
