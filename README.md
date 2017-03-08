@@ -1553,8 +1553,8 @@ Being able to define and re-use JavaScript functions is a powerful capability of
 
 ### JavaScript Sign-In Example
 
-The code below does the _exact_ same thing as the [sign-in example above](#calling-other-feature-files). But this is just for illustrative purposes, because as long as you only need to make HTTP calls, you are much
-better off using Karate-script in the form of a re-usable `*.feature` file.
+The code below does the _exact_ same thing as the [sign-in example above](#calling-other-feature-files). But this is just for illustrative purposes, because if you only need to make HTTP calls, you are much
+better off using Karate-script in the form of a way more concise, simpler and re-usable `*.feature` file.
 
 ```javascript
 function(credentials) {
