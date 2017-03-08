@@ -15,7 +15,7 @@ tests in a language designed to make dealing with HTTP, JSON or XML - **simple**
 
 ## Hello World
 ```cucumber
-Feature: simple example of a karate test
+Feature: karate 'hello world' example
 Scenario: create and retrieve a cat
 
 Given url 'http://myhost.com/v1/cats'
@@ -38,7 +38,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
  | | | | | 
 ----- | ---- | ---- | --- | ---
-**Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#recommended-folder-structure) | [File Extension](#file-extension) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
+**Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
  | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
  | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
@@ -50,9 +50,9 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Set, Match, Assert** | [`set`](#set) / [`match ==`](#match) | [`match contains`](#match-contains) | [`match contains only`](#match-contains-only)| [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`cookies`](#cookies) | [`read`](#read)
  | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
- **Reusable Functions** | [`call`](#call) | [`karate` object](#the-karate-object)
+ **Code Reuse** | [`call`](#call) | [Calling other `*.feature` files](#calling-other-feature-files) | [Calling JavaScript Functions](#calling-javascript-functions) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- | [Data Driven Tests](#data-driven-tests) | [Auth](#sign-in-example) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
+ | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 
 # Features
 * Java knowledge is not required to write tests
@@ -60,8 +60,9 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Based on the popular Cucumber / Gherkin standard, and IDE support and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
 * Express expected results as readable, well-formed JSON or XML, and assert (in a single step) that the entire response payload (no matter how complex or deeply nested) - is as expected
-* Payload assertion failures clearly report which data element is not as expected (with path), for easy troubleshooting of even large payloads
-* Embedded JavaScript engine that enables you to build a library of re-usable functions that suit your specific environment or organization
+* Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
+* Scripts can call other scripts - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
+* Embedded JavaScript engine that allows you to build a library of re-usable functions that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes a natural habit for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
@@ -105,8 +106,8 @@ Background:
 
 # invoke re-usable code that performs custom authentication
 # notice how json makes parameter passing super-readable
-* def signIn = read('classpath:my-signin.js')
-* def ticket = call signIn { username: 'john@smith.com', password: 'secret1234' }
+* def signin = read('classpath:my-signin.feature')
+* def ticket = call signin { username: 'john@smith.com', password: 'secret1234' }
 
 # create a javascript function on-the-fly that can re-use JVM code
 * def time = function() { return java.lang.System.currentTimeMillis() }
@@ -172,7 +173,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.3</version>
+    <version>0.2.4-SNAPSHOT</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -197,14 +198,17 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.3 \
+-DarchetypeVersion=0.2.4-SNAPSHOT \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
 
 This will create a folder called 'myproject' (or whatever you set the name to).
 
-## Recommended Folder Structure
+## Folder Structure
+A Karate test script has the file extension `.feature` which is the standard followed by
+Cucumber.  You are free to organize your files using regular Java package conventions.
+
 The Maven tradition is to have non-Java source files in a separate `src/test/resources`
 folder structure - but we recommend that you keep them side-by-side with your `*.java` files.
 When you have a large and complex project, you will end up with a few data files (e.g. `*.js`, `*.json`, `*.txt`)
@@ -237,11 +241,9 @@ and `src/test/resources` folders, you can have all your test-code and artifacts 
 Once you get used to this, you may even start wondering why projects need a `src/test/resources`
 folder at all !
 
-### File Extension
-A Karate test script has the file extension `.feature` which is the standard followed by
-Cucumber.  You are free to organize your files using regular Java package conventions.
+## Naming Conventions
 
-But since these are tests and not production Java code, you don't need to be bound by the 
+Since these are tests and not production Java code, you don't need to be bound by the 
 `com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. 
 We suggest that you have a folder hierarchy only one or two levels deep - where the folder 
 names clearly identify which 'resource', 'entity' or API is the web-service under test.
@@ -252,25 +254,39 @@ src/test/java
     |
     +-- karate-config.js
     +-- logback-test.xml
+    +-- some-reusable.feature
     +-- some-classpath-function.js
     +-- some-classpath-payload.json
     |
     \-- animals
+        |
+        +-- AnimalsTest.java
         |
         +-- cats
         |   |
         |   +-- cats-post.feature
         |   +-- cats-get.feature
         |   +-- cat.json
-        |   \-- CatsTest.java
+        |   \-- CatsRunner.java
         |
         \-- dogs
             |
             +-- dog-crud.feature
             +-- dog.json
             +-- some-helper-function.js
-            \-- DogsTest.java
+            \-- DogsRunner.java
 ```
+Assuming you use JUnit, there are some good reasons for the recommended (best practice) naming convention and 
+choice of file-placement shown above:
+* Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
+* `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the
+folder heirarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is
+designed to be only called from one of the other test scripts (perhaps with some parameters being passed).
+* `some-classpath-function.js` and `some-classpath-payload.js` are on the Java 'classpath' which means they can
+be easily re-used from any test-script by using the `classpath:` prefix, for e.g:
+[`read`](#read)`('classpath:some-classpath-function.js')`
+
+
 For details on what actually goes into a script or `*.feature` file, refer to the
 [syntax guide](#syntax-guide).
 
@@ -287,7 +303,7 @@ import com.intuit.karate.junit4.Karate;
 import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
-public class CatsTest {
+public class CatsRunner {
 	
 }
 ```
@@ -307,7 +323,7 @@ package animals.cats;
 
 import com.intuit.karate.testng.KarateTest;
 
-public class CatsTest extends KarateTest {
+public class CatsRunnerextends KarateTest {
     
 }
 ```
@@ -326,7 +342,7 @@ import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
 @CucumberOptions(features = "classpath:animals/cats/cats-post.feature")
-public class CatsPostTest {
+public class CatsPostRunner {
 	
 }
 ```
@@ -358,13 +374,14 @@ A problem you may run into is that the report is generated for every JUnit class
 test-run, you will end up with only the report for the last class as it would have over-written
 everything else. There are a couple of solutions, one is to use
 [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) -
-but the simplest should be to have a JUnit class (with the Karate annotation) at the 'root' 
-of your test packages (`src/test/java`, no package name). With that in place, you can do this:
+but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above'
+(in terms of folder heirarchy) all the main `*.feature` files in your project. So if you take the
+previous [folder structure example](#naming-conventions):
 
 ```
-mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml --tags ~@ignore" -Dtest=TestAll
+mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml --tags ~@ignore" -Dtest=AnimalsTest
 ```
-Here, `TestAll` is the name of the Java class you designated to run all your tests. And yes, Cucumber
+Here, `AnimalsTest` is the name of the Java class we designated to run all your tests. And yes, Cucumber
 has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to 
 run all tests _except_ the ones tagged `@ignore`.
 
@@ -378,13 +395,17 @@ by using the following [maven-surefire-plugin configuration](http://maven.apache
         <version>${maven.surefire.version}</version>
         <configuration>
             <includes>
-                <include>TestAll.java</include>
+                <include>AnimalsTest.java</include>
             </includes>
         </configuration>
     </plugin> 
 ```
 
-With the above in place, you don't have to use `-Dtest=TestAll` on the command-line any more.
+With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more.
+
+Actually if you follow the recommended [naming conventions](#naming-conventions) and have only
+one JUnit class following the `*Test.java` naming convention in your project, you don't need the above tweak
+to the `pom.xml` and you don't need to specify the test-class when running `mvn test`.
 
 Also refer to the section on [switching the environment](#switching-the-environment) for more ways
 of running tests via Maven using the command-line.
@@ -755,10 +776,12 @@ function(s) {
 """
 * assert dateStringToLong("2016-12-24T03:39:21.081+0000") == 1482550761081
 ```
-If you want to do advanced stuff such as make HTTP requests within a function - 
-that is what the [`call`](#call) keyword is for.
 
 [More examples](#calling-java) of calling Java appear later on in this document.
+
+The [`call`](#call) keyword allows you to call other `*.feature` files from a test script which
+is ideal for 'common' steps (for e.g. for authentication flows) that you need to re-use 
+across multiple tests.
 
 ## Reading Files
 This actually is a good example of how you could extend Karate with custom functions.
@@ -789,7 +812,15 @@ to be heavily re-used all across your project.  And yes, relative paths will wor
 
 # the following short-cut is also allowed
 * def someCallResult = call read('some-js-code.js')
+
+# and finally, you can execute all the steps defined in a whole other test script
+# which is perfect for those common authentication or 'set up' flows
+* def result = call read('classpath:some-reusable-steps.feature')
 ```
+
+For more information on the last few examples above on how you can invoke re-usable functions 
+or even whole test scripts in full, look at the [`call`](#call) keyword.
+
 If a file does not end in '.json', '.xml', '.js' or '.txt' - it is treated as a stream 
 which is typically what you would need for [`multipart`](#multipart-field) file uploads.
 ```cucumber
@@ -1452,23 +1483,78 @@ If a few steps in your flow need to temporarily change (or completely bypass) th
 header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the
 middle of a script.
 
-# Advanced JavaScript Function Invocation
+# Code Reuse / Common Routines
+
 ## `call`
-This is one of the most powerful features of Karate.  With `call` you can:
+
+In any complex testing endeavour, you would find yourself needing 'common' code that needs to be re-used 
+across multiple test scripts. A typical need would be to perform a 'sign in', or create a 
+fresh user as a pre-requisite for the scenarios being tested.
+
+## Calling other `*.feature` files
+When you have a sequence of HTTP calls that need to be repeated for multiple test scripts,
+Karate allows you to treat a `*.feature` file as a re-usable unit. You can also pass
+parameters into the `*.feature` file being called, and extract variables out of the invocation result.
+
+Here is an example of how to call another feature file:
+
+```cucumber
+Feature: some feature
+
+Background:
+* configure headers = read('classpath:my-headers.js')
+* def signin = call read('classpath:my-signin.feature') { username: 'john', password: 'secret' }
+* def authToken = signin.authToken 
+* url 'http://pppdc9prd52m.corp.intuit.net/client-service/v1/'
+
+Scenario: some scenario
+# main test steps
+```
+
+The contents of `my-signin.feature` are shown below. A couple of points to note:
+* Karate passes all variables 'as-is' into the feature file being invoked. This means that all your [configuration](#configuration) would be available to use, for example the `loginUrlBase` below.
+* You can add (or over-ride) variables by passing a call 'argument' as shown above. Only one JSON argument is allowed, but this does not limit you in any way as you can use any complex JSON structure. You can even initialize the JSON in a separate step and pass it by name, especially if it is complex. Observe how using JSON for parameter-passing makes things super-readable.
+
+```cucumber
+Feature:
+
+Scenario:
+
+Given url loginUrlBase
+And request { userId: '(#username)', userPass: '(#password)' }
+When method post
+Then status 200
+And def authToken = response
+
+# second HTTP call, to get a list of 'projects'
+Given path 'users', authToken.userId, 'projects'
+When method get
+Then status 200
+# logic to 'choose' first project
+And set authToken.projectId = response.projects[0].projectId;
+
+```
+
+The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another GET is made for retrieving a list of projects for the signed-in user, the first one is 'chosen' and added to the returned 'auth token' JSON object.
+
+So you get the picture, any kind of complicated 'sign-in' flow can be scripted and re-used.
+
+Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`.
+In the above example, the function (`sign-in.js`) returns an object assigned to the `authToken` variable.
+Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
+
+## Calling JavaScript Functions
+
+Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
+* move sequences of 'set up' routines out of your test-scripts so that the test can fully focus on the feature being tested
+* call and interoperate with Java code if needed
 * share and re-use functionality across your organization
-* move sequences of 'set up' HTTP calls out of your test-scripts so that the test can fully focus on the feature being tested
-* greatly reduce clutter and improve the readability of your test-scripts
 
-A very common use-case is the inevitable 'sign-in' that you need to perform at the beginning of every test script.
+### JavaScript Sign-In Example
 
-### Sign-In Example
-
-This example actually makes two HTTP requests - the first is a standard 'sign-in' POST 
-and then (for illustrative purposes) another GET is made for retrieving a list of projects for the 
-signed-in user, the first one is 'chosen' and added to the returned 'auth token' JSON object.
-
-So you get the idea, any kind of complicated authentication flow can be accomplished and re-used.
+The code below does the _exact_ same thing as the [sign-in example above](#calling-other-feature-files). But this is just for illustrative purposes, because as long as you only need to make HTTP calls, you are much
+better off using Karate-script in the form of a re-usable `*.feature` file.
 
 ```javascript
 function(credentials) {
@@ -1499,13 +1585,11 @@ function(credentials) {
     return authToken;
 }
 ```
-## The `karate` object
-As demonstrated in the example above, a function invoked with `call` has access to a 
+### The `karate` object
+As demonstrated in the example above, a JavaScript function invoked with `call` has access to a 
 special object in a variable named: `karate`.  This provides the following methods:
 
-> TODO: right now only JSON HTTP calls are supported by `karate.request(req)`
-
-* `karate.request(req)` - make an HTTP request. The JSON argument has the following keys:
+* `karate.request(req)` - make a (JSON only) HTTP request. The JSON argument has the following keys:
   * `url`: URL of the HTTP call to be made
   * `method`: HTTP method, can be lower-case
   * `body`: JSON payload
@@ -1515,7 +1599,7 @@ special object in a variable named: `karate`.  This provides the following metho
 * `karate.env` - gets the value (read-only) of the environment setting 'karate.env' used for bootstrapping [configuration](#configuration)
 * `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 
-## Rules for Passing Arguments
+### Rules for Passing Arguments
 Only one argument is allowed.  But this does not limit you in any way because you can 
 pass a whole JSON object as the argument.  Which has the advantage of being easier to read.
 
@@ -1524,10 +1608,8 @@ So for the above sign-in example, this is how it can be invoked:
 * def signIn = read('classpath:sign-in.js')
 * def authToken = call signIn { username: 'john@smith.com', password: 'secret1234' }
 ```
-Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`.
-In the above example, the function (`sign-in.js`) returns an object assigned to the `authToken` variable.
-Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
-## Return types
+
+### Return types
 Naturally, only one value can be returned.  But again you can return a JSON object.
 There are two things that can happen to the returned value.
 
