@@ -11,7 +11,7 @@ import test.ServerStart;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-public abstract class BaseTest {
+public abstract class TestBase {
     
     private static ServerStart server;
     

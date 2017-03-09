@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.2.4-SNAPSHOT</version>
+        <version>0.2.4</version>
     </parent>
     
     <artifactId>karate-demo</artifactId>
@@ -63,7 +63,7 @@
                 <version>${maven.surefire.version}</version>
                 <configuration>
                     <includes>
-                        <include>demo/TestAll.java</include>
+                        <include>demo/DemoTest.java</include>
                     </includes>
                 </configuration>
             </plugin>            

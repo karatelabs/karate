@@ -1,13 +1,13 @@
 package demo.cats;
 
 import cucumber.api.CucumberOptions;
-import demo.BaseTest;
+import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
 @CucumberOptions(features = "classpath:demo/cats/cats.feature")
-public class CatsTest extends BaseTest {
+public class CatsRunner extends TestBase {
     
 }
