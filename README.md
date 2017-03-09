@@ -1462,22 +1462,12 @@ function() {
   return out;
 }
 ```
-And this is how it looks like in action - at the beginning of a test script:
-```cucumber
-Feature: some feature
+Assuming the above code is in a file called `my-headers.js`, the next section on
+[calling other feature files](#calling-other-feature-files) shows how it looks like in action
+at the beginning of a test script.
 
-Background:
-* configure headers = read('classpath:the-above-function.js')
-* def signId = read('classpath:sign-in.js')
-* def authToken = call signIn { username: 'john@smith.com', password: 'secret1234' }
-
-Scenario:
-# actual steps
-```
-For an example of what the 'sign-in.js' could look like, refer to the documentation
-of [`call`](#call) and the example provided. Notice how once the `authToken` variable is initialized,
-it is used by the configured `headers` function to generate headers for every HTTP call made as part 
-of the test flow.
+Notice how once the `authToken` variable is initialized, it is used by the above function to 
+generate headers for every HTTP call made as part of the test flow.
 
 If a few steps in your flow need to temporarily change (or completely bypass) the currently-set 
 header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the
@@ -1553,10 +1543,12 @@ Being able to define and re-use JavaScript functions is a powerful capability of
 * call and interoperate with Java code if needed
 * share and re-use test 'helper' functionality across your organization
 
+In real-life scripts, you would probably use this capability of Karate to [`configure headers`](#configure-headers) using
+the results of a [sign in](#calling-other-feature-files).
+
 ### JavaScript Sign-In Example
 
-The code below does the _exact_ same thing as the [sign-in example above](#calling-other-feature-files). This is just for illustrative purposes, because if you only need to make HTTP calls, you are much
-better off using a normal Karate-script `*.feature` file - which is way more concise and simpler, as well as re-usable.
+The code below does the _exact_ same thing as the [sign-in example above](#calling-other-feature-files). This is just for illustrative purposes, because if you only need to make HTTP calls, you are much better off using a normal Karate-script `*.feature` file - which is way more concise and simpler, as well as re-usable.
 
 ```javascript
 function(credentials) {
