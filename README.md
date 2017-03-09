@@ -395,7 +395,7 @@ by using the following [maven-surefire-plugin configuration](http://maven.apache
         <version>${maven.surefire.version}</version>
         <configuration>
             <includes>
-                <include>AnimalsTest.java</include>
+                <include>animals/AnimalsTest.java</include>
             </includes>
         </configuration>
     </plugin> 
@@ -523,9 +523,9 @@ be more than sufficient for your Continuous Integration or test-automation needs
 Here's a reminder that running any [single JUnit test via Maven](https://maven.apache.org/surefire/maven-surefire-plugin/examples/single-test.html)
 can be done by:
 ```
-mvn test -Dtest=CatsTest
+mvn test -Dtest=CatsRunner
 ```
-Where `CatsTest` is the JUnit class name (in any package) you wish to run.
+Where `CatsRunner` is the JUnit class name (in any package) you wish to run.
 
 Karate is flexible, you can easily over-write config variables within each individual test-script -
 which is very convenient when in dev-mode or rapid-prototyping.
@@ -542,7 +542,7 @@ import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
-public class CatsTest {   
+public class CatsRunner {   
     
     @BeforeClass
     public static void before() {
@@ -606,7 +606,7 @@ script-steps are treated the same no matter whether they start with the keyword
 whatever makes sense for you.  You could even have all the steps start with `When` 
 and Karate won't care.
 
-In fact Cucumber supports the ['catch-all' symbol `*`](https://www.relishapp.com/cucumber/cucumber/docs/gherkin/using-star-notation-instead-of-given-when-then) -
+In fact Cucumber supports the [catch-all symbol '`*`'](https://www.relishapp.com/cucumber/cucumber/docs/gherkin/using-star-notation-instead-of-given-when-then) -
 instead of forcing you to use `Given`, `When` or `Then`. This is perfect for those
 cases where it really doesn't make sense - for example the [`Background`](#script-structure)
 section or when you use the [`def`](#def) or [`set`](#set) syntax. When eyeballing a test-script,
@@ -813,7 +813,7 @@ to be heavily re-used all across your project.  And yes, relative paths will wor
 # the following short-cut is also allowed
 * def someCallResult = call read('some-js-code.js')
 
-# feature - you can execute all the steps defined in any other test script
+# re-using other scripts - you can execute all the steps defined in any other '*.feature' file
 # which is perfect for those common authentication or 'set up' flows
 * def result = call read('classpath:some-reusable-steps.feature')
 ```
@@ -1504,8 +1504,7 @@ Feature: some feature
 Background:
 * configure headers = read('classpath:my-headers.js')
 * def signin = call read('classpath:my-signin.feature') { username: 'john', password: 'secret' }
-* def authToken = signin.authToken 
-* url 'http://pppdc9prd52m.corp.intuit.net/client-service/v1/'
+* def authToken = signin.authToken
 
 Scenario: some scenario
 # main test steps
@@ -1551,9 +1550,8 @@ Take a look at how the [`configure headers`](#configure-headers) example uses th
 
 Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
-* move sequences of 'set up' routines out of your test-scripts so that the test can fully focus on the feature being tested
 * call and interoperate with Java code if needed
-* share and re-use functionality across your organization
+* share and re-use test 'helper' functionality across your organization
 
 ### JavaScript Sign-In Example
 
