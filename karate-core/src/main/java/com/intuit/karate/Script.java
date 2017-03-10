@@ -82,6 +82,10 @@ public class Script {
         return text.startsWith("call ");
     }
 
+    public static final boolean isGetSyntax(String text) {
+        return text.startsWith("get ");
+    }
+
     public static final boolean isJson(String text) {
         return text.startsWith("{") || text.startsWith("[");
     }
@@ -113,7 +117,6 @@ public class Script {
 
     public static final boolean isVariableAndXmlPath(String text) {
         return text.matches("^" + VARIABLE_PATTERN_STRING + "/.*");
-        // return text.matches("^[^\\s^/]+/[^\\s]*");
     }
 
     public static final boolean isStringExpression(String text) {
@@ -162,6 +165,19 @@ public class Script {
                 arg = null;
             }
             return call(text, arg, context);
+        } else if (isGetSyntax(text)) { // special case in form "get json[*].path"
+            text = text.substring(4);
+            int pos = text.indexOf(' ');
+            if (pos != -1) {                
+                String left = text.substring(0, pos);
+                String right = text.substring(pos);
+                return evalJsonPathOnVarByName(left, right, context);
+            } else if (isJsonPath(text)) {
+                return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
+            } else {
+                Pair<String, String> pair = parseVariableAndPath(text);
+                return evalJsonPathOnVarByName(pair.getLeft(), pair.getRight(), context);
+            }
         } else if (isJsonPath(text)) {
             return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
         } else if (isJson(text)) {
@@ -299,10 +315,10 @@ public class Script {
 
     public static void evalJsonEmbeddedExpressions(DocumentContext doc, ScriptContext context) {
         Object o = doc.read("$");
-        recurseJson("$", o, context, doc);
+        evalJsonEmbeddedExpressions("$", o, context, doc);
     }
 
-    private static void recurseJson(String path, Object o, ScriptContext context, DocumentContext root) {
+    private static void evalJsonEmbeddedExpressions(String path, Object o, ScriptContext context, DocumentContext root) {
         if (o == null) {
             return;
         }
@@ -310,7 +326,7 @@ public class Script {
             Map<String, Object> map = (Map<String, Object>) o;
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 String childPath = path + "." + entry.getKey();
-                recurseJson(childPath, entry.getValue(), context, root);
+                evalJsonEmbeddedExpressions(childPath, entry.getValue(), context, root);
             }
         } else if (o instanceof List) {
             List list = (List) o;
@@ -318,7 +334,7 @@ public class Script {
             for (int i = 0; i < size; i++) {
                 Object child = list.get(i);
                 String childPath = path + "[" + i + "]";
-                recurseJson(childPath, child, context, root);
+                evalJsonEmbeddedExpressions(childPath, child, context, root);
             }
         } else if (o instanceof String) {
             String value = (String) o;
@@ -810,7 +826,7 @@ public class Script {
                     }
                     return new ScriptValue(result);
                 } else if (callArg == null || callArg instanceof Map) {
-                    return callFeature(feature, context, (Map) callArg);  
+                    return callFeature(feature, context, (Map) callArg);
                 } else {
                     throw new RuntimeException("unexpected feature call arg type: " + callArg.getClass());
                 }

@@ -282,6 +282,12 @@ Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob'
 # ... and even ignore fields at the same time !
 Then match cat.kittens contains { id: 42, name: '#string' }
 
+# get syntax
+* def kitnums = get cat.kittens[*].id
+* match kitnums == [23, 42]
+* def kitnames = get cat.kittens[*].name
+* match kitnames == ['Bob', 'Wild']
+
 # read from file, text match and contains
 Given def text = read('demo-text.txt')
 Then match text == 'Hello World!'

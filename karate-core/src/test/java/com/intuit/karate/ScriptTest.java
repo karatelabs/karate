@@ -654,6 +654,16 @@ public class ScriptTest {
         assertEquals(200, c1.getValue());
         ScriptValue c2 = Script.evalJsonPathOnVarByName("foo", "$[2].c", ctx);
         assertEquals(300, c2.getValue());        
-    }     
+    } 
+
+    @Test
+    public void testGetSyntax() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx);
+        Script.assign("nums", "get foo.bar[*].baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
+        Script.assign("nums", "get foo $.bar[*].baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
+    }
 
 }
