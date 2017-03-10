@@ -9,8 +9,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:com/intuit/karate/junit4/demos/each-predicate-dollar.feature")
-public class EachPredicateDollarTest {   
+@CucumberOptions(features = "classpath:com/intuit/karate/junit4/demos/read-from-relative-path.feature")
+public class ReadFromRelativePathRunner {
     
-
 }

@@ -6,6 +6,6 @@ import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
 @CucumberOptions(features = "classpath:com/intuit/karate/junit4/demos/users.feature")
-public class UsersTest {
+public class UsersRunner {
 
 }

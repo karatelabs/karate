@@ -40,6 +40,7 @@ import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -777,8 +778,11 @@ public class Script {
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
                 return evalFunctionCall(som, argValue, context);
             case FEATURE_WRAPPER:
-                Map<String, Object> callArg = null;
+                Object callArg = null;
                 switch (argValue.getType()) {
+                    case LIST:
+                        callArg = argValue.getValue(List.class);
+                        break;
                     case JSON:
                         callArg = argValue.getValue(DocumentContext.class).read("$");
                         break;
@@ -788,16 +792,38 @@ public class Script {
                     case NULL:
                         break;
                     default:
-                        throw new RuntimeException("only json or map allowed as feature call argument");
+                        throw new RuntimeException("only json, list/array or map allowed as feature call argument");
                 }
                 FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
-                ScriptValueMap svm = CucumberUtils.call(feature, context, callArg);
-                Map<String, Object> map = simplify(svm);
-                return new ScriptValue(map);
+                if (callArg instanceof List) { // JSON array
+                    List list = (List) callArg;
+                    int count = list.size();
+                    List result = new ArrayList(count);
+                    for (int i = 0; i < count; i++) {
+                        Object rowArg = list.get(i);
+                        if (rowArg instanceof Map) {
+                            ScriptValue rowResult = callFeature(feature, context, (Map) rowArg);
+                            result.add(rowResult.getValue());
+                        } else {
+                            throw new RuntimeException("argument not json or map for feature call loop array position: " + i + ", " + rowArg);
+                        }
+                    }
+                    return new ScriptValue(result);
+                } else if (callArg == null || callArg instanceof Map) {
+                    return callFeature(feature, context, (Map) callArg);  
+                } else {
+                    throw new RuntimeException("unexpected feature call arg type: " + callArg.getClass());
+                }
             default:
                 logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
         }
+    }
+
+    private static ScriptValue callFeature(FeatureWrapper feature, ScriptContext context, Map<String, Object> callArg) {
+        ScriptValueMap svm = CucumberUtils.call(feature, context, callArg);
+        Map<String, Object> map = simplify(svm);
+        return new ScriptValue(map);
     }
 
     public static Map<String, Object> toMap(ScriptObjectMirror som) {

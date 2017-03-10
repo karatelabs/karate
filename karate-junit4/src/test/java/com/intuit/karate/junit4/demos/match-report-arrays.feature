@@ -1,3 +1,4 @@
+@ignore
 Feature: match failure reporting in arrays
 
 Scenario: from a relative path

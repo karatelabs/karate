@@ -1,3 +1,4 @@
+@ignore
 Feature: simple example of a karate test
 
 Scenario: create and retrieve a cat

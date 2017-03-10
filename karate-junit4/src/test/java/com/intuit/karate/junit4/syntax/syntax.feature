@@ -1,3 +1,4 @@
+@ignore
 Feature: karate syntax demo
 
 Background:

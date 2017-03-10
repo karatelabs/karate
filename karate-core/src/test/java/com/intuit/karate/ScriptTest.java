@@ -610,7 +610,7 @@ public class ScriptTest {
     }
     
     @Test
-    public void testCallingFeature() {
+    public void testCallingFeatureWithNoArgument() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "call read('test.feature')", ctx);
         ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
@@ -642,6 +642,18 @@ public class ScriptTest {
         assertEquals(2, b.getValue());
         ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$.c", ctx);
         assertEquals(3, c.getValue());        
+    }
+    
+    @Test
+    public void testCallingFeatureWithList() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "call read('test.feature') [{c: 100}, {c: 200}, {c: 300}]", ctx);
+        ScriptValue c0 = Script.evalJsonPathOnVarByName("foo", "$[0].c", ctx);
+        assertEquals(100, c0.getValue());
+        ScriptValue c1 = Script.evalJsonPathOnVarByName("foo", "$[1].c", ctx);
+        assertEquals(200, c1.getValue());
+        ScriptValue c2 = Script.evalJsonPathOnVarByName("foo", "$[2].c", ctx);
+        assertEquals(300, c2.getValue());        
     }     
 
 }

@@ -8,9 +8,9 @@ import org.junit.runner.RunWith;
  *
  * @author pthomas3
  */
-// @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:com/intuit/karate/junit4/demos/match-report-arrays.feature")
-public class MatchFailureReportingInArraysTest {
+@RunWith(Karate.class)
+@CucumberOptions(features = "classpath:com/intuit/karate/junit4/demos/each-predicate-dollar.feature")
+public class EachPredicateDollarRunner {   
     
 
 }
