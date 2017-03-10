@@ -390,7 +390,7 @@ public class Script {
                 evalXmlEmbeddedExpressions(child, context);
             }
         }
-    }
+    }        
 
     public static void assign(String name, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
@@ -401,7 +401,7 @@ public class Script {
         logger.trace("assigning {} = {} evaluated to {}", name, exp, sv);
         context.vars.put(name, sv);
     }
-
+    
     public static boolean isQuoted(String exp) {
         return exp.startsWith("'") || exp.startsWith("\"");
     }

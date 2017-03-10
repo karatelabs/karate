@@ -4,11 +4,17 @@ Background:
 * url demoBaseUrl
 
 * def creator = read('kitten-create.feature')
-* def kittens = read('kittens.json')
-* def result = call creator kittens
 
-# the above could be written in one line as follows
-# * def result = call read('kitten-create.feature') read('kittens.json')
+* table kittens = 
+    | name     | age |
+    | Bob      | 2   |
+    | Wild     | 1   |
+    | Nyan     | 3   |
+    | Keyboard | 5   |
+    | LOL      | 3   |
+    | Ceiling  | 2   |
+
+* def result = call creator kittens
 
 * def created = get result[*].response
 

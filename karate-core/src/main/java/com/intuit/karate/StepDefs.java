@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.ScriptValue.Type;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import cucumber.api.DataTable;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
@@ -41,6 +42,7 @@ import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
+import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.BodyPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
@@ -177,6 +179,17 @@ public class StepDefs {
     public void def(String name, String expression) {
         Script.assign(name, expression, context);
     }
+    
+    private static DocumentContext toJson(DataTable table) {
+        return JsonPath.parse(table.asMaps(String.class, Object.class));
+    }
+    
+    @When("^table (.+) =$")
+    public void table(String name, DataTable table) {
+        DocumentContext doc = toJson(table);
+        name = StringUtils.trim(name);
+        context.vars.put(name, doc);
+    }    
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {
