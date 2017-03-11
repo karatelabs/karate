@@ -701,7 +701,7 @@ alive in the context can be used in this expression.
 This comes in useful in some cases - and avoids needing to use JavaScript functions or 
 [JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set).
 So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
-the same time being able to dynamically plug values (that could be also JSON trees) into a JSON 'template'.
+the same time being able to dynamically plug values (that could also be other JSON object-trees) into a JSON 'template'.
 
 The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the 
 [Karate Demos](karate-demo).
@@ -765,7 +765,7 @@ Now that we have seen how JSON is a 'native' data type that Karate understands, 
 * match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]
 
 ```
-The [`match`](#match) keyword is explained later, but it should be clear right away how convenient the `table` keyword is. JSON can be combined with the ability to [call other `*.feature` files](#calling-other-feature-files) to achieve very dynamic data-driven testing in Karate.
+The [`match`](#match) keyword is explained later, but it should be clear right away how convenient the `table` keyword is. JSON can be combined with the ability to [call other `*.feature` files](#data-driven-features) to achieve dynamic data-driven testing in Karate.
 
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.  
@@ -775,7 +775,7 @@ Standard JavaScript syntax rules apply.
 are **not** supported.
 
 ```cucumber
-* def greeter = function(name) { return 'hello ' + name }
+* def greeter = function(name){ return 'hello ' + name }
 * assert greeter('Bob') == 'hello Bob'
 ```
 ### Java Interop
@@ -797,7 +797,7 @@ function(s) {
 
 Any JavaScript function in Karate has a variable called [`karate`](#the-karate-object) injected into the runtime, which provides some utility functions, for e.g. logging.
 
-The [`call`](#call) keyword provides an alternate way of calling JavaScript functions that have only one argument. The argument can be provided after the function name, without parantheses, which makes things slightly more readable (and less cluttered) especially when the solitary argument is JSON.
+The `call` keyword provides an [alternate way of calling JavaScript functions](#calling-javascript-functions) that have only one argument. The argument can be provided after the function name, without parantheses, which makes things slightly more readable (and less cluttered) especially when the solitary argument is JSON.
 
 ```cucumber
 * def timeLong = call dateStringToLong '2016-12-24T03:39:21.081+0000'
@@ -1524,7 +1524,7 @@ In any complex testing endeavour, you would find yourself needing 'common' code 
 across multiple test scripts. A typical need would be to perform a 'sign in', or create a 
 fresh user as a pre-requisite for the scenarios being tested.
 
-There are two types of code that can be `call`-ed. `*.feature` files and [JavaScript functions](#the-karate-object).
+There are two types of code that can be `call`-ed. `*.feature` files and [JavaScript functions](#calling-javascript-functions).
 
 ## Calling other `*.feature` files
 When you have a sequence of HTTP calls that need to be repeated for multiple test scripts,
@@ -1576,17 +1576,15 @@ The above example actually makes two HTTP requests - the first is a standard 'si
 
 So you get the picture, any kind of complicated 'sign-in' flow can be scripted and re-used.
 
-Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`.
-In the above example, the function (`sign-in.js`) returns an object assigned to the `authToken` variable.
-Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
+Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 
 ### Data-Driven Features
 
 If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something magical happens. The feature is invoked for each item in the array. Each array element has to be a JSON object and for each object, the behavior will be as described above.
 
-But this time, the return value from the `call` will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration.
+But this time, the return value from the `call` will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
 
-Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`:
+Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. [`get`](#get) is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
 
 ```cucumber
 * table kittens = 
@@ -1616,9 +1614,9 @@ When method post
 Then status 200
 ```
 
-If you replace the `table` with perhaps a JavaScript function call that gets some JSON data dynamically at the time of the test, you can imagine how you can achieve dynamic data-driven testing.
+If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you can achieve dynamic data-driven testing.
 
-Although it is just a few lines of code, take time to study the above example carefully. It will give you a good idea of how you can effectively make use of the combination of Cucumber, JsonPath and Karate.
+Although it is just a few lines of code, take time to study the above example carefully. It will give you a good idea of how you can effectively make use of the unique combination of Cucumber and JsonPath that Karate provides.
 
 ## Calling JavaScript Functions
 
@@ -1629,7 +1627,7 @@ Being able to define and re-use JavaScript functions is a powerful capability of
 * call and interoperate with Java code if needed
 * share and re-use test utilities or 'helper' functionality across your organization
 
-In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the results of a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests.
+In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the variables that result from a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests.
 
 ### The `karate` object
 A JavaScript function invoked with `call` has access to a utility object in a variable named: `karate`.  This provides the following methods:
@@ -1637,9 +1635,9 @@ A JavaScript function invoked with `call` has access to a utility object in a va
 * `karate.set(key, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 * `karate.get(key)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
 * `karate.log(... args)` - log to the same logger being used by the parent process
-* `karate.env` - gets the value (read-only) of the environment setting 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
+* `karate.env` - gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 * `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
-* `karate.call(fileName, [arg])` - invoke a `*.feature` file or a JavaScript function the same way that [`call`](#call) works (with an optional single argument)
+* `karate.call(fileName, [arg])` - invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional single argument)
 
 ### Rules for Passing Data to the JavaScript Function
 Only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
@@ -1867,5 +1865,5 @@ This is great for testing boundary conditions against a single end-point, with t
 your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
 who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
-The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at Karate's ability to [loop over a `*.feature` file](#calling-other-feature-files) for each object in a JSON array - which gives you dynamic, data-driven testing, if you need it.
+The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at Karate's ability to [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic, data-driven testing, if you need it.
 
