@@ -8,7 +8,6 @@ import java.util.HashMap;
  */
 public class ScriptValueMap extends HashMap<String, ScriptValue> {
 
-    public static final String VAR_READ = "read";
     public static final String VAR_RESPONSE = "response";
     public static final String VAR_COOKIES = "cookies";
     public static final String VAR_RESPONSE_HEADERS = "responseHeaders";

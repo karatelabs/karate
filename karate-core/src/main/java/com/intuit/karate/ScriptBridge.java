@@ -1,61 +1,23 @@
 package com.intuit.karate;
 
-import com.jayway.jsonpath.JsonPath;
-import java.util.HashMap;
-import java.util.Map;
+import com.intuit.karate.cucumber.FeatureWrapper;
 import java.util.Properties;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-import org.apache.commons.lang3.StringUtils;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
 
 /**
  *
  * @author pthomas3
  */
 public class ScriptBridge {
+            
+    private static final Logger logger = LoggerFactory.getLogger(ScriptBridge.class);    
     
     private final ScriptContext context;
     
-    private static final Logger logger = LoggerFactory.getLogger(ScriptBridge.class);    
-    
     public ScriptBridge(ScriptContext context) {
         this.context = context;       
-    }
-    
-    public Map<String, Object> request(Map<String, Object> in) {
-        String method = (String) in.get("method");
-        if (method == null) {
-            method = "get";
-        }
-        method = method.toUpperCase();
-        String url = (String) in.get("url");
-        Map<String, Object> body = (Map) in.get("body");
-        Response resp = null;
-        if (body != null) {
-            String json = JsonPath.parse(body).jsonString();
-            resp = context.client.target(url).request().method(method, Entity.json(json));
-        } else {
-            resp = context.client.target(url).request().method(method);
-        }
-        Map<String, Object> out = new HashMap();
-        out.put("status", resp.getStatus());
-        String responseString = resp.readEntity(String.class);
-        responseString = StringUtils.trimToNull(responseString);
-        if (responseString != null) {
-            if (Script.isJson(responseString)) {
-                Map<String, Object> responseMap = JsonUtils.toJsonDoc(responseString).read("$");
-                out.put("body", responseMap);
-            } else if (Script.isXml(responseString)) {
-                Document doc = XmlUtils.toXmlDoc(responseString);
-                out.put("body", XmlUtils.toMap(doc));
-            } else {
-                out.put("body", responseString);
-            }
-        }
-        return out;
     }
     
     public Object read(String fileName) {
@@ -67,15 +29,34 @@ public class ScriptBridge {
         context.vars.put(name, o);
     }
     
-    public Object get(String name) {
-        ScriptValue sv = context.vars.get(name);
+    public Object get(String exp) {
+        ScriptValue sv = Script.eval(exp, context); // even json path expressions will work
         if (sv != null) {
             return sv.getAfterConvertingToMapIfNeeded();
         } else {
-            logger.trace("variable is null or does not exist: {}", name);
+            logger.trace("variable is null or does not exist: {}", exp);
             return null;
         }
-    }    
+    }
+    
+    public Object call(String fileName) {
+        return call(fileName, null);
+    }
+
+    public Object call(String fileName, Object arg) {
+        ScriptValue sv = FileUtils.readFile(fileName, context);
+        switch(sv.getType()) {
+            case FEATURE_WRAPPER:
+                FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
+                return Script.evalFeatureCall(feature, arg, context).getValue();
+            case JS_FUNCTION:
+                ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
+                return Script.evalFunctionCall(som, arg, context).getValue();
+            default:
+                logger.warn("not a js function or feature file: {} - {}", fileName, sv);
+                return null;
+        }        
+    }
     
     public String getEnv() {
         return context.env.env;

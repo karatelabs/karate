@@ -1,6 +1,5 @@
 package com.intuit.karate;
 
-import static com.intuit.karate.Script.evalFunctionCall;
 import static com.intuit.karate.ScriptValue.Type.JS_FUNCTION;
 import java.io.IOException;
 import java.util.Map;
@@ -33,7 +32,7 @@ public class RequestFilter implements ClientRequestFilter {
             return;
         }
         ScriptObjectMirror som = headersFunction.getValue(ScriptObjectMirror.class);
-        ScriptValue sv = evalFunctionCall(som, null, context);
+        ScriptValue sv = Script.evalFunctionCall(som, null, context);
         Map<String, Object> callResult;
         switch (sv.getType()) {
             case JS_OBJECT:

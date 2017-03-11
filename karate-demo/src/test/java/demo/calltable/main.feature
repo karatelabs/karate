@@ -3,8 +3,6 @@ Feature: calling another feature file in a loop
 Background:
 * url demoBaseUrl
 
-* def creator = read('kitten-create.feature')
-
 * table kittens = 
     | name     | age |
     | Bob      | 2   |
@@ -14,7 +12,7 @@ Background:
     | LOL      | 3   |
     | Ceiling  | 2   |
 
-* def result = call creator kittens
+* def result = call read('kitten-create.feature') kittens
 
 * def created = get result[*].response
 

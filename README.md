@@ -41,7 +41,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
  | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
  | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [Multi-line](#multi-line-expressions)
+**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
  | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
@@ -281,10 +281,10 @@ choice of file-placement shown above:
 * Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
 * `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the
 folder heirarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is
-designed to be only called from one of the other test scripts (perhaps with some parameters being passed).
+designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed).
 * `some-classpath-function.js` and `some-classpath-payload.js` are on the Java 'classpath' which means they can
-be easily re-used from any test-script by using the `classpath:` prefix, for e.g:
-[`read`](#read)`('classpath:some-classpath-function.js')`
+be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g:
+`read('classpath:some-classpath-function.js')`.
 
 
 For details on what actually goes into a script or `*.feature` file, refer to the
@@ -323,7 +323,7 @@ package animals.cats;
 
 import com.intuit.karate.testng.KarateTest;
 
-public class CatsRunnerextends KarateTest {
+public class CatsRunner extends KarateTest {
     
 }
 ```
@@ -384,6 +384,14 @@ mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml --tags ~@i
 Here, `AnimalsTest` is the name of the Java class we designated to run all your tests. And yes, Cucumber
 has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to 
 run all tests _except_ the ones tagged `@ignore`.
+
+The reporting and tag options can be specified in the test-class via the `@CucumberOptions` annotation, in which case you don't need to pass the `-Dcucumber.options` on the command-line:
+
+```java
+@CucumberOptions(
+    plugin = {"pretty", "html:target/cucumber", "junit:target/cucumber-junit.xml"}, 
+    tags = {"~@ignore"})
+```
 
 You can 'lock down' the fact that you only want to execute this one test (that functions as a test-suite)
 by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
@@ -748,7 +756,23 @@ Then match response ==
 """
 ```
 
-### JavaScript Functions
+## `table`
+### A simple way to create JSON
+Now that we have seen how JSON is a 'native' data type that Karate understands, there is a very nice way to create JSON using Cucumber's support for expressing [data-tables].
+
+```cucumber
+* table cats =
+    | name | age |
+    | Bob  | 2   |
+    | Wild | 4   |
+    | Nyan | 3   |
+
+* match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]
+
+```
+The [`match`](#match) keyword is explained later, but it should be clear right away how convenient the `table` keyword is. JSON can be combined with the ability to [call other `*.feature` files](#calling-other-feature-files) to achieve very dynamic data-driven testing in Karate.
+
+## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.  
 Standard JavaScript syntax rules apply.
 
@@ -760,8 +784,7 @@ are **not** supported.
 * assert greeter('Bob') == 'hello Bob'
 ```
 ### Java Interop
-For more complex functions you are better off using the multi-line 'doc-string' approach.
-This example actually calls into existing Java code, and being able to do this opens up a 
+For more complex functions you are better off using the [multi-line](#multi-line-expressions) 'doc-string' approach. This example actually calls into existing Java code, and being able to do this opens up a 
 whole lot of possibilities. The JavaScript interpreter will try to convert types across 
 Java and JavaScript as smartly as possible. For e.g. JS objects become Java Map-s, and 
 Java Bean properties are accessible (and update-able) using dot notation e.g. '`object.name`'
@@ -777,20 +800,24 @@ function(s) {
 * assert dateStringToLong("2016-12-24T03:39:21.081+0000") == 1482550761081
 ```
 
-[More examples](#calling-java) of calling Java appear later on in this document.
+Any JavaScript function in Karate has a variable called [`karate`](#the-karate-object) injected into the runtime, which provides some utility functions (e.g. logging).
 
-The [`call`](#call) keyword allows you to call other `*.feature` files from a test script which
-is ideal for 'common' steps (for e.g. for authentication flows) that you need to re-use 
-across multiple tests.
+The [`call`](#call) keyword provides an alternate way of calling JavaScript functions that have only one argument. The argument can be provided after the function name, without parantheses, which makes things slightly more readable (and less cluttered) especially for a JSON argument.
+
+```
+* def timeLong = call dateStringToLong '2016-12-24T03:39:21.081+0000'
+* assert timeLong == 1482550761081
+
+# a better example, with a JSON argument
+* def greeter = function(name){ return 'Hello ' + name.first + ' ' + name.last + '!' }
+* def greeting = call greeter { first: 'John', last: 'Smith' }
+```
 
 ## Reading Files
-This actually is a good example of how you could extend Karate with custom functions.
-The variable [`read`](#read) is a JavaScript function that is automatically available when Karate starts.
-It takes the name of a file as the only argument.
 
-By default, the file is expected to be in the same folder (package) as the `*.feature` file.
-But you can prefix the name with `classpath:`.  Prefer `classpath:` when a file is expected
-to be heavily re-used all across your project.  And yes, relative paths will work.
+Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) as the `*.feature` file. But you can prefix the name with `classpath:`. 
+
+Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
 
 ```cucumber
 # json
@@ -798,7 +825,7 @@ to be heavily re-used all across your project.  And yes, relative paths will wor
 * def moreJson = read('classpath:more-json.json')
 
 # xml
-* def someXml = read('my-xml.xml')
+* def someXml = read('../common/my-xml.xml')
 
 # string
 * def someString = read('classpath:messages.txt')
@@ -812,19 +839,25 @@ to be heavily re-used all across your project.  And yes, relative paths will wor
 
 # the following short-cut is also allowed
 * def someCallResult = call read('some-js-code.js')
-
-# re-using other scripts - you can execute all the steps defined in any other '*.feature' file
-# which is perfect for those common authentication or 'set up' flows
-* def result = call read('classpath:some-reusable-steps.feature')
 ```
 
-For more information on the last few examples above on how you can invoke re-usable functions 
-or even whole test scripts in full, look at the [`call`](#call) keyword.
+You can also [re-use other `*.feature`](#calling-other-feature-files) files from test-scripts:
+
+```cucumber
+# perfect for all those common authentication or 'set up' flows
+* def result = call read('classpath:some-reusable-steps.feature')
+```
 
 If a file does not end in '.json', '.xml', '.js' or '.txt' - it is treated as a stream 
 which is typically what you would need for [`multipart`](#multipart-field) file uploads.
 ```cucumber
 * def someStream = read('some-pdf.pdf')
+```
+
+Since it is internally implemented as a JavaScript function, you can mix calls to `read()` freely wherever JavaScript expressions are allowed:
+
+```cucumber
+* def someBigString = read('first.txt') + read('second.txt')
 ```
 
 Take a look at the [Karate Demos](karate-demo) for real-life examples of reading files.
@@ -1340,6 +1373,26 @@ Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0]
 Then match each json.hotels == { roomInformation: '#array', totalPrice: '#($.roomInformation[0].roomPrice)' }
 ```
 
+## `get`
+By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features). For example:
+
+```cucumber
+* def cat = 
+"""
+{
+  name: 'Billie',
+  kittens: [
+      { id: 23, name: 'Bob' },
+      { id: 42, name: 'Wild' }
+  ]
+}
+"""
+* def kitnums = get cat.kittens[*].id
+* match kitnums == [23, 42]
+* def kitnames = get cat.kittens[*].name
+* match kitnames == ['Bob', 'Wild']
+```
+
 # Special Variables
 
 ## `response`
@@ -1416,11 +1469,6 @@ When method post
 Then status 201
 And assert responseTime < 1000
 ```
-## `read`
-This is a great example of how you can extend Karate by defining your own functions. Behind the scenes
-the `read(filename)` function is actually implemented in JavaScript.
-
-Refer to the section on [reading files](#reading-files) for how to use this built-in function.
 
 # HTTP Header Manipulation
 ## `configure headers`
@@ -1503,12 +1551,12 @@ Scenario: some scenario
 ```
 
 The contents of `my-signin.feature` are shown below. A few points to note:
-* Karate passes all context 'as-is' into the feature file being invoked. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example the `loginUrlBase` below.
+* Karate passes all context 'as-is' into the feature file being invoked. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example `loginUrlBase` in the example below.
 * You can add (or over-ride) variables by passing a call 'argument' as shown above. Only one JSON argument is allowed, but this does not limit you in any way as you can use any complex JSON structure. You can even initialize the JSON in a separate step and pass it by name, especially if it is complex. Observe how using JSON for parameter-passing makes things super-readable.
-* **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object, and in the example above you can see this JSON 'envelope' assigned to the variable named `signin`. Getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signin.authToken` as shown above. This design has the following advantages:
+* **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signin`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signin.authToken` as shown above. This design has the following advantages:
   * 'called' Karate scripts don't need to use any special keywords to 'return' data and can behave like 'normal' Karate tests in 'stand-alone' mode if needed
-  * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script.
-  * the need to explicitly 'unpack' variables from the returned 'envelope' keeps things readable and maintainable
+  * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script
+  * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
 
 ```cucumber
 Feature:
@@ -1527,7 +1575,6 @@ When method get
 Then status 200
 # logic to 'choose' first project
 And set authToken.projectId = response.projects[0].projectId;
-
 ```
 
 The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another GET is made for retrieving a list of projects for the signed-in user, the first one is 'chosen' and added to the returned 'auth token' JSON object.
@@ -1538,7 +1585,45 @@ Do look at the documentation and example for [`configure headers`](#configure-he
 In the above example, the function (`sign-in.js`) returns an object assigned to the `authToken` variable.
 Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 
+### Data-Driven Features
+
+If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something magical happens. The feature is invoked for each item in the array. Each array element has to be a JSON object and for each object, the behavior will be as described above.
+
+But now the return value from the `call` will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration.
+
+Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`:
+
+```cucumber
+* table kittens = 
+    | name     | age |
+    | Bob      | 2   |
+    | Wild     | 1   |
+    | Nyan     | 3   |
+
+* def result = call read('cat-create.feature') kittens
+* def created = get result[*].response
+* match each created == { id: '#number', name: '#string', age: '#number' }
+* match created[*].name contains only ['Bob', 'Wild', 'Nyan']
+```
+
+And here is how `cat-create.feature` could look like:
+
+```cucumber
+@ignore
+Feature:
+
+Scenario:
+
+Given url someUrlFromConfig
+And path 'cats'
+And request { name: '#(name)', age: '#(age)' }
+When method post
+Then status 200
+```
+
 ## Calling JavaScript Functions
+
+Examples of [defining and using JavaScript functions](#javascript-functions) appear in earlier sections of this document.
 
 Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
@@ -1547,61 +1632,18 @@ Being able to define and re-use JavaScript functions is a powerful capability of
 
 In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the results of a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests.
 
-### JavaScript Sign-In Example
-
-The code below does the _exact_ same thing as the [sign-in example above](#calling-other-feature-files). This is just for illustrative purposes, because if you only need to make HTTP calls, you are much better off using a normal Karate-script `*.feature` file - which is way more concise and simpler, as well as re-usable.
-
-```javascript
-function(credentials) {
-    var req = {
-        url: loginUrlBase, // use config variable
-        method: 'post',
-        body: { userId: credentials.username, userPass: credentials.password }
-    };
-    var res = karate.request(req); // first HTTP call, to sign-in
-    if (res.status != 200) {
-        throw ('sign in failed: ' + res);
-    }
-    var authToken = res.body;
-    karate.log('authToken:', authToken);
-    // update the context, so that the 'headers' request-filter uses the auth token
-    // even for the second HTTP request that happens in the next few lines 
-    karate.set('authToken', authToken);
-    req = {
-        url: loginUrlBase + 'users/' + authToken.userId + '/projects',
-        method: 'get'        
-    };
-    res = karate.request(req); // second HTTP call, to get a list of 'projects'
-    if (res.status != 200) {
-        throw ('get user projects failed: ' + res);
-    }
-    var projectId = res.body.projects[0].projectId; // logic to 'choose' first project
-    authToken.projectId = projectId;
-    return authToken;
-}
-```
 ### The `karate` object
-As demonstrated in the example above, a JavaScript function invoked with `call` has access to a 
-special object in a variable named: `karate`.  This provides the following methods:
+A JavaScript function invoked with `call` has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
-* `karate.request(req)` - make a (JSON only) HTTP request. The JSON argument has the following keys:
-  * `url`: URL of the HTTP call to be made
-  * `method`: HTTP method, can be lower-case
-  * `body`: JSON payload
-* `karate.set(key, value)` - set the value of a variable immediately, which ensures that any active [`headers`](#configure-headers) routine does the right thing for future HTTP calls (even those made by this function being `call`-ed)
-* `karate.get(key)` - get the value of a variable by name, if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
+* `karate.set(key, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
+* `karate.get(key)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
 * `karate.log(... args)` - log to the same logger being used by the parent process
-* `karate.env` - gets the value (read-only) of the environment setting 'karate.env' used for bootstrapping [configuration](#configuration)
+* `karate.env` - gets the value (read-only) of the environment setting 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 * `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
+* `karate.call(fileName, [arg])` - invoke a `*.feature` file or a JavaScript function the same way that [`call`](#call) works (with an optional single argument)
 
 ### Rules for Passing Data to the JavaScript Function
-Only one argument is allowed.  But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument.  Which has the advantage of being easier to read. In the case of calling a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the one argument.
-
-So for the above sign-in example, this is how it can be invoked:
-```cucumber
-* def signIn = read('classpath:sign-in.js')
-* def authToken = call signIn { username: 'john', password: 'secret' }
-```
+Only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
 
 ### Return types
 Naturally, only one value can be returned.  But again, you can return a JSON object.
@@ -1647,7 +1689,7 @@ perhaps at the beginning, or within the `Background:` section.
 
 ```
 
-## Calling Java
+### Calling Java
 There are examples of calling JVM classes in the '[Hello Real World](#hello-real-world)' example and
 in the section on [Java Interop](#java-interop).
 
@@ -1781,6 +1823,7 @@ You can look at the [Wiremock](http://wiremock.org) based unit-test code of Kara
 * [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature#L5) - see line #5
 
 ## Data Driven Tests
+### The Cucumber Way
 Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines)
 where you can re-use a set of data-driven steps and assertions, and the data can be declared in a
 very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the 

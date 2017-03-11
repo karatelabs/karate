@@ -7,7 +7,6 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.logging.LoggingFeature;
@@ -24,6 +23,8 @@ public class ScriptContext {
     private static final Logger logger = LoggerFactory.getLogger(ScriptContext.class);
 
     private static final String KARATE_NAME = "karate";
+    private static final String VAR_CONTEXT = "_context";
+    private static final String VAR_READ = "read";
 
     protected final ScriptValueMap vars;
 
@@ -33,6 +34,7 @@ public class ScriptContext {
 
     // stateful config
     protected ScriptValue headers = ScriptValue.NULL;
+    private ScriptValue readFunction;
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
     private int readTimeout = -1;
@@ -50,6 +52,7 @@ public class ScriptContext {
         this.env = env.refresh();
         if (parent != null) {
             vars = Script.clone(parent.vars);
+            readFunction = parent.readFunction;
             validators = parent.validators;
             headers = parent.headers;
             sslEnabled = parent.sslEnabled;
@@ -67,7 +70,7 @@ public class ScriptContext {
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
-            Script.assign(ScriptValueMap.VAR_READ, FileUtils.getFileReaderFunction(), this);
+            readFunction = Script.eval(getFileReaderFunction(), this);
             try {
                 Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
@@ -82,6 +85,13 @@ public class ScriptContext {
         logger.trace("karate context init - initial properties: {}", vars);
         buildClient();
     }
+    
+    private static String getFileReaderFunction() {
+        return "function(path) {\n"
+                + "  var FileUtils = Java.type('" + FileUtils.class.getCanonicalName() + "');\n"
+                + "  return FileUtils.readFile(path, " + VAR_CONTEXT + ").value;\n"
+                + "}";
+    }     
 
     public void configure(String key, String exp) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
@@ -152,15 +162,16 @@ public class ScriptContext {
             client.property(ClientProperties.PROXY_PASSWORD, proxyPassword);
         }
     }
-
-    public void injectInto(ScriptObjectMirror som) {
-        som.setMember(KARATE_NAME, new ScriptBridge(this));
-        // convenience for users, can use 'karate' instead of 'this.karate'
-        som.eval(String.format("var %s = this.%s", KARATE_NAME, KARATE_NAME));
-        Map<String, Object> simple = Script.simplify(vars);
-        for (Map.Entry<String, Object> entry : simple.entrySet()) {
-            som.put(entry.getKey(), entry.getValue()); // update eval context
+    
+    public Map<String, Object> getVariableBindings() {
+        Map<String, Object> map = Script.simplify(vars);
+        if (readFunction != null) {
+            map.put(VAR_READ, readFunction.getValue());
         }
+        // for future function calls if needed, see getFileReaderFunction()
+        map.put(VAR_CONTEXT, this);
+        map.put(KARATE_NAME, new ScriptBridge(this));
+        return map;
     }
 
 }

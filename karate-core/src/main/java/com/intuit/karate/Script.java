@@ -68,7 +68,6 @@ import org.w3c.dom.NodeList;
  */
 public class Script {
 
-    public static final String VAR_CONTEXT = "_context";
     public static final String VAR_SELF = "_";
     public static final String VAR_DOLLAR = "$";
 
@@ -167,16 +166,21 @@ public class Script {
             return call(text, arg, context);
         } else if (isGetSyntax(text)) { // special case in form "get json[*].path"
             text = text.substring(4);
-            int pos = text.indexOf(' ');
-            if (pos != -1) {                
-                String left = text.substring(0, pos);
-                String right = text.substring(pos);
-                return evalJsonPathOnVarByName(left, right, context);
-            } else if (isJsonPath(text)) {
-                return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
+            int pos = text.indexOf(' '); // TODO handle read('file with spaces in the name')
+            String left;
+            String right;
+            if (pos != -1) {
+                left = text.substring(0, pos);
+                right = text.substring(pos);
             } else {
                 Pair<String, String> pair = parseVariableAndPath(text);
-                return evalJsonPathOnVarByName(pair.getLeft(), pair.getRight(), context);
+                left = pair.getLeft();
+                right = pair.getRight();
+            }
+            if (isXmlPath(right)) {
+                return evalXmlPathOnVarByName(left, right, context);
+            } else {
+                return evalJsonPathOnVarByName(left, right, context);
             }
         } else if (isJsonPath(text)) {
             return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
@@ -258,12 +262,10 @@ public class Script {
         ScriptEngine nashorn = manager.getEngineByName("nashorn");
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
         if (context != null) {
-            Map<String, Object> simple = simplify(context.vars);
-            for (Map.Entry<String, Object> entry : simple.entrySet()) {
+            Map<String, Object> map = context.getVariableBindings();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
                 bindings.put(entry.getKey(), entry.getValue());
             }
-            // for future function calls if needed, and see FileUtils.getFileReaderFunction()
-            bindings.put(VAR_CONTEXT, context);
         }
         if (selfValue != null) {
             bindings.put(VAR_SELF, selfValue.getValue());
@@ -390,7 +392,7 @@ public class Script {
                 evalXmlEmbeddedExpressions(child, context);
             }
         }
-    }        
+    }
 
     public static void assign(String name, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
@@ -401,7 +403,7 @@ public class Script {
         logger.trace("assigning {} = {} evaluated to {}", name, exp, sv);
         context.vars.put(name, sv);
     }
-    
+
     public static boolean isQuoted(String exp) {
         return exp.startsWith("'") || exp.startsWith("\"");
     }
@@ -764,17 +766,6 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, ScriptValue argValue, ScriptContext context) {
-        context.injectInto(som);
-        Object result;
-        if (argValue != null && argValue.getType() != NULL) {
-            result = som.call(som, argValue.getValue());
-        } else {
-            result = som.call(som);
-        }
-        return new ScriptValue(result);
-    }
-
     public static ScriptValue call(String name, String argString, ScriptContext context) {
         ScriptValue argValue = eval(argString, context);
         ScriptValue sv = eval(name, context);
@@ -792,7 +783,7 @@ public class Script {
                         throw new RuntimeException("only json or primitives allowed as (single) function call argument");
                 }
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return evalFunctionCall(som, argValue, context);
+                return evalFunctionCall(som, argValue.getValue(), context);
             case FEATURE_WRAPPER:
                 Object callArg = null;
                 switch (argValue.getType()) {
@@ -811,32 +802,49 @@ public class Script {
                         throw new RuntimeException("only json, list/array or map allowed as feature call argument");
                 }
                 FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
-                if (callArg instanceof List) { // JSON array
-                    List list = (List) callArg;
-                    int count = list.size();
-                    List result = new ArrayList(count);
-                    for (int i = 0; i < count; i++) {
-                        Object rowArg = list.get(i);
-                        if (rowArg instanceof Map) {
-                            ScriptValue rowResult = callFeature(feature, context, (Map) rowArg);
-                            result.add(rowResult.getValue());
-                        } else {
-                            throw new RuntimeException("argument not json or map for feature call loop array position: " + i + ", " + rowArg);
-                        }
-                    }
-                    return new ScriptValue(result);
-                } else if (callArg == null || callArg instanceof Map) {
-                    return callFeature(feature, context, (Map) callArg);
-                } else {
-                    throw new RuntimeException("unexpected feature call arg type: " + callArg.getClass());
-                }
+                return evalFeatureCall(feature, callArg, context);
             default:
                 logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
         }
     }
 
-    private static ScriptValue callFeature(FeatureWrapper feature, ScriptContext context, Map<String, Object> callArg) {
+    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScriptContext context) {
+        for (Map.Entry<String, Object> entry : context.getVariableBindings().entrySet()) {
+            som.put(entry.getKey(), entry.getValue());
+        }
+        Object result;
+        if (callArg != null) {
+            result = som.call(som, callArg);
+        } else {
+            result = som.call(som);
+        }
+        return new ScriptValue(result);
+    }
+
+    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context) {
+        if (callArg instanceof List) { // JSON array
+            List list = (List) callArg;
+            int count = list.size();
+            List result = new ArrayList(count);
+            for (int i = 0; i < count; i++) {
+                Object rowArg = list.get(i);
+                if (rowArg instanceof Map) {
+                    ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg);
+                    result.add(rowResult.getValue());
+                } else {
+                    throw new RuntimeException("argument not json or map for feature call loop array position: " + i + ", " + rowArg);
+                }
+            }
+            return new ScriptValue(result);
+        } else if (callArg == null || callArg instanceof Map) {
+            return evalFeatureCall(feature, context, (Map) callArg);
+        } else {
+            throw new RuntimeException("unexpected feature call arg type: " + callArg.getClass());
+        }
+    }
+
+    private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context, Map<String, Object> callArg) {
         ScriptValueMap svm = CucumberUtils.call(feature, context, callArg);
         Map<String, Object> map = simplify(svm);
         return new ScriptValue(map);

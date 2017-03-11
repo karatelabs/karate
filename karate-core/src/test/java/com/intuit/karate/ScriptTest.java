@@ -423,6 +423,19 @@ public class ScriptTest {
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("world", testBar.getValue());
     }
+    
+    @Test
+    public void testCallingFunctionThatUsesJsonPath() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx);
+        Script.assign("fun", "function(){ return karate.get('foo.bar[*].baz') }", ctx);
+        Script.assign("res", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "[1, 2, 3]", ctx).pass);
+        // 'normal' variable name
+        Script.assign("fun", "function(){ return karate.get('foo') }", ctx);
+        Script.assign("res", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx).pass);        
+    }
 
     @Test
     public void testParsingVariableAndJsonPath() {
@@ -659,11 +672,33 @@ public class ScriptTest {
     @Test
     public void testGetSyntax() {
         ScriptContext ctx = getContext();
+        Script.assign("foo", "[{baz: 1}, {baz: 2}, {baz: 3}]", ctx);
+        Script.assign("nums", "get foo[*].baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
         Script.assign("foo", "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx);
         Script.assign("nums", "get foo.bar[*].baz", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
         Script.assign("nums", "get foo $.bar[*].baz", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
     }
+    
+    @Test
+    public void testFromJsKarateCallFeatureWithNoArg() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return karate.call('test.feature') }", ctx);
+        Script.assign("res", "fun()", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res.a", null, "1", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res.b", null, "2", ctx).pass);
+    }
+    
+    @Test
+    public void testFromJsKarateCallFeatureWithJsonArg() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return karate.call('test.feature', {c: 3}) }", ctx);
+        Script.assign("res", "fun()", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res.a", null, "1", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res.b", null, "2", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res.c", null, "3", ctx).pass);
+    }    
 
 }

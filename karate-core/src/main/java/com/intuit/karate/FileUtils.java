@@ -94,13 +94,6 @@ public class FileUtils {
             throw new RuntimeException(e);
         }
     }
-
-    public static String getFileReaderFunction() {
-        return "function(path) {\n"
-                + "  var FileUtils = Java.type('com.intuit.karate.FileUtils');\n"
-                + "  return FileUtils.readFile(path, " + Script.VAR_CONTEXT + ").value;\n"
-                + "}";
-    } 
     
     public static File getDirContaining(Class clazz) {
         String resourcePath = clazz.getResource(clazz.getSimpleName() + ".class").getFile();
