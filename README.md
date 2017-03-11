@@ -47,9 +47,8 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Set, Match, Assert** | [`set`](#set) / [`match ==`](#match) | [`match contains`](#match-contains) | [`match contains only`](#match-contains-only)| [`match each`](#match-each)
-**Special Variables** | [`response`](#response) | [`cookies`](#cookies) | [`read`](#read)
- | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
+**Set, Match, Assert** | [`set`](#set) / [`match ==`](#match) | [`match contains`](#match-contains) | [`contains only`](#match-contains-only)| [`match each`](#match-each)
+**Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) | [Calling other `*.feature` files](#calling-other-feature-files) | [Calling JavaScript Functions](#calling-javascript-functions) | [`karate` object](#the-karate-object)
  **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
  | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
@@ -173,16 +172,12 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.4</version>
+    <version>0.2.5</version>
     <scope>test</scope>
 </dependency>
 ```
 ### TestNG instead of JUnit
-If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng).
-If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that
-[data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate,
-so you don't need to depend on things like the TestNG
-[`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
+If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
 
 Use the TestNG test-runner only when you are trying to add Karate tests side-by-side with an existing set of
 TestNG test-classes, possibly as a migration strategy.
@@ -198,7 +193,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.4 \
+-DarchetypeVersion=0.2.5 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -758,7 +753,7 @@ Then match response ==
 
 ## `table`
 ### A simple way to create JSON
-Now that we have seen how JSON is a 'native' data type that Karate understands, there is a very nice way to create JSON using Cucumber's support for expressing [data-tables].
+Now that we have seen how JSON is a 'native' data type that Karate understands, there is a very nice way to create JSON using Cucumber's support for expressing [data-tables](http://www.thinkcode.se/blog/2014/06/30/cucumber-data-tables).
 
 ```cucumber
 * table cats =
@@ -800,11 +795,11 @@ function(s) {
 * assert dateStringToLong("2016-12-24T03:39:21.081+0000") == 1482550761081
 ```
 
-Any JavaScript function in Karate has a variable called [`karate`](#the-karate-object) injected into the runtime, which provides some utility functions (e.g. logging).
+Any JavaScript function in Karate has a variable called [`karate`](#the-karate-object) injected into the runtime, which provides some utility functions, for e.g. logging.
 
-The [`call`](#call) keyword provides an alternate way of calling JavaScript functions that have only one argument. The argument can be provided after the function name, without parantheses, which makes things slightly more readable (and less cluttered) especially for a JSON argument.
+The [`call`](#call) keyword provides an alternate way of calling JavaScript functions that have only one argument. The argument can be provided after the function name, without parantheses, which makes things slightly more readable (and less cluttered) especially when the solitary argument is JSON.
 
-```
+```cucumber
 * def timeLong = call dateStringToLong '2016-12-24T03:39:21.081+0000'
 * assert timeLong == 1482550761081
 
@@ -1589,7 +1584,7 @@ Take a look at how the [`configure headers`](#configure-headers) example uses th
 
 If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something magical happens. The feature is invoked for each item in the array. Each array element has to be a JSON object and for each object, the behavior will be as described above.
 
-But now the return value from the `call` will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration.
+But this time, the return value from the `call` will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration.
 
 Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`:
 
@@ -1620,6 +1615,10 @@ And request { name: '#(name)', age: '#(age)' }
 When method post
 Then status 200
 ```
+
+If you replace the `table` with perhaps a JavaScript function call that gets some JSON data dynamically at the time of the test, you can imagine how you can achieve dynamic data-driven testing.
+
+Although it is just a few lines of code, take time to study the above example carefully. It will give you a good idea of how you can effectively make use of the combination of Cucumber, JsonPath and Karate.
 
 ## Calling JavaScript Functions
 
@@ -1829,7 +1828,7 @@ where you can re-use a set of data-driven steps and assertions, and the data can
 very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the 
 new `Examples:` section.
 
-This example is a port of the [REST-Assured](http://rest-assured.io) tutorial by 
+This example is a port of the [REST-Assured](http://rest-assured.io) (and TestNG) tutorial by 
 [@Bas Dijkstra](https://twitter.com/_basdijkstra) and you should take a minute to compare the 
 below code with the [original](http://bit.ly/2kGxiU0).
 
@@ -1867,4 +1866,6 @@ Examples:
 This is great for testing boundary conditions against a single end-point, with the added bonus that
 your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
 who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
+
+The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at Karate's ability to [loop over a `*.feature` file](#calling-other-feature-files) for each object in a JSON array - which gives you dynamic, data-driven testing, if you need it.
 

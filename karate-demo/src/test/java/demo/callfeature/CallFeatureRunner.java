@@ -7,7 +7,7 @@ import demo.TestBase;
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/callfeature/caller.feature")
+@CucumberOptions(features = "classpath:demo/callfeature/call-feature.feature")
 public class CallFeatureRunner extends TestBase {
     
 }

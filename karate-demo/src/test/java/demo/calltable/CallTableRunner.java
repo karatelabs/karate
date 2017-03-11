@@ -7,7 +7,7 @@ import demo.TestBase;
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/calltable/main.feature")
+@CucumberOptions(features = "classpath:demo/calltable/call-table.feature")
 public class CallTableRunner extends TestBase {
     
 }

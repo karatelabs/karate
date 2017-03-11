@@ -5,7 +5,7 @@ Background:
 
 Scenario: create kittens and then create parent cat
 
-* def kittens = call read('callee.feature')
+* def kittens = call read('create-two-cats.feature')
 * def bob = kittens.bob
 * def wild = kittens.wild
 
