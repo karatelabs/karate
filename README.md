@@ -172,7 +172,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.5</version>
+    <version>0.2.6</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -193,7 +193,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.5 \
+-DarchetypeVersion=0.2.6 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -1493,7 +1493,7 @@ function() {
     ip_header: '123.45.67.89',    
   };
   var authString = '';
-  var authToken = karate.get('authToken'); // use the 'karate' helper to do a 'safe' get of a variable
+  var authToken = karate.get('authToken'); // use the 'karate' helper to do a 'safe' get of a 'dynamic' variable
   if (authToken) { // and if 'authToken' is not null ... 
     authString = ',auth_type=MyAuthScheme'
         + ',auth_key=' + authToken.key

@@ -266,6 +266,7 @@ public class Script {
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 bindings.put(entry.getKey(), entry.getValue());
             }
+            bindings.put(ScriptContext.KARATE_NAME, new ScriptBridge(context));
         }
         if (selfValue != null) {
             bindings.put(VAR_SELF, selfValue.getValue());
@@ -562,10 +563,15 @@ public class Script {
             case JSON:
                 actualDoc = actual.getValue(DocumentContext.class);
                 break;
+            case JS_ARRAY: // happens for json resulting from nashorn
+                ScriptObjectMirror som = actual.getValue(ScriptObjectMirror.class);
+                actualDoc = JsonPath.parse(som.values());
+                break;
+            case JS_OBJECT: // is a map-like object, happens for json resulting from nashorn
             case MAP: // this happens because some jsonpath operations result in Map
                 Map<String, Object> map = actual.getValue(Map.class);
                 actualDoc = JsonPath.parse(map);
-                break;
+                break;                
             case LIST: // this also happens because some jsonpath operations result in List
                 List list = actual.getValue(List.class);
                 actualDoc = JsonPath.parse(list);
@@ -583,6 +589,8 @@ public class Script {
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, actual, expected.getValue(String.class), context);
                 }
+            case PRIMITIVE:
+                return matchPrimitive(path, actual.getValue(), eval(expression, context).getValue());
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }
@@ -702,26 +710,30 @@ public class Script {
                 return AssertionResult.PASS; // lists (and order) are identical
             }
         } else if (ClassUtils.isPrimitiveOrWrapper(expObject.getClass())) {
-            if (actObject == null) {
-                return matchFailed(path, actObject, expObject, "actual value is null");
-            }
-            if (!expObject.getClass().equals(actObject.getClass())) {
-                // types are not the same, use the JS engine for a lenient equality check
-                String exp = actObject + " == " + expObject;
-                ScriptValue sv = evalInNashorn(exp, null);
-                if (sv.isBooleanTrue()) {
-                    return AssertionResult.PASS;
-                } else {
-                    return matchFailed(path, actObject, expObject, "not equal");
-                }
-            }
-            if (!expObject.equals(actObject)) {
-                return matchFailed(path, actObject, expObject, "not equal");
-            } else {
-                return AssertionResult.PASS; // primitives, are equal
-            }
+            return matchPrimitive(path, actObject, expObject);
         } else { // this should never happen
             throw new RuntimeException("unexpected type: " + expObject.getClass());
+        }
+    }
+
+    private static AssertionResult matchPrimitive(String path, Object actObject, Object expObject) {
+        if (actObject == null) {
+            return matchFailed(path, actObject, expObject, "actual value is null");
+        }
+        if (!expObject.getClass().equals(actObject.getClass())) {
+            // types are not the same, use the JS engine for a lenient equality check
+            String exp = actObject + " == " + expObject;
+            ScriptValue sv = evalInNashorn(exp, null);
+            if (sv.isBooleanTrue()) {
+                return AssertionResult.PASS;
+            } else {
+                return matchFailed(path, actObject, expObject, "not equal");
+            }
+        }
+        if (!expObject.equals(actObject)) {
+            return matchFailed(path, actObject, expObject, "not equal");
+        } else {
+            return AssertionResult.PASS; // primitives, are equal
         }
     }
 
@@ -810,9 +822,10 @@ public class Script {
     }
 
     public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScriptContext context) {
-        for (Map.Entry<String, Object> entry : context.getVariableBindings().entrySet()) {
-            som.put(entry.getKey(), entry.getValue());
-        }
+        // ensure that things like 'karate.get' operate on the latest variable state
+        som.setMember(ScriptContext.KARATE_NAME, new ScriptBridge(context));
+        // convenience for users, can use 'karate' instead of 'this.karate'
+        som.eval(String.format("var %s = this.%s", ScriptContext.KARATE_NAME, ScriptContext.KARATE_NAME));
         Object result;
         if (callArg != null) {
             result = som.call(som, callArg);

@@ -699,6 +699,36 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res.a", null, "1", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res.b", null, "2", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res.c", null, "3", ctx).pass);
+    }
+
+    @Test
+    public void testFromJsKarateGetForNonExistentVariable() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ var foo = karate.get('foo'); return foo ? true : false }", ctx);
+        Script.assign("res", "fun()", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "false", ctx).pass);
+    } 
+    
+    @Test
+    public void testFromJsKarateGetForJsonArrayVariable() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return [1, 2, 3] }", ctx);
+        Script.assign("res", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "[1, 2, 3]", ctx).pass);
     }    
+    
+    @Test
+    public void testFromJsKarateGetForJsonObjectVariableAndCallFeatureAndJs() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "read('headers.js')", ctx);
+        Script.assign("res", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_someValue' }", ctx).pass);
+        Script.assign("signin", "call read('signin.feature')", ctx);
+        Script.assign("ticket", "signin.ticket", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "ticket", null, "{ foo: 'bar' }", ctx).pass);
+        Script.assign("res", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_someValue', baz: 'ban' }", ctx).pass);
+    }
+    
 
 }

@@ -19,6 +19,10 @@ public class ScriptBridge {
     public ScriptBridge(ScriptContext context) {
         this.context = context;       
     }
+
+    public ScriptContext getContext() {
+        return context;
+    }        
     
     public Object read(String fileName) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
@@ -30,7 +34,13 @@ public class ScriptBridge {
     }
     
     public Object get(String exp) {
-        ScriptValue sv = Script.eval(exp, context); // even json path expressions will work
+        ScriptValue sv;
+        try {
+            sv = Script.eval(exp, context); // even json path expressions will work
+        } catch (Exception e) {
+            logger.warn("karate.get failed for expression: '{}': {}", exp, e.getMessage());
+            return null;
+        }
         if (sv != null) {
             return sv.getAfterConvertingToMapIfNeeded();
         } else {

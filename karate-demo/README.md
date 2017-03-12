@@ -5,6 +5,7 @@ as well as demonstrate various Karate features and best-practices.
 | Example | Demonstrates
 ----------| --------
 [`greeting.feature`](src/test/java/demo/greeting/greeting.feature) | Simple GET requests and multiple scenarios in a test.
+[`headers.feature`](src/test/java/demo/headers/headers.feature)  | A simple example of header management using a js file ([`classpath:headers.js`](src/test/java/headers.js)), and also shows how cookies can be accessed and how path and query parameters can be specified.
 [`cats.feature`](src/test/java/demo/cats/cats.feature) | Great example of [embedded-expressions](https://github.com/intuit/karate#embedded-expressions) (or JSON / XML templating). Also shows how to set the `Accept` [header](https://github.com/intuit/karate#header) for getting XML from the server.
 [`kittens.feature`](src/test/java/demo/cats/kittens.feature) | Reading a complex payload expected response [from a file](https://github.com/intuit/karate#reading-files). You can do the same for request payloads as well. Observe how [JSON templating](https://github.com/intuit/karate#embedded-expressions) makes creating dynamic JSON super-easy, look at [line #24](src/test/java/demo/cats/kittens.feature#L24) for example.
 [`upload.feature`](src/test/java/demo/upload/upload.feature) | [Multi-part](https://github.com/intuit/karate#multipart-field) file-upload example, as well as comparing the binary content of a download. Also shows how to assert for expected response [headers](https://github.com/intuit/karate#match-header).

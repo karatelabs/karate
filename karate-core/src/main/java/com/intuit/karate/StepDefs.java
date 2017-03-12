@@ -200,6 +200,7 @@ public class StepDefs {
     private Invocation.Builder prepare() {
         hasUrlBeenSet();
         Invocation.Builder builder = target.request();
+        builder.property(ScriptContext.KARATE_DOT_CONTEXT, context);
         if (headers != null) {
             for (Map.Entry<String, Object> entry : headers.entrySet()) {
                 builder = builder.header(entry.getKey(), entry.getValue());
@@ -351,7 +352,9 @@ public class StepDefs {
                 xml = request.getAsString();
         }
         startTimer();
-        response = target.request().header("SOAPAction", action).method("POST", Entity.entity(xml, MediaType.TEXT_XML));
+        Invocation.Builder builder = target.request();
+        builder.property(ScriptContext.KARATE_DOT_CONTEXT, context);
+        response = builder.header("SOAPAction", action).method("POST", Entity.entity(xml, MediaType.TEXT_XML));
         stopTimer();
         String rawResponse = response.readEntity(String.class);
         try {

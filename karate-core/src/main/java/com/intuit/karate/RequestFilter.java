@@ -16,16 +16,11 @@ import org.slf4j.LoggerFactory;
  */
 public class RequestFilter implements ClientRequestFilter { 
     
-    private static final Logger logger = LoggerFactory.getLogger(RequestFilter.class);
-    
-    private final ScriptContext context;
-    
-    public RequestFilter(ScriptContext context) {
-        this.context = context;
-    }
+    private static final Logger logger = LoggerFactory.getLogger(RequestFilter.class);    
 
     @Override
-    public void filter(ClientRequestContext ctx) throws IOException {        
+    public void filter(ClientRequestContext ctx) throws IOException {
+        ScriptContext context = (ScriptContext) ctx.getProperty(ScriptContext.KARATE_DOT_CONTEXT);
         ScriptValue headersFunction = context.headers;
         if (headersFunction.getType() != JS_FUNCTION) {
             logger.trace("configured 'headers' is not a js function: {}", headersFunction);

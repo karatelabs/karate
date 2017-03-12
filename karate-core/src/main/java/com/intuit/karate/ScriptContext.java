@@ -22,8 +22,8 @@ public class ScriptContext {
 
     private static final Logger logger = LoggerFactory.getLogger(ScriptContext.class);
 
-    private static final String KARATE_NAME = "karate";
-    private static final String VAR_CONTEXT = "_context";
+    public static final String KARATE_DOT_CONTEXT = "karate.context";
+    public static final String KARATE_NAME = "karate";
     private static final String VAR_READ = "read";
 
     protected final ScriptValueMap vars;
@@ -89,7 +89,7 @@ public class ScriptContext {
     private static String getFileReaderFunction() {
         return "function(path) {\n"
                 + "  var FileUtils = Java.type('" + FileUtils.class.getCanonicalName() + "');\n"
-                + "  return FileUtils.readFile(path, " + VAR_CONTEXT + ").value;\n"
+                + "  return FileUtils.readFile(path, " + KARATE_DOT_CONTEXT + ").value;\n"
                 + "}";
     }     
 
@@ -137,7 +137,7 @@ public class ScriptContext {
                     Level.SEVERE,
                     LoggingFeature.Verbosity.PAYLOAD_TEXT, null));
         }
-        clientBuilder.register(new RequestFilter(this));
+        clientBuilder.register(new RequestFilter());
         if (sslEnabled) {
             logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
             SSLContext ssl = SslUtils.getSslContext(sslAlgorithm);
@@ -167,10 +167,7 @@ public class ScriptContext {
         Map<String, Object> map = Script.simplify(vars);
         if (readFunction != null) {
             map.put(VAR_READ, readFunction.getValue());
-        }
-        // for future function calls if needed, see getFileReaderFunction()
-        map.put(VAR_CONTEXT, this);
-        map.put(KARATE_NAME, new ScriptBridge(this));
+        }        
         return map;
     }
 
