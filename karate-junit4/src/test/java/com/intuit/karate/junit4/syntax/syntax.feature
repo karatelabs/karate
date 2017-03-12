@@ -352,3 +352,9 @@ Then match pdf == read('test.pdf')
     | Nyan | 3   |
 
 * match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]
+
+# json path in js
+* def foo = { bar: [{baz: 1}, {baz: 2}, {baz: 3}]}
+* def fun = function(){ return karate.get('foo.bar[*].baz') }
+* def res = fun()
+* match res == [1, 2, 3]

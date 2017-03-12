@@ -42,15 +42,15 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
  | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table)
-**Data Types** | [JSON](#json) | [XML](#xml) | [JS Functions](#javascript-functions) | [Reading Files](#reading-files) 
+**Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
  | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Set, Match, Assert** | [`set`](#set) / [`match ==`](#match) | [`match contains`](#match-contains) | [`contains only`](#match-contains-only)| [`match each`](#match-each)
-**Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
- **Code Re-Use** | [`call`](#call) | [Calling other `*.feature` files](#calling-other-feature-files) | [Calling JavaScript Functions](#calling-javascript-functions) | [`karate` object](#the-karate-object)
- **Tips and Tricks** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
+**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | `match` [`contains`](#match-contains) [`only`](#match-contains-only) | `match` [`each`](#match-each)
+**Special Variables** | [`response`](#response) | [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
+ **Code Re-Use** | [`call`](#call) | [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
+ **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
  | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 
 # Features
@@ -66,7 +66,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
 * Seamless integration into existing Java projects as both JUnit and TestNG are supported
-* Easily invoke JDK classes, Java libraries or re-use custom Java code if needed for ultimate extensibility
+* Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for ultimate extensibility
 * Simple plug-in system for authentication and HTTP header management that will handle any complex real-world scenario
 * Comprehensive support for different flavors of HTTP calls:
   * SOAP / XML requests
@@ -763,8 +763,8 @@ Now that we have seen how JSON is a 'native' data type that Karate understands, 
     | Nyan | 3   |
 
 * match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]
-
 ```
+
 The [`match`](#match) keyword is explained later, but it should be clear right away how convenient the `table` keyword is. JSON can be combined with the ability to [call other `*.feature` files](#data-driven-features) to achieve dynamic data-driven testing in Karate.
 
 ## JavaScript Functions
@@ -1580,11 +1580,11 @@ Do look at the documentation and example for [`configure headers`](#configure-he
 
 ### Data-Driven Features
 
-If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something magical happens. The feature is invoked for each item in the array. Each array element has to be a JSON object and for each object, the behavior will be as described above.
+If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something interesting happens. The feature is invoked for each item in the array. Each array element is expected to be a JSON object, and for each object - the behavior will be as described above.
 
 But this time, the return value from the `call` will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
 
-Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. [`get`](#get) is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
+Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) keyword is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
 
 ```cucumber
 * table kittens = 
@@ -1614,15 +1614,13 @@ When method post
 Then status 200
 ```
 
-If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you can achieve dynamic data-driven testing.
+If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you could go about dynamic data-driven testing.
 
-Although it is just a few lines of code, take time to study the above example carefully. It will give you a good idea of how you can effectively make use of the unique combination of Cucumber and JsonPath that Karate provides.
+Although it is just a few lines of code, take time to study the above example carefully. It is a great example of how to effectively use the unique combination of Cucumber and JsonPath that Karate provides.
 
 ## Calling JavaScript Functions
 
-Examples of [defining and using JavaScript functions](#javascript-functions) appear in earlier sections of this document.
-
-Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
+Examples of [defining and using JavaScript functions](#javascript-functions) appear in earlier sections of this document. Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
 * call and interoperate with Java code if needed
 * share and re-use test utilities or 'helper' functionality across your organization
@@ -1865,5 +1863,5 @@ This is great for testing boundary conditions against a single end-point, with t
 your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
 who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
-The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at Karate's ability to [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic, data-driven testing, if you need it.
+The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic, data-driven testing, if you need it.
 

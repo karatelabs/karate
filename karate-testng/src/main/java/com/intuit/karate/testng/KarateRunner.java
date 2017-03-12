@@ -11,7 +11,7 @@ import org.testng.annotations.Test;
  *  
  * @author pthomas3
  */
-public abstract class KarateTest {
+public abstract class KarateRunner {
     
     private Karate karate;
     
