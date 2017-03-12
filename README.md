@@ -47,7 +47,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
  | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) | `match` [`each`](#match-each)
+**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) | [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
@@ -316,9 +316,9 @@ is the same as if using JUnit.
 ```java
 package animals.cats;
 
-import com.intuit.karate.testng.KarateTest;
+import com.intuit.karate.testng.KarateRunner;
 
-public class CatsRunner extends KarateTest {
+public class CatsRunner extends KarateRunner {
     
 }
 ```
