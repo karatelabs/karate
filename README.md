@@ -1483,7 +1483,7 @@ Here is an example JavaScript function that uses some variables in the context
 (which have been possibly set as the result of a sign-in) to build the `Authorization` header.
 
 > In the example below, note the use of the [`karate`](#the-karate-object) object 
-for getting the value of a variable. This is preferred because it takes care of 
+for getting the value of a dynamic variable. This is preferred because it takes care of 
 situations such as if the value is 'undefined' in JavaScript.
 
 ```javascript
@@ -1500,7 +1500,7 @@ function() {
         + ',auth_user=' + authToken.userId
         + ',auth_project=' + authToken.projectId;
   }
-  // the 'appId' variable here is expected to have been set via config (or a 'def' step)
+  // the 'appId' variable here is expected to have been set via config / init and will never change
   out.Authorization = 'My_Auth app_id=' + appId + authString;
   return out;
 }
