@@ -1,5 +1,5 @@
 # Karate
-### Web-Services Testing Made `Simple`. [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-junit4/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-junit4) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate)
+### Web-Services Testing Made `Simple. `` ` [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-junit4/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-junit4) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate)
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert
 that the responses are as expected.  It makes it really easy to build complex request 
