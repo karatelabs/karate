@@ -1,5 +1,5 @@
 # Karate
-> Web-Services Testing Made **Simple**.
+> Web-Services Testing Made **Simple**. [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-junit4/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-junit4) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate)
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert
 that the responses are as expected.  It makes it really easy to build complex request 
@@ -1554,7 +1554,7 @@ The contents of `my-signin.feature` are shown below. A few points to note:
   * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
 
 ```cucumber
-Feature:
+Feature: here are the contents of 'my-signin.feature'
 
 Scenario:
 
@@ -1572,7 +1572,7 @@ Then status 200
 And set authToken.projectId = response.projects[0].projectId;
 ```
 
-The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another GET is made for retrieving a list of projects for the signed-in user, the first one is 'chosen' and added to the returned 'auth token' JSON object.
+The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another HTTP call (a GET) is made for retrieving a list of projects for the signed-in user, the first one is 'chosen' and added to the returned 'auth token' JSON object.
 
 So you get the picture, any kind of complicated 'sign-in' flow can be scripted and re-used.
 
@@ -1582,7 +1582,7 @@ Do look at the documentation and example for [`configure headers`](#configure-he
 
 If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something interesting happens. The feature is invoked for each item in the array. Each array element is expected to be a JSON object, and for each object - the behavior will be as described above.
 
-But this time, the return value from the `call` will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
+But this time, the return value from the `call` step will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
 
 Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) keyword is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
 
@@ -1863,5 +1863,6 @@ This is great for testing boundary conditions against a single end-point, with t
 your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
 who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
-The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic, data-driven testing, if you need it.
+### The Karate Way
+The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it.
 

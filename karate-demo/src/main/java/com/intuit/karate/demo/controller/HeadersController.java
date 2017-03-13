@@ -45,7 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/headers")
 public class HeadersController {
     
-    private Map<String, String> tokens = new HashMap<>();
+    private final Map<String, String> tokens = new HashMap<>();
     
     @GetMapping
     public ResponseEntity getToken(HttpServletResponse response) {
