@@ -488,8 +488,8 @@ The function is expected to return a JSON object and all keys and values in that
 object will be made available as script variables.  And that's all there is to Karate
 configuration.
 
-> The `karate` object has a few helper methods described in detail later in this document
-where the [`call`](#call) keyword is explained.  Here above, you see `karate.log()` and `karate.env`
+> The [`karate`](#the-karate-object) object has a few helper methods described in detail later in this document
+where the [`call`](#calling-javascript-functions) keyword is explained.  Here above, you see `karate.log()` and `karate.env`
 being used.
 
 This decision to use JavaScript for config is influenced by years of experience with the set-up of 
@@ -562,7 +562,7 @@ format - but all you need to grok as someone who needs to test web-services
 are the three sections: `Feature`, `Background` and `Scenario`.  There can be multiple Scenario-s 
 in a `*.feature` file.  
 
-Lines that start with a '#' are comments.
+Lines that start with a `#` are comments.
 ```cucumber
 Feature: brief description of what is being tested
     more lines of description if needed.
@@ -592,15 +592,17 @@ though web-services by nature are "headless", without a UI, and not really human
 If you are familiar with Cucumber (JVM), you may be wondering if you need to write 
 [step-definitions](https://cucumber.io/docs/reference/jvm#step-definitions). The answer is **no**.
 
-Karate's approach is that all the step-definitions you need in order to work with HTTP, JSON and XML
-have been already implemented. And since you can easily extend Karate [using JavaScript](#call), there is
-no need to compile Java code any more.
+Karate's approach is that all the step-definitions you need in order to work with HTTP, JSON and XML have been already implemented. And since you can easily extend Karate [using JavaScript](#call), there is no need to compile Java code any more.
+
+The following table summmarizes some key differences between Cucumber and Karate.
 
  -     | Cucumber | Karate
 ------ | -------- | ------
 **More Step Definitions Needed** | **Yes**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | **No**.
 **Layers of Code to Maintain** | **2** Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | **1** Layer. Only Karate-script (based on Gherkin), and no Java code needs to be implemented.
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
+**Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | [**Yes**](#calling-other-feature-files)
+**Dynamic Data-Driven Testing** | **No**. The [`Scenario Outline:`](#the-cucumber-way) feature of Cucumber expects the `Examples:` to contain a fixed set of rows. | **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
 **BDD Syntax** | **Yes** | **Yes**
 
 One nice thing about the design of the underlying Cucumber framework is that
