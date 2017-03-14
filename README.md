@@ -518,7 +518,7 @@ Karate's approach is that all the step-definitions you need in order to work wit
 
 The following table summmarizes some key differences between Cucumber and Karate.
 
- -     | Cucumber | Karate
+.      | Cucumber | Karate
 ------ | -------- | ------
 **More Step Definitions Needed** | **Yes**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | **No**.
 **Layers of Code to Maintain** | **2** Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | **1** Layer. Only Karate-script (based on Gherkin), and no Java code needs to be implemented.
