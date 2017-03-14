@@ -78,87 +78,9 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
   * Full control over HTTP headers, path and query parameters
   * Intelligent defaults
 
-## Hello Real World
-Here below is a slightly more involved example, which can serve as a basic cheat-sheet for you to 
-get started.  This actually demonstrates a whole bunch of capabilities - handling [ssl](#configure), [cookies](#cookie), 
-[headers](#configure-headers), [time-outs](#configure), [multipart](#multipart-field) file-uploads, html-[forms](#form-field), XML [responses](#response), 
-custom [functions](#javascript-functions), calling [Java](#calling-java) code, reading 
-test-data [files](#reading-files), using [environment variables](#configuration), and asserting for 
-expected results using [`match`](#match).
+## Real World Examples
 
-And still ends up being **very** concise. Keep in mind that there are almost as many comments as actual 
-lines of script here below.
-
-```cucumber
-Feature: a more real-world example of a karate test-case that does a bunch of stuff
-
-Background:
-# import re-usable code that manipulates http headers for each request
-# even though the BDD 'Given-When-Then' convention is encouraged, you can use '*'
-* configure headers = read('classpath:my-headers.js')
-
-# enable SSL (and there is no need for a certificate or keystore)
-* configure ssl = true
-
-# configure time out for the http client (milliseconds), it defaults to 0 (infinite)
-* configure readTimeout = 10000
-
-# invoke re-usable code that performs custom authentication
-# notice how json makes parameter passing super-readable
-* def signin = read('classpath:my-signin.feature')
-* def ticket = call signin { username: 'john@smith.com', password: 'secret1234' }
-
-# create a javascript function on-the-fly that can re-use JVM code
-* def time = function() { return java.lang.System.currentTimeMillis() }
-
-# since this is also in the 'Background' section it applies to all Scenario-s in this file
-# and the url here comes from the global config
-* url documentsBaseUrl
-
-Scenario: create session, upload and download document
-
-# call the 'sessions' end-point with a cookie and a query-param set
-Given path 'sessions'
-And cookie my.authId = ticket.userId
-And param someParam = 'someValue'
-When method get
-Then status 200
-
-# save response to a variable.  '$' is shorthand for 'response'
-Given def session = $
-
-# assert that the expected response payload was received
-# observe how the expected 'userId' is dynamically set from a variable
-Then match session == { issued: '#ignore', token: '#ignore', userId: '#(ticket.userId)' }
-
-# and for complex payloads, you can opt to separate them out into (re-usable) files 
-# instead of the 'in-line' approach you see above
-And match session == read('expected-session-response.json')
-
-# multipart upload
-Given path 'documents/upload'
-And multipart field file = read('test.pdf')
-# the custom function is used here on the next line
-And multipart field fileTime = time() + ''
-And header Accept = 'application/xml'
-When multipart post
-Then status 200
-
-# the response happens to be XML here, so we use XPath
-# the leading '/' is short-hand for 'response/'
-* def documentId = /RootElement/EntityId
-
-# path can also take comma delimited values to save you from string + '/' concatenation
-Given path 'documents', 'download', documentId
-When method get
-Then status 200
-And assert responseTime < 1000
-
-# the 'match' syntax auto-converts types, and even binary file contents can be compared
-And match response == read('test.pdf')
-```
-
-A set of complete real-life examples can be found here: [Karate Demos](karate-demo)
+A set of real-life examples can be found here: [Karate Demos](karate-demo)
 
 # Getting Started
 Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8
@@ -691,10 +613,11 @@ Then match cat.cat.scores.score[1] == 5
 ```
 
 ### Embedded Expressions
-In the '[Hello Real World](#hello-real-world)' example, you may have noticed a short-cut 
-hidden in the value of the 'userId' field:
+Karate has a very useful JSON 'templating' approach. Variables can be referred to within JSON, for example:
+
 ```cucumber
-And match session == { issued: '#ignore', token: '#ignore', userId: '#(ticket.userId)' }
+When def ticket = { userId: 'john' }
+Then match session == { userId: '#(ticket.userId)' }
 ```
 So the rule is - if a string value within a JSON (or XML) object declaration is enclosed
 between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are
@@ -1687,8 +1610,7 @@ perhaps at the beginning, or within the `Background:` section.
 ```
 
 ### Calling Java
-There are examples of calling JVM classes in the '[Hello Real World](#hello-real-world)' example and
-in the section on [Java Interop](#java-interop).
+There are examples of calling JVM classes in the section on [Java Interop](#java-interop).
 
 Calling any Java code is that easy.  Given this custom / user-defined Java class:
 ```java
