@@ -50,7 +50,16 @@ public class FeatureWrapper {
 
     public ScriptEnv getScriptEnv() {
         return scriptEnv;
-    }        
+    }
+    
+    public static FeatureWrapper fromFile(File file, ClassLoader classLoader) {        
+        try {
+            String text = FileUtils.readFileToString(file, "utf-8");
+            return new FeatureWrapper(text, ScriptEnv.init(file.getParentFile(), classLoader));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }    
     
     public static FeatureWrapper fromFile(File file, ScriptEnv env) {        
         try {

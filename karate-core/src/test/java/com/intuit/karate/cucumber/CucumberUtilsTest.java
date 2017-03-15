@@ -22,7 +22,7 @@ public class CucumberUtilsTest {
         int count = lines.size();
         for (int i = 0; i < count; i++) {
             String line = lines.get(i);
-            logger.debug("{}: {}", i + 1, line);
+            logger.trace("{}: {}", i + 1, line);
         }        
     }
     

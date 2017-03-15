@@ -1,25 +1,14 @@
 package com.intuit.karate.junit4;
 
-import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.cucumber.KarateBackend;
-import cucumber.runtime.Backend;
+import com.intuit.karate.cucumber.CucumberRunner;
 import cucumber.runtime.Runtime;
-import cucumber.runtime.RuntimeGlue;
 import cucumber.runtime.RuntimeOptions;
-import cucumber.runtime.RuntimeOptionsFactory;
-import cucumber.runtime.StopWatch;
-import cucumber.runtime.UndefinedStepsTracker;
-import cucumber.runtime.io.MultiLoader;
-import cucumber.runtime.io.ResourceLoader;
-import cucumber.runtime.junit.Assertions;
+import cucumber.runtime.junit.FeatureRunner;
 import cucumber.runtime.junit.JUnitOptions;
 import cucumber.runtime.junit.JUnitReporter;
 import cucumber.runtime.model.CucumberFeature;
-import cucumber.runtime.xstream.LocalizedXStreams;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
@@ -42,30 +31,18 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
-        logger.debug("test: {}", clazz);
-        ClassLoader classLoader = clazz.getClassLoader();
-        Assertions.assertNoCucumberAnnotatedMethods(clazz);
-        RuntimeOptionsFactory runtimeOptionsFactory = new RuntimeOptionsFactory(clazz);
-        RuntimeOptions runtimeOptions = runtimeOptionsFactory.create();
-        ResourceLoader resourceLoader = new MultiLoader(classLoader);
-        final JUnitOptions junitOptions = new JUnitOptions(runtimeOptions.getJunitOptions());
-        final List<CucumberFeature> cucumberFeatures = runtimeOptions.cucumberFeatures(resourceLoader);
-        reporter = new JUnitReporter(runtimeOptions.reporter(classLoader), runtimeOptions.formatter(classLoader), runtimeOptions.isStrict(), junitOptions);
+        CucumberRunner cr = new CucumberRunner(clazz);
+        RuntimeOptions ro = cr.getRuntimeOptions();        
+        List<CucumberFeature> cucumberFeatures = cr.getFeatures();
+        ClassLoader cl = cr.getClassLoader();
+        JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
+        reporter = new JUnitReporter(ro.reporter(cl), ro.formatter(cl), ro.isStrict(), junitOptions);
         children = new ArrayList<>(cucumberFeatures.size());        
-        for (CucumberFeature cucumberFeature : cucumberFeatures) {
-            String featurePath = classLoader.getResource(cucumberFeature.getPath()).getFile();
-            logger.debug("feature: {}", featurePath);
-            String featureDir = new File(featurePath).getParent();
-            Runtime runtime = getRuntime(featureDir, resourceLoader, classLoader, runtimeOptions);
-            children.add(new KarateFeatureRunner(cucumberFeature, runtime, reporter));            
+        for (CucumberFeature feature : cucumberFeatures) {
+            Runtime runtime = cr.getRuntime(feature);
+            FeatureRunner runner = new FeatureRunner(feature, runtime, reporter);
+            children.add(new KarateFeatureRunner(runner, runtime));            
         }        
-    }      
-
-    private Runtime getRuntime(String featureDir, ResourceLoader resourceLoader, ClassLoader classLoader, RuntimeOptions runtimeOptions) {
-        ScriptEnv env = ScriptEnv.init(new File(featureDir), classLoader);
-        Backend backend = new KarateBackend(env, null, null);
-        RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
-        return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
     }
     
     @Override
