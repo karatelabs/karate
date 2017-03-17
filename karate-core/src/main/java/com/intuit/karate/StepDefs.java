@@ -30,10 +30,13 @@ import cucumber.api.DataTable;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
+
+import java.io.File;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
@@ -55,6 +58,25 @@ import org.w3c.dom.Node;
 public class StepDefs {
 
     private static final Logger logger = LoggerFactory.getLogger(StepDefs.class);
+
+    public StepDefs() { // zero-arg constructor for IDE support
+        this(ScriptEnv.init(getFeatureDir(), Thread.currentThread().getContextClassLoader()), null, null);
+    }
+
+    private static File getFeatureDir() {
+        String cwd = new File("").getAbsoluteFile().getPath();
+        // TODO non-mac (confirm), non oracle jvm-s
+    	String javaCommand = System.getProperty("sun.java.command");
+    	String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
+        if (featurePath == null) {
+            File file = new File("");
+            logger.warn("unable to derive feature file path, using: {}", file);
+            return file;
+        } else {
+            File file = new File(featurePath);
+            return file.getParentFile();
+        }
+    }
 
     public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
         context = new ScriptContext(env, parentContext, callArg);

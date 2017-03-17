@@ -116,6 +116,18 @@ public class FileUtils {
             urls.add(toFileUrl(path));
         }
         return new URLClassLoader(urls.toArray(new URL[]{}));       
-    }    
+    }
+
+    public static String getFeaturePath(String commandLine, String cwd) {
+        int start = commandLine.indexOf(cwd);
+        if (start == -1) {
+            return null;
+        }
+        int end = commandLine.indexOf(".feature", start);
+        if (end == -1) {
+            return null;
+        }
+        return commandLine.substring(start, end + 8);
+    }
     
 }
