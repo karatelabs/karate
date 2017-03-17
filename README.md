@@ -957,12 +957,13 @@ configuration keys supported:
  Key | Type | Description
 ------ | ---- | ---------
 `headers` | JavaScript Function | see [`configure headers`](#configure-headers)
+`headers` | JSON | see [`configure headers`](#configure-headers)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
 `proxy` | string | Set the URI of the HTTP proxy to use.
-`proxy` | json | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
+`proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
 
 
 Examples:
@@ -1396,9 +1397,11 @@ Custom header manipulation for every HTTP request is something that Karate makes
 For every HTTP request made from Karate, the internal flow is as follows:
 * did we [`configure`](#configure) the value of `headers` ?
 * if so, is the configured value a JavaScript function ?
-* if so, a [`call`](#call) is made to that function.
-* did the function invocation return a map-like (or JSON) object ?
-* if so, all the key-value pairs in the returned object are added to the HTTP headers.
+  * if so, a [`call`](#call) is made to that function.
+  * did the function invocation return a map-like (or JSON) object ?
+    * all the key-value pairs are added to the HTTP headers.
+* or is the configured value a JSON object ?
+  * all the key-value pairs are added to the HTTP headers.
 
 This makes setting up of complex authentication schemes for your test-flows really easy.
 It typically ends up being a one-liner that appears in the `Background` section at 

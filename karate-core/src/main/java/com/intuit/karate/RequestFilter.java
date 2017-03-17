@@ -1,6 +1,7 @@
 package com.intuit.karate;
 
 import static com.intuit.karate.ScriptValue.Type.JS_FUNCTION;
+import com.jayway.jsonpath.DocumentContext;
 import java.io.IOException;
 import java.util.Map;
 import javax.ws.rs.client.ClientRequestContext;
@@ -14,37 +15,44 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class RequestFilter implements ClientRequestFilter { 
-    
-    private static final Logger logger = LoggerFactory.getLogger(RequestFilter.class);    
+public class RequestFilter implements ClientRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(RequestFilter.class);
 
     @Override
     public void filter(ClientRequestContext ctx) throws IOException {
         ScriptContext context = (ScriptContext) ctx.getProperty(ScriptContext.KARATE_DOT_CONTEXT);
-        ScriptValue headersFunction = context.headers;
-        if (headersFunction.getType() != JS_FUNCTION) {
-            logger.trace("configured 'headers' is not a js function: {}", headersFunction);
-            return;
-        }
-        ScriptObjectMirror som = headersFunction.getValue(ScriptObjectMirror.class);
-        ScriptValue sv = Script.evalFunctionCall(som, null, context);
-        Map<String, Object> callResult;
-        switch (sv.getType()) {
-            case JS_OBJECT:
-                callResult = Script.toMap(sv.getValue(ScriptObjectMirror.class));
+        ScriptValue headersValue = context.headers;
+        Map<String, Object> headersMap;
+        switch (headersValue.getType()) {
+            case JS_FUNCTION:
+                ScriptObjectMirror som = headersValue.getValue(ScriptObjectMirror.class);
+                ScriptValue sv = Script.evalFunctionCall(som, null, context);
+                switch (sv.getType()) {
+                    case JS_OBJECT:
+                        headersMap = Script.toMap(sv.getValue(ScriptObjectMirror.class));
+                        break;
+                    case MAP:
+                        headersMap = sv.getValue(Map.class);
+                        break;
+                    default:
+                        logger.trace("custom headers function returned: {}", sv);
+                        return; // abort           
+                }
                 break;
-            case MAP:
-                callResult = sv.getValue(Map.class);
+            case JSON:
+                DocumentContext json = headersValue.getValue(DocumentContext.class);
+                headersMap = json.read("$");
                 break;
             default:
-                logger.trace("custom headers function returned: {}", sv);
-                return; // abort           
+                logger.trace("configured 'headers' is not a map-like object or js function: {}", headersValue);
+                return;
         }
         MultivaluedMap headers = ctx.getHeaders();
-        for (Map.Entry<String, Object> entry : callResult.entrySet()) {
+        for (Map.Entry<String, Object> entry : headersMap.entrySet()) {
             logger.trace("setting header: {}", entry);
             headers.putSingle(entry.getKey(), entry.getValue());
         }
     }
-    
+
 }
