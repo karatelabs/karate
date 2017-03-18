@@ -512,8 +512,8 @@ public class StepDefs {
 
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {
-            logger.error("result: {}", ar);
-            throw new RuntimeException(ar.message);
+            logger.error("{}", ar);
+            throw new KarateException(ar.message);
         }
     }
 

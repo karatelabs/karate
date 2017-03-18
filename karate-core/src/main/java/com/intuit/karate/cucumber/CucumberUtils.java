@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.KarateException;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
@@ -65,25 +66,28 @@ public class CucumberUtils {
     }
 
     public static ScriptValueMap call(FeatureWrapper feature, ScriptContext parentContext, Map<String, Object> callArg) {
-        LogCollector lc = new LogCollector();
         ScriptEnv env = feature.getEnv();
         KarateBackend backend = getBackend(env, parentContext, callArg);
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();
                 for (ScenarioWrapper scenario : outline.getScenarios()) {
-                    call(scenario, backend, lc);
+                    call(scenario, backend);
                 }
             } else {
-                call(section.getScenario(), backend, lc);
+                call(section.getScenario(), backend);
             }
         }
         return backend.getStepDefs().getContext().getVars();
     }
 
-    private static void call(ScenarioWrapper scenario, KarateBackend backend, LogCollector lc) {
+    private static void call(ScenarioWrapper scenario, KarateBackend backend) {
         for (StepWrapper step : scenario.getSteps()) {
-            step.run(backend, lc);
+            StepResult result = step.run(backend);
+            if (!result.isPass()) {
+                ScriptEnv env = step.getScenario().getFeature().getEnv();
+                throw new KarateException("call feature failed in " + env, result.getError());
+            }
         }
     }
 

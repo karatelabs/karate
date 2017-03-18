@@ -65,8 +65,7 @@ public class StepWrapper {
 
     public boolean isHttpCall() {
         String name = step.getName();
-        return name.startsWith("method") || name.startsWith("soap")
-                || (name.startsWith("multipart") && name.endsWith("post"));
+        return name.startsWith("method") || name.startsWith("soap");
     }
 
     public int getIndex() {
@@ -133,20 +132,18 @@ public class StepWrapper {
         return getEndLine() - getStartLine();
     }
 
-    public boolean run(KarateBackend backend, LogCollector lc) {
-        CucumberFeature feature = scenario.getFeature().getFeature();
+    public StepResult run(KarateBackend backend) {
+        FeatureWrapper wrapper = scenario.getFeature();
+        CucumberFeature feature = wrapper.getFeature();
         Glue glue = backend.getGlue();
         StepDefinitionMatch match = glue.stepDefinitionMatch("", step, feature.getI18n());
         String message = String.format("run: %s, step: %s", match.toMap(), step.toMap());
         logger.trace(message);
         try {
             match.runStep(feature.getI18n());
-            return true;
+            return new StepResult(this, null);
         } catch (Throwable t) {
-            String err = "step failed: " + t.getMessage();
-            logger.error(err);
-            lc.log(err);
-            return false;
+            return new StepResult(this, t);
         }
     }
 

@@ -843,15 +843,25 @@ public class Script {
             for (int i = 0; i < count; i++) {
                 Object rowArg = list.get(i);
                 if (rowArg instanceof Map) {
-                    ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg);
-                    result.add(rowResult.getValue());
+                    try {
+                        ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg);
+                        result.add(rowResult.getValue());
+                    } catch (KarateException ke) {
+                        String message = "loop feature call failed, index: " + i + ", arg: " + rowArg + ", items: " + list;
+                        throw new KarateException(message, ke);
+                    }
                 } else {
                     throw new RuntimeException("argument not json or map for feature call loop array position: " + i + ", " + rowArg);
                 }
             }
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
-            return evalFeatureCall(feature, context, (Map) callArg);
+            try {
+                return evalFeatureCall(feature, context, (Map) callArg);
+            } catch (KarateException ke) {
+                String message = "feature call failed, arg: " + callArg;
+                throw new KarateException(message, ke);
+            }
         } else {
             throw new RuntimeException("unexpected feature call arg type: " + callArg.getClass());
         }
@@ -911,7 +921,7 @@ public class Script {
     public static AssertionResult assertBoolean(String expression, ScriptContext context) {
         ScriptValue result = Script.evalInNashorn(expression, context);
         if (!result.isBooleanTrue()) {
-            return AssertionResult.fail("evaluated to false: " + expression);
+            return AssertionResult.fail("assert evaluated to false: " + expression);
         }
         return AssertionResult.PASS;
     }

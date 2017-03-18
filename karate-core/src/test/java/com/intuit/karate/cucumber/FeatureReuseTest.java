@@ -25,6 +25,9 @@ package com.intuit.karate.cucumber;
 
 import java.io.File;
 import org.junit.Test;
+import static org.junit.Assert.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -32,13 +35,17 @@ import org.junit.Test;
  */
 public class FeatureReuseTest {
     
+    private static final Logger logger = LoggerFactory.getLogger(FeatureReuseTest.class);
+    
     @Test
     public void testFailureInCalledShouldFailTest() {
         File file = new File("src/test/java/com/intuit/karate/cucumber/caller.feature");
         CucumberRunner runner = new CucumberRunner(file);  
         KaratePrettyFormatter formatter = new KaratePrettyFormatter();
         runner.run(formatter);
-        System.out.print(formatter.getBuffer());        
+        System.out.print(formatter.getBuffer());  
+        logger.debug("failed: {}", formatter.getScenariosFailed());
+        assertEquals(1, formatter.getScenariosFailed());
     }
     
 }

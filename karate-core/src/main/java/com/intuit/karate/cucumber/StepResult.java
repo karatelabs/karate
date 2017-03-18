@@ -27,8 +27,26 @@ package com.intuit.karate.cucumber;
  *
  * @author pthomas3
  */
-public interface LogSink {
+public class StepResult {
     
-    void push(String message);
+    private final StepWrapper step;
+    private final Throwable error;
+
+    public StepResult(StepWrapper step, Throwable error) {
+        this.step = step;
+        this.error = error;
+    }
+
+    public StepWrapper getStep() {
+        return step;
+    }
+
+    public Throwable getError() {
+        return error;
+    }    
+
+    public boolean isPass() {
+        return error == null;
+    }
     
 }

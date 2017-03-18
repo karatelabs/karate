@@ -21,40 +21,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
-
-import java.io.Serializable;
+package com.intuit.karate;
 
 /**
  *
  * @author pthomas3
  */
-public class LogCollector implements Serializable {
+public class KarateException extends RuntimeException {
     
-    private StringBuffer buffer;
-    private LogSink sink;
-    
-    public LogCollector() {
-        buffer = new StringBuffer();
-    }
-
-    public void setSink(LogSink sink) {
-        this.sink = sink;
-    }        
-    
-    public void log(String s) {
-        buffer.append(s).append('\n');
-        if (sink != null) {
-            sink.push(s);
-        }
+    public KarateException(String message) {
+        super(message);
     }
     
-    public void clear() {
-        buffer = new StringBuffer();
-    }
-
-    public String getBuffer() {
-        return buffer.toString();
-    }        
+    public KarateException(String message, Throwable cause) {
+        super(message, cause);
+    }    
     
 }

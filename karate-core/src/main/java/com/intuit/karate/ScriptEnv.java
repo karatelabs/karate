@@ -50,6 +50,10 @@ public class ScriptEnv {
         this.fileClassLoader = fileClassLoader;
     }
     
+    public String getFeaturePath() {
+        return featureDir.getAbsolutePath() + File.separator + featureName;
+    }
+    
     public static ScriptEnv init(File featureDir, ClassLoader classLoader) {
         return new ScriptEnv(false, null, featureDir, null, classLoader);
     }
@@ -68,5 +72,10 @@ public class ScriptEnv {
         }
         return new ScriptEnv(test, karateEnv, featureDir, featureName, fileClassLoader);
     }
+
+    @Override
+    public String toString() {
+        return featureName + ", env: " + env + ", dir: " + featureDir;
+    }        
     
 }

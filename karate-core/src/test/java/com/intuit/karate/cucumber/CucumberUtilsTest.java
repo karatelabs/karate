@@ -51,15 +51,14 @@ public class CucumberUtilsTest {
         assertEquals(5, step.getStartLine());
         File featureDir = FileUtils.getDirContaining(getClass());
         KarateBackend backend = CucumberUtils.getBackend(env, null, null);
-        LogCollector lc = new LogCollector();
-        assertTrue(step.run(backend, lc));
+        assertTrue(step.run(backend).isPass());
         
         step = steps.get(1); // first scenario (non-background) step
         assertFalse(step.isBackground());
         stepText = step.getPriorText();
         assertEquals("Scenario: test", stepText);
         assertEquals(8, step.getStartLine());        
-        assertTrue(step.run(backend, lc));
+        assertTrue(step.run(backend).isPass());
         
         step = steps.get(2);
         stepText = step.getPriorText();
