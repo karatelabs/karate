@@ -274,66 +274,52 @@ multiple feature files with a JUnit test, you could do this:
 > For TestNG: The `@CucumberOptions` annotation can be used the same way.
 
 ## Command Line
-It is possible to run tests from the command-line as well.  Refer to the 
-[Cucumber documentation](https://cucumber.io/docs/reference/jvm) for more, including
-how to enable other report output formats such as HTML. For example, if you wanted to generate
-a report in JUnit XML format:
-```
-mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml"
-```
-Or in HTML format:
+It is possible to run tests from the command-line as well.  Refer to the [Cucumber documentation](https://cucumber.io/docs/reference/jvm) for more, including how to enable other report output formats such as HTML. For example, if you wanted to generate a report in the Cucumber HTML format:
+
 ```
 mvn test -Dcucumber.options="--plugin html:target/cucumber-html"
 ```
 
-A problem you may run into is that the report is generated for every JUnit class with the
-`@RunWith(Karate.class)` annotation. So if you have multiple JUnit classes involved in a 
-test-run, you will end up with only the report for the last class as it would have over-written
-everything else. There are a couple of solutions, one is to use
-[JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) -
-but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above'
-(in terms of folder heirarchy) all the main `*.feature` files in your project. So if you take the
+A problem you may run into is that the report is generated for every JUnit class with the `@RunWith(Karate.class)` annotation. So if you have multiple JUnit classes involved in a test-run, you will end up with only the report for the last class as it would have over-written
+everything else. There are a couple of solutions, one is to use [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) - but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above' (in terms of folder heirarchy) all the main `*.feature` files in your project. So if you take the
 previous [folder structure example](#naming-conventions):
 
 ```
 mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml --tags ~@ignore" -Dtest=AnimalsTest
 ```
-Here, `AnimalsTest` is the name of the Java class we designated to run all your tests. And yes, Cucumber
-has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to 
-run all tests _except_ the ones tagged `@ignore`.
+Here, `AnimalsTest` is the name of the Java class we designated to run all your tests. And yes, Cucumber has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
 
 The reporting and tag options can be specified in the test-class via the `@CucumberOptions` annotation, in which case you don't need to pass the `-Dcucumber.options` on the command-line:
 
 ```java
-@CucumberOptions(
-    plugin = {"pretty", "html:target/cucumber", "junit:target/cucumber-junit.xml"}, 
-    tags = {"~@ignore"})
+@CucumberOptions(plugin = {"pretty", "html:target/cucumber"}, tags = {"~@ignore"})
 ```
 
-You can 'lock down' the fact that you only want to execute this one test (that functions as a test-suite)
-by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
+## Test Reports
+You can 'lock down' the fact that you only want to execute the single JUnit class that functions as a test-suite - by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
 
 ```xml
     <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven.surefire.version}</version>
+        <version>2.10</version>
         <configuration>
             <includes>
                 <include>animals/AnimalsTest.java</include>
             </includes>
+            <disableXmlReport>true</disableXmlReport>
+            <systemProperties>
+                <cucumber.options>--plugin junit:target/surefire-reports/cucumber-junit.xml</cucumber.options>
+            </systemProperties>            
         </configuration>
     </plugin> 
 ```
 
-With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more.
+This is actually the recommended configuration for generating CI-friendly reports when using Cucumber. The `<disableXmlReport>` suppresses the default JUnit XML output normally emitted by the `maven-surefire-plugin`. And note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would work.
 
-Actually if you follow the recommended [naming conventions](#naming-conventions) and have only
-one JUnit class following the `*Test.java` naming convention in your project, you don't need the above tweak
-to the `pom.xml` and you don't need to specify the test-class when running `mvn test`.
+With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more. And the Cucumber JUnit XML reports would appear in the default `target/surefire-reports` directory (file names don't matter), and this will ensure that your CI and reporting routines work as you would expect. For example, the report would be in terms of how many Cucumber scenarios passed or failed.
 
-Also refer to the section on [switching the environment](#switching-the-environment) for more ways
-of running tests via Maven using the command-line.
+The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line. 
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default

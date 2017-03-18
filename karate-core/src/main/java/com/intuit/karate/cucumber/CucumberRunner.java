@@ -112,7 +112,7 @@ public class CucumberRunner {
     public Runtime getRuntime(FeatureFile featureFile) {
         File packageFile = featureFile.file;
         String featurePath;
-        if (packageFile.exists()) {// loaded by karate
+        if (packageFile.exists()) { // loaded by karate
             featurePath = packageFile.getAbsolutePath();
         } else { // was loaded by cucumber-jvm, is relative to classpath
             featurePath = classLoader.getResource(packageFile.getPath()).getFile();

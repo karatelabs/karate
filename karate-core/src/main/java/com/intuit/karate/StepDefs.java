@@ -70,7 +70,7 @@ public class StepDefs {
     	String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
         if (featurePath == null) {
             File file = new File("");
-            logger.warn("unable to derive feature file path, using: {}", file);
+            logger.warn("unable to derive feature file path, using: {}", file.getAbsolutePath());
             return file;
         } else {
             File file = new File(featurePath);
