@@ -58,6 +58,7 @@ public class KarateObjectFactory implements ObjectFactory {
     @Override
     public void stop() {
         logger.trace("stop");
+        stepDefs = null; // ensure re-build for multiple scenarios in the same feature
     }
 
     @Override
@@ -75,6 +76,8 @@ public class KarateObjectFactory implements ObjectFactory {
             // for example using a JUnit @BeforeClass hook
             logger.trace("lazy init of step defs");
             stepDefs = new StepDefs(scriptEnv, parentContext, callArg);
+        } else {
+            logger.trace("step defs already instantiated, re-using instance");
         }
         return (T) stepDefs;
     }
