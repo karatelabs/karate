@@ -23,44 +23,22 @@
  */
 package com.intuit.karate.cucumber;
 
-import cucumber.api.CucumberOptions;
 import java.io.File;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = {"~@ignore"})
-public class CucumberRunnerTest {
+public class FeatureReuseTest {
     
-    private static final Logger logger = LoggerFactory.getLogger(CucumberRunnerTest.class);
-    
-    @Test 
-    public void testScenario() {
-        File file = new File("src/test/java/com/intuit/karate/cucumber/scenario.feature");
-        CucumberRunner runner = new CucumberRunner(file);        
-        KaratePrettyFormatter formatter = new KaratePrettyFormatter();
-        runner.run(formatter);
-        System.out.print(formatter.getBuffer());
-        logger.debug("scenarios run: {}, failed: {}", formatter.getScenariosRun(), formatter.getScenariosFailed());
-    }
-    
-    @Test 
-    public void testScenarioOutline() {
-        File file = new File("src/test/java/com/intuit/karate/cucumber/outline.feature");
-        CucumberRunner runner = new CucumberRunner(file);        
+    @Test
+    public void testFailureInCalledShouldFailTest() {
+        File file = new File("src/test/java/com/intuit/karate/cucumber/caller.feature");
+        CucumberRunner runner = new CucumberRunner(file);  
         KaratePrettyFormatter formatter = new KaratePrettyFormatter();
         runner.run(formatter);
         System.out.print(formatter.getBuffer());        
-        logger.debug("scenarios run: {}, failed: {}", formatter.getScenariosRun(), formatter.getScenariosFailed());
-    }  
-    
-    @Test 
-    public void testParallel() {
-        CucumberRunner.parallel(getClass(), 1);
     }
     
 }

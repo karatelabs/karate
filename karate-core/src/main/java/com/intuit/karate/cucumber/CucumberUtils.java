@@ -66,7 +66,7 @@ public class CucumberUtils {
 
     public static ScriptValueMap call(FeatureWrapper feature, ScriptContext parentContext, Map<String, Object> callArg) {
         LogCollector lc = new LogCollector();
-        ScriptEnv env = feature.getScriptEnv();
+        ScriptEnv env = feature.getEnv();
         KarateBackend backend = getBackend(env, parentContext, callArg);
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {

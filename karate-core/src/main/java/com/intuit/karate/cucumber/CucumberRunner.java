@@ -58,7 +58,7 @@ public class CucumberRunner {
     private final ClassLoader classLoader;
     private final RuntimeOptions runtimeOptions;
     private final ResourceLoader resourceLoader;
-    private final List<CucumberFeature> features;
+    private final List<FeatureFile> featureFiles;
 
     public CucumberRunner(Class clazz) {
         logger.debug("init test class: {}", clazz);
@@ -66,21 +66,35 @@ public class CucumberRunner {
         RuntimeOptionsFactory runtimeOptionsFactory = new RuntimeOptionsFactory(clazz);
         runtimeOptions = runtimeOptionsFactory.create();
         resourceLoader = new MultiLoader(classLoader);
-        features = runtimeOptions.cucumberFeatures(resourceLoader);
+        List<CucumberFeature> cfs = runtimeOptions.cucumberFeatures(resourceLoader);
+        featureFiles = new ArrayList<>(cfs.size());
+        for (CucumberFeature cf : cfs) {
+            featureFiles.add(new FeatureFile(cf, new File(cf.getPath())));
+        }
     }
 
-    public CucumberRunner(File featureFile) {
-        logger.debug("init feature file: {}", featureFile);
+    public CucumberRunner(File file) {
+        logger.debug("init feature file: {}", file);
         classLoader = Thread.currentThread().getContextClassLoader();
         resourceLoader = new MultiLoader(classLoader);
         RuntimeOptionsFactory runtimeOptionsFactory = new RuntimeOptionsFactory(getClass());
         runtimeOptions = runtimeOptionsFactory.create();
-        FeatureWrapper wrapper = FeatureWrapper.fromFile(featureFile, classLoader);
-        features = Collections.singletonList(wrapper.getFeature());
+        FeatureWrapper wrapper = FeatureWrapper.fromFile(file, classLoader);
+        CucumberFeature feature = wrapper.getFeature();
+        FeatureFile featureFile = new FeatureFile(feature, file);
+        featureFiles = Collections.singletonList(featureFile);
     }
 
     public List<CucumberFeature> getFeatures() {
-        return features;
+        List<CucumberFeature> list = new ArrayList<>(featureFiles.size());
+        for (FeatureFile featureFile : featureFiles) {
+            list.add(featureFile.feature);
+        }
+        return list;
+    }
+    
+    public List<FeatureFile> getFeatureFiles() {
+        return featureFiles;
     }
 
     public RuntimeOptions getRuntimeOptions() {
@@ -90,12 +104,22 @@ public class CucumberRunner {
     public ClassLoader getClassLoader() {
         return classLoader;
     }
-
+    
     public Runtime getRuntime(CucumberFeature feature) {
-        String featurePath = classLoader.getResource(feature.getPath()).getFile();
+        return getRuntime(new FeatureFile(feature, new File(feature.getPath())));
+    }
+
+    public Runtime getRuntime(FeatureFile featureFile) {
+        File packageFile = featureFile.file;
+        String featurePath;
+        if (packageFile.exists()) {// loaded by karate
+            featurePath = packageFile.getAbsolutePath();
+        } else { // was loaded by cucumber-jvm, is relative to classpath
+            featurePath = classLoader.getResource(packageFile.getPath()).getFile();
+        }
         logger.debug("loading feature: {}", featurePath);
-        String featureDir = new File(featurePath).getParent();
-        ScriptEnv env = ScriptEnv.init(new File(featureDir), classLoader);
+        File featureDir = new File(featurePath).getParentFile();
+        ScriptEnv env = new ScriptEnv(false, null, featureDir, packageFile.getName(), classLoader);        
         Backend backend = new KarateBackend(env, null, null);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
         return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
@@ -108,26 +132,26 @@ public class CucumberRunner {
         formatter.close();
     }
 
-    public void run(CucumberFeature feature, KaratePrettyFormatter formatter) {
-        Runtime runtime = getRuntime(feature);
-        feature.run(formatter, formatter, runtime);
+    public void run(FeatureFile featureFile, KaratePrettyFormatter formatter) {
+        Runtime runtime = getRuntime(featureFile);
+        featureFile.feature.run(formatter, formatter, runtime);
     }
 
     public void run(KaratePrettyFormatter formatter) {
-        for (CucumberFeature feature : getFeatures()) {
-            run(feature, formatter);
+        for (FeatureFile featureFile : getFeatureFiles()) {
+            run(featureFile, formatter);
         }
     }
 
     public static void parallel(Class clazz, int threads) {
         ExecutorService executor = Executors.newFixedThreadPool(threads);
         CucumberRunner runner = new CucumberRunner(clazz);
-        List<CucumberFeature> features = runner.getFeatures();
-        List<Callable<KaratePrettyFormatter>> callables = new ArrayList<>(features.size());
-        for (CucumberFeature feature : runner.getFeatures()) {
+        List<FeatureFile> featureFiles = runner.getFeatureFiles();
+        List<Callable<KaratePrettyFormatter>> callables = new ArrayList<>(featureFiles.size());
+        for (FeatureFile featureFile : featureFiles) {
             KaratePrettyFormatter formatter = new KaratePrettyFormatter();
             callables.add(() -> {
-                runner.run(feature, formatter);
+                runner.run(featureFile, formatter);
                 return formatter;
             });
         }

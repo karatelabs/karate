@@ -48,10 +48,10 @@ public class FeatureWrapper {
     
     private final ScriptEnv scriptEnv;
 
-    public ScriptEnv getScriptEnv() {
+    public ScriptEnv getEnv() {
         return scriptEnv;
     }
-    
+
     public static FeatureWrapper fromFile(File file, ClassLoader classLoader) {        
         try {
             String text = FileUtils.readFileToString(file, "utf-8");
