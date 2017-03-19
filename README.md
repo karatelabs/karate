@@ -95,7 +95,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.7-SNAPSHOT</version>
+    <version>0.2.7</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -116,7 +116,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.7-SNAPSHOT \
+-DarchetypeVersion=0.2.7 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -332,7 +332,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 @CucumberOptions(tags = {"~@ignore"})
-public class AllParallel {
+public class TestParallel {
     
     @Test
     public void testParallel() {
@@ -343,11 +343,12 @@ public class AllParallel {
 }
 ```
 Things to note:
-* You don't use a JUnit runner, and you write a plain vanilla JUnit test using the `CucumberRunner` in `karate-core`.
+* You don't use a JUnit runner, and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner` in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
 * JUnit XML reports will be generated in `target/surefire-reports/` and CI tools should pick them up automatically.
 * When using Maven, you must disable the JUnit default XML that normally gets generated using `<disableXmlReport>` (refer to the previous section on [test reports](#test-reports)).
 * No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation (or the command-line) it will be ignored.
+* Other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the class having the annotation.
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
 ```
 ======================================================
@@ -547,8 +548,9 @@ The following table summmarizes some key differences between Cucumber and Karate
 **More Step Definitions Needed** | **Yes**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | **No**.
 **Layers of Code to Maintain** | **2** Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | **1** Layer. Only Karate-script (based on Gherkin), and no Java code needs to be implemented.
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
-**Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | [**Yes**](#calling-other-feature-files)
+**Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | [**Yes**](#calling-other-feature-files).
 **Dynamic Data-Driven Testing** | **No**. The [`Scenario Outline:`](#the-cucumber-way) feature of Cucumber expects the `Examples:` to contain a fixed set of rows. | **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
+**Parallel Execution** | **No**. There are various challenges (especially reporting) and you can find [various](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [threads](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) and third-party [projects](https://github.com/temyers/cucumber-jvm-parallel-plugin) on the internet that attempt to close this gap. | [**Yes**](#parallel-execution).
 **BDD Syntax** | **Yes** | **Yes**
 
 One nice thing about the design of the underlying Cucumber framework is that
@@ -568,6 +570,8 @@ You can read more about the Given-When-Then convention at the
 
 Since Karate is based on Cucumber, you can also employ [data-driven](#data-driven-tests)
 techniques such as expressing data-tables in test scripts.
+
+Another good thing that Karate inherits is the nice IDE support for Cucumber that [IntelliJ](https://plugins.jetbrains.com/plugin/7212-cucumber-for-java) and [Eclipse](https://cucumber.io/cucumber-eclipse/) have. So you can do things like right-click and run a `*.feature` file (or scenario) without needing to use a JUnit runner.
 
 With the formalities out of the way, let's dive straight into the syntax.
 
