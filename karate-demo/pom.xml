@@ -57,7 +57,8 @@
                 <version>${maven.surefire.version}</version>
                 <configuration>
                     <includes>
-                        <include>demo/DemoTest.java</include>
+                        <!-- <include>demo/DemoTest.java</include> -->
+                        <include>demo/DemoTestParallel.java</include>
                     </includes>
                     <disableXmlReport>true</disableXmlReport>
                     <systemProperties>

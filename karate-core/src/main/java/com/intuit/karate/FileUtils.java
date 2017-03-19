@@ -100,7 +100,7 @@ public class FileUtils {
         return new File(resourcePath).getParentFile();
     }
     
-    private static URL toFileUrl(String path) {
+    public static URL toFileUrl(String path) {
         path = StringUtils.trim(path);
         File file = new File(path);        
         try {

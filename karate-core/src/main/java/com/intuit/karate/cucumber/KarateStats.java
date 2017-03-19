@@ -1,0 +1,101 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2017 Intuit Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package com.intuit.karate.cucumber;
+
+/**
+ *
+ * @author pthomas3
+ */
+public class KarateStats {
+    
+    private int testCount;
+    private int failCount;
+    private int skipCount;
+    private double timeTaken;    
+    private final long startTime;
+    private long endTime;
+    
+    private KarateStats(long startTime) {
+        this.startTime = startTime;
+    }
+    
+    public static KarateStats startTimer() {
+        return new KarateStats(System.currentTimeMillis());
+    }
+    
+    public void addToTestCount(int count) {
+        testCount += count;
+    }
+    
+    public void addToFailCount(int count) {
+        failCount += count;
+    }
+    
+    public void addToSkipCount(int count) {
+        skipCount += count;
+    }
+    
+    public void addToTimeTaken(double time) {
+        timeTaken += time;
+    }
+    
+    public void stopTimer() {
+        endTime = System.currentTimeMillis();
+    }
+    
+    public void printStats(int threadCount) {
+        double elapsedTime = endTime - startTime;
+        System.out.println("======================================================");
+        System.out.println(String.format("elapsed time: %f | test time: %f", elapsedTime / 1000, timeTaken));
+        double efficiency = 1000 * timeTaken / (elapsedTime * threadCount);
+        System.out.println(String.format("thread count: %2d | parallel efficiency: %f", threadCount, efficiency));
+        System.out.println(String.format("tests: %2d | failed: %2d | skipped: %2d", testCount, failCount, skipCount));
+        System.out.println("======================================================");         
+    }
+
+    public int getTestCount() {
+        return testCount;
+    }
+
+    public int getFailCount() {
+        return failCount;
+    }
+
+    public int getSkipCount() {
+        return skipCount;
+    }
+
+    public double getTimeTaken() {
+        return timeTaken;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public long getEndTime() {
+        return endTime;
+    }        
+    
+}

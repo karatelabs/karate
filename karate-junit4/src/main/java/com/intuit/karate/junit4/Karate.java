@@ -1,7 +1,6 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.FeatureFile;
 import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.junit.FeatureRunner;

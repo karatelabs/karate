@@ -37,6 +37,7 @@ import cucumber.runtime.model.CucumberFeature;
 import cucumber.runtime.xstream.LocalizedXStreams;
 import gherkin.formatter.Formatter;
 import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +45,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +94,7 @@ public class CucumberRunner {
         }
         return list;
     }
-    
+
     public List<FeatureFile> getFeatureFiles() {
         return featureFiles;
     }
@@ -104,7 +106,7 @@ public class CucumberRunner {
     public ClassLoader getClassLoader() {
         return classLoader;
     }
-    
+
     public Runtime getRuntime(CucumberFeature feature) {
         return getRuntime(new FeatureFile(feature, new File(feature.getPath())));
     }
@@ -119,7 +121,7 @@ public class CucumberRunner {
         }
         logger.debug("loading feature: {}", featurePath);
         File featureDir = new File(featurePath).getParentFile();
-        ScriptEnv env = new ScriptEnv(false, null, featureDir, packageFile.getName(), classLoader);        
+        ScriptEnv env = new ScriptEnv(false, null, featureDir, packageFile.getName(), classLoader);
         Backend backend = new KarateBackend(env, null, null);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
         return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
@@ -132,43 +134,74 @@ public class CucumberRunner {
         formatter.close();
     }
 
-    public void run(FeatureFile featureFile, KaratePrettyFormatter formatter) {
+    public void run(FeatureFile featureFile, KarateJunitFormatter formatter) {
         Runtime runtime = getRuntime(featureFile);
         featureFile.feature.run(formatter, formatter, runtime);
     }
 
-    public void run(KaratePrettyFormatter formatter) {
+    public void run(KarateJunitFormatter formatter) {
         for (FeatureFile featureFile : getFeatureFiles()) {
             run(featureFile, formatter);
         }
     }
 
-    public static void parallel(Class clazz, int threads) {
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
+    private static KarateJunitFormatter getFormatter(String reportDirPath, FeatureFile featureFile) {
+        File reportDir = new File(reportDirPath);
+        try {
+            FileUtils.forceMkdirParent(reportDir);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        String featurePath = featureFile.feature.getPath();
+        if (featurePath == null) {
+            featurePath = featureFile.file.getPath();
+        }
+        String featurePackagePath = featurePath.replace(File.separator, ".");
+        if (featurePackagePath.endsWith(".feature")) {
+            featurePackagePath = featurePackagePath.substring(0, featurePackagePath.length() - 8);
+        }
+        try {
+            reportDirPath = reportDir.getPath() + File.separator;
+            String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";
+            return new KarateJunitFormatter(featurePath, reportPath);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static KarateStats parallel(Class clazz, int threadCount) {
+        KarateStats stats = KarateStats.startTimer();
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         CucumberRunner runner = new CucumberRunner(clazz);
         List<FeatureFile> featureFiles = runner.getFeatureFiles();
-        List<Callable<KaratePrettyFormatter>> callables = new ArrayList<>(featureFiles.size());
-        for (FeatureFile featureFile : featureFiles) {
-            KaratePrettyFormatter formatter = new KaratePrettyFormatter();
+        List<Callable<KarateJunitFormatter>> callables = new ArrayList<>(featureFiles.size());
+        String reportDir = "target/surefire-reports/";
+        int count = featureFiles.size();
+        for (int i = 0; i < count; i++) {
+            int index = i + 1;
+            FeatureFile featureFile = featureFiles.get(i);
             callables.add(() -> {
+                String threadName = Thread.currentThread().getName();
+                KarateJunitFormatter formatter = getFormatter(reportDir, featureFile);
+                logger.info("START: feature {} out of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
                 runner.run(featureFile, formatter);
+                logger.info("=END=: feature {} out of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
+                formatter.done();
                 return formatter;
             });
         }
         try {
-            int scenariosRun = 0;
-            int scenariosFailed = 0;
-            List<Future<KaratePrettyFormatter>>
-            futures = executor.invokeAll(callables);
-            for (Future<KaratePrettyFormatter  > future : futures) {                
-                KaratePrettyFormatter formatter = future.get();
-                scenariosRun += formatter.getScenariosRun();
-                scenariosFailed += formatter.getScenariosFailed();
-                System.out.print(formatter.getBuffer());
+            List<Future<KarateJunitFormatter>> futures = executor.invokeAll(callables);
+            stats.stopTimer();
+            for (Future<KarateJunitFormatter> future : futures) {
+                KarateJunitFormatter formatter = future.get();
+                stats.addToTestCount(formatter.getTestCount());
+                stats.addToFailCount(formatter.getFailCount());
+                stats.addToSkipCount(formatter.getSkipCount());
+                stats.addToTimeTaken(formatter.getTimeTaken());
             }
-            System.out.println("==============================");
-            System.out.println("Scenarios: " + scenariosRun + ", Failed: " + scenariosFailed);
-            System.out.println("==============================");
+            stats.printStats(threadCount);
+            return stats;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

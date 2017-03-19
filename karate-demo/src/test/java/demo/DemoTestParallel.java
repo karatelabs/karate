@@ -1,16 +1,20 @@
 package demo;
 
 import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.cucumber.KarateStats;
+import cucumber.api.CucumberOptions;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import static org.junit.Assert.*;
 import test.ServerStart;
 
 /**
  *
  * @author pthomas3
  */
-public class TestParallel {
+@CucumberOptions(tags = {"~@ignore"})
+public class DemoTestParallel {
     
     private static ServerStart server;
     
@@ -28,7 +32,8 @@ public class TestParallel {
     
     @Test
     public void testParallel() {
-        CucumberRunner.parallel(getClass(), 5);
+        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
+        assertTrue("no scenario failed", stats.getFailCount() == 0);
     }
     
 }

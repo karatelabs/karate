@@ -65,7 +65,8 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes a natural habit for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
-* Seamless integration into existing Java projects as both JUnit and TestNG are supported
+* Seamless integration into existing Java projects and CI / CD pipelines as both JUnit and TestNG are supported
+* Support for multi-threaded parallel execution, which is a huge time-saver, especially for HTTP integration tests
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for ultimate extensibility
 * Simple plug-in system for authentication and HTTP header management that will handle any complex real-world scenario
 * Comprehensive support for different flavors of HTTP calls:
@@ -315,11 +316,48 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
     </plugin> 
 ```
 
-This is actually the recommended configuration for generating CI-friendly reports when using Cucumber. The `<disableXmlReport>` suppresses the default JUnit XML output normally emitted by the `maven-surefire-plugin`. And note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would work.
+This is actually the recommended configuration for generating CI-friendly reports when using Cucumber. The `<disableXmlReport>` suppresses the default JUnit XML output normally emitted by the `maven-surefire-plugin`. And note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would continue to work.
 
-With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more. And the Cucumber JUnit XML reports would appear in the default `target/surefire-reports` directory (file names don't matter), and this will ensure that your CI and reporting routines work as you would expect. For example, the report would be in terms of how many Cucumber scenarios passed or failed.
+With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more. And the Cucumber JUnit XML report would appear within the default `target/surefire-reports` directory (file names don't matter), and this will ensure that your CI and reporting routines work as you would expect. For example, the report would be in terms of how many Cucumber scenarios passed or failed.
 
-The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line. 
+The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line.
+
+## Parallel Execution
+Karate has experimental support for running tests in parallel, and here is how you make use of this capability:
+```java
+import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.cucumber.KarateStats;
+import cucumber.api.CucumberOptions;
+import static org.junit.Assert.assertTrue;
+import org.junit.Test;
+
+@CucumberOptions(tags = {"~@ignore"})
+public class AllParallel {
+    
+    @Test
+    public void testParallel() {
+        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
+        assertTrue("no scenario failed", stats.getFailCount() == 0);
+    }
+    
+}
+```
+Things to note:
+* You don't use a JUnit runner, and you write a plain vanilla JUnit test using the `CucumberRunner` in `karate-core`.
+* You can use the returned `KarateStats` to check if any scenarios failed.
+* JUnit XML reports will be generated in `target/surefire-reports/` and CI tools should pick them up automatically.
+* When using Maven, you must disable the JUnit default XML that normally gets generated using `<disableXmlReport>` (refer to the previous section on [test reports](#test-reports)).
+* No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation (or the command-line) it will be ignored.
+* For convenience, some stats are logged to the console when execution completes, which should look something like this:
+```
+======================================================
+elapsed time: 1.778000 | test time: 7.895000
+thread count:  5 | parallel efficiency: 0.888076
+tests: 12 | failed:  0 | skipped:  0
+======================================================
+```
+
+The [Karate Demo](karate-demo) has a working example of this set-up.
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default

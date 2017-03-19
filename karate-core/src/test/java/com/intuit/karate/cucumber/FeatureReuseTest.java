@@ -24,6 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import java.io.File;
+import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -38,14 +39,15 @@ public class FeatureReuseTest {
     private static final Logger logger = LoggerFactory.getLogger(FeatureReuseTest.class);
     
     @Test
-    public void testFailureInCalledShouldFailTest() {
+    public void testFailureInCalledShouldFailTest() throws Exception {
+        String reportPath = "target/fail.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/caller.feature");
         CucumberRunner runner = new CucumberRunner(file);  
-        KaratePrettyFormatter formatter = new KaratePrettyFormatter();
+        KarateJunitFormatter formatter = new KarateJunitFormatter(file.getPath(), reportPath);
         runner.run(formatter);
-        System.out.print(formatter.getBuffer());  
-        logger.debug("failed: {}", formatter.getScenariosFailed());
-        assertEquals(1, formatter.getScenariosFailed());
+        formatter.done();
+        String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
+        assertTrue(contents.contains("assert evaluated to false: input != 4"));
     }
     
 }
