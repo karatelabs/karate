@@ -70,7 +70,7 @@ public class KarateStats {
         System.out.println(String.format("elapsed time: %f | test time: %f", elapsedTime / 1000, timeTaken));
         double efficiency = 1000 * timeTaken / (elapsedTime * threadCount);
         System.out.println(String.format("thread count: %2d | parallel efficiency: %f", threadCount, efficiency));
-        System.out.println(String.format("tests: %2d | failed: %2d | skipped: %2d", testCount, failCount, skipCount));
+        System.out.println(String.format("scenarios: %2d | failed: %2d | skipped: %2d", testCount, failCount, skipCount));
         System.out.println("======================================================");         
     }
 

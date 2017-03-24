@@ -1,0 +1,95 @@
+{
+  "Contents": {
+    "Title": "Search results",
+    "Count": "10",
+    "Page": "1",
+    "TotalCount": "1",
+    "TotalPages": 2,
+    "Genres": [
+      "Genre_1",
+      "Genre_2",
+      "Genre_3"
+    ],
+    "Contents": [
+      {
+        "title": "content1_title",
+        "original_text": "original text 1",
+        "full_text": "Sample full sized text 1",
+        "short_text": "Sample short text 1",
+        "children_ids": {
+          "item": [
+            1,
+            2
+          ]
+        },
+        "children_uuids": {
+          "item": [
+            "item1_uuid",
+            "item2_uuid"
+          ]
+        },
+        "parent_ids": {
+          "item": [
+            1
+          ]
+        },
+        "parent_uuids": {
+          "item": [
+            "item1_uuid"
+          ]
+        },
+        "aired_from": "1994-01-01",
+        "aired_to": "1994-12-31",
+        "tags": {
+          "item": [
+            ""
+          ]
+        },
+        "available_condition1": 0,
+        "available_condition2": 1,
+        "price_condition1": "0.00",
+        "price_condition2": "13.00"
+      },
+      {
+        "title": "content2_title",
+        "original_text": "original text 2",
+        "full_text": "Sample full sized text 2",
+        "short_text": "Sample short text 2",
+        "children_ids": {
+          "item": [
+            1,
+            2
+          ]
+        },
+        "children_uuids": {
+          "item": [
+            "item1_uuid",
+            "item2_uuid"
+          ]
+        },
+        "parent_ids": {
+          "item": [
+            1
+          ]
+        },
+        "parent_uuids": {
+          "item": [
+            "item1_uuid"
+          ]
+        },
+        "aired_from": "1998-01-01",
+        "aired_to": "1998-01-31",
+        "tags": {
+          "item": [
+            ""
+          ]
+        },
+        "available_condition1": 0,
+        "available_condition2": 1,
+        "price_condition1": "0.00",
+        "price_condition2": "13.00"
+      }
+    ]
+  },
+  "Success": true
+}

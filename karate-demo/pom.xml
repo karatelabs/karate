@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.2.7</version>
+        <version>0.2.8-SNAPSHOT</version>
     </parent>
     
     <artifactId>karate-demo</artifactId>
@@ -60,7 +60,7 @@
                         <!-- <include>demo/DemoTest.java</include> -->
                         <include>demo/DemoTestParallel.java</include>
                     </includes>
-                    <disableXmlReport>true</disableXmlReport>
+                    <!-- <disableXmlReport>true</disableXmlReport> -->
                     <systemProperties>
                         <cucumber.options>--plugin junit:target/surefire-reports/cucumber-junit.xml</cucumber.options>
                     </systemProperties>

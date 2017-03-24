@@ -95,7 +95,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.7</version>
+    <version>0.2.8-SNAPSHOT</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -116,7 +116,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.7 \
+-DarchetypeVersion=0.2.8-SNAPSHOT \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -354,7 +354,7 @@ Things to note:
 ======================================================
 elapsed time: 1.778000 | test time: 7.895000
 thread count:  5 | parallel efficiency: 0.888076
-tests: 12 | failed:  0 | skipped:  0
+scenarios: 12 | failed:  0 | skipped:  0
 ======================================================
 ```
 
