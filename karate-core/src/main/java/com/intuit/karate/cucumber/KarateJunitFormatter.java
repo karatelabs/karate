@@ -61,6 +61,7 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +86,8 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     private final String featurePath;
     private final String reportPath;
     
+    private int currentScenario;
+            
     private int testCount;
     private int failCount; 
     private int skipCount;
@@ -105,6 +108,10 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     public double getTimeTaken() {
         return timeTaken;
     }        
+    
+    private static boolean isScenarioOutline(Scenario scenario) {
+        return scenario.getKeyword().equals("Scenario Outline");
+    }
 
     public KarateJunitFormatter(String featurePath, String reportPath) throws IOException {
         this.featurePath = featurePath;
@@ -138,6 +145,11 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     @Override
     public void scenario(Scenario scenario) {
         logger.trace("scenario: {}", scenario);
+        testCase.steps.clear();
+        testCase.results.clear();
+        if (!isScenarioOutline(scenario)) {
+            currentScenario++;
+        }        
         testCase.scenario = scenario;
         root = testCase.createElement(doc);
         testCase.writeElement(doc, root);
@@ -151,7 +163,8 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         Feature feature = testCase.feature;
         testCase = new TestCase();
         testCase.treatSkippedAsFailure = strict;
-        testCase.feature = feature;
+        testCase.feature = feature;       
+        currentScenario++;
     }    
 
     @Override
@@ -171,7 +184,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     @Override
     public void done() {
         try {
-            rootElement.setAttribute("name", KarateJunitFormatter.class.getName());
+            rootElement.setAttribute("name", featurePath);
             testCount = Integer.valueOf(rootElement.getAttribute("tests"));
             failCount = rootElement.getElementsByTagName("failure").getLength();
             rootElement.setAttribute("failures", String.valueOf(failCount));
@@ -327,40 +340,39 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
 
         Scenario scenario;
         private Feature feature;
-        private String previousScenarioOutlineName;
         private int exampleNumber;
         private boolean treatSkippedAsFailure = false;
-        final List<Step> steps = new ArrayList<Step>();
-        final List<Result> results = new ArrayList<Result>();
-        final List<Result> hookResults = new ArrayList<Result>();
+        final List<Step> steps = new ArrayList<>();
+        final List<Result> results = new ArrayList<>();
+        final List<Result> hookResults = new ArrayList<>();
 
         private Element createElement(Document doc) {
             return doc.createElement("testcase");
         }
 
         private void writeElement(Document doc, Element tc) {
-            tc.setAttribute("classname", feature.getName());
+            String featureName = StringUtils.trimToNull(feature.getName());
+            if (featureName == null) {
+                featureName = featurePath;
+            }
+            tc.setAttribute("classname", featureName);
             tc.setAttribute("name", calculateElementName(scenario));
         }
 
         private String calculateElementName(Scenario scenario) {
-            String scenarioName = scenario.getName();
-            if (scenario.getKeyword().equals("Scenario Outline") && scenarioName.equals(previousScenarioOutlineName)) {
-                return scenarioName + (includesBlank(scenarioName) ? " " : "_") + ++exampleNumber;
+            String scenarioName = StringUtils.trimToNull(scenario.getName());
+            if (scenarioName == null) {
+                scenarioName = currentScenario + "";
+            }
+            if (isScenarioOutline(scenario)) {
+                return scenarioName + " ("  + (++exampleNumber) + ")";
             } else {
-                previousScenarioOutlineName = scenario.getKeyword().equals("Scenario Outline") ? scenarioName : "";
-                exampleNumber = 1;
                 return scenarioName;
             }
         }
 
-        private boolean includesBlank(String scenarioName) {
-            return scenarioName.indexOf(' ') != -1;
-        }
-
         public void updateElement(Document doc, Element tc) {
             tc.setAttribute("time", calculateTotalDurationString());
-
             StringBuilder sb = new StringBuilder();
             addStepAndResultListing(sb);
             Result skipped = null, failed = null;
@@ -393,7 +405,6 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
             } else {
                 child = createElement(doc, sb, "system-out");
             }
-
             Node existingChild = tc.getFirstChild();
             if (existingChild == null) {
                 tc.appendChild(child);
@@ -404,10 +415,8 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
 
         public void handleEmptyTestCase(Document doc, Element tc) {
             tc.setAttribute("time", calculateTotalDurationString());
-
             String resultType = treatSkippedAsFailure ? "failure" : "skipped";
             Element child = createElementWithMessage(doc, new StringBuilder(), resultType, "The scenario has no steps");
-
             tc.appendChild(child);
         }
 

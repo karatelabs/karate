@@ -163,7 +163,7 @@ public class CucumberRunner {
         try {
             reportDirPath = reportDir.getPath() + File.separator;
             String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";
-            return new KarateJunitFormatter(featurePath, reportPath);
+            return new KarateJunitFormatter(featurePackagePath, reportPath);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

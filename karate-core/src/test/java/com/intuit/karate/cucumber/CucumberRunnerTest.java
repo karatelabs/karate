@@ -28,6 +28,7 @@ import java.io.File;
 import org.apache.commons.io.FileUtils;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
+import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +74,8 @@ public class CucumberRunnerTest {
     
     @Test 
     public void testParallel() {
-        CucumberRunner.parallel(getClass(), 1);
+        KarateStats stats = CucumberRunner.parallel(getClass(), 1);
+        assertEquals(1, stats.getFailCount());
         String pathBase = "target/surefire-reports/TEST-com.intuit.karate.cucumber.";
         assertTrue(contains(pathBase + "scenario.xml", "Then match b == { foo: 'bar'}"));
         assertTrue(contains(pathBase + "outline.xml", "Then assert a == 55"));
