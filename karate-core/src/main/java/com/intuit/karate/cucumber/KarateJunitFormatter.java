@@ -109,6 +109,14 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         return timeTaken;
     }        
     
+    public boolean isFail() {
+        return failCount > 0;
+    }
+
+    public String getFeaturePath() {
+        return featurePath;
+    }        
+    
     private static boolean isScenarioOutline(Scenario scenario) {
         return scenario.getKeyword().equals("Scenario Outline");
     }
@@ -174,11 +182,11 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     }
     
     private void printStatsToConsole() {
-        System.out.println("------------------------------------------------------");        
+        System.out.println("---------------------------------------------------------");        
         System.out.println("feature: " + featurePath);
         System.out.println("report: " + reportPath);
-        System.out.println(String.format("tests: %2d | failed: %2d | skipped: %2d | time: %f", testCount, failCount, skipCount, timeTaken));        
-        System.out.println("------------------------------------------------------");
+        System.out.println(String.format("scenarios: %2d | failed: %2d | skipped: %2d | time: %f", testCount, failCount, skipCount, timeTaken));        
+        System.out.println("---------------------------------------------------------");
     }
 
     @Override
@@ -335,7 +343,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         }
 
         private TestCase() {
-            // zero arg constructor
+            this(null);
         }
 
         Scenario scenario;

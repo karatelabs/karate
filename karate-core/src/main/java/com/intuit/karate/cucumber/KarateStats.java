@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.cucumber;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  *
  * @author pthomas3
@@ -35,9 +38,17 @@ public class KarateStats {
     private double timeTaken;    
     private final long startTime;
     private long endTime;
+    private List<String> failedList;
     
     private KarateStats(long startTime) {
         this.startTime = startTime;
+    }
+    
+    public void addToFailedList(String name) {
+        if (failedList == null) {
+            failedList = new ArrayList<>();
+        }
+        failedList.add(name);
     }
     
     public static KarateStats startTimer() {
@@ -66,12 +77,15 @@ public class KarateStats {
     
     public void printStats(int threadCount) {
         double elapsedTime = endTime - startTime;
-        System.out.println("======================================================");
+        System.out.println("=========================================================");
         System.out.println(String.format("elapsed time: %f | test time: %f", elapsedTime / 1000, timeTaken));
         double efficiency = 1000 * timeTaken / (elapsedTime * threadCount);
         System.out.println(String.format("thread count: %2d | parallel efficiency: %f", threadCount, efficiency));
-        System.out.println(String.format("scenarios: %2d | failed: %2d | skipped: %2d", testCount, failCount, skipCount));
-        System.out.println("======================================================");         
+        System.out.println(String.format("scenarios: %3d | failed: %3d | skipped: %3d", testCount, failCount, skipCount));
+        System.out.println("=========================================================");
+        if (failedList != null) {
+            System.out.println("failed: " + failedList);
+        }
     }
 
     public int getTestCount() {
@@ -96,6 +110,10 @@ public class KarateStats {
 
     public long getEndTime() {
         return endTime;
+    }
+
+    public List<String> getFailedList() {
+        return failedList;
     }        
     
 }

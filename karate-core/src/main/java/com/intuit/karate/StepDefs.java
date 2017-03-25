@@ -237,17 +237,6 @@ public class StepDefs {
         return builder;
     }
 
-    private void startTimer() {
-        startTime = System.currentTimeMillis();
-    }
-
-    private void stopTimer() {
-        long endTime = System.currentTimeMillis();
-        long responseTime = endTime - startTime;
-        logger.debug("response time in milliseconds: {}", responseTime);
-        context.vars.put(ScriptValueMap.VAR_RESPONSE_TIME, responseTime);
-    }
-
     private String getUserSpecifiedContentType() {
         if (headers != null) {
             String type = (String) headers.get("Content-Type");
@@ -256,6 +245,25 @@ public class StepDefs {
             }
         }
         return null;
+    }
+    
+    private void makeHttpRequest(Invocation.Builder builder, String method, Entity entity) {
+        startTime = System.currentTimeMillis();
+        try {
+            if (entity != null) {
+                response = builder.method(method, entity);
+            } else {
+                response = builder.method(method);
+            }
+        } catch (Exception e) {
+            String message = "http call failed for URL: " + target.getUri();
+            logger.error(message);
+            throw new KarateException(message, e);
+        }
+        long endTime = System.currentTimeMillis();
+        long responseTime = endTime - startTime;
+        logger.debug("response time in milliseconds: {}", responseTime);
+        context.vars.put(ScriptValueMap.VAR_RESPONSE_TIME, responseTime);
     }
 
     @When("^method (\\w+)")
@@ -267,13 +275,9 @@ public class StepDefs {
                 if (mediaType == null) {
                     mediaType = MediaType.MULTIPART_FORM_DATA;
                 }
-                startTimer();
-                response = prepare().method(method, Entity.entity(multiPart, mediaType));
-                stopTimer();
+                makeHttpRequest(prepare(), method, Entity.entity(multiPart, mediaType));
             } else if (formFields != null) {
-                startTimer();
-                response = prepare().method(method, Entity.entity(formFields, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
-                stopTimer();
+                makeHttpRequest(prepare(), method, Entity.entity(formFields, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
             } else {
                 if (request == null || request.isNull()) {
                     String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
@@ -309,14 +313,10 @@ public class StepDefs {
                         }
                         entity = Entity.entity(request.getAsString(), mediaType);
                 }
-                startTimer();
-                response = prepare().method(method, entity);
-                stopTimer();
+                makeHttpRequest(prepare(), method, entity);
             }
         } else {
-            startTimer();
-            response = prepare().method(method);
-            stopTimer();
+            makeHttpRequest(prepare(), method, null);
         }
         unprepare();
     }
@@ -372,12 +372,11 @@ public class StepDefs {
                 break;
             default:
                 xml = request.getAsString();
-        }
-        startTimer();
+        }        
         Invocation.Builder builder = target.request();
         builder.property(ScriptContext.KARATE_DOT_CONTEXT, context);
-        response = builder.header("SOAPAction", action).method("POST", Entity.entity(xml, MediaType.TEXT_XML));
-        stopTimer();
+        builder.header("SOAPAction", action);
+        makeHttpRequest(builder, "POST", Entity.entity(xml, MediaType.TEXT_XML));
         String rawResponse = response.readEntity(String.class);
         try {
             context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(rawResponse));

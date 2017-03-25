@@ -80,6 +80,8 @@ public class CucumberRunnerTest {
         assertTrue(contains(pathBase + "scenario.xml", "Then match b == { foo: 'bar'}"));
         assertTrue(contains(pathBase + "outline.xml", "Then assert a == 55"));
         assertTrue(contains(pathBase + "multi-scenario.xml", "Then assert a != 2"));
+        assertEquals(1, stats.getFailedList().size());
+        assertEquals("com.intuit.karate.cucumber.no-scenario-name", stats.getFailedList().get(0));
     }
     
 }

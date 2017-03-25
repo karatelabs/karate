@@ -199,6 +199,9 @@ public class CucumberRunner {
                 stats.addToFailCount(formatter.getFailCount());
                 stats.addToSkipCount(formatter.getSkipCount());
                 stats.addToTimeTaken(formatter.getTimeTaken());
+                if (formatter.isFail()) {
+                    stats.addToFailedList(formatter.getFeaturePath());
+                }
             }
             stats.printStats(threadCount);
             return stats;
