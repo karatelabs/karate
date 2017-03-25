@@ -400,6 +400,9 @@ public class Script {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
+        if ("request".equals(name)) {
+            throw new RuntimeException("'request' is not a variable, use the form '* request " + exp + "' instead");
+        }
         ScriptValue sv = eval(exp, context);
         logger.trace("assigning {} = {} evaluated to {}", name, exp, sv);
         context.vars.put(name, sv);
@@ -739,6 +742,10 @@ public class Script {
 
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
+        if ("request".equals(name)) {
+            throw new RuntimeException("'request' is not a variable,"
+                    + " use the form '* request <expression>' to initialize the request payload, and <expression> can be a variable");
+        }        
         path = StringUtils.trimToNull(path);
         if (path == null) {
             Pair<String, String> pair = parseVariableAndPath(name);

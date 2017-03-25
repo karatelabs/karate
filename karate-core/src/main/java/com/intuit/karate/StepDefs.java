@@ -259,7 +259,7 @@ public class StepDefs {
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + target.getUri();
-            logger.error(message);
+            logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
         long endTime = System.currentTimeMillis();
