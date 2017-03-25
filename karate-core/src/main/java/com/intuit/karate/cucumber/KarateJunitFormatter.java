@@ -124,7 +124,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     public KarateJunitFormatter(String featurePath, String reportPath) throws IOException {
         this.featurePath = featurePath;
         this.reportPath = reportPath;
-        logger.debug("start: {}", reportPath);
+        logger.debug(">> {}", reportPath);
         URL url = FileUtils.toFileUrl(reportPath);
         this.out = new UTF8OutputStreamWriter(new URLOutputStream(url));
         try {
@@ -192,7 +192,11 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     @Override
     public void done() {
         try {
-            rootElement.setAttribute("name", featurePath);
+            String featureName = StringUtils.trimToNull(testCase.feature.getName());
+            if (featureName == null) {
+                featureName = featurePath;
+            }
+            rootElement.setAttribute("name", featureName);
             testCount = Integer.valueOf(rootElement.getAttribute("tests"));
             failCount = rootElement.getElementsByTagName("failure").getLength();
             rootElement.setAttribute("failures", String.valueOf(failCount));
@@ -213,7 +217,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         } catch (TransformerException e) {
             throw new CucumberException("Error while transforming.", e);
         }
-        logger.trace("=end=: {}", reportPath);
+        logger.trace("<< {}", reportPath);
     }
 
     @Override
@@ -359,11 +363,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         }
 
         private void writeElement(Document doc, Element tc) {
-            String featureName = StringUtils.trimToNull(feature.getName());
-            if (featureName == null) {
-                featureName = featurePath;
-            }
-            tc.setAttribute("classname", featureName);
+            tc.setAttribute("classname", featurePath);
             tc.setAttribute("name", calculateElementName(scenario));
         }
 

@@ -183,9 +183,9 @@ public class CucumberRunner {
             callables.add(() -> {
                 String threadName = Thread.currentThread().getName();
                 KarateJunitFormatter formatter = getFormatter(reportDir, featureFile);
-                logger.info("START: feature {} out of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
+                logger.info(">>>> feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
                 runner.run(featureFile, formatter);
-                logger.info("=END=: feature {} out of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
+                logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
                 formatter.done();
                 return formatter;
             });
