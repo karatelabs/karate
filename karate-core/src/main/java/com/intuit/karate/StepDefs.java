@@ -351,6 +351,7 @@ public class StepDefs {
         target = context.client.target(url);
         formFields = null;
         multiPart = null;
+        request = null;
     }
 
     @When("^soap action( .+)?")
@@ -386,6 +387,7 @@ public class StepDefs {
             logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
             context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
         }
+        request = null;
     }
 
     private MultiPart getMultiPart() {
@@ -444,8 +446,12 @@ public class StepDefs {
     @Then("^status (\\d+)")
     public void status(int status) {
         if (status != response.getStatus()) {
-            AssertionResult ar = AssertionResult.fail("status code was " + response.getStatus() + ", expected " + status);
-            handleFailure(ar);
+            String rawResponse = context.vars.get(ScriptValueMap.VAR_RESPONSE).getAsString();
+            String responseTime = context.vars.get(ScriptValueMap.VAR_RESPONSE_TIME).getAsString();
+            String message = "status code was: " + response.getStatus() + ", expected: " + status + 
+                    ", response time: " + responseTime + ", url: " + target.getUri().toString() + ", response: " + rawResponse;
+            logger.error(message);
+            throw new KarateException(message);
         }
     }
 
