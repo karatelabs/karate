@@ -1,6 +1,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
+import java.util.Map;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.slf4j.Logger;
@@ -23,6 +24,10 @@ public class ScriptBridge {
     public ScriptContext getContext() {
         return context;
     }        
+    
+    public void configure(String key, Object o) {
+        context.configure(key, new ScriptValue(o));
+    }
     
     public Object read(String fileName) {
         ScriptValue sv = FileUtils.readFile(fileName, context);

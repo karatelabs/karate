@@ -74,7 +74,7 @@ public class ScriptContext {
             try {
                 Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
-                logger.warn("start-up configuration failed, missing or bad 'karate-config.js' - {}", e.getMessage());
+                logger.warn("start-up configuration failed, missing or bad 'karate-config.js'", e);
             }
         }
         if (env.test) {
@@ -92,10 +92,13 @@ public class ScriptContext {
                 + "  return FileUtils.readFile(path, " + KARATE_DOT_CONTEXT + ").value;\n"
                 + "}";
     }     
+    
+    public void configure(String key, String exp) {
+        configure(key, Script.eval(exp, this));
+    }
 
-    public void configure(String key, String exp) { // TODO use enum
+    public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
-        ScriptValue value = Script.eval(exp, this);
         if (key.equals("headers")) {
             headers = value;
         } else if (key.equals("ssl")) {
@@ -108,11 +111,15 @@ public class ScriptContext {
             buildClient();
         } else if (key.equals("connectTimeout")) {
             connectTimeout = Integer.valueOf(value.getAsString());
-            client.property(ClientProperties.CONNECT_TIMEOUT, connectTimeout);
+            if (client != null) {
+                client.property(ClientProperties.CONNECT_TIMEOUT, connectTimeout);
+            }
             // lightweight operation, no need to re-build client
         } else if (key.equals("readTimeout")) {
             readTimeout = Integer.valueOf(value.getAsString());
-            client.property(ClientProperties.READ_TIMEOUT, readTimeout);
+            if (client != null) {
+                client.property(ClientProperties.READ_TIMEOUT, readTimeout);
+            }
             // lightweight operation, no need to re-build client
         } else if (key.equals("proxy")) {
             if (value.isString()) {

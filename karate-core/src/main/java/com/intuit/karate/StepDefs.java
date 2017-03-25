@@ -66,8 +66,8 @@ public class StepDefs {
     private static File getFeatureDir() {
         String cwd = new File("").getAbsoluteFile().getPath();
         // TODO non-mac (confirm), non oracle jvm-s
-    	String javaCommand = System.getProperty("sun.java.command");
-    	String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
+        String javaCommand = System.getProperty("sun.java.command");
+        String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
         if (featurePath == null) {
             File file = new File("");
             logger.warn("unable to derive feature file path, using: {}", file.getAbsolutePath());
@@ -201,17 +201,17 @@ public class StepDefs {
     public void def(String name, String expression) {
         Script.assign(name, expression, context);
     }
-    
+
     private static DocumentContext toJson(DataTable table) {
         return JsonPath.parse(table.asMaps(String.class, Object.class));
     }
-    
+
     @When("^table (.+) =$")
     public void table(String name, DataTable table) {
         DocumentContext doc = toJson(table);
         name = StringUtils.trim(name);
         context.vars.put(name, doc);
-    }    
+    }
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {
@@ -246,7 +246,7 @@ public class StepDefs {
         }
         return null;
     }
-    
+
     private void makeHttpRequest(Invocation.Builder builder, String method, Entity entity) {
         startTime = System.currentTimeMillis();
         try {
@@ -256,7 +256,9 @@ public class StepDefs {
                 response = builder.method(method);
             }
         } catch (Exception e) {
-            String message = "http call failed for URL: " + target.getUri();
+            long endTime = System.currentTimeMillis();
+            long responseTime = endTime - startTime;
+            String message = "http call failed after " + responseTime + " milliseconds for URL: " + target.getUri();
             logger.error(message);
             throw new KarateException(message, e);
         }
@@ -372,7 +374,7 @@ public class StepDefs {
                 break;
             default:
                 xml = request.getAsString();
-        }        
+        }
         Invocation.Builder builder = target.request();
         builder.property(ScriptContext.KARATE_DOT_CONTEXT, context);
         builder.header("SOAPAction", action);
