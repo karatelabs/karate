@@ -2,14 +2,12 @@ package com.intuit.karate;
 
 import com.intuit.karate.validator.Validator;
 import java.util.Map;
-import java.util.logging.Level;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,14 +135,10 @@ public class ScriptContext {
     }
 
     public void buildClient() {
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder().register(MultiPartFeature.class);
-        if (logger.isDebugEnabled()) {
-            clientBuilder.register(new LoggingFeature(
-                    java.util.logging.Logger.getLogger(LoggingFeature.DEFAULT_LOGGER_NAME),
-                    Level.SEVERE,
-                    LoggingFeature.Verbosity.PAYLOAD_TEXT, null));
-        }
-        clientBuilder.register(new RequestFilter());
+        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
+                .register(new LoggingFilter()) // must be first
+                .register(MultiPartFeature.class)        
+                .register(new RequestFilter());
         if (sslEnabled) {
             logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
             SSLContext ssl = SslUtils.getSslContext(sslAlgorithm);
@@ -167,7 +161,7 @@ public class ScriptContext {
         }
         if (proxyPassword != null) {
             client.property(ClientProperties.PROXY_PASSWORD, proxyPassword);
-        }
+        }        
     }
     
     public Map<String, Object> getVariableBindings() {
