@@ -1,5 +1,5 @@
 # Karate
-### Web-Services Testing Made `Simple. ` [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
+### Web-Services Testing Made `Simple. ` [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://karate-dsl.slack.com/shared_invite/MTU5Nzk3NzEyMTYyLTE0OTA0OTcyMzktNDkyOTg0MmMyYQ)
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert
 that the responses are as expected.  It makes it really easy to build complex request 
@@ -84,8 +84,11 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 A set of real-life examples can be found here: [Karate Demos](karate-demo)
 
 # Getting Started
-Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8
-and [Maven](http://maven.apache.org) to be installed.
+Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and [Maven](http://maven.apache.org) to be installed.
+
+If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
+
+If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [is built-in](https://plugins.jetbrains.com/plugin/7212-cucumber-for-java) and you can even select a single Scenario to run at a time.
 
 ## Maven
 
@@ -102,13 +105,10 @@ This is all that you need within your `<dependencies>`:
 ### TestNG instead of JUnit
 If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
 
-Use the TestNG test-runner only when you are trying to add Karate tests side-by-side with an existing set of
-TestNG test-classes, possibly as a migration strategy.
+Use the TestNG test-runner only when you are trying to add Karate tests side-by-side with an existing set of TestNG test-classes, possibly as a migration strategy.
 
 ### Quickstart
-It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command.
-You can then skip the next few sections, as the `pom.xml`, recommended directory structure and starter files
-would be created for you.
+It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure and starter files would be created for you.
 
 You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 
@@ -308,17 +308,16 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
             <includes>
                 <include>animals/AnimalsTest.java</include>
             </includes>
-            <disableXmlReport>true</disableXmlReport>
             <systemProperties>
-                <cucumber.options>--plugin junit:target/surefire-reports/cucumber-junit.xml</cucumber.options>
+                <cucumber.options>--plugin junit:target/cucumber-junit.xml</cucumber.options>
             </systemProperties>            
         </configuration>
     </plugin> 
 ```
 
-This is actually the recommended configuration for generating CI-friendly reports when using Cucumber. The `<disableXmlReport>` suppresses the default JUnit XML output normally emitted by the `maven-surefire-plugin`. And note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would continue to work.
+This is actually the recommended configuration for generating CI-friendly reports when using Cucumber and note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would continue to work.
 
-With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more. And the Cucumber JUnit XML report would appear within the default `target/surefire-reports` directory (file names don't matter), and this will ensure that your CI and reporting routines work as you would expect. For example, the report would be in terms of how many Cucumber scenarios passed or failed.
+With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more. You may need to point your CI to the location of the JUnit XML report (e.g. `target/cucumber-junit.xml`) so that test-reports are generated correctly.
 
 The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line.
 
@@ -345,8 +344,7 @@ public class TestParallel {
 Things to note:
 * You don't use a JUnit runner, and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner` in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
-* JUnit XML reports will be generated in `target/surefire-reports/` and CI tools should pick them up automatically.
-* When using Maven, you must disable the JUnit default XML that normally gets generated using `<disableXmlReport>` (refer to the previous section on [test reports](#test-reports)).
+* JUnit XML reports will be generated in `target/surefire-reports/` and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`)
 * No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation (or the command-line) it will be ignored.
 * Other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the class having the annotation.
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
@@ -550,7 +548,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | [**Yes**](#calling-other-feature-files).
 **Dynamic Data-Driven Testing** | **No**. The [`Scenario Outline:`](#the-cucumber-way) feature of Cucumber expects the `Examples:` to contain a fixed set of rows. | **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
-**Parallel Execution** | **No**. There are various challenges (especially reporting) and you can find [various](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [threads](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) and third-party [projects](https://github.com/temyers/cucumber-jvm-parallel-plugin) on the internet that attempt to close this gap. | [**Yes**](#parallel-execution).
+**Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find [various](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [threads](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) and [third-party](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [projects](https://github.com/temyers/cucumber-jvm-parallel-plugin) on the internet that attempt to close this gap. | [**Yes**](#parallel-execution).
 **BDD Syntax** | **Yes** | **Yes**
 
 One nice thing about the design of the underlying Cucumber framework is that
