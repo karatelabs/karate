@@ -98,7 +98,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.8-SNAPSHOT</version>
+    <version>0.2.8</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -116,7 +116,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.8-SNAPSHOT \
+-DarchetypeVersion=0.2.8 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -905,6 +905,8 @@ Given param someKey = 'hello'
 And param anotherKey = someVariable
 ```
 ## `header`
+One nice thing about the `header` keyword is that it 'persists' for the duration of the `Scenario:`. So if you want the same header to be sent for all HTTP requests, just set the header once and all HTTP requests made after that point would have that header. And if you do this within a `Background:` section, it would apply to all `Scenario:` sections within the `*.feature` file.
+
 You can even use functions or expressions:
 ```cucumber
 Given header Authorization = myAuthFunction()
@@ -920,6 +922,9 @@ And header Accept = 'application/json'
 When method post
 Then status 200
 ```
+
+If you need headers to be dynamically generated for each HTTP request, that is what [`configure headers`](#configure-headers) is for.
+
 ## `cookie`
 Setting a cookie:
 ```cucumber
