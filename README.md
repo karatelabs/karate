@@ -36,22 +36,22 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
 # Index 
 
-. | . | . | . | .  
+:white_small_square: | :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square:  
 ----- | ---- | ---- | --- | ---
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
- . | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
- . | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
+ :white_small_square: | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
+ :white_small_square: | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
- . | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
+ :white_small_square: | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
- . | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
+ :white_small_square: | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) | [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Multi-line Comments](#multi-line-comments) | [Cucumber Tags](#cucumber-tags)
- . | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
+ :white_small_square: | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 
 # Features
 * Java knowledge is not required to write tests
@@ -336,7 +336,7 @@ public class TestParallel {
     @Test
     public void testParallel() {
         KarateStats stats = CucumberRunner.parallel(getClass(), 5);
-        assertTrue("no scenario failed", stats.getFailCount() == 0);
+        assertTrue("scenarios failed", stats.getFailCount() == 0);
     }
     
 }
@@ -541,8 +541,8 @@ Karate's approach is that all the step-definitions you need in order to work wit
 
 The following table summmarizes some key differences between Cucumber and Karate.
 
-.      | Cucumber | Karate
------- | -------- | ------
+:white_small_square: | Cucumber | Karate
+-------------------- | -------- | ------
 **More Step Definitions Needed** | **Yes**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | :white_check_mark: **No**.
 **Layers of Code to Maintain** | **2** Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | :white_check_mark: **1** Layer. Only Karate-script (based on Gherkin), and no Java code needs to be implemented.
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | :x: **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
