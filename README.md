@@ -88,7 +88,7 @@ Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/i
 
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
-If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [is built-in](https://plugins.jetbrains.com/plugin/7212-cucumber-for-java) and you can even select a single Scenario to run at a time.
+If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://plugins.jetbrains.com/plugin/7212-cucumber-for-java) and you can even select a single Scenario to run at a time.
 
 ## Maven
 
