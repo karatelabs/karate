@@ -1,5 +1,5 @@
 # Karate
-### Web-Services Testing Made `Simple. ` [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://karate-dsl.slack.com/shared_invite/MTU5Nzk3NzEyMTYyLTE0OTA0OTcyMzktNDkyOTg0MmMyYQ)
+### Web-Services Testing Made `Simple. ` [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://karate-dsl.slack.com/shared_invite/MTU5Nzk3NzEyMTYyLTE0OTA0OTcyMzktNDkyOTg0MmMyYQ) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert
 that the responses are as expected.  It makes it really easy to build complex request 
@@ -300,19 +300,19 @@ The reporting and tag options can be specified in the test-class via the `@Cucum
 You can 'lock down' the fact that you only want to execute the single JUnit class that functions as a test-suite - by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
 
 ```xml
-    <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.10</version>
-        <configuration>
-            <includes>
-                <include>animals/AnimalsTest.java</include>
-            </includes>
-            <systemProperties>
-                <cucumber.options>--plugin junit:target/cucumber-junit.xml</cucumber.options>
-            </systemProperties>            
-        </configuration>
-    </plugin> 
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <version>2.10</version>
+    <configuration>
+        <includes>
+            <include>animals/AnimalsTest.java</include>
+        </includes>
+        <systemProperties>
+            <cucumber.options>--plugin junit:target/cucumber-junit.xml</cucumber.options>
+        </systemProperties>            
+    </configuration>
+</plugin> 
 ```
 
 This is actually the recommended configuration for generating CI-friendly reports when using Cucumber and note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would continue to work.
@@ -745,6 +745,8 @@ function(s) {
 """
 * assert dateStringToLong("2016-12-24T03:39:21.081+0000") == 1482550761081
 ```
+
+> More examples of Java interop and how to invoke custom code can be found in the section on [Calling Java](#calling-java).
 
 Any JavaScript function in Karate has a variable called [`karate`](#the-karate-object) injected into the runtime, which provides some utility functions, for e.g. logging.
 
@@ -1657,9 +1659,9 @@ public class JavaDemo {
         return map;
     }
 
-    public static String staticMethod() {
-        return "fantastic";
-    }    
+    public static String doWorkStatic(String fromJs) {
+        return "hello " + fromJs;
+    }   
 
 }
 ```
@@ -1667,25 +1669,20 @@ This is how it can be called from a test-script, and yes, even static methods ca
 ```cucumber
 * def doWork =
 """
-function() {
-  var JavaDemo = Java.type("com.mycompany.JavaDemo");
+function(arg) {
+  var JavaDemo = Java.type('com.mycompany.JavaDemo');
   var jd = new JavaDemo();
-  return jd.doWork("world");  
+  return jd.doWork(arg);  
 }
 """
-* def result = call doWork
+# in this case the solitary 'call' argument is of type string
+* def result = call doWork 'world'
 * assert result.someKey == 'hello world'
 
-# example of calling a static method
-* def staticWork = 
-"""
-function() {
-  var JavaDemo = Java.type("com.mycompany.JavaDemo");
-  return JavaDemo.staticMethod()
-}
-"""
-* def result = call staticWork
-* assert result == 'fantastic'
+# using a static method - observe how java interop is truly seamless !
+* def JavaDemo = Java.type('com.intuit.karate.junit4.syntax.JavaDemo')
+* def result = JavaDemo.doWorkStatic('world')
+* assert result == 'hello world'
 ```
 
 # Advanced / Tricks

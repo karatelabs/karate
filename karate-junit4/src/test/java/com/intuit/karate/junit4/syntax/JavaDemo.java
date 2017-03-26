@@ -20,8 +20,8 @@ public class JavaDemo { // this class is for demo, called from the syntax.featur
         return map;
     }
     
-    public static String staticMethod() {
-        return "fantastic";
+    public static String doWorkStatic(String fromJs) {
+        return "hello " + fromJs;
     }
     
 }

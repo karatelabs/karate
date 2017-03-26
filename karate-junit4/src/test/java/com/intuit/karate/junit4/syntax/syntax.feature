@@ -134,23 +134,19 @@ function(s) {
 # call java code lying anywhere on the classpath, in this example a test class alongside this file
 * def doWork =
 """
-function() {
-  var JavaDemo = Java.type("com.intuit.karate.junit4.syntax.JavaDemo");
+function(arg) {
+  var JavaDemo = Java.type('com.intuit.karate.junit4.syntax.JavaDemo');
   var jd = new JavaDemo();
-  return jd.doWork("world");  
+  return jd.doWork(arg);
 }
 """
-* def result = call doWork
+* def result = call doWork 'world'
 * assert result.someKey == 'hello world'
-* def staticWork = 
-"""
-function() {
-  var JavaDemo = Java.type("com.intuit.karate.junit4.syntax.JavaDemo");
-  return JavaDemo.staticMethod()
-}
-"""
-* def result = call staticWork
-* assert result == 'fantastic'
+
+# seamless java interop !
+* def JavaDemo = Java.type('com.intuit.karate.junit4.syntax.JavaDemo')
+* def result = JavaDemo.doWorkStatic('world')
+* assert result == 'hello world'
 
 # calling custom special functions
 * def myArg = { foo: 'bar' }
