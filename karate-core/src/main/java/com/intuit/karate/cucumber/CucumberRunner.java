@@ -168,14 +168,17 @@ public class CucumberRunner {
             throw new RuntimeException(e);
         }
     }
-
+    
     public static KarateStats parallel(Class clazz, int threadCount) {
+        return parallel(clazz, threadCount, "target/surefire-reports");
+    }
+
+    public static KarateStats parallel(Class clazz, int threadCount, String reportDir) {
         KarateStats stats = KarateStats.startTimer();
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         CucumberRunner runner = new CucumberRunner(clazz);
         List<FeatureFile> featureFiles = runner.getFeatureFiles();
         List<Callable<KarateJunitFormatter>> callables = new ArrayList<>(featureFiles.size());
-        String reportDir = "target/surefire-reports/";
         int count = featureFiles.size();
         for (int i = 0; i < count; i++) {
             int index = i + 1;

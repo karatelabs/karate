@@ -88,7 +88,7 @@ Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/i
 
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
-If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://plugins.jetbrains.com/plugin/7212-cucumber-for-java) and you can even select a single Scenario to run at a time.
+If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select and run a single Scenario at a time.
 
 ## Maven
 
@@ -122,6 +122,8 @@ mvn archetype:generate \
 ```
 
 This will create a folder called 'myproject' (or whatever you set the name to).
+
+You can refer to this this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse. Also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
 
 ## Folder Structure
 A Karate test script has the file extension `.feature` which is the standard followed by
@@ -282,7 +284,7 @@ mvn test -Dcucumber.options="--plugin html:target/cucumber-html"
 ```
 
 A problem you may run into is that the report is generated for every JUnit class with the `@RunWith(Karate.class)` annotation. So if you have multiple JUnit classes involved in a test-run, you will end up with only the report for the last class as it would have over-written
-everything else. There are a couple of solutions, one is to use [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) - but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above' (in terms of folder heirarchy) all the main `*.feature` files in your project. So if you take the
+everything else. There are a couple of solutions, one is to use [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) - but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above' (in terms of folder hierarchy) all the main `*.feature` files in your project. So if you take the
 previous [folder structure example](#naming-conventions):
 
 ```
@@ -322,7 +324,8 @@ With the above in place, you don't have to use `-Dtest=AnimalsTest` on the comma
 The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line.
 
 ## Parallel Execution
-Karate has experimental support for running tests in parallel, and here is how you make use of this capability:
+Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven.
+
 ```java
 import com.intuit.karate.cucumber.CucumberRunner;
 import com.intuit.karate.cucumber.KarateStats;
@@ -335,19 +338,22 @@ public class TestParallel {
     
     @Test
     public void testParallel() {
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
+        KarateStats stats = CucumberRunner.parallel(getClass(), 5, "target/surefire-reports");
         assertTrue("scenarios failed", stats.getFailCount() == 0);
     }
     
 }
 ```
 Things to note:
-* You don't use a JUnit runner, and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner` in `karate-core`.
+* You don't use a JUnit runner, and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner.parallel()` static method in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
-* JUnit XML reports will be generated in `target/surefire-reports/` and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`)
+* The first argument is a class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the test-class itself.
+* The second argument is the number of threads to use.
+* JUnit XML reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
 * No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation (or the command-line) it will be ignored.
-* Other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the class having the annotation.
+* But all other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped.
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
+
 ```
 ======================================================
 elapsed time: 1.778000 | test time: 7.895000
@@ -357,6 +363,8 @@ scenarios: 12 | failed:  0 | skipped:  0
 ```
 
 The [Karate Demo](karate-demo) has a working example of this set-up.
+
+> Going forward, this is likely to be the preferred way of running all Karate tests in a project, mainly because the other Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the JUnit XML format for CI builds and if you see any problems, please submit a defect report.
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default
@@ -569,7 +577,7 @@ You can read more about the Given-When-Then convention at the
 Since Karate is based on Cucumber, you can also employ [data-driven](#data-driven-tests)
 techniques such as expressing data-tables in test scripts.
 
-Another good thing that Karate inherits is the nice IDE support for Cucumber that [IntelliJ](https://plugins.jetbrains.com/plugin/7212-cucumber-for-java) and [Eclipse](https://cucumber.io/cucumber-eclipse/) have. So you can do things like right-click and run a `*.feature` file (or scenario) without needing to use a JUnit runner.
+Another good thing that Karate inherits is the nice IDE support for Cucumber that [IntelliJ](https://www.jetbrains.com/idea/help/cucumber.html) and [Eclipse](https://cucumber.io/cucumber-eclipse/) have. So you can do things like right-click and run a `*.feature` file (or scenario) without needing to use a JUnit runner.
 
 With the formalities out of the way, let's dive straight into the syntax.
 
@@ -1596,8 +1604,8 @@ A JavaScript function invoked with `call` has access to a utility object in a va
 * `karate.log(... args)` - log to the same logger being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 * `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
-* `karate.configure(key, value)` - does the same thing as the [`configure`](#configure) keyword, and very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
-* `karate.call(fileName, [arg])` - invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional single argument)
+* `karate.configure(key, value)` - does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
+* `karate.call(fileName, [arg])` - invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 
 ### Rules for Passing Data to the JavaScript Function
 Only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
@@ -1649,7 +1657,7 @@ perhaps at the beginning, or within the `Background:` section.
 ### Calling Java
 There are examples of calling JVM classes in the section on [Java Interop](#java-interop).
 
-Calling any Java code is that easy.  Given this custom / user-defined Java class:
+Calling any Java code is that easy.  Given this custom, user-defined Java class:
 ```java
 package com.mycompany;
 
@@ -1771,7 +1779,9 @@ processes within the same JVM to pass configuration values into Karate at run-ti
 You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
 * [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java#L28) - see line #28
 * [karate-config.js](karate-junit4/src/test/java/karate-config.js#L10) - see line #10
-* [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature#L5) - see line #5
+* [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature#L6) - see line #6
+
+The [Karate Demos](karate-demo) use a similar approach for determining the URL for each test.
 
 ## Data Driven Tests
 ### The Cucumber Way

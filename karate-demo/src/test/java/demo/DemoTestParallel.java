@@ -32,7 +32,7 @@ public class DemoTestParallel {
     
     @Test
     public void testParallel() {
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
+        KarateStats stats = CucumberRunner.parallel(getClass(), 5, "target/surefire-reports");
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }
     
