@@ -364,7 +364,7 @@ scenarios: 12 | failed:  0 | skipped:  0
 
 The [Karate Demo](karate-demo) has a working example of this set-up.
 
-> Going forward, this is likely to be the preferred way of running all Karate tests in a project, mainly because the other Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the JUnit XML format for CI builds and if you see any problems, please submit a defect report.
+> Going forward, this is likely to be the preferred way of running all Karate tests in a project, mainly because the other Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the `CucumberRunner.parallel()` JUnit XML for CI build reporting, and if you see any problems, please submit a defect report.
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default
