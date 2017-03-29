@@ -212,6 +212,16 @@ public class StepDefs {
         name = StringUtils.trim(name);
         context.vars.put(name, doc);
     }
+    
+    @When("^text (.+) =$")
+    public void textDocString(String name, String expression) {
+        text(name, expression);
+    }
+
+    @When("^text (.+) = (.+)")
+    public void text(String name, String expression) {
+        Script.assignText(name, expression, context);
+    }   
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {

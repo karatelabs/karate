@@ -41,7 +41,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
 .... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
 .... | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table)
+**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table) / [`text`](#text)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
@@ -98,7 +98,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.8</version>
+    <version>0.2.9-SNAPSHOT</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -116,14 +116,14 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.8 \
+-DarchetypeVersion=0.2.9-SNAPSHOT \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
 
 This will create a folder called 'myproject' (or whatever you set the name to).
 
-You can refer to this this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse. Also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
+You can refer to this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse. Also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
 
 ## Folder Structure
 A Karate test script has the file extension `.feature` which is the standard followed by
@@ -230,9 +230,7 @@ public class CatsRunner {
 Refer to your IDE documentation for how to run a JUnit class.  Typically right-clicking on the file in the
 project browser or even within the editor view would bring up the "Run as JUnit Test" menu option.
 
-> Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class
-in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be
-run.
+> Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be run. This is one reason why you may want to prefer a 'flat' directory structure as [explained above](#naming-conventions).
 
 ## Running With TestNG
 You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior
@@ -249,9 +247,7 @@ public class CatsRunner extends KarateRunner {
 ```
 
 ## Cucumber Options
-You normally don't need to - but if you want to run only a specific feature file 
-from a JUnit test even if there are multiple `*.feature` files in the same folder,
-you could use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
+You normally don't need to - but if you want to run only a specific feature file from a JUnit test even if there are multiple `*.feature` files in the same folder (or sub-folders), you could use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
 
 ```java
 package animals.cats;
@@ -726,6 +722,44 @@ Now that we have seen how JSON is a 'native' data type that Karate understands, 
 
 The [`match`](#match) keyword is explained later, but it should be clear right away how convenient the `table` keyword is. JSON can be combined with the ability to [call other `*.feature` files](#data-driven-features) to achieve dynamic data-driven testing in Karate.
 
+## `text`
+### Don't parse, treat as raw text
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML). This is espcially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that you can use the 'multi-line text' notation to assign strings, and 'line-feed' characters would be handled correctly. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` for [data-driven tests](#data-driven-tests).
+
+```cucumber
+Scenario Outline:
+* text query =
+"""
+mutation { 
+  someEntity(input: { 
+    clientMutationId: "1" 
+    someChild: { 
+      name: "<name>"
+    } 
+  }) {
+    clientMutationId
+    someChild {
+      id 
+      name 
+    } 
+  } 
+}
+"""
+Given path 'graphql'
+And request { query: '#(query)' }
+And header Accept = 'application/json'
+When method post
+Then status 200
+And def child = response.data.someEntity.someChild
+And match child == { id: '#notnull', name: '<name>' }
+
+Examples:
+| name  |
+| John  |
+| Smith | 
+```
+
+
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.  
 Standard JavaScript syntax rules apply.
@@ -867,6 +901,8 @@ You could always use a variable:
 ```cucumber
 And request myVariable
 ```
+In most cases you won't need to set the `Content-Type` header as Karate will automatically do the right thing depending on the type of the `request`.
+
 Defining the `request` is mandatory if you are using an HTTP `method` that expects a body such as
 `post`. You can always specify an empty body as follows, and force the right `Content-Type` header
 by using the [`header`](#header) keyword.
@@ -920,6 +956,9 @@ You can even use functions or expressions:
 Given header Authorization = myAuthFunction()
 And header transaction-id = 'test-' + myIdString
 ```
+
+It is worth repeating that in most cases you won't need to set the `Content-Type` header as Karate will automatically do the right thing depending on the data-type of the [`request`](#request).
+
 Because of how easy it is to set HTTP headers, Karate does not provide any special keywords for things like 
 the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header. You simply do 
 something like this:
@@ -939,9 +978,15 @@ Setting a cookie:
 Given cookie foo = 'bar'
 ```
 ## `form field` 
-These would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step).
+HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response). For example:
+
 ```cucumber
-Given form field foo = 'bar'
+Given path 'login'
+And form field username = 'john'
+And form field password = 'secret'
+When method post
+Then status 200
+And def authToken = response.token
 ```
 ## `multipart field`
 Use this for building multipart named (form) field requests.
@@ -1517,7 +1562,7 @@ Scenario: some scenario
 The contents of `my-signin.feature` are shown below. A few points to note:
 * Karate passes all context 'as-is' into the feature file being invoked. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example `loginUrlBase` in the example below.
 * You can add (or over-ride) variables by passing a call 'argument' as shown above. Only one JSON argument is allowed, but this does not limit you in any way as you can use any complex JSON structure. You can even initialize the JSON in a separate step and pass it by name, especially if it is complex. Observe how using JSON for parameter-passing makes things super-readable.
-* **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signin`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signin.authToken` as shown above. This design has the following advantages:
+* **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. Note that this includes ['built-in' variables](#special-variables), which means that things like the last value of [`response`](#response) would also be returned. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signin`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signin.authToken` as shown above. This design has the following advantages:
   * 'called' Karate scripts don't need to use any special keywords to 'return' data and can behave like 'normal' Karate tests in 'stand-alone' mode if needed
   * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script
   * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
@@ -1647,8 +1692,7 @@ function(creds) {
   return 'Basic ' + encoded;
 }
 ```
-And here's how it works in a test-script. Note that you need to do this only once within a `Scenario:`,
-perhaps at the beginning, or within the `Background:` section.
+And here's how it works in a test-script using the [`header`](#header) keyword. Note that you need to do this only once within a `Scenario:`, perhaps at the beginning, or within the `Background:` section.
 ```cucumber
 * header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
 

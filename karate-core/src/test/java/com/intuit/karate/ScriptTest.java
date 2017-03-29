@@ -1,6 +1,7 @@
 package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.minidev.json.parser.ParseException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -728,6 +730,19 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "ticket", null, "{ foo: 'bar' }", ctx).pass);
         Script.assign("res", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_someValue', baz: 'ban' }", ctx).pass);
+    }
+    
+    @Test
+    public void testAssigningRawTextWhichOtherwiseConfusesKarate() {
+        ScriptContext ctx = getContext();
+        try {
+            Script.assign("foo", "{ not json }", ctx);
+            fail("we expected this to fail");
+        } catch (InvalidJsonException e) {
+            logger.debug("expected {}", e.getMessage());
+        }
+        Script.assignText("foo", "{ not json }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'{ not json }'", ctx).pass);
     }
     
 

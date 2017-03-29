@@ -394,19 +394,36 @@ public class Script {
             }
         }
     }
-
+    
     public static void assign(String name, String exp, ScriptContext context) {
+        assign(false, name, exp, context);
+    }
+
+    public static void assignText(String name, String exp, ScriptContext context) {
+        assign(true, name, exp, context);
+    }    
+
+    private static void assign(boolean isText, String name, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
-        if ("request".equals(name)) {
-            throw new RuntimeException("'request' is not a variable, use the form '* request " + exp + "' instead");
+        if ("request".equals(name) || "url".equals(name)) {
+            throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " " + exp + "' instead");
         }
-        ScriptValue sv = eval(exp, context);
+        ScriptValue sv;
+        if (isText) { // don't auto-detect if JSON, XML etc - just convert to string
+            exp = exp.replace("\n", "\\n");
+            if (!isQuoted(exp)) {                
+                exp = "'" + exp + "'";
+            }
+            sv = evalInNashorn(exp, context);
+        } else {
+            sv = eval(exp, context);
+        }
         logger.trace("assigning {} = {} evaluated to {}", name, exp, sv);
         context.vars.put(name, sv);
-    }
+    }     
 
     public static boolean isQuoted(String exp) {
         return exp.startsWith("'") || exp.startsWith("\"");
@@ -742,9 +759,10 @@ public class Script {
 
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
-        if ("request".equals(name)) {
-            throw new RuntimeException("'request' is not a variable,"
-                    + " use the form '* request <expression>' to initialize the request payload, and <expression> can be a variable");
+        if ("request".equals(name) || "url".equals(name)) {
+            throw new RuntimeException("'" + name + "' is not a variable,"
+                    + " use the form '* " + name + " <expression>' to initialize the " 
+                    + name + ", and <expression> can be a variable");
         }        
         path = StringUtils.trimToNull(path);
         if (path == null) {

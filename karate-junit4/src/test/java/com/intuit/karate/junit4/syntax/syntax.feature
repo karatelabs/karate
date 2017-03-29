@@ -354,3 +354,16 @@ Then match pdf == read('test.pdf')
 * def fun = function(){ return karate.get('foo.bar[*].baz') }
 * def res = fun()
 * match res == [1, 2, 3]
+
+# force type to raw text especially relevant for graph-ql
+* text foo = { not json }
+* match foo == '{ not json }'
+* text bar =
+"""
+{ 
+  this is also
+  not json
+}
+"""
+* print 'stripped line feeds: ' + bar
+* match bar contains 'not json'
