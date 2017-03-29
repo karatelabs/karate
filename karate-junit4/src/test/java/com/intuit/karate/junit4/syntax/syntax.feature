@@ -356,7 +356,10 @@ Then match pdf == read('test.pdf')
 * match res == [1, 2, 3]
 
 # force type to raw text especially relevant for graph-ql
-* text foo = { not json }
+* text foo =
+"""
+{ not json }
+"""
 * match foo == '{ not json }'
 * text bar =
 """

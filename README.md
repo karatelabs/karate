@@ -724,7 +724,7 @@ The [`match`](#match) keyword is explained later, but it should be clear right a
 
 ## `text`
 ### Don't parse, treat as raw text
-Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML). This is espcially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that you can use the 'multi-line text' notation to assign strings, and 'line-feed' characters would be handled correctly. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` for [data-driven tests](#data-driven-tests).
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is espcially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that 'line-feed' characters would be handled correctly. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests).
 
 ```cucumber
 Scenario Outline:
