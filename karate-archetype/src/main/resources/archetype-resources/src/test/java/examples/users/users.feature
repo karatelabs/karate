@@ -28,15 +28,15 @@ Scenario: create a user and then get it by id
 * def user =
 """
 {
-    "name": "Test User",
-    "username": "testuser",
-    "email": "test@user.com",
-    "address": {
-      "street": "Has No Name",
-      "suite": "Apt. 123",
-      "city": "Electri",
-      "zipcode": "54321-6789"
-    }
+  "name": "Test User",
+  "username": "testuser",
+  "email": "test@user.com",
+  "address": {
+    "street": "Has No Name",
+    "suite": "Apt. 123",
+    "city": "Electri",
+    "zipcode": "54321-6789"
+  }
 }
 """
 

@@ -40,6 +40,9 @@ import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -402,10 +405,10 @@ public class Script {
     public static void assignText(String name, String exp, ScriptContext context) {
         assign(AssignType.TEXT, name, exp, context);
     }
-    
+
     public static void assignYaml(String name, String exp, ScriptContext context) {
         assign(AssignType.YAML, name, exp, context);
-    }    
+    }
 
     private static void assign(AssignType type, String name, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
@@ -742,8 +745,33 @@ public class Script {
             }
         } else if (ClassUtils.isPrimitiveOrWrapper(expObject.getClass())) {
             return matchPrimitive(path, actObject, expObject);
+        } else if (expObject instanceof BigDecimal) {
+            BigDecimal expNumber = (BigDecimal) expObject;
+            if (actObject instanceof BigDecimal) {
+                BigDecimal actNumber = (BigDecimal) actObject;
+                if (actNumber.compareTo(expNumber) != 0) {
+                    return matchFailed(path, actObject, expObject, "not equal (big decimal)");
+                }
+            } else {
+                BigDecimal actNumber = convertToBigDecimal(actObject);
+                if (actNumber == null || actNumber.compareTo(expNumber) != 0) {
+                    return matchFailed(path, actObject, expObject, "not equal (primitive : big decimal)");
+                }
+            }
+            return AssertionResult.PASS;
         } else { // this should never happen
             throw new RuntimeException("unexpected type: " + expObject.getClass());
+        }
+    }
+
+    private static BigDecimal convertToBigDecimal(Object o) {
+        DecimalFormat df = new DecimalFormat();
+        df.setParseBigDecimal(true);
+        try {
+            return (BigDecimal) df.parse(o.toString());
+        } catch (Exception e) {
+            logger.warn("big decimal conversion failed: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -752,13 +780,23 @@ public class Script {
             return matchFailed(path, actObject, expObject, "actual value is null");
         }
         if (!expObject.getClass().equals(actObject.getClass())) {
-            // types are not the same, use the JS engine for a lenient equality check
-            String exp = actObject + " == " + expObject;
-            ScriptValue sv = evalInNashorn(exp, null);
-            if (sv.isBooleanTrue()) {
-                return AssertionResult.PASS;
+            if (actObject instanceof BigDecimal) {
+                BigDecimal actNumber = (BigDecimal) actObject;
+                BigDecimal expNumber = convertToBigDecimal(expObject);
+                if (expNumber == null || expNumber.compareTo(actNumber) != 0) {
+                    return matchFailed(path, actObject, expObject, "not equal (big decimal : primitive)");
+                } else {
+                    return AssertionResult.PASS;
+                }
             } else {
-                return matchFailed(path, actObject, expObject, "not equal");
+                // types are not the same, use the JS engine for a lenient equality check
+                String exp = actObject + " == " + expObject;
+                ScriptValue sv = evalInNashorn(exp, null);
+                if (sv.isBooleanTrue()) {
+                    return AssertionResult.PASS;
+                } else {
+                    return matchFailed(path, actObject, expObject, "not equal");
+                }
             }
         }
         if (!expObject.equals(actObject)) {

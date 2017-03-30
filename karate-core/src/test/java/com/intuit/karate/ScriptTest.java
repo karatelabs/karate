@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.minidev.json.parser.ParseException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -743,6 +742,22 @@ public class ScriptTest {
         }
         Script.assignText("foo", "{ not json }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'{ not json }'", ctx).pass);
+    }
+    
+    @Test
+    public void testBigDecimalsInJson() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ val: -1002.2000000000002 }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.2000000000002 }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.2000000000001 }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.20 }", ctx).pass);
+        Script.assign("foo", "{ val: -1002.20 }", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.2000000000001 }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.2000000000000 }", ctx).pass);
+        Script.assign("foo", "{ val: -1002.2000000000001 }", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.20 }", ctx).pass);
+        Script.assign("foo", "{ val: -1002.2000000000000 }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.20 }", ctx).pass);
     }
     
 

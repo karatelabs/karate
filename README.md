@@ -1,5 +1,6 @@
 # Karate
-### Web-Services Testing Made `Simple. ` [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://karate-dsl.slack.com/shared_invite/MTU5Nzk3NzEyMTYyLTE0OTA0OTcyMzktNDkyOTg0MmMyYQ) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
+## Web-Services Testing Made `Simple.`
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://karate-dsl.slack.com/shared_invite/MTU5Nzk3NzEyMTYyLTE0OTA0OTcyMzktNDkyOTg0MmMyYQ) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert
 that the responses are as expected.  It makes it really easy to build complex request 
@@ -41,7 +42,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
 .... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
 .... | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table) / [`text`](#text) / [`yaml`](#yaml)
+**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`table`](#table) | [`text`](#text) / [`yaml`](#yaml)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
@@ -724,7 +725,7 @@ The [`match`](#match) keyword is explained later, but it should be clear right a
 
 ## `text`
 ### Don't parse, treat as raw text
-Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that 'line-feed' characters would be handled correctly. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests).
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that 'line-feeds' (which are significant in GraphQL) would be handled correctly, and retained. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests).
 
 ```cucumber
 Scenario Outline:
@@ -759,6 +760,8 @@ Examples:
 | John  |
 | Smith | 
 ```
+
+Note that if you did not need to inject [`Examples:`](#data-driven-tests) using `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
 
 ## `yaml`
 ### Import YAML as JSON
