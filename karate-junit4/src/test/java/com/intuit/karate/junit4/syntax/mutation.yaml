@@ -1,0 +1,15 @@
+name:
+input:
+  id: '1'
+  subType: 
+    name: 'name'
+    notes: 'notes'
+    deleted: false
+output:
+  - id
+  - edge:
+    - node:
+      - id
+      - name
+      - notes
+      - deleted

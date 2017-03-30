@@ -146,7 +146,7 @@ public class ScriptContext {
             if (value.isString()) {
                 proxyUri = value.getAsString();
             } else {
-                Map<String, Object> map = (Map) value.getAfterConvertingToMapIfNeeded();
+                Map<String, Object> map = (Map) value.getAfterConvertingFromJsonOrXmlIfNeeded();
                 proxyUri = (String) map.get("uri");
                 proxyUsername = (String) map.get("username");
                 proxyPassword = (String) map.get("password");

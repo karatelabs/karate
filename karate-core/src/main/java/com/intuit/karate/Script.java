@@ -272,7 +272,7 @@ public class Script {
             bindings.put(VAR_SELF, selfValue.getValue());
         }
         if (parentValue != null) {
-            bindings.put(VAR_DOLLAR, parentValue.getAfterConvertingToMapIfNeeded());
+            bindings.put(VAR_DOLLAR, parentValue.getAfterConvertingFromJsonOrXmlIfNeeded());
         }
         try {
             Object o = nashorn.eval(exp);
@@ -303,7 +303,7 @@ public class Script {
                 logger.warn("vars has null vaue for key: {}", key);
                 continue;
             }
-            map.put(key, sv.getAfterConvertingToMapIfNeeded());
+            map.put(key, sv.getAfterConvertingFromJsonOrXmlIfNeeded());
         }
         return map;
     }
@@ -394,16 +394,20 @@ public class Script {
             }
         }
     }
-    
+
     public static void assign(String name, String exp, ScriptContext context) {
-        assign(false, name, exp, context);
+        assign(AssignType.AUTO, name, exp, context);
     }
 
     public static void assignText(String name, String exp, ScriptContext context) {
-        assign(true, name, exp, context);
+        assign(AssignType.TEXT, name, exp, context);
+    }
+    
+    public static void assignYaml(String name, String exp, ScriptContext context) {
+        assign(AssignType.YAML, name, exp, context);
     }    
 
-    private static void assign(boolean isText, String name, String exp, ScriptContext context) {
+    private static void assign(AssignType type, String name, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
@@ -412,18 +416,25 @@ public class Script {
             throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " " + exp + "' instead");
         }
         ScriptValue sv;
-        if (isText) { // don't auto-detect if JSON, XML etc - just convert to string
-            exp = exp.replace("\n", "\\n");
-            if (!isQuoted(exp)) {                
-                exp = "'" + exp + "'";
-            }
-            sv = evalInNashorn(exp, context);
-        } else {
-            sv = eval(exp, context);
+        switch (type) {
+            case TEXT:
+                exp = exp.replace("\n", "\\n");
+                if (!isQuoted(exp)) {
+                    exp = "'" + exp + "'";
+                }
+                sv = evalInNashorn(exp, context);
+                break;
+            case YAML:
+                DocumentContext doc = JsonUtils.fromYaml(exp);
+                evalJsonEmbeddedExpressions(doc, context);
+                sv = new ScriptValue(doc);
+                break;
+            default: // AUTO
+                sv = eval(exp, context);
         }
         logger.trace("assigning {} = {} evaluated to {}", name, exp, sv);
         context.vars.put(name, sv);
-    }     
+    }
 
     public static boolean isQuoted(String exp) {
         return exp.startsWith("'") || exp.startsWith("\"");
@@ -591,7 +602,7 @@ public class Script {
             case MAP: // this happens because some jsonpath operations result in Map
                 Map<String, Object> map = actual.getValue(Map.class);
                 actualDoc = JsonPath.parse(map);
-                break;                
+                break;
             case LIST: // this also happens because some jsonpath operations result in List
                 List list = actual.getValue(List.class);
                 actualDoc = JsonPath.parse(list);
@@ -761,9 +772,9 @@ public class Script {
         name = StringUtils.trim(name);
         if ("request".equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is not a variable,"
-                    + " use the form '* " + name + " <expression>' to initialize the " 
+                    + " use the form '* " + name + " <expression>' to initialize the "
                     + name + ", and <expression> can be a variable");
-        }        
+        }
         path = StringUtils.trimToNull(path);
         if (path == null) {
             Pair<String, String> pair = parseVariableAndPath(name);
@@ -776,12 +787,12 @@ public class Script {
             switch (target.getType()) {
                 case JSON:
                     DocumentContext dc = target.getValue(DocumentContext.class);
-                    JsonUtils.setValueByPath(dc, path, value.getValue());
+                    JsonUtils.setValueByPath(dc, path, value.getAfterConvertingFromJsonOrXmlIfNeeded());
                     break;
                 case MAP:
                     Map<String, Object> map = target.getValue(Map.class);
                     DocumentContext fromMap = JsonPath.parse(map);
-                    JsonUtils.setValueByPath(fromMap, path, value.getValue());
+                    JsonUtils.setValueByPath(fromMap, path, value.getAfterConvertingFromJsonOrXmlIfNeeded());
                     context.vars.put(name, fromMap);
                     break;
                 default:

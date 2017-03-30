@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  *
@@ -36,20 +37,10 @@ public class JsonUtils {
         return Pair.of(left, right);
     }
 
-    private static Object handleIfJson(Object value) {
-        if (value instanceof DocumentContext) {
-            DocumentContext doc = (DocumentContext) value;
-            return doc.read("$");
-        } else {
-            return value;
-        }
-    }
-
     public static void setValueByPath(DocumentContext doc, String path, Object value) {
         if ("$".equals(path)) {
             throw new RuntimeException("cannot replace root path $");
         }
-        value = handleIfJson(value); // convert to map if necessary (TODO may not be needed)
         Pair<String, String> pathLeaf = getParentAndLeafPath(path);
         String left = pathLeaf.getLeft();
         String right = pathLeaf.getRight();
@@ -76,6 +67,11 @@ public class JsonUtils {
             doc.put(left, right, value);
         }
         logger.trace("after set: {}", doc.jsonString());
+    }
+    
+    public static DocumentContext fromYaml(String raw) {
+        Yaml yaml = new Yaml();
+        return JsonPath.parse(yaml.load(raw));
     }
 
 }

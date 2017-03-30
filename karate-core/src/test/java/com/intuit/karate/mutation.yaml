@@ -1,0 +1,16 @@
+mutation:
+  typeName:
+  input:
+    id: '1'
+    subTypeName: 
+      name: 'name'
+      notes: 'notes'
+      deleted: false
+  output:
+    - id
+    - edge:
+      - node:
+        - id
+        - name
+        - notes
+        - deleted

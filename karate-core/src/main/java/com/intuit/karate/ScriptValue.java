@@ -119,7 +119,7 @@ public class ScriptValue {
         }        
     }
 
-    public Object getAfterConvertingToMapIfNeeded() {
+    public Object getAfterConvertingFromJsonOrXmlIfNeeded() {
         switch (type) {
             case JSON:
                 DocumentContext json = getValue(DocumentContext.class);

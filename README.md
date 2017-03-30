@@ -41,7 +41,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
 .... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
 .... | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table) / [`text`](#text)
+**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) | [`print`](#print) | [`table`](#table) / [`text`](#text) / [`yaml`](#yaml)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
@@ -724,10 +724,11 @@ The [`match`](#match) keyword is explained later, but it should be clear right a
 
 ## `text`
 ### Don't parse, treat as raw text
-Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is espcially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that 'line-feed' characters would be handled correctly. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests).
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that 'line-feed' characters would be handled correctly. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests).
 
 ```cucumber
 Scenario Outline:
+# note the 'text' keyword instead of 'def'
 * text query =
 """
 mutation { 
@@ -759,6 +760,36 @@ Examples:
 | Smith | 
 ```
 
+## `yaml`
+### Import YAML as JSON
+For those who may prefer [YAML](http://yaml.org) as a simpler way to represent data, Karate allows you to read YAML content 'in-line' or even from a [file](#reading-files) - and it will be auto-converted to JSON.
+
+```cucumber
+# reading yaml 'in-line', note the 'yaml' keyword instead of 'def'
+* yaml foo =
+"""
+name: John
+input:
+  id: 1
+  subType: 
+    name: Smith
+    deleted: false
+"""
+# the data is now JSON, so you can do JSON-things with it
+* match foo ==
+"""
+{
+  name: 'John',
+  input: { 
+    id: 1,
+    subType: { name: 'Smith', deleted: false }    
+  }
+}
+"""
+
+# yaml from a file (the extension matters), and the data-type of 'bar' would be JSON
+* def bar = read('data.yaml')
+```
 
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.  

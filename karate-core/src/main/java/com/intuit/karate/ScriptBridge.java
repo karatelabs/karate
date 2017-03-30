@@ -70,7 +70,7 @@ public class ScriptBridge {
             return null;
         }
         if (sv != null) {
-            return sv.getAfterConvertingToMapIfNeeded();
+            return sv.getAfterConvertingFromJsonOrXmlIfNeeded();
         } else {
             logger.trace("variable is null or does not exist: {}", exp);
             return null;

@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static com.intuit.karate.Script.eval;
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.jayway.jsonpath.DocumentContext;
 
 /**
  *
@@ -36,6 +37,10 @@ public class FileUtils {
     public static final boolean isJavaScriptFile(String text) {
         return text.endsWith(".js");
     }
+    
+    public static final boolean isYamlFile(String text) {
+        return text.endsWith(".yaml");
+    }    
 
     public static final boolean isXmlFile(String text) {
         return text.endsWith(".xml");
@@ -64,6 +69,10 @@ public class FileUtils {
             String contents = readFileAsString(fileName, isClassPath(text), context);
             FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env); // TODO determine file dir
             return new ScriptValue(feature);
+        } else if (isYamlFile(text)) {
+            String contents = readFileAsString(fileName, isClassPath(text), context);
+            DocumentContext doc = JsonUtils.fromYaml(contents);
+            return new ScriptValue(doc);
         } else {
             InputStream is = getFileStream(fileName, isClassPath(text), context);
             return new ScriptValue(is);

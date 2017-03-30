@@ -211,12 +211,17 @@ public class StepDefs {
         DocumentContext doc = toJson(table);
         name = StringUtils.trim(name);
         context.vars.put(name, doc);
-    }
+    }      
     
     @When("^text (.+) =$")
     public void textDocString(String name, String expression) {
         Script.assignText(name, expression, context);
-    }  
+    }
+    
+    @When("^yaml (.+) =$")
+    public void yamlDocString(String name, String expression) {
+        Script.assignYaml(name, expression, context);
+    }    
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {

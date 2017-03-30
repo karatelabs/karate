@@ -368,5 +368,56 @@ Then match pdf == read('test.pdf')
   not json
 }
 """
-* print 'stripped line feeds: ' + bar
 * match bar contains 'not json'
+
+# yaml from file
+* def foo = read('mutation.yaml')
+* print foo
+* match foo ==
+"""
+{
+  name: null,
+  input: { 
+    id: '1',
+    subType: { name: 'name', notes: 'notes', deleted: false }    
+  },
+  output: [
+    'id',
+    { edge: [{ node: ['id', 'name', 'notes', 'deleted'] }] }
+  ]    
+}
+"""
+
+# inline yaml
+* yaml bar =
+"""
+name: John
+input:
+  id: 1
+  subType: 
+    name: 'Smith'
+    notes: 'notes'
+    deleted: false
+output:
+  - id
+  - edge:
+    - node:
+      - id
+      - name
+      - notes
+      - deleted
+"""
+* match bar ==
+"""
+{
+  name: 'John',
+  input: { 
+    id: 1,
+    subType: { name: 'Smith', notes: 'notes', deleted: false }    
+  },
+  output: [
+    'id',
+    { edge: [{ node: ['id', 'name', 'notes', 'deleted'] }] }
+  ]    
+}
+"""
