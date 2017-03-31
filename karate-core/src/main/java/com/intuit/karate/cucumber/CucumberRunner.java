@@ -117,7 +117,8 @@ public class CucumberRunner {
         if (packageFile.exists()) { // loaded by karate
             featurePath = packageFile.getAbsolutePath();
         } else { // was loaded by cucumber-jvm, is relative to classpath
-            featurePath = classLoader.getResource(packageFile.getPath()).getFile();
+            String temp = packageFile.getPath().replace('\\', '/'); // fix for windows
+            featurePath = classLoader.getResource(temp).getFile();
         }
         logger.debug("loading feature: {}", featurePath);
         File featureDir = new File(featurePath).getParentFile();
@@ -156,6 +157,7 @@ public class CucumberRunner {
         if (featurePath == null) {
             featurePath = featureFile.file.getPath();
         }
+        featurePath = new File(featurePath).getPath(); // fix for windows
         String featurePackagePath = featurePath.replace(File.separator, ".");
         if (featurePackagePath.endsWith(".feature")) {
             featurePackagePath = featurePackagePath.substring(0, featurePackagePath.length() - 8);

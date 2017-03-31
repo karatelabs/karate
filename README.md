@@ -344,7 +344,7 @@ public class TestParallel {
 Things to note:
 * You don't use a JUnit runner, and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner.parallel()` static method in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
-* The first argument is a class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the test-class itself.
+* The first argument is a class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself.
 * The second argument is the number of threads to use.
 * JUnit XML reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
 * No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation (or the command-line) it will be ignored.
@@ -431,8 +431,9 @@ function() {
   } else if (env == 'e2e') {
     config.someUrlBase: 'https://e2e-host/v1/auth';
   }
-  // don't waste time if a connection cannot be established within 5 seconds
+  // don't waste time if servers don't respond within 5 seconds
   karate.configure('connectTimeout', 5000);
+  karate.configure('readTimeout', 5000);
   return config;
 }
 ```
