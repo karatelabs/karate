@@ -74,6 +74,7 @@ public class StepDefs {
             return file;
         } else {
             File file = new File(featurePath);
+            logger.info("ide running: {}", file);
             return file.getParentFile();
         }
     }

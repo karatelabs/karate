@@ -128,6 +128,7 @@ public class FileUtils {
     }
 
     public static String getFeaturePath(String commandLine, String cwd) {
+        cwd = cwd.replace('\\', '/'); // fix for windows
         int start = commandLine.indexOf(cwd);
         if (start == -1) {
             return null;
