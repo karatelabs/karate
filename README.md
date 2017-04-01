@@ -1441,16 +1441,22 @@ When handling XML, you sometimes need to call [XPath functions](https://docs.ora
 * def foo =
 """
 <records>
-  <record>a</record>
-  <record>b</record>
-  <record>c</record>
+  <record index="1">a</record>
+  <record index="2">b</record>
+  <record index="3" foo="bar">c</record>
 </records>
 """
 * def count = get foo count(/records//record)
 * assert count == 3
 
-# you can actually do this 'JSON-style' in one step as well !
+# you can actually do this 'JSON-style' in one step !
 * assert foo.records.record.length == 3
+
+# some 'standard' xpath examples
+* def second = get foo //record[@index=2]
+* assert second == 'b'
+
+* match foo //record[@foo='bar'] == 'c'
 ```
 
 # Special Variables

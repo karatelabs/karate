@@ -487,7 +487,7 @@ public class Script {
                     return matchString(matchType, actual, expected, path, context);
                 case XML:
                     if ("$".equals(path)) {
-                        path = "/"; // edge case where the name was 'response'
+                        path = "/"; // whole document, also edge case where variable name was 'response'
                     }
                     if (!isJsonPath(path)) {
                         return matchXmlPath(matchType, actual, path, expected, context);
@@ -587,12 +587,15 @@ public class Script {
         switch (expected.getType()) {
             case XML: // convert to map and then compare               
                 Node expNode = expected.getValue(Node.class);
-                expObject = XmlUtils.toMap(expNode);
-                actObject = XmlUtils.toMap(actNode);
+                expObject = XmlUtils.toObject(expNode);
+                actObject = XmlUtils.toObject(actNode);
                 break;
             default: // try string comparison
                 actObject = new ScriptValue(actNode).getAsString();
                 expObject = expected.getAsString();
+        }
+        if ("/".equals(path)) {
+            path = ""; // else error x-paths reported would start with "//"
         }
         return matchNestedObject('/', path, matchType, actualDoc, actObject, expObject, context);
     }
@@ -686,8 +689,38 @@ public class Script {
                 return AssertionResult.PASS;
         }
     }
+    
+    private static String getLeafNameFromXmlPath(String path) {
+        int pos = path.lastIndexOf('/');
+        if (pos == -1) {
+            return path;
+        } else {
+            path = path.substring(pos + 1);
+            pos = path.indexOf('[');
+            if (pos != -1) {
+                return path.substring(0, pos);
+            } else {
+                return path;
+            }
+        }
+    }
+    
+    private static Object toXmlString(String elementName, Object o) {
+        if (o instanceof Map) {
+            Node node = XmlUtils.fromObject(elementName, o);
+            return XmlUtils.toString(node);
+        } else {
+            return o;
+        }       
+    }
 
     public static AssertionResult matchFailed(String path, Object actObject, Object expObject, String reason) {
+        if (path.startsWith("/")) {
+            String leafName = getLeafNameFromXmlPath(path);
+            actObject = toXmlString(leafName, actObject);
+            expObject = toXmlString(leafName, expObject);
+            path = path.replace("/@/", "/@");
+        }
         String message = String.format("path: %s, actual: %s, expected: %s, reason: %s", path, actObject, expObject, reason);
         logger.trace("assertion failed - {}", message);
         return AssertionResult.fail(message);
@@ -736,7 +769,7 @@ public class Script {
                     boolean found = false;
                     for (int i = 0; i < actCount; i++) {
                         Object actListObject = actList.get(i);
-                        String listPath = path + "[" + i + "]";
+                        String listPath = buildListPath(delimiter, path, i);
                         AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
                         if (ar.pass) { // exact match, we found it
                             found = true;
@@ -752,7 +785,7 @@ public class Script {
                 for (int i = 0; i < expCount; i++) {
                     Object expListObject = expList.get(i);
                     Object actListObject = actList.get(i);
-                    String listPath = path + "[" + i + "]";
+                    String listPath = buildListPath(delimiter, path, i);
                     AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
                     if (!ar.pass) {
                         return matchFailed(listPath, actListObject, expListObject, "[" + ar.message + "]");
@@ -779,6 +812,11 @@ public class Script {
         } else { // this should never happen
             throw new RuntimeException("unexpected type: " + expObject.getClass());
         }
+    }
+    
+    private static String buildListPath(char delimiter, String path, int index) {
+        int listIndex = delimiter == '/' ? index + 1 : index;
+        return path + "[" + listIndex + "]";        
     }
 
     private static BigDecimal convertToBigDecimal(Object o) {

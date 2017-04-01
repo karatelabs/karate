@@ -400,6 +400,17 @@ public class ScriptTest {
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/foo/bar[2]", "'baz2'", ctx).pass);
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, response, "/foo/bar[1]", "'baz1'", ctx).pass);
     }
+    
+    @Test
+    public void testMatchXmlAttributeErrorReporting() {
+        ScriptContext ctx = getContext();
+        Script.assign("xml", "<hello foo=\"bar\">world</hello>", ctx);
+        ScriptValue xml = ctx.vars.get("xml");
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, xml, "/", "<hello foo=\"bar\">world</hello>", ctx).pass);
+        AssertionResult ar = Script.matchXmlPath(MatchType.EQUALS, xml, "/", "<hello foo=\"baz\">world</hello>", ctx);
+        assertFalse(ar.pass);
+        assertTrue(ar.message.contains("/hello/@foo"));
+    }    
 
     @Test
     public void testAssigningAndCallingFunctionThatUpdatesVars() {

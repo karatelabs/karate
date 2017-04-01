@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
@@ -41,7 +42,7 @@ public class XmlUtilsTest {
     public void testConvertingToMap() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Map<String, Object> map = (Map) XmlUtils.toMap(doc);
+        Map<String, Object> map = (Map) XmlUtils.toObject(doc);
         logger.trace("map: {}", map);
         Map inner = (Map) map.get("foo");
         assertEquals("baz", inner.get("bar"));
@@ -50,12 +51,15 @@ public class XmlUtilsTest {
     @Test
     public void testComplexConversionToMap() {
         Document doc = XmlUtils.toXmlDoc(ACTUAL);
-        Map<String, Object> map = (Map) XmlUtils.toMap(doc);
-        logger.trace("map: {}", map);
+        Map<String, Object> map = (Map) XmlUtils.toObject(doc);
+        logger.debug("map: {}", map);
         Map in1 = (Map) map.get("env:Envelope");
-        Map in2 = (Map) in1.get("env:Body");
-        Map in3 = (Map) in2.get("QueryUsageBalanceResponse");
-        Map in4 = (Map) in3.get("Result");
+        Map in11 = (Map) in1.get("_");
+        Map in2 = (Map) in11.get("env:Body");
+        Map in22 = (Map) in2.get("_");
+        Map in3 = (Map) in22.get("QueryUsageBalanceResponse");
+        Map in33 = (Map) in3.get("_");
+        Map in4 = (Map) in33.get("Result");
         Map in5 = (Map) in4.get("Error");
         assertEquals("DAT_USAGE_1003", in5.get("Code"));
     }
@@ -64,7 +68,7 @@ public class XmlUtilsTest {
     public void testRepeatedXmlElementsToMap() {
         String xml = "<foo><bar>baz1</bar><bar>baz2</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Map<String, Object> map = (Map) XmlUtils.toMap(doc);
+        Map<String, Object> map = (Map) XmlUtils.toObject(doc);
         logger.trace("map: {}", map);
         Map in1 = (Map) map.get("foo");
         List list = (List) in1.get("bar");
@@ -95,8 +99,8 @@ public class XmlUtilsTest {
         XmlUtils.setByPath(doc, "/foo/bar", "hello");
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar>hello</bar></foo>");
-    }   
-    
+    }
+
     @Test
     public void testSetDomNodeByPath() {
         String xml = "<foo><bar>baz</bar></foo>";
@@ -106,5 +110,56 @@ public class XmlUtilsTest {
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><hello>world</hello></foo>");
     }
+
+    @Test
+    public void testSetDomNodeWithAttributeByPath() {
+        String xml = "<foo><bar>baz</bar></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        Node temp = XmlUtils.toXmlDoc("<bar hello=\"world\">baz</bar>");
+        XmlUtils.setByPath(doc, "/foo/bar", temp);
+        String result = XmlUtils.toString(doc);
+        assertEquals(result, "<foo><bar hello=\"world\">baz</bar></foo>");
+    }
+    
+    private Document getDocument() {
+        return XmlUtils.newDocument();
+    }
+    
+    @Test
+    public void testCreateElement() {
+        Node node = XmlUtils.createElement(getDocument(), "foo", "bar", null);
+        String result = XmlUtils.toString(node);
+        assertEquals(result, "<foo>bar</foo>");
+    }
+    
+    @Test
+    public void testCreateElementWithAttributes() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("hello", "world");
+        Node node = XmlUtils.createElement(getDocument(), "foo", "bar", map);        
+        String result = XmlUtils.toString(node);
+        assertEquals(result, "<foo hello=\"world\">bar</foo>");
+    }
+
+    @Test
+    public void testXmlFromMap() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("hello", "world");
+        Node node = XmlUtils.fromObject(getDocument(), "foo", map);
+        String result = XmlUtils.toString(node);
+        assertEquals(result, "<foo><hello>world</hello></foo>");        
+    }
+    
+    @Test
+    public void testXmlWithAttributesFromMap() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("_", "world");
+        Map<String, Object> attribs = new LinkedHashMap<>();
+        attribs.put("foo", "bar");
+        map.put("@", attribs);
+        Node node = XmlUtils.fromObject(getDocument(), "hello", map);
+        String result = XmlUtils.toString(node);
+        assertEquals(result, "<hello foo=\"bar\">world</hello>");        
+    }    
 
 }

@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2017 Intuit Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
@@ -24,6 +47,8 @@ import javax.xml.xpath.XPathFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
@@ -112,63 +137,141 @@ public class XmlUtils {
     }
 
     public static DocumentContext toJsonDoc(Node node) {
-        return JsonPath.parse(toMap(node));
+        return JsonPath.parse(toObject(node));
     }
 
-    public static Object toMap(Node node) {
-        switch (node.getNodeType()) {
-            case Node.DOCUMENT_NODE:
-                Map<String, Object> root = new LinkedHashMap<>();
-                node = node.getFirstChild();
-                root.put(node.getNodeName(), toMap(node));
-                return root;
-            case Node.ELEMENT_NODE:
-                NodeList nodes = node.getChildNodes();
-                int childCount = nodes.getLength();
-                int childElementCount = 0;
-                for (int i = 0; i < childCount; i++) {
-                    Node child = nodes.item(i);
-                    if (child.getNodeType() == Node.ELEMENT_NODE) {
-                        childElementCount++;
-                    }
-                }
-                if (childElementCount == 0) {
-                    return node.getTextContent();
-                }
-                Map<String, Object> map = new LinkedHashMap<>(childElementCount);
-                for (int i = 0; i < childCount; i++) {
-                    Node child = nodes.item(i);
-                    if (child.getNodeType() != Node.ELEMENT_NODE) {
-                        continue;
-                    }
-                    String childName = child.getNodeName();
-                    Object childValue;
-                    if (child.hasChildNodes()) {
-                        childValue = toMap(child);
-                    } else {
-                        childValue = null; // empty tag <foo/>
-                    }
-                    // auto detect repeating elements
-                    if (map.containsKey(childName)) {
-                        Object temp = map.get(childName);
-                        if (temp instanceof List) {
-                            List list = (List) temp;
-                            list.add(childValue);
-                        } else {
-                            List list = new ArrayList(childCount);
-                            map.put(childName, list);
-                            list.add(temp);
-                            list.add(childValue);
-                        }
-                    } else {
-                        map.put(childName, childValue);
-                    }
-                }
-                return map;
-            default:
-                logger.warn("unexpected node: " + node);
-                return new LinkedHashMap<>();
+    private static Map<String, Object> getAttributes(Node node) {
+        NamedNodeMap attribs = node.getAttributes();
+        int attribCount = attribs.getLength();
+        Map<String, Object> map = new LinkedHashMap<>(attribCount);
+        for (int j = 0; j < attribCount; j++) {
+            Node attrib = attribs.item(j);
+            map.put(attrib.getNodeName(), attrib.getNodeValue());
         }
+        return map;
+    }
+    
+    private static Object getElementValue(Node node) {
+        NodeList nodes = node.getChildNodes();
+        int childCount = nodes.getLength();
+        int childElementCount = 0;
+        for (int i = 0; i < childCount; i++) {
+            Node child = nodes.item(i);
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                childElementCount++;
+            }
+        }
+        if (childElementCount == 0) {
+            return node.getTextContent();
+        }
+        Map<String, Object> map = new LinkedHashMap<>(childElementCount);
+        for (int i = 0; i < childCount; i++) {
+            Node child = nodes.item(i);
+            if (child.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            String childName = child.getNodeName();
+            Object childValue = child.hasChildNodes() ? toObject(child) : null;
+            // auto detect repeating elements
+            if (map.containsKey(childName)) {
+                Object temp = map.get(childName);
+                if (temp instanceof List) {
+                    List list = (List) temp;
+                    list.add(childValue);
+                } else {
+                    List list = new ArrayList(childCount);
+                    map.put(childName, list);
+                    list.add(temp);
+                    list.add(childValue);
+                }
+            } else {
+                map.put(childName, childValue);
+            }
+        }
+        return map;       
+    }
+
+    public static Object toObject(Node node) {        
+        if (node.getNodeType() == Node.DOCUMENT_NODE) {            
+            node = node.getFirstChild();
+            Map<String, Object> map = new LinkedHashMap<>(1);
+            map.put(node.getNodeName(), toObject(node));
+            return map;
+        }
+        Object value = getElementValue(node);
+        if (node.hasAttributes()) {
+            Map<String, Object> wrapper = new LinkedHashMap<>(2);
+            wrapper.put("_", value);
+            wrapper.put("@", getAttributes(node));
+            return wrapper;
+        } else {
+            return value;
+        }
+    }
+    
+    public static Element fromObject(String name, Object o) {
+        return fromObject(newDocument(), name, o);
+    }
+
+    public static Element fromObject(Document doc, String name, Object o) {
+        if (o instanceof Map) {
+            Map<String, Object> map = (Map) o;
+            Object value = map.get("_");
+            if (value != null) {                
+                Element element = fromObject(doc, name, value);
+                Map<String, Object> attribs = (Map) map.get("@");
+                addAttributes(element, attribs);           
+                return element;
+            } else {
+                Element element = createElement(doc, name, null, null);
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    String childName = entry.getKey();
+                    Object childValue = entry.getValue();
+                    Element childNode = fromObject(doc, childName, childValue);
+                    element.appendChild(childNode);
+                }
+                return element;
+            }
+        } else if (o instanceof List) {
+            Element element = createElement(doc, name, null, null);
+            List list = (List) o;
+            for (Object child : list) {
+                Element childNode = fromObject(doc, name, child);
+                element.appendChild(childNode);
+            }
+            return element;
+        } else {
+            String value = o == null ? null : o.toString();
+            return createElement(doc, name, value, null);
+        }
+    }
+    
+    public static Document newDocument() {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder;
+        try {
+            builder = factory.newDocumentBuilder();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return builder.newDocument();          
+    }    
+    
+    public static void addAttributes(Element element, Map<String, Object> map) {
+        if (map != null) {
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                Object attrValue = entry.getValue();
+                element.setAttribute(entry.getKey(), attrValue == null ? null : attrValue.toString());
+            }
+        }        
+    }
+    
+    public static Element createElement(Node node, String name, String value, Map<String, Object> attributes) {
+        Document doc = node.getNodeType() == Node.DOCUMENT_NODE ? (Document) node : node.getOwnerDocument();
+		Element element = doc.createElement(name);
+        element.setTextContent(value);
+        addAttributes(element, attributes);
+        return element;
     }
 
 }
