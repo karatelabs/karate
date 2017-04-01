@@ -48,6 +48,12 @@ public class ScriptTest {
         assertFalse(Script.isVariableAndXmlPath("foo"));
         assertTrue(Script.isJavaScriptFunction("function(){ return { bar: 'baz' } }"));
         assertFalse(Script.isVariableAndXmlPath("read('../syntax/for-demos.js')"));
+        assertTrue(Script.isXmlPath("/foo"));
+        assertTrue(Script.isXmlPath("//foo"));
+        assertTrue(Script.isXmlPathFunction("lower-case('Foo')"));
+        assertTrue(Script.isXmlPathFunction("count(/journal/article)"));
+        assertTrue(Script.isVariableAndSpaceAndPath("foo count(/journal/article)"));
+        assertTrue(Script.isVariableAndSpaceAndPath("foo $"));
     }
 
     @Test
@@ -105,6 +111,27 @@ public class ScriptTest {
         ctx.vars.put("myXml", doc);
         ScriptValue value = Script.evalInNashorn("myXml.root.foo", ctx);
         assertEquals("bar", value.getValue());
+    }
+    
+    @Test
+    public void testAssignXmlWithLineBreaksAndMatchJson() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "<records>\n  <record>a</record>\n  <record>b</record>\n  <record>c</record>\n</records>", ctx);
+        Script.assign("bar", "foo.records", ctx);
+        ScriptValue value = ctx.vars.get("bar");
+        assertTrue(value.getType() == ScriptValue.Type.MAP);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "bar.record", null, "['a', 'b', 'c']", ctx).pass);
+        assertTrue(Script.assertBoolean("foo.records.record.length == 3", ctx).pass);
+    }
+    
+    @Test
+    public void testAssignXmlWithLineBreaksAndNullElements() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "<records>\n  <record>a</record>\n  <record/>\n</records>", ctx);
+        Script.assign("bar", "foo.records", ctx);
+        ScriptValue value = ctx.vars.get("bar");
+        assertTrue(value.getType() == ScriptValue.Type.MAP);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "bar.record", null, "['a', null]", ctx).pass);
     }
 
     @Test
@@ -671,7 +698,7 @@ public class ScriptTest {
     } 
 
     @Test
-    public void testGetSyntax() {
+    public void testGetSyntaxForJson() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "[{baz: 1}, {baz: 2}, {baz: 3}]", ctx);
         Script.assign("nums", "get foo[*].baz", ctx);
@@ -682,6 +709,15 @@ public class ScriptTest {
         Script.assign("nums", "get foo $.bar[*].baz", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
     }
+    
+    @Test
+    public void testGetSyntaxForXml() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "<records>\n  <record>a</record>\n  <record>b</record>\n  <record>c</record>\n</records>", ctx);
+        Script.assign("count", "get foo count(//record)", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "count", null, "3", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "count", null, "3", ctx).pass);
+    }    
     
     @Test
     public void testFromJsKarateCallFeatureWithNoArg() {

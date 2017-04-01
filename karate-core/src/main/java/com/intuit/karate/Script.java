@@ -99,6 +99,10 @@ public class Script {
     public static final boolean isXmlPath(String text) {
         return text.startsWith("/");
     }
+    
+    public static final boolean isXmlPathFunction(String text) {
+        return text.matches("^[a-z-]+\\(.+");
+    }
 
     public static final boolean isEmbeddedExpression(String text) {
         return text.startsWith("#(") && text.endsWith(")");
@@ -111,6 +115,10 @@ public class Script {
     public static final boolean isVariable(String text) {
         return VARIABLE_PATTERN.matcher(text).matches();
     }
+    
+    public static final boolean isVariableAndSpaceAndPath(String text) {
+        return text.matches("^" + VARIABLE_PATTERN_STRING + "\\s+.+");
+    }    
 
     public static final boolean isVariableAndJsonPath(String text) {
         return !text.endsWith(")") // hack, just to ignore JS method calls
@@ -144,7 +152,9 @@ public class Script {
         } else {
             path = text.substring(matcher.end());
         }
-        if (!path.startsWith("/")) {
+        if (Script.isXmlPath(path) || Script.isXmlPathFunction(path)) {
+            // xml, don't prefix for json
+        } else {
             path = "$" + path;
         }
         return Pair.of(name, path);
@@ -167,20 +177,23 @@ public class Script {
                 arg = null;
             }
             return call(text, arg, context);
-        } else if (isGetSyntax(text)) { // special case in form "get json[*].path"
+        } else if (isGetSyntax(text)) { // special case in form
+            // get json[*].path
+            // get /xml/path
+            // get xpath-function(expression)
             text = text.substring(4);
-            int pos = text.indexOf(' '); // TODO handle read('file with spaces in the name')
             String left;
-            String right;
-            if (pos != -1) {
-                left = text.substring(0, pos);
-                right = text.substring(pos);
+            String right;            
+            if (isVariableAndSpaceAndPath(text)) {
+                int pos = text.indexOf(' ');
+                right = text.substring(pos + 1);
+                left = text.substring(0, pos);                
             } else {
                 Pair<String, String> pair = parseVariableAndPath(text);
                 left = pair.getLeft();
-                right = pair.getRight();
-            }
-            if (isXmlPath(right)) {
+                right = pair.getRight();                
+            }           
+            if (isXmlPath(right) || isXmlPathFunction(right)) {
                 return evalXmlPathOnVarByName(left, right, context);
             } else {
                 return evalJsonPathOnVarByName(left, right, context);
@@ -251,6 +264,10 @@ public class Script {
                 List list = value.getValue(List.class);
                 DocumentContext fromList = JsonPath.parse(list);
                 return new ScriptValue(fromList.read(exp));
+            case XML: // time to auto-convert again
+                Document xml = value.getValue(Document.class);
+                DocumentContext xmlAsJson = XmlUtils.toJsonDoc(xml);
+                return new ScriptValue(xmlAsJson.read(exp));
             default:
                 throw new RuntimeException("cannot run jsonpath on type: " + value);
         }

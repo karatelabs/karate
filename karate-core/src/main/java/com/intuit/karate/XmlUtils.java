@@ -125,29 +125,43 @@ public class XmlUtils {
             case Node.ELEMENT_NODE:
                 NodeList nodes = node.getChildNodes();
                 int childCount = nodes.getLength();
-                Map<String, Object> map = new LinkedHashMap<>(childCount);
+                int childElementCount = 0;
                 for (int i = 0; i < childCount; i++) {
                     Node child = nodes.item(i);
+                    if (child.getNodeType() == Node.ELEMENT_NODE) {
+                        childElementCount++;
+                    }
+                }
+                if (childElementCount == 0) {
+                    return node.getTextContent();
+                }
+                Map<String, Object> map = new LinkedHashMap<>(childElementCount);
+                for (int i = 0; i < childCount; i++) {
+                    Node child = nodes.item(i);
+                    if (child.getNodeType() != Node.ELEMENT_NODE) {
+                        continue;
+                    }
                     String childName = child.getNodeName();
-                    String value = child.getNodeValue();
-                    if (value != null) { // text node !
-                        return value;
-                    } else if (child.hasChildNodes()) {
-                        Object childValue = toMap(child);
-                        if (map.containsKey(childName)) {
-                            Object temp = map.get(childName);
-                            if (temp instanceof List) {
-                                List list = (List) temp;
-                                list.add(childValue);
-                            } else {
-                                List list = new ArrayList(childCount);
-                                map.put(childName, list);
-                                list.add(temp);
-                                list.add(childValue);
-                            }
+                    Object childValue;
+                    if (child.hasChildNodes()) {
+                        childValue = toMap(child);
+                    } else {
+                        childValue = null; // empty tag <foo/>
+                    }
+                    // auto detect repeating elements
+                    if (map.containsKey(childName)) {
+                        Object temp = map.get(childName);
+                        if (temp instanceof List) {
+                            List list = (List) temp;
+                            list.add(childValue);
                         } else {
-                            map.put(childName, childValue);
+                            List list = new ArrayList(childCount);
+                            map.put(childName, list);
+                            list.add(temp);
+                            list.add(childValue);
                         }
+                    } else {
+                        map.put(childName, childValue);
                     }
                 }
                 return map;

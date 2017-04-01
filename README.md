@@ -852,6 +852,9 @@ Prefer `classpath:` when a file is expected to be heavily re-used all across you
 # xml
 * def someXml = read('../common/my-xml.xml')
 
+# import yaml (will be converted to json)
+* def jsonFromYaml = read('some-data.yaml')
+
 # string
 * def someString = read('classpath:messages.txt')
 
@@ -936,11 +939,9 @@ You could always use a variable:
 ```cucumber
 And request myVariable
 ```
-In most cases you won't need to set the `Content-Type` header as Karate will automatically do the right thing depending on the type of the `request`.
+In most cases you won't need to set the `Content-Type` header as Karate will automatically do the right thing depending on the data-type of the `request`.
 
-Defining the `request` is mandatory if you are using an HTTP `method` that expects a body such as
-`post`. You can always specify an empty body as follows, and force the right `Content-Type` header
-by using the [`header`](#header) keyword.
+Defining the `request` is mandatory if you are using an HTTP `method` that expects a body such as `post`. If you really need to have an empty body, you can use an empty string as shown below, and you can force the right `Content-Type` header by using the [`header`](#header) keyword.
 ```cucumber
 Given request ''
 And header Content-Type = 'text/html'
@@ -953,8 +954,7 @@ Lower-case is fine.
 ```cucumber
 When method post
 ```
-It is worth internalizing that during test-execution, it is upon the `method` keyword 
-that the actual HTTP request is issued.  Which suggests that the step should be in the `When`
+It is worth internalizing that during test-execution, it is upon the `method` keyword that the actual HTTP request is issued.  Which suggests that the step should be in the `When`
 form, for e.g.: `When method post`. And steps that follow should logically be in the `Then` form.
 
 For example:
@@ -975,8 +975,7 @@ See also [`responseStatus`](#responsestatus).
 # Keywords that set key-value pairs
 They are `param`, `header`, `cookie`, `form field` and `multipart field`.
 
-The syntax will include a '=' sign between the key and the value.  The key does not need to
-be within quotes.
+The syntax will include a '=' sign between the key and the value.  The key should not be be within quotes.
 ## `param` 
 Setting query-string parameters:
 ```cucumber
@@ -1431,8 +1430,27 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 """
 * def kitnums = get cat.kittens[*].id
 * match kitnums == [23, 42]
-* def kitnames = get cat.kittens[*].name
+* def kitnames = get cat $.kittens[*].name
 * match kitnames == ['Bob', 'Wild']
+```
+
+### XPath Functions
+When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. XPath functions are not supported directly within [`match`](#match) statements. But using `get` you should be able to achieve any assertion involving XPath in two steps.
+
+```cucumber
+* def foo =
+"""
+<records>
+  <record>a</record>
+  <record>b</record>
+  <record>c</record>
+</records>
+"""
+* def count = get foo count(/records//record)
+* assert count == 3
+
+# you can actually do this 'JSON-style' in one step as well !
+* assert foo.records.record.length == 3
 ```
 
 # Special Variables
