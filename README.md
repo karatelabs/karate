@@ -263,6 +263,8 @@ Once you have a JUnit 'runner' class in place, it will be possible to run tests 
 mvn test -Dcucumber.options="--plugin html:target/cucumber-html"
 ```
 
+Note that the `mvn test` command only runs test classes that follow the `*Test.java` [naming convention](#naming-conventions) by default.
+
 A problem you may run into is that the report is generated for every JUnit class with the `@RunWith(Karate.class)` annotation. So if you have multiple JUnit classes involved in a test-run, you will end up with only the report for the last class as it would have over-written everything else. There are a couple of solutions, one is to use [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) - but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above' (in terms of folder hierarchy) all the main `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions):
 
 ```
