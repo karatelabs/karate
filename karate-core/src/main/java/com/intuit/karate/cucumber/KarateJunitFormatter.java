@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  */
 public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     
-    private static final Logger logger = LoggerFactory.getLogger(KarateJunitFormatter   .class);
+    private static final Logger logger = LoggerFactory.getLogger(KarateJunitFormatter.class);
 
     private final Writer out;
     private final Document doc;
