@@ -475,6 +475,39 @@ public class ScriptTest {
         Script.assign("res", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx).pass);        
     }
+    
+    @Test
+    public void testCallingFunctionWithJsonArrayReturnedFromAnotherFunction() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun1", "function(){ return [1, 2, 3] }", ctx);
+        Script.assign("res1", "call fun1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res1", null, "[1, 2, 3]", ctx).pass);
+        Script.assign("fun2", "function(arg){ return arg.length }", ctx);
+        Script.assign("res2", "call fun2 res1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res2", null, "3", ctx).pass);        
+    }
+
+    @Test
+    public void testCallingFunctionWithJsonReturnedFromAnotherFunction() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun1", "function(){ return { foo: 'bar' } }", ctx);
+        Script.assign("res1", "call fun1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res1", null, "{ foo: 'bar' }", ctx).pass);
+        Script.assign("fun2", "function(arg){ return arg.foo }", ctx);
+        Script.assign("res2", "call fun2 res1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res2", null, "'bar'", ctx).pass);        
+    }
+
+    @Test
+    public void testCallingFunctionWithStringReturnedFromAnotherFunction() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun1", "function(){ return 'foo' }", ctx);
+        Script.assign("res1", "call fun1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res1", null, "'foo'", ctx).pass);
+        Script.assign("fun2", "function(arg){ return arg + 'bar' }", ctx);
+        Script.assign("res2", "call fun2 res1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res2", null, "'foobar'", ctx).pass);        
+    }    
 
     @Test
     public void testParsingVariableAndJsonPath() {
@@ -706,7 +739,27 @@ public class ScriptTest {
         assertEquals(200, c1.getValue());
         ScriptValue c2 = Script.evalJsonPathOnVarByName("foo", "$[2].c", ctx);
         assertEquals(300, c2.getValue());        
-    } 
+    }
+    
+    @Test
+    public void testCallingFeatureWithJsonCreatedByJavaScript() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return { c: 100} }", ctx);
+        Script.assign("res", "call fun", ctx);
+        Script.assign("foo", "call read('test.feature') res", ctx);
+        ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$.c", ctx);
+        assertEquals(100, c.getValue());    
+    }
+    
+    @Test
+    public void testCallingFeatureWithJsonArrayCreatedByJavaScript() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return [{ c: 100}] }", ctx);
+        Script.assign("res", "call fun", ctx);
+        Script.assign("foo", "call read('test.feature') res", ctx);
+        ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$[0].c", ctx);
+        assertEquals(100, c.getValue());    
+    }     
 
     @Test
     public void testGetSyntaxForJson() {

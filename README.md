@@ -95,7 +95,7 @@ This is all that you need within your `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.2.9</version>
+    <version>0.2.9.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -113,7 +113,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.2.9 \
+-DarchetypeVersion=0.2.9.1 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -1694,7 +1694,7 @@ And here's how it works in a test-script using the [`header`](#header) keyword. 
 ```
 
 ### Calling Java
-There are examples of calling JVM classes in the section on [Java Interop](#java-interop).
+There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo).
 
 Calling any Java code is that easy.  Given this custom, user-defined Java class:
 ```java

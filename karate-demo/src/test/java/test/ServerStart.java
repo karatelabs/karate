@@ -80,7 +80,7 @@ public class ServerStart {
 
     @Test
     public void startServer() throws Exception {
-        start(new String[]{"--spring.profiles.active=test"}, true);
+        start(new String[]{}, true);
     }
 
 }

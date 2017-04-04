@@ -42,8 +42,8 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
-import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -916,6 +916,8 @@ public class Script {
                     case JSON:
                         // force to java map (or list)
                         argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
+                    case JS_ARRAY:
+                    case JS_OBJECT:
                     case STRING:
                     case PRIMITIVE:
                     case NULL:
@@ -936,6 +938,13 @@ public class Script {
                         break;
                     case MAP:
                         callArg = argValue.getValue(Map.class);
+                        break;
+                    case JS_OBJECT:
+                        callArg = argValue.getValue(ScriptObjectMirror.class);
+                        break;
+                    case JS_ARRAY:
+                        ScriptObjectMirror temp = argValue.getValue(ScriptObjectMirror.class);
+                        callArg = temp.values();                        
                         break;
                     case NULL:
                         break;
@@ -965,18 +974,18 @@ public class Script {
     }
 
     public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context) {
-        if (callArg instanceof List) { // JSON array
-            List list = (List) callArg;
-            int count = list.size();
-            List result = new ArrayList(count);
-            for (int i = 0; i < count; i++) {
-                Object rowArg = list.get(i);
+        if (callArg instanceof Collection) { // JSON array
+            Collection items = (Collection) callArg;
+            Object[] array = items.toArray();
+            List result = new ArrayList(array.length);
+            for (int i = 0; i < array.length; i++) {
+                Object rowArg = array[i];
                 if (rowArg instanceof Map) {
                     try {
                         ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "loop feature call failed, index: " + i + ", arg: " + rowArg + ", items: " + list;
+                        String message = "loop feature call failed, index: " + i + ", arg: " + rowArg + ", items: " + items;
                         throw new KarateException(message, ke);
                     }
                 } else {
