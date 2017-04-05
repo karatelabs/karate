@@ -546,7 +546,9 @@ public class ScriptTest {
         assertTrue(Script.matchNamed("json", "$", "{ foo: '#notnull' }", ctx).pass);
         assertFalse(Script.matchNamed("json", "$", "{ foo: '#null' }", ctx).pass);
         assertTrue(Script.matchNamed("json", "$", "{ foo: '#regex^bar' }", ctx).pass);
+        assertTrue(Script.matchNamed("json", "$", "{ foo: '#regex ^bar' }", ctx).pass);
         assertFalse(Script.matchNamed("json", "$", "{ foo: '#regex^baX' }", ctx).pass);
+        assertFalse(Script.matchNamed("json", "$", "{ foo: '#regex ^baX' }", ctx).pass);
 
         doc = JsonUtils.toJsonDoc("{ foo: null }");
         ctx.vars.put("json", doc);

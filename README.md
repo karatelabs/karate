@@ -1146,9 +1146,9 @@ in one step.
 
 ```cucumber
 * def cat = { name: 'Billie', type: 'LOL', id: 'a9f7a56b-8d5c-455c-9d13-808461d17b91' }
-* match cat == { name: '#ignore', type: '#regex[A-Z]{3}', id: '#uuid' }
+* match cat == { name: '#ignore', type: '#regex [A-Z]{3}', id: '#uuid' }
 # this will fail
-# * match cat == { name: '#ignore', type: '#regex.{2}', id: '#uuid' }	
+# * match cat == { name: '#ignore', type: '#regex .{2}', id: '#uuid' }	
 ```
 The supported markers are the following:
 
@@ -1163,8 +1163,8 @@ Marker | Description
 #number | Expects actual value to be a number
 #string | Expects actual value to be a string
 #uuid | Expects actual (string) value to conform to the UUID format
-#regexSTR | Expects actual (string) value to match the regular-expression 'STR' (see examples above)
-#?EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true (see examples below)
+#regex STR | Expects actual (string) value to match the regular-expression 'STR' (see examples above)
+#? EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true (see examples below)
 
 ### 'Self' Validation Expressions
 The special 'predicate' marker in the last row of the table above is an interesting one.  It is best

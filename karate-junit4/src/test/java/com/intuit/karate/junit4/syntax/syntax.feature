@@ -219,9 +219,9 @@ Then match /cat/name == 'Billie'
 # validators
 
 Given def cat = { name: 'Billie', type: 'LOL', id: 'a9f7a56b-8d5c-455c-9d13-808461d17b91' }
-Then match cat == { name: '#ignore', type: '#regex[A-Z]{3}', id: '#uuid' }
+Then match cat == { name: '#ignore', type: '#regex [A-Z]{3}', id: '#uuid' }
 # this will fail
-# Then match cat == { name: '#ignore', type: '#regex.{2}', id: '#uuid' }
+# Then match cat == { name: '#ignore', type: '#regex .{2}', id: '#uuid' }
 Then match cat == { name: '#string', type: '#string', id: '#string'}
 
 * def cat = { foo: 1 }

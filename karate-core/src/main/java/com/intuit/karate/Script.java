@@ -523,7 +523,7 @@ public class Script {
         } else if (isValidator(expected)) {
             String validatorName = expected.substring(1);
             if (validatorName.startsWith("regex")) {
-                String regex = validatorName.substring(5);
+                String regex = validatorName.substring(5).trim();
                 RegexValidator v = new RegexValidator(regex);
                 ValidationResult vr = v.validate(actValue);
                 if (!vr.isPass()) { // TODO wrap string values in quotes
