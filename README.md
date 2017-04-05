@@ -55,7 +55,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 
 # Features
-* Java knowledge is not required to write tests
+* Java knowledge is not required and even non-programmers can write tests.
 * Scripts are plain-text files and require no compilation step or IDE
 * Based on the popular Cucumber / Gherkin standard, and IDE support and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
@@ -66,7 +66,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes a natural habit for the test-developer
 * Built-in support for switching configuration across different environments (e.g. dev, QA, pre-prod)
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
-* Seamless integration into existing Java projects and CI / CD pipelines as both JUnit and TestNG are supported
+* Standard Java / Maven project structure, and seamless integration into CI / CD pipelines - with both JUnit and TestNG being supported
 * Support for multi-threaded parallel execution, which is a huge time-saver, especially for HTTP integration tests
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for ultimate extensibility
 * Simple plug-in system for authentication and HTTP header management that will handle any complex real-world scenario
@@ -330,7 +330,7 @@ Things to note:
 * The first argument is a class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself.
 * The second argument is the number of threads to use.
 * JUnit XML reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
-* No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation (or the command-line) it will be ignored.
+* No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation, or the command-line, or the 'maven-surefire-plugin' `<systemProperties>` - it will be ignored.
 * But all other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped.
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
 
@@ -1317,7 +1317,7 @@ you can do this:
 
 ## Validate every element in a JSON array
 ### `match each`
-Karate has syntax sugar that can iterate over all elements in a JSON array. Here's how it works:
+The `match` keyword can be made to iterate over all elements in a JSON array using the `each` modifier. Here's how it works:
 ```cucumber
 * def data = { foo: [{ bar: 1, baz: 'a' }, { bar: 2, baz: 'b' }, { bar: 3, baz: 'c' }]}
 
@@ -1824,14 +1824,9 @@ The [Karate Demos](karate-demo) use a similar approach for determining the URL f
 
 ## Data Driven Tests
 ### The Cucumber Way
-Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines)
-where you can re-use a set of data-driven steps and assertions, and the data can be declared in a
-very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the 
-new `Examples:` section.
+Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines) where you can re-use a set of data-driven steps and assertions, and the data can be declared in a very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the new `Examples:` section.
 
-This example is a port of the [REST-Assured](http://rest-assured.io) (and TestNG) tutorial by 
-[@Bas Dijkstra](https://twitter.com/_basdijkstra) and you should take a minute to compare the 
-below code with the [original](http://bit.ly/2kGxiU0).
+You should take a minute to compare this with the [exact same example implemented in REST-assured and TestNG](https://github.com/basdijkstra/workshops/blob/466e6842cd2438b416888a79e6e0bc9a9bf6395f/rest-assured/RestAssuredWorkshop/src/test/java/com/ontestautomation/restassured/workshop/answers/RestAssuredAnswers2.java).
 
 ```cucumber
 Feature: karate answers 2

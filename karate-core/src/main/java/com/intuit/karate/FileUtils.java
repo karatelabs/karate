@@ -39,7 +39,7 @@ public class FileUtils {
     }
     
     public static final boolean isYamlFile(String text) {
-        return text.endsWith(".yaml");
+        return text.endsWith(".yaml") || text.endsWith(".yml");
     }    
 
     public static final boolean isXmlFile(String text) {

@@ -61,6 +61,7 @@
                         <include>demo/DemoTestParallel.java</include>
                     </includes>
                     <systemProperties>
+                        <!-- this is ignored if you use the Karate 'parallel' runner -->
                         <cucumber.options>--plugin junit:target/surefire-reports/cucumber-junit.xml</cucumber.options>
                     </systemProperties>
                 </configuration>
