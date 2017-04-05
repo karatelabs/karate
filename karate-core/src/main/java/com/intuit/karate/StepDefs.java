@@ -31,8 +31,10 @@ import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -345,14 +347,19 @@ public class StepDefs {
         DocumentContext headers = JsonPath.parse(response.getHeaders());
         logger.trace("set response headers: {}", headers.jsonString());
         context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, headers);
-        String rawResponse = response.readEntity(String.class);
-        if (Script.isJson(rawResponse)) {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, JsonUtils.toJsonDoc(rawResponse));
-        } else if (Script.isXml(rawResponse)) {
-            try {
-                context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(rawResponse));
-            } catch (Exception e) {
-                logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
+        Object rawResponse = getRawResponse();
+        if(rawResponse instanceof String){
+            String strResponse = (String)rawResponse;
+            if (Script.isJson(strResponse)) {
+                context.vars.put(ScriptValueMap.VAR_RESPONSE, JsonUtils.toJsonDoc(strResponse));
+            } else if (Script.isXml(strResponse)) {
+                try {
+                    context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(strResponse));
+                } catch (Exception e) {
+                    logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
+                    context.vars.put(ScriptValueMap.VAR_RESPONSE, strResponse);
+                }
+            } else {
                 context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
             }
         } else {
@@ -363,6 +370,18 @@ public class StepDefs {
         formFields = null;
         multiPart = null;
         request = null;
+    }
+    private Object getRawResponse() {
+        //If a byte array contains a negative-signed byte,
+        //then the string conversion will corrupt it. In
+        //that case just return the byte array stream
+        byte[] rawBytes = response.readEntity(byte[].class);
+        String rawString = new String(rawBytes);
+        if (Arrays.equals(rawBytes, rawString.getBytes())){
+            return rawString;
+        } else {
+            return new ByteArrayInputStream(rawBytes);
+        }
     }
 
     @When("^soap action( .+)?")
