@@ -7,9 +7,9 @@ Background:
 
 * def kittensFn =
 """
-function() {
+function(count) {
   var out = [];
-  for (var i = 0; i < 5; i++) { 
+  for (var i = 0; i < count; i++) { 
     out.push({ name: 'Kit' + i });
   }
   return out;
@@ -18,7 +18,7 @@ function() {
 
 Scenario: create kittens and validate
 
-* def kittens = call kittensFn
+* def kittens = call kittensFn 5
 * def result = call creator kittens
 * def created = get result[*].response
 * assert created.length == 5
