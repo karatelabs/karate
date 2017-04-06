@@ -48,6 +48,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
+import org.glassfish.jersey.client.HttpUrlConnectorProvider;
 import org.glassfish.jersey.media.multipart.BodyPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
@@ -261,6 +262,9 @@ public class StepDefs {
     }
 
     private void makeHttpRequest(Invocation.Builder builder, String method, Entity entity) {
+        if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
+            builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);
+        }
         startTime = System.currentTimeMillis();
         try {
             if (entity != null) {

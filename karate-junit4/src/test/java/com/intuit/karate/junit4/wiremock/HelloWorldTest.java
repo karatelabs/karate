@@ -23,41 +23,43 @@ public class HelloWorldTest {
     @Rule
     public WireMockClassRule instanceRule = WIREMOCK_RULE;
 
-    public static final byte[] testBytes = new byte[]{15,98,-45,0,0,7,-124,75,12,26,0,9};
+    public static final byte[] testBytes = new byte[]{15, 98, -45, 0, 0, 7, -124, 75, 12, 26, 0, 9};
 
     @BeforeClass
     public static void before() {
         System.setProperty("wiremock.port", WIREMOCK_RULE.port() + "");
         String uuid = UUID.randomUUID().toString();
         stubFor(post(urlEqualTo("/v1/cats"))
-                .withRequestBody(matching(".*Billie.*"))
                 .withHeader("Content-Type", equalTo("application/json"))
                 .willReturn(aResponse()
                         .withStatus(201)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{ id: \"" + uuid + "\", name: \"Billie\" }")));
+                        .withBody("{ \"id\": \"" + uuid + "\", name: \"Billie\" }")));
         stubFor(get(urlEqualTo("/v1/cats/" + uuid))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{ id: \"" + uuid + "\", name: \"Billie\" }"))); 
+                        .withBody("{ \"id\": \"" + uuid + "\", name: \"Billie\" }")));
         stubFor(post(urlEqualTo("/v1/dogs"))
-                .withRequestBody(matching(".*"))
                 .withHeader("Content-Type", equalTo("application/json"))
                 .willReturn(aResponse()
                         .withStatus(201)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{ id: \"" + uuid + "\", name: \"Dummy\" }")));
+                        .withBody("{ \"id\": \"" + uuid + "\", name: \"Dummy\" }")));
         stubFor(get(urlEqualTo("/v1/dogs/" + uuid))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{ id: \"" + uuid + "\", name: \"Dummy\" }")));
+                        .withBody("{ \"id\": \"" + uuid + "\", name: \"Dummy\" }")));
         stubFor(get(urlEqualTo("/v1/binary/"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/octet-stream")
                         .withBody(testBytes)));
+        stubFor(patch(urlEqualTo("/v1/patch"))
+                .willReturn((aResponse().withStatus(422)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{ \"success\": true }"))));
     }
 
 }
