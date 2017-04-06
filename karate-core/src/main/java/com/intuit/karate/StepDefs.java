@@ -348,8 +348,8 @@ public class StepDefs {
         logger.trace("set response headers: {}", headers.jsonString());
         context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, headers);
         Object rawResponse = getRawResponse();
-        if(rawResponse instanceof String){
-            String strResponse = (String)rawResponse;
+        if (rawResponse instanceof String) {
+            String strResponse = (String) rawResponse;
             if (Script.isJson(strResponse)) {
                 context.vars.put(ScriptValueMap.VAR_RESPONSE, JsonUtils.toJsonDoc(strResponse));
             } else if (Script.isXml(strResponse)) {
@@ -371,13 +371,14 @@ public class StepDefs {
         multiPart = null;
         request = null;
     }
+    
     private Object getRawResponse() {
-        //If a byte array contains a negative-signed byte,
-        //then the string conversion will corrupt it. In
-        //that case just return the byte array stream
+        // if a byte array contains a negative-signed byte,
+        // then the string conversion will corrupt it.
+        // in that case just return the byte array stream
         byte[] rawBytes = response.readEntity(byte[].class);
         String rawString = new String(rawBytes);
-        if (Arrays.equals(rawBytes, rawString.getBytes())){
+        if (Arrays.equals(rawBytes, rawString.getBytes())) {
             return rawString;
         } else {
             return new ByteArrayInputStream(rawBytes);
