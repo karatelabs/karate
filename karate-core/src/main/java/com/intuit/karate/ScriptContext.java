@@ -23,15 +23,11 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.http.HttpConfig;
+import com.intuit.karate.http.JerseyClient;
 import com.intuit.karate.validator.Validator;
 import java.util.Map;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import org.apache.commons.lang3.StringUtils;
-import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,20 +45,14 @@ public class ScriptContext {
 
     protected final ScriptValueMap vars;
 
-    protected Client client;
+    protected JerseyClient client;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;
 
     // stateful config
     protected ScriptValue headers = ScriptValue.NULL;
     private ScriptValue readFunction;
-    private boolean sslEnabled = false;
-    private String sslAlgorithm = "TLS";
-    private int readTimeout = -1;
-    private int connectTimeout = -1;
-    private String proxyUri;
-    private String proxyUsername;
-    private String proxyPassword;
+    private HttpConfig config;
 
     // needed for 3rd party code
     public ScriptValueMap getVars() {
@@ -76,22 +66,21 @@ public class ScriptContext {
             readFunction = parent.readFunction;
             validators = parent.validators;
             headers = parent.headers;
-            sslEnabled = parent.sslEnabled;
-            sslAlgorithm = parent.sslAlgorithm;
-            readTimeout = parent.readTimeout;
-            connectTimeout = parent.connectTimeout;
-            proxyUri = parent.proxyUri;
-            proxyUsername = parent.proxyUsername;
-            proxyPassword = parent.proxyPassword;
+            config = parent.config;
             if (arg != null) {
                 for (Map.Entry<String, Object> entry : arg.entrySet()) {
                     vars.put(entry.getKey(), entry.getValue());
                 }
             }
+            client = new JerseyClient();
+            client.configure(config);            
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
             readFunction = Script.eval(getFileReaderFunction(), this);
+            config = new HttpConfig();
+            client = new JerseyClient(); // needs to be done before karate-config as it can call 'configure'
+            client.configure(config);            
             try {
                 Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
@@ -104,7 +93,6 @@ public class ScriptContext {
             return;
         }
         logger.trace("karate context init - initial properties: {}", vars);
-        buildClient();
     }
     
     private static String getFileReaderFunction() {
@@ -122,69 +110,32 @@ public class ScriptContext {
         key = StringUtils.trimToEmpty(key);
         if (key.equals("headers")) {
             headers = value;
-        } else if (key.equals("ssl")) {
+            return;
+        }
+        if (key.equals("ssl")) {
             if (value.isString()) {
-                sslEnabled = true;
-                sslAlgorithm = value.getAsString();
+                config.setSslEnabled(true);
+                config.setSslAlgorithm(value.getAsString());
             } else {
-                sslEnabled = value.isBooleanTrue();
+                config.setSslEnabled(value.isBooleanTrue());
             }
-            buildClient();
         } else if (key.equals("connectTimeout")) {
-            connectTimeout = Integer.valueOf(value.getAsString());
-            if (client != null) {
-                client.property(ClientProperties.CONNECT_TIMEOUT, connectTimeout);
-            }
-            // lightweight operation, no need to re-build client
+            config.setConnectTimeout(Integer.valueOf(value.getAsString()));
         } else if (key.equals("readTimeout")) {
-            readTimeout = Integer.valueOf(value.getAsString());
-            if (client != null) {
-                client.property(ClientProperties.READ_TIMEOUT, readTimeout);
-            }
-            // lightweight operation, no need to re-build client
+            config.setReadTimeout(Integer.valueOf(value.getAsString()));
         } else if (key.equals("proxy")) {
             if (value.isString()) {
-                proxyUri = value.getAsString();
+                config.setProxyUri(value.getAsString());
             } else {
                 Map<String, Object> map = (Map) value.getAfterConvertingFromJsonOrXmlIfNeeded();
-                proxyUri = (String) map.get("uri");
-                proxyUsername = (String) map.get("username");
-                proxyPassword = (String) map.get("password");
+                config.setProxyUri((String) map.get("uri"));
+                config.setProxyUsername((String) map.get("username"));
+                config.setProxyPassword((String) map.get("password"));
             }
-            buildClient();
         } else {
             throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
-    }
-
-    public void buildClient() {
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder()
-                .register(new LoggingFilter()) // must be first
-                .register(MultiPartFeature.class)        
-                .register(new RequestFilter());
-        if (sslEnabled) {
-            logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
-            SSLContext ssl = SslUtils.getSslContext(sslAlgorithm);
-            HttpsURLConnection.setDefaultSSLSocketFactory(ssl.getSocketFactory());
-            clientBuilder.sslContext(ssl);
-            clientBuilder.hostnameVerifier((host, session) -> true);
-        }
-        client = clientBuilder.build();
-        if (connectTimeout != -1) {
-            client.property(ClientProperties.CONNECT_TIMEOUT, connectTimeout);
-        }
-        if (readTimeout != -1) {
-            client.property(ClientProperties.READ_TIMEOUT, readTimeout);
-        }
-        if (proxyUri != null) {
-            client.property(ClientProperties.PROXY_URI, proxyUri);
-        }
-        if (proxyUsername != null) {
-            client.property(ClientProperties.PROXY_USERNAME, proxyUsername);
-        }
-        if (proxyPassword != null) {
-            client.property(ClientProperties.PROXY_PASSWORD, proxyPassword);
-        }        
+        client.configure(config);
     }
     
     public Map<String, Object> getVariableBindings() {

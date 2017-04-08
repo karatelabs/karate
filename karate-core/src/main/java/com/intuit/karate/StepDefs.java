@@ -23,7 +23,8 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.ScriptValue.Type;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpResponse;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import cucumber.api.DataTable;
@@ -33,30 +34,13 @@ import cucumber.api.java.en.When;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
-import org.glassfish.jersey.client.HttpUrlConnectorProvider;
-import org.glassfish.jersey.media.multipart.BodyPart;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.MultiPart;
-import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
 
 public class StepDefs {
 
@@ -84,19 +68,12 @@ public class StepDefs {
 
     public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
         context = new ScriptContext(env, parentContext, callArg);
+        request = new HttpRequest();
     }
 
-    private String url;
-    private WebTarget target;
-    private Response response;
-    private long startTime;
-
-    private Map<String, Object> headers;
-    private ScriptValue request;
-    private MultiPart multiPart;
-    private MultivaluedMap<String, Object> formFields;
-
     private final ScriptContext context;
+    private HttpRequest request;
+    private HttpResponse response;
 
     public ScriptContext getContext() {
         return context;
@@ -115,74 +92,39 @@ public class StepDefs {
     @When("^url (.+)")
     public void url(String expression) {
         String temp = Script.eval(expression, context).getAsString();
-        this.url = temp;
-        target = context.client.target(temp);
-    }
-
-    private void hasUrlBeenSet() {
-        if (target == null) {
-            throw new RuntimeException("url not set, please refer to the syntax for 'url'");
-        }
+        request.setUrl(temp);
     }
 
     @When("^path (.+)")
     public void path(List<String> paths) {
-        hasUrlBeenSet();
         for (String path : paths) {
             String temp = Script.eval(path, context).getAsString();
-            target = target.path(temp);
+            request.addPath(temp);
         }
     }
 
     @When("^param ([^\\s]+) = (.+)")
     public void param(String name, String value) {
-        hasUrlBeenSet();
         String temp = Script.eval(value, context).getAsString();
-        target = target.queryParam(name, temp);
-    }
-
-    private Map<String, String> getCookies() {
-        Map<String, String> cookies = context.vars.get(ScriptValueMap.VAR_COOKIES, Map.class);
-        if (cookies == null) {
-            cookies = new HashMap<>();
-            context.vars.put(ScriptValueMap.VAR_COOKIES, cookies);
-        }
-        return cookies;
+        request.addParam(name, temp);
     }
 
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
-        Map<String, String> cookies = getCookies();
         String temp = Script.eval(value, context).getAsString();
-        cookies.put(name, temp);
-    }
-
-    private Map<String, Object> getHeaders() {
-        if (headers == null) {
-            headers = new HashMap<>();
-        }
-        return headers;
+        request.addCookie(name, temp);
     }
 
     @When("^header ([^\\s]+) = (.+)")
     public void header(String name, String value) {
-        Map<String, Object> headers = getHeaders();
         String temp = Script.eval(value, context).getAsString();
-        headers.put(name, temp);
-    }
-
-    private MultivaluedMap<String, Object> getFormFields() {
-        if (formFields == null) {
-            formFields = new MultivaluedHashMap<>();
-        }
-        return formFields;
+        request.addHeader(name, temp);
     }
 
     @When("^form field ([^\\s]+) = (.+)")
     public void formField(String name, String value) {
-        MultivaluedMap<String, Object> formFields = getFormFields();
         String temp = Script.eval(value, context).getAsString();
-        formFields.add(name, temp);
+        request.addFormField(name, temp);
     }
 
     @When("^request$")
@@ -192,8 +134,8 @@ public class StepDefs {
 
     @When("^request (.+)")
     public void request(String requestBody) {
-        request = Script.eval(requestBody, context);
-        logger.trace("request value is: {}", request);
+        ScriptValue temp = Script.eval(requestBody, context);
+        request.setBody(temp);
     }
 
     @When("^def (.+) =$")
@@ -215,17 +157,17 @@ public class StepDefs {
         DocumentContext doc = toJson(table);
         name = StringUtils.trim(name);
         context.vars.put(name, doc);
-    }      
-    
+    }
+
     @When("^text (.+) =$")
     public void textDocString(String name, String expression) {
         Script.assignText(name, expression, context);
     }
-    
+
     @When("^yaml (.+) =$")
     public void yamlDocString(String name, String expression) {
         Script.assignYaml(name, expression, context);
-    }    
+    }
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {
@@ -233,203 +175,69 @@ public class StepDefs {
         handleFailure(ar);
     }
 
-    private Invocation.Builder prepare() {
-        hasUrlBeenSet();
-        Invocation.Builder builder = target.request();
-        builder.property(ScriptContext.KARATE_DOT_CONTEXT, context);
-        if (headers != null) {
-            for (Map.Entry<String, Object> entry : headers.entrySet()) {
-                builder = builder.header(entry.getKey(), entry.getValue());
-            }
-        }
-        Map<String, String> cookies = context.vars.get(ScriptValueMap.VAR_COOKIES, Map.class);
-        if (cookies != null) {
-            for (Map.Entry<String, String> entry : cookies.entrySet()) {
-                builder = builder.cookie(entry.getKey(), entry.getValue());
-            }
-        }
-        return builder;
-    }
-
-    private String getUserSpecifiedContentType() {
-        if (headers != null) {
-            String type = (String) headers.get("Content-Type");
-            if (type != null) {
-                return type;
-            }
-        }
-        return null;
-    }
-
-    private void makeHttpRequest(Invocation.Builder builder, String method, Entity entity) {
-        if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
-            builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);
-        }
-        startTime = System.currentTimeMillis();
-        try {
-            if (entity != null) {
-                response = builder.method(method, entity);
-            } else {
-                response = builder.method(method);
-            }
-        } catch (Exception e) {
-            long endTime = System.currentTimeMillis();
-            long responseTime = endTime - startTime;
-            String message = "http call failed after " + responseTime + " milliseconds for URL: " + target.getUri();
-            logger.error(e.getMessage() + ", " + message);
-            throw new KarateException(message, e);
-        }
-        long endTime = System.currentTimeMillis();
-        long responseTime = endTime - startTime;
-        logger.debug("response time in milliseconds: {}", responseTime);
-        context.vars.put(ScriptValueMap.VAR_RESPONSE_TIME, responseTime);
-    }
-
     @When("^method (\\w+)")
     public void method(String method) {
-        method = method.toUpperCase();
-        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
-            if (multiPart != null) {
-                String mediaType = getUserSpecifiedContentType();
-                if (mediaType == null) {
-                    mediaType = MediaType.MULTIPART_FORM_DATA;
-                }
-                makeHttpRequest(prepare(), method, Entity.entity(multiPart, mediaType));
-            } else if (formFields != null) {
-                makeHttpRequest(prepare(), method, Entity.entity(formFields, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
-            } else {
-                if (request == null || request.isNull()) {
-                    String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
-                    logger.error(msg);
-                    throw new RuntimeException(msg);
-                }
-                String mediaType = getUserSpecifiedContentType();
-                Entity entity;
-                switch (request.getType()) {
-                    case JSON:
-                        DocumentContext doc = request.getValue(DocumentContext.class);
-                        entity = Entity.json(doc.jsonString());
-                        break;
-                    case MAP:
-                        Map<String, Object> map = request.getValue(Map.class);
-                        doc = JsonPath.parse(map);
-                        entity = Entity.json(doc.jsonString());
-                        break;
-                    case XML:
-                        Node node = request.getValue(Node.class);
-                        entity = Entity.xml(XmlUtils.toString(node));
-                        break;
-                    case INPUT_STREAM:
-                        InputStream is = request.getValue(InputStream.class);
-                        if (mediaType == null) {
-                            mediaType = MediaType.APPLICATION_OCTET_STREAM;
-                        }
-                        entity = Entity.entity(is, mediaType);
-                        break;
-                    default:
-                        if (mediaType == null) {
-                            mediaType = MediaType.TEXT_PLAIN;
-                        }
-                        entity = Entity.entity(request.getAsString(), mediaType);
-                }
-                makeHttpRequest(prepare(), method, entity);
-            }
-        } else {
-            makeHttpRequest(prepare(), method, null);
-        }
-        unprepare();
-    }
-
-    private void unprepare() {
+        request.setMethod(method);
+        response = context.client.invoke(request, context);
         context.vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
-        for (Map.Entry<String, NewCookie> entry : response.getCookies().entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue().getValue();
-            getCookies().put(key, value);
-            logger.trace("set cookie: {} - {}", key, entry.getValue());
-        }
+        context.vars.put(ScriptValueMap.VAR_COOKIES, response.getCookies());
         DocumentContext headers = JsonPath.parse(response.getHeaders());
-        logger.trace("set response headers: {}", headers.jsonString());
         context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, headers);
-        Object rawResponse = getRawResponse();
-        if (rawResponse instanceof String) {
-            String strResponse = (String) rawResponse;
-            if (Script.isJson(strResponse)) {
-                context.vars.put(ScriptValueMap.VAR_RESPONSE, JsonUtils.toJsonDoc(strResponse));
-            } else if (Script.isXml(strResponse)) {
+        Object responseBody = convertResponseBody(response.getBody());
+        if (responseBody instanceof String) {
+            String responseString = (String) responseBody;
+            if (Script.isJson(responseString)) {
+                responseBody = JsonUtils.toJsonDoc(responseString);
+            } else if (Script.isXml(responseString)) {
                 try {
-                    context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(strResponse));
+                    responseBody = XmlUtils.toXmlDoc(responseString);
                 } catch (Exception e) {
                     logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
-                    context.vars.put(ScriptValueMap.VAR_RESPONSE, strResponse);
                 }
-            } else {
-                context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
             }
-        } else {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
         }
-        // reset url and some state
-        target = context.client.target(url);
-        formFields = null;
-        multiPart = null;
-        request = null;
+        context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
+        String prevUrl = request.getUrl();
+        Map<String, String> prevCookies = request.getCookies();
+        request = new HttpRequest();
+        request.setUrl(prevUrl);
+        if (prevCookies == null) {
+            request.setCookies(response.getCookies());
+        } else {
+            if (response.getCookies() != null) {
+                prevCookies.putAll(response.getCookies());
+            }
+            request.setCookies(prevCookies);
+        }
     }
-    
-    private Object getRawResponse() {
+
+    private static Object convertResponseBody(byte[] bytes) {
+        if (bytes == null) {
+            return null;
+        }
         // if a byte array contains a negative-signed byte,
         // then the string conversion will corrupt it.
         // in that case just return the byte array stream
-        byte[] rawBytes = response.readEntity(byte[].class);
-        String rawString = new String(rawBytes);
-        if (Arrays.equals(rawBytes, rawString.getBytes())) {
-            return rawString;
-        } else {
-            return new ByteArrayInputStream(rawBytes);
+        try {
+            String rawString = new String(bytes, "utf-8");
+            if (Arrays.equals(bytes, rawString.getBytes())) {
+                return rawString;
+            }
+        } catch (Exception e) {
+            logger.warn("response bytes to string conversion failed: {}", e.getMessage());
         }
+        return new ByteArrayInputStream(bytes);
     }
 
     @When("^soap action( .+)?")
     public void soapAction(String action) {
-        hasUrlBeenSet();
         action = Script.eval(action, context).getAsString();
         if (action == null) {
             action = "";
         }
-        logger.trace("soap action: '{}'", action);
-        if (request == null || request.isNull()) {
-            String msg = "request body is requred for a SOAP request, please use the 'request' keyword";
-            logger.error(msg);
-            throw new RuntimeException(msg);
-        }
-        String xml;
-        switch (request.getType()) {
-            case XML:
-                Document doc = request.getValue(Document.class);
-                xml = XmlUtils.toString(doc);
-                break;
-            default:
-                xml = request.getAsString();
-        }
-        Invocation.Builder builder = target.request();
-        builder.property(ScriptContext.KARATE_DOT_CONTEXT, context);
-        builder.header("SOAPAction", action);
-        makeHttpRequest(builder, "POST", Entity.entity(xml, MediaType.TEXT_XML));
-        String rawResponse = response.readEntity(String.class);
-        try {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, XmlUtils.toXmlDoc(rawResponse));
-        } catch (Exception e) {
-            logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
-            context.vars.put(ScriptValueMap.VAR_RESPONSE, rawResponse);
-        }
-        request = null;
-    }
-
-    private MultiPart getMultiPart() {
-        if (multiPart == null) {
-            multiPart = new MultiPart();
-        }
-        return multiPart;
+        request.addHeader("SOAPAction", action);
+        request.addHeader("Content-Type", "text/xml");
+        method("post");
     }
 
     @When("^multipart entity (.+)")
@@ -443,33 +251,8 @@ public class StepDefs {
     }
 
     public void multiPart(String name, String value) {
-        MultiPart mp = getMultiPart();
         ScriptValue sv = Script.eval(value, context);
-        if (sv.isNull()) {
-            throw new RuntimeException("multipart field cannot be null: " + name);
-        }
-        if (name == null) {
-            BodyPart bp;
-            switch (sv.getType()) {
-                case JSON:
-                    DocumentContext dc = sv.getValue(DocumentContext.class);
-                    bp = new BodyPart().entity(dc.jsonString()).type(MediaType.APPLICATION_JSON_TYPE);
-                    break;
-                case XML:
-                    Document doc = sv.getValue(Document.class);
-                    bp = new BodyPart().entity(XmlUtils.toString(doc)).type(MediaType.APPLICATION_XML_TYPE);
-                    break;
-                default:
-                    bp = new BodyPart().entity(sv.getValue());
-            }
-            mp.bodyPart(bp);
-        } else if (sv.getType() == Type.INPUT_STREAM) {
-            InputStream is = (InputStream) sv.getValue();
-            StreamDataBodyPart part = new StreamDataBodyPart(name, is);
-            mp.bodyPart(part);
-        } else {
-            mp.bodyPart(new FormDataBodyPart(name, sv.getAsString()));
-        }
+        request.addMultiPartItem(name, sv);
     }
 
     @Then("^print (.+)")
@@ -483,8 +266,8 @@ public class StepDefs {
         if (status != response.getStatus()) {
             String rawResponse = context.vars.get(ScriptValueMap.VAR_RESPONSE).getAsString();
             String responseTime = context.vars.get(ScriptValueMap.VAR_RESPONSE_TIME).getAsString();
-            String message = "status code was: " + response.getStatus() + ", expected: " + status + 
-                    ", response time: " + responseTime + ", url: " + target.getUri().toString() + ", response: " + rawResponse;
+            String message = "status code was: " + response.getStatus() + ", expected: " + status
+                    + ", response time: " + responseTime + ", url: " + response.getUri() + ", response: " + rawResponse;
             logger.error(message);
             throw new KarateException(message);
         }
