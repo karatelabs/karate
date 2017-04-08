@@ -262,7 +262,7 @@ public class JerseyClient implements HttpClient {
         response.setUri(target.getUri().toString());
         response.setBody(bytes);
         response.setStatus(resp.getStatus());
-        response.setResponseTime(responseTime);
+        response.setTime(responseTime);
         for (Map.Entry<String, NewCookie> entry : resp.getCookies().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue().getValue();

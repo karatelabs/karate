@@ -38,7 +38,7 @@ public class HttpResponse {
     private MultiValuedMap headers;
     private byte[] body;
     private int status;
-    private long responseTime;
+    private long time;
 
     public void setUri(String uri) {
         this.uri = uri;
@@ -68,12 +68,12 @@ public class HttpResponse {
         this.status = status;
     }
 
-    public void setResponseTime(long responseTime) {
-        this.responseTime = responseTime;
+    public void setTime(long time) {
+        this.time = time;
     }
 
-    public long getResponseTime() {
-        return responseTime;
+    public long getTime() {
+        return time;
     }        
 
     public void setBody(byte[] body) {

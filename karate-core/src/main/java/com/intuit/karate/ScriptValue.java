@@ -108,7 +108,7 @@ public class ScriptValue {
                 if (node.getTextContent() != null) {
                     return node.getTextContent();
                 } else {
-                    return node.getNodeValue();
+                    return XmlUtils.toString(node);
                 }
             case INPUT_STREAM:
                 try {
