@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.JerseyClient;
 import com.intuit.karate.validator.Validator;
@@ -39,25 +40,28 @@ public class ScriptContext {
 
     private static final Logger logger = LoggerFactory.getLogger(ScriptContext.class);
 
-    public static final String KARATE_DOT_CONTEXT = "karate.context";
+    private static final String KARATE_DOT_CONTEXT = "karate.context";
     public static final String KARATE_NAME = "karate";
     private static final String VAR_READ = "read";
 
     protected final ScriptValueMap vars;
 
-    protected JerseyClient client;
+    protected HttpClient client;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;
 
     // stateful config
-    protected ScriptValue headers = ScriptValue.NULL;
+    private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue readFunction;
     private HttpConfig config;
 
-    // needed for 3rd party code
     public ScriptValueMap getVars() {
         return vars;
     }
+
+    public ScriptValue getConfiguredHeaders() {
+        return headers;
+    }        
 
     public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
         this.env = env.refresh();

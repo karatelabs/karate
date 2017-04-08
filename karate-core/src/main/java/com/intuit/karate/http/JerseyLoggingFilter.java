@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.http;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -51,11 +51,11 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class LoggingFilter implements ClientRequestFilter, ClientResponseFilter, WriterInterceptor {
+public class JerseyLoggingFilter implements ClientRequestFilter, ClientResponseFilter, WriterInterceptor {
 
-    private static final Logger logger = LoggerFactory.getLogger(LoggingFilter.class);
+    private static final Logger logger = LoggerFactory.getLogger(JerseyLoggingFilter.class);
 
-    private static final String LOGGING_OUTPUT_STREAM_KEY = LoggingFilter.class.getName();
+    private static final String LOGGING_OUTPUT_STREAM_KEY = JerseyLoggingFilter.class.getName();
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
     private static final Charset UTF8 = Charset.forName("UTF-8");    
 

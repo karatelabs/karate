@@ -23,15 +23,9 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.KarateException;
-import com.intuit.karate.LoggingFilter;
-import com.intuit.karate.RequestFilter;
-import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
-import com.intuit.karate.SslUtils;
 import com.intuit.karate.XmlUtils;
 import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.JsonPath;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -54,31 +48,27 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
-import org.w3c.dom.Node;
 
 /**
  *
  * @author pthomas3
  */
-public class JerseyClient implements HttpClient {
-
-    private static final Logger logger = LoggerFactory.getLogger(JerseyClient.class);
+public class JerseyClient extends HttpClient<Entity> {
 
     private Client client;
+    private WebTarget target;
+    private Builder builder;
 
     @Override
     public void configure(HttpConfig config) {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
-                .register(new LoggingFilter()) // must be first
-                .register(MultiPartFeature.class)
-                .register(new RequestFilter());
+                .register(new JerseyLoggingFilter()) // must be first
+                .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
             String sslAlgorithm = config.getSslAlgorithm();
             logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
-            SSLContext ssl = SslUtils.getSslContext(sslAlgorithm);
+            SSLContext ssl = HttpUtils.getSslContext(sslAlgorithm);
             HttpsURLConnection.setDefaultSSLSocketFactory(ssl.getSocketFactory());
             clientBuilder.sslContext(ssl);
             clientBuilder.hostnameVerifier((host, session) -> true);
@@ -96,81 +86,53 @@ public class JerseyClient implements HttpClient {
             client.property(ClientProperties.PROXY_PASSWORD, config.getProxyPassword());
         }
     }
+    
+    @Override
+    public String getUri() {
+        return target.getUri().toString();
+    }    
 
     @Override
-    public HttpResponse invoke(HttpRequest request, ScriptContext context) {
-        String url = request.getUrl();
-        if (url == null) {
-            String msg = "url not set, please refer to the keyword documentation for 'url'";
-            logger.error(msg);
-            throw new RuntimeException(msg);
-        }
-        WebTarget target = client.target(url);
-        if (request.getPaths() != null) {
-            for (String path : request.getPaths()) {
-                target = target.path(path);
-            }
-        }
-        if (request.getParams() != null) {
-            for (Entry<String, List> entry : request.getParams().entrySet()) {
-                target = target.queryParam(entry.getKey(), entry.getValue().toArray());
-            }
-        }
-        Builder builder = target.request();
-        builder.property(ScriptContext.KARATE_DOT_CONTEXT, context);
-        if (request.getHeaders() != null) {
-            for (Entry<String, List> entry : request.getHeaders().entrySet()) {
-                for (Object value : entry.getValue()) {
-                    builder.header(entry.getKey(), value);
-                }
-            }
-        }
-        if (request.getCookies() != null) {
-            for (Entry<String, String> entry : request.getCookies().entrySet()) {
-                builder.cookie(entry.getKey(), entry.getValue());
-            }
-        }
-        String method = request.getMethod();
-        if (method == null) {
-            String msg = "'method' is required to make an http call";
-            logger.error(msg);
-            throw new RuntimeException(msg);
-        }
-        method = method.toUpperCase();
-        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
-            if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
-                builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);
-            }
-            String mediaType = request.getContentType();
-            if (request.getMultiPartItems() != null) {
-                if (mediaType == null) {
-                    mediaType = MediaType.MULTIPART_FORM_DATA;
-                }
-                MultiPart mp = getMultiPart(request);
-                return makeHttpRequest(target, builder, method, Entity.entity(mp, mediaType));
-            } else if (request.getFormFields() != null) {
-                MultivaluedHashMap<String, Object> map = new MultivaluedHashMap<>();
-                for (Entry<String, List> entry : request.getFormFields().entrySet()) {
-                    map.put(entry.getKey(), entry.getValue());
-                }
-                return makeHttpRequest(target, builder, method, Entity.entity(map, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
-            } else {
-                ScriptValue body = request.getBody();
-                if (body == null || body.isNull()) {
-                    String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
-                    logger.error(msg);
-                    throw new RuntimeException(msg);
-                }
-                return makeHttpRequest(target, builder, method, getEntity(body, mediaType));
-            }
-        } else {
-            return makeHttpRequest(target, builder, method, null);
-        }
+    public void buildUrl(String url) {
+        target = client.target(url);
+        builder = target.request();
     }
 
-    private static MultiPart getMultiPart(HttpRequest request) {
+    @Override
+    public void buildPath(String path) {
+        target = target.path(path);
+        builder = target.request();
+    }
+
+    @Override
+    public void buildParam(String name, Object... values) {
+        target = target.queryParam(name, values);
+        builder = target.request();
+    }
+
+    @Override
+    public void buildHeader(String name, Object value) {
+        builder.header(name, value);
+    }
+
+    @Override
+    public void buildCookie(String name, String value) {
+        builder.cookie(name, value);
+    }
+
+    @Override
+    public Object getFormFieldsEntity(MultiValuedMap fields) {
+        MultivaluedHashMap<String, Object> map = new MultivaluedHashMap<>();
+        for (Entry<String, List> entry : fields.entrySet()) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return map;
+    }
+
+    @Override
+    public Object getMultiPartEntity(List<MultiPartItem> items) {
         MultiPart mp = new MultiPart();
-        for (MultiPartItem item : request.getMultiPartItems()) {
+        for (MultiPartItem item : items) {
             if (item.getValue() == null || item.getValue().isNull()) {
                 logger.warn("ignoring null multipart value for key: {}", item.getName());
                 continue;
@@ -203,66 +165,29 @@ public class JerseyClient implements HttpClient {
         return mp;
     }
 
-    private static Entity getEntity(ScriptValue body, String mediaType) {
-        switch (body.getType()) {
-            case JSON:
-                if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_JSON;
-                }
-                DocumentContext json = body.getValue(DocumentContext.class);
-                return Entity.entity(json.jsonString(), mediaType);
-            case MAP:
-                if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_JSON;
-                }                
-                Map<String, Object> map = body.getValue(Map.class);
-                DocumentContext doc = JsonPath.parse(map);
-                return Entity.entity(doc.jsonString(), mediaType);
-            case XML:
-                Node node = body.getValue(Node.class);
-                if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_XML;
-                }
-                return Entity.entity(XmlUtils.toString(node), mediaType);
-            case INPUT_STREAM:
-                InputStream is = body.getValue(InputStream.class);
-                if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_OCTET_STREAM;
-                }
-                return Entity.entity(is, mediaType);
-            default:
-                if (mediaType == null) {
-                    mediaType = MediaType.TEXT_PLAIN;
-                }
-                return Entity.entity(body.getAsString(), mediaType);
-        }
+    @Override
+    public Entity getRequestEntity(Object value, String mediaType) {
+        return Entity.entity(value, mediaType);
     }
 
-    private static HttpResponse makeHttpRequest(WebTarget target, Builder builder, String method, Entity entity) {
-        long startTime = System.currentTimeMillis();
-        Response resp;
-        try {
-            if (entity != null) {
-                resp = builder.method(method, entity);
-            } else {
-                resp = builder.method(method);
-            }
-        } catch (Exception e) {
-            long endTime = System.currentTimeMillis();
-            long responseTime = endTime - startTime;
-            String message = "http call failed after " + responseTime + " milliseconds for URL: " + target.getUri();
-            logger.error(e.getMessage() + ", " + message);
-            throw new KarateException(message, e);
+    @Override
+    public HttpResponse makeHttpRequest(String method, Entity entity, long startTime) {
+        if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
+            builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);
         }
-        long endTime = System.currentTimeMillis();
-        long responseTime = endTime - startTime;
-        logger.debug("response time in milliseconds: {}", responseTime);
+        Response resp;
+        if (entity != null) {
+            resp = builder.method(method, entity);
+        } else {
+            resp = builder.method(method);
+        }
         byte[] bytes = resp.readEntity(byte[].class);
+        long responseTime = getResponseTime(startTime);
         HttpResponse response = new HttpResponse();
-        response.setUri(target.getUri().toString());
+        response.setTime(responseTime);
+        response.setUri(getUri());
         response.setBody(bytes);
         response.setStatus(resp.getStatus());
-        response.setTime(responseTime);
         for (Map.Entry<String, NewCookie> entry : resp.getCookies().entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue().getValue();
