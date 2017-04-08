@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.KarateException;
+import com.intuit.karate.Script;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
@@ -32,13 +33,8 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
-import org.glassfish.jersey.client.HttpUrlConnectorProvider;
+import java.util.Properties;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -50,40 +46,49 @@ import org.w3c.dom.Node;
 public abstract class HttpClient<T> {
 
     protected static final Logger logger = LoggerFactory.getLogger(HttpClient.class);
+    
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String APPLICATION_XML = "application/xml";
+    private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+    private static final String TEXT_PLAIN = "text/plain";
+    private static final String MULTIPART_FORM_DATA = "multipart/form-data";
+    private static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
+    
+    private static final String KARATE_HTTP_PROPERTIES = "karate-http.properties";
 
     public abstract void configure(HttpConfig config);
 
-    public abstract Object getMultiPartEntity(List<MultiPartItem> items);
+    protected abstract Object getMultiPartEntity(List<MultiPartItem> items);
     
-    public abstract Object getFormFieldsEntity(MultiValuedMap fields);
+    protected abstract Object getFormFieldsEntity(MultiValuedMap fields);
 
-    public abstract T getRequestEntity(Object value, String mediaType);    
+    protected abstract T getRequestEntity(Object value, String mediaType);    
     
-    public abstract void buildUrl(String url);
+    protected abstract void buildUrl(String url);
     
-    public abstract void buildPath(String path);
+    protected abstract void buildPath(String path);
     
-    public abstract void buildParam(String name, Object ... values);
+    protected abstract void buildParam(String name, Object ... values);
     
-    public abstract void buildHeader(String name, Object value);
+    protected abstract void buildHeader(String name, Object value);
     
-    public abstract void buildCookie(String name, String value);
+    protected abstract void buildCookie(String name, String value);
     
-    public abstract HttpResponse makeHttpRequest(String method, T entity, long startTime);
+    protected abstract HttpResponse makeHttpRequest(String method, T entity, long startTime);
     
-    public abstract String getUri();
+    protected abstract String getUri();
 
     protected T getEntity(ScriptValue body, String mediaType) {
         switch (body.getType()) {
             case JSON:
                 if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_JSON;
+                    mediaType = APPLICATION_JSON;
                 }
                 DocumentContext json = body.getValue(DocumentContext.class);
                 return getRequestEntity(json.jsonString(), mediaType);
             case MAP:
                 if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_JSON;
+                    mediaType = APPLICATION_JSON;
                 }
                 Map<String, Object> map = body.getValue(Map.class);
                 DocumentContext doc = JsonPath.parse(map);
@@ -91,18 +96,18 @@ public abstract class HttpClient<T> {
             case XML:
                 Node node = body.getValue(Node.class);
                 if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_XML;
+                    mediaType = APPLICATION_XML;
                 }
                 return getRequestEntity(XmlUtils.toString(node), mediaType);
             case INPUT_STREAM:
                 InputStream is = body.getValue(InputStream.class);
                 if (mediaType == null) {
-                    mediaType = MediaType.APPLICATION_OCTET_STREAM;
+                    mediaType = APPLICATION_OCTET_STREAM;
                 }
                 return getRequestEntity(is, mediaType);
             default:
                 if (mediaType == null) {
-                    mediaType = MediaType.TEXT_PLAIN;
+                    mediaType = TEXT_PLAIN;
                 }
                 return getRequestEntity(body.getAsString(), mediaType);
         }
@@ -133,7 +138,7 @@ public abstract class HttpClient<T> {
                 }
             }
         }
-        Map<String, Object> configuredHeaders = HttpUtils.evalConfiguredHeaders(context);
+        Map<String, Object> configuredHeaders = evalConfiguredHeaders(context);
         if (configuredHeaders != null) {
             for (Map.Entry<String, Object> entry : configuredHeaders.entrySet()) {
                 buildHeader(entry.getKey(), null); // clear if already set
@@ -157,13 +162,13 @@ public abstract class HttpClient<T> {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
-                    mediaType = MediaType.MULTIPART_FORM_DATA;
+                    mediaType = MULTIPART_FORM_DATA;
                 }
                 Object mpe = getMultiPartEntity(request.getMultiPartItems());
                 return getRequestEntity(mpe, mediaType);
             } else if (request.getFormFields() != null) {
                 Object ffe = getFormFieldsEntity(request.getFormFields());
-                return getRequestEntity(ffe, MediaType.APPLICATION_FORM_URLENCODED);
+                return getRequestEntity(ffe, APPLICATION_FORM_URLENCODED);
             } else {
                 ScriptValue body = request.getBody();
                 if (body == null || body.isNull()) {
@@ -178,7 +183,7 @@ public abstract class HttpClient<T> {
         }
     }
     
-    protected long getResponseTime(long startTime) {
+    protected static long getResponseTime(long startTime) {
         long endTime = System.currentTimeMillis();
         long responseTime = endTime - startTime;        
         return responseTime;
@@ -196,6 +201,50 @@ public abstract class HttpClient<T> {
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getUri();
             logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
+        }
+    }
+    
+    private static Map<String, Object> evalConfiguredHeaders(ScriptContext context) {
+        ScriptValue headersValue = context.getConfiguredHeaders();
+        switch (headersValue.getType()) {
+            case JS_FUNCTION:
+                ScriptObjectMirror som = headersValue.getValue(ScriptObjectMirror.class);
+                ScriptValue sv = Script.evalFunctionCall(som, null, context);
+                switch (sv.getType()) {
+                    case JS_OBJECT:
+                        return Script.toMap(sv.getValue(ScriptObjectMirror.class));
+                    case MAP:
+                        return sv.getValue(Map.class);
+                    default:
+                        logger.trace("custom headers function returned: {}", sv);
+                        return null;
+                }
+            case JSON:
+                DocumentContext json = headersValue.getValue(DocumentContext.class);
+                return json.read("$");
+            default:
+                logger.trace("configured 'headers' is not a map-like object or js function: {}", headersValue);
+                return null;
+        }        
+    } 
+
+    public static HttpClient construct() {        
+        try {
+            InputStream is = Thread.currentThread().getContextClassLoader()
+                    .getResourceAsStream(KARATE_HTTP_PROPERTIES);
+            if (is == null) {
+                logger.warn(KARATE_HTTP_PROPERTIES + " not found, using dummy http client");
+                return new DummyHttpClient();
+            }
+            Properties props = new Properties();
+            props.load(is);
+            String className = props.getProperty("client.class");
+            Class clazz = Class.forName(className);
+            return (HttpClient) clazz.newInstance();
+        } catch (Exception e) {
+            String message = "failed to construct class by name: " + e.getMessage() + ", using dummy http client";
+            logger.warn(message);
+            return new DummyHttpClient();
         }
     }
     

@@ -8,32 +8,10 @@
         <version>0.3.0-SNAPSHOT</version>
     </parent>
     <artifactId>karate-core</artifactId>
-    <packaging>jar</packaging>
-    
-    <properties>
-        <jersey.version>2.25</jersey.version>
-    </properties>    
+    <packaging>jar</packaging>   
 
-    <dependencies>
-    
-        <dependency>
-            <groupId>org.glassfish.jersey.core</groupId>
-            <artifactId>jersey-client</artifactId>
-            <version>${jersey.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.glassfish.hk2.external</groupId>
-                    <artifactId>asm-all-repackaged</artifactId>
-                </exclusion>                 
-            </exclusions>
-        </dependency>                                
-        
-        <dependency>
-            <groupId>org.glassfish.jersey.media</groupId>
-            <artifactId>jersey-media-multipart</artifactId>
-            <version>${jersey.version}</version>
-        </dependency>                      
-		
+    <dependencies>                         
+
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
@@ -69,14 +47,7 @@
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
-        </dependency>          
-        
-        <dependency>
-            <groupId>com.github.tomakehurst</groupId>
-            <artifactId>wiremock</artifactId>
-            <version>2.4.1</version>
-            <scope>test</scope>
-        </dependency>                                       
+        </dependency>                                      
 		
     </dependencies>
 

@@ -35,16 +35,14 @@ import org.slf4j.LoggerFactory;
 public class ScriptEnv {
     
     private static final Logger logger = LoggerFactory.getLogger(ScriptEnv.class);
-    
-    public final boolean test; // if test mode, skip some init for faster unit tests
+
     public final String env;
     public final File featureDir;
     public final String featureName;
-    public final ClassLoader fileClassLoader;    
+    public final ClassLoader fileClassLoader;
     
-    public ScriptEnv(boolean test, String env, File featureDir, String featureName, ClassLoader fileClassLoader) {
+    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader) {
         this.env = env;
-        this.test = test;
         this.featureDir = featureDir;
         this.featureName = featureName;
         this.fileClassLoader = fileClassLoader;
@@ -55,11 +53,11 @@ public class ScriptEnv {
     }
     
     public static ScriptEnv init(File featureDir, ClassLoader classLoader) {
-        return new ScriptEnv(false, null, featureDir, null, classLoader);
+        return new ScriptEnv(null, featureDir, null, classLoader);
     }
     
-    public static ScriptEnv test(String env, File featureDir) {
-        return new ScriptEnv(true, env, featureDir, null, Thread.currentThread().getContextClassLoader());
+    public static ScriptEnv init(String env, File featureDir) {
+        return new ScriptEnv(env, featureDir, null, Thread.currentThread().getContextClassLoader());
     }    
     
     public ScriptEnv refresh() { // immutable
@@ -70,7 +68,7 @@ public class ScriptEnv {
                 logger.debug("obtained 'karate.env' from system properties: {}", karateEnv);
             }
         }
-        return new ScriptEnv(test, karateEnv, featureDir, featureName, fileClassLoader);
+        return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader);
     }
 
     @Override

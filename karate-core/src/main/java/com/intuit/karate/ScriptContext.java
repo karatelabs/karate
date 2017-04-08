@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
-import com.intuit.karate.http.JerseyClient;
 import com.intuit.karate.validator.Validator;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
@@ -76,25 +75,21 @@ public class ScriptContext {
                     vars.put(entry.getKey(), entry.getValue());
                 }
             }
-            client = new JerseyClient();
+            client = HttpClient.construct();
             client.configure(config);            
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
             readFunction = Script.eval(getFileReaderFunction(), this);
             config = new HttpConfig();
-            client = new JerseyClient(); // needs to be done before karate-config as it can call 'configure'
+            // needs to be done before karate-config as it can call 'configure'
+            client = HttpClient.construct();
             client.configure(config);            
             try {
                 Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
                 logger.warn("start-up configuration failed, missing or bad 'karate-config.js'", e);
             }
-        }
-        if (env.test) {
-            logger.trace("karate init in test mode, http client disabled");
-            client = null;
-            return;
         }
         logger.trace("karate context init - initial properties: {}", vars);
     }

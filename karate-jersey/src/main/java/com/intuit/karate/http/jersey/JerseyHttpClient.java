@@ -21,10 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate.http.jersey;
 
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpConfig;
+import com.intuit.karate.http.HttpResponse;
+import com.intuit.karate.http.HttpUtils;
+import com.intuit.karate.http.MultiPartItem;
+import com.intuit.karate.http.MultiValuedMap;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.InputStream;
 import java.util.List;
@@ -54,7 +60,7 @@ import org.w3c.dom.Document;
  *
  * @author pthomas3
  */
-public class JerseyClient extends HttpClient<Entity> {
+public class JerseyHttpClient extends HttpClient<Entity> {
 
     private Client client;
     private WebTarget target;

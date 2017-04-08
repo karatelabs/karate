@@ -42,6 +42,7 @@
 
     <modules>
         <module>karate-core</module>
+        <module>karate-jersey</module>
         <module>karate-junit4</module>
         <module>karate-demo</module>
         <module>karate-testng</module>

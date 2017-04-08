@@ -23,26 +23,67 @@
  */
 package com.intuit.karate.http;
 
+import java.util.List;
+
 /**
  *
  * @author pthomas3
  */
-public class RequestEntity {
-    
-    private final Object value;
-    private final String mediaType;
-    
-    public RequestEntity(Object value, String mediaType) {
-        this.value = value;
-        this.mediaType = mediaType;
+public class DummyHttpClient extends HttpClient<String> {
+
+    @Override
+    public void configure(HttpConfig config) {
+        
     }
 
-    public String getMediaType() {
-        return mediaType;
+    @Override
+    protected Object getMultiPartEntity(List<MultiPartItem> items) {
+        return "";
     }
 
-    public Object getValue() {
-        return value;
-    }        
+    @Override
+    protected Object getFormFieldsEntity(MultiValuedMap fields) {
+        return "";
+    }
+
+    @Override
+    protected String getRequestEntity(Object value, String mediaType) {
+        return "";
+    }
+
+    @Override
+    protected void buildUrl(String url) {
+        
+    }
+
+    @Override
+    protected void buildPath(String path) {
+        
+    }
+
+    @Override
+    protected void buildParam(String name, Object... values) {
+        
+    }
+
+    @Override
+    protected void buildHeader(String name, Object value) {
+        
+    }
+
+    @Override
+    protected void buildCookie(String name, String value) {
+        
+    }
+
+    @Override
+    protected HttpResponse makeHttpRequest(String method, String entity, long startTime) {
+        return new HttpResponse();
+    }
+
+    @Override
+    protected String getUri() {
+        return "";
+    }
     
 }

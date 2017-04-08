@@ -122,7 +122,7 @@ public class CucumberRunner {
         }
         logger.debug("loading feature: {}", featurePath);
         File featureDir = new File(featurePath).getParentFile();
-        ScriptEnv env = new ScriptEnv(false, null, featureDir, packageFile.getName(), classLoader);
+        ScriptEnv env = new ScriptEnv(null, featureDir, packageFile.getName(), classLoader);
         Backend backend = new KarateBackend(env, null, null);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
         return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);

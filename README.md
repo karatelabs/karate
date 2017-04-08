@@ -1055,8 +1055,8 @@ configuration keys supported:
 `headers` | JSON | see [`configure headers`](#configure-headers)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
-`connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 0 (which means infinity).
-`readTimeout` | integer | Set the read timeout (milliseconds). The default is 0 (which means infinity).
+`connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
+`readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
 
