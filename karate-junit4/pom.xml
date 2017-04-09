@@ -14,15 +14,22 @@
         
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-jersey</artifactId>
+            <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
-        </dependency>            
+        </dependency>
 
         <dependency>
             <groupId>info.cukes</groupId>
             <artifactId>cucumber-junit</artifactId>
             <version>${cucumber.version}</version>
         </dependency>
+        
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-apache</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>        
         
         <dependency>
             <groupId>com.github.tomakehurst</groupId>

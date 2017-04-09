@@ -47,20 +47,22 @@ public abstract class HttpClient<T> {
 
     protected static final Logger logger = LoggerFactory.getLogger(HttpClient.class);
     
-    private static final String APPLICATION_JSON = "application/json";
-    private static final String APPLICATION_XML = "application/xml";
-    private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
-    private static final String TEXT_PLAIN = "text/plain";
-    private static final String MULTIPART_FORM_DATA = "multipart/form-data";
-    private static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
+    protected static final String APPLICATION_JSON = "application/json";
+    protected static final String APPLICATION_XML = "application/xml";
+    protected static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+    protected static final String TEXT_PLAIN = "text/plain";
+    protected static final String MULTIPART_FORM_DATA = "multipart/form-data";
+    protected static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
     
     private static final String KARATE_HTTP_PROPERTIES = "karate-http.properties";
+    
+    protected HttpRequest request;
 
     public abstract void configure(HttpConfig config);
 
-    protected abstract Object getMultiPartEntity(List<MultiPartItem> items);
+    protected abstract T getMultiPartEntity(List<MultiPartItem> items, String mediaType);
     
-    protected abstract Object getFormFieldsEntity(MultiValuedMap fields);
+    protected abstract T getFormFieldsEntity(MultiValuedMap fields, String mediaType);
 
     protected abstract T getRequestEntity(Object value, String mediaType);    
     
@@ -70,9 +72,9 @@ public abstract class HttpClient<T> {
     
     protected abstract void buildParam(String name, Object ... values);
     
-    protected abstract void buildHeader(String name, Object value);
+    protected abstract void buildHeader(String name, Object value, boolean replace);
     
-    protected abstract void buildCookie(String name, String value);
+    protected abstract void buildCookie(Cookie cookie);
     
     protected abstract HttpResponse makeHttpRequest(String method, T entity, long startTime);
     
@@ -114,6 +116,15 @@ public abstract class HttpClient<T> {
     }
     
     protected T buildRequestBody(HttpRequest request, ScriptContext context) {
+        String method = request.getMethod();
+        if (method == null) {
+            String msg = "'method' is required to make an http call";
+            logger.error(msg);
+            throw new RuntimeException(msg);
+        }
+        method = method.toUpperCase();
+        request.setMethod(method);        
+        this.request = request;
         String url = request.getUrl();
         if (url == null) {
             String msg = "url not set, please refer to the keyword documentation for 'url'";
@@ -134,41 +145,30 @@ public abstract class HttpClient<T> {
         if (request.getHeaders() != null) {
             for (Map.Entry<String, List> entry : request.getHeaders().entrySet()) {
                 for (Object value : entry.getValue()) {
-                    buildHeader(entry.getKey(), value);
+                    buildHeader(entry.getKey(), value, false);
                 }
             }
         }
         Map<String, Object> configuredHeaders = evalConfiguredHeaders(context);
         if (configuredHeaders != null) {
             for (Map.Entry<String, Object> entry : configuredHeaders.entrySet()) {
-                buildHeader(entry.getKey(), null); // clear if already set
-                buildHeader(entry.getKey(), entry.getValue());
+                buildHeader(entry.getKey(), entry.getValue(), true);
             }
         }
         if (request.getCookies() != null) {
-            for (Map.Entry<String, String> entry : request.getCookies().entrySet()) {
-                buildCookie(entry.getKey(), entry.getValue());
+            for (Cookie cookie : request.getCookies().values()) {
+                buildCookie(cookie);
             }
         }
-        String method = request.getMethod();
-        if (method == null) {
-            String msg = "'method' is required to make an http call";
-            logger.error(msg);
-            throw new RuntimeException(msg);
-        }
-        method = method.toUpperCase();
-        request.setMethod(method);
         if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
                     mediaType = MULTIPART_FORM_DATA;
                 }
-                Object mpe = getMultiPartEntity(request.getMultiPartItems());
-                return getRequestEntity(mpe, mediaType);
+                return getMultiPartEntity(request.getMultiPartItems(), mediaType);
             } else if (request.getFormFields() != null) {
-                Object ffe = getFormFieldsEntity(request.getFormFields());
-                return getRequestEntity(ffe, APPLICATION_FORM_URLENCODED);
+                return getFormFieldsEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
             } else {
                 ScriptValue body = request.getBody();
                 if (body == null || body.isNull()) {

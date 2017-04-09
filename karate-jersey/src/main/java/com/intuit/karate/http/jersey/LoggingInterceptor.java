@@ -23,15 +23,14 @@
  */
 package com.intuit.karate.http.jersey;
 
+import com.intuit.karate.http.HttpUtils;
+import com.intuit.karate.http.LoggingFilterOutputStream;
 import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.SortedSet;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.ws.rs.WebApplicationException;
@@ -51,12 +50,10 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JerseyLoggingFilter implements ClientRequestFilter, ClientResponseFilter, WriterInterceptor {
+public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFilter, WriterInterceptor {
 
-    private static final Logger logger = LoggerFactory.getLogger(JerseyLoggingFilter.class);
-
-    private static final String LOGGING_OUTPUT_STREAM_KEY = JerseyLoggingFilter.class.getName();
-    private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
+    private static final Logger logger = LoggerFactory.getLogger(LoggingInterceptor.class);
+    
     private static final Charset UTF8 = Charset.forName("UTF-8");    
 
     private final AtomicInteger counter = new AtomicInteger();
@@ -65,25 +62,11 @@ public class JerseyLoggingFilter implements ClientRequestFilter, ClientResponseF
         if (mediaType == null) {
             return false;
         }
-        String type = mediaType.toString().toLowerCase();
-        for (String temp : PRINTABLES) {
-            if (type.contains(temp)) {
-                return true;
-            }
-        }
-        return false;
-    }    
-
-    private static Charset getCharset(MediaType mediaType) {
-        if (mediaType == null) {
-            return UTF8;
-        }
-        String value = mediaType.getParameters().get(MediaType.CHARSET_PARAMETER);
-        return value == null ? UTF8 : Charset.forName(value);
+        return HttpUtils.isPrintable(mediaType.toString());
     }
 
-    private void logHeaders(StringBuilder sb, int id, char prefix, MultivaluedMap<String, String> headers) {
-        SortedSet<String> keys = new TreeSet(headers.keySet());
+    private static void logHeaders(StringBuilder sb, int id, char prefix, MultivaluedMap<String, String> headers) {
+        Set<String> keys = new TreeSet(headers.keySet());
         for (String key : keys) {
             List<String> entries = headers.get(key);
             sb.append(id).append(' ').append(prefix).append(' ')
@@ -101,7 +84,7 @@ public class JerseyLoggingFilter implements ClientRequestFilter, ClientResponseF
         if (request.hasEntity() && isPrintable(request.getMediaType())) {
             LoggingFilterOutputStream out = new LoggingFilterOutputStream(request.getEntityStream(), sb);
             request.setEntityStream(out);
-            request.setProperty(LOGGING_OUTPUT_STREAM_KEY, out);
+            request.setProperty(LoggingFilterOutputStream.KEY, out);
         } else {
             logger.debug(sb.toString());
         }
@@ -119,7 +102,7 @@ public class JerseyLoggingFilter implements ClientRequestFilter, ClientResponseF
                 is = new BufferedInputStream(is);
             }
             is.mark(Integer.MAX_VALUE);
-            String buffer = IOUtils.toString(is, getCharset(response.getMediaType()));
+            String buffer = IOUtils.toString(is, UTF8);
             sb.append(buffer).append('\n');
             is.reset();
             response.setEntityStream(is); // in case it was swapped
@@ -129,31 +112,13 @@ public class JerseyLoggingFilter implements ClientRequestFilter, ClientResponseF
 
     @Override
     public void aroundWriteTo(WriterInterceptorContext context) throws IOException, WebApplicationException {
-        LoggingFilterOutputStream out = (LoggingFilterOutputStream) context.getProperty(LOGGING_OUTPUT_STREAM_KEY);
+        LoggingFilterOutputStream out = (LoggingFilterOutputStream) context.getProperty(LoggingFilterOutputStream.KEY);
         context.proceed();
         if (out != null) {
-            StringBuilder sb = out.buffer;
-            sb.append(new String(out.byteStream.toByteArray(), getCharset(context.getMediaType()))).append('\n');
+            StringBuilder sb = out.getBuffer();
+            sb.append(new String(out.getBytes().toByteArray(), UTF8)).append('\n');
             logger.debug(sb.toString());
         }
-    }
-
-    private static class LoggingFilterOutputStream extends FilterOutputStream {
-
-        protected final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        protected final StringBuilder buffer;
-
-        public LoggingFilterOutputStream(OutputStream out, StringBuilder sb) {
-            super(out);
-            this.buffer = sb;
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-            super.write(b);
-            byteStream.write(b);
-        }
-
     }
 
 }

@@ -34,7 +34,7 @@ import java.util.Map;
 public class HttpResponse {
     
     private String uri;
-    private Map<String, String> cookies;
+    private Map<String, Cookie> cookies;
     private MultiValuedMap headers;
     private byte[] body;
     private int status;
@@ -46,11 +46,7 @@ public class HttpResponse {
 
     public String getUri() {
         return uri;
-    }   
-    
-    public Map<String, String> getCookies() {
-        return cookies;
-    }
+    }      
 
     public MultiValuedMap getHeaders() {
         return headers;
@@ -79,12 +75,20 @@ public class HttpResponse {
     public void setBody(byte[] body) {
         this.body = body;
     }
+
+    public Map<String, Cookie> getCookies() {
+        return cookies;
+    }
+
+    public void setCookies(Map<String, Cookie> cookies) {
+        this.cookies = cookies;
+    }
     
-    public void addCookie(String name, String value) {
+    public void addCookie(Cookie cookie) {
         if (cookies == null) {
-            cookies = new LinkedHashMap<>();
+            cookies = new LinkedHashMap<>();            
         }
-        cookies.put(name, value);
+        cookies.put(cookie.getName(), cookie);
     }
     
     public void addHeader(String name, String value) {

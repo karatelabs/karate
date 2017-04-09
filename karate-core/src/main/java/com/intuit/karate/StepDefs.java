@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.jayway.jsonpath.DocumentContext;
@@ -112,7 +113,7 @@ public class StepDefs {
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
         String temp = Script.eval(value, context).getAsString();
-        request.addCookie(name, temp);
+        request.addCookie(new Cookie(name, temp));
     }
 
     @When("^header ([^\\s]+) = (.+)")
@@ -199,7 +200,7 @@ public class StepDefs {
         }
         context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
         String prevUrl = request.getUrl();
-        Map<String, String> prevCookies = request.getCookies();
+        Map<String, Cookie> prevCookies = request.getCookies();
         request = new HttpRequest();
         request.setUrl(prevUrl);
         if (prevCookies == null) {

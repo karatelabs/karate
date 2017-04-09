@@ -7,7 +7,7 @@ And path 'headers'
 When method get
 Then status 200
 And def token = response
-And def time = cookies['time']
+And def time = cookies.time.value
 # the response cookie will be sent for all subsequent requests as well
 
 Scenario: configure function

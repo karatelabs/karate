@@ -17,9 +17,11 @@ public class HttpUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpUtils.class);
 
+    private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
+    
     private HttpUtils() {
         // only static methods
-    }
+    }    
 
     public static SSLContext getSslContext(String algorithm) {
         TrustManager[] certs = new TrustManager[]{new X509TrustManager() {
@@ -49,6 +51,19 @@ public class HttpUtils {
             throw new RuntimeException(e);
         }        
         return ctx;
-    }   
+    }
+    
+    public static boolean isPrintable(String mediaType) {
+        if (mediaType == null) {
+            return false;
+        }
+        String type = mediaType.toLowerCase();
+        for (String temp : PRINTABLES) {
+            if (type.contains(temp)) {
+                return true;
+            }
+        }
+        return false;
+    }     
 
 }

@@ -103,6 +103,9 @@ public class ScriptValue {
         switch (type) {
             case NULL:
                 return null;
+            case JSON:
+                DocumentContext doc = getValue(DocumentContext.class);
+                return doc.jsonString();                
             case XML:
                 Node node = getValue(Node.class);
                 if (node.getTextContent() != null) {
@@ -119,28 +122,7 @@ public class ScriptValue {
             default:
                 return value.toString();
         }
-    }
-    
-    public String getAsStringForDisplay() {
-        switch (type) {
-            case NULL:
-                return "";
-            case XML:
-                Node node = getValue(Node.class);
-                return XmlUtils.toString(node);
-            case JSON:
-                DocumentContext doc = getValue(DocumentContext.class);
-                return doc.jsonString();
-            case INPUT_STREAM:
-                try {
-                    return IOUtils.toString(getValue(InputStream.class), "utf-8");
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            default:
-                return value.toString();
-        }        
-    }
+    }    
 
     public Object getAfterConvertingFromJsonOrXmlIfNeeded() {
         switch (type) {

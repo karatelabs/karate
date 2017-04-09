@@ -23,67 +23,39 @@
  */
 package com.intuit.karate.http;
 
-import java.util.List;
+import java.io.ByteArrayOutputStream;
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  *
  * @author pthomas3
  */
-public class DummyHttpClient extends HttpClient<String> {
-
-    @Override
-    public void configure(HttpConfig config) {
-        
-    }
-
-    @Override
-    protected String getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
-        return "";
-    }
-
-    @Override
-    protected String getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
-        return "";
-    }
-
-    @Override
-    protected String getRequestEntity(Object value, String mediaType) {
-        return "";
-    }
-
-    @Override
-    protected void buildUrl(String url) {
-        
-    }
-
-    @Override
-    protected void buildPath(String path) {
-        
-    }
-
-    @Override
-    protected void buildParam(String name, Object... values) {
-        
-    }
-
-    @Override
-    protected void buildHeader(String name, Object value, boolean replace) {
-        
-    }
-
-    @Override
-    protected void buildCookie(Cookie cookie) {
-        
-    }
-
-    @Override
-    protected HttpResponse makeHttpRequest(String method, String entity, long startTime) {
-        return new HttpResponse();
-    }
-
-    @Override
-    protected String getUri() {
-        return "";
-    }
+public class LoggingFilterOutputStream extends FilterOutputStream {
     
+    public static final String KEY = LoggingFilterOutputStream.class.getName();
+
+    private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    private final StringBuilder buffer;
+
+    public LoggingFilterOutputStream(OutputStream out, StringBuilder sb) {
+        super(out);
+        this.buffer = sb;
+    }
+
+    @Override
+    public void write(int b) throws IOException {
+        super.write(b);
+        bytes.write(b);
+    }
+
+    public StringBuilder getBuffer() {
+        return buffer;
+    }
+
+    public ByteArrayOutputStream getBytes() {
+        return bytes;
+    }        
+
 }

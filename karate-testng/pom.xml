@@ -14,7 +14,7 @@
         
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-jersey</artifactId>
+            <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
         </dependency>            
 

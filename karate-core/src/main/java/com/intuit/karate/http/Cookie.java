@@ -23,67 +23,36 @@
  */
 package com.intuit.karate.http;
 
-import java.util.List;
+import java.util.LinkedHashMap;
 
 /**
  *
  * @author pthomas3
  */
-public class DummyHttpClient extends HttpClient<String> {
-
-    @Override
-    public void configure(HttpConfig config) {
-        
+public class Cookie extends LinkedHashMap<String, String> {
+    
+    public static final String NAME = "name";
+    public static final String VALUE = "value";
+    public static final String DOMAIN = "domain";
+    public static final String PATH = "path";
+    public static final String VERSION = "version";
+    public static final String EXPIRES = "expires";
+    public static final String MAX_AGE = "max-age";
+    public static final String SECURE = "secure";
+    public static final String PERSISTENT = "persistent";
+    public static final String HTTP_ONLY = "http-only";
+    
+    public Cookie(String name, String value) {
+        put(NAME, name);
+        put(VALUE, value);
     }
 
-    @Override
-    protected String getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
-        return "";
+    public String getName() {
+        return get(NAME);
     }
 
-    @Override
-    protected String getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
-        return "";
-    }
-
-    @Override
-    protected String getRequestEntity(Object value, String mediaType) {
-        return "";
-    }
-
-    @Override
-    protected void buildUrl(String url) {
-        
-    }
-
-    @Override
-    protected void buildPath(String path) {
-        
-    }
-
-    @Override
-    protected void buildParam(String name, Object... values) {
-        
-    }
-
-    @Override
-    protected void buildHeader(String name, Object value, boolean replace) {
-        
-    }
-
-    @Override
-    protected void buildCookie(Cookie cookie) {
-        
-    }
-
-    @Override
-    protected HttpResponse makeHttpRequest(String method, String entity, long startTime) {
-        return new HttpResponse();
-    }
-
-    @Override
-    protected String getUri() {
-        return "";
-    }
+    public String getValue() {
+        return get(VALUE);
+    }        
     
 }

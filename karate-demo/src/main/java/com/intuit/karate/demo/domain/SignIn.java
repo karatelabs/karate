@@ -21,69 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
-
-import java.util.List;
+package com.intuit.karate.demo.domain;
 
 /**
  *
  * @author pthomas3
  */
-public class DummyHttpClient extends HttpClient<String> {
+public class SignIn {
+    
+    private String username;
+    private String password;
 
-    @Override
-    public void configure(HttpConfig config) {
-        
+    public String getUsername() {
+        return username;
     }
 
-    @Override
-    protected String getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
-        return "";
+    public void setUsername(String username) {
+        this.username = username;
     }
 
-    @Override
-    protected String getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
-        return "";
+    public String getPassword() {
+        return password;
     }
 
-    @Override
-    protected String getRequestEntity(Object value, String mediaType) {
-        return "";
-    }
-
-    @Override
-    protected void buildUrl(String url) {
-        
-    }
-
-    @Override
-    protected void buildPath(String path) {
-        
-    }
-
-    @Override
-    protected void buildParam(String name, Object... values) {
-        
-    }
-
-    @Override
-    protected void buildHeader(String name, Object value, boolean replace) {
-        
-    }
-
-    @Override
-    protected void buildCookie(Cookie cookie) {
-        
-    }
-
-    @Override
-    protected HttpResponse makeHttpRequest(String method, String entity, long startTime) {
-        return new HttpResponse();
-    }
-
-    @Override
-    protected String getUri() {
-        return "";
-    }
+    public void setPassword(String password) {
+        this.password = password;
+    }        
     
 }

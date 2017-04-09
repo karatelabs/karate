@@ -16,6 +16,7 @@
     </properties>    
 
     <dependencies>
+        
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-dependencies</artifactId>
@@ -32,13 +33,15 @@
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
             <version>2.5</version>
-        </dependency>                                                             
+        </dependency>
+                                                                    
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-junit4</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>                                    		
+        </dependency>
+                                           		
     </dependencies>
 
     <build>
@@ -77,29 +80,32 @@
         </plugins>
     </build>
     
-    <reporting>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-report-plugin</artifactId>
-                <version>2.19.1</version>
-                <reportSets>
-                    <reportSet>
-                        <reports>
-                            <report>report-only</report>
-                        </reports>
-                    </reportSet>
-                </reportSets>                
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-project-info-reports-plugin</artifactId>
-                <version>2.9</version>
-                <configuration>
-                    <dependencyLocationsEnabled>false</dependencyLocationsEnabled>
-                </configuration>
-            </plugin>            
-        </plugins>
-    </reporting>                          
+    <profiles>
+        <profile> 
+            <id>apache</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.intuit.karate</groupId>
+                    <artifactId>karate-apache</artifactId>
+                    <version>${project.version}</version>
+                    <scope>test</scope>
+                </dependency>                 
+            </dependencies>
+        </profile>
+        <profile> 
+            <id>jersey</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.intuit.karate</groupId>
+                    <artifactId>karate-jersey</artifactId>
+                    <version>${project.version}</version>
+                    <scope>test</scope>
+                </dependency>                 
+            </dependencies>
+        </profile>                                                              
+    </profiles>
     
 </project>

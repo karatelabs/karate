@@ -21,69 +21,62 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate.http.apache;
 
-import java.util.List;
+import java.io.IOException;
+import java.io.OutputStream;
+import org.apache.http.entity.mime.content.ContentBody;
 
 /**
  *
  * @author pthomas3
  */
-public class DummyHttpClient extends HttpClient<String> {
+public class UnNamedContentBody implements ContentBody {
+    
+    private String content;
+    
+    public UnNamedContentBody(String content) {
+        this.content = content;
+    }
 
     @Override
-    public void configure(HttpConfig config) {
+    public String getFilename() {
+        return null;
+    }
+
+    @Override
+    public void writeTo(OutputStream out) throws IOException {
         
     }
 
     @Override
-    protected String getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
-        return "";
+    public String getMimeType() {
+        return null;
     }
 
     @Override
-    protected String getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
-        return "";
+    public String getMediaType() {
+        return null;
     }
 
     @Override
-    protected String getRequestEntity(Object value, String mediaType) {
-        return "";
+    public String getSubType() {
+        return null;
     }
 
     @Override
-    protected void buildUrl(String url) {
-        
+    public String getCharset() {
+        return null;
     }
 
     @Override
-    protected void buildPath(String path) {
-        
+    public String getTransferEncoding() {
+        return null;
     }
 
     @Override
-    protected void buildParam(String name, Object... values) {
-        
-    }
-
-    @Override
-    protected void buildHeader(String name, Object value, boolean replace) {
-        
-    }
-
-    @Override
-    protected void buildCookie(Cookie cookie) {
-        
-    }
-
-    @Override
-    protected HttpResponse makeHttpRequest(String method, String entity, long startTime) {
-        return new HttpResponse();
-    }
-
-    @Override
-    protected String getUri() {
-        return "";
+    public long getContentLength() {
+        return -1;
     }
     
 }

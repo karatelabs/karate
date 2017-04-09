@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2017 intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,69 +21,58 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate.http.apache;
 
-import java.util.List;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.HttpEntityWrapper;
 
 /**
  *
  * @author pthomas3
  */
-public class DummyHttpClient extends HttpClient<String> {
-
-    @Override
-    public void configure(HttpConfig config) {
-        
+public class LoggingEntityWrapper extends HttpEntityWrapper {
+    
+    private final byte[] bytes;
+    
+    public LoggingEntityWrapper(HttpEntity wrappedEntity) {
+        super(wrappedEntity);
+        try {
+            ByteArrayOutputStream temp = new ByteArrayOutputStream();
+            wrappedEntity.writeTo(temp);
+            bytes = temp.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    protected String getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
-        return "";
+    public boolean isRepeatable() {
+        return true;
     }
 
     @Override
-    protected String getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
-        return "";
-    }
+    public InputStream getContent() throws IOException {
+        return new ByteArrayInputStream(bytes);
+    }   
 
     @Override
-    protected String getRequestEntity(Object value, String mediaType) {
-        return "";
-    }
+    public long getContentLength() {
+        return bytes.length;
+    }        
 
     @Override
-    protected void buildUrl(String url) {
-        
-    }
+    public void writeTo(OutputStream out) throws IOException {
+        out.write(bytes);
+    } 
 
     @Override
-    protected void buildPath(String path) {
-        
-    }
-
-    @Override
-    protected void buildParam(String name, Object... values) {
-        
-    }
-
-    @Override
-    protected void buildHeader(String name, Object value, boolean replace) {
-        
-    }
-
-    @Override
-    protected void buildCookie(Cookie cookie) {
-        
-    }
-
-    @Override
-    protected HttpResponse makeHttpRequest(String method, String entity, long startTime) {
-        return new HttpResponse();
-    }
-
-    @Override
-    protected String getUri() {
-        return "";
-    }
+    public boolean isStreaming() {
+        return false;
+    }        
     
 }

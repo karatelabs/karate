@@ -25,6 +25,7 @@ package com.intuit.karate.http.jersey;
 
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
+import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpResponse;
@@ -43,6 +44,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.NewCookie;
@@ -69,7 +71,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     @Override
     public void configure(HttpConfig config) {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
-                .register(new JerseyLoggingFilter()) // must be first
+                .register(new LoggingInterceptor()) // must be first
                 .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
             String sslAlgorithm = config.getSslAlgorithm();
@@ -84,19 +86,17 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         client.property(ClientProperties.READ_TIMEOUT, config.getReadTimeout());
         if (config.getProxyUri() != null) {
             client.property(ClientProperties.PROXY_URI, config.getProxyUri());
-        }
-        if (config.getProxyUsername() != null) {
-            client.property(ClientProperties.PROXY_USERNAME, config.getProxyUsername());
-        }
-        if (config.getProxyPassword() != null) {
-            client.property(ClientProperties.PROXY_PASSWORD, config.getProxyPassword());
+            if (config.getProxyUsername() != null && config.getProxyPassword() != null) {
+                client.property(ClientProperties.PROXY_USERNAME, config.getProxyUsername());
+                client.property(ClientProperties.PROXY_PASSWORD, config.getProxyPassword());
+            }
         }
     }
-    
+
     @Override
     public String getUri() {
         return target.getUri().toString();
-    }    
+    }
 
     @Override
     public void buildUrl(String url) {
@@ -117,27 +117,31 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     }
 
     @Override
-    public void buildHeader(String name, Object value) {
+    public void buildHeader(String name, Object value, boolean replace) {
+        if (replace) {
+            builder.header(name, null);
+        }
         builder.header(name, value);
     }
 
     @Override
-    public void buildCookie(String name, String value) {
-        builder.cookie(name, value);
+    public void buildCookie(com.intuit.karate.http.Cookie c) {
+        Cookie cookie = new Cookie(c.getName(), c.getValue());
+        builder.cookie(cookie);
     }
 
     @Override
-    public Object getFormFieldsEntity(MultiValuedMap fields) {
+    public Entity getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
         MultivaluedHashMap<String, Object> map = new MultivaluedHashMap<>();
         for (Entry<String, List> entry : fields.entrySet()) {
             map.put(entry.getKey(), entry.getValue());
         }
-        return map;
+        return getRequestEntity(map, mediaType);
     }
 
     @Override
-    public Object getMultiPartEntity(List<MultiPartItem> items) {
-        MultiPart mp = new MultiPart();
+    public Entity getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
+        MultiPart multiPart = new MultiPart();
         for (MultiPartItem item : items) {
             if (item.getValue() == null || item.getValue().isNull()) {
                 logger.warn("ignoring null multipart value for key: {}", item.getName());
@@ -159,20 +163,23 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                     default:
                         bp = new BodyPart().entity(sv.getValue());
                 }
-                mp.bodyPart(bp);
+                multiPart.bodyPart(bp);
             } else if (sv.getType() == ScriptValue.Type.INPUT_STREAM) {
                 InputStream is = (InputStream) sv.getValue();
                 StreamDataBodyPart part = new StreamDataBodyPart(name, is);
-                mp.bodyPart(part);
+                multiPart.bodyPart(part);
             } else {
-                mp.bodyPart(new FormDataBodyPart(name, sv.getAsString()));
+                multiPart.bodyPart(new FormDataBodyPart(name, sv.getAsString()));
             }
         }
-        return mp;
+        return getRequestEntity(multiPart, mediaType);
     }
 
     @Override
     public Entity getRequestEntity(Object value, String mediaType) {
+        if (value == null) {
+            return null;
+        }
         return Entity.entity(value, mediaType);
     }
 
@@ -194,11 +201,15 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         response.setUri(getUri());
         response.setBody(bytes);
         response.setStatus(resp.getStatus());
-        for (Map.Entry<String, NewCookie> entry : resp.getCookies().entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue().getValue();
-            response.addCookie(key, value);
-            logger.trace("set cookie: {} - {}", key, entry.getValue());
+        for (NewCookie c : resp.getCookies().values()) {
+            com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(c.getName(), c.getValue());
+            cookie.put(DOMAIN, c.getDomain());
+            cookie.put(PATH, c.getPath());
+            cookie.put(EXPIRES, c.getExpiry().getTime() + "");
+            cookie.put(SECURE, c.isSecure() + "");
+            cookie.put(HTTP_ONLY, c.isHttpOnly() + "");
+            cookie.put(MAX_AGE, c.getMaxAge() + "");
+            response.addCookie(cookie);
         }
         for (Entry<String, List<Object>> entry : resp.getHeaders().entrySet()) {
             response.addHeader(entry.getKey(), entry.getValue());

@@ -39,7 +39,7 @@ public class HttpRequest {
     private List<String> paths;
     private MultiValuedMap headers;
     private MultiValuedMap params;
-    private Map<String, String> cookies;
+    private Map<String, Cookie> cookies;
     private MultiValuedMap formFields;
     private List<MultiPartItem> multiPartItems;
     private ScriptValue body;
@@ -87,20 +87,20 @@ public class HttpRequest {
         return params;
     }
 
-    public void setCookies(Map<String, String> cookies) {
-        this.cookies = cookies;
-    }
-
-    public void addCookie(String name, String value) {
+    public void addCookie(Cookie cookie) {
         if (cookies == null) {
             cookies = new LinkedHashMap<>();
         }
-        cookies.put(name, value);
+        cookies.put(cookie.getName(), cookie);       
     }
 
-    public Map<String, String> getCookies() {
+    public Map<String, Cookie> getCookies() {
         return cookies;
     }
+
+    public void setCookies(Map<String, Cookie> cookies) {
+        this.cookies = cookies;
+    }   
 
     public void addFormField(String name, String value) {
         if (formFields == null) {
