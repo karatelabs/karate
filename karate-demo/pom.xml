@@ -41,6 +41,16 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        
+        <!-- normally this is also needed, but we use a maven profile -->
+        <!--
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-apache</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>         
+        -->
                                            		
     </dependencies>
 

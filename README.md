@@ -89,9 +89,19 @@ Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/i
 
 ## Maven
 
-This is all that you need within your `<dependencies>`:
+Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
+
+Prefer `karate-apache` unless you run into class-loading conflicts, for example - if an older version of the Apache libraries are being used within your project.
+
+So you need two `<dependencies>`:
 
 ```xml
+<dependency>
+    <groupId>com.intuit.karate</groupId>
+    <artifactId>karate-apache</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+    <scope>test</scope>
+</dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
@@ -100,7 +110,7 @@ This is all that you need within your `<dependencies>`:
 </dependency>
 ```
 ### TestNG instead of JUnit
-If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
+If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so that you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
 
 Use the TestNG test-runner only when you are trying to add Karate tests side-by-side with an existing set of TestNG test-classes, possibly as a migration strategy.
 
@@ -1438,7 +1448,7 @@ Then match /cat/name == 'Billie'
 The `cookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object.
 It can be easily inspected or used in expressions.
 ```cucumber
-Then assert cookies['my.key'] == 'someValue'
+Then assert cookies['my.key'].value == 'someValue'
 ```
 As a convenience, cookies from the previous response are collected and passed as-is as 
 part of the next HTTP request.  This is what is normally expected and simulates a 
@@ -1446,6 +1456,8 @@ browser - which makes it easy to script things like HTML-form based authenticati
 
 Of course you can manipulate `cookies` or even set it to `null` if you wish - at any point
 within a test script.
+
+Each item within `cookies` is itself a 'map-like' object. Typically you would examine the `value` property as in the example above, but `domain` and `path` are also available.
 
 ## `responseHeaders`
 See also [`match header`](#match-header) which is what you would normally need.
@@ -1692,6 +1704,7 @@ And here's how it works in a test-script using the [`header`](#header) keyword. 
 * header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
 
 ```
+You can dynamically generate headers for each HTTP request if you [`configure headers`](#configure-headers).
 
 ### Calling Java
 There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo).
