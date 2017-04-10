@@ -230,21 +230,22 @@ public abstract class HttpClient<T> {
 
     public static HttpClient construct() {        
         try {
-            InputStream is = Thread.currentThread().getContextClassLoader()
-                    .getResourceAsStream(KARATE_HTTP_PROPERTIES);
+            InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
             if (is == null) {
-                logger.warn(KARATE_HTTP_PROPERTIES + " not found, using dummy http client");
-                return new DummyHttpClient();
+                String msg = KARATE_HTTP_PROPERTIES + " not found";
+                logger.error(msg);
+                throw new RuntimeException(msg);
             }
             Properties props = new Properties();
             props.load(is);
             String className = props.getProperty("client.class");
+            logger.trace("loaded {}, init: {}", KARATE_HTTP_PROPERTIES, className);
             Class clazz = Class.forName(className);
             return (HttpClient) clazz.newInstance();
         } catch (Exception e) {
-            String message = "failed to construct class by name: " + e.getMessage() + ", using dummy http client";
-            logger.warn(message);
-            return new DummyHttpClient();
+            String msg = "failed to construct class by name: " + e.getMessage() + ", aborting";
+            logger.error(msg);
+            throw new RuntimeException(msg);
         }
     }
     

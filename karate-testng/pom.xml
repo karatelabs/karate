@@ -22,7 +22,14 @@
             <groupId>info.cukes</groupId>
             <artifactId>cucumber-testng</artifactId>
             <version>${cucumber.version}</version>
-        </dependency>                                      
+        </dependency>
+        
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-apache</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>                                                                                    
 		
     </dependencies>
 
