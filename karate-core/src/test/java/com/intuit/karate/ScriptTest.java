@@ -464,6 +464,25 @@ public class ScriptTest {
     }
     
     @Test
+    public void testCallingFunctionWithJsonArray() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "function(a){ return a[0] }", ctx);
+        Script.assign("bar", "call foo ['hello']", ctx);
+        ScriptValue bar = ctx.vars.get("bar");
+        assertEquals("hello", bar.getValue());
+    }     
+    
+    @Test
+    public void testCallingFunctionWithJavaList() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "function(a){ return a[0] }", ctx);
+        Script.assign("bar", "['hello']", ctx);
+        Script.assign("baz", "call foo bar", ctx);
+        ScriptValue baz = ctx.vars.get("baz");
+        assertEquals("hello", baz.getValue());
+    }    
+    
+    @Test
     public void testCallingFunctionThatUsesJsonPath() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx);

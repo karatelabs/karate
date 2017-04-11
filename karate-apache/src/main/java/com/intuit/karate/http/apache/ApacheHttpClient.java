@@ -194,7 +194,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpEntity getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
+    protected HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
         boolean hasNullName = false;
         for (MultiPartItem item : items) {
             if (item.getName() == null) {
@@ -245,7 +245,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpEntity getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
+    protected HttpEntity getEntity(MultiValuedMap fields, String mediaType) {
         List<NameValuePair> list = new ArrayList<>(fields.size());
         for (Entry<String, List> entry : fields.entrySet()) {
             String stringValue;
@@ -276,7 +276,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpEntity getRequestEntity(Object value, String mediaType) {
+    protected HttpEntity getEntity(Object value, String mediaType) {
         if (value == null) {
             return null;
         }

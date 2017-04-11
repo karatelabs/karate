@@ -99,13 +99,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.3.0</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.3.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -123,7 +123,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.3.0-SNAPSHOT \
+-DarchetypeVersion=0.3.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -424,7 +424,7 @@ function() {
   } else if (env == 'e2e') {
     config.someUrlBase: 'https://e2e-host/v1/auth';
   }
-  // don't waste time waiting if servers don't respond within 5 seconds
+  // don't waste time waiting for a connection or if servers don't respond within 5 seconds
   karate.configure('connectTimeout', 5000);
   karate.configure('readTimeout', 5000);
   return config;
@@ -1653,7 +1653,7 @@ A JavaScript function invoked with `call` has access to a utility object in a va
 
 * `karate.set(key, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 * `karate.get(key)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
-* `karate.log(... args)` - log to the same logger being used by the parent process
+* `karate.log(... args)` - log to the same logger (and log file) being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 * `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 * `karate.configure(key, value)` - does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds

@@ -37,17 +37,17 @@ public class DummyHttpClient extends HttpClient<String> {
     }
 
     @Override
-    protected String getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
+    protected String getEntity(List<MultiPartItem> items, String mediaType) {
         return "";
     }
 
     @Override
-    protected String getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
+    protected String getEntity(MultiValuedMap fields, String mediaType) {
         return "";
     }
 
     @Override
-    protected String getRequestEntity(Object value, String mediaType) {
+    protected String getEntity(Object value, String mediaType) {
         return "";
     }
 

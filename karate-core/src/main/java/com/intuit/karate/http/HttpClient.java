@@ -60,11 +60,11 @@ public abstract class HttpClient<T> {
 
     public abstract void configure(HttpConfig config);
 
-    protected abstract T getMultiPartEntity(List<MultiPartItem> items, String mediaType);
+    protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);
     
-    protected abstract T getFormFieldsEntity(MultiValuedMap fields, String mediaType);
+    protected abstract T getEntity(MultiValuedMap formFields, String mediaType);
 
-    protected abstract T getRequestEntity(Object value, String mediaType);    
+    protected abstract T getEntity(Object value, String mediaType);    
     
     protected abstract void buildUrl(String url);
     
@@ -80,38 +80,38 @@ public abstract class HttpClient<T> {
     
     protected abstract String getUri();
 
-    protected T getEntity(ScriptValue body, String mediaType) {
+    private T toEntity(ScriptValue body, String mediaType) {
         switch (body.getType()) {
             case JSON:
                 if (mediaType == null) {
                     mediaType = APPLICATION_JSON;
                 }
                 DocumentContext json = body.getValue(DocumentContext.class);
-                return getRequestEntity(json.jsonString(), mediaType);
+                return HttpClient.this.getEntity(json.jsonString(), mediaType);
             case MAP:
                 if (mediaType == null) {
                     mediaType = APPLICATION_JSON;
                 }
                 Map<String, Object> map = body.getValue(Map.class);
                 DocumentContext doc = JsonPath.parse(map);
-                return getRequestEntity(doc.jsonString(), mediaType);
+                return HttpClient.this.getEntity(doc.jsonString(), mediaType);
             case XML:
                 Node node = body.getValue(Node.class);
                 if (mediaType == null) {
                     mediaType = APPLICATION_XML;
                 }
-                return getRequestEntity(XmlUtils.toString(node), mediaType);
+                return HttpClient.this.getEntity(XmlUtils.toString(node), mediaType);
             case INPUT_STREAM:
                 InputStream is = body.getValue(InputStream.class);
                 if (mediaType == null) {
                     mediaType = APPLICATION_OCTET_STREAM;
                 }
-                return getRequestEntity(is, mediaType);
+                return HttpClient.this.getEntity(is, mediaType);
             default:
                 if (mediaType == null) {
                     mediaType = TEXT_PLAIN;
                 }
-                return getRequestEntity(body.getAsString(), mediaType);
+                return HttpClient.this.getEntity(body.getAsString(), mediaType);
         }
     }
     
@@ -166,9 +166,9 @@ public abstract class HttpClient<T> {
                 if (mediaType == null) {
                     mediaType = MULTIPART_FORM_DATA;
                 }
-                return getMultiPartEntity(request.getMultiPartItems(), mediaType);
+                return HttpClient.this.getEntity(request.getMultiPartItems(), mediaType);
             } else if (request.getFormFields() != null) {
-                return getFormFieldsEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
+                return getEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
             } else {
                 ScriptValue body = request.getBody();
                 if (body == null || body.isNull()) {
@@ -176,7 +176,7 @@ public abstract class HttpClient<T> {
                     logger.error(msg);
                     throw new RuntimeException(msg);
                 }
-                return getEntity(body, mediaType);
+                return toEntity(body, mediaType);
             }
         } else {
             return null;

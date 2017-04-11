@@ -131,16 +131,16 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     }
 
     @Override
-    public Entity getFormFieldsEntity(MultiValuedMap fields, String mediaType) {
+    public Entity getEntity(MultiValuedMap fields, String mediaType) {
         MultivaluedHashMap<String, Object> map = new MultivaluedHashMap<>();
         for (Entry<String, List> entry : fields.entrySet()) {
             map.put(entry.getKey(), entry.getValue());
         }
-        return getRequestEntity(map, mediaType);
+        return getEntity(map, mediaType);
     }
 
     @Override
-    public Entity getMultiPartEntity(List<MultiPartItem> items, String mediaType) {
+    public Entity getEntity(List<MultiPartItem> items, String mediaType) {
         MultiPart multiPart = new MultiPart();
         for (MultiPartItem item : items) {
             if (item.getValue() == null || item.getValue().isNull()) {
@@ -172,11 +172,11 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 multiPart.bodyPart(new FormDataBodyPart(name, sv.getAsString()));
             }
         }
-        return getRequestEntity(multiPart, mediaType);
+        return getEntity(multiPart, mediaType);
     }
 
     @Override
-    public Entity getRequestEntity(Object value, String mediaType) {
+    public Entity getEntity(Object value, String mediaType) {
         if (value == null) {
             return null;
         }

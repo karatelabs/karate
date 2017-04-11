@@ -918,6 +918,7 @@ public class Script {
                         argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
                     case JS_ARRAY:
                     case JS_OBJECT:
+                    case LIST:
                     case STRING:
                     case PRIMITIVE:
                     case NULL:

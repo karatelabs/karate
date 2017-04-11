@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.3.0-SNAPSHOT</version>
+        <version>0.3.0</version>
     </parent>
     
     <artifactId>karate-demo</artifactId>
@@ -24,11 +24,13 @@
             <type>pom</type>
             <scope>import</scope>
         </dependency>
+        
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <version>${spring.boot.version}</version>
         </dependency>
+        
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
@@ -41,16 +43,13 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-        
-        <!-- normally this is also needed, but we use a maven profile -->
-        <!--
+
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>         
-        -->
+        </dependency>
                                            		
     </dependencies>
 
@@ -89,33 +88,5 @@
             </plugin>             
         </plugins>
     </build>
-    
-    <profiles>
-        <profile> 
-            <id>apache</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>com.intuit.karate</groupId>
-                    <artifactId>karate-apache</artifactId>
-                    <version>${project.version}</version>
-                    <scope>test</scope>
-                </dependency>                 
-            </dependencies>
-        </profile>
-        <profile> 
-            <id>jersey</id>
-            <dependencies>
-                <dependency>
-                    <groupId>com.intuit.karate</groupId>
-                    <artifactId>karate-jersey</artifactId>
-                    <version>${project.version}</version>
-                    <scope>test</scope>
-                </dependency>                 
-            </dependencies>
-        </profile>                                                              
-    </profiles>
     
 </project>
