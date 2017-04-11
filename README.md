@@ -91,8 +91,6 @@ Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/i
 
 Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
 
-Prefer `karate-apache` unless you run into class-loading conflicts, for example - if an older version of the Apache libraries are being used within your project.
-
 So you need two `<dependencies>`:
 
 ```xml
@@ -109,6 +107,8 @@ So you need two `<dependencies>`:
     <scope>test</scope>
 </dependency>
 ```
+And if you run into class-loading conflicts, for example if an older version of the Apache libraries are being used within your project - then use `karate-jersey` instead of `karate-apache`.
+
 ### TestNG instead of JUnit
 If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so that you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
 

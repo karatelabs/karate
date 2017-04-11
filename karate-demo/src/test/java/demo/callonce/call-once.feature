@@ -1,4 +1,4 @@
-Feature: how to implement 'run only once' or set-up that behaves like @BeforeClass
+Feature: test set-up routines that run only once, similar to how @BeforeClass works
 
 Background:
 
