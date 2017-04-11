@@ -37,7 +37,6 @@ import cucumber.runtime.model.CucumberFeature;
 import cucumber.runtime.xstream.LocalizedXStreams;
 import gherkin.formatter.Formatter;
 import java.io.File;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -170,7 +169,7 @@ public class CucumberRunner {
             throw new RuntimeException(e);
         }
     }
-    
+
     public static KarateStats parallel(Class clazz, int threadCount) {
         return parallel(clazz, threadCount, "target/surefire-reports");
     }

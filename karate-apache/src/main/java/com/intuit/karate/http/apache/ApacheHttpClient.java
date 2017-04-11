@@ -325,6 +325,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             }
             cookie.put(PERSISTENT, c.isPersistent() + "");
             cookie.put(SECURE, c.isSecure() + "");
+            response.addCookie(cookie);
         }
         for (Header header : httpResponse.getAllHeaders()) {
             response.addHeader(header.getName(), header.getValue());

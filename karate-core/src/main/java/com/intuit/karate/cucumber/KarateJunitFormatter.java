@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(KarateJunitFormatter.class);
 
     private final Writer out;
@@ -82,14 +82,14 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     private TestCase testCase;
     private Element root;
     private boolean strict;
-    
+
     private final String featurePath;
     private final String reportPath;
-    
+
     private int currentScenario;
-            
+
     private int testCount;
-    private int failCount; 
+    private int failCount;
     private int skipCount;
     private double timeTaken;
 
@@ -107,16 +107,16 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
 
     public double getTimeTaken() {
         return timeTaken;
-    }        
-    
+    }
+
     public boolean isFail() {
         return failCount > 0;
     }
 
     public String getFeaturePath() {
         return featurePath;
-    }        
-    
+    }
+
     private static boolean isScenarioOutline(Scenario scenario) {
         return scenario.getKeyword().equals("Scenario Outline");
     }
@@ -141,51 +141,35 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         logger.trace("feature: {}", feature);
         testCase = new TestCase();
         testCase.treatSkippedAsFailure = strict;
-        testCase.feature = feature;        
+        testCase.feature = feature;
     }
 
     @Override
     public void background(Background background) {
         logger.trace("background: {}", background);
-        root = testCase.createElement(doc);
     }
 
     @Override
     public void scenario(Scenario scenario) {
         logger.trace("scenario: {}", scenario);
-        testCase.steps.clear();
-        testCase.results.clear();
-        if (!isScenarioOutline(scenario)) {
-            currentScenario++;
-        }        
-        testCase.scenario = scenario;
-        root = testCase.createElement(doc);
-        testCase.writeElement(doc, root);
-        rootElement.appendChild(root);
-        increaseAttributeValue(rootElement, "tests");        
     }
-    
+
     @Override
     public void scenarioOutline(ScenarioOutline scenarioOutline) {
         logger.trace("scenarioOutline: {}", scenarioOutline);
-        Feature feature = testCase.feature;
-        testCase = new TestCase();
-        testCase.treatSkippedAsFailure = strict;
-        testCase.feature = feature;       
-        currentScenario++;
-    }    
+    }
 
     @Override
     public void step(Step step) {
         logger.trace("step: {}", step);
         testCase.steps.add(step);
     }
-    
+
     private void printStatsToConsole() {
-        System.out.println("---------------------------------------------------------");        
+        System.out.println("---------------------------------------------------------");
         System.out.println("feature: " + featurePath);
         System.out.println("report: " + reportPath);
-        System.out.println(String.format("scenarios: %2d | failed: %2d | skipped: %2d | time: %f", testCount, failCount, skipCount, timeTaken));        
+        System.out.println(String.format("scenarios: %2d | failed: %2d | skipped: %2d | time: %f", testCount, failCount, skipCount, timeTaken));
         System.out.println("---------------------------------------------------------");
     }
 
@@ -223,6 +207,14 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     @Override
     public void startOfScenarioLifeCycle(Scenario scenario) {
         logger.trace("startOfScenarioLifeCycle: {}", scenario);
+        testCase.steps.clear();
+        testCase.results.clear();
+        currentScenario++;
+        testCase.scenario = scenario;
+        root = testCase.createTestCaseElement(doc);
+        testCase.writeElement(doc, root);
+        rootElement.appendChild(root);
+        increaseAttributeValue(rootElement, "tests");
     }
 
     @Override
@@ -230,7 +222,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         logger.trace("endOfScenarioLifeCycle: {}", scenario);
         if (testCase.steps.isEmpty()) {
             testCase.handleEmptyTestCase(doc, root);
-        }        
+        }
     }
 
     private void addDummyTestCase() {
@@ -247,7 +239,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     public void result(Result result) {
         logger.trace("result: {}", result);
         testCase.results.add(result);
-        testCase.updateElement(doc, root);        
+        testCase.updateElement(doc, root);
     }
 
     @Override
@@ -266,7 +258,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         testCase.hookResults.add(result);
         testCase.updateElement(doc, root);
     }
-    
+
     private double sumTimes(NodeList testCaseNodes) {
         double totalDurationSecondsForAllTimes = 0.0d;
         for (int i = 0; i < testCaseNodes.getLength(); i++) {
@@ -281,7 +273,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
             }
         }
         return totalDurationSecondsForAllTimes;
-    }    
+    }
 
     private String formatTime(double time) {
         DecimalFormat nfmt = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
@@ -358,7 +350,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         final List<Result> results = new ArrayList<>();
         final List<Result> hookResults = new ArrayList<>();
 
-        private Element createElement(Document doc) {
+        private Element createTestCaseElement(Document doc) {
             return doc.createElement("testcase");
         }
 
@@ -373,7 +365,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
                 scenarioName = currentScenario + "";
             }
             if (isScenarioOutline(scenario)) {
-                return scenarioName + " ("  + (++exampleNumber) + ")";
+                return scenarioName + " (" + (++exampleNumber) + ")";
             } else {
                 return scenarioName;
             }

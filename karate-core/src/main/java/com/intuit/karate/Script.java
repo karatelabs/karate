@@ -966,12 +966,18 @@ public class Script {
         // convenience for users, can use 'karate' instead of 'this.karate'
         som.eval(String.format("var %s = this.%s", ScriptContext.KARATE_NAME, ScriptContext.KARATE_NAME));
         Object result;
-        if (callArg != null) {
-            result = som.call(som, callArg);
-        } else {
-            result = som.call(som);
-        }
-        return new ScriptValue(result);
+        try {
+            if (callArg != null) {
+                result = som.call(som, callArg);
+            } else {
+                result = som.call(som);
+            }
+            return new ScriptValue(result);
+        } catch (Exception e) {
+            String message = "javascript function call failed, arg: " + callArg;
+            logger.error(message, e);
+            throw new KarateException(message, e);
+        }        
     }
 
     public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context) {
@@ -999,6 +1005,7 @@ public class Script {
                 return evalFeatureCall(feature, context, (Map) callArg);
             } catch (KarateException ke) {
                 String message = "feature call failed, arg: " + callArg;
+                logger.error(message, ke);
                 throw new KarateException(message, ke);
             }
         } else {

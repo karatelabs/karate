@@ -205,7 +205,9 @@ public class JerseyHttpClient extends HttpClient<Entity> {
             com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(c.getName(), c.getValue());
             cookie.put(DOMAIN, c.getDomain());
             cookie.put(PATH, c.getPath());
-            cookie.put(EXPIRES, c.getExpiry().getTime() + "");
+            if (c.getExpiry() != null) {
+                cookie.put(EXPIRES, c.getExpiry().getTime() + "");
+            }
             cookie.put(SECURE, c.isSecure() + "");
             cookie.put(HTTP_ONLY, c.isHttpOnly() + "");
             cookie.put(MAX_AGE, c.getMaxAge() + "");
