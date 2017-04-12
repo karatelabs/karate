@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -47,9 +48,14 @@ public class DummyHttpClient extends HttpClient<String> {
     }
 
     @Override
-    protected String getEntity(Object value, String mediaType) {
+    protected String getEntity(String value, String mediaType) {
         return "";
     }
+    
+    @Override
+    protected String getEntity(InputStream value, String mediaType) {
+        return "";
+    }    
 
     @Override
     protected void buildUrl(String url) {
@@ -82,7 +88,7 @@ public class DummyHttpClient extends HttpClient<String> {
     }
 
     @Override
-    protected String getUri() {
+    protected String getRequestUri() {
         return "";
     }
     

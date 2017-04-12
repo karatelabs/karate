@@ -64,7 +64,9 @@ public abstract class HttpClient<T> {
     
     protected abstract T getEntity(MultiValuedMap formFields, String mediaType);
 
-    protected abstract T getEntity(Object value, String mediaType);    
+    protected abstract T getEntity(InputStream stream, String mediaType);    
+    
+    protected abstract T getEntity(String content, String mediaType);
     
     protected abstract void buildUrl(String url);
     
@@ -78,9 +80,9 @@ public abstract class HttpClient<T> {
     
     protected abstract HttpResponse makeHttpRequest(String method, T entity, long startTime);
     
-    protected abstract String getUri();
+    protected abstract String getRequestUri();
 
-    private T toEntity(ScriptValue body, String mediaType) {
+    private T getEntityInternal(ScriptValue body, String mediaType) {
         switch (body.getType()) {
             case JSON:
                 if (mediaType == null) {
@@ -115,7 +117,7 @@ public abstract class HttpClient<T> {
         }
     }
     
-    protected T buildRequestBody(HttpRequest request, ScriptContext context) {
+    private T buildRequestInternal(HttpRequest request, ScriptContext context) {
         String method = request.getMethod();
         if (method == null) {
             String msg = "'method' is required to make an http call";
@@ -176,7 +178,7 @@ public abstract class HttpClient<T> {
                     logger.error(msg);
                     throw new RuntimeException(msg);
                 }
-                return toEntity(body, mediaType);
+                return getEntityInternal(body, mediaType);
             }
         } else {
             return null;
@@ -190,7 +192,7 @@ public abstract class HttpClient<T> {
     }
     
     public HttpResponse invoke(HttpRequest request, ScriptContext context) {
-        T body = buildRequestBody(request, context);
+        T body = buildRequestInternal(request, context);
         long startTime = System.currentTimeMillis();
         try {
             HttpResponse response = makeHttpRequest(request.getMethod(), body, startTime);
@@ -198,7 +200,7 @@ public abstract class HttpClient<T> {
             return response;
         } catch (Exception e) {
             long responseTime = getResponseTime(startTime);
-            String message = "http call failed after " + responseTime + " milliseconds for URL: " + getUri();
+            String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
             logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }

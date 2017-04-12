@@ -276,19 +276,14 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpEntity getEntity(Object value, String mediaType) {
-        if (value == null) {
-            return null;
-        }
-        ContentType contentType = ContentType.create(mediaType);
-        if (value instanceof InputStream) {
-            return new InputStreamEntity((InputStream) value, contentType);
-        } else if (value instanceof String) {
-            return new StringEntity((String) value, contentType);
-        } else {
-            return new StringEntity(value.toString(), contentType);
-        }
+    protected HttpEntity getEntity(String value, String mediaType) {
+        return new StringEntity(value, ContentType.create(mediaType));
     }
+    
+    @Override
+    protected HttpEntity getEntity(InputStream value, String mediaType) {
+        return new InputStreamEntity(value, ContentType.create(mediaType));
+    }    
 
     @Override
     protected HttpResponse makeHttpRequest(String method, HttpEntity entity, long startTime) {
@@ -299,7 +294,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         HttpUriRequest httpRequest = requestBuilder.build();
         CloseableHttpClient client = clientBuilder.build();
         BasicHttpContext context = new BasicHttpContext();
-        context.setAttribute(URI_CONTEXT_KEY, getUri());
+        context.setAttribute(URI_CONTEXT_KEY, getRequestUri());
         CloseableHttpResponse httpResponse;
         byte[] bytes;
         try {
@@ -313,7 +308,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         long responseTime = getResponseTime(startTime);
         HttpResponse response = new HttpResponse();
         response.setTime(responseTime);
-        response.setUri(getUri());
+        response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(httpResponse.getStatusLine().getStatusCode());
         for (Cookie c : cookieStore.getCookies()) {
@@ -334,7 +329,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected String getUri() {
+    protected String getRequestUri() {
         return requestBuilder.getUri().toString();
     }
 

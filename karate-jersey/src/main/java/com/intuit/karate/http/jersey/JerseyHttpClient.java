@@ -94,7 +94,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     }
 
     @Override
-    public String getUri() {
+    public String getRequestUri() {
         return target.getUri().toString();
     }
 
@@ -136,7 +136,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         for (Entry<String, List> entry : fields.entrySet()) {
             map.put(entry.getKey(), entry.getValue());
         }
-        return getEntity(map, mediaType);
+        return Entity.entity(map, mediaType);
     }
 
     @Override
@@ -172,16 +172,18 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 multiPart.bodyPart(new FormDataBodyPart(name, sv.getAsString()));
             }
         }
-        return getEntity(multiPart, mediaType);
+        return Entity.entity(multiPart, mediaType);
     }
 
     @Override
-    public Entity getEntity(Object value, String mediaType) {
-        if (value == null) {
-            return null;
-        }
+    public Entity getEntity(String value, String mediaType) {
         return Entity.entity(value, mediaType);
     }
+    
+    @Override
+    public Entity getEntity(InputStream value, String mediaType) {
+        return Entity.entity(value, mediaType);
+    }    
 
     @Override
     public HttpResponse makeHttpRequest(String method, Entity entity, long startTime) {
@@ -198,7 +200,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         long responseTime = getResponseTime(startTime);
         HttpResponse response = new HttpResponse();
         response.setTime(responseTime);
-        response.setUri(getUri());
+        response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(resp.getStatus());
         for (NewCookie c : resp.getCookies().values()) {
