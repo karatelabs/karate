@@ -85,8 +85,8 @@ public class CucumberUtils {
         for (StepWrapper step : scenario.getSteps()) {
             StepResult result = step.run(backend);
             if (!result.isPass()) {
-                ScriptEnv env = step.getScenario().getFeature().getEnv();
-                throw new KarateException("call feature failed in " + env, result.getError());
+                ScriptEnv env = scenario.getFeature().getEnv();
+                throw new KarateException("failed: " + env, result.getError());
             }
         }
     }

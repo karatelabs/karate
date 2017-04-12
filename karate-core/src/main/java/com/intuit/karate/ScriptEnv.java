@@ -52,8 +52,8 @@ public class ScriptEnv {
         return featureDir.getAbsolutePath() + File.separator + featureName;
     }
     
-    public static ScriptEnv init(File featureDir, ClassLoader classLoader) {
-        return new ScriptEnv(null, featureDir, null, classLoader);
+    public static ScriptEnv init(File featureDir, String featureName, ClassLoader classLoader) {
+        return new ScriptEnv(null, featureDir, featureName, classLoader);
     }
     
     public static ScriptEnv init(String env, File featureDir) {

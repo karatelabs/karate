@@ -48,22 +48,22 @@ public class StepDefs {
     private static final Logger logger = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
-        this(ScriptEnv.init(getFeatureDir(), Thread.currentThread().getContextClassLoader()), null, null);
+        this(getFeatureEnv(), null, null);
     }
 
-    private static File getFeatureDir() {
+    private static ScriptEnv getFeatureEnv() {
         String cwd = new File("").getAbsoluteFile().getPath();
-        // TODO non-mac (confirm), non oracle jvm-s
         String javaCommand = System.getProperty("sun.java.command");
         String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         if (featurePath == null) {
             File file = new File("");
             logger.warn("unable to derive feature file path, using: {}", file.getAbsolutePath());
-            return file;
+            return ScriptEnv.init(file, null, classLoader);
         } else {
             File file = new File(featurePath);
             logger.info("ide running: {}", file);
-            return file.getParentFile();
+            return ScriptEnv.init(file.getParentFile(), file.getName(), classLoader);
         }
     }
 

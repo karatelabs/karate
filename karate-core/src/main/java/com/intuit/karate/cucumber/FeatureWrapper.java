@@ -41,7 +41,7 @@ import org.apache.commons.io.IOUtils;
  */
 public class FeatureWrapper {
     
-    private final String text;    
+    private final String text;
     private final List<String> lines;
     private final CucumberFeature feature;
     private final List<FeatureSection> featureSections;   
@@ -55,7 +55,7 @@ public class FeatureWrapper {
     public static FeatureWrapper fromFile(File file, ClassLoader classLoader) {        
         try {
             String text = FileUtils.readFileToString(file, "utf-8");
-            return new FeatureWrapper(text, ScriptEnv.init(file.getParentFile(), classLoader));
+            return new FeatureWrapper(text, ScriptEnv.init(file.getParentFile(), file.getName(), classLoader));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

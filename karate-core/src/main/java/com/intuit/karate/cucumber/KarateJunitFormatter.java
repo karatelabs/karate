@@ -238,6 +238,9 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     @Override
     public void result(Result result) {
         logger.trace("result: {}", result);
+        if ("failed".equals(result.getStatus())) {
+            logger.error("failed feature: {}", featurePath, result.getError());
+        }
         testCase.results.add(result);
         testCase.updateElement(doc, root);
     }

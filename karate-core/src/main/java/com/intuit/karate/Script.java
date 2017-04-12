@@ -974,7 +974,7 @@ public class Script {
             }
             return new ScriptValue(result);
         } catch (Exception e) {
-            String message = "javascript function call failed, arg: " + callArg;
+            String message = "javascript function call failed, arg: " + callArg + "\n" + som;
             logger.error(message, e);
             throw new KarateException(message, e);
         }        
@@ -992,7 +992,7 @@ public class Script {
                         ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "loop feature call failed, index: " + i + ", arg: " + rowArg + ", items: " + items;
+                        String message = "loop feature call failed in " + feature.getEnv() + ", index: " + i + ", arg: " + rowArg + ", items: " + items;
                         throw new KarateException(message, ke);
                     }
                 } else {
@@ -1004,7 +1004,7 @@ public class Script {
             try {
                 return evalFeatureCall(feature, context, (Map) callArg);
             } catch (KarateException ke) {
-                String message = "feature call failed, arg: " + callArg;
+                String message = "feature call failed in " + feature.getEnv() + ", arg: " + callArg;
                 logger.error(message, ke);
                 throw new KarateException(message, ke);
             }
