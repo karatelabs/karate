@@ -2,12 +2,26 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
  
-     <parent>
+    <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
         <version>0.3.0</version>
     </parent>
     <artifactId>karate-archetype</artifactId>
     <packaging>jar</packaging>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.0.2</version>
+                <configuration>
+                    <includeEmptyDirs>true</includeEmptyDirs>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>    
     
 </project>

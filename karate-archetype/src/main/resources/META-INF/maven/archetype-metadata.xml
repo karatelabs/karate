@@ -2,9 +2,9 @@
 
     <fileSets>
         <fileSet filtered="false" packaged="false" encoding="UTF-8">
-            <directory>src/test/java</directory>
+            <directory>src</directory>
             <includes>
-                <include>**/*</include>
+                <include>**/**</include>
             </includes>
         </fileSet>
     </fileSets>
