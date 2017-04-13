@@ -83,6 +83,10 @@ public class Script {
     public static final boolean isCallSyntax(String text) {
         return text.startsWith("call ");
     }
+    
+    public static final boolean isCallOnceSyntax(String text) {
+        return text.startsWith("callonce ");
+    }    
 
     public static final boolean isGetSyntax(String text) {
         return text.startsWith("get ");
@@ -166,8 +170,13 @@ public class Script {
             logger.trace("script is empty");
             return ScriptValue.NULL;
         }
-        if (isCallSyntax(text)) { // special case in form "call foo arg"
-            text = text.substring(5);
+        if (isCallSyntax(text) || isCallOnceSyntax(text)) { // special case in form "call foo arg"
+            boolean once = isCallOnceSyntax(text);
+            if (once) {
+                text = text.substring(9);
+            } else {
+                text = text.substring(5);
+            }
             int pos = text.indexOf(' '); // TODO handle read('file with spaces in the name')
             String arg;
             if (pos != -1) {
@@ -176,7 +185,18 @@ public class Script {
             } else {
                 arg = null;
             }
-            return call(text, arg, context);
+            if (!once) {
+                return call(text, arg, context);
+            }
+            ScriptValue callResult = context.env.getFromCallCache(text);
+            if (callResult != null) {
+                logger.debug("callonce cache hit for: {}", text);
+                return callResult;
+            }
+            callResult = call(text, arg, context);
+            context.env.putInCallCache(text, callResult);
+            logger.debug("cached callonce: {}", text);
+            return callResult;
         } else if (isGetSyntax(text)) { // special case in form
             // get json[*].path
             // get /xml/path

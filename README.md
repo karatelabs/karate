@@ -50,7 +50,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
- **Code Re-Use** | [`call`](#call) | [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
+ **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 
@@ -548,6 +548,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | :white_check_mark: [**Yes**](#calling-other-feature-files).
 **Dynamic Data-Driven Testing** | **No**. The [`Scenario Outline:`](#the-cucumber-way) feature of Cucumber expects the `Examples:` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
 **Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find [various](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [threads](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) and [third-party](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [projects](https://github.com/temyers/cucumber-jvm-parallel-plugin) on the internet that attempt to close this gap. | :white_check_mark: [**Yes**](#parallel-execution).
+**Run 'Set-Up' Routines Only Once** | **No**. Cucumber has a limitation where `Background:` steps are re-run for every `Scenario:` and unfortunately even for every `Examples:` row within a `Scenario Outline:`. This has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515) despite a *lot* of demand. | :white_check_mark: [**Yes**](#callonce)
 **BDD Syntax** | **Yes** | :white_check_mark: **Yes**
 
 One nice thing about the design of the underlying Cucumber framework is that script-steps are treated the same no matter whether they start with the keyword `Given`, `And`, `When` or `Then`.  What this means is that you are free to use whatever makes sense for you.  You could even have all the steps start with `When` and Karate won't care.
@@ -1749,6 +1750,13 @@ function(arg) {
 * def result = JavaDemo.doWorkStatic('world')
 * assert result == 'hello world'
 ```
+
+## `callonce`
+Cucumber has a limitation where `Background:` steps are re-run for every `Scenario:` and unfortunately even for every `Examples:` row within a `Scenario Outline:`. This is clearly not ideal especially for expensive and time-consuming HTTP calls, and [this is still an open issue](https://github.com/cucumber/cucumber-jvm/issues/515). Fortunately you can elegantly work-around this limitation of Cucumber with the help of Karate's `callonce` keyword. This behaves exactly like [`call`](#call) but is guaranteed to execute only once. The results of the first call are cached, and any future calls will simply return the cached result instead of executing the JavaScript function (or feature) again and again. 
+
+This does require you to move 'set-up' into a separate `*.feature` (or JavaScript) file, which totally makes sense for things not part of the 'main' test flow and which need to be re-usable anyway. You can find an example in the [karate-demos](karate-demo). 
+
+So you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation.
 
 # Advanced / Tricks
 

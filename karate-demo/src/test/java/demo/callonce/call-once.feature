@@ -10,7 +10,8 @@ Background:
     | Wild     | 1   |
     | Nyan     | 3   |
 
-* def result = call read('create-kittens-once.js') kittens
+# note the use of 'callonce' instead of 'call'
+* def result = callonce read('../calltable/kitten-create.feature') kittens
 
 Scenario Outline: various tests on the cats created
 
@@ -19,8 +20,8 @@ Scenario Outline: various tests on the cats created
     Then status 200
     And match response[*].name contains '<name>'
 
-    # even though cucumber executes the 'Background' for each row in the 'Examples',
-    # 'create-kittens-once.js' is designed to cache expensive calls
+    # even though cucumber will re-run the 'Background:' section for each row in the 'Examples' below,
+    # kittens will be created by 'kitten-create.feature' only once
 
     Examples:
     | name |
@@ -28,10 +29,10 @@ Scenario Outline: various tests on the cats created
     | Nyan |
 
 
-# again, even though cucumber calls the 'Background' for each Scenario,
-# 'create-kittens-once.js' will make http calls only once
 Scenario: create a cat with kittens
 
+    # again, even though cucumber will re-run the 'Background:' section for each `Scenario:' in a feature file,
+    # 'kitten-create.feature' will not be called and the value of 'result' will be retrieved from cache
     * def created = get result[*].response
 
     Given path 'cats'

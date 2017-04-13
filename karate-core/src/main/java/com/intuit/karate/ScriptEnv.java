@@ -24,6 +24,8 @@
 package com.intuit.karate;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,12 +42,19 @@ public class ScriptEnv {
     public final File featureDir;
     public final String featureName;
     public final ClassLoader fileClassLoader;
+    private final Map<String, ScriptValue> callCache;
     
-    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader) {
+    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, 
+            Map<String, ScriptValue> callCache) {
         this.env = env;
         this.featureDir = featureDir;
         this.featureName = featureName;
         this.fileClassLoader = fileClassLoader;
+        this.callCache = callCache;
+    }
+    
+    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader) {
+        this(env, featureDir, featureName, fileClassLoader, new HashMap<>(1));
     }
     
     public String getFeaturePath() {
@@ -68,8 +77,16 @@ public class ScriptEnv {
                 logger.debug("obtained 'karate.env' from system properties: {}", karateEnv);
             }
         }
-        return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader);
+        return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache);
     }
+    
+    public ScriptValue getFromCallCache(String key) {
+        return callCache.get(key);
+    }
+    
+    public void putInCallCache(String key, ScriptValue value) {
+        callCache.put(key, value);
+    }    
 
     @Override
     public String toString() {
