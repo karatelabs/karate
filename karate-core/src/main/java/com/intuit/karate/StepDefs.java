@@ -334,7 +334,7 @@ public class StepDefs {
 
     @Given("^call ([^\\s]+)( .*)?")
     public final void callAndUpdateVars(String name, String arg) {
-        Script.callAndUpdateVars(name, arg, context);
+        Script.callAndUpdateVarsIfMapReturned(name, arg, context);
     }
 
     private void handleFailure(AssertionResult ar) {

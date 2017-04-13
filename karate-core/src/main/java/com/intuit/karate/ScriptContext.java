@@ -86,7 +86,7 @@ public class ScriptContext {
             client = HttpClient.construct();
             client.configure(config);            
             try {
-                Script.callAndUpdateVars("read('classpath:karate-config.js')", null, this);
+                Script.callAndUpdateVarsIfMapReturned("read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
                 logger.warn("start-up configuration failed, missing or bad 'karate-config.js'", e);
             }

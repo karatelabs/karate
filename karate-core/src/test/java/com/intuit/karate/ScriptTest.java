@@ -418,7 +418,7 @@ public class ScriptTest {
         Script.assign("foo", "function(){ return { bar: 'baz' } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
         assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
-        Script.callAndUpdateVars("foo", null, ctx);
+        Script.callAndUpdateVarsIfMapReturned("foo", null, ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("baz", testBar.getValue());
     }
@@ -447,7 +447,7 @@ public class ScriptTest {
         Script.assign("foo", "function(a){ return { bar: a } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
         assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
-        Script.callAndUpdateVars("foo", "'hello'", ctx);
+        Script.callAndUpdateVarsIfMapReturned("foo", "'hello'", ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("hello", testBar.getValue());
     }
@@ -458,7 +458,7 @@ public class ScriptTest {
         Script.assign("foo", "function(a){ return { bar: a.hello } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
         assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
-        Script.callAndUpdateVars("foo", "{ hello: 'world' }", ctx);
+        Script.callAndUpdateVarsIfMapReturned("foo", "{ hello: 'world' }", ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("world", testBar.getValue());
     }

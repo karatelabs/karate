@@ -1019,24 +1019,11 @@ public class Script {
         return new ScriptValue(map);
     }
 
-    public static Map<String, Object> toMap(ScriptObjectMirror som) {
-        String[] keys = som.getOwnKeys(false);
-        Map<String, Object> map = new HashMap<>(keys.length);
-        for (String key : keys) {
-            Object value = som.get(key);
-            map.put(key, value);
-            logger.trace("unpacked from js: {}: {}", key, value);
-        }
-        return map;
-    }
-
-    public static void callAndUpdateVars(String name, String arg, ScriptContext context) {
+    public static void callAndUpdateVarsIfMapReturned(String name, String arg, ScriptContext context) {
         ScriptValue sv = call(name, arg, context);
         Map<String, Object> result;
         switch (sv.getType()) {
             case JS_OBJECT:
-                result = toMap(sv.getValue(ScriptObjectMirror.class));
-                break;
             case MAP:
                 result = sv.getValue(Map.class);
                 break;

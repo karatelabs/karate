@@ -214,7 +214,6 @@ public abstract class HttpClient<T> {
                 ScriptValue sv = Script.evalFunctionCall(som, null, context);
                 switch (sv.getType()) {
                     case JS_OBJECT:
-                        return Script.toMap(sv.getValue(ScriptObjectMirror.class));
                     case MAP:
                         return sv.getValue(Map.class);
                     default:
