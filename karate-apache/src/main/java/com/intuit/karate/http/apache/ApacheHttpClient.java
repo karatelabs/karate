@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http.apache;
 
+import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
 import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
@@ -37,7 +38,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -56,6 +56,7 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
@@ -105,12 +106,12 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         clientBuilder.addInterceptorLast(new RequestLoggingInterceptor(counter));
         clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter));
         if (config.isSslEnabled()) {
+            // System.setProperty("jsse.enableSNIExtension", "false");
             String sslAlgorithm = config.getSslAlgorithm();
             logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
-            SSLContext ssl = HttpUtils.getSslContext(sslAlgorithm);
-            HttpsURLConnection.setDefaultSSLSocketFactory(ssl.getSocketFactory());
-            clientBuilder.setSSLContext(ssl);
-            clientBuilder.setSSLHostnameVerifier(new NoopHostnameVerifier());
+            SSLContext sslContext = HttpUtils.getSslContext(sslAlgorithm);
+            SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
+            clientBuilder.setSSLSocketFactory(socketFactory);
         }
 
         RequestConfig.Builder configBuilder = RequestConfig.custom()
@@ -128,7 +129,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                             new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword()));
                     clientBuilder.setDefaultCredentialsProvider(credsProvider);
 
-                }                
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -279,11 +280,11 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     protected HttpEntity getEntity(String value, String mediaType) {
         return new StringEntity(value, ContentType.create(mediaType));
     }
-    
+
     @Override
     protected HttpEntity getEntity(InputStream value, String mediaType) {
         return new InputStreamEntity(value, ContentType.create(mediaType));
-    }    
+    }
 
     @Override
     protected HttpResponse makeHttpRequest(String method, HttpEntity entity, long startTime) {
