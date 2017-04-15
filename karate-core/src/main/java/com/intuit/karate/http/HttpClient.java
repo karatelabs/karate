@@ -95,8 +95,15 @@ public abstract class HttpClient<T> {
                     mediaType = APPLICATION_JSON;
                 }
                 Map<String, Object> map = body.getValue(Map.class);
-                DocumentContext doc = JsonPath.parse(map);
-                return HttpClient.this.getEntity(doc.jsonString(), mediaType);
+                DocumentContext mapDoc = JsonPath.parse(map);
+                return HttpClient.this.getEntity(mapDoc.jsonString(), mediaType);
+            case LIST:
+                if (mediaType == null) {
+                    mediaType = APPLICATION_JSON;
+                }
+                List list = body.getValue(List.class);
+                DocumentContext listDoc = JsonPath.parse(list);
+                return HttpClient.this.getEntity(listDoc.jsonString(), mediaType);
             case XML:
                 Node node = body.getValue(Node.class);
                 if (mediaType == null) {

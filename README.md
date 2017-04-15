@@ -41,7 +41,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 ----- | ---- | ---- | --- | ---
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
 .... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
-.... | [Environment Switching](#switching-the-environment) | [Script Structure](#script-structure) | [Given-When-Then](#given-when-then) | [Cucumber vs Karate](#cucumber-vs-karate)
+.... | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Script Structure](#script-structure) [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`table`](#table) | [`text`](#text) / [`yaml`](#yaml)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
@@ -69,7 +69,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Standard Java / Maven project structure, and seamless integration into CI / CD pipelines - with both JUnit and TestNG being supported
 * Support for multi-threaded parallel execution, which is a huge time-saver, especially for HTTP integration tests
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for ultimate extensibility
-* Simple plug-in system for authentication and HTTP header management that will handle any complex real-world scenario
+* Simple plug-in system for authentication and HTTP header management that will handle any complex, real-world scenario
 * Comprehensive support for different flavors of HTTP calls:
   * SOAP / XML requests
   * HTTPS / SSL - without needing certificates, key-stores or trust-stores
@@ -196,7 +196,7 @@ src/test/java
 ```
 Assuming you use JUnit, there are some good reasons for the recommended (best practice) naming convention and choice of file-placement shown above:
 * Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
-* `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder heirarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed).
+* `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder heirarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
 * `some-classpath-function.js` and `some-classpath-payload.js` are on the Java 'classpath' which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`.
 
 For details on what actually goes into a script or `*.feature` file, refer to the
@@ -337,7 +337,7 @@ public class TestParallel {
 Things to note:
 * You don't use a JUnit runner, and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner.parallel()` static method in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
-* The first argument is a class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself.
+* The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself.
 * The second argument is the number of threads to use.
 * JUnit XML reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
 * No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation, or the command-line, or the 'maven-surefire-plugin' `<systemProperties>` - it will be ignored.
@@ -546,7 +546,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 **Layers of Code to Maintain** | **2** Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | :white_check_mark: **1** Layer. Only Karate-script (based on Gherkin), and no Java code needs to be implemented.
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | :x: **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | :white_check_mark: [**Yes**](#calling-other-feature-files).
-**Dynamic Data-Driven Testing** | **No**. The [`Scenario Outline:`](#the-cucumber-way) feature of Cucumber expects the `Examples:` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
+**Dynamic Data-Driven Testing** | **No**. Cucumber's [`Scenario Outline`](#the-cucumber-way) expects the `Examples` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
 **Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find [various](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [threads](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) and [third-party](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [projects](https://github.com/temyers/cucumber-jvm-parallel-plugin) on the internet that attempt to close this gap. | :white_check_mark: [**Yes**](#parallel-execution).
 **Run 'Set-Up' Routines Only Once** | **No**. Cucumber has a limitation where `Background` steps are re-run for every `Scenario` and worse - even for every `Examples` row within a `Scenario Outline`. This has been a [highly-requested open issue](https://github.com/cucumber/cucumber-jvm/issues/515) for a *long* time. | :white_check_mark: [**Yes**](#callonce)
 **BDD Syntax** | **Yes** | :white_check_mark: **Yes**
@@ -634,25 +634,19 @@ Then match cat.cat.scores.score[1] == 5
 Karate has a very useful JSON 'templating' approach. Variables can be referred to within JSON, for example:
 
 ```cucumber
-When def ticket = { userId: 'john' }
-Then match session == { userId: '#(ticket.userId)' }
+When def user = { name: 'john', age: 21 }
+And def lang = 'en'
+Then def session = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(user)'  }
 ```
-So the rule is - if a string value within a JSON (or XML) object declaration is enclosed
-between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are
-alive in the context can be used in this expression.
+So the rule is - if a string value within a JSON (or XML) object declaration is enclosed between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are alive in the context can be used in this expression.
 
-This comes in useful in some cases - and avoids needing to use JavaScript functions or 
-[JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set).
-So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
+This comes in useful in some cases - and avoids needing to use JavaScript functions or [JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set). So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
 the same time being able to dynamically plug values (that could also be other JSON object-trees) into a JSON 'template'.
 
-The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the 
-[Karate Demos](karate-demo).
+The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the [Karate Demos](karate-demo).
 
 ### Multi-Line Expressions
-The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as
-the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line,
-without having to split it out into a separate [file](#reading-files). Here are some examples:
+The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
 ```cucumber
 # instead of:
 * def cat = <cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>
@@ -1053,6 +1047,8 @@ Then status 200
 And match response /Envelope/Body/QueryUsageBalanceResponse/Result/Error/Code == 'DAT_USAGE_1003'
 And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-response.xml')
 ```
+
+Here is a working example of calling a SOAP service from the Karate project test-suite: [`soap.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/soap.feature)
 
 # Managing Headers, SSL, Timeouts and HTTP Proxy
 ## `configure`
@@ -1560,8 +1556,8 @@ Feature: some feature
 
 Background:
 * configure headers = read('classpath:my-headers.js')
-* def signin = call read('classpath:my-signin.feature') { username: 'john', password: 'secret' }
-* def authToken = signin.authToken
+* def signIn = call read('classpath:my-signin.feature') { username: 'john', password: 'secret' }
+* def authToken = signIn.authToken
 
 Scenario: some scenario
 # main test steps
@@ -1570,7 +1566,7 @@ Scenario: some scenario
 The contents of `my-signin.feature` are shown below. A few points to note:
 * Karate passes all context 'as-is' into the feature file being invoked. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example `loginUrlBase` in the example below.
 * You can add (or over-ride) variables by passing a call 'argument' as shown above. Only one JSON argument is allowed, but this does not limit you in any way as you can use any complex JSON structure. You can even initialize the JSON in a separate step and pass it by name, especially if it is complex. Observe how using JSON for parameter-passing makes things super-readable.
-* **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. Note that this includes ['built-in' variables](#special-variables), which means that things like the last value of [`response`](#response) would also be returned. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signin`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signin.authToken` as shown above. This design has the following advantages:
+* **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. Note that this includes ['built-in' variables](#special-variables), which means that things like the last value of [`response`](#response) would also be returned. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signIn`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signIn.authToken` as shown above. This design has the following advantages:
   * 'called' Karate scripts don't need to use any special keywords to 'return' data and can behave like 'normal' Karate tests in 'stand-alone' mode if needed
   * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script
   * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
@@ -1839,7 +1835,7 @@ within [`karate-config.js`](#configuration) on start-up, it is a simple and effe
 processes within the same JVM to pass configuration values into Karate at run-time.
 
 You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
-* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java#L28) - see line #28
+* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java#L30) - see line #30
 * [karate-config.js](karate-junit4/src/test/java/karate-config.js#L10) - see line #10
 * [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature#L6) - see line #6
 
