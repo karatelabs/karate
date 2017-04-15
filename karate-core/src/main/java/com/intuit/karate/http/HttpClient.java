@@ -78,7 +78,7 @@ public abstract class HttpClient<T> {
     
     protected abstract void buildCookie(Cookie cookie);
     
-    protected abstract HttpResponse makeHttpRequest(String method, T entity, long startTime);
+    protected abstract HttpResponse makeHttpRequest(T entity, long startTime);
     
     protected abstract String getRequestUri();
 
@@ -202,7 +202,7 @@ public abstract class HttpClient<T> {
         T body = buildRequestInternal(request, context);
         long startTime = System.currentTimeMillis();
         try {
-            HttpResponse response = makeHttpRequest(request.getMethod(), body, startTime);
+            HttpResponse response = makeHttpRequest(body, startTime);
             logger.debug("response time in milliseconds: {}", response.getTime());
             return response;
         } catch (Exception e) {

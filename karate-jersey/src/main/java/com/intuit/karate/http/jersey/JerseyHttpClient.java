@@ -186,7 +186,8 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     }    
 
     @Override
-    public HttpResponse makeHttpRequest(String method, Entity entity, long startTime) {
+    public HttpResponse makeHttpRequest(Entity entity, long startTime) {
+        String method = request.getMethod();
         if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
             builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);
         }

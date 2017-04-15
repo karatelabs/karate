@@ -287,7 +287,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpResponse makeHttpRequest(String method, HttpEntity entity, long startTime) {
+    protected HttpResponse makeHttpRequest(HttpEntity entity, long startTime) {
         if (entity != null) {
             requestBuilder.setEntity(entity);
             requestBuilder.setHeader(entity.getContentType());
