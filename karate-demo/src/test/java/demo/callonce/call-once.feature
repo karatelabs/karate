@@ -24,9 +24,9 @@ Scenario Outline: various tests on the cats created
     # kittens will be created by 'kitten-create.feature' only once
 
     Examples:
-    | name |
-    | Bob  |
-    | Nyan |
+        | name |
+        | Bob  |
+        | Nyan |
 
 
 Scenario: create a cat with kittens

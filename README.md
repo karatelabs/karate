@@ -41,7 +41,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 ----- | ---- | ---- | --- | ---
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
 .... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
-.... | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Script Structure](#script-structure) [Cucumber vs Karate](#cucumber-vs-karate)
+.... | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Script Structure](#script-structure) | [Cucumber vs Karate](#cucumber-vs-karate)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`table`](#table) | [`text`](#text) / [`yaml`](#yaml)
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
@@ -70,6 +70,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Support for multi-threaded parallel execution, which is a huge time-saver, especially for HTTP integration tests
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for ultimate extensibility
 * Simple plug-in system for authentication and HTTP header management that will handle any complex, real-world scenario
+* Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can choose what works best in your project, and not be blocked by library or dependency conflicts
 * Comprehensive support for different flavors of HTTP calls:
   * SOAP / XML requests
   * HTTPS / SSL - without needing certificates, key-stores or trust-stores
@@ -97,13 +98,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.3.0</version>
+    <version>0.3.1</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.3.0</version>
+    <version>0.3.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -820,7 +821,7 @@ The `call` keyword provides an [alternate way of calling JavaScript functions](#
 
 ## Reading Files
 
-Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) as the `*.feature` file. But you can prefix the name with `classpath:`. 
+Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) as the `*.feature` file. But you can prefix the name with `classpath:` in which case the 'root' folder would be `src/test/java` (assuing you are using the [recommended folder structure](#folder-structure)).
 
 Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
 
@@ -856,8 +857,7 @@ You can also [re-use other `*.feature`](#calling-other-feature-files) files from
 * def result = call read('classpath:some-reusable-steps.feature')
 ```
 
-If a file does not end in '.json', '.xml', '.js' or '.txt' - it is treated as a stream 
-which is typically what you would need for [`multipart`](#multipart-field) file uploads.
+If a file does not end in '.json', '.xml', '.js' or '.txt' - it is treated as a stream which is typically what you would need for [`multipart`](#multipart-field) file uploads.
 ```cucumber
 * def someStream = read('some-pdf.pdf')
 ```
@@ -868,7 +868,13 @@ Since it is internally implemented as a JavaScript function, you can mix calls t
 * def someBigString = read('first.txt') + read('second.txt')
 ```
 
-Take a look at the [Karate Demos](karate-demo) for real-life examples of reading files.
+And a very common need would be to use a file as the [`request`](#request) body.
+
+```cucumber
+Given request read('some-big-payload.json')
+```
+
+Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for matching HTTP responses.
 
 # Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
@@ -1381,7 +1387,7 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. XPath functions are not supported directly within [`match`](#match) statements. But by using the `get` keyword, you should be able to achieve any assertion involving XPath functions in two steps. The examples below also show how 'standard' XPath can be used to do `match`.
 
 ```cucumber
-* def foo =
+* def myXml =
 """
 <records>
   <record index="1">a</record>
@@ -1389,31 +1395,27 @@ When handling XML, you sometimes need to call [XPath functions](https://docs.ora
   <record index="3" foo="bar">c</record>
 </records>
 """
-* def count = get foo count(/records//record)
+* def count = get myXml count(/records//record)
 * assert count == 3
 
 # you can actually do this 'JSON-style' in one step !
-* assert foo.records.record.length == 3
+* assert myXml.records.record.length == 3
 
 # some 'standard' xpath examples
-* def second = get foo //record[@index=2]
+* def second = get myXml //record[@index=2]
 * assert second == 'b'
 
-* match foo //record[@foo='bar'] == 'c'
+* match myXml //record[@foo='bar'] == 'c'
 ```
 
 # Special Variables
 
 ## `response`
-After every HTTP call this variable is set with the response and is available until the next HTTP
-request over-writes it.
+After every HTTP call this variable is set with the response and is available until the next HTTP request over-writes it. You can easily assign `response` (or parts of it using Json-Path or XPath) to a variable and use it in later steps.
 
-The response is automatically available as a JSON, XML or String object depending on what the
-response contents are.
+The response is automatically available as a JSON, XML or String object depending on what the response contents are.
 
-As a short-cut, when running JsonPath expressions - '$' represents the `response`.  This
-has the advantage that you can use pure [JsonPath](https://github.com/jayway/JsonPath#path-examples)
-and be more concise.  For example:
+As a short-cut, when running JsonPath expressions - '$' represents the `response`.  This has the advantage that you can use pure [JsonPath](https://github.com/jayway/JsonPath#path-examples) and be more concise.  For example:
 
 ```cucumber
 # the three lines below are equivalent
@@ -1442,39 +1444,31 @@ Then match /cat/name == 'Billie'
 ```
 
 ## `cookies`
-The `cookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object.
-It can be easily inspected or used in expressions.
+The `cookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.
 ```cucumber
 Then assert cookies['my.key'].value == 'someValue'
 ```
-As a convenience, cookies from the previous response are collected and passed as-is as 
-part of the next HTTP request.  This is what is normally expected and simulates a 
+As a convenience, cookies from the previous response are collected and passed as-is as part of the next HTTP request.  This is what is normally expected and simulates a 
 browser - which makes it easy to script things like HTML-form based authentication into test-flows.
 
-Of course you can manipulate `cookies` or even set it to `null` if you wish - at any point
-within a test script.
+Of course you can manipulate `cookies` or even set it to `null` if you wish - at any point within a test script.
 
 Each item within `cookies` is itself a 'map-like' object. Typically you would examine the `value` property as in the example above, but `domain` and `path` are also available.
 
 ## `responseHeaders`
 See also [`match header`](#match-header) which is what you would normally need.
 
-But if you need to use values in the response headers - they will be in a variable 
-named `responseHeaders`. Note that it is a 'map of lists' so you will need to do things 
-like this:
+But if you need to use values in the response headers - they will be in a variable named `responseHeaders`. Note that it is a 'map of lists' so you will need to do things like this:
 ```cucumber
 * def contentType = responseHeaders['Content-Type'][0]
 ```
 ## `responseStatus`
-You would normally only need to use the [`status`](#status) keyword.  But if you really need to use 
-the HTTP response code in an expression or save it for later, you can get it as an integer:
+You would normally only need to use the [`status`](#status) keyword.  But if you really need to use the HTTP response code in an expression or save it for later, you can get it as an integer:
 ```cucumber
 * def uploadStatusCode = responseStatus
 ```
 ## `responseTime`
-The response time (in milliseconds) for every HTTP request would be available in a variable called
-`responseTime`. You can use this to assert that the response was returned within the expected time
-like so:
+The response time (in milliseconds) for every HTTP request would be available in a variable called `responseTime`. You can use this to assert that the response was returned within the expected time like so:
 ```cucumber
 When method post
 Then status 201
@@ -1483,8 +1477,7 @@ And assert responseTime < 1000
 
 # HTTP Header Manipulation
 ## `configure headers`
-Custom header manipulation for every HTTP request is something that Karate makes very easy and pluggable.
-For every HTTP request made from Karate, the internal flow is as follows:
+Custom header manipulation for every HTTP request is something that Karate makes very easy and pluggable. For every HTTP request made from Karate, the internal flow is as follows:
 * did we [`configure`](#configure) the value of `headers` ?
 * if so, is the configured value a JavaScript function ?
   * if so, a [`call`](#call) is made to that function.
@@ -1493,16 +1486,11 @@ For every HTTP request made from Karate, the internal flow is as follows:
 * or is the configured value a JSON object ?
   * all the key-value pairs are added to the HTTP headers.
 
-This makes setting up of complex authentication schemes for your test-flows really easy.
-It typically ends up being a one-liner that appears in the `Background` section at 
-the start of your test-scripts.  You can re-use the function you create across your whole project.
+This makes setting up of complex authentication schemes for your test-flows really easy. It typically ends up being a one-liner that appears in the `Background` section at the start of your test-scripts.  You can re-use the function you create across your whole project.
  
-Here is an example JavaScript function that uses some variables in the context
-(which have been possibly set as the result of a sign-in) to build the `Authorization` header.
+Here is an example JavaScript function that uses some variables in the context (which have been possibly set as the result of a sign-in) to build the `Authorization` header.
 
-> In the example below, note the use of the [`karate`](#the-karate-object) object 
-for getting the value of a dynamic variable. This is preferred because it takes care of 
-situations such as if the value is 'undefined' in JavaScript.
+> In the example below, note the use of the [`karate`](#the-karate-object) object for getting the value of a dynamic variable. This is preferred because it takes care of situations such as if the value is 'undefined' in JavaScript.
 
 ```javascript
 function() {
@@ -1523,31 +1511,22 @@ function() {
   return out;
 }
 ```
-Assuming the above code is in a file called `my-headers.js`, the next section on
-[calling other feature files](#calling-other-feature-files) shows how it looks like in action
-at the beginning of a test script.
+Assuming the above code is in a file called `my-headers.js`, the next section on [calling other feature files](#calling-other-feature-files) shows how it looks like in action at the beginning of a test script.
 
-Notice how once the `authToken` variable is initialized, it is used by the above function to 
-generate headers for every HTTP call made as part of the test flow.
+Notice how once the `authToken` variable is initialized, it is used by the above function to generate headers for every HTTP call made as part of the test flow.
 
-If a few steps in your flow need to temporarily change (or completely bypass) the currently-set 
-header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the
-middle of a script.
+If a few steps in your flow need to temporarily change (or completely bypass) the currently-set header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the middle of a script.
 
 # Code Reuse / Common Routines
 
 ## `call`
 
-In any complex testing endeavour, you would find yourself needing 'common' code that needs to be re-used 
-across multiple test scripts. A typical need would be to perform a 'sign in', or create a 
-fresh user as a pre-requisite for the scenarios being tested.
+In any complex testing endeavour, you would find yourself needing 'common' code that needs to be re-used across multiple test scripts. A typical need would be to perform a 'sign in', or create a fresh user as a pre-requisite for the scenarios being tested.
 
 There are two types of code that can be `call`-ed. `*.feature` files and [JavaScript functions](#calling-javascript-functions).
 
 ## Calling other `*.feature` files
-When you have a sequence of HTTP calls that need to be repeated for multiple test scripts,
-Karate allows you to treat a `*.feature` file as a re-usable unit. You can also pass
-parameters into the `*.feature` file being called, and extract variables out of the invocation result.
+When you have a sequence of HTTP calls that need to be repeated for multiple test scripts, Karate allows you to treat a `*.feature` file as a re-usable unit. You can also pass parameters into the `*.feature` file being called, and extract variables out of the invocation result.
 
 Here is an example of how to call another feature file, using the [`read`](#reading-files) function:
 
@@ -1646,7 +1625,7 @@ Examples of [defining and using JavaScript functions](#javascript-functions) app
 In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the variables that result from a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests.
 
 ### The `karate` object
-A JavaScript function invoked with `call` has access to a utility object in a variable named: `karate`.  This provides the following methods:
+A JavaScript function at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
 * `karate.set(key, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 * `karate.get(key)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
