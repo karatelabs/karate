@@ -124,7 +124,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.3.0 \
+-DarchetypeVersion=0.3.1 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
