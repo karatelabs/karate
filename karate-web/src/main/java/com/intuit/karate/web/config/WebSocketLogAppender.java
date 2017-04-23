@@ -29,14 +29,13 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.classic.Logger;
-import java.io.Serializable;
 import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class WebSocketLogAppender extends AppenderBase<ILoggingEvent> implements Serializable {
+public class WebSocketLogAppender extends AppenderBase<ILoggingEvent> {
 
     private final PatternLayoutEncoder encoder;
     private StringBuilder sb;

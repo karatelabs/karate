@@ -65,7 +65,7 @@ public class LogPanel extends Panel implements LogAppenderTarget {
     public String getUpdateScript() {
         return "function updateLog(message) {\n"
                 + "  var textArea = jQuery('#" + textArea.getMarkupId() + "');\n"
-                + "  textArea.append(message.text + '\\n');\n"
+                + "  textArea.append(message.text);\n"
                 + "};";
     }
 
@@ -85,6 +85,10 @@ public class LogPanel extends Panel implements LogAppenderTarget {
         WebSocketSettings settings = WebSocketSettings.Holder.get(application);
         IWebSocketConnectionRegistry registry = settings.getConnectionRegistry();
         IWebSocketConnection connection = registry.getConnection(application, webSocketSessionId, webSocketClientKey);
+        if (connection == null) {
+            logger.warn("websocket client lookup failed for web-socket session: {}", webSocketSessionId);
+            return;
+        }
         try {
             connection.sendMessage(json);
         } catch (Exception e) {

@@ -55,7 +55,7 @@ public class FeatureBrowsePanel extends Panel {
 
     public FeatureBrowsePanel(String id, PageParameters params) {
         super(id);
-        File root = new File("../../karate-examples");
+        File root = new File("../karate-demo");
         String basePath = root.getPath() + File.separator;
         FeatureFileTreeProvider provider = new FeatureFileTreeProvider(root, basePath + "src/test/java");
         DefaultNestedTree<FeatureFileEnv> tree = new DefaultNestedTree<FeatureFileEnv>("browse", provider) {
