@@ -23,10 +23,14 @@
  */
 package com.intuit.karate.web.wicket;
 
+import com.intuit.karate.web.config.WebSocketLogAppender;
+import com.intuit.karate.web.service.KarateService;
+import com.intuit.karate.web.service.KarateSession;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 import org.apache.wicket.protocol.ws.api.WebSocketBehavior;
 import org.apache.wicket.protocol.ws.api.message.ConnectedMessage;
+import org.apache.wicket.spring.injection.annot.SpringBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +41,9 @@ import org.slf4j.LoggerFactory;
 public class FeaturePage extends BasePage {
 
     private static final Logger logger = LoggerFactory.getLogger(FeaturePage.class);
+    
+    @SpringBean(required = true)
+    private KarateService service;    
 
     private final LogPanel logPanel;
 
@@ -47,11 +54,15 @@ public class FeaturePage extends BasePage {
     public FeaturePage(String sessionId) {
         replace(new FeaturePanel(CONTENT_ID, sessionId));
         replace(new VarsPanel(LEFT_NAV_ID, sessionId));
-        logPanel = new LogPanel(STICKY_FOOTER_ID);
+        logPanel = new LogPanel(STICKY_FOOTER_ID, sessionId);
         add(new WebSocketBehavior() {
             @Override
             protected void onConnect(ConnectedMessage message) {
+                KarateSession session = service.getSession(sessionId);
+                WebSocketLogAppender appender = session.getAppender();
                 logPanel.onConnect(message);
+                appender.setTarget(logPanel);
+                logger.debug("websocket client connected, session: {}", message.getSessionId());
             }
         });
     }

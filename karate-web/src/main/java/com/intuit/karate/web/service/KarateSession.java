@@ -25,6 +25,7 @@ package com.intuit.karate.web.service;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.cucumber.KarateBackend;
+import com.intuit.karate.web.config.WebSocketLogAppender;
 
 /**
  *
@@ -35,11 +36,13 @@ public class KarateSession {
     private final String id;
     private final KarateBackend backend;
     private final FeatureWrapper feature;
+    private final WebSocketLogAppender appender;
     
-    public KarateSession(String id, FeatureWrapper feature, KarateBackend backend) {
+    public KarateSession(String id, FeatureWrapper feature, KarateBackend backend, WebSocketLogAppender appender) {
         this.id = id;
         this.backend = backend;
         this.feature = feature;
+        this.appender = appender;
     }
 
     public String getId() {
@@ -53,5 +56,9 @@ public class KarateSession {
     public FeatureWrapper getFeature() {
         return feature;
     }     
+
+    public WebSocketLogAppender getAppender() {
+        return appender;
+    }        
     
 }

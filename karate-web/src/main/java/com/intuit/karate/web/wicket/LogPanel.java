@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.web.wicket;
 
-import com.intuit.karate.web.wicket.model.LogCollector;
+import com.intuit.karate.web.config.LogAppenderTarget;
+import com.intuit.karate.web.config.WebSocketLogAppender;
+import com.intuit.karate.web.service.KarateService;
 import com.jayway.jsonpath.JsonPath;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,12 +43,16 @@ import org.apache.wicket.protocol.ws.api.IWebSocketConnection;
 import org.apache.wicket.protocol.ws.api.message.ConnectedMessage;
 import org.apache.wicket.protocol.ws.api.registry.IKey;
 import org.apache.wicket.protocol.ws.api.registry.IWebSocketConnectionRegistry;
+import org.apache.wicket.spring.injection.annot.SpringBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LogPanel extends Panel {
+public class LogPanel extends Panel implements LogAppenderTarget {
 
     private static final Logger logger = LoggerFactory.getLogger(LogPanel.class);
+    
+    @SpringBean(required = true)
+    private KarateService service;    
 
     private String webSocketSessionId;
     private IKey webSocketClientKey;
@@ -54,7 +60,6 @@ public class LogPanel extends Panel {
     public void onConnect(ConnectedMessage message) {
         this.webSocketSessionId = message.getSessionId();
         this.webSocketClientKey = message.getKey();
-        logger.debug("websocket client connected, session: {}, key: {}", webSocketSessionId, webSocketClientKey);
     }
 
     public String getUpdateScript() {
@@ -63,8 +68,7 @@ public class LogPanel extends Panel {
                 + "  textArea.append(message.text + '\\n');\n"
                 + "};";
     }
-    
-    private final LogCollector logCollector;
+
     private final TextArea textArea;
     private boolean showing;
 
@@ -74,12 +78,8 @@ public class LogPanel extends Panel {
 
     public boolean isShowing() {
         return showing;
-    }        
+    }
 
-    public LogCollector getLogCollector() {
-        return logCollector;
-    }        
-    
     public void pushJsonWebSocketMessage(String json) {
         Application application = Application.get();
         WebSocketSettings settings = WebSocketSettings.Holder.get(application);
@@ -89,19 +89,18 @@ public class LogPanel extends Panel {
             connection.sendMessage(json);
         } catch (Exception e) {
             logger.error("websocket push failed", e);
-        }        
+        }
     }
-    
-    public void log(String text) {
-        logCollector.log(text);
+
+    @Override
+    public void append(String text) {
         Map<String, Object> map = new HashMap(1);
         map.put("text", text);
         String json = JsonPath.parse(map).jsonString();
         pushJsonWebSocketMessage(json);
-        
     }
 
-    public LogPanel(String id) {
+    public LogPanel(String id, String sessionId) {
         super(id);
         setOutputMarkupId(true);
         add(new AjaxLink("close") {
@@ -116,20 +115,19 @@ public class LogPanel extends Panel {
         add(new AjaxLink("clear") {
             @Override
             public void onClick(AjaxRequestTarget target) {
-                logCollector.clear();
+                service.getSession(sessionId).getAppender().clearBuffer();
                 target.add(LogPanel.this);
             }
-        });        
+        });
         IModel<String> model = new AbstractReadOnlyModel<String>() {
             @Override
             public String getObject() {
-                return logCollector.getBuffer();
-            }            
+                return service.getSession(sessionId).getAppender().getBuffer();
+            }
         };
         textArea = new TextArea("text", model);
         textArea.setOutputMarkupId(true); // for js get by id
         add(textArea);
-        logCollector = new LogCollector();
     }
 
 }

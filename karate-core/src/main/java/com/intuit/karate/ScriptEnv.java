@@ -58,10 +58,6 @@ public class ScriptEnv {
         this(env, featureDir, featureName, fileClassLoader, new HashMap<>(1), LoggerFactory.getLogger("com.intuit.karate"));
     }
     
-    public String getFeaturePath() {
-        return featureDir.getAbsolutePath() + File.separator + featureName;
-    }
-    
     public static ScriptEnv init(File featureDir, String featureName, ClassLoader classLoader) {
         return new ScriptEnv(null, featureDir, featureName, classLoader);
     }
@@ -70,8 +66,9 @@ public class ScriptEnv {
         return new ScriptEnv(env, featureDir, null, Thread.currentThread().getContextClassLoader());
     }
 
-    public static ScriptEnv init(String env, File featureFile, String[] searchPaths) {
-        return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), FileUtils.createClassLoader(searchPaths));
+    public static ScriptEnv init(String env, File featureFile, String[] searchPaths, Logger logger) {
+        return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), FileUtils.createClassLoader(searchPaths), 
+                new HashMap<>(1), logger);
     }    
     
     public ScriptEnv refresh() { // immutable

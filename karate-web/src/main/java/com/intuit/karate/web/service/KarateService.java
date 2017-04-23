@@ -26,6 +26,7 @@ package com.intuit.karate.web.service;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.cucumber.KarateBackend;
+import com.intuit.karate.web.config.WebSocketLogAppender;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,29 +38,29 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class KarateService {
-    
+
     private final Map<String, KarateSession> sessions = new ConcurrentHashMap<>();
-    
-    public KarateSession createSession(FeatureWrapper feature) {
+
+    public KarateSession createSession(FeatureWrapper feature, WebSocketLogAppender appender) {
         UUID uuid = UUID.randomUUID();
-        KarateBackend backend = CucumberUtils.getBackend(feature.getEnv(), null, null);        
-        KarateSession session = new KarateSession(uuid.toString(), feature, backend);
+        KarateBackend backend = CucumberUtils.getBackend(feature.getEnv(), null, null);
+        KarateSession session = new KarateSession(uuid.toString(), feature, backend, appender);
         sessions.put(session.getId(), session);
         return session;
     }
-    
+
     public KarateSession replaceFeature(KarateSession old, FeatureWrapper feature) {
-        KarateSession session = new KarateSession(old.getId(), feature, old.getBackend());
+        KarateSession session = new KarateSession(old.getId(), feature, old.getBackend(), old.getAppender());
         sessions.put(session.getId(), session);
         return session;
     }
-    
+
     public KarateSession getSession(String id) {
         KarateSession session = sessions.get(id);
         if (session == null) {
             throw new RuntimeException("session not found: " + id);
         }
         return session;
-    }    
-    
+    }
+
 }

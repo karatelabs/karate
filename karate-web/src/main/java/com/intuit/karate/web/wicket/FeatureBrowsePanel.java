@@ -25,6 +25,7 @@ package com.intuit.karate.web.wicket;
 
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.web.config.WebSocketLogAppender;
 import com.intuit.karate.web.wicket.model.FeatureFileTreeProvider;
 import com.intuit.karate.web.wicket.model.FeatureFileEnv;
 import com.intuit.karate.web.service.KarateService;
@@ -42,6 +43,8 @@ import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.spring.injection.annot.SpringBean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FeatureBrowsePanel extends Panel {
 
@@ -53,7 +56,7 @@ public class FeatureBrowsePanel extends Panel {
     public FeatureBrowsePanel(String id, PageParameters params) {
         super(id);
         File root = new File("../../karate-examples");
-        String basePath = root.getPath() + File.separator;        
+        String basePath = root.getPath() + File.separator;
         FeatureFileTreeProvider provider = new FeatureFileTreeProvider(root, basePath + "src/test/java");
         DefaultNestedTree<FeatureFileEnv> tree = new DefaultNestedTree<FeatureFileEnv>("browse", provider) {
             @Override
@@ -65,12 +68,14 @@ public class FeatureBrowsePanel extends Panel {
                         protected boolean isClickable() {
                             return true;
                         }
+
                         @Override
                         protected void onClick(AjaxRequestTarget target) {
                             FeatureFileEnv f = node.getObject();
-                            ScriptEnv env = ScriptEnv.init("dev", f.getFile(), f.getSearchPaths());
+                            WebSocketLogAppender appender = new WebSocketLogAppender();
+                            ScriptEnv env = ScriptEnv.init("dev", f.getFile(), f.getSearchPaths(), appender.getLogger());
                             FeatureWrapper feature = FeatureWrapper.fromFile(f.getFile(), env);
-                            KarateSession session = service.createSession(feature);
+                            KarateSession session = service.createSession(feature, appender);
                             setResponsePage(new FeaturePage(session.getId()));
                         }
                     };

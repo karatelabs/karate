@@ -21,32 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.web.wicket.model;
-
-import java.io.Serializable;
+package com.intuit.karate.web.config;
 
 /**
  *
  * @author pthomas3
  */
-public class LogCollector implements Serializable {
+public interface LogAppenderTarget {
     
-    private StringBuffer buffer;
-    
-    public LogCollector() {
-        buffer = new StringBuffer();
-    }        
-    
-    public void log(String s) {
-        buffer.append(s).append('\n');
-    }
-    
-    public void clear() {
-        buffer = new StringBuffer();
-    }
-
-    public String getBuffer() {
-        return buffer.toString();
-    }        
+    void append(String text);
     
 }

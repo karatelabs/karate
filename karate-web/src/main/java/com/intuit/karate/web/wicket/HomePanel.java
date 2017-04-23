@@ -25,6 +25,7 @@ package com.intuit.karate.web.wicket;
 
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.web.config.WebSocketLogAppender;
 import com.intuit.karate.web.service.KarateService;
 import com.intuit.karate.web.service.KarateSession;
 import java.io.File;
@@ -53,9 +54,10 @@ public class HomePanel extends Panel {
             @Override
             protected void onSubmit() {
                 logger.debug("text is: {}", text);
-                ScriptEnv env = ScriptEnv.init("dev", new File("src/test/java"));
+                WebSocketLogAppender appender = new WebSocketLogAppender();
+                ScriptEnv env = ScriptEnv.init("dev", new File("."), new String[]{"src/test/java"}, appender.getLogger());
                 FeatureWrapper feature = FeatureWrapper.fromString(text, env);
-                KarateSession session = service.createSession(feature);
+                KarateSession session = service.createSession(feature, appender);
                 setResponsePage(new FeaturePage(session.getId()));
             }            
         };

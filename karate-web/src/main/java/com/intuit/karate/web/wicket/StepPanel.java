@@ -167,7 +167,7 @@ public class StepPanel extends Panel {
                 step.setPassed(result.isPass());
                 LogPanel logPanel = ((FeaturePage) getPage()).getLogPanel();
                 if (!step.isPassed()) {
-                    logPanel.log(result.getError().getMessage());
+                    logPanel.append(result.getError().getMessage());
                     if (!logPanel.isShowing()) {
                         logPanel.setShowing(true);
                         Component footer = getPage().get(BasePage.STICKY_FOOTER_ID);
