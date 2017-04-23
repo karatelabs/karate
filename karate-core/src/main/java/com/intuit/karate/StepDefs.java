@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
 
 public class StepDefs {
 
-    private static final Logger logger = LoggerFactory.getLogger(StepDefs.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
         this(getFeatureEnv(), null, null);
@@ -58,11 +58,11 @@ public class StepDefs {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         if (featurePath == null) {
             File file = new File("");
-            logger.warn("unable to derive feature file path, using: {}", file.getAbsolutePath());
+            LOGGER.warn("unable to derive feature file path, using: {}", file.getAbsolutePath());
             return ScriptEnv.init(file, null, classLoader);
         } else {
             File file = new File(featurePath);
-            logger.info("ide running: {}", file);
+            LOGGER.info("ide running: {}", file);
             return ScriptEnv.init(file.getParentFile(), file.getName(), classLoader);
         }
     }
@@ -198,7 +198,7 @@ public class StepDefs {
                 try {
                     responseBody = XmlUtils.toXmlDoc(responseString);
                 } catch (Exception e) {
-                    logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
+                    context.logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
                 }
             }
         }
@@ -217,7 +217,7 @@ public class StepDefs {
         }
     }
 
-    private static Object convertResponseBody(byte[] bytes) {
+    private Object convertResponseBody(byte[] bytes) {
         if (bytes == null) {
             return null;
         }
@@ -230,7 +230,7 @@ public class StepDefs {
                 return rawString;
             }
         } catch (Exception e) {
-            logger.warn("response bytes to string conversion failed: {}", e.getMessage());
+            context.logger.warn("response bytes to string conversion failed: {}", e.getMessage());
         }
         return new ByteArrayInputStream(bytes);
     }
@@ -264,7 +264,7 @@ public class StepDefs {
     @Then("^print (.+)")
     public void print(String exp) {
         String temp = Script.eval(exp, context).getAsString();
-        logger.info("[print] {}", temp);
+        context.logger.info("[print] {}", temp);
     }
 
     @Then("^status (\\d+)")
@@ -274,7 +274,7 @@ public class StepDefs {
             String responseTime = context.vars.get(ScriptValueMap.VAR_RESPONSE_TIME).getAsString();
             String message = "status code was: " + response.getStatus() + ", expected: " + status
                     + ", response time: " + responseTime + ", url: " + response.getUri() + ", response: " + rawResponse;
-            logger.error(message);
+            context.logger.error(message);
             throw new KarateException(message);
         }
     }
@@ -343,7 +343,7 @@ public class StepDefs {
 
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {
-            logger.error("{}", ar);
+            context.logger.error("{}", ar);
             throw new KarateException(ar.message);
         }
     }

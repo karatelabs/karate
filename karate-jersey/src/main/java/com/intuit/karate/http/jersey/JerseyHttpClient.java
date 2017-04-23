@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http.jersey;
 
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
 import static com.intuit.karate.http.Cookie.*;
@@ -35,7 +36,6 @@ import com.intuit.karate.http.MultiValuedMap;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -69,13 +69,12 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     private Builder builder;
 
     @Override
-    public void configure(HttpConfig config) {
+    public void configure(HttpConfig config, ScriptContext context) {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
-                .register(new LoggingInterceptor()) // must be first
+                .register(new LoggingInterceptor(context.logger)) // must be first
                 .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
             String sslAlgorithm = config.getSslAlgorithm();
-            logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
             SSLContext ssl = HttpUtils.getSslContext(sslAlgorithm);
             HttpsURLConnection.setDefaultSSLSocketFactory(ssl.getSocketFactory());
             clientBuilder.sslContext(ssl);
@@ -144,7 +143,6 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         MultiPart multiPart = new MultiPart();
         for (MultiPartItem item : items) {
             if (item.getValue() == null || item.getValue().isNull()) {
-                logger.warn("ignoring null multipart value for key: {}", item.getName());
                 continue;
             }
             String name = item.getName();

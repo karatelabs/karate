@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
 /**
@@ -44,8 +42,6 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public abstract class HttpClient<T> {
-
-    protected static final Logger logger = LoggerFactory.getLogger(HttpClient.class);
     
     protected static final String APPLICATION_JSON = "application/json";
     protected static final String APPLICATION_XML = "application/xml";
@@ -58,7 +54,7 @@ public abstract class HttpClient<T> {
     
     protected HttpRequest request;
 
-    public abstract void configure(HttpConfig config);
+    public abstract void configure(HttpConfig config, ScriptContext context);
 
     protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);
     
@@ -128,7 +124,7 @@ public abstract class HttpClient<T> {
         String method = request.getMethod();
         if (method == null) {
             String msg = "'method' is required to make an http call";
-            logger.error(msg);
+            context.logger.error(msg);
             throw new RuntimeException(msg);
         }
         method = method.toUpperCase();
@@ -137,7 +133,7 @@ public abstract class HttpClient<T> {
         String url = request.getUrl();
         if (url == null) {
             String msg = "url not set, please refer to the keyword documentation for 'url'";
-            logger.error(msg);
+            context.logger.error(msg);
             throw new RuntimeException(msg);
         }
         buildUrl(url);
@@ -182,7 +178,7 @@ public abstract class HttpClient<T> {
                 ScriptValue body = request.getBody();
                 if (body == null || body.isNull()) {
                     String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
-                    logger.error(msg);
+                    context.logger.error(msg);
                     throw new RuntimeException(msg);
                 }
                 return getEntityInternal(body, mediaType);
@@ -203,12 +199,12 @@ public abstract class HttpClient<T> {
         long startTime = System.currentTimeMillis();
         try {
             HttpResponse response = makeHttpRequest(body, startTime);
-            logger.debug("response time in milliseconds: {}", response.getTime());
+            context.logger.debug("response time in milliseconds: {}", response.getTime());
             return response;
         } catch (Exception e) {
             long responseTime = getResponseTime(startTime);
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
-            logger.error(e.getMessage() + ", " + message);
+            context.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
     }
@@ -224,14 +220,12 @@ public abstract class HttpClient<T> {
                     case MAP:
                         return sv.getValue(Map.class);
                     default:
-                        logger.trace("custom headers function returned: {}", sv);
                         return null;
                 }
             case JSON:
                 DocumentContext json = headersValue.getValue(DocumentContext.class);
                 return json.read("$");
             default:
-                logger.trace("configured 'headers' is not a map-like object or js function: {}", headersValue);
                 return null;
         }        
     } 
@@ -241,18 +235,15 @@ public abstract class HttpClient<T> {
             InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
             if (is == null) {
                 String msg = KARATE_HTTP_PROPERTIES + " not found";
-                logger.error(msg);
                 throw new RuntimeException(msg);
             }
             Properties props = new Properties();
             props.load(is);
             String className = props.getProperty("client.class");
-            logger.trace("loaded {}, init: {}", KARATE_HTTP_PROPERTIES, className);
             Class clazz = Class.forName(className);
             return (HttpClient) clazz.newInstance();
         } catch (Exception e) {
             String msg = "failed to construct class by name: " + e.getMessage() + ", aborting";
-            logger.error(msg);
             throw new RuntimeException(msg);
         }
     }

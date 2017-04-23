@@ -44,7 +44,6 @@ import javax.ws.rs.ext.WriterInterceptor;
 import javax.ws.rs.ext.WriterInterceptorContext;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -52,7 +51,11 @@ import org.slf4j.LoggerFactory;
  */
 public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFilter, WriterInterceptor {
 
-    private static final Logger logger = LoggerFactory.getLogger(LoggingInterceptor.class);
+    private final Logger logger;
+    
+    public LoggingInterceptor(Logger logger) {
+        this.logger = logger;
+    }
     
     private static final Charset UTF8 = Charset.forName("UTF-8");    
 

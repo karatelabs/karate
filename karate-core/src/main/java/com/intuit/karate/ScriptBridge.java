@@ -24,19 +24,14 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
-import java.util.Map;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class ScriptBridge {
-            
-    private static final Logger logger = LoggerFactory.getLogger(ScriptBridge.class);    
+public class ScriptBridge {               
     
     private final ScriptContext context;
     
@@ -66,13 +61,12 @@ public class ScriptBridge {
         try {
             sv = Script.eval(exp, context); // even json path expressions will work
         } catch (Exception e) {
-            logger.warn("karate.get failed for expression: '{}': {}", exp, e.getMessage());
+            context.logger.warn("karate.get failed for expression: '{}': {}", exp, e.getMessage());
             return null;
         }
         if (sv != null) {
             return sv.getAfterConvertingFromJsonOrXmlIfNeeded();
         } else {
-            logger.trace("variable is null or does not exist: {}", exp);
             return null;
         }
     }
@@ -91,7 +85,7 @@ public class ScriptBridge {
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
                 return Script.evalFunctionCall(som, arg, context).getValue();
             default:
-                logger.warn("not a js function or feature file: {} - {}", fileName, sv);
+                context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
         }        
     }
@@ -105,7 +99,7 @@ public class ScriptBridge {
     }
     
     public void log(Object ... objects) {
-        logger.info("{}", new LogWrapper(objects));
+        context.logger.info("{}", new LogWrapper(objects));
     }        
     
     // make sure toString() is lazy

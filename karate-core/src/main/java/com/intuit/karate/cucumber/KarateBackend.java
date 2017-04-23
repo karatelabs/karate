@@ -36,16 +36,12 @@ import gherkin.formatter.model.Step;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateBackend implements Backend {
-    
-    private static final Logger logger = LoggerFactory.getLogger(KarateBackend.class);
+public class KarateBackend implements Backend {    
     
     private final JavaBackend backend;
     private final KarateObjectFactory objectFactory;
@@ -54,7 +50,7 @@ public class KarateBackend implements Backend {
     public KarateBackend(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
         ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);
         objectFactory = new KarateObjectFactory(env, parentContext, callArg);
-        backend = new JavaBackend(objectFactory, classFinder);        
+        backend = new JavaBackend(objectFactory, classFinder);
     }
 
     public StepDefs getStepDefs() {
@@ -66,8 +62,7 @@ public class KarateBackend implements Backend {
     }        
 
     @Override
-    public void loadGlue(Glue glue, List<String> NOT_USED) {        
-        logger.trace("load glue");
+    public void loadGlue(Glue glue, List<String> NOT_USED) {
         this.glue = glue;
         Class glueCodeClass = StepDefs.class;
         for (Method method : glueCodeClass.getMethods()) {
@@ -77,25 +72,21 @@ public class KarateBackend implements Backend {
 
     @Override
     public void setUnreportedStepExecutor(UnreportedStepExecutor executor) {
-        logger.trace("set unreported step executor");
         backend.setUnreportedStepExecutor(executor);
     }
 
     @Override
     public void buildWorld() {
-        logger.trace("build world");
         backend.buildWorld();
     }
 
     @Override
     public void disposeWorld() {
-        logger.trace("dispose world");
         backend.disposeWorld();
     }
 
     @Override
     public String getSnippet(Step step, FunctionNameGenerator functionNameGenerator) {
-        logger.debug("get snippet");
         return backend.getSnippet(step, functionNameGenerator);
     }
     

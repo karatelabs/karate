@@ -32,7 +32,6 @@ import org.apache.http.HttpResponse;
 import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.protocol.HttpContext;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -40,12 +39,13 @@ import org.slf4j.LoggerFactory;
  */
 public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
 
-    private static final Logger logger = LoggerFactory.getLogger(ResponseLoggingInterceptor.class);
+    private final Logger logger;
 
     private final AtomicInteger counter;
 
-    public ResponseLoggingInterceptor(AtomicInteger counter) {
+    public ResponseLoggingInterceptor(AtomicInteger counter, Logger logger) {
         this.counter = counter;
+        this.logger = logger;
     }    
 
     @Override

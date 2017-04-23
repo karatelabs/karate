@@ -29,16 +29,12 @@ import cucumber.runtime.model.CucumberFeature;
 import gherkin.formatter.model.DocString;
 import gherkin.formatter.model.Step;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class StepWrapper {
-
-    private static final Logger logger = LoggerFactory.getLogger(StepWrapper.class);
 
     private final ScenarioWrapper scenario;
     private final int index;
@@ -137,8 +133,6 @@ public class StepWrapper {
         CucumberFeature feature = wrapper.getFeature();
         Glue glue = backend.getGlue();
         StepDefinitionMatch match = glue.stepDefinitionMatch("", step, feature.getI18n());
-        String message = String.format("run: %s, step: %s", match.toMap(), step.toMap());
-        logger.trace(message);
         try {
             match.runStep(feature.getI18n());
             return new StepResult(this, null);

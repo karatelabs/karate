@@ -28,16 +28,12 @@ import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import cucumber.api.java.ObjectFactory;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateObjectFactory implements ObjectFactory {
-    
-    private static final Logger logger = LoggerFactory.getLogger(KarateObjectFactory.class);
+public class KarateObjectFactory implements ObjectFactory {    
        
     private StepDefs stepDefs;
     private final ScriptEnv scriptEnv;
@@ -52,20 +48,16 @@ public class KarateObjectFactory implements ObjectFactory {
 
     @Override
     public void start() {
-        logger.trace("start");
+        
     }
 
     @Override
     public void stop() {
-        logger.trace("stop");
         stepDefs = null; // ensure re-build for multiple scenarios in the same feature
     }
 
     @Override
     public boolean addClass(Class<?> glueClass) {
-        if (logger.isTraceEnabled()) {
-            logger.trace("add class: {}", glueClass);
-        }
         return true;
     }
 
@@ -74,10 +66,7 @@ public class KarateObjectFactory implements ObjectFactory {
         if (stepDefs == null) {
             // the lazy init gives users the chance to over-ride the env
             // for example using a JUnit @BeforeClass hook
-            logger.trace("lazy init of step defs");
             stepDefs = new StepDefs(scriptEnv, parentContext, callArg);
-        } else {
-            logger.trace("step defs already instantiated, re-using instance");
         }
         return (T) stepDefs;
     }

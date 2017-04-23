@@ -57,8 +57,6 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -77,8 +75,6 @@ public class Script {
     private Script() {
         // only static methods
     }
-
-    private static final Logger logger = LoggerFactory.getLogger(Script.class);
 
     public static final boolean isCallSyntax(String text) {
         return text.startsWith("call ");
@@ -167,7 +163,6 @@ public class Script {
     public static ScriptValue eval(String text, ScriptContext context) {
         text = StringUtils.trimToEmpty(text);
         if (text.isEmpty()) {
-            logger.trace("script is empty");
             return ScriptValue.NULL;
         }
         if (isCallSyntax(text) || isCallOnceSyntax(text)) { // special case in form "call foo arg"
@@ -190,12 +185,12 @@ public class Script {
             }
             ScriptValue callResult = context.env.getFromCallCache(text);
             if (callResult != null) {
-                logger.debug("callonce cache hit for: {}", text);
+                context.logger.debug("callonce cache hit for: {}", text);
                 return callResult;
             }
             callResult = call(text, arg, context);
             context.env.putInCallCache(text, callResult);
-            logger.debug("cached callonce: {}", text);
+            context.logger.debug("cached callonce: {}", text);
             return callResult;
         } else if (isGetSyntax(text)) { // special case in form
             // get json[*].path
@@ -248,7 +243,7 @@ public class Script {
     public static ScriptValue evalXmlPathOnVarByName(String name, String exp, ScriptContext context) {
         ScriptValue value = context.vars.get(name);
         if (value == null) {
-            logger.warn("no var found with name: {}", name);
+            context.logger.warn("no var found with name: {}", name);
             return ScriptValue.NULL;
         }
         switch (value.getType()) {
@@ -269,7 +264,7 @@ public class Script {
     public static ScriptValue evalJsonPathOnVarByName(String name, String exp, ScriptContext context) {
         ScriptValue value = context.vars.get(name);
         if (value == null) {
-            logger.warn("no var found with name: {}", name);
+            context.logger.warn("no var found with name: {}", name);
             return ScriptValue.NULL;
         }
         switch (value.getType()) {
@@ -317,7 +312,6 @@ public class Script {
         try {
             Object o = nashorn.eval(exp);
             ScriptValue result = new ScriptValue(o);
-            logger.trace("nashorn returned: {}", result);
             return result;
         } catch (Exception e) {
             throw new RuntimeException("script failed: " + exp, e);
@@ -340,7 +334,6 @@ public class Script {
             String key = entry.getKey();
             ScriptValue sv = entry.getValue();
             if (sv == null) {
-                logger.warn("vars has null vaue for key: {}", key);
                 continue;
             }
             map.put(key, sv.getAfterConvertingFromJsonOrXmlIfNeeded());
@@ -387,11 +380,9 @@ public class Script {
                     ScriptValue sv = evalInNashorn(value.substring(1), context);
                     root.set(path, sv.getValue());
                 } catch (Exception e) {
-                    logger.warn("embedded json script eval failed at path {}: {}", path, e.getMessage());
+                    context.logger.warn("embedded json script eval failed at path {}: {}", path, e.getMessage());
                 }
             }
-        } else {
-            logger.trace("ignoring type: {} - {}", o.getClass(), o);
         }
     }
 
@@ -410,7 +401,7 @@ public class Script {
                     ScriptValue sv = evalInNashorn(value.substring(1), context);
                     attrib.setValue(sv.getAsString());
                 } catch (Exception e) {
-                    logger.warn("embedded xml-attribute script eval failed: {}", e.getMessage());
+                    context.logger.warn("embedded xml-attribute script eval failed: {}", e.getMessage());
                 }
             }
         }
@@ -426,7 +417,7 @@ public class Script {
                         ScriptValue sv = evalInNashorn(value.substring(1), context);
                         child.setNodeValue(sv.getAsString());
                     } catch (Exception e) {
-                        logger.warn("embedded xml-text script eval failed: {}", e.getMessage());
+                        context.logger.warn("embedded xml-text script eval failed: {}", e.getMessage());
                     }
                 }
             } else if (child.hasChildNodes()) {
@@ -472,7 +463,6 @@ public class Script {
             default: // AUTO
                 sv = eval(exp, context);
         }
-        logger.trace("assigning {} = {} evaluated to {}", name, exp, sv);
         context.vars.put(name, sv);
     }
 
@@ -742,13 +732,11 @@ public class Script {
             path = path.replace("/@/", "/@");
         }
         String message = String.format("path: %s, actual: %s, expected: %s, reason: %s", path, actObject, expObject, reason);
-        logger.trace("assertion failed - {}", message);
         return AssertionResult.fail(message);
     }
 
     public static AssertionResult matchNestedObject(char delimiter, String path, MatchType matchType,
             Object actRoot, Object actObject, Object expObject, ScriptContext context) {
-        logger.trace("path: {}, actual: '{}', expected: '{}'", path, actObject, expObject);
         if (expObject == null) {
             if (actObject != null) {
                 return matchFailed(path, actObject, expObject, "actual value is not null");
@@ -845,7 +833,7 @@ public class Script {
         try {
             return (BigDecimal) df.parse(o.toString());
         } catch (Exception e) {
-            logger.warn("big decimal conversion failed: {}", e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
@@ -975,7 +963,7 @@ public class Script {
                 FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
                 return evalFeatureCall(feature, callArg, context);
             default:
-                logger.warn("not a js function or feature file: {} - {}", name, sv);
+                context.logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
         }
     }
@@ -995,7 +983,7 @@ public class Script {
             return new ScriptValue(result);
         } catch (Exception e) {
             String message = "javascript function call failed, arg: " + callArg + "\n" + som;
-            logger.error(message, e);
+            context.logger.error(message, e);
             throw new KarateException(message, e);
         }        
     }
@@ -1025,7 +1013,7 @@ public class Script {
                 return evalFeatureCall(feature, context, (Map) callArg);
             } catch (KarateException ke) {
                 String message = "feature call failed in " + feature.getEnv() + ", arg: " + callArg;
-                logger.error(message, ke);
+                context.logger.error(message, ke);
                 throw new KarateException(message, ke);
             }
         } else {
@@ -1048,12 +1036,11 @@ public class Script {
                 result = sv.getValue(Map.class);
                 break;
             default:
-                logger.debug("no vars returned from function call result: {}", sv);
+                context.logger.debug("no vars returned from function call result: {}", sv);
                 return;
         }
         for (Map.Entry<String, Object> entry : result.entrySet()) {
             context.vars.put(entry.getKey(), entry.getValue());
-            logger.trace("unpacked var from map: {}", entry);
         }
     }
 

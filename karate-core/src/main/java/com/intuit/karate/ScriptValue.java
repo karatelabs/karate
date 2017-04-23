@@ -31,8 +31,6 @@ import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ClassUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
 /**
@@ -40,8 +38,6 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class ScriptValue {
-
-    private static final Logger logger = LoggerFactory.getLogger(ScriptValue.class);
 
     public static final ScriptValue NULL = new ScriptValue(null);
 
@@ -151,7 +147,6 @@ public class ScriptValue {
     public ScriptValue(Object value) {
         this.value = value;
         if (value == null) {
-            logger.trace("script value constructed as null");
             type = Type.NULL;
         } else if (value instanceof DocumentContext) {
             type = Type.JSON;
@@ -182,7 +177,6 @@ public class ScriptValue {
             type = Type.FEATURE_WRAPPER;
         } else {
             type = Type.UNKNOWN;
-            logger.trace("value init unknown type: {} - {}", value.getClass(), value);
         }
     }
 

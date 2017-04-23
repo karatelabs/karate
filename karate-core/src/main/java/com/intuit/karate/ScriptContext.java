@@ -29,7 +29,6 @@ import com.intuit.karate.validator.Validator;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -37,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ScriptContext {
 
-    private static final Logger logger = LoggerFactory.getLogger(ScriptContext.class);
+    public final Logger logger;
 
     private static final String KARATE_DOT_CONTEXT = "karate.context";
     public static final String KARATE_NAME = "karate";
@@ -64,6 +63,7 @@ public class ScriptContext {
 
     public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
         this.env = env.refresh();
+        logger = env.logger;
         if (parent != null) {
             vars = Script.clone(parent.vars);
             readFunction = parent.readFunction;
@@ -76,7 +76,7 @@ public class ScriptContext {
                 }
             }
             client = HttpClient.construct();
-            client.configure(config);            
+            client.configure(config, this);            
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
@@ -84,7 +84,7 @@ public class ScriptContext {
             config = new HttpConfig();
             // needs to be done before karate-config as it can call 'configure'
             client = HttpClient.construct();
-            client.configure(config);            
+            client.configure(config, this);            
             try {
                 Script.callAndUpdateVarsIfMapReturned("read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
@@ -134,7 +134,7 @@ public class ScriptContext {
         } else {
             throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
-        client.configure(config);
+        client.configure(config, this);
     }
     
     public Map<String, Object> getVariableBindings() {

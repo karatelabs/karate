@@ -28,8 +28,6 @@ import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 /**
@@ -37,8 +35,6 @@ import org.yaml.snakeyaml.Yaml;
  * @author pthomas3
  */
 public class JsonUtils {
-
-    private static final Logger logger = LoggerFactory.getLogger(JsonUtils.class);
 
     private JsonUtils() {
         // only static methods
@@ -81,7 +77,6 @@ public class JsonUtils {
                     list.add(value);
                 }
             } catch (Exception e) {
-                logger.trace("will create non-existent path: {}", listPath);
                 list = new ArrayList();
                 list.add(value);
                 doc.put(left, right, list);
@@ -89,7 +84,6 @@ public class JsonUtils {
         } else {
             doc.put(left, right, value);
         }
-        logger.trace("after set: {}", doc.jsonString());
     }
     
     public static DocumentContext fromYaml(String raw) {

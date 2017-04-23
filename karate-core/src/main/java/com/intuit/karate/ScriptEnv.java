@@ -34,9 +34,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class ScriptEnv {
-    
-    private static final Logger logger = LoggerFactory.getLogger(ScriptEnv.class);
+public class ScriptEnv {    
+
+    public final Logger logger;
 
     public final String env;
     public final File featureDir;
@@ -45,16 +45,17 @@ public class ScriptEnv {
     private final Map<String, ScriptValue> callCache;
     
     public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, 
-            Map<String, ScriptValue> callCache) {
+            Map<String, ScriptValue> callCache, Logger logger) {
         this.env = env;
         this.featureDir = featureDir;
         this.featureName = featureName;
         this.fileClassLoader = fileClassLoader;
         this.callCache = callCache;
+        this.logger = logger;
     }
     
     public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader) {
-        this(env, featureDir, featureName, fileClassLoader, new HashMap<>(1));
+        this(env, featureDir, featureName, fileClassLoader, new HashMap<>(1), LoggerFactory.getLogger("com.intuit.karate"));
     }
     
     public String getFeaturePath() {
@@ -81,7 +82,7 @@ public class ScriptEnv {
                 logger.debug("obtained 'karate.env' from system properties: {}", karateEnv);
             }
         }
-        return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache);
+        return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache, logger);
     }
     
     public ScriptValue getFromCallCache(String key) {

@@ -8,8 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import static com.intuit.karate.Script.eval;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
@@ -18,9 +16,7 @@ import com.jayway.jsonpath.DocumentContext;
  *
  * @author pthomas3
  */
-public class FileUtils {
-    
-    private static final Logger logger = LoggerFactory.getLogger(FileUtils.class); 
+public class FileUtils {   
     
     private FileUtils() {
         // only static methods
@@ -85,7 +81,7 @@ public class FileUtils {
             return IOUtils.toString(is, "utf-8");
         } catch (Exception e) {
             String message = String.format("could not read file: %s, classpath: %s", path, classpath);
-            logger.error(message);
+            context.logger.error(message);
             throw new RuntimeException(message, e);
         }
     } 
@@ -97,7 +93,7 @@ public class FileUtils {
         String fullPath = context.env.featureDir + File.separator + path;
         try {
             InputStream is = org.apache.commons.io.FileUtils.openInputStream(new File(fullPath));
-            logger.debug("loaded file from: {} - {}: {}", fullPath, path, is);
+            context.logger.debug("loaded file from: {} - {}: {}", fullPath, path, is);
             return is;
         } catch (Exception e) {
             throw new RuntimeException(e);

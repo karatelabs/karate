@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.ScriptContext;
 import java.io.InputStream;
 import java.util.List;
 
@@ -33,7 +34,7 @@ import java.util.List;
 public class DummyHttpClient extends HttpClient<String> {
 
     @Override
-    public void configure(HttpConfig config) {
+    public void configure(HttpConfig config, ScriptContext context) {
         
     }
 

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http.apache;
 
+import com.intuit.karate.ScriptContext;
 import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
 import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
@@ -98,17 +99,16 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    public void configure(HttpConfig config) {
+    public void configure(HttpConfig config, ScriptContext context) {
         clientBuilder = HttpClientBuilder.create();
         cookieStore = new BasicCookieStore();
         clientBuilder.setDefaultCookieStore(cookieStore);
         AtomicInteger counter = new AtomicInteger();
-        clientBuilder.addInterceptorLast(new RequestLoggingInterceptor(counter));
-        clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter));
+        clientBuilder.addInterceptorLast(new RequestLoggingInterceptor(counter, context.logger));
+        clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter, context.logger));
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String sslAlgorithm = config.getSslAlgorithm();
-            logger.info("ssl enabled, initializing generic trusted certificate / key-store with algorithm: {}", sslAlgorithm);
             SSLContext sslContext = HttpUtils.getSslContext(sslAlgorithm);
             SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
             clientBuilder.setSSLSocketFactory(socketFactory);
@@ -213,7 +213,6 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create().setContentType(ContentType.create(mediaType));
             for (MultiPartItem item : items) {
                 if (item.getValue() == null || item.getValue().isNull()) {
-                    logger.warn("ignoring null multipart value for key: {}", item.getName());
                     continue;
                 }
                 String name = item.getName();
