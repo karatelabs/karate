@@ -4,7 +4,7 @@
 
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-parent</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     
     <name>${project.artifactId}</name>
@@ -39,6 +39,7 @@
         <cucumber.version>1.2.5</cucumber.version>
         <junit.version>4.12</junit.version>
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
+        <spring.boot.version>1.5.3.RELEASE</spring.boot.version>
     </properties>
 
     <modules>
@@ -48,6 +49,7 @@
         <module>karate-demo</module>
         <module>karate-jersey</module>
         <module>karate-testng</module>
+        <module>karate-web</module>
         <module>karate-archetype</module>
     </modules>
 

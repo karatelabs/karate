@@ -67,6 +67,10 @@ public class ScriptEnv {
     
     public static ScriptEnv init(String env, File featureDir) {
         return new ScriptEnv(env, featureDir, null, Thread.currentThread().getContextClassLoader());
+    }
+
+    public static ScriptEnv init(String env, File featureFile, String[] searchPaths) {
+        return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), FileUtils.createClassLoader(searchPaths));
     }    
     
     public ScriptEnv refresh() { // immutable

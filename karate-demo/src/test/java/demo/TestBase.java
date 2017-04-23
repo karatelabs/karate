@@ -19,7 +19,7 @@ public abstract class TestBase {
     public static void beforeClass() throws Exception {
         server = new ServerStart();
         server.start(new String[]{"--server.port=0"}, false);
-        System.setProperty("karate.server.port", server.getPort() + "");
+        System.setProperty("demo.server.port", server.getPort() + "");
     }
     
     @AfterClass
