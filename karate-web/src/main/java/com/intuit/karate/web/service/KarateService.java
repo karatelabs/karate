@@ -23,10 +23,12 @@
  */
 package com.intuit.karate.web.service;
 
+import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.cucumber.KarateBackend;
 import com.intuit.karate.web.config.WebSocketLogAppender;
+import java.io.File;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,12 +43,33 @@ public class KarateService {
 
     private final Map<String, KarateSession> sessions = new ConcurrentHashMap<>();
 
-    public KarateSession createSession(FeatureWrapper feature, WebSocketLogAppender appender) {
+    public KarateSession createSession(String envString, File featureFile, String[] searchPaths) {
+        WebSocketLogAppender appender = createAppender();
+        ScriptEnv env = ScriptEnv.init(envString, featureFile, searchPaths, appender.getLogger());
+        FeatureWrapper feature = FeatureWrapper.fromFile(featureFile, env);
+        return createSession(feature, appender);
+    }
+    
+    public KarateSession createSession(String envString, String featureText) {
         UUID uuid = UUID.randomUUID();
-        KarateBackend backend = CucumberUtils.getBackend(feature.getEnv(), null, null);
-        KarateSession session = new KarateSession(uuid.toString(), feature, backend, appender);
+        String sessionId = uuid.toString();
+        WebSocketLogAppender appender = new WebSocketLogAppender(sessionId);
+        ScriptEnv env = ScriptEnv.init(envString, new File("."), new String[]{"src/test/java"}, appender.getLogger());
+        FeatureWrapper feature = FeatureWrapper.fromString(featureText, env);
+        return createSession(feature, appender);
+    }    
+    
+    private WebSocketLogAppender createAppender() {
+        UUID uuid = UUID.randomUUID();
+        String sessionId = uuid.toString();
+        return new WebSocketLogAppender(sessionId);        
+    }
+    
+    private KarateSession createSession(FeatureWrapper feature, WebSocketLogAppender appender) {
+        KarateBackend backend = CucumberUtils.getBackend(feature.getEnv(), null, null);        
+        KarateSession session = new KarateSession(appender.getSessionId(), feature, backend, appender);
         sessions.put(session.getId(), session);
-        return session;
+        return session;        
     }
 
     public KarateSession replaceFeature(KarateSession old, FeatureWrapper feature) {

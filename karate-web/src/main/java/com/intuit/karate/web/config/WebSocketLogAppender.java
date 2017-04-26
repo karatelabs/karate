@@ -41,22 +41,29 @@ public class WebSocketLogAppender extends AppenderBase<ILoggingEvent> {
     private StringBuilder sb;
     private LogAppenderTarget target;
     private final Logger logger;
+    private final String sessionId;
 
-    public WebSocketLogAppender() {
-        logger = (Logger) LoggerFactory.getLogger("com.intuit.karate.web");
-        this.target = target;
+    public WebSocketLogAppender(String sessionId) {
+        // deliberately NOT the com.intuit form else will pick up all those
+        // this is supposed to isolate user-session s
+        this.sessionId = sessionId;
+        logger = (Logger) LoggerFactory.getLogger(sessionId);
         sb = new StringBuilder();
-        setName("websocket");
+        setName("karate-web");
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         setContext(lc);
         encoder = new PatternLayoutEncoder();
-        encoder.setPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n");
+        encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
         encoder.setContext(context);
         encoder.start();
         start();
         logger.addAppender(this);
         logger.setLevel(Level.DEBUG);
     }
+
+    public String getSessionId() {
+        return sessionId;
+    }        
 
     public void setTarget(LogAppenderTarget target) {
         this.target = target;

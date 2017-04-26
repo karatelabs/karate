@@ -72,12 +72,24 @@ public class LogPanel extends Panel implements LogAppenderTarget {
     private final TextArea textArea;
     private boolean showing;
 
-    public void setShowing(boolean showing) {
-        this.showing = showing;
-    }
-
     public boolean isShowing() {
         return showing;
+    }
+    
+    public void hide(AjaxRequestTarget target) {
+        showing = false;
+        Component hidden = replaceWith(new Label(BasePage.STICKY_FOOTER_ID, ""));        
+        target.add(hidden);        
+    }
+    
+    public void show(AjaxRequestTarget target) {
+        if (showing) {
+            return;
+        }
+        showing = true;
+        Component shown = target.getPage().get(BasePage.STICKY_FOOTER_ID);
+        shown = shown.replaceWith(this);
+        target.add(shown);  
     }
 
     public void pushJsonWebSocketMessage(String json) {
@@ -110,10 +122,7 @@ public class LogPanel extends Panel implements LogAppenderTarget {
         add(new AjaxLink("close") {
             @Override
             public void onClick(AjaxRequestTarget target) {
-                Component logPanel = LogPanel.this;
-                logPanel = logPanel.replaceWith(new Label(BasePage.STICKY_FOOTER_ID, ""));
-                showing = false;
-                target.add(logPanel);
+                hide(target);
             }
         });
         add(new AjaxLink("clear") {

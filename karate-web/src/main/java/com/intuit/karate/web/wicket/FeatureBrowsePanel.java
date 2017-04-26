@@ -23,9 +23,6 @@
  */
 package com.intuit.karate.web.wicket;
 
-import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.cucumber.FeatureWrapper;
-import com.intuit.karate.web.config.WebSocketLogAppender;
 import com.intuit.karate.web.wicket.model.FeatureFileTreeProvider;
 import com.intuit.karate.web.wicket.model.FeatureFileEnv;
 import com.intuit.karate.web.service.KarateService;
@@ -69,11 +66,8 @@ public class FeatureBrowsePanel extends Panel {
 
                         @Override
                         protected void onClick(AjaxRequestTarget target) {
-                            FeatureFileEnv f = node.getObject();
-                            WebSocketLogAppender appender = new WebSocketLogAppender();
-                            ScriptEnv env = ScriptEnv.init("dev", f.getFile(), f.getSearchPaths(), appender.getLogger());
-                            FeatureWrapper feature = FeatureWrapper.fromFile(f.getFile(), env);
-                            KarateSession session = service.createSession(feature, appender);
+                            FeatureFileEnv ffe = node.getObject();
+                            KarateSession session = service.createSession("dev", ffe.getFile(), ffe.getSearchPaths());                            
                             setResponsePage(new FeaturePage(session.getId()));
                         }
                     };
