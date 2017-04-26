@@ -169,7 +169,7 @@ public abstract class HttpClient<T> {
                 buildCookie(cookie);
             }
         }
-        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
+        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method) || "DELETE".equals(method)) {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
