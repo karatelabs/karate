@@ -26,16 +26,20 @@ package com.intuit.karate.http;
 import com.intuit.karate.ScriptContext;
 import java.io.InputStream;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class DummyHttpClient extends HttpClient<String> {
+    
+    private static final Logger logger = LoggerFactory.getLogger(DummyHttpClient.class);
 
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
-        
+        logger.warn("using dummy http client");
     }
 
     @Override
