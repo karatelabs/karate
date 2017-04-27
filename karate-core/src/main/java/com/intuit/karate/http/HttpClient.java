@@ -49,33 +49,33 @@ public abstract class HttpClient<T> {
     protected static final String TEXT_PLAIN = "text/plain";
     protected static final String MULTIPART_FORM_DATA = "multipart/form-data";
     protected static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
-    
+
     private static final String KARATE_HTTP_PROPERTIES = "karate-http.properties";
-    
+
     protected HttpRequest request;
 
     public abstract void configure(HttpConfig config, ScriptContext context);
 
     protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);
-    
+
     protected abstract T getEntity(MultiValuedMap formFields, String mediaType);
 
-    protected abstract T getEntity(InputStream stream, String mediaType);    
-    
+    protected abstract T getEntity(InputStream stream, String mediaType);
+
     protected abstract T getEntity(String content, String mediaType);
-    
+
     protected abstract void buildUrl(String url);
-    
+
     protected abstract void buildPath(String path);
-    
-    protected abstract void buildParam(String name, Object ... values);
-    
+
+    protected abstract void buildParam(String name, Object... values);
+
     protected abstract void buildHeader(String name, Object value, boolean replace);
-    
+
     protected abstract void buildCookie(Cookie cookie);
-    
+
     protected abstract HttpResponse makeHttpRequest(T entity, long startTime);
-    
+
     protected abstract String getRequestUri();
 
     private T getEntityInternal(ScriptValue body, String mediaType) {
@@ -119,7 +119,7 @@ public abstract class HttpClient<T> {
                 return HttpClient.this.getEntity(body.getAsString(), mediaType);
         }
     }
-    
+
     private T buildRequestInternal(HttpRequest request, ScriptContext context) {
         String method = request.getMethod();
         if (method == null) {
@@ -128,7 +128,7 @@ public abstract class HttpClient<T> {
             throw new RuntimeException(msg);
         }
         method = method.toUpperCase();
-        request.setMethod(method);        
+        request.setMethod(method);
         this.request = request;
         String url = request.getUrl();
         if (url == null) {
@@ -165,7 +165,7 @@ public abstract class HttpClient<T> {
                 buildCookie(cookie);
             }
         }
-        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
+        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method) || "DELETE".equals(method)) {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
@@ -176,10 +176,14 @@ public abstract class HttpClient<T> {
                 return getEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
             } else {
                 ScriptValue body = request.getBody();
-                if (body == null || body.isNull()) {
-                    String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
-                    context.logger.error(msg);
-                    throw new RuntimeException(msg);
+                if ((body == null || body.isNull())) {
+                    if ("DELETE".equals(method)) {
+                        return null; // traditional DELETE, we also support using a request body for DELETE
+                    } else {
+                        String msg = "request body is required for a " + method + ", please use the 'request' keyword";
+                        logger.error(msg);
+                        throw new RuntimeException(msg);
+                    }
                 }
                 return getEntityInternal(body, mediaType);
             }
@@ -187,13 +191,13 @@ public abstract class HttpClient<T> {
             return null;
         }
     }
-    
+
     protected static long getResponseTime(long startTime) {
         long endTime = System.currentTimeMillis();
-        long responseTime = endTime - startTime;        
+        long responseTime = endTime - startTime;
         return responseTime;
     }
-    
+
     public HttpResponse invoke(HttpRequest request, ScriptContext context) {
         T body = buildRequestInternal(request, context);
         long startTime = System.currentTimeMillis();
@@ -208,7 +212,7 @@ public abstract class HttpClient<T> {
             throw new KarateException(message, e);
         }
     }
-    
+
     private static Map<String, Object> evalConfiguredHeaders(ScriptContext context) {
         ScriptValue headersValue = context.getConfiguredHeaders();
         switch (headersValue.getType()) {
@@ -227,10 +231,10 @@ public abstract class HttpClient<T> {
                 return json.read("$");
             default:
                 return null;
-        }        
-    } 
+        }
+    }
 
-    public static HttpClient construct() {        
+    public static HttpClient construct() {
         try {
             InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
             if (is == null) {
@@ -247,5 +251,5 @@ public abstract class HttpClient<T> {
             throw new RuntimeException(msg);
         }
     }
-    
+
 }

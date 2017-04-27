@@ -60,6 +60,10 @@ public class HelloWorldTest {
                 .willReturn((aResponse().withStatus(422)
                         .withHeader("Content-Type", "application/json")
                         .withBody("{ \"success\": true }"))));
+        stubFor(delete(urlEqualTo("/v1/delete"))
+                .willReturn((aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{ \"success\": true }"))));        
     }
 
 }
