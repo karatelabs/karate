@@ -132,7 +132,7 @@ public abstract class HttpClient<T> {
             throw new RuntimeException(msg);
         }
         method = method.toUpperCase();
-        request.setMethod(method);        
+        request.setMethod(method);
         this.request = request;
         String url = request.getUrl();
         if (url == null) {
@@ -169,7 +169,7 @@ public abstract class HttpClient<T> {
                 buildCookie(cookie);
             }
         }
-        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
+        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method) || "DELETE".equals(method)) {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
@@ -180,8 +180,11 @@ public abstract class HttpClient<T> {
                 return getEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
             } else {
                 ScriptValue body = request.getBody();
-                if (body == null || body.isNull()) {
-                    String msg = "request body is requred for a " + method + ", please use the 'request' keyword";
+                if ((body == null || body.isNull()) && "DELETE".equals(method)) {
+                    logger.info("request body not provided and is not mandatory for " + method);
+                    return null;
+                } else if (body == null || body.isNull()) {
+                    String msg = "request body is required for a " + method + ", please use the 'request' keyword";
                     logger.error(msg);
                     throw new RuntimeException(msg);
                 }
