@@ -181,7 +181,6 @@ public abstract class HttpClient<T> {
                         return null; // traditional DELETE, we also support using a request body for DELETE
                     } else {
                         String msg = "request body is required for a " + method + ", please use the 'request' keyword";
-                        logger.error(msg);
                         throw new RuntimeException(msg);
                     }
                 }
