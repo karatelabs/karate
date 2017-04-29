@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.ScriptValue;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,30 +65,59 @@ public class HttpRequest {
     public List<String> getPaths() {
         return paths;
     }
-
-    public void addHeader(String name, String value) {
+    
+    public void removeHeader(String name) {
+        if (headers == null) {
+            return;
+        }
+        headers.remove(name);
+    }
+    
+    public void setHeader(String name, String value) {
+        setHeader(name, Collections.singletonList(value));
+    }
+    
+    public void setHeader(String name, List<String> values) {
         if (headers == null) {
             headers = new MultiValuedMap();
         }
-        headers.add(name, value);
+        headers.put(name, values);
     }
 
     public MultiValuedMap getHeaders() {
         return headers;
     }
+    
+    public void removeParam(String name) {
+        if (params == null) {
+            return;
+        }
+        params.remove(name);
+    }
+    
+    public void setParam(String name, String value) {
+        setParam(name, Collections.singletonList(value));
+    }
 
-    public void addParam(String name, String value) {
+    public void setParam(String name, List<String> values) {
         if (params == null) {
             params = new MultiValuedMap();
         }
-        params.add(name, value);
+        params.put(name, values);
     }
 
     public MultiValuedMap getParams() {
         return params;
     }
+    
+    public void removeCookie(String name) {
+        if (cookies == null) {
+            return;
+        }
+        cookies.remove(name);
+    }
 
-    public void addCookie(Cookie cookie) {
+    public void setCookie(Cookie cookie) {
         if (cookies == null) {
             cookies = new LinkedHashMap<>();
         }
@@ -101,12 +131,23 @@ public class HttpRequest {
     public void setCookies(Map<String, Cookie> cookies) {
         this.cookies = cookies;
     }   
+    
+    public void removeFormField(String name) {
+        if (formFields == null) {
+            return;
+        }
+        formFields.remove(name);
+    }
+    
+    public void setFormField(String name, String value) {
+        setFormField(name, Collections.singletonList(value));
+    }
 
-    public void addFormField(String name, String value) {
+    public void setFormField(String name, List<String> values) {
         if (formFields == null) {
             formFields = new MultiValuedMap();
         }
-        formFields.add(name, value);
+        formFields.put(name, values);
     }
 
     public MultiValuedMap getFormFields() {

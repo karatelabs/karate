@@ -126,7 +126,7 @@ public class ScriptContext {
             if (value.isString()) {
                 config.setProxyUri(value.getAsString());
             } else {
-                Map<String, Object> map = (Map) value.getAfterConvertingFromJsonOrXmlIfNeeded();
+                Map<String, Object> map = value.getAsMap();
                 config.setProxyUri((String) map.get("uri"));
                 config.setProxyUsername((String) map.get("username"));
                 config.setProxyPassword((String) map.get("password"));

@@ -35,7 +35,9 @@ import cucumber.api.java.en.When;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -99,34 +101,129 @@ public class StepDefs {
     @When("^path (.+)")
     public void path(List<String> paths) {
         for (String path : paths) {
-            String temp = Script.eval(path, context).getAsString();
-            request.addPath(temp);
+            ScriptValue temp = Script.eval(path, context);
+            if (temp.isListLike()) {
+                List list = temp.getAsList();
+                for (Object o : list) {
+                    if (o == null) {
+                        continue;
+                    }
+                    request.addPath(o.toString());
+                }
+            } else {
+                request.addPath(temp.getAsString());
+            }
         }
     }
+    
+    private List<String> evalList(List<String> values) {
+        List<String> list = new ArrayList(values.size());
+        for (String value : values) {
+            ScriptValue temp = Script.eval(value, context);
+            list.add(temp.getAsString());
+        }
+        return list;
+    }       
 
     @When("^param ([^\\s]+) = (.+)")
-    public void param(String name, String value) {
-        String temp = Script.eval(value, context).getAsString();
-        request.addParam(name, temp);
+    public void param(String name, List<String> values) {
+        List<String> list = evalList(values);
+        request.setParam(name, list);
     }
+    
+    public Map<String, Object> evalMapExpr(String expr) {
+        ScriptValue value = Script.eval(expr, context);
+        if (!value.isMapLike()) {
+            throw new KarateException("cannot convert to map: " + expr);
+        }
+        return value.getAsMap();        
+    } 
+
+    @When("^params (.+)")
+    public void params(String expr) {
+        Map<String, Object> map = evalMapExpr(expr);
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String key = entry.getKey();
+            Object temp = entry.getValue();
+            if (temp == null) {
+                request.removeParam(key);
+            } else {
+                if (temp instanceof List) {
+                    request.setParam(key, (List) temp);                   
+                } else {
+                    request.setParam(key, temp.toString());
+                }
+            }            
+        }
+    }    
 
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
         String temp = Script.eval(value, context).getAsString();
-        request.addCookie(new Cookie(name, temp));
-    }
+        request.setCookie(new Cookie(name, temp));
+    }    
+    
+    @When("^cookies (.+)")
+    public void cookies(String expr) {
+        Map<String, Object> map = evalMapExpr(expr);
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String key = entry.getKey();
+            Object temp = entry.getValue();
+            if (temp == null) {
+                request.removeCookie(key);
+            } else {
+                request.setCookie(new Cookie(key, temp.toString()));
+            }
+        }        
+    }    
 
     @When("^header ([^\\s]+) = (.+)")
-    public void header(String name, String value) {
-        String temp = Script.eval(value, context).getAsString();
-        request.addHeader(name, temp);
+    public void header(String name, List<String> values) {
+        List<String> list = evalList(values);
+        request.setHeader(name, list);
     }
+    
+    @When("^headers (.+)")
+    public void headers(String expr) {
+        Map<String, Object> map = evalMapExpr(expr);
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String key = entry.getKey();
+            Object temp = entry.getValue();
+            if (temp == null) {
+                request.removeHeader(key);
+            } else {
+                if (temp instanceof List) {
+                    request.setHeader(key, (List) temp);                   
+                } else {
+                    request.setHeader(key, temp.toString());
+                }
+            }
+        }       
+    }    
 
     @When("^form field ([^\\s]+) = (.+)")
-    public void formField(String name, String value) {
-        String temp = Script.eval(value, context).getAsString();
-        request.addFormField(name, temp);
+    public void formField(String name, List<String> values) {
+        List<String> list = evalList(values);
+        request.setFormField(name, list);
     }
+    
+    @When("^form fields (.+)")
+    public void formFields(String expr) {
+        Map<String, Object> map = evalMapExpr(expr);
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String key = entry.getKey();
+            Object temp = entry.getValue();
+            if (temp == null) {
+                request.removeFormField(key);
+            } else {
+                if (temp instanceof List) {
+                    request.setFormField(key, (List) temp);                   
+                } else {
+                    request.setFormField(key, temp.toString());
+                }
+            }
+        }
+    }    
 
     @When("^request$")
     public void requestDocString(String requestBody) {
@@ -241,8 +338,8 @@ public class StepDefs {
         if (action == null) {
             action = "";
         }
-        request.addHeader("SOAPAction", action);
-        request.addHeader("Content-Type", "text/xml");
+        request.setHeader("SOAPAction", action);
+        request.setHeader("Content-Type", "text/xml");
         method("post");
     }
 

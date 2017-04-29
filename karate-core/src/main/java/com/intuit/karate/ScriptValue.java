@@ -63,23 +63,37 @@ public class ScriptValue {
     public Object getValue() {
         return value;
     }
-    
+
     public String getTypeAsShortString() {
-        switch(type) {
-            case NULL: return "null";
-            case UNKNOWN: return "?";
-            case PRIMITIVE: return "num";
-            case STRING: return "str";
-            case MAP: return "map";
-            case LIST: return "list";
-            case JSON: return "json";
-            case XML: return "xml";
-            case JS_ARRAY: return "js[]";
-            case JS_OBJECT: return "js{}";
-            case JS_FUNCTION: return "js()";
-            case INPUT_STREAM: return "stream";
-            case FEATURE_WRAPPER: return "feat";
-            default: return "??";
+        switch (type) {
+            case NULL:
+                return "null";
+            case UNKNOWN:
+                return "?";
+            case PRIMITIVE:
+                return "num";
+            case STRING:
+                return "str";
+            case MAP:
+                return "map";
+            case LIST:
+                return "list";
+            case JSON:
+                return "json";
+            case XML:
+                return "xml";
+            case JS_ARRAY:
+                return "js[]";
+            case JS_OBJECT:
+                return "js{}";
+            case JS_FUNCTION:
+                return "js()";
+            case INPUT_STREAM:
+                return "stream";
+            case FEATURE_WRAPPER:
+                return "feat";
+            default:
+                return "??";
         }
     }
 
@@ -90,18 +104,66 @@ public class ScriptValue {
     public boolean isString() {
         return type == Type.STRING;
     }
-    
+
     public boolean isBooleanTrue() {
         return type == Type.PRIMITIVE && "true".equals(value.toString());
     }
-    
+
+    public boolean isListLike() {
+        switch (type) {
+            case JS_ARRAY:
+            case LIST:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public List getAsList() {
+        switch (type) {
+            case JS_ARRAY:
+            case LIST:
+                return getValue(List.class);
+            default:
+                throw new RuntimeException("cannot convert to list: " + this);
+        }
+    }
+
+    public boolean isMapLike() {
+        switch (type) {
+            case MAP:
+            case JSON:
+            case XML:
+            case JS_OBJECT:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public Map<String, Object> getAsMap() {
+        switch (type) {
+            case MAP:
+            case JS_OBJECT:
+                return getValue(Map.class);
+            case JSON:
+                DocumentContext json = getValue(DocumentContext.class);
+                return json.read("$");
+            case XML:
+                Node xml = getValue(Node.class);
+                return (Map) XmlUtils.toObject(xml);
+            default:
+                throw new RuntimeException("cannot convert to map: " + this);
+        }
+    }
+
     public String getAsString() {
         switch (type) {
             case NULL:
                 return null;
             case JSON:
                 DocumentContext doc = getValue(DocumentContext.class);
-                return doc.jsonString();                
+                return doc.jsonString();
             case XML:
                 Node node = getValue(Node.class);
                 if (node.getTextContent() != null) {
@@ -118,7 +180,7 @@ public class ScriptValue {
             default:
                 return value.toString();
         }
-    }    
+    }
 
     public Object getAfterConvertingFromJsonOrXmlIfNeeded() {
         switch (type) {

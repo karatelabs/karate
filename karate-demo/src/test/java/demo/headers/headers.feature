@@ -28,15 +28,41 @@ Scenario: configure json
     When method get
     Then status 200
 
-
 Scenario: set header
 
-    * configure headers = null
     * header Authorization = token + time + demoBaseUrl
 
     Given path 'headers', token
     And param url = demoBaseUrl
     When method get
     Then status 200
+
+Scenario: multi-value headers
+
+    * header Authorization = 'dummy', token + time + demoBaseUrl
+
+    Given path 'headers', token
+    And param url = demoBaseUrl
+    When method get
+    Then status 200
+
+Scenario: set headers using json
+
+    * headers { Authorization: '#(token + time + demoBaseUrl)' }
+
+    Given path 'headers', token
+    And param url = demoBaseUrl
+    When method get
+    Then status 200
+
+Scenario: set multi-value headers using json
+
+    * headers { Authorization: ['dummy', '#(token + time + demoBaseUrl)'] }
+
+    Given path 'headers', token
+    And param url = demoBaseUrl
+    When method get
+    Then status 200
+
 
 

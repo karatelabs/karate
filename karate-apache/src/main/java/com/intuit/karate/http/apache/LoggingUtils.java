@@ -24,7 +24,9 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.http.HttpUtils;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.http.Header;
@@ -52,11 +54,14 @@ public class LoggingUtils {
 
     private static void logHeaderLine(StringBuilder sb, int id, char prefix, String key, Header[] headers) {
         sb.append(id).append(' ').append(prefix).append(' ').append(key).append(": ");
-        for (int i = 0; i < headers.length; i++) {
-            sb.append(headers[i].getValue());
-            if (i < (headers.length - 1)) {
-                sb.append(',');
+        if (headers.length == 1) {
+            sb.append(headers[0].getValue());
+        } else {
+            List<String> list = new ArrayList(headers.length);
+            for (Header header : headers) {
+                list.add(header.getValue());
             }
+            sb.append(list);
         }
         sb.append('\n');       
     }

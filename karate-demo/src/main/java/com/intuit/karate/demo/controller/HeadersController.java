@@ -44,28 +44,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/headers")
 public class HeadersController {
-    
+
     private final Map<String, String> tokens = new HashMap<>();
-    
+
     @GetMapping
     public ResponseEntity getToken(HttpServletResponse response) {
         String token = UUID.randomUUID().toString();
         String time = System.currentTimeMillis() + "";
         tokens.put(token, time);
         response.addCookie(new Cookie("time", time));
-        return ResponseEntity.ok().body(token);        
+        return ResponseEntity.ok().body(token);
     }
-    
+
     @GetMapping("/{token:.+}")
-    public ResponseEntity validateToken(@CookieValue("time") String time, 
-            @RequestHeader("Authorization") String authorization, @PathVariable String token, 
+    public ResponseEntity validateToken(@CookieValue("time") String time,
+            @RequestHeader("Authorization") String[] authorization, @PathVariable String token,
             @RequestParam String url) {
         String temp = tokens.get(token);
-        if (temp.equals(time) && authorization.equals(token + time + url)) {
+        String auth = authorization[0];
+        if (auth.equals("dummy")) {
+            auth = authorization[1];
+        }
+        if (temp.equals(time) && auth.equals(token + time + url)) {
             return ResponseEntity.ok().build();
         } else {
             return ResponseEntity.badRequest().build();
         }
     }
-    
+
 }
