@@ -46,8 +46,8 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
-**Secondary HTTP Keywords** | [`param`](#param) | [`header`](#header) | [`cookie`](#cookie)
-.... | [`form field`](#form-field) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
+**Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
+.... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
@@ -959,15 +959,24 @@ And this assertion will cause the test to fail if the HTTP response code is some
 See also [`responseStatus`](#responsestatus).
 
 # Keywords that set key-value pairs
-They are `param`, `header`, `cookie`, `form field` and `multipart field`.
+They are `param`, `header`, `cookie`, `form field` and `multipart field`. 
 
 The syntax will include a '=' sign between the key and the value.  The key should not be be within quotes.
+
+> To make dynamic data-driven testing easier, the following keywords also exist: [`params`](#params), [`headers`](#headers), [`cookies`](#cookies-json) and [`form fields`](#form-fields). They use JSON to form HTTP requests.
+
 ## `param` 
 Setting query-string parameters:
 ```cucumber
 Given param someKey = 'hello'
 And param anotherKey = someVariable
+
+# multi-value params are also supported
+* param myParam = 'foo', 'bar'
 ```
+
+You can also use JSON to set multiple query-parameters in one-line using [`params`](#params) and this is especially useful for dynamic data-driven testing.
+
 ## `header`
 One nice thing about the `header` keyword is that it 'persists' for the duration of the `Scenario:`. So if you want the same header to be sent for all HTTP requests, just set the header once and all HTTP requests made after that point would have that header. And if you do this within a `Background:` section, it would apply to all `Scenario:` sections within the `*.feature` file.
 
@@ -992,11 +1001,21 @@ Then status 200
 
 If you need headers to be dynamically generated for each HTTP request, that is what [`configure headers`](#configure-headers) is for.
 
+Multi-value headers (though rarely used in the wild) are also supported:
+```cucumber
+* header myHeader = 'foo', 'bar'
+```
+
+Also look at the [`headers`](#headers) keyword which uses JSON and makes some kinds of dynamic data-driven testing easier.
+
 ## `cookie`
 Setting a cookie:
 ```cucumber
 Given cookie foo = 'bar'
 ```
+
+You also have the option of setting multiple cookies in one-step using the [`cookies`](#cookies-json) keyword.
+
 ## `form field` 
 HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response). For example:
 
@@ -1008,6 +1027,14 @@ When method post
 Then status 200
 And def authToken = response.token
 ```
+
+Multi-values are supported the way you would expect (e.g. for simulating check-boxes and multi-selects):
+```cucumber
+* form field selected = 'apple', 'orange'
+```
+
+You can also dynamically set multiple fields in one step using the [`form fields`](#form-fields) keyword.
+
 ## `multipart field`
 Use this for building multipart named (form) field requests.
 
@@ -1037,6 +1064,32 @@ And multipart field image = read('bar.jpg')
 And header Content-Type = 'multipart/related'
 When method post 
 Then status 201
+```
+
+# Keywords that set multiple key-value pairs in one step
+
+`params`, `headers`, `cookies` and `form fields` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing. Here is a good example in the demos: [`dynamic-params.feature`](https://github.com/intuit/karate/blob/master/karate-demo/src/test/java/demo/search/dynamic-params.feature)
+
+## `params`
+```cucumber
+* params { searchBy: 'client', active: true, someList: [1, 2, 3] }
+```
+
+## `headers`
+```cucumber
+* def someData = { Authorization: 'sometoken', tx_id: '1234', extraTokens: ['abc', 'def'] }
+* headers someData
+```
+
+## `cookies` (json)
+```cucumber
+* cookies { someKey: 'someValue', foo: 'bar' }
+```
+
+## `form fields`
+```cucumber
+* def credentials = { username: '#(user.name)', password: 'secret', projects: ['one', 'two'] }
+* form fields credentials
 ```
 
 # SOAP
