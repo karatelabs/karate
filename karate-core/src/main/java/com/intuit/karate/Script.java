@@ -871,17 +871,17 @@ public class Script {
 
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
-        if ("request".equals(name) || "url".equals(name)) {
-            throw new RuntimeException("'" + name + "' is not a variable,"
-                    + " use the form '* " + name + " <expression>' to initialize the "
-                    + name + ", and <expression> can be a variable");
-        }
         path = StringUtils.trimToNull(path);
         if (path == null) {
             Pair<String, String> pair = parseVariableAndPath(name);
             name = pair.getLeft();
             path = pair.getRight();
         }
+        if ("request".equals(name) || "url".equals(name)) {
+            throw new RuntimeException("'" + name + "' is not a variable,"
+                    + " use the form '* " + name + " <expression>' to initialize the "
+                    + name + ", and <expression> can be a variable");
+        }        
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
             ScriptValue value = eval(exp, context);
@@ -1036,7 +1036,7 @@ public class Script {
                 result = sv.getValue(Map.class);
                 break;
             default:
-                context.logger.debug("no vars returned from function call result: {}", sv);
+                context.logger.trace("no vars returned from function call result: {}", sv);
                 return;
         }
         for (Map.Entry<String, Object> entry : result.entrySet()) {

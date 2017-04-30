@@ -102,23 +102,33 @@ public class XmlUtilsTest {
     }
 
     @Test
-    public void testSetDomNodeByPath() {
+    public void testReplaceDomNodeByPath() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
         Node temp = XmlUtils.toXmlDoc("<hello>world</hello>");
         XmlUtils.setByPath(doc, "/foo/bar", temp);
         String result = XmlUtils.toString(doc);
-        assertEquals(result, "<foo><hello>world</hello></foo>");
+        assertEquals(result, "<foo><bar><hello>world</hello></bar></foo>");
     }
+    
+    @Test
+    public void testAppendDomNodeByPath() {
+        String xml = "<foo><bar/></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        Node temp = XmlUtils.toXmlDoc("<hello>world</hello>");
+        XmlUtils.setByPath(doc, "/foo/bar", temp);
+        String result = XmlUtils.toString(doc);
+        assertEquals(result, "<foo><bar><hello>world</hello></bar></foo>");
+    }    
 
     @Test
     public void testSetDomNodeWithAttributeByPath() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Node temp = XmlUtils.toXmlDoc("<bar hello=\"world\">baz</bar>");
+        Node temp = XmlUtils.toXmlDoc("<baz hello=\"world\">ban</baz>");
         XmlUtils.setByPath(doc, "/foo/bar", temp);
         String result = XmlUtils.toString(doc);
-        assertEquals(result, "<foo><bar hello=\"world\">baz</bar></foo>");
+        assertEquals(result, "<foo><bar><baz hello=\"world\">ban</baz></bar></foo>");
     }
     
     private Document getDocument() {

@@ -1,6 +1,6 @@
-Feature:
+Feature: xml and xpath demos
 
-Scenario:
+Scenario: get for complex things such as xpath functions
 
 * def foo =
 """
@@ -26,3 +26,31 @@ Scenario:
 * def count = get xml count(/response/records//record)
 * assert count == 1
 * match xml/response/result == 'succeed'
+
+
+Scenario Outline: conditionally build xml from scenario-outline and examples
+
+# this is an extreme example, you normally will never need to do this
+
+* def base = <query><name></name></query>
+* def firstName = '<_firstName>'
+* def lastName = '<_lastName>'
+* def age = '<_age>'
+
+* def builder =
+"""
+function() {
+  if (firstName) karate.set('base', '/query/name', '<firstName>#(firstName)</firstName>');
+  if (lastName) karate.set('base', '/query/name', '<lastName>#(lastName)</lastName>');
+  if (age) karate.set('base', '/query', '<age>#(age)</age>');  
+}
+"""
+
+* call builder
+* print base
+
+Examples:
+| _firstName | _lastName | _age |
+| John       | Smith     |   20 |
+| Jane       | Doe       |      |
+|            | Waldo     |      |

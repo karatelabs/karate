@@ -76,7 +76,7 @@ Then match cat / == <cat><name>Jean</name></cat>
 # set xml chunks
 * def xml = <foo><bar>baz</bar></foo>
 * set xml/foo/bar = <hello>world</hello>
-* match xml == <foo><hello>world</hello></foo>
+* match xml == <foo><bar><hello>world</hello></bar></foo>
 
 # assign xpath expressions to variables
 # also note the multi-line option / syntax

@@ -124,12 +124,19 @@ public class XmlUtils {
     }
 
     public static void setByPath(Document doc, String path, Node in) {
-        Node node = getNodeByPath(doc, path);
         if (in.getNodeType() == Node.DOCUMENT_NODE) {
             in = in.getFirstChild();
+        }        
+        Node node = getNodeByPath(doc, path);
+        if (node == null) {
+            throw new RuntimeException("no results for xpath: " + path);
         }
         Node newNode = doc.importNode(in, true);
-        node.getParentNode().replaceChild(newNode, node);
+        if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
+            node.replaceChild(newNode, node.getFirstChild());
+        } else {
+            node.appendChild(newNode);
+        }
     }
 
     public static DocumentContext toJsonDoc(Node node) {
@@ -147,7 +154,7 @@ public class XmlUtils {
         return map;
     }
     
-    private static Object getElementValue(Node node) {
+    private static Object getElementAsObject(Node node) {
         NodeList nodes = node.getChildNodes();
         int childCount = nodes.getLength();
         int childElementCount = 0;
@@ -194,7 +201,7 @@ public class XmlUtils {
             map.put(node.getNodeName(), toObject(node));
             return map;
         }
-        Object value = getElementValue(node);
+        Object value = getElementAsObject(node);
         if (node.hasAttributes()) {
             Map<String, Object> wrapper = new LinkedHashMap<>(2);
             wrapper.put("_", value);

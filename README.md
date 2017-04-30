@@ -46,7 +46,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Data Types** | [JSON](#json) | [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) 
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
-**Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
+**Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies-json) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
@@ -1197,7 +1197,7 @@ XML and XPath works just like you'd expect.
 # you can even set whole fragments of xml
 * def xml = <foo><bar>baz</bar></foo>
 * set xml/foo/bar = <hello>world</hello>
-* match xml == <foo><hello>world</hello></foo>
+* match xml == <foo><bar><hello>world</hello></bar></foo>
 ```
 
 ## Ignore or Validate
@@ -1680,8 +1680,9 @@ In real-life scripts, you would typically also use this capability of Karate to 
 ### The `karate` object
 A JavaScript function at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
-* `karate.set(key, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
-* `karate.get(key)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
+* `karate.set(name, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
+* `karate.set(name, path, value)` - this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](https://github.com/intuit/karate/blob/master/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L43), and it behaves the same way as the [`set`](#set) keyword.
+* `karate.get(name)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
 * `karate.log(... args)` - log to the same logger (and log file) being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 * `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
@@ -1774,7 +1775,7 @@ function(arg) {
 * assert result.someKey == 'hello world'
 
 # using a static method - observe how java interop is truly seamless !
-* def JavaDemo = Java.type('com.intuit.karate.junit4.syntax.JavaDemo')
+* def JavaDemo = Java.type('com.mycompany.JavaDemo')
 * def result = JavaDemo.doWorkStatic('world')
 * assert result == 'hello world'
 ```

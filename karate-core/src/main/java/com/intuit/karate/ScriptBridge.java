@@ -56,6 +56,11 @@ public class ScriptBridge {
         context.vars.put(name, o);
     }
     
+    // this makes sense for xpath manipulation from within js
+    public void set(String name, String path, String expr) {
+        Script.setValueByPath(name, path, expr, context);
+    }    
+    
     public Object get(String exp) {
         ScriptValue sv;
         try {
