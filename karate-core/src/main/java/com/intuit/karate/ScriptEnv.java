@@ -71,12 +71,12 @@ public class ScriptEnv {
                 new HashMap<>(1), logger);
     }    
     
-    public ScriptEnv refresh() { // immutable
-        String karateEnv = StringUtils.trimToNull(env);
+    public ScriptEnv refresh(String in) { // immutable
+        String karateEnv = StringUtils.trimToNull(in);
         if (karateEnv == null) {
-            karateEnv = StringUtils.trimToNull(System.getProperty("karate.env"));
-            if (karateEnv != null) {
-                logger.debug("obtained 'karate.env' from system properties: {}", karateEnv);
+            karateEnv = StringUtils.trimToNull(env);
+            if (karateEnv == null) {
+                karateEnv = StringUtils.trimToNull(System.getProperty("karate.env"));
             }
         }
         return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache, logger);

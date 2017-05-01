@@ -67,7 +67,7 @@ public class FeatureBrowsePanel extends Panel {
                         @Override
                         protected void onClick(AjaxRequestTarget target) {
                             FeatureFileEnv ffe = node.getObject();
-                            KarateSession session = service.createSession("dev", ffe.getFile(), ffe.getSearchPaths());                            
+                            KarateSession session = service.createSession("dev", ffe.getFile(), ffe.getSearchPaths());
                             setResponsePage(new FeaturePage(session.getId()));
                         }
                     };

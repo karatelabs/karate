@@ -139,7 +139,7 @@
 						"			</div>"+
 						"			<div id='"+dwdhid+
 										"' style='padding: 0.2em; background-color: gray; color: white; padding-left: 1em; margin-right: 14em; cursor: move;'>"+
-						"				Karate Ajax Debug Window (drag me here)"+
+						"				Karate Log"+
 						"			</div>"+
 						"			<div id='"+self.debugWindowLogId+"' style='width: 100%; height: 200px; background-color: white; color: black; overflow: auto; white-space: nowrap; text-align:left;'>"+
 						"			</div>"+
@@ -154,7 +154,7 @@
 
                     html += "<a id='"+self.karateDebugLink+"' style='position:fixed; left: 10px; bottom: 10px; z-index:1100000; padding-top: 0.3em; padding-bottom: 0.3em; line-height: normal ; _padding-top: 0em; width: 12em; border: 1px solid black; background-color: white; text-align: center; opacity: 0.7;  color: blue;'";
 
-					html += "  href='javascript:Karate.Ajax.DebugWindow.showDebugWindow()'>KARATE LOG</a>";
+					html += "  href='javascript:Karate.Ajax.DebugWindow.showDebugWindow()'>Karate Log</a>";
 
 					jQuery(html).appendTo(document.body);
 					Wicket.$(self.debugWindowScrollLockLinkId).focusSet = true;

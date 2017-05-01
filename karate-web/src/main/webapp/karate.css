@@ -8,6 +8,8 @@
 	margin-left: -15px;
 }
 .kt-leftnav > div { height: 100%; }
+.kt-feature-header { padding: 0.2em 0.5em; margin: 0.5em 0; }
+.kt-feature-header .form-group { vertical-align: top; }
 .kt-section-header { margin-top: 0.5em; margin-bottom: 0.5em; text-align: right; }
 .kt-section { border-top: #337ab7 solid thin; }
 .kt-step { border: #337ab7 solid thin; padding: 0; border-top: none; line-height: 1; font-size: small; }

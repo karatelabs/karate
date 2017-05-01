@@ -62,7 +62,7 @@ public class ScriptContext {
     }        
 
     public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
-        this.env = env.refresh();
+        this.env = env.refresh(null);
         logger = env.logger;
         if (parent != null) {
             vars = Script.clone(parent.vars);

@@ -46,11 +46,15 @@ public class FeatureWrapper {
     private final CucumberFeature feature;
     private final List<FeatureSection> featureSections;   
     
-    private final ScriptEnv scriptEnv;
+    private ScriptEnv scriptEnv;
 
     public ScriptEnv getEnv() {
         return scriptEnv;
     }
+
+    public void setEnv(ScriptEnv scriptEnv) {
+        this.scriptEnv = scriptEnv;
+    }        
 
     public static FeatureWrapper fromFile(File file, ClassLoader classLoader) {        
         try {
