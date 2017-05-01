@@ -165,12 +165,6 @@ public class StepPanel extends Panel {
                 KarateBackend backend = session.getBackend();
                 StepResult result = step.run(backend);
                 step.setPassed(result.isPass());
-                LogPanel logPanel = ((FeaturePage) getPage()).getLogPanel();
-                if (!step.isPassed()) {
-                    if (!logPanel.isShowing()) {
-                        logPanel.show(target);
-                    }
-                }
                 target.add(this);
             }
         };

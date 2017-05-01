@@ -71,7 +71,7 @@ public class FeatureSectionPanel extends Panel {
             public void onClick(AjaxRequestTarget target) {
                 KarateSession session = service.getSession(model.getSessionId());
                 KarateBackend backend = session.getBackend();
-                LogPanel logPanel = ((FeaturePage) getPage()).getLogPanel();                
+                FeaturePage featurePage = (FeaturePage) getPage();                
                 for (ListItem<StepWrapper> li : listItems) {
                     StepWrapper step = li.getModelObject();
                     StepResult result = step.run(backend);
@@ -79,7 +79,7 @@ public class FeatureSectionPanel extends Panel {
                     StepPanel stepPanel = (StepPanel) li.get("step");
                     String json = JsonUtils.toJsonString(
                             "{ type: 'step', buttonId: '" + stepPanel.getRunButton().getMarkupId() + "' }");
-                    logPanel.pushJsonWebSocketMessage(json);
+                    featurePage.pushJsonWebSocketMessage(json);
                 }
             }
         });

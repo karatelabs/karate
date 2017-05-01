@@ -12,7 +12,8 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
   </head>
   <body>
-    <div class="container-fluid">
+    <div wicket:id="sticky-header"></div>
+    <div class="container-fluid">      
       <div class="row">
         <div class="col-xs-2">
           <div class="kt-leftnav">
@@ -21,13 +22,11 @@
             </div>
           </div>
         </div>
-        <div class="col-xs-10">
-          <div wicket:id="sticky-header"></div>
+        <div class="col-xs-10">          
           <div wicket:id="header"></div>
-          <div wicket:id="content"></div>
-          <div wicket:id="sticky-footer"></div>
+          <div wicket:id="content"></div>          
         </div>
-      </div>
+      </div>      
     </div>
   </body>
 </html>

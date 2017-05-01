@@ -41,7 +41,7 @@ public class HomePanel extends Panel {
     @SpringBean(required = true)
     private KarateService service;    
     
-    private String text;
+    private final String text;
 
     public HomePanel(String id) {
         super(id);
@@ -57,6 +57,7 @@ public class HomePanel extends Panel {
         form.add(new TextArea("text"));
         add(form);
         add(new FeedbackPanel("feedback"));
+        text = "Feature:\n\nScenario:\n";
     }
     
 }

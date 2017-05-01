@@ -24,8 +24,6 @@
 package com.intuit.karate.web.wicket;
 
 import com.intuit.karate.web.wicket.model.ScriptContextModel;
-import org.apache.wicket.ajax.AjaxRequestTarget;
-import org.apache.wicket.ajax.markup.html.AjaxLink;
 import org.apache.wicket.markup.html.panel.Panel;
 
 public class VarsPanel extends Panel {
@@ -35,13 +33,6 @@ public class VarsPanel extends Panel {
 		super(id);        
         add(new VarsRefreshingView("vars", new ScriptContextModel(sessionId)));
         setOutputMarkupId(true);
-        add(new AjaxLink("showLog") {
-            @Override
-            public void onClick(AjaxRequestTarget target) {
-                LogPanel logPanel = ((FeaturePage) getPage()).getLogPanel();
-                logPanel.show(target);
-            }
-        });
 	}
 
 }

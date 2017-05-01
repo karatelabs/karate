@@ -23,13 +23,23 @@
  */
 package com.intuit.karate.web.wicket;
 
+import com.intuit.karate.web.config.LogAppenderTarget;
 import com.intuit.karate.web.config.WebSocketLogAppender;
 import com.intuit.karate.web.service.KarateService;
 import com.intuit.karate.web.service.KarateSession;
+import com.jayway.jsonpath.JsonPath;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.wicket.Application;
 import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.head.JavaScriptHeaderItem;
+import org.apache.wicket.markup.html.basic.Label;
+import org.apache.wicket.protocol.ws.WebSocketSettings;
+import org.apache.wicket.protocol.ws.api.IWebSocketConnection;
 import org.apache.wicket.protocol.ws.api.WebSocketBehavior;
 import org.apache.wicket.protocol.ws.api.message.ConnectedMessage;
+import org.apache.wicket.protocol.ws.api.registry.IKey;
+import org.apache.wicket.protocol.ws.api.registry.IWebSocketConnectionRegistry;
 import org.apache.wicket.spring.injection.annot.SpringBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,45 +48,66 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FeaturePage extends BasePage {
+public class FeaturePage extends BasePage implements LogAppenderTarget {
 
     private static final Logger logger = LoggerFactory.getLogger(FeaturePage.class);
     
     @SpringBean(required = true)
     private KarateService service;    
 
-    private final LogPanel logPanel;
-
-    public LogPanel getLogPanel() {
-        return logPanel;
-    }
+    private String webSocketSessionId;
+    private IKey webSocketClientKey;    
 
     public FeaturePage(String sessionId) {
+        replace(new Label(HEADER_ID, ""));
         replace(new FeaturePanel(CONTENT_ID, sessionId));
         replace(new VarsPanel(LEFT_NAV_ID, sessionId));
-        logPanel = new LogPanel(STICKY_FOOTER_ID, sessionId);
         add(new WebSocketBehavior() {
             @Override
             protected void onConnect(ConnectedMessage message) {
                 KarateSession session = service.getSession(sessionId);
+                webSocketSessionId = message.getSessionId();
+                webSocketClientKey = message.getKey();
                 WebSocketLogAppender appender = session.getAppender();
-                logPanel.onConnect(message);
-                appender.setTarget(logPanel);
+                appender.setTarget(FeaturePage.this);
                 logger.debug("websocket client connected, session: {}", message.getSessionId());
             }
         });
     }
+    
+    @Override
+    public void append(String text) {
+        Map<String, Object> map = new HashMap(1);
+        map.put("text", text);
+        String json = JsonPath.parse(map).jsonString();
+        pushJsonWebSocketMessage(json);
+    }
+
+    public void pushJsonWebSocketMessage(String json) {
+        Application application = Application.get();
+        WebSocketSettings settings = WebSocketSettings.Holder.get(application);
+        IWebSocketConnectionRegistry registry = settings.getConnectionRegistry();
+        IWebSocketConnection connection = registry.getConnection(application, webSocketSessionId, webSocketClientKey);
+        if (connection == null) {
+            logger.warn("websocket client lookup failed for web-socket session: {}", webSocketSessionId);
+            return;
+        }
+        try {
+            connection.sendMessage(json);
+        } catch (Exception e) {
+            logger.error("websocket push failed", e);
+        }
+    }    
 
     @Override
     public void renderHead(IHeaderResponse response) {
-        super.renderHead(response);
         String script = "Wicket.Event.subscribe(\"/websocket/message\", function(jqEvent, message) {\n"
                 + "  message = JSON.parse(message);\n"
-                + "  if (message.type == 'step') updateStep(message); else updateLog(message);\n"
+                + "  if (message.type == 'step') updateStep(message); else { Karate.Ajax.DebugWindow.logInfo(message.text); }\n"
                 + "});\n" 
-                + "function updateStep(message){ var btn = jQuery('#' + message.buttonId); btn.addClass('btn-success'); }\n"
-                + logPanel.getUpdateScript();
+                + "function updateStep(message){ var btn = jQuery('#' + message.buttonId); btn.addClass('btn-success'); }";
         response.render(JavaScriptHeaderItem.forScript(script, "karate-ws-js"));
+        response.render(JavaScriptHeaderItem.forReference(KarateJsResourceReference.INSTANCE));
     }
 
 }

@@ -89,7 +89,7 @@ public class VarsRefreshingView extends RefreshingView<Var> {
                 selectedName = name;
                 Component headerPanel = getPage().get(BasePage.STICKY_HEADER_ID);
                 VarModel varModel = new VarModel(model.getSessionId(), name);
-                VarPanel varPanel = new VarPanel(BasePage.STICKY_HEADER_ID, varModel, VarsRefreshingView.this);
+                VarPanel varPanel = new VarPanel(BasePage.STICKY_HEADER_ID, varModel, VarsRefreshingView.this);                
                 headerPanel = headerPanel.replaceWith(varPanel);
                 target.add(headerPanel);
                 Component varsPanel = getPage().get(BasePage.LEFT_NAV_ID);

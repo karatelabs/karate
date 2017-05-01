@@ -32,8 +32,8 @@ import org.apache.wicket.markup.html.form.TextArea;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.IModel;
 
-public class VarPanel extends Panel {         
-
+public class VarPanel extends Panel {   
+    
 	public VarPanel(String id, VarModel model, VarsRefreshingView varsView) {
 		super(id);
         IModel<String> txtModel = new IModel<String>() {
@@ -62,6 +62,6 @@ public class VarPanel extends Panel {
                 target.add(varsPanel);                        
             }
         });
-	}
+	}      
 
 }

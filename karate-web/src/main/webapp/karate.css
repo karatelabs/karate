@@ -8,7 +8,7 @@
 	margin-left: -15px;
 }
 .kt-leftnav > div { height: 100%; }
-.kt-section-header { margin-bottom: 0.5em; text-align: right; }
+.kt-section-header { margin-top: 0.5em; margin-bottom: 0.5em; text-align: right; }
 .kt-section { border-top: #337ab7 solid thin; }
 .kt-step { border: #337ab7 solid thin; padding: 0; border-top: none; line-height: 1; font-size: small; }
 .kt-step textarea { 
@@ -25,7 +25,7 @@
 .kt-vars { font-size: small; }
 .kt-vars a { color: #eee; text-decoration: underline; }
 .kt-vars .success, .kt-vars .success a { background-color: #eee; color: #337ab7; }
+.kt-var, .kt-log { margin-bottom: 0; }
 .kt-var .panel-heading, .kt-log .panel-heading { padding: 0.2em 0.5em; }
 .kt-var .close, .kt-log .close { color: #eee; opacity: 1; font-size: medium; }
 .kt-var .panel-body, .kt-log .panel-body { padding: 0; }
-.kt-log { margin-bottom: 0; }
