@@ -41,7 +41,7 @@ public class StepWrapper {
     private final Step step;
     private final boolean background;
     private final String priorText;
-    private Boolean passed;
+    private Boolean pass;
 
     public StepWrapper(ScenarioWrapper scenario, int index, String priorText, Step step, boolean background) {
         this.scenario = scenario;
@@ -51,12 +51,12 @@ public class StepWrapper {
         this.step = step;
     }
 
-    public void setPassed(boolean passed) {
-        this.passed = passed;
+    public void setPass(boolean passed) {
+        this.pass = passed;
     }
 
-    public Boolean isPassed() {
-        return passed;
+    public Boolean isPass() {
+        return pass;
     }
 
     public boolean isHttpCall() {
@@ -137,6 +137,7 @@ public class StepWrapper {
             match.runStep(feature.getI18n());
             return new StepResult(this, null);
         } catch (Throwable t) {
+            wrapper.getEnv().logger.error("FAILED", t);
             return new StepResult(this, t);
         }
     }

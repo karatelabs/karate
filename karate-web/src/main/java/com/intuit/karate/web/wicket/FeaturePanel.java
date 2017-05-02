@@ -31,6 +31,7 @@ import com.intuit.karate.web.wicket.model.FeatureModel;
 import com.intuit.karate.web.wicket.model.FeatureSectionModel;
 import org.apache.wicket.extensions.ajax.markup.html.AjaxEditableLabel;
 import org.apache.wicket.markup.html.basic.Label;
+import org.apache.wicket.markup.html.link.BookmarkablePageLink;
 import org.apache.wicket.markup.html.list.ListItem;
 import org.apache.wicket.markup.html.list.ListView;
 import org.apache.wicket.markup.html.panel.Panel;
@@ -73,6 +74,7 @@ public class FeaturePanel extends Panel {
             public void detach() {
             }
         }));
+        add(new BookmarkablePageLink("home", HomePage.class));
         ListView<FeatureSection> listView = new ListView<FeatureSection>("sections") {
             @Override
             protected void populateItem(ListItem<FeatureSection> li) {

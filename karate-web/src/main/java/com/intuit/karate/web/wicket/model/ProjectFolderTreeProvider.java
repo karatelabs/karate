@@ -25,7 +25,6 @@ package com.intuit.karate.web.wicket.model;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.stream.Collectors;
 import org.apache.wicket.extensions.markup.html.repeater.tree.ITreeProvider;
@@ -36,51 +35,50 @@ import org.apache.wicket.model.Model;
  *
  * @author pthomas3
  */
-public class FeatureFileTreeProvider implements ITreeProvider<FeatureFileEnv> {
+public class ProjectFolderTreeProvider implements ITreeProvider<ProjectFolderTreeNode> {
     
     private File root;
-    private String[] searchPaths;
+    
+    public ProjectFolderTreeProvider(File root) {
+        this.root = root;
+    }
+
+    public File getRoot() {
+        return root;
+    }        
 
     public void setRoot(File root) {
         this.root = root;
-    }
-
-    public void setSearchPaths(String ... searchPaths) {
-        this.searchPaths = searchPaths;
     }        
-    
-    public FeatureFileTreeProvider(File root, String ... searchPaths) {
-        this.root = root;
-        this.searchPaths = searchPaths;
+
+    @Override
+    public Iterator<? extends ProjectFolderTreeNode> getRoots() {
+        return Arrays.asList(root.getParentFile().listFiles()).stream()
+                .filter(f -> f.isDirectory())
+                .map(ProjectFolderTreeNode::new)
+                .collect(Collectors.toList()).iterator();
     }
 
     @Override
-    public Iterator<? extends FeatureFileEnv> getRoots() {
-        FeatureFileEnv ffe = new FeatureFileEnv(root, searchPaths);
-        return Collections.singletonList(ffe).iterator();
-    }
-
-    @Override
-    public boolean hasChildren(FeatureFileEnv node) {
+    public boolean hasChildren(ProjectFolderTreeNode node) {        
         return node.getFile().isDirectory();
-    }   
-
-    @Override
-    public Iterator<? extends FeatureFileEnv> getChildren(FeatureFileEnv node) {
-        File[] files = node.getFile().listFiles();
-        return Arrays.asList(files).stream()
-                .filter(f -> !f.isHidden() && (f.isDirectory() || f.getName().toLowerCase().endsWith(".feature")))
-                .map(f -> new FeatureFileEnv(f, searchPaths)).collect(Collectors.toList()).iterator();    
     }
 
     @Override
-    public IModel<FeatureFileEnv> model(FeatureFileEnv object) {
+    public Iterator<? extends ProjectFolderTreeNode> getChildren(ProjectFolderTreeNode node) {
+        return Arrays.asList(node.getFile().listFiles()).stream()
+                .filter(f -> f.isDirectory())
+                .map(ProjectFolderTreeNode::new).collect(Collectors.toList()).iterator();
+    }
+
+    @Override
+    public IModel<ProjectFolderTreeNode> model(ProjectFolderTreeNode object) {
         return Model.of(object);
     }
 
     @Override
     public void detach() {
-        
-    }
 
+    }
+    
 }

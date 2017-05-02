@@ -27,9 +27,15 @@ import com.intuit.karate.web.wicket.model.FeatureFileTreeProvider;
 import com.intuit.karate.web.wicket.model.FeatureFileEnv;
 import com.intuit.karate.web.service.KarateService;
 import com.intuit.karate.web.service.KarateSession;
+import com.intuit.karate.web.wicket.model.ProjectFolderTreeNode;
+import com.intuit.karate.web.wicket.model.ProjectFolderTreeProvider;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.markup.html.AjaxLink;
 import org.apache.wicket.behavior.Behavior;
 import org.apache.wicket.extensions.markup.html.repeater.tree.DefaultNestedTree;
 import org.apache.wicket.extensions.markup.html.repeater.tree.content.Folder;
@@ -47,13 +53,56 @@ public class FeatureBrowsePanel extends Panel {
     private KarateService service;
 
     private Behavior theme = new WindowsTheme();
+    
+    private final DefaultNestedTree<FeatureFileEnv> featureTree;
 
     public FeatureBrowsePanel(String id, PageParameters params) {
         super(id);
-        File root = new File("../karate-demo");
+        File root = new File(".").getAbsoluteFile();
+        ProjectFolderTreeProvider projectTreeProvider = new ProjectFolderTreeProvider(root);        
+        DefaultNestedTree<ProjectFolderTreeNode> projectTree = new DefaultNestedTree<ProjectFolderTreeNode>("projects", projectTreeProvider) {
+            @Override
+            protected Component newContentComponent(String id, IModel<ProjectFolderTreeNode> node) {
+                return new Folder<ProjectFolderTreeNode>(id, this, node) {
+                    @Override
+                    protected void onClick(AjaxRequestTarget target) {
+                        File newRoot = node.getObject().getFile();
+                        String basePath = newRoot.getPath() + File.separator;
+                        FeatureFileTreeProvider featureTreeProvider = (FeatureFileTreeProvider) featureTree.getProvider();
+                        featureTreeProvider.setRoot(newRoot);
+                        featureTreeProvider.setSearchPaths(basePath + "src/test/java");
+                        featureTree.modelChanged();
+                        target.add(featureTree);
+                    }                    
+                };
+            }            
+        };
+        projectTree.setOutputMarkupId(true);
+        add(projectTree);
+        projectTree.add(new Behavior() {
+            @Override
+            public void onComponentTag(Component component, ComponentTag tag) {
+                theme.onComponentTag(component, tag);
+            }
+
+            @Override
+            public void renderHead(Component component, IHeaderResponse response) {
+                theme.renderHead(component, response);
+            }
+        });
+        add(new AjaxLink("parent") {
+            @Override
+            public void onClick(AjaxRequestTarget target) {
+                File parent = projectTreeProvider.getRoot().getParentFile();
+                projectTreeProvider.setRoot(parent);
+                projectTree.modelChanged();
+                target.add(projectTree);
+            }
+        });        
+        
         String basePath = root.getPath() + File.separator;
-        FeatureFileTreeProvider provider = new FeatureFileTreeProvider(root, basePath + "src/test/java");
-        DefaultNestedTree<FeatureFileEnv> tree = new DefaultNestedTree<FeatureFileEnv>("browse", provider) {
+        FeatureFileTreeProvider featureTreeProvider = new FeatureFileTreeProvider(root, basePath + "src/test/java");
+        featureTree = new DefaultNestedTree<FeatureFileEnv>("features", featureTreeProvider) {
             @Override
             protected Component newContentComponent(String id, IModel<FeatureFileEnv> node) {
                 String name = node.getObject().getFile().getName();
@@ -76,8 +125,9 @@ public class FeatureBrowsePanel extends Panel {
                 }
             }
         };
-        add(tree);
-        tree.add(new Behavior() {
+        featureTree.setOutputMarkupId(true);
+        add(featureTree);
+        featureTree.add(new Behavior() {
             @Override
             public void onComponentTag(Component component, ComponentTag tag) {
                 theme.onComponentTag(component, tag);

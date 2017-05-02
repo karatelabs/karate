@@ -75,7 +75,7 @@ public class FeatureSectionPanel extends Panel {
                 for (ListItem<StepWrapper> li : listItems) {
                     StepWrapper step = li.getModelObject();
                     StepResult result = step.run(backend);
-                    step.setPassed(result.isPass());
+                    step.setPass(result.isPass());
                     StepPanel stepPanel = (StepPanel) li.get("step");
                     String json = JsonUtils.toJsonString(
                             "{ type: 'step', buttonId: '" + stepPanel.getRunButton().getMarkupId() + "' }");

@@ -146,9 +146,9 @@ public class StepPanel extends Panel {
             @Override
             public Object getObject() {
                 StepWrapper sw = model.getObject();
-                if (sw.isPassed() == null) {
+                if (sw.isPass() == null) {
                     return "btn btn-sm btn-default";
-                } else if (sw.isPassed()) {
+                } else if (sw.isPass()) {
                     return "btn btn-sm btn-success";
                 } else {
                     return "btn btn-sm btn-danger";
@@ -164,7 +164,7 @@ public class StepPanel extends Panel {
                 StepWrapper step = model.getObject();
                 KarateBackend backend = session.getBackend();
                 StepResult result = step.run(backend);
-                step.setPassed(result.isPass());
+                step.setPass(result.isPass());
                 target.add(this);
             }
         };

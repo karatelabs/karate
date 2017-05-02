@@ -1,3 +1,15 @@
-<wicket:panel>  
-  <div wicket:id="browse">Browse</div>  
+<wicket:panel>
+    <div class="container-fluid">      
+      <div class="row">
+        <div class="col-xs-4">
+          <div>
+            <a class="btn btn-xs btn-default" wicket:id="parent"><span class="glyphicon glyphicon-arrow-left"></span></a>
+          </div>
+          <div wicket:id="projects" style="height:35em; overflow: auto; border: 1px solid black; margin-top: 0.5em"></div>
+        </div>
+        <div class="col-xs-8">
+          <div wicket:id="features"></div>
+        </div>        
+      </div>
+    </div>        
 </wicket:panel>
