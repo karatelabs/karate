@@ -64,5 +64,15 @@ Scenario: set multi-value headers using json
     When method get
     Then status 200
 
+Scenario: set multi-value headers using function call
+
+    # this is a test case for an edge case where commas in json confuse cucumber
+    * def fun = function(arg){ return [arg.first, arg.second] }
+    * header Authorization = call fun { first: 'dummy', second: '#(token + time + demoBaseUrl)' }
+
+    Given path 'headers', token
+    And param url = demoBaseUrl
+    When method get
+    Then status 200
 
 

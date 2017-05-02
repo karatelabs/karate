@@ -118,9 +118,19 @@ public class StepDefs {
     
     private List<String> evalList(List<String> values) {
         List<String> list = new ArrayList(values.size());
-        for (String value : values) {
-            ScriptValue temp = Script.eval(value, context);
-            list.add(temp.getAsString());
+        try {
+            for (String value : values) {
+                ScriptValue temp = Script.eval(value, context);
+                list.add(temp.getAsString());
+            }
+        } catch (Exception e) { // hack. for e.g. json with commas would land here
+            String joined = StringUtils.join(values, ", ");
+            ScriptValue temp = Script.eval(joined, context);
+            if (temp.isListLike()) {
+                return temp.getAsList();
+            } else {
+                return Collections.singletonList(temp.getAsString());
+            }
         }
         return list;
     }       

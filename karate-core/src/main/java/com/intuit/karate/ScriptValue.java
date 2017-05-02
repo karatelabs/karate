@@ -26,6 +26,9 @@ package com.intuit.karate;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -122,6 +125,8 @@ public class ScriptValue {
     public List getAsList() {
         switch (type) {
             case JS_ARRAY:
+                Collection coll = getValue(ScriptObjectMirror.class).values();
+                return new ArrayList(coll);
             case LIST:
                 return getValue(List.class);
             default:
