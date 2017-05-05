@@ -370,7 +370,7 @@ public class StepDefs {
 
     @Then("^print (.+)")
     public void print(String exp) {
-        String temp = Script.eval(exp, context).getAsString();
+        String temp = Script.evalInNashorn(exp, context).getAsString();
         context.logger.info("[print] {}", temp);
     }
 
