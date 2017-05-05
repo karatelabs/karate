@@ -549,7 +549,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | :white_check_mark: [**Yes**](#calling-other-feature-files).
 **Dynamic Data-Driven Testing** | **No**. Cucumber's [`Scenario Outline`](#the-cucumber-way) expects the `Examples` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
 **Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find [various](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [threads](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) and [third-party](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [projects](https://github.com/temyers/cucumber-jvm-parallel-plugin) on the internet that attempt to close this gap. | :white_check_mark: [**Yes**](#parallel-execution).
-**Run 'Set-Up' Routines Only Once** | **No**. Cucumber has a limitation where `Background` steps are re-run for every `Scenario` and worse - even for every `Examples` row within a `Scenario Outline`. This has been a [highly-requested open issue](https://github.com/cucumber/cucumber-jvm/issues/515) for a *long* time. | :white_check_mark: [**Yes**](#callonce)
+**Run 'Set-Up' Routines Only Once** | **No**. Cucumber has a limitation where `Background` steps are re-run for every `Scenario` and worse - even for every `Examples` row within a `Scenario Outline`. This has been a [highly-requested open issue](https://github.com/cucumber/cucumber-jvm/issues/515) for a *long* time. | :white_check_mark: [**Yes**](#callonce).
 
 One nice thing about the design of the underlying Cucumber framework is that script-steps are treated the same no matter whether they start with the keyword `Given`, `And`, `When` or `Then`.  What this means is that you are free to use whatever makes sense for you.  You could even have all the steps start with `When` and Karate won't care.
 
@@ -641,7 +641,7 @@ Then def session = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(us
 So the rule is - if a string value within a JSON (or XML) object declaration is enclosed between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are alive in the context can be used in this expression.
 
 This comes in useful in some cases - and avoids needing to use JavaScript functions or [JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set). So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
-the same time being able to dynamically plug values (that could also be other JSON object-trees) into a JSON 'template'.
+the same time being able to dynamically plug values (that could even be other JSON object-trees) into a JSON 'template'.
 
 The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the [Karate Demos](karate-demo).
 
