@@ -91,10 +91,7 @@
                 <excludes>
                     <exclude>**/*.java</exclude>
                 </excludes>
-            </resource>
-            <resource>
-                <directory>src/main/webapp</directory>
-            </resource>		
+            </resource>	
         </resources>       
         <testResources>
             <testResource>

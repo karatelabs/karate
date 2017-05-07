@@ -101,6 +101,7 @@ public class FeaturePage extends BasePage implements LogAppenderTarget {
 
     @Override
     public void renderHead(IHeaderResponse response) {
+        super.renderHead(response);
         String script = "Wicket.Event.subscribe(\"/websocket/message\", function(jqEvent, message) {\n"
                 + "  message = JSON.parse(message);\n"
                 + "  if (message.type == 'step') updateStep(message); else { Karate.Ajax.DebugWindow.logInfo(message.text); }\n"

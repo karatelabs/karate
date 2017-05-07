@@ -23,28 +23,19 @@
  */
 package com.intuit.karate.web.wicket;
 
-import org.apache.wicket.markup.head.CssContentHeaderItem;
-import org.apache.wicket.markup.head.IHeaderResponse;
-import org.apache.wicket.markup.html.WebPage;
-import org.apache.wicket.markup.html.basic.Label;
+import org.apache.wicket.request.resource.CssResourceReference;
+import org.apache.wicket.request.resource.JavaScriptResourceReference;
 
-public class BasePage extends WebPage {
-	
-	public static final String LEFT_NAV_ID = "left-nav";
-	public static final String HEADER_ID = "header";
-	public static final String CONTENT_ID = "content";
-    public static final String STICKY_HEADER_ID = "sticky-header";
-	
-	public BasePage() {
-		add(new LeftNavPanel(LEFT_NAV_ID));
-        add(new Label(STICKY_HEADER_ID, "").setOutputMarkupId(true));
-		add(new HeaderPanel(HEADER_ID));
-		add(new Label(CONTENT_ID, ""));
-	}
+/**
+ *
+ * @author pthomas3
+ */
+public class KarateCssResourceReference extends CssResourceReference {
     
-    @Override
-    public void renderHead(IHeaderResponse response) {
-        response.render(CssContentHeaderItem.forReference(KarateCssResourceReference.INSTANCE));
-    }    
-
+    public static final KarateCssResourceReference INSTANCE = new KarateCssResourceReference();
+    
+    private KarateCssResourceReference() {
+        super(KarateCssResourceReference.class, "karate.css");
+    }
+    
 }
