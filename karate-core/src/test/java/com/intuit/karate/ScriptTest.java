@@ -322,6 +322,26 @@ public class ScriptTest {
         assertTrue(Script.matchJsonPath(MatchType.EACH_CONTAINS, myJson, "$.foo", "{bar:'#number'}", ctx).pass);
         assertTrue(Script.matchJsonPath(MatchType.EACH_CONTAINS, myJson, "$.foo", "{baz:'#string'}", ctx).pass);
         assertFalse(Script.matchJsonPath(MatchType.EACH_EQUALS, myJson, "$.foo", "{bar:'#? _ < 3',  baz:'#string'}", ctx).pass);
+    } 
+    
+    @Test
+    public void testMatchJsonObjectReturnedFromJs() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return { foo: 'bar' } }", ctx);
+        Script.assign("json", "{ foo: 'bar' }", ctx);
+        Script.assign("expected", "fun()", ctx);
+        assertTrue(Script.matchNamed("json", null, "expected", ctx).pass);
+        assertTrue(Script.matchNamed("json", null, "fun()", ctx).pass);
+    }
+    
+    @Test
+    public void testMatchJsonArrayReturnedFromJs() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return [ 'foo', 'bar', 'baz' ] }", ctx);
+        Script.assign("json", "[ 'foo', 'bar', 'baz' ]", ctx);
+        Script.assign("expected", "fun()", ctx);
+        assertTrue(Script.matchNamed("json", null, "expected", ctx).pass);
+        assertTrue(Script.matchNamed("json", null, "fun()", ctx).pass);
     }    
 
     @Test

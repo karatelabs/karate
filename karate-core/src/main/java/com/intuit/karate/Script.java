@@ -662,8 +662,12 @@ public class Script {
         ScriptValue expected = eval(expression, context);
         Object expObject;
         switch (expected.getType()) {
-            case JSON:
+            case JSON: // convert to map or list
                 expObject = expected.getValue(DocumentContext.class).read("$");
+                break;
+            case JS_ARRAY: // array returned by js function, needs conversion to list
+                ScriptObjectMirror som = expected.getValue(ScriptObjectMirror.class);
+                expObject = new ArrayList(som.values());
                 break;
             default:
                 expObject = expected.getValue();

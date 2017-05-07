@@ -198,7 +198,7 @@ src/test/java
 Assuming you use JUnit, there are some good reasons for the recommended (best practice) naming convention and choice of file-placement shown above:
 * Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
 * `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder heirarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
-* `some-classpath-function.js` and `some-classpath-payload.js` are on the Java 'classpath' which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`.
+* `some-classpath-function.js` and `some-classpath-payload.js` are in the 'root' of the Java 'classpath' which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
 
 For details on what actually goes into a script or `*.feature` file, refer to the
 [syntax guide](#syntax-guide).
@@ -308,11 +308,13 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
 </plugin> 
 ```
 
-This is actually the recommended configuration for generating CI-friendly reports when using Cucumber and note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would continue to work.
+Note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would continue to work.
 
 With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more. You may need to point your CI to the location of the JUnit XML report (e.g. `target/cucumber-junit.xml`) so that test-reports are generated correctly.
 
 The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line.
+
+The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel. But you have the option of choosing other report formats, for e.g. `html`. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on emitting the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume.
 
 ## Parallel Execution
 Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven.
@@ -355,7 +357,7 @@ scenarios: 12 | failed:  0 | skipped:  0
 
 The [Karate Demo](karate-demo) has a working example of this set-up.
 
-> Going forward, this is likely to be the preferred way of running all Karate tests in a project, mainly because the other Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the `CucumberRunner.parallel()` JUnit XML for CI build reporting, and if you see any problems, please submit a defect report.
+This is the preferred way of automating the execution of all Karate tests in a project, mainly because the other Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the `CucumberRunner.parallel()` JUnit XML output for CI and test result reporting, and if you see any problems, or if your CI tool does not support the JUnit XML format, please submit a defect report.
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default
@@ -1015,6 +1017,8 @@ Given cookie foo = 'bar'
 
 You also have the option of setting multiple cookies in one-step using the [`cookies`](#cookies-json) keyword.
 
+Note that any cookies returned in the HTTP response would be automatically set for any future requests. Refer to the documentation of the built-in variable [`cookies`](#cookies) for more details.
+
 ## `form field` 
 HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response). For example:
 
@@ -1263,9 +1267,9 @@ validations ! This example uses the [`match contains`](#match-contains) syntax, 
 this comes in useful will be apparent when we discuss [`match each`](#match-each).
 ```cucumber
 Given def temperature = { celsius: 100, fahrenheit: 212 }
-Then match temperature contains { fahrenheit: '#? _ == $.celsius * 1.8 + 32' }
+Then match temperature == { celsius: '#number', fahrenheit: '#? _ == $.celsius * 1.8 + 32' }
 # when validation logic is an 'equality' check, an embedded expression works better
-Then match temperature == { celsius: '#number', fahrenheit: '#($.celsius * 1.8 + 32)' }
+Then match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }
 ```
 
 ### `match` for Text and Streams
@@ -1398,8 +1402,8 @@ The `match` keyword can be made to iterate over all elements in a JSON array usi
 * match each data.foo contains { baz: '#? isAbc(_)' }
 ``` 
 
-Here is a contrived example that uses `match each`, `contains` and the `#?` 'predicate' marker to validate that the 
-value of `totalPrice` is always equal to the `roomPrice` of the first item in the `roomInformation` array.
+Here is a contrived example that uses `match each`, [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' marker to validate that the value of `totalPrice` is always equal to the `roomPrice` of the first item in the `roomInformation` array.
+
 ```cucumber
 Given def json =
 """
@@ -1412,7 +1416,7 @@ Given def json =
 """
 Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0].roomPrice' }
 # when validation logic is an 'equality' check, an embedded expression works better
-Then match each json.hotels == { roomInformation: '#array', totalPrice: '#($.roomInformation[0].roomPrice)' }
+Then match each json.hotels contains { totalPrice: '#($.roomInformation[0].roomPrice)' }
 ```
 
 ## `get`
@@ -1436,7 +1440,9 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 ```
 
 ### XPath Functions
-When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. XPath functions are not supported directly within [`match`](#match) statements. But by using the `get` keyword, you should be able to achieve any assertion involving XPath functions in two steps. The examples below also show how 'standard' XPath can be used to do `match`.
+When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. XPath functions are not supported directly within [`match`](#match) statements. But by using the `get` keyword, you should be able to achieve any assertion involving XPath functions in two steps.
+
+The last line below also show how 'normal' (uncomplicated) XPath can be used to do a `match` in a single step.
 
 ```cucumber
 * def myXml =
@@ -1461,6 +1467,7 @@ When handling XML, you sometimes need to call [XPath functions](https://docs.ora
 ```
 
 # Special Variables
+These are 'built-in' variables, there are only a few and all of them give you access to the HTTP response.
 
 ## `response`
 After every HTTP call this variable is set with the response and is available until the next HTTP request over-writes it. You can easily assign `response` (or parts of it using Json-Path or XPath) to a variable and use it in later steps.
@@ -1675,6 +1682,8 @@ Examples of [defining and using JavaScript functions](#javascript-functions) app
 * share and re-use test utilities or 'helper' functionality across your organization
 
 In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the variables that result from a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests.
+
+And it is worth mentioning that the Karate [configuration 'bootstrap'](#configuration) routine is itself a JavaScript function.
 
 ### The `karate` object
 A JavaScript function at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
