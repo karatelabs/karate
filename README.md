@@ -98,13 +98,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -124,7 +124,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.3.1 \
+-DarchetypeVersion=0.4.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -926,7 +926,7 @@ You could always use a variable:
 ```cucumber
 And request myVariable
 ```
-In most cases you won't need to set the `Content-Type` header as Karate will automatically do the right thing depending on the data-type of the `request`.
+In most cases you won't need to set the `Content-Type` [`header`](#header) as Karate will automatically do the right thing depending on the data-type of the `request`.
 
 Defining the `request` is mandatory if you are using an HTTP `method` that expects a body such as `post`. If you really need to have an empty body, you can use an empty string as shown below, and you can force the right `Content-Type` header by using the [`header`](#header) keyword.
 ```cucumber
@@ -964,7 +964,7 @@ They are `param`, `header`, `cookie`, `form field` and `multipart field`.
 
 The syntax will include a '=' sign between the key and the value.  The key should not be be within quotes.
 
-> To make dynamic data-driven testing easier, the following keywords also exist: [`params`](#params), [`headers`](#headers), [`cookies`](#cookies-json) and [`form fields`](#form-fields). They use JSON to form HTTP requests.
+> To make dynamic data-driven testing easier, the following keywords also exist: [`params`](#params), [`headers`](#headers), [`cookies`](#cookies-json) and [`form fields`](#form-fields). They use JSON to build the relevant parts of the HTTP request.
 
 ## `param` 
 Setting query-string parameters:
@@ -1262,9 +1262,8 @@ validate all your domain objects.
 * match date == { month: '#? isValidMonth(_)' }
 ```
 
-You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional
-validations ! This example uses the [`match contains`](#match-contains) syntax, and situations where
-this comes in useful will be apparent when we discuss [`match each`](#match-each).
+You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional validations ! This example uses [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' syntax - and situations where this comes in useful will be apparent when we discuss [`match each`](#match-each).
+
 ```cucumber
 Given def temperature = { celsius: 100, fahrenheit: 212 }
 Then match temperature == { celsius: '#number', fahrenheit: '#? _ == $.celsius * 1.8 + 32' }
@@ -1470,7 +1469,7 @@ The last line below also show how 'normal' (uncomplicated) XPath can be used to 
 These are 'built-in' variables, there are only a few and all of them give you access to the HTTP response.
 
 ## `response`
-After every HTTP call this variable is set with the response and is available until the next HTTP request over-writes it. You can easily assign `response` (or parts of it using Json-Path or XPath) to a variable and use it in later steps.
+After every HTTP call this variable is set with the response body, and is available until the next HTTP request over-writes it. You can easily assign the whole `response` (or just parts of it using Json-Path or XPath) to a variable, and use it in later steps.
 
 The response is automatically available as a JSON, XML or String object depending on what the response contents are.
 

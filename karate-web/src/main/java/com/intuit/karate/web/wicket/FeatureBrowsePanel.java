@@ -33,6 +33,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.AjaxLink;
@@ -42,7 +43,9 @@ import org.apache.wicket.extensions.markup.html.repeater.tree.content.Folder;
 import org.apache.wicket.extensions.markup.html.repeater.tree.theme.WindowsTheme;
 import org.apache.wicket.markup.ComponentTag;
 import org.apache.wicket.markup.head.IHeaderResponse;
+import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.panel.Panel;
+import org.apache.wicket.model.AbstractReadOnlyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.spring.injection.annot.SpringBean;
@@ -54,23 +57,41 @@ public class FeatureBrowsePanel extends Panel {
 
     private Behavior theme = new WindowsTheme();
     
+    private final DefaultNestedTree<ProjectFolderTreeNode> projectTree;
     private final DefaultNestedTree<FeatureFileEnv> featureTree;
+    private final Label currentFolderLabel;
+    
+    private static File normalize(File file) {
+        String path = file.getAbsolutePath();
+        return new File(FilenameUtils.normalize(path));
+    }
+    
+    private static String getBasePath(File file) {
+        return file.getPath() + File.separator;
+    }
 
     public FeatureBrowsePanel(String id, PageParameters params) {
         super(id);
-        File root = new File(".").getAbsoluteFile();
-        ProjectFolderTreeProvider projectTreeProvider = new ProjectFolderTreeProvider(root);        
-        DefaultNestedTree<ProjectFolderTreeNode> projectTree = new DefaultNestedTree<ProjectFolderTreeNode>("projects", projectTreeProvider) {
+        File root = normalize(new File("."));
+        ProjectFolderTreeProvider projectTreeProvider = new ProjectFolderTreeProvider(root);
+        FeatureFileTreeProvider featureTreeProvider = new FeatureFileTreeProvider(root, getBasePath(root) + "src/test/java");
+        currentFolderLabel = new Label("currentFolder", new AbstractReadOnlyModel<String>() {
+            @Override
+            public String getObject() {
+                return projectTreeProvider.getRoot().getParentFile().getName();
+            }            
+        });
+        currentFolderLabel.setOutputMarkupId(true);
+        add(currentFolderLabel);
+        projectTree = new DefaultNestedTree<ProjectFolderTreeNode>("projects", projectTreeProvider) {
             @Override
             protected Component newContentComponent(String id, IModel<ProjectFolderTreeNode> node) {
                 return new Folder<ProjectFolderTreeNode>(id, this, node) {
                     @Override
                     protected void onClick(AjaxRequestTarget target) {
-                        File newRoot = node.getObject().getFile();
-                        String basePath = newRoot.getPath() + File.separator;
-                        FeatureFileTreeProvider featureTreeProvider = (FeatureFileTreeProvider) featureTree.getProvider();
+                        File newRoot = normalize(node.getObject().getFile());
                         featureTreeProvider.setRoot(newRoot);
-                        featureTreeProvider.setSearchPaths(basePath + "src/test/java");
+                        featureTreeProvider.setSearchPaths(getBasePath(newRoot) + "src/test/java");
                         featureTree.modelChanged();
                         target.add(featureTree);
                     }                    
@@ -96,12 +117,10 @@ public class FeatureBrowsePanel extends Panel {
                 File parent = projectTreeProvider.getRoot().getParentFile();
                 projectTreeProvider.setRoot(parent);
                 projectTree.modelChanged();
-                target.add(projectTree);
+                target.add(projectTree, currentFolderLabel);                
             }
         });        
-        
-        String basePath = root.getPath() + File.separator;
-        FeatureFileTreeProvider featureTreeProvider = new FeatureFileTreeProvider(root, basePath + "src/test/java");
+                
         featureTree = new DefaultNestedTree<FeatureFileEnv>("features", featureTreeProvider) {
             @Override
             protected Component newContentComponent(String id, IModel<FeatureFileEnv> node) {
