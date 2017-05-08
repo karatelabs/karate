@@ -642,7 +642,7 @@ Then def session = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(us
 ```
 So the rule is - if a string value within a JSON (or XML) object declaration is enclosed between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are alive in the context can be used in this expression.
 
-This comes in useful in some cases - and avoids needing to use JavaScript functions or [JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to [manipulate JSON](#set). So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
+This comes in useful in some cases - and avoids needing to use the [`set`](#set) keyword, [JavaScript functions](#javascript-functions) or [JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to manipulate JSON. So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
 the same time being able to dynamically plug values (that could even be other JSON object-trees) into a JSON 'template'.
 
 The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the [Karate Demos](karate-demo).
@@ -1441,7 +1441,7 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 ### XPath Functions
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. XPath functions are not supported directly within [`match`](#match) statements. But by using the `get` keyword, you should be able to achieve any assertion involving XPath functions in two steps.
 
-The last line below also show how 'normal' (uncomplicated) XPath can be used to do a `match` in a single step.
+The last line below also shows how 'normal' (uncomplicated) XPath can be used to do a `match` in a single step.
 
 ```cucumber
 * def myXml =

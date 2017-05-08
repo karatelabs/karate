@@ -300,8 +300,12 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         try {
             httpResponse = client.execute(httpRequest, context);
             HttpEntity responseEntity = httpResponse.getEntity();
-            InputStream is = responseEntity.getContent();
-            bytes = IOUtils.toByteArray(is);
+            if (responseEntity == null || responseEntity.getContent() == null) {
+                bytes = new byte[0];
+            } else {
+                InputStream is = responseEntity.getContent();
+                bytes = IOUtils.toByteArray(is);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
