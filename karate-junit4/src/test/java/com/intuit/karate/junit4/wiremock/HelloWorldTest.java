@@ -66,6 +66,11 @@ public class HelloWorldTest {
                         .withBody("{ \"success\": true }"))));
         stubFor(delete(urlEqualTo("/v1/deleteEmptyResponse"))
                 .willReturn(null));
+        stubFor(get(urlEqualTo("/v1/commas?foo=bar%2Cbaz"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{ \"success\": true }")));       
     }
 
 }

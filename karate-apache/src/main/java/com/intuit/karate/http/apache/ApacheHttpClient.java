@@ -161,8 +161,14 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
 
     @Override
     protected void buildParam(String name, Object... values) {
-        for (Object o : values) {
-            uriBuilder.setParameter(name, o == null ? "" : o.toString());
+        if (values.length == 1) {
+            Object v = values[0];
+            if (v != null) {
+                uriBuilder.setParameter(name, v.toString());
+            }            
+        } else {
+            String v = StringUtils.join(values, ',');
+            uriBuilder.setParameter(name, v);
         }
         build();
     }

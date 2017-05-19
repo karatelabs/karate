@@ -124,7 +124,7 @@ public class StepDefs {
                 list.add(temp.getAsString());
             }
         } catch (Exception e) { // hack. for e.g. json with commas would land here
-            String joined = StringUtils.join(values, ", ");
+            String joined = StringUtils.join(values, ',');
             ScriptValue temp = Script.eval(joined, context);
             if (temp.isListLike()) {
                 return temp.getAsList();
@@ -159,7 +159,9 @@ public class StepDefs {
                 request.removeParam(key);
             } else {
                 if (temp instanceof List) {
-                    request.setParam(key, (List) temp);                   
+                    List list = (List) temp;
+                    String csv = StringUtils.join(list, ',');
+                    request.setParam(key, csv);                   
                 } else {
                     request.setParam(key, temp.toString());
                 }

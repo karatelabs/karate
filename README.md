@@ -1078,22 +1078,30 @@ Then status 201
 * params { searchBy: 'client', active: true, someList: [1, 2, 3] }
 ```
 
+See also [`param`](#param).
+
 ## `headers`
 ```cucumber
 * def someData = { Authorization: 'sometoken', tx_id: '1234', extraTokens: ['abc', 'def'] }
 * headers someData
 ```
 
+See also [`header`](#header).
+
 ## `cookies` (json)
 ```cucumber
 * cookies { someKey: 'someValue', foo: 'bar' }
 ```
+
+See also [`cookie`](#cookie).
 
 ## `form fields`
 ```cucumber
 * def credentials = { username: '#(user.name)', password: 'secret', projects: ['one', 'two'] }
 * form fields credentials
 ```
+
+See also [`form field`](#form-field).
 
 # SOAP
 Since a SOAP request needs special handling, this is the only case where the
