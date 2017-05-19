@@ -20,10 +20,13 @@ And assert getResponseParam('country') == query.country
 And assert getResponseParam('active') == query.active
 And assert getResponseParam('limit') == query.limit
 
+# response should NOT contain a key expected to be missing
+And match response !contains { '<missing>': '#notnull' }
+
 Examples:
-| name | country | active | limit |
-| foo  | IN      | true   |     1 |
-| bar  |         |        |     5 |
-| bar  | JP      |        |       |
-|      | US      |        |     3 |
-|      |         | false  |       | 
+| name | country | active | limit | missing |
+| foo  | IN      | true   |     1 |         |
+| bar  |         |        |     5 | country |
+| bar  | JP      |        |       | active  |
+|      | US      |        |     3 | name    |
+|      |         | false  |       | limit   |

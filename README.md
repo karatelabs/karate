@@ -48,7 +48,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies-json) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) | [`match each`](#match-each)
+**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
@@ -1320,8 +1320,7 @@ if you wanted to do more checks, but you typically won't need to.
 ## Matching Sub-Sets of JSON Keys and Arrays
 ### `match contains`
 #### JSON Keys
-In some cases where the response JSON is wildly dynamic, you may want to only check for the existence of
-some keys. And `match` (name) `contains` is how you can do so:
+In some cases where the response JSON is wildly dynamic, you may want to only check for the existence of some keys. And `match` (name) `contains` is how you can do so:
 ```cucumber
 * def foo = { bar: 1, baz: 'hello', ban: 'world' }
 
@@ -1330,6 +1329,23 @@ some keys. And `match` (name) `contains` is how you can do so:
 * match foo contains { bar:1, baz: 'hello' }
 # this will fail
 # * match foo == { bar:1, baz: 'hello' }
+```
+
+### (not) `!contains`
+It is sometimes useful to be able to check if a key-value-pair does **not** exist. This is possible by prefixing `contains` with a `!` (with no space in between).
+
+```cucumber
+* def foo = { bar: 1, baz: 'hello', ban: 'world' }
+* match foo !contains { bar: 2 }
+* match foo !contains { huh: `#notnull` }
+```
+
+The `!` (not) operator is especially useful for `contains` and JSON arrays.
+
+```cucumber
+* def foo = [1, 2, 3]
+* match foo !contains 4
+* match foo !contains [5, 6]
 ```
 
 #### JSON Arrays

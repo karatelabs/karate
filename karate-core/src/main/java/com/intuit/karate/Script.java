@@ -79,10 +79,10 @@ public class Script {
     public static final boolean isCallSyntax(String text) {
         return text.startsWith("call ");
     }
-    
+
     public static final boolean isCallOnceSyntax(String text) {
         return text.startsWith("callonce ");
-    }    
+    }
 
     public static final boolean isGetSyntax(String text) {
         return text.startsWith("get ");
@@ -99,7 +99,7 @@ public class Script {
     public static final boolean isXmlPath(String text) {
         return text.startsWith("/");
     }
-    
+
     public static final boolean isXmlPathFunction(String text) {
         return text.matches("^[a-z-]+\\(.+");
     }
@@ -115,10 +115,10 @@ public class Script {
     public static final boolean isVariable(String text) {
         return VARIABLE_PATTERN.matcher(text).matches();
     }
-    
+
     public static final boolean isVariableAndSpaceAndPath(String text) {
         return text.matches("^" + VARIABLE_PATTERN_STRING + "\\s+.+");
-    }    
+    }
 
     public static final boolean isVariableAndJsonPath(String text) {
         return !text.endsWith(")") // hack, just to ignore JS method calls
@@ -198,16 +198,16 @@ public class Script {
             // get xpath-function(expression)
             text = text.substring(4);
             String left;
-            String right;            
+            String right;
             if (isVariableAndSpaceAndPath(text)) {
                 int pos = text.indexOf(' ');
                 right = text.substring(pos + 1);
-                left = text.substring(0, pos);                
+                left = text.substring(0, pos);
             } else {
                 Pair<String, String> pair = parseVariableAndPath(text);
                 left = pair.getLeft();
-                right = pair.getRight();                
-            }           
+                right = pair.getRight();
+            }
             if (isXmlPath(right) || isXmlPathFunction(right)) {
                 return evalXmlPathOnVarByName(left, right, context);
             } else {
@@ -614,6 +614,10 @@ public class Script {
         switch (outerMatchType) {
             case EACH_CONTAINS:
                 return MatchType.CONTAINS;
+            case EACH_NOT_CONTAINS:
+                return MatchType.NOT_CONTAINS;
+            case EACH_CONTAINS_ONLY:
+                return MatchType.CONTAINS_ONLY;
             case EACH_EQUALS:
                 return MatchType.EQUALS;
             default:
@@ -673,14 +677,17 @@ public class Script {
                 expObject = expected.getValue();
         }
         switch (matchType) {
-            case CONTAINS_ONLY:
             case CONTAINS:
+            case NOT_CONTAINS:
+            case CONTAINS_ONLY:
                 if (actObject instanceof List && !(expObject instanceof List)) { // if RHS is not a list, make it so
                     expObject = Collections.singletonList(expObject);
                 }
             case EQUALS:
                 return matchNestedObject('.', path, matchType, actualDoc, actObject, expObject, context);
             case EACH_CONTAINS:
+            case EACH_NOT_CONTAINS:
+            case EACH_CONTAINS_ONLY:
             case EACH_EQUALS:
                 if (actObject instanceof List) {
                     List actList = (List) actObject;
@@ -698,12 +705,11 @@ public class Script {
                 } else {
                     throw new RuntimeException("'match each' failed, not a json array: + " + actual + ", path: " + path);
                 }
-            default:
-                // dead code
-                return AssertionResult.PASS;
+            default: // dead code
+                throw new RuntimeException("unexpected match type: " + matchType);
         }
     }
-    
+
     private static String getLeafNameFromXmlPath(String path) {
         int pos = path.lastIndexOf('/');
         if (pos == -1) {
@@ -718,14 +724,14 @@ public class Script {
             }
         }
     }
-    
+
     private static Object toXmlString(String elementName, Object o) {
         if (o instanceof Map) {
             Node node = XmlUtils.fromObject(elementName, o);
             return XmlUtils.toString(node);
         } else {
             return o;
-        }       
+        }
     }
 
     public static AssertionResult matchFailed(String path, Object actObject, Object expObject, String reason) {
@@ -756,14 +762,20 @@ public class Script {
             }
             Map<String, Object> expMap = (Map) expObject;
             Map<String, Object> actMap = (Map) actObject;
-            if (matchType != MatchType.CONTAINS && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
+            if ((matchType == MatchType.EQUALS || matchType == MatchType.CONTAINS_ONLY) && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
                 return matchFailed(path, actObject, expObject, "actual value has more keys than expected - " + actMap.size() + ":" + expMap.size());
             }
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) { // TDDO should we assert order, maybe XML needs this ?
                 String key = expEntry.getKey();
-                String childPath = path + delimiter + key;
-                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap.get(key), expEntry.getValue(), context);
-                if (!ar.pass) {
+                // check if bracket notation is needed instead of dot notation
+                boolean needsQuotes = delimiter == '.' && (key.indexOf('-') != -1 || key.indexOf(' ') != -1);
+                String childPath = needsQuotes ? path + "['" + key + "']" : path + delimiter + key;
+                Object childAct = actMap.get(key);
+                Object childExp = expEntry.getValue();
+                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, childAct, childExp, context);
+                if (ar.pass && matchType == MatchType.NOT_CONTAINS) {
+                    return matchFailed(childPath, childAct, childExp, "actual value contains expected");
+                } else if (!ar.pass && matchType != MatchType.NOT_CONTAINS) {
                     return ar;
                 }
             }
@@ -773,10 +785,12 @@ public class Script {
             List actList = (List) actObject;
             int actCount = actList.size();
             int expCount = expList.size();
-            if (matchType != MatchType.CONTAINS && actCount != expCount) {
+            if ((matchType == MatchType.EQUALS || matchType == MatchType.CONTAINS_ONLY) && actCount != expCount) {
                 return matchFailed(path, actObject, expObject, "actual and expected arrays are not the same size - " + actCount + ":" + expCount);
             }
-            if (matchType == MatchType.CONTAINS || matchType == MatchType.CONTAINS_ONLY) { // just checks for existence
+            if (matchType == MatchType.CONTAINS
+                    || matchType == MatchType.CONTAINS_ONLY
+                    || matchType == MatchType.NOT_CONTAINS) { // just checks for existence (or non-existence)
                 for (Object expListObject : expList) { // for each expected item in the list
                     boolean found = false;
                     for (int i = 0; i < actCount; i++) {
@@ -788,7 +802,9 @@ public class Script {
                             break;
                         }
                     }
-                    if (!found) {
+                    if (found && matchType == MatchType.NOT_CONTAINS) {
+                        return matchFailed(path + "[*]", actObject, expListObject, "actual value contains expected");
+                    } else if (!found && matchType != MatchType.NOT_CONTAINS) {
                         return matchFailed(path + "[*]", actObject, expListObject, "actual value does not contain expected");
                     }
                 }
@@ -825,10 +841,10 @@ public class Script {
             throw new RuntimeException("unexpected type: " + expObject.getClass());
         }
     }
-    
+
     private static String buildListPath(char delimiter, String path, int index) {
         int listIndex = delimiter == '/' ? index + 1 : index;
-        return path + "[" + listIndex + "]";        
+        return path + "[" + listIndex + "]";
     }
 
     private static BigDecimal convertToBigDecimal(Object o) {
@@ -885,7 +901,7 @@ public class Script {
             throw new RuntimeException("'" + name + "' is not a variable,"
                     + " use the form '* " + name + " <expression>' to initialize the "
                     + name + ", and <expression> can be a variable");
-        }        
+        }
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
             ScriptValue value = eval(exp, context);
@@ -957,7 +973,7 @@ public class Script {
                         break;
                     case JS_ARRAY:
                         ScriptObjectMirror temp = argValue.getValue(ScriptObjectMirror.class);
-                        callArg = temp.values();                        
+                        callArg = temp.values();
                         break;
                     case NULL:
                         break;
@@ -989,7 +1005,7 @@ public class Script {
             String message = "javascript function call failed, arg: " + callArg + "\n" + som;
             context.logger.error(message, e);
             throw new KarateException(message, e);
-        }        
+        }
     }
 
     public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context) {

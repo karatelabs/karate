@@ -272,11 +272,20 @@ Then match cat.kittens[*].id contains [42]
 Then match cat.kittens[*].id contains [23, 42]
 Then match cat.kittens[*].id contains [42, 23]
 
+# not contains
+Then match cat.kittens[*].id !contains 99
+Then match cat.kittens[*].id !contains [100]
+Then match cat.kittens[*].id !contains [77, 88]
+
 # and yes, you can assert against nested objects within JSON arrays !
 Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 
 # ... and even ignore fields at the same time !
 Then match cat.kittens contains { id: 42, name: '#string' }
+
+# not contains
+Then match cat.kittens !contains [{ id: 88, name: 'Wild' }, { id: 23, name: 'Nyan' }]
+Then match cat.kittens !contains { id: 66, name: 'LOL' }
 
 # get syntax
 * def kitnums = get cat.kittens[*].id
@@ -304,8 +313,9 @@ Then match pdf == read('test.pdf')
 * def foo = { bar: 1, baz: 'hello', ban: 'world' }
 * match foo contains { bar: 1 }
 * match foo contains { baz: 'hello' }
-* match foo contains { bar:1, baz: 'hello' }
-# * match foo == { bar:1, baz: 'hello' }
+* match foo contains { bar: 1, baz: 'hello' }
+* match foo !contains { bar: 2 }
+* match foo !contains { bar: 3, baz: 'yello'}
 
 # match contains only
 * def data = { foo: [1, 2, 3] }
@@ -314,7 +324,6 @@ Then match pdf == read('test.pdf')
 * match data.foo contains [3, 2]
 * match data.foo contains only [3, 2, 1]
 * match data.foo contains only [2, 3, 1]
-# * match data.foo contains only [2, 3]
 
 # match each
 * def data = { foo: [{ bar: 1, baz: 'a' }, { bar: 2, baz: 'b' }, { bar: 3, baz: 'c' }]}
@@ -324,6 +333,10 @@ Then match pdf == read('test.pdf')
 * match each data.foo contains { baz: "#? _ != 'z'" }
 * def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
 * match each data.foo contains { baz: '#? isAbc(_)' }
+
+# match each not contains
+* match each data.foo !contains { bar: 4 }
+* match each data.foo !contains { bar: '#string' }
 
 # json path on list
 * def json = { foo: [{ bar: 1}, {bar: 2}, {bar: 3}]}

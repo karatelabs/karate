@@ -312,8 +312,10 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         ctx.vars.put("myJson", doc);
         ScriptValue myJson = ctx.vars.get("myJson");
-        assertTrue(Script.matchJsonPath(MatchType.EQUALS, myJson, "$.foo", "[{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EQUALS, myJson, "$.foo", "[{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]", ctx).pass);        
         assertTrue(Script.matchJsonPath(MatchType.CONTAINS, myJson, "$.foo", "[{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]", ctx).pass);
+        assertFalse(Script.matchJsonPath(MatchType.NOT_CONTAINS, myJson, "$.foo", "[{bar: 1, baz: 'a'}]", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.NOT_CONTAINS, myJson, "$.foo", "[{bar: 9, baz: 'z'}, {bar: 99, baz: 'zz'}]", ctx).pass);
         assertTrue(Script.matchJsonPath(MatchType.CONTAINS_ONLY, myJson, "$.foo", "[{bar: 1, baz: 'a'}, {bar: 2, baz: 'b'}, {bar:3, baz: 'c'}]", ctx).pass);
         // shuffle
         assertTrue(Script.matchJsonPath(MatchType.CONTAINS_ONLY, myJson, "$.foo", "[{bar: 2, baz: 'b'}, {bar:3, baz: 'c'}, {bar: 1, baz: 'a'}]", ctx).pass);
@@ -321,6 +323,8 @@ public class ScriptTest {
         assertTrue(Script.matchJsonPath(MatchType.EACH_EQUALS, myJson, "$.foo", "{bar:'#number', baz:'#string'}", ctx).pass);
         assertTrue(Script.matchJsonPath(MatchType.EACH_CONTAINS, myJson, "$.foo", "{bar:'#number'}", ctx).pass);
         assertTrue(Script.matchJsonPath(MatchType.EACH_CONTAINS, myJson, "$.foo", "{baz:'#string'}", ctx).pass);
+        assertTrue(Script.matchJsonPath(MatchType.EACH_NOT_CONTAINS, myJson, "$.foo", "{baz:'z'}", ctx).pass);
+        assertFalse(Script.matchJsonPath(MatchType.EACH_NOT_CONTAINS, myJson, "$.foo", "{baz:'a'}", ctx).pass);
         assertFalse(Script.matchJsonPath(MatchType.EACH_EQUALS, myJson, "$.foo", "{bar:'#? _ < 3',  baz:'#string'}", ctx).pass);
     } 
     

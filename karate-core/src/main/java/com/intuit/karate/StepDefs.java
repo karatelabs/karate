@@ -115,7 +115,7 @@ public class StepDefs {
             }
         }
     }
-    
+
     private List<String> evalList(List<String> values) {
         List<String> list = new ArrayList(values.size());
         try {
@@ -133,21 +133,21 @@ public class StepDefs {
             }
         }
         return list;
-    }       
+    }
 
     @When("^param ([^\\s]+) = (.+)")
     public void param(String name, List<String> values) {
         List<String> list = evalList(values);
         request.setParam(name, list);
     }
-    
+
     public Map<String, Object> evalMapExpr(String expr) {
         ScriptValue value = Script.eval(expr, context);
         if (!value.isMapLike()) {
             throw new KarateException("cannot convert to map: " + expr);
         }
-        return value.getAsMap();        
-    } 
+        return value.getAsMap();
+    }
 
     @When("^params (.+)")
     public void params(String expr) {
@@ -161,20 +161,20 @@ public class StepDefs {
                 if (temp instanceof List) {
                     List list = (List) temp;
                     String csv = StringUtils.join(list, ',');
-                    request.setParam(key, csv);                   
+                    request.setParam(key, csv);
                 } else {
                     request.setParam(key, temp.toString());
                 }
-            }            
+            }
         }
-    }    
+    }
 
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
         String temp = Script.eval(value, context).getAsString();
         request.setCookie(new Cookie(name, temp));
-    }    
-    
+    }
+
     @When("^cookies (.+)")
     public void cookies(String expr) {
         Map<String, Object> map = evalMapExpr(expr);
@@ -186,15 +186,15 @@ public class StepDefs {
             } else {
                 request.setCookie(new Cookie(key, temp.toString()));
             }
-        }        
-    }    
+        }
+    }
 
     @When("^header ([^\\s]+) = (.+)")
     public void header(String name, List<String> values) {
         List<String> list = evalList(values);
         request.setHeader(name, list);
     }
-    
+
     @When("^headers (.+)")
     public void headers(String expr) {
         Map<String, Object> map = evalMapExpr(expr);
@@ -205,20 +205,20 @@ public class StepDefs {
                 request.removeHeader(key);
             } else {
                 if (temp instanceof List) {
-                    request.setHeader(key, (List) temp);                   
+                    request.setHeader(key, (List) temp);
                 } else {
                     request.setHeader(key, temp.toString());
                 }
             }
-        }       
-    }    
+        }
+    }
 
     @When("^form field ([^\\s]+) = (.+)")
     public void formField(String name, List<String> values) {
         List<String> list = evalList(values);
         request.setFormField(name, list);
     }
-    
+
     @When("^form fields (.+)")
     public void formFields(String expr) {
         Map<String, Object> map = evalMapExpr(expr);
@@ -229,13 +229,13 @@ public class StepDefs {
                 request.removeFormField(key);
             } else {
                 if (temp instanceof List) {
-                    request.setFormField(key, (List) temp);                   
+                    request.setFormField(key, (List) temp);
                 } else {
                     request.setFormField(key, temp.toString());
                 }
             }
         }
-    }    
+    }
 
     @When("^request$")
     public void requestDocString(String requestBody) {
@@ -388,19 +388,23 @@ public class StepDefs {
         }
     }
 
-    private static MatchType toMatchType(String each, String only, boolean contains) {
+    private static MatchType toMatchType(String each, String not, String only, boolean contains) {
         if (each == null) {
-            if (contains) {
-                return only == null ? MatchType.CONTAINS : MatchType.CONTAINS_ONLY;
-            } else {
-                return MatchType.EQUALS;
+            if (not != null) {
+                return MatchType.NOT_CONTAINS;
             }
+            if (only != null) {
+                return MatchType.CONTAINS_ONLY;
+            }
+            return contains ? MatchType.CONTAINS : MatchType.EQUALS;
         } else {
-            if (contains) {
-                return MatchType.EACH_CONTAINS;
-            } else {
-                return MatchType.EACH_EQUALS;
+            if (not != null) {
+                return MatchType.EACH_NOT_CONTAINS;
             }
+            if (only != null) {
+                return MatchType.EACH_CONTAINS_ONLY;
+            }
+            return contains ? MatchType.EACH_CONTAINS : MatchType.EACH_EQUALS;
         }
     }
 
@@ -409,22 +413,22 @@ public class StepDefs {
         matchEquals(each, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( [^\\s]+)? contains( only)?$")
-    public void matchContainsDocString(String each, String name, String path, String only, String expected) {
-        matchContains(each, name, path, only, expected);
-    }
+    @Then("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?$")
+    public void matchContainsDocString(String each, String name, String path, String not, String only, String expected) {
+        matchContains(each, name, path, not, only, expected);
+    }   
 
     @Then("^match (each )?([^\\s]+)( [^\\s]+)? == (.+)")
     public void matchEquals(String each, String name, String path, String expected) {
-        MatchType mt = toMatchType(each, null, false);
+        MatchType mt = toMatchType(each, null, null, false);
         matchNamed(mt, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( [^\\s]+)? contains( only)?(.+)")
-    public void matchContains(String each, String name, String path, String only, String expected) {
-        MatchType mt = toMatchType(each, only, true);
+    @Then("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?(.+)")
+    public void matchContains(String each, String name, String path, String not, String only, String expected) {
+        MatchType mt = toMatchType(each, not, only, true);
         matchNamed(mt, name, path, expected);
-    }
+    }   
 
     public void matchNamed(MatchType matchType, String name, String path, String expected) {
         AssertionResult ar = Script.matchNamed(matchType, name, path, expected, context);
