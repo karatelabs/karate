@@ -1337,7 +1337,7 @@ It is sometimes useful to be able to check if a key-value-pair does **not** exis
 ```cucumber
 * def foo = { bar: 1, baz: 'hello', ban: 'world' }
 * match foo !contains { bar: 2 }
-* match foo !contains { huh: `#notnull` }
+* match foo !contains { huh: '#notnull' }
 ```
 
 The `!` (not) operator is especially useful for `contains` and JSON arrays.
