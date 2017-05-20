@@ -44,6 +44,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
 
 public class StepDefs {
 
@@ -302,10 +303,18 @@ public class StepDefs {
         if (responseBody instanceof String) {
             String responseString = (String) responseBody;
             if (Script.isJson(responseString)) {
-                responseBody = JsonUtils.toJsonDoc(responseString);
+                DocumentContext doc = JsonUtils.toJsonDoc(responseString);
+                responseBody = doc;
+                if (context.logPrettyResponse && context.logger.isDebugEnabled()) {
+                    context.logger.debug("response:\n{}", JsonUtils.toPrettyJsonString(doc));
+                }
             } else if (Script.isXml(responseString)) {
                 try {
-                    responseBody = XmlUtils.toXmlDoc(responseString);
+                    Document doc = XmlUtils.toXmlDoc(responseString);
+                    responseBody = doc;
+                    if (context.logPrettyResponse && context.logger.isDebugEnabled()) {
+                        context.logger.debug("response:\n{}", XmlUtils.toString(doc, true));
+                    }
                 } catch (Exception e) {
                     context.logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
                 }

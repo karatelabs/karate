@@ -26,7 +26,10 @@ package com.intuit.karate;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import net.minidev.json.JSONObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.yaml.snakeyaml.Yaml;
 
@@ -47,6 +50,65 @@ public class JsonUtils {
     public static String toJsonString(String raw) {
         DocumentContext dc = toJsonDoc(raw);
         return dc.jsonString();
+    }
+    
+    public static String toPrettyJsonString(DocumentContext doc) {
+        Object o = doc.read("$");
+        StringBuilder sb = new StringBuilder();
+        recursePretty(o, sb, 0);
+        sb.append('\n');
+        return sb.toString();
+    }
+    
+    private static void pad(StringBuilder sb, int depth) {
+        for (int i = 0; i < depth; i++) {
+            sb.append(' ').append(' ');
+        }
+    }
+    
+    private static void recursePretty(Object o, StringBuilder sb, int depth) {
+        if (o == null) {
+            sb.append("null");
+        } else if (o instanceof Map) {            
+            sb.append('{').append('\n');
+            Map<String, Object> map = (Map<String, Object>) o;
+            int size = map.size();
+            Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
+            for (int i = 0; i < size; i++) {
+                Map.Entry<String, Object> entry = iterator.next();
+                String key = entry.getKey();
+                pad(sb, depth + 1);
+                sb.append('"').append(JSONObject.escape(key)).append('"');
+                sb.append(':').append(' ');
+                recursePretty(entry.getValue(), sb, depth + 1);
+                if (i != size - 1) {
+                    sb.append(',');
+                }                
+                sb.append('\n');                
+            }
+            pad(sb, depth);
+            sb.append('}');
+        } else if (o instanceof List) {
+            List list = (List) o;
+            int size = list.size();
+            sb.append('[').append('\n');
+            for (int i = 0; i < size; i++) {
+                Object child = list.get(i);
+                pad(sb, depth + 1);
+                recursePretty(child, sb, depth + 1);
+                if (i != size - 1) {
+                    sb.append(',');
+                }
+                sb.append('\n');
+            }
+            pad(sb, depth);
+            sb.append(']');
+        } else if (o instanceof String) {
+            String value = (String) o;            
+            sb.append('"').append(JSONObject.escape(value)).append('"');
+        } else {
+            sb.append(o);
+        }       
     }
 
     public static Pair<String, String> getParentAndLeafPath(String path) {

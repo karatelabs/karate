@@ -61,6 +61,10 @@ public class XmlUtils {
     }
 
     public static String toString(Node node) {
+        return toString(node, false);
+    }    
+    
+    public static String toString(Node node, boolean pretty) {
         DOMSource domSource = new DOMSource(node);
         StringWriter writer = new StringWriter();
         StreamResult result = new StreamResult(writer);
@@ -68,6 +72,10 @@ public class XmlUtils {
         try {
             Transformer transformer = tf.newTransformer();
             transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            if (pretty) {
+                transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+            }
             transformer.transform(domSource, result);
             return writer.toString();
         } catch (Exception e) {

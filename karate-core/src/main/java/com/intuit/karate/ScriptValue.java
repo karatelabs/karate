@@ -25,10 +25,10 @@ package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -159,6 +159,33 @@ public class ScriptValue {
                 return (Map) XmlUtils.toObject(xml);
             default:
                 throw new RuntimeException("cannot convert to map: " + this);
+        }
+    }
+    
+    public String getAsPrettyString() {
+        switch (type) {
+            case NULL:
+                return "";
+            case XML:
+                Node node = getValue(Node.class);
+                return XmlUtils.toString(node, true);                
+            case JSON:
+                DocumentContext doc = getValue(DocumentContext.class);
+                return JsonUtils.toPrettyJsonString(doc);
+            case JS_ARRAY:
+            case LIST:
+                List list = getAsList();
+                DocumentContext listDoc = JsonPath.parse(list);
+                return JsonUtils.toPrettyJsonString(listDoc);
+            case JS_OBJECT:
+            case MAP:
+                Map map = getAsMap();
+                DocumentContext mapDoc = JsonPath.parse(map);
+                return JsonUtils.toPrettyJsonString(mapDoc);
+            case INPUT_STREAM:
+                return "[..stream..]";
+            default:
+                return value.toString();            
         }
     }
 

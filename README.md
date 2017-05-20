@@ -1130,6 +1130,8 @@ configuration keys supported:
 ------ | ---- | ---------
 `headers` | JavaScript Function | see [`configure headers`](#configure-headers)
 `headers` | JSON | see [`configure headers`](#configure-headers)
+`logPrettyRequest` | boolean | pretty print the request payload JSON or XML with indenting
+`logPrettyResponse` | boolean | pretty print the response payload JSON or XML with indenting
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
@@ -1140,6 +1142,9 @@ configuration keys supported:
 
 Examples:
 ```cucumber
+# pretty print the response payload
+* configure logPrettyResponse = true
+
 # enable ssl (and no certificate is required)
 * configure ssl = true
 

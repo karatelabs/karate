@@ -110,7 +110,7 @@ public class XmlUtilsTest {
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar><hello>world</hello></bar></foo>");
     }
-    
+
     @Test
     public void testAppendDomNodeByPath() {
         String xml = "<foo><bar/></foo>";
@@ -119,7 +119,7 @@ public class XmlUtilsTest {
         XmlUtils.setByPath(doc, "/foo/bar", temp);
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar><hello>world</hello></bar></foo>");
-    }    
+    }
 
     @Test
     public void testSetDomNodeWithAttributeByPath() {
@@ -130,23 +130,23 @@ public class XmlUtilsTest {
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar><baz hello=\"world\">ban</baz></bar></foo>");
     }
-    
+
     private Document getDocument() {
         return XmlUtils.newDocument();
     }
-    
+
     @Test
     public void testCreateElement() {
         Node node = XmlUtils.createElement(getDocument(), "foo", "bar", null);
         String result = XmlUtils.toString(node);
         assertEquals(result, "<foo>bar</foo>");
     }
-    
+
     @Test
     public void testCreateElementWithAttributes() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("hello", "world");
-        Node node = XmlUtils.createElement(getDocument(), "foo", "bar", map);        
+        Node node = XmlUtils.createElement(getDocument(), "foo", "bar", map);
         String result = XmlUtils.toString(node);
         assertEquals(result, "<foo hello=\"world\">bar</foo>");
     }
@@ -157,9 +157,9 @@ public class XmlUtilsTest {
         map.put("hello", "world");
         Node node = XmlUtils.fromObject(getDocument(), "foo", map);
         String result = XmlUtils.toString(node);
-        assertEquals(result, "<foo><hello>world</hello></foo>");        
+        assertEquals(result, "<foo><hello>world</hello></foo>");
     }
-    
+
     @Test
     public void testXmlWithAttributesFromMap() {
         Map<String, Object> map = new LinkedHashMap<>();
@@ -169,7 +169,22 @@ public class XmlUtilsTest {
         map.put("@", attribs);
         Node node = XmlUtils.fromObject(getDocument(), "hello", map);
         String result = XmlUtils.toString(node);
-        assertEquals(result, "<hello foo=\"bar\">world</hello>");        
-    }    
+        assertEquals(result, "<hello foo=\"bar\">world</hello>");
+    }
+
+    @Test
+    public void testPrettyPrint() {
+        String xml = "<foo><bar>baz</bar><ban><goo>moo</goo></ban></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        String temp = XmlUtils.toString(doc, true);
+        String expected
+                = "<foo>\n"
+                + "  <bar>baz</bar>\n"
+                + "  <ban>\n"
+                + "    <goo>moo</goo>\n"
+                + "  </ban>\n"
+                + "</foo>\n";
+        assertEquals(temp, expected);
+    }
 
 }

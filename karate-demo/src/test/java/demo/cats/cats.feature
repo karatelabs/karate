@@ -2,6 +2,8 @@ Feature: cats end-point
 
 Background:
 * url demoBaseUrl
+* configure logPrettyRequest = true
+* configure logPrettyResponse = true
 
 Scenario: create and retrieve a cat
 

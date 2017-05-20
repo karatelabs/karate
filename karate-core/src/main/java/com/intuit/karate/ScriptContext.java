@@ -52,6 +52,8 @@ public class ScriptContext {
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue readFunction;
     private HttpConfig config;
+    protected boolean logPrettyResponse = false;
+    private boolean logPrettyRequest = false;        
 
     public ScriptValueMap getVars() {
         return vars;
@@ -59,6 +61,10 @@ public class ScriptContext {
 
     public ScriptValue getConfiguredHeaders() {
         return headers;
+    }  
+
+    public boolean isLogPrettyRequest() {
+        return logPrettyRequest;
     }        
 
     public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
@@ -109,6 +115,14 @@ public class ScriptContext {
         key = StringUtils.trimToEmpty(key);
         if (key.equals("headers")) {
             headers = value;
+            return;
+        }
+        if (key.equals("logPrettyResponse")) {
+            logPrettyResponse = value.isBooleanTrue();
+            return;
+        }
+        if (key.equals("logPrettyRequest")) {
+            logPrettyRequest = value.isBooleanTrue();
             return;
         }
         if (key.equals("ssl")) {

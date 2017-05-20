@@ -96,12 +96,35 @@ public class JsonUtilsTest {
         DocumentContext doc = JsonUtils.fromYaml(yaml);
         assertEquals("{\"hello\":25}", doc.jsonString());
     }
-    
+
     @Test
     public void testYamlToMutation() throws Exception {
         String yaml = IOUtils.toString(getClass().getResourceAsStream("mutation.yaml"), "utf-8");
         DocumentContext doc = JsonUtils.fromYaml(yaml);
         assertTrue(doc.jsonString().contains("[\"id\",\"name\",\"notes\",\"deleted\"]"));
+    }
+
+    @Test
+    public void testPrettyPrint() {
+        String raw = "{ foo: 'bar', baz: null, 'spa cey': [1, 2, 3], bool: true, nest: { a: 'b', 'hy-phen': 'blah' } }";
+        DocumentContext doc = JsonUtils.toJsonDoc(raw);
+        String temp = JsonUtils.toPrettyJsonString(doc);
+        String expected
+                = "{\n"
+                + "  \"foo\": \"bar\",\n"
+                + "  \"baz\": null,\n"
+                + "  \"spa cey\": [\n"
+                + "    1,\n"
+                + "    2,\n"
+                + "    3\n"
+                + "  ],\n"
+                + "  \"bool\": true,\n"
+                + "  \"nest\": {\n"
+                + "    \"a\": \"b\",\n"
+                + "    \"hy-phen\": \"blah\"\n"
+                + "  }\n"
+                + "}\n";
+        assertEquals(temp, expected);
     }
 
 }
