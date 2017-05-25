@@ -742,7 +742,7 @@ public class ScriptTest {
     @Test
     public void testCallingFeatureWithNoArgument() {
         ScriptContext ctx = getContext();
-        Script.assign("foo", "call read('test.feature')", ctx);
+        Script.assign("foo", "call read('test-called.feature')", ctx);
         ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
         assertEquals(1, a.getValue());
         ScriptValue b = Script.evalJsonPathOnVarByName("foo", "$.b", ctx);
@@ -752,7 +752,7 @@ public class ScriptTest {
     @Test
     public void testCallingFeatureWithVarOverrides() {
         ScriptContext ctx = getContext();
-        Script.assign("foo", "call read('test.feature') { c: 3 }", ctx);
+        Script.assign("foo", "call read('test-called.feature') { c: 3 }", ctx);
         ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
         assertEquals(1, a.getValue());
         ScriptValue b = Script.evalJsonPathOnVarByName("foo", "$.b", ctx);
@@ -765,7 +765,7 @@ public class ScriptTest {
     public void testCallingFeatureWithVarOverrideFromVariable() {
         ScriptContext ctx = getContext();
         Script.assign("bar", "{ c: 3 }", ctx);
-        Script.assign("foo", "call read('test.feature') bar", ctx);
+        Script.assign("foo", "call read('test-called.feature') bar", ctx);
         ScriptValue a = Script.evalJsonPathOnVarByName("foo", "$.a", ctx);
         assertEquals(1, a.getValue());
         ScriptValue b = Script.evalJsonPathOnVarByName("foo", "$.b", ctx);
@@ -777,7 +777,7 @@ public class ScriptTest {
     @Test
     public void testCallingFeatureWithList() {
         ScriptContext ctx = getContext();
-        Script.assign("foo", "call read('test.feature') [{c: 100}, {c: 200}, {c: 300}]", ctx);
+        Script.assign("foo", "call read('test-called.feature') [{c: 100}, {c: 200}, {c: 300}]", ctx);
         ScriptValue c0 = Script.evalJsonPathOnVarByName("foo", "$[0].c", ctx);
         assertEquals(100, c0.getValue());
         ScriptValue c1 = Script.evalJsonPathOnVarByName("foo", "$[1].c", ctx);
@@ -787,11 +787,31 @@ public class ScriptTest {
     }
     
     @Test
+    public void testCallingFeatureThatEvaluatesEmbeddedExpressions() {
+        ScriptContext ctx = getContext();
+        Script.assign("result", "call read('test-called-embedded.feature') { foo: 'world' }", ctx);
+        ScriptValue sv1 = Script.evalJsonPathOnVarByName("result", "$.json.hello", ctx);
+        assertEquals("world", sv1.getValue());
+        ScriptValue sv2 = Script.evalJsonPathOnVarByName("result", "$.xml.hello", ctx);
+        assertEquals("world", sv2.getValue());         
+    }
+    
+    @Test
+    public void testCallingFeatureThatEvaluatesEmbeddedExpressionsFromFileRead() {
+        ScriptContext ctx = getContext();
+        Script.assign("result", "call read('test-called-embedded-file.feature') { foo: 'world' }", ctx);
+        ScriptValue sv1 = Script.evalJsonPathOnVarByName("result", "$.json.hello", ctx);
+        assertEquals("world", sv1.getValue());
+        ScriptValue sv2 = Script.evalJsonPathOnVarByName("result", "$.xml.hello", ctx);
+        assertEquals("world", sv2.getValue());         
+    }    
+    
+    @Test
     public void testCallingFeatureWithJsonCreatedByJavaScript() {
         ScriptContext ctx = getContext();
         Script.assign("fun", "function(){ return { c: 100} }", ctx);
         Script.assign("res", "call fun", ctx);
-        Script.assign("foo", "call read('test.feature') res", ctx);
+        Script.assign("foo", "call read('test-called.feature') res", ctx);
         ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$.c", ctx);
         assertEquals(100, c.getValue());    
     }
@@ -801,7 +821,7 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Script.assign("fun", "function(){ return [{ c: 100}] }", ctx);
         Script.assign("res", "call fun", ctx);
-        Script.assign("foo", "call read('test.feature') res", ctx);
+        Script.assign("foo", "call read('test-called.feature') res", ctx);
         ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$[0].c", ctx);
         assertEquals(100, c.getValue());    
     }     
@@ -831,7 +851,7 @@ public class ScriptTest {
     @Test
     public void testFromJsKarateCallFeatureWithNoArg() {
         ScriptContext ctx = getContext();
-        Script.assign("fun", "function(){ return karate.call('test.feature') }", ctx);
+        Script.assign("fun", "function(){ return karate.call('test-called.feature') }", ctx);
         Script.assign("res", "fun()", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res.a", null, "1", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res.b", null, "2", ctx).pass);
@@ -840,7 +860,7 @@ public class ScriptTest {
     @Test
     public void testFromJsKarateCallFeatureWithJsonArg() {
         ScriptContext ctx = getContext();
-        Script.assign("fun", "function(){ return karate.call('test.feature', {c: 3}) }", ctx);
+        Script.assign("fun", "function(){ return karate.call('test-called.feature', {c: 3}) }", ctx);
         Script.assign("res", "fun()", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res.a", null, "1", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res.b", null, "2", ctx).pass);

@@ -5,4 +5,3 @@ Background:
 
 Scenario:
 * def b = 2
-

@@ -48,7 +48,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies-json) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!`](#not-contains) | [`match each`](#match-each)
+**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
@@ -1122,9 +1122,7 @@ Here is a working example of calling a SOAP service from the Karate project test
 
 # Managing Headers, SSL, Timeouts and HTTP Proxy
 ## `configure`
-You can adjust configuration settings for the HTTP client used by Karate using this keyword. The syntax is
-similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the 
-configuration keys supported:
+You can adjust configuration settings for the HTTP client used by Karate using this keyword. The syntax is similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the configuration keys supported:
 
  Key | Type | Description
 ------ | ---- | ---------
@@ -1160,6 +1158,8 @@ Examples:
 # proxy which needs authentication
 * configure proxy = { uri: 'http://my.proxy.host:8080', username: 'john', password: 'secret' }
 ```
+
+And if you need to set some of these 'globally' you can easily do so using [the `karate` object](#the-karate-object) in [`karate-config.js`](#configuration).
 
 # Preparing, Manipulating and Matching Data
 Now it should be clear how Karate makes it easy to express JSON or XML. If you read from a file, the advantage is that multiple scripts can re-use the same data.

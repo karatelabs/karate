@@ -72,8 +72,8 @@ public class ScriptContext {
         logger = env.logger;
         if (parent != null) {
             vars = Script.clone(parent.vars);
-            readFunction = parent.readFunction;
             validators = parent.validators;
+            readFunction = Script.eval(getFileReaderFunction(), this);
             headers = parent.headers;
             config = parent.config;
             if (arg != null) {
