@@ -420,7 +420,23 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myXml/root/foo", null, "<foo><bar>baz</bar></foo>", ctx).pass);
-    }     
+    }
+    
+    @Test
+    public void testAssignAndMatchXmlPathThatReturnsNodeListAgainstJsonArray() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo><bar>one</bar><bar>two</bar></foo></root>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "myXml/root/foo/bar", null, "['one', 'two']", ctx).pass);
+    }
+    
+    @Test
+    public void testAssignAndMatchXmlPathThatReturnsNodeListAgainstList() {
+        ScriptContext ctx = getContext();
+        Script.assign("myJson", "[{ val: 'one' }, { val: 'two' }]", ctx);
+        Script.assign("myList", "get myJson $[*].val", ctx);
+        Script.assign("myXml", "<root><foo><bar>one</bar><bar>two</bar></foo></root>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "myXml/root/foo/bar", null, "myList", ctx).pass);
+    }      
     
     @Test
     public void testXmlShortCutsForResponse() {

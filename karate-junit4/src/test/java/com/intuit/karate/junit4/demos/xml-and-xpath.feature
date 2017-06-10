@@ -49,6 +49,13 @@ Scenario: when xpath epxressions return xml chunks
 * match teacher == expected
 * match //teacher[@department='science'] == expected
 
+* def expected = ['math', 'physics']
+* def subjects = //teacher[@department='science']/subject
+* match subjects == expected
+* def subjects = get response //teacher[@department='science']/subject
+* match subjects == expected
+* match //teacher[@department='science']/subject == expected
+* match //teacher[@department='science']/subject == ['math', 'physics']
 
 Scenario Outline: conditionally build xml from scenario-outline and examples
 

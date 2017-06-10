@@ -53,7 +53,6 @@ import java.util.regex.Pattern;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import javax.xml.xpath.XPathExpressionException;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -257,17 +256,30 @@ public class Script {
     }
     
     private static ScriptValue evalXmlPathOnXmlNode(Node doc, String path) {
-        Node node;
+        NodeList nodeList;
         try {
-            node = XmlUtils.getNodeByPath(doc, path);
+            nodeList = XmlUtils.getNodeListByPath(doc, path);
         } catch (Exception e) {
             // hack, this happens for xpath functions that don't return nodes (e.g. count)
             String strValue = XmlUtils.getTextValueByPath(doc, path);
             return new ScriptValue(strValue);
         }
-        if (node == null) {
+        if (nodeList == null) {
             return ScriptValue.NULL;
         }
+        int count = nodeList.getLength();
+        if (count == 1) {
+            return nodeToValue(nodeList.item(0));
+        }
+        List list = new ArrayList();
+        for (int i = 0; i < count; i++) {
+            ScriptValue sv = nodeToValue(nodeList.item(i));
+            list.add(sv.getValue());
+        }
+        return new ScriptValue(list);
+    }
+    
+    private static ScriptValue nodeToValue(Node node) {
         int childElementCount = XmlUtils.getChildElementCount(node);
         if (childElementCount == 0) {
             // hack assuming this is the most common "intent"
@@ -622,6 +634,14 @@ public class Script {
             case MAP: // expected is already in map form, convert the actual also
                 expObject = expected.getValue(Map.class);
                 actObject = XmlUtils.toObject(actual.getValue(Node.class));
+                break;
+            case JSON: // special case - xpath expected to result in node-list
+                expObject = expected.getValue(DocumentContext.class).read("$");
+                actObject = actual.getValue(List.class);
+                break;
+            case LIST: // similar to above - xpath expected to result in node-list
+                expObject = expected.getValue(List.class);
+                actObject = actual.getValue(List.class);
                 break;
             default: // try string comparison
                 actObject = actual.getAsString();

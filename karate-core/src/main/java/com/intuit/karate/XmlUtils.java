@@ -103,6 +103,15 @@ public class XmlUtils {
             throw new RuntimeException(e);
         }
     }
+    
+    public static NodeList getNodeListByPath(Node node, String path) {
+        XPathExpression expr = compile(path);
+        try {
+            return (NodeList) expr.evaluate(node, XPathConstants.NODESET);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }    
 
     public static Node getNodeByPath(Node node, String path) {
         XPathExpression expr = compile(path);
