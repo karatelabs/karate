@@ -372,7 +372,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchXmlPath() {
+    public void testMatchXmlPathThatReturnsTextNode() {
         ScriptContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
@@ -380,14 +380,47 @@ public class ScriptTest {
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/foo", "'bar'", ctx).pass);
         assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/hello", "'world'", ctx).pass);
     }
+    
+    @Test
+    public void testMatchXmlPathThatReturnsXmlChunk() {
+        ScriptContext ctx = getContext();
+        Document doc = XmlUtils.toXmlDoc("<root><foo><bar>baz</bar></foo></root>");
+        ctx.vars.put("myXml", doc);
+        ScriptValue myXml = ctx.vars.get("myXml");
+        assertTrue(Script.matchXmlPath(MatchType.EQUALS, myXml, "/root/foo", "<foo><bar>baz</bar></foo>", ctx).pass);
+    }    
 
     @Test
-    public void testAssignAndMatchXml() {
+    public void testAssignAndMatchXmlText() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
         Script.assign("myStr", "myXml/root/foo", ctx);
         assertTrue(Script.assertBoolean("myStr == 'bar'", ctx).pass);
     }
+    
+    @Test
+    public void testAssignAndMatchXmlChunk() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
+        Script.assign("myChunk", "myXml/root/foo", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "myChunk", null, "<foo><bar>baz</bar></foo>", ctx).pass);
+    }
+    
+    @Test
+    public void testAssignAndMatchXmlChunkByVariableReference() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
+        Script.assign("myChunk", "myXml/root/foo", ctx);
+        Script.assign("expected", "<foo><bar>baz</bar></foo>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "myChunk", null, "expected", ctx).pass);
+    }
+    
+    @Test
+    public void testAssignAndMatchXmlPathChunk() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "myXml/root/foo", null, "<foo><bar>baz</bar></foo>", ctx).pass);
+    }     
     
     @Test
     public void testXmlShortCutsForResponse() {

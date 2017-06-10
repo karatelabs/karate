@@ -27,6 +27,28 @@ Scenario: get for complex things such as xpath functions
 * assert count == 1
 * match xml/response/result == 'succeed'
 
+Scenario: when xpath epxressions return xml chunks
+
+* def response = 
+"""
+<teachers>
+	<teacher department="science" id="309">
+		<subject>math</subject>
+		<subject>physics</subject>
+	</teacher>
+	<teacher department="arts" id="310">
+		<subject>political education</subject>
+		<subject>english</subject>
+	</teacher>
+</teachers>
+"""
+* def expected = <teacher department="science" id="309"><subject>math</subject><subject>physics</subject></teacher>
+* def teacher = //teacher[@department='science']
+* match teacher == expected
+* def teacher = get response //teacher[@department='science']
+* match teacher == expected
+* match //teacher[@department='science'] == expected
+
 
 Scenario Outline: conditionally build xml from scenario-outline and examples
 

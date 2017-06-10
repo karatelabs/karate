@@ -53,6 +53,7 @@ import java.util.regex.Pattern;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
+import javax.xml.xpath.XPathExpressionException;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -240,7 +241,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalXmlPathOnVarByName(String name, String exp, ScriptContext context) {
+    public static ScriptValue evalXmlPathOnVarByName(String name, String path, ScriptContext context) {
         ScriptValue value = context.vars.get(name);
         if (value == null) {
             context.logger.warn("no var found with name: {}", name);
@@ -249,16 +250,34 @@ public class Script {
         switch (value.getType()) {
             case XML:
                 Node doc = value.getValue(Node.class);
-                String strVal = XmlUtils.getValueByPath(doc, exp);
-                if (strVal != null) { // hack assuming this is the most common "intent"
-                    return new ScriptValue(strVal);
-                } else {
-                    Node node = XmlUtils.getNodeByPath(doc, exp);
-                    return new ScriptValue(node);
-                }
+                return evalXmlPathOnXmlNode(doc, path);
             default:
                 throw new RuntimeException("cannot run xpath on type: " + value);
         }
+    }
+    
+    private static ScriptValue evalXmlPathOnXmlNode(Node doc, String path) {
+        Node node;
+        try {
+            node = XmlUtils.getNodeByPath(doc, path);
+        } catch (Exception e) {
+            // hack, this happens for xpath functions that don't return nodes (e.g. count)
+            String strValue = XmlUtils.getTextValueByPath(doc, path);
+            return new ScriptValue(strValue);
+        }
+        if (node == null) {
+            return ScriptValue.NULL;
+        }
+        int childElementCount = XmlUtils.getChildElementCount(node);
+        if (childElementCount == 0) {
+            // hack assuming this is the most common "intent"
+            return new ScriptValue(node.getTextContent());
+        }        
+        if (node.getNodeType() == Node.DOCUMENT_NODE) {
+            return new ScriptValue(node);
+        } else { // make sure we create a fresh doc else future xpath would run against original root
+            return new ScriptValue(XmlUtils.toNewDocument(node));
+        }        
     }
 
     public static ScriptValue evalJsonPathOnVarByName(String name, String exp, ScriptContext context) {
@@ -589,25 +608,29 @@ public class Script {
     }
 
     public static AssertionResult matchXmlPath(MatchType matchType, ScriptValue actual, String path, String expression, ScriptContext context) {
-        Document actualDoc = actual.getValue(Document.class);
-        Node actNode = XmlUtils.getNodeByPath(actualDoc, path);
+        Node node = actual.getValue(Node.class);
+        actual = evalXmlPathOnXmlNode(node, path);
         ScriptValue expected = eval(expression, context);
         Object actObject;
         Object expObject;
         switch (expected.getType()) {
             case XML: // convert to map and then compare               
                 Node expNode = expected.getValue(Node.class);
-                expObject = XmlUtils.toObject(expNode);
-                actObject = XmlUtils.toObject(actNode);
+                expObject = XmlUtils.toObject(expNode);                
+                actObject = XmlUtils.toObject(actual.getValue(Node.class));
+                break;
+            case MAP: // expected is already in map form, convert the actual also
+                expObject = expected.getValue(Map.class);
+                actObject = XmlUtils.toObject(actual.getValue(Node.class));
                 break;
             default: // try string comparison
-                actObject = new ScriptValue(actNode).getAsString();
+                actObject = actual.getAsString();
                 expObject = expected.getAsString();
         }
         if ("/".equals(path)) {
             path = ""; // else error x-paths reported would start with "//"
         }
-        return matchNestedObject('/', path, matchType, actualDoc, actObject, expObject, context);
+        return matchNestedObject('/', path, matchType, node, actObject, expObject, context);
     }
 
     private static MatchType getInnerMatchType(MatchType outerMatchType) {

@@ -34,7 +34,7 @@ public class XmlUtilsTest {
         Document doc = XmlUtils.toXmlDoc(xml);
         Node node = XmlUtils.getNodeByPath(doc, "/foo");
         assertEquals("foo", node.getNodeName());
-        String value = XmlUtils.getValueByPath(doc, "/foo/bar");
+        String value = XmlUtils.getTextValueByPath(doc, "/foo/bar");
         assertEquals("baz", value);
     }
 
@@ -87,7 +87,7 @@ public class XmlUtilsTest {
                 + "  <Properties/>\n"
                 + "</com.intuit.services.acs.domain.api.ACSDocumentDTO>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        String value = XmlUtils.getValueByPath(doc, "/com.intuit.services.acs.domain.api.ACSDocumentDTO/EntityId");
+        String value = XmlUtils.getTextValueByPath(doc, "/com.intuit.services.acs.domain.api.ACSDocumentDTO/EntityId");
         logger.trace("value: {}", value);
         assertEquals("b14712d1-df91-4111-a77f-ce48f066b4ab", value);
     }
@@ -185,6 +185,18 @@ public class XmlUtilsTest {
                 + "  </ban>\n"
                 + "</foo>\n";
         assertEquals(temp, expected);
+    }
+    
+    @Test
+    public void testCreatingNewDocumentFromSomeChildNode() {
+        String xml = "<root><foo><bar>baz</bar></foo></root>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        Node node = XmlUtils.getNodeByPath(doc, "/root/foo");
+        Document tempDoc = XmlUtils.toNewDocument(node);
+        String tempString = XmlUtils.getTextValueByPath(tempDoc, "/foo/bar");
+        assertEquals(tempString, "baz");
+        Node tempNode = XmlUtils.getNodeByPath(tempDoc, "/");
+        assertEquals(XmlUtils.toString(tempNode), "<foo><bar>baz</bar></foo>");
     }
 
 }

@@ -113,7 +113,7 @@ public class XmlUtils {
         }
     }
 
-    public static String getValueByPath(Node node, String path) {
+    public static String getTextValueByPath(Node node, String path) {
         XPathExpression expr = compile(path);
         try {
             return expr.evaluate(node);
@@ -162,7 +162,7 @@ public class XmlUtils {
         return map;
     }
     
-    private static Object getElementAsObject(Node node) {
+    public static int getChildElementCount(Node node) {
         NodeList nodes = node.getChildNodes();
         int childCount = nodes.getLength();
         int childElementCount = 0;
@@ -172,10 +172,17 @@ public class XmlUtils {
                 childElementCount++;
             }
         }
+        return childElementCount;
+    }
+    
+    private static Object getElementAsObject(Node node) {
+        int childElementCount = getChildElementCount(node);
         if (childElementCount == 0) {
             return node.getTextContent();
         }
         Map<String, Object> map = new LinkedHashMap<>(childElementCount);
+        NodeList nodes = node.getChildNodes();
+        int childCount = nodes.getLength();        
         for (int i = 0; i < childCount; i++) {
             Node child = nodes.item(i);
             if (child.getNodeType() != Node.ELEMENT_NODE) {
@@ -283,6 +290,13 @@ public class XmlUtils {
         element.setTextContent(value);
         addAttributes(element, attributes);
         return element;
+    }
+    
+    public static Document toNewDocument(Node in) {
+        Document doc = newDocument();
+        Node node = doc.importNode(in, true);
+        doc.appendChild(node);
+        return doc;
     }
 
 }
