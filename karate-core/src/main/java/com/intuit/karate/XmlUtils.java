@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -236,40 +237,54 @@ public class XmlUtils {
         }
     }
     
-    public static Element fromObject(String name, Object o) {
-        return fromObject(newDocument(), name, o);
+    public static Document fromMap(Map<String, Object> map) {
+        Map.Entry<String, Object> first = map.entrySet().iterator().next();
+        return fromObject(first.getKey(), first.getValue());
+    }    
+    
+    public static Document fromObject(String name, Object o) {
+        Document doc = newDocument();
+        List<Element> list = fromObject(doc, name, o);
+        Element root = list.get(0);
+        doc.appendChild(root);
+        return doc;
     }
 
-    public static Element fromObject(Document doc, String name, Object o) {
+    public static List<Element> fromObject(Document doc, String name, Object o) {
         if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
             Object value = map.get("_");
             if (value != null) {                
-                Element element = fromObject(doc, name, value);
+                List<Element> elements = fromObject(doc, name, value);
                 Map<String, Object> attribs = (Map) map.get("@");
-                addAttributes(element, attribs);           
-                return element;
+                addAttributes(elements.get(0), attribs);           
+                return elements;
             } else {
                 Element element = createElement(doc, name, null, null);
                 for (Map.Entry<String, Object> entry : map.entrySet()) {
                     String childName = entry.getKey();
                     Object childValue = entry.getValue();
-                    Element childNode = fromObject(doc, childName, childValue);
-                    element.appendChild(childNode);
+                    List<Element> childNodes = fromObject(doc, childName, childValue);
+                    for (Element e : childNodes) {
+                      element.appendChild(e);    
+                    }                    
                 }
-                return element;
+                return Collections.singletonList(element);
             }
-        } else if (o instanceof List) {
-            Element element = createElement(doc, name, null, null);
+        } else if (o instanceof List) {            
             List list = (List) o;
+            List<Element> elements = new ArrayList(list.size());
             for (Object child : list) {
-                Element childNode = fromObject(doc, name, child);
-                element.appendChild(childNode);
+                List<Element> childNodes = fromObject(doc, name, child);
+                for (Element e : childNodes) {
+                    elements.add(e);
+                }
             }
-            return element;
+            return elements;
         } else {
             String value = o == null ? null : o.toString();
-            return createElement(doc, name, value, null);
+            Element element = createElement(doc, name, value, null);
+            return Collections.singletonList(element);
         }
     }
     

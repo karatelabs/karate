@@ -1216,6 +1216,8 @@ XML and XPath works just like you'd expect.
 * match xml == <foo><bar><hello>world</hello></bar></foo>
 ```
 
+Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
+
 ## Ignore or Validate
 When expressing expected results (in JSON or XML) you can mark some fields to be ignored when
 the match (comparison) is performed.  You can even use a regular-expression so that instead of
@@ -1493,6 +1495,30 @@ The last line below also shows how 'normal' (uncomplicated) XPath can be used to
 
 * match myXml //record[@foo='bar'] == 'c'
 ```
+
+### Advanced XPath
+
+Some XPath expressions return a list of nodes (instead of a single node). But since you can express a list of data-elements as a JSON array - even these XPath expressions can be used in `match` statements.
+
+```cucumber
+* def teachers = 
+"""
+<teachers>
+	<teacher department="science">
+		<subject>math</subject>
+		<subject>physics</subject>
+	</teacher>
+	<teacher department="arts">
+		<subject>political education</subject>
+		<subject>english</subject>
+	</teacher>
+</teachers>
+"""
+* match teachers //teacher[@department='science']/subject == ['math', 'physics']
+```
+
+You can refer to this file (which is part of the Karate test-suite) for more XML examples: [`xml-and-xpath.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature)
+
 
 # Special Variables
 These are 'built-in' variables, there are only a few and all of them give you access to the HTTP response.

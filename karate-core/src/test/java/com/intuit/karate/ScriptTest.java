@@ -436,7 +436,38 @@ public class ScriptTest {
         Script.assign("myList", "get myJson $[*].val", ctx);
         Script.assign("myXml", "<root><foo><bar>one</bar><bar>two</bar></foo></root>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myXml/root/foo/bar", null, "myList", ctx).pass);
-    }      
+    } 
+    
+    @Test
+    public void testMatchXmlPathAutoConvertingFromMap() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
+        Script.assign("myMap", "myXml", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "myMap/root/foo", null, "<foo><bar>baz</bar></foo>", ctx).pass);
+    } 
+    
+    @Test
+    public void testEvalXmlPathAutoConvertingFromMap() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
+        Script.assign("myMap", "myXml", ctx);
+        Script.assign("temp", "get myXml /root/foo", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "temp", null, "<foo><bar>baz</bar></foo>", ctx).pass);
+        Script.assign("temp", "get myMap /root/foo", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "temp", null, "<foo><bar>baz</bar></foo>", ctx).pass);
+    }         
+    
+    @Test
+    public void testAssignXmlPathThatReturnsListThenMatch() {
+        ScriptContext ctx = getContext();
+        Script.assign("response", XmlUtilsTest.TEACHERS_XML, ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "//teacher[@department='science']/subject", null, "['math', 'physics']", ctx).pass);        
+        Script.assign("subjects", "//teacher[@department='science']/subject", ctx);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "subjects", null, "['physics', 'math']", ctx).pass);
+        Script.assign("teachers", "response", ctx); // becomes a map
+        Script.assign("subjects", "get teachers //teacher[@department='science']/subject", ctx);
+        // assertTrue(Script.matchNamed(MatchType.EQUALS, "subjects", null, "['math', 'physics']", ctx).pass);
+    } 
     
     @Test
     public void testXmlShortCutsForResponse() {

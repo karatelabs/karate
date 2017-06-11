@@ -249,13 +249,14 @@ public class Script {
         switch (value.getType()) {
             case XML:
                 Node doc = value.getValue(Node.class);
-                return evalXmlPathOnXmlNode(doc, path);
+                return evalXmlPathOnXmlNode(doc, path);            
             default:
-                throw new RuntimeException("cannot run xpath on type: " + value);
+                Node node = XmlUtils.fromMap(value.getAsMap());
+                return evalXmlPathOnXmlNode(node, path);
         }
     }
     
-    private static ScriptValue evalXmlPathOnXmlNode(Node doc, String path) {
+    public static ScriptValue evalXmlPathOnXmlNode(Node doc, String path) {
         NodeList nodeList;
         try {
             nodeList = XmlUtils.getNodeListByPath(doc, path);
@@ -264,10 +265,10 @@ public class Script {
             String strValue = XmlUtils.getTextValueByPath(doc, path);
             return new ScriptValue(strValue);
         }
-        if (nodeList == null) {
+        int count = nodeList.getLength();
+        if (count == 0) {
             return ScriptValue.NULL;
         }
-        int count = nodeList.getLength();
         if (count == 1) {
             return nodeToValue(nodeList.item(0));
         }
@@ -530,13 +531,18 @@ public class Script {
                     if ("$".equals(path)) {
                         path = "/"; // whole document, also edge case where variable name was 'response'
                     }
-                    if (!isJsonPath(path)) {
-                        return matchXmlPath(matchType, actual, path, expected, context);
-                    }
                 // break; 
                 // fall through to JSON. yes, dot notation can be used on XML !!
                 default:
-                    return matchJsonPath(matchType, actual, path, expected, context);
+                    if (isJsonPath(path)) {
+                        return matchJsonPath(matchType, actual, path, expected, context);
+                    } else { // xpath
+                        if (actual.getType() != XML) { // force conversion to xml
+                            Node node = XmlUtils.fromMap(actual.getAsMap());
+                            actual = new ScriptValue(node);
+                        }
+                        return matchXmlPath(matchType, actual, path, expected, context);
+                    }                    
             }
         }
     }
