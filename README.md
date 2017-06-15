@@ -979,9 +979,8 @@ And param anotherKey = someVariable
 You can also use JSON to set multiple query-parameters in one-line using [`params`](#params) and this is especially useful for dynamic data-driven testing.
 
 ## `header`
-One nice thing about the `header` keyword is that it 'persists' for the duration of the `Scenario:`. So if you want the same header to be sent for all HTTP requests, just set the header once and all HTTP requests made after that point would have that header. And if you do this within a `Background:` section, it would apply to all `Scenario:` sections within the `*.feature` file.
 
-You can even use functions or expressions:
+You can use functions or expressions:
 ```cucumber
 Given header Authorization = myAuthFunction()
 And header transaction-id = 'test-' + myIdString
@@ -992,6 +991,7 @@ It is worth repeating that in most cases you won't need to set the `Content-Type
 Because of how easy it is to set HTTP headers, Karate does not provide any special keywords for things like 
 the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header. You simply do 
 something like this:
+
 ```cucumber
 Given path 'some/path'
 And request { some: 'data' }
@@ -1000,7 +1000,13 @@ When method post
 Then status 200
 ```
 
-If you need headers to be dynamically generated for each HTTP request, that is what [`configure headers`](#configure-headers) is for.
+A common need is to send the same header(s) for _every_ request, and [`configure headers`](#configure-headers) (with JSON) is how you can set this up once for all subsequent requests. And if you do this within a `Background:` section, it would apply to all `Scenario:` sections within the `*.feature` file.
+
+```cucumber
+* configure headers = { Accept: 'application/xml' }
+```
+
+If you need headers to be dynamically generated for each HTTP request, [`configure headers`](#configure-headers) is what you need - and you use a JavaScript function instead of JSON.
 
 Multi-value headers (though rarely used in the wild) are also supported:
 ```cucumber
