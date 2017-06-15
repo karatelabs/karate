@@ -1795,12 +1795,13 @@ function(creds) {
   return 'Basic ' + encoded;
 }
 ```
-And here's how it works in a test-script using the [`header`](#header) keyword. Note that you need to do this only once within a `Scenario:`, perhaps at the beginning, or within the `Background:` section.
+And here's how it works in a test-script using the [`header`](#header) keyword.
+
 ```cucumber
 * header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
-
 ```
-You can dynamically generate headers for each HTTP request if you [`configure headers`](#configure-headers).
+
+You can set this up for all subsequent requests or dynamically generate headers for each HTTP request if you [`configure headers`](#configure-headers).
 
 ### Calling Java
 There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo).
