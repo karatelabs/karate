@@ -789,10 +789,8 @@ are **not** supported.
 * assert greeter('Bob') == 'hello Bob'
 ```
 ### Java Interop
-For more complex functions you are better off using the [multi-line](#multi-line-expressions) 'doc-string' approach. This example actually calls into existing Java code, and being able to do this opens up a 
-whole lot of possibilities. The JavaScript interpreter will try to convert types across 
-Java and JavaScript as smartly as possible. For e.g. JS objects become Java Map-s, and 
-Java Bean properties are accessible (and update-able) using dot notation e.g. '`object.name`'
+For more complex functions you are better off using the [multi-line](#multi-line-expressions) 'doc-string' approach. This example actually calls into existing Java code, and being able to do this opens up a whole lot of possibilities. The JavaScript interpreter will try to convert types across Java and JavaScript as smartly as possible. For e.g. JSON objects become Java Map-s, JSON arrays become Java List-s, and Java Bean properties are accessible (and update-able) using dot notation e.g. '`object.name`'
+
 ```cucumber
 * def dateStringToLong =
 """
@@ -1847,6 +1845,8 @@ function(arg) {
 * def result = JavaDemo.doWorkStatic('world')
 * assert result == 'hello world'
 ```
+
+Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
 ## `callonce`
 Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a`Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 

@@ -15,6 +15,7 @@
     </appender>    
    
     <logger name="com.intuit" level="DEBUG"/>
+    <logger name="demo" level="DEBUG"/>
    
     <root level="info">
         <appender-ref ref="STDOUT" />

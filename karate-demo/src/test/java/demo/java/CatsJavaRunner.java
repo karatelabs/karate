@@ -1,4 +1,4 @@
-package demo.upload;
+package demo.java;
 
 import demo.TestBase;
 
@@ -6,6 +6,6 @@ import demo.TestBase;
  *
  * @author pthomas3
  */
-public class UploadRunner extends TestBase {
+public class CatsJavaRunner extends TestBase {
     
 }

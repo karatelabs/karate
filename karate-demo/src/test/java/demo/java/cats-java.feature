@@ -2,38 +2,22 @@ Feature: cats end-point
 
 Background:
 * url demoBaseUrl
-* configure logPrettyRequest = true
-* configure logPrettyResponse = true
+* def JavaDemo = Java.type('demo.java.JavaDemo')
 
-Scenario: create and retrieve a cat
+Scenario: pass json to java
 
-# create a new cat
 Given path 'cats'
-And request { name: 'Billie' }
+And request { name: 'Sillie' }
 When method post
 Then status 200
-And match response == { id: '#number', name: 'Billie' }
 
-* def id = response.id
+* def name = JavaDemo.getName(response)
+* assert name == 'Sillie'
 
-# get by id
-Given path 'cats', id
-When method get
-Then status 200
-And match response == { id: '#(id)', name: 'Billie' }
-
-# get all cats
 Given path 'cats'
 When method get
 Then status 200
-And match response contains { id: '#(id)', name: 'Billie' }
 
-# get cat but ask for xml
-Given path 'cats', id
-And header Accept = 'application/xml'
-When method get
-Then status 200
-And match response == <cat><id>#(id)</id><name>Billie</name></cat>
-
-
-
+# here the response is a json array
+* def names = JavaDemo.getNames(response)
+* match names contains ['Sillie']
