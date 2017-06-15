@@ -1504,14 +1504,14 @@ Some XPath expressions return a list of nodes (instead of a single node). But si
 * def teachers = 
 """
 <teachers>
-	<teacher department="science">
-		<subject>math</subject>
-		<subject>physics</subject>
-	</teacher>
-	<teacher department="arts">
-		<subject>political education</subject>
-		<subject>english</subject>
-	</teacher>
+  <teacher department="science">
+    <subject>math</subject>
+    <subject>physics</subject>
+  </teacher>
+  <teacher department="arts">
+    <subject>political education</subject>
+    <subject>english</subject>
+  </teacher>
 </teachers>
 """
 * match teachers //teacher[@department='science']/subject == ['math', 'physics']
@@ -1743,7 +1743,7 @@ And it is worth mentioning that the Karate [configuration 'bootstrap'](#configur
 A JavaScript function at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
 * `karate.set(name, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
-* `karate.set(name, path, value)` - this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](https://github.com/intuit/karate/blob/master/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L43), and it behaves the same way as the [`set`](#set) keyword.
+* `karate.set(name, path, value)` - this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](https://github.com/intuit/karate/blob/master/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L78), and it behaves the same way as the [`set`](#set) keyword.
 * `karate.get(name)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
 * `karate.log(... args)` - log to the same logger (and log file) being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
