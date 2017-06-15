@@ -467,7 +467,57 @@ public class ScriptTest {
         Script.assign("teachers", "response", ctx); // becomes a map
         Script.assign("subjects", "get teachers //teacher[@department='science']/subject", ctx);
         // assertTrue(Script.matchNamed(MatchType.EQUALS, "subjects", null, "['math', 'physics']", ctx).pass);
-    } 
+    }
+    
+    @Test
+    public void testCastJsonToString() {
+        ScriptContext ctx = getContext();
+        Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
+        Script.assignString("myString", "myJson", ctx);
+        ScriptValue value = ctx.vars.get("myString");
+        assertEquals(ScriptValue.Type.STRING, value.getType());
+        assertEquals("{\"root\":{\"foo\":\"bar\"}}", value.getAsString());
+    }  
+    
+    @Test
+    public void testCastStringToJson() {
+        ScriptContext ctx = getContext();
+        Script.assign("myString", "{\"root\":{\"foo\":\"bar\"}}", ctx);
+        Script.assignJson("myJson", "myString", ctx);
+        ScriptValue value = ctx.vars.get("myJson");
+        assertEquals(ScriptValue.Type.JSON, value.getType());
+        assertEquals("{\"root\":{\"foo\":\"bar\"}}", value.getAsString());
+    }      
+    
+    @Test
+    public void testCastJsonToXml() {
+        ScriptContext ctx = getContext();
+        Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
+        Script.assignXml("myXml", "myJson", ctx);
+        ScriptValue value = ctx.vars.get("myXml");
+        assertEquals(ScriptValue.Type.XML, value.getType());
+        assertEquals("<root><foo>bar</foo></root>", value.getAsString());
+    }  
+    
+    @Test
+    public void testCastStringToXml() {
+        ScriptContext ctx = getContext();
+        Script.assignString("myString", "<root><foo>bar</foo></root>", ctx);
+        Script.assignXml("myXml", "myString", ctx);
+        ScriptValue value = ctx.vars.get("myXml");
+        assertEquals(ScriptValue.Type.XML, value.getType());
+        assertEquals("<root><foo>bar</foo></root>", value.getAsString());
+    }     
+    
+    @Test
+    public void testCastXmlToString() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
+        Script.assignXmlString("myString", "myXml", ctx);
+        ScriptValue value = ctx.vars.get("myString");
+        assertEquals(ScriptValue.Type.STRING, value.getType());
+        assertEquals("<root><foo>bar</foo></root>", value.getValue());
+    }
     
     @Test
     public void testXmlShortCutsForResponse() {

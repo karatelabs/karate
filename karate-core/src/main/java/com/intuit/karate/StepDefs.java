@@ -279,6 +279,21 @@ public class StepDefs {
     public void yamlDocString(String name, String expression) {
         Script.assignYaml(name, expression, context);
     }
+    
+    @When("^string (.+) = (.+)")
+    public void castToString(String name, String expression) {
+        Script.assignString(name, expression, context);
+    }
+    
+    @When("^xml (.+) = (.+)")
+    public void castToXml(String name, String expression) {
+        Script.assignXml(name, expression, context);
+    }  
+
+    @When("^xmlstring (.+) = (.+)")
+    public void castToXmlString(String name, String expression) {
+        Script.assignXmlString(name, expression, context);
+    }     
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {

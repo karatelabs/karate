@@ -198,11 +198,21 @@ public class ScriptValue {
                 return doc.jsonString();
             case XML:
                 Node node = getValue(Node.class);
-                if (node.getTextContent() != null) {
+                if (node.getTextContent() != null) { // for attributes, text() etc
                     return node.getTextContent();
                 } else {
                     return XmlUtils.toString(node);
                 }
+            case JS_ARRAY:
+            case LIST:
+                List list = getAsList();
+                DocumentContext listDoc = JsonPath.parse(list);
+                return listDoc.jsonString();
+            case JS_OBJECT:
+            case MAP:
+                Map map = getAsMap();
+                DocumentContext mapDoc = JsonPath.parse(map);
+                return mapDoc.jsonString();
             case INPUT_STREAM:
                 try {
                     return IOUtils.toString(getValue(InputStream.class), "utf-8");

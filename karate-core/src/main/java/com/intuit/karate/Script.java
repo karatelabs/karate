@@ -469,8 +469,24 @@ public class Script {
     public static void assignYaml(String name, String exp, ScriptContext context) {
         assign(AssignType.YAML, name, exp, context);
     }
+    
+    public static void assignString(String name, String exp, ScriptContext context) {
+        assign(AssignType.STRING, name, exp, context);
+    }
+    
+    public static void assignJson(String name, String exp, ScriptContext context) {
+        assign(AssignType.JSON, name, exp, context);
+    }    
 
-    private static void assign(AssignType type, String name, String exp, ScriptContext context) {
+    public static void assignXml(String name, String exp, ScriptContext context) {
+        assign(AssignType.XML, name, exp, context);
+    }
+    
+    public static void assignXmlString(String name, String exp, ScriptContext context) {
+        assign(AssignType.XML_STRING, name, exp, context);
+    }    
+
+    private static void assign(AssignType assignType, String name, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
@@ -479,7 +495,7 @@ public class Script {
             throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " " + exp + "' instead");
         }
         ScriptValue sv;
-        switch (type) {
+        switch (assignType) {
             case TEXT:
                 exp = exp.replace("\n", "\\n");
                 if (!isQuoted(exp)) {
@@ -492,10 +508,46 @@ public class Script {
                 evalJsonEmbeddedExpressions(doc, context);
                 sv = new ScriptValue(doc);
                 break;
+            case STRING:
+                ScriptValue tempString = eval(exp, context);
+                sv = new ScriptValue(tempString.getAsString());
+                break;
+            case JSON:
+                ScriptValue tempJson = eval(exp, context);
+                if (tempJson.getType() == STRING) {
+                    sv = eval(tempJson.getValue(String.class), context);
+                } else if (tempJson.isListLike()) {
+                    DocumentContext listDoc = JsonPath.parse(tempJson.getAsList());
+                    sv = new ScriptValue(listDoc);
+                } else if (tempJson.isMapLike()) {
+                    DocumentContext mapDoc = JsonPath.parse(tempJson.getAsMap());
+                    sv = new ScriptValue(mapDoc);
+                } else {
+                    throw new RuntimeException("cannot convert to json: " + tempJson);
+                }
+                break;
+            case XML:
+                sv = toXml(exp, context);
+                break;
+            case XML_STRING:
+                ScriptValue tempXml = toXml(exp, context);
+                sv = new ScriptValue(tempXml.getAsString());
+                break;
             default: // AUTO
                 sv = eval(exp, context);
         }
         context.vars.put(name, sv);
+    }
+    
+    private static ScriptValue toXml(String exp, ScriptContext context) {
+        ScriptValue tempXml = eval(exp, context);
+        if (tempXml.getType() == STRING) {
+            return eval(tempXml.getValue(String.class), context);
+        } else if (tempXml.isMapLike()) {
+            return new ScriptValue(XmlUtils.fromMap(tempXml.getAsMap()));
+        } else {
+            throw new RuntimeException("cannot convert to xml: " + tempXml);
+        }        
     }
 
     public static boolean isQuoted(String exp) {

@@ -8,6 +8,10 @@ public enum AssignType {
     
     AUTO,
     TEXT,
-    YAML
+    YAML,
+    JSON,
+    STRING,
+    XML,
+    XML_STRING
     
 }
