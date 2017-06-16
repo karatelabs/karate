@@ -280,6 +280,11 @@ public class StepDefs {
         Script.assignYaml(name, expression, context);
     }
     
+    @When("^json (.+) = (.+)")
+    public void castToJson(String name, String expression) {
+        Script.assignJson(name, expression, context);
+    }    
+    
     @When("^string (.+) = (.+)")
     public void castToString(String name, String expression) {
         Script.assignString(name, expression, context);

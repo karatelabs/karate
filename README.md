@@ -875,6 +875,21 @@ Given request read('some-big-payload.json')
 
 Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for matching HTTP responses.
 
+## Type Conversion
+Internally, Karate will auto-convert JSON (and even XML) to Java `Map` objects. And JSON arrays would become Java `List`-s. But you will never need to worry about this internal data-representation most of the time.
+
+In some rare cases, for e.g. if you acquired a string from some external source, or if you generated JSON (or XML) by concatenating strings, you may want to convert a string to JSON and vice-versa. You can even perform a conversion from XML to JSON if you want.
+
+One example of when you may want to convert JSON (or XML) to a string is when you are passing a payload to custom code via [Java interop](#calling-java). Do note that when passing JSON, the default `Map` and `List` representations should suffice for most needs, and they avoid un-necessary string-conversion.
+
+So you have the following type markers you can use instead of [`def`](#def):
+* `string` - convert XML, JSON or any other data-type to a string
+* `json` - convert XML, a map-like or list-like object, or a string into JSON
+* `xml` - convert JSON, a map-like object, or a string into XML
+* `xmlstring` - specifically for converting XML into a string
+
+These are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
+
 # Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
 
