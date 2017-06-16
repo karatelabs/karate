@@ -134,18 +134,18 @@ public class CucumberRunner {
         formatter.close();
     }
 
-    public void run(FeatureFile featureFile, KarateJunitFormatter formatter) {
+    public void run(FeatureFile featureFile, KarateReporter reporter) {
         Runtime runtime = getRuntime(featureFile);
-        featureFile.feature.run(formatter, formatter, runtime);
+        featureFile.feature.run(reporter, reporter, runtime);
     }
 
-    public void run(KarateJunitFormatter formatter) {
+    public void run(KarateReporter reporter) {
         for (FeatureFile featureFile : getFeatureFiles()) {
-            run(featureFile, formatter);
+            run(featureFile, reporter);
         }
     }
 
-    private static KarateJunitFormatter getFormatter(String reportDirPath, FeatureFile featureFile) {
+    private static KarateReporter getReporter(String reportDirPath, FeatureFile featureFile) {
         File reportDir = new File(reportDirPath);
         try {
             FileUtils.forceMkdirParent(reportDir);
@@ -164,7 +164,7 @@ public class CucumberRunner {
         try {
             reportDirPath = reportDir.getPath() + File.separator;
             String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";
-            return new KarateJunitFormatter(featurePackagePath, reportPath);
+            return new KarateReporter(featurePackagePath, reportPath);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -179,26 +179,27 @@ public class CucumberRunner {
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         CucumberRunner runner = new CucumberRunner(clazz);
         List<FeatureFile> featureFiles = runner.getFeatureFiles();
-        List<Callable<KarateJunitFormatter>> callables = new ArrayList<>(featureFiles.size());
+        List<Callable<KarateReporter>> callables = new ArrayList<>(featureFiles.size());
         int count = featureFiles.size();
         for (int i = 0; i < count; i++) {
             int index = i + 1;
             FeatureFile featureFile = featureFiles.get(i);
             callables.add(() -> {
                 String threadName = Thread.currentThread().getName();
-                KarateJunitFormatter formatter = getFormatter(reportDir, featureFile);
+                KarateReporter reporter = getReporter(reportDir, featureFile);
                 logger.info(">>>> feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
-                runner.run(featureFile, formatter);
+                runner.run(featureFile, reporter);
                 logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
-                formatter.done();
-                return formatter;
+                reporter.done();
+                return reporter;
             });
         }
         try {
-            List<Future<KarateJunitFormatter>> futures = executor.invokeAll(callables);
+            List<Future<KarateReporter>> futures = executor.invokeAll(callables);
             stats.stopTimer();
-            for (Future<KarateJunitFormatter> future : futures) {
-                KarateJunitFormatter formatter = future.get();
+            for (Future<KarateReporter> future : futures) {
+                KarateReporter reporter = future.get();
+                KarateJunitFormatter formatter = reporter.getJunitFormatter();
                 stats.addToTestCount(formatter.getTestCount());
                 stats.addToFailCount(formatter.getFailCount());
                 stats.addToSkipCount(formatter.getSkipCount());

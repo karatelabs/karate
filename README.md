@@ -314,7 +314,7 @@ With the above in place, you don't have to use `-Dtest=AnimalsTest` on the comma
 
 The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line.
 
-The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel. But you have the option of choosing other report formats, for e.g. `html`. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on emitting the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume.
+The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel. But you have the option of choosing other report formats, for e.g. `html`. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on emitting the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
 
 ## Parallel Execution
 Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven.
@@ -342,7 +342,8 @@ Things to note:
 * You can use the returned `KarateStats` to check if any scenarios failed.
 * The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself.
 * The second argument is the number of threads to use.
-* JUnit XML reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
+* [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
+* [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`.
 * No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation, or the command-line, or the 'maven-surefire-plugin' `<systemProperties>` - it will be ignored.
 * But all other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped.
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
@@ -355,9 +356,9 @@ scenarios: 12 | failed:  0 | skipped:  0
 ======================================================
 ```
 
-The [Karate Demo](karate-demo) has a working example of this set-up.
+The [Karate Demo](karate-demo) has a working example of this set-up. It also shows how a third-party maven-plugin can be (optionally) used to generate some pretty reports.
 
-This is the preferred way of automating the execution of all Karate tests in a project, mainly because the other Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the `CucumberRunner.parallel()` JUnit XML output for CI and test result reporting, and if you see any problems, or if your CI tool does not support the JUnit XML format, please submit a defect report.
+This is the preferred way of automating the execution of all Karate tests in a project, mainly because the other 'native' Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the `CucumberRunner.parallel()` JUnit XML and Cucumber JSON output for CI and test result reporting, and if you see any problems, or if your CI tool does not support the JUnit XML format, please submit a defect report.
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default

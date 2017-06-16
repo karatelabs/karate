@@ -72,8 +72,29 @@
                         <!-- this is ignored if you use the Karate 'parallel' runner -->
                         <cucumber.options>--plugin junit:target/surefire-reports/cucumber-junit.xml</cucumber.options>
                     </systemProperties>
+                    <!-- else the maven-cucumber-reporting plugin won't run if tests fail -->
+                    <testFailureIgnore>true</testFailureIgnore>
                 </configuration>
-            </plugin>            
+            </plugin>
+            <!-- optional, only if you want pretty reports -->
+            <plugin>
+                <groupId>net.masterthought</groupId>
+                <artifactId>maven-cucumber-reporting</artifactId>
+                <version>3.8.0</version>
+                <executions>
+                    <execution>
+                        <id>execution</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>target</outputDirectory>
+                            <cucumberOutput>target/surefire-reports</cucumberOutput>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>                        
             <plugin>
                 <groupId>org.sonatype.plugins</groupId>
                 <artifactId>nexus-staging-maven-plugin</artifactId>

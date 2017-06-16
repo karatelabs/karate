@@ -55,9 +55,9 @@ public class CucumberRunnerTest {
         String reportPath = "target/scenario.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/scenario.feature");
         CucumberRunner runner = new CucumberRunner(file);        
-        KarateJunitFormatter formatter = new KarateJunitFormatter(file.getPath(), reportPath);
-        runner.run(formatter);
-        formatter.done();
+        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
+        runner.run(reporter);
+        reporter.done();
         assertTrue(contains(reportPath, "Then match b == { foo: 'bar'}"));
     }
     
@@ -66,9 +66,9 @@ public class CucumberRunnerTest {
         String reportPath = "target/outline.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/outline.feature");
         CucumberRunner runner = new CucumberRunner(file);        
-        KarateJunitFormatter formatter = new KarateJunitFormatter(file.getPath(), reportPath);
-        runner.run(formatter);
-        formatter.done();
+        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
+        runner.run(reporter);
+        reporter.done();
         assertTrue(contains(reportPath, "When def a = 55"));
     }  
     

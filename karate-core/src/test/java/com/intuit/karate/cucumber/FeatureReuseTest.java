@@ -43,9 +43,9 @@ public class FeatureReuseTest {
         String reportPath = "target/fail.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/caller.feature");
         CucumberRunner runner = new CucumberRunner(file);  
-        KarateJunitFormatter formatter = new KarateJunitFormatter(file.getPath(), reportPath);
-        runner.run(formatter);
-        formatter.done();
+        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
+        runner.run(reporter);
+        reporter.done();
         String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
         assertTrue(contents.contains("assert evaluated to false: input != 4"));
     }
