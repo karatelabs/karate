@@ -25,6 +25,7 @@ package com.intuit.karate.cucumber;
 
 import cucumber.api.CucumberOptions;
 import java.io.File;
+import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
@@ -82,6 +83,23 @@ public class CucumberRunnerTest {
         assertTrue(contains(pathBase + "multi-scenario.xml", "Then assert a != 2"));
         assertEquals(1, stats.getFailedList().size());
         assertEquals("com.intuit.karate.cucumber.no-scenario-name", stats.getFailedList().get(0));
+    }
+    
+    @Test
+    public void testRunningFeatureFromJavaApi() {
+        Map<String, Object> result = CucumberRunner.runFeature(getClass(), "scenario.feature", null);
+        assertEquals(1, result.get("a"));
+        Map<String, Object> temp = (Map) result.get("b");
+        assertEquals("bar", temp.get("foo"));
+        assertEquals("someValue", result.get("someConfig"));
+    }
+    
+    @Test
+    public void testRunningRelativePathFeatureFromJavaApi() {
+        Map<String, Object> result = CucumberRunner.runClasspathFeature("com/intuit/karate/test-called.feature", null);
+        assertEquals(1, result.get("a"));
+        assertEquals(2, result.get("b"));
+        assertEquals("someValue", result.get("someConfig"));
     }
     
 }

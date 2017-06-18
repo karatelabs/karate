@@ -76,11 +76,6 @@ public class ScriptContext {
             readFunction = Script.eval(getFileReaderFunction(), this);
             headers = parent.headers;
             config = parent.config;
-            if (arg != null) {
-                for (Map.Entry<String, Object> entry : arg.entrySet()) {
-                    vars.put(entry.getKey(), entry.getValue());
-                }
-            }
             client = HttpClient.construct();
             client.configure(config, this);            
         } else {
@@ -97,6 +92,11 @@ public class ScriptContext {
                 logger.warn("start-up configuration failed, missing or bad 'karate-config.js'", e);
             }
         }
+        if (arg != null) {
+            for (Map.Entry<String, Object> entry : arg.entrySet()) {
+                vars.put(entry.getKey(), entry.getValue());
+            }
+        }        
         logger.trace("karate context init - initial properties: {}", vars);
     }
     

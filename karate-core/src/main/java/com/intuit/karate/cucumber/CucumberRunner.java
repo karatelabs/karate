@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.Script;
 import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.ScriptValueMap;
 import cucumber.runtime.Backend;
 import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeGlue;
@@ -37,9 +39,11 @@ import cucumber.runtime.model.CucumberFeature;
 import cucumber.runtime.xstream.LocalizedXStreams;
 import gherkin.formatter.Formatter;
 import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -213,6 +217,23 @@ public class CucumberRunner {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }     
+    
+    private static Map<String, Object> runFeature(File file, Map<String, Object> vars) {        
+        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, Thread.currentThread().getContextClassLoader());
+        ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, null, vars);
+        return Script.simplify(scriptValueMap);        
     }
-
+    
+    public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars) {
+        File dir = com.intuit.karate.FileUtils.getDirContaining(relativeTo);
+        File file = new File(dir.getPath() + File.separator + path);        
+        return runFeature(file, vars);
+    }
+    
+    public static Map<String, Object> runClasspathFeature(String path, Map<String, Object> vars) {
+        File file = new File("target/test-classes/" + path);
+        return runFeature(file, vars);
+    }
+    
 }

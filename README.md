@@ -2,17 +2,9 @@
 ## Web-Services Testing Made `Simple.`
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://karate-dsl.slack.com/shared_invite/MTU5Nzk3NzEyMTYyLTE0OTA0OTcyMzktNDkyOTg0MmMyYQ) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
 
-Karate enables you to script a sequence of calls to any kind of web-service and assert
-that the responses are as expected.  It makes it really easy to build complex request 
-payloads, traverse data within the responses, and chain data from responses into the next request. 
-Karate's payload validation engine can perform a 'smart compare' of two JSON or XML documents 
-without being affected by white-space or the order in which data-elements actually appear, and you 
-can opt to ignore fields that you choose.
+Karate enables you to script a sequence of calls to any kind of web-service and assert that the responses are as expected.  It makes it really easy to build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' of two JSON or XML documents without being affected by white-space or the order in which data-elements actually appear, and you can opt to ignore fields that you choose.
 
-Since Karate is built on top of
-[Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and
-generate reports like any standard Java project. But instead of Java - you write 
-tests in a language designed to make dealing with HTTP, JSON or XML - **simple**.
+Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But instead of Java - you write tests in a language designed to make dealing with HTTP, JSON or XML - **simple**.
 
 ## Hello World
 ```cucumber
@@ -29,9 +21,7 @@ Given path response.id
 When method get
 Then status 200
 ```
-It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can 
-express payload and expected data without having to use double-quotes and without having to enclose JSON field names
-in quotes.  There is no need to 'escape' characters like you would have had to in Java.
+It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can express payload and expected data without having to use double-quotes and without having to enclose JSON field names in quotes.  There is no need to 'escape' characters like you would have had to in Java.
 
 And you don't need to create Java objects (or POJO-s) for any of the payloads that you need to work with.
 
@@ -53,6 +43,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
+.... | [Java API](#java-api)
 
 # Features
 * Java knowledge is not required and even non-programmers can write tests.
@@ -68,6 +59,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Support for data-driven tests and being able to tag (or group) tests is built-in, no need to rely on TestNG or JUnit
 * Standard Java / Maven project structure, and seamless integration into CI / CD pipelines - with both JUnit and TestNG being supported
 * Support for multi-threaded parallel execution, which is a huge time-saver, especially for HTTP integration tests
+* Built-in test-reports powered by Cucumber-JVM with the option of using third-party (open-source) maven-plugins for even better-looking reports
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for ultimate extensibility
 * Simple plug-in system for authentication and HTTP header management that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can choose what works best in your project, and not be blocked by library or dependency conflicts
@@ -1960,6 +1952,13 @@ You can look at the [Wiremock](http://wiremock.org) based unit-test code of Kara
 * [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature#L6) - see line #6
 
 The [Karate Demos](karate-demo) use a similar approach for determining the URL for each test.
+
+## Java API
+It should be clear now that Karate provides a super-simple way to make HTTP requests compared to how you would have done so in Java. It is also possible to invoke a feature file via a Java API which can be very useful in some test-automation situations.
+
+A common use case is to mix API-calls into a larger test-suite, for example a Selenium or WebDriver UI test. So you can use Karate to set-up data via API calls, then run the UI test-automation, and finally again use Karate to assert that the system-state is as expected.
+
+There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`runFeature()` and `runClasspathFeature()`) which are best explained in this demo unit-test: [`JavaApiTest.java`](karate-demo/src/test/java/demo/java/JavaApiTest.java). You can optionally pass in variable values or over-ride config and the resulting variable state would be returned as a `HashMap`.
 
 ## Data Driven Tests
 ### The Cucumber Way

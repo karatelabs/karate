@@ -49,11 +49,15 @@ public class FileUtils {
     public static final boolean isFeatureFile(String text) {
         return text.endsWith(".feature");
     }    
+    
+    private static String removePrefix(String text) {
+        int pos = text.indexOf(':');
+        return pos == -1 ? text : text.substring(pos + 1);        
+    }
 
     public static ScriptValue readFile(String text, ScriptContext context) {
         text = StringUtils.trim(text);
-        int pos = text.indexOf(':');
-        String fileName = pos == -1 ? text : text.substring(pos + 1);
+        String fileName = removePrefix(text);
         fileName = StringUtils.trim(fileName);
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
@@ -135,5 +139,5 @@ public class FileUtils {
         }
         return commandLine.substring(start, end + 8);
     }
-    
+     
 }
