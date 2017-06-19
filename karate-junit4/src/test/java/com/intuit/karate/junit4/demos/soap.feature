@@ -1,3 +1,4 @@
+@ignore
 Feature: 
     sample karate test script that includes SOAP calls
     to the following demo service:

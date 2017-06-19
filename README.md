@@ -1958,7 +1958,9 @@ It should be clear now that Karate provides a super-simple way to make HTTP requ
 
 A common use case is to mix API-calls into a larger test-suite, for example a Selenium or WebDriver UI test. So you can use Karate to set-up data via API calls, then run the UI test-automation, and finally again use Karate to assert that the system-state is as expected.
 
-There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`runFeature()` and `runClasspathFeature()`) which are best explained in this demo unit-test: [`JavaApiTest.java`](karate-demo/src/test/java/demo/java/JavaApiTest.java). You can optionally pass in variable values or over-ride config and the resulting variable state would be returned as a `HashMap`.
+There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`runFeature()` and `runClasspathFeature()`) which are best explained in this demo unit-test: [`JavaApiTest.java`](karate-demo/src/test/java/demo/java/JavaApiTest.java). 
+
+You can optionally pass in variable values or over-ride config via a `HashMap` or leave the last argument as `null`. The variable state after feature execution would be returned as a `HashMap`.
 
 ## Data Driven Tests
 ### The Cucumber Way
