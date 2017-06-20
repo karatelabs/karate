@@ -1263,6 +1263,8 @@ Marker | Description
 #uuid | Expects actual (string) value to conform to the UUID format
 #regex STR | Expects actual (string) value to match the regular-expression 'STR' (see examples above)
 #? EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true (see examples below)
+#[NUM] EXPR | Advanced array validation, see [Schema Validation](#schema-validation)
+#(EXPR) | For completeness, [embedded expressions](#embedded-expressions) belong in this list as well
 
 ### 'Self' Validation Expressions
 The special 'predicate' marker in the last row of the table above is an interesting one.  It is best
@@ -1462,6 +1464,69 @@ Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0]
 # when validation logic is an 'equality' check, an embedded expression works better
 Then match each json.hotels contains { totalPrice: '#($.roomInformation[0].roomPrice)' }
 ```
+
+There is a shortcut for `each` and equality (`==`) `match`-ing explained in the next section that can be quite useful, especially for schema-like validations.
+
+## Schema Validation
+Karate provides a far more simpler and more powerful way than [JSON-schema](http://json-schema.org) to validate the stucture of a given payload. You can even mix data and conditional validations and perform the assertion in a single step.
+
+But first, a special short-cut for array validation needs to be introduced:
+
+```cucumber
+* def foo = ['bar', 'baz']
+
+# should be an array
+* match foo == '#[]'
+
+# should be an array of size 2
+* match foo == '#[2]'
+
+# should be an array of strings with size 2
+* match foo == '#[2] #string'
+```
+
+This 'in-line' short-cut for validating JSON arrays is similar to how [`match each`](#match-each) works. So now, complex payloads (that include arrays) can easily be by validated in one step by combining [validation markers](#ignore-or-validate) like so:
+
+```cucumber
+* def oddSchema = { price: '#string', status: '#? _ < 3', ck: '#number', name: '#regex[0-9X]' }
+* def isValidTime = read('time-validator.js')
+When method get
+Then match response ==
+"""
+{ 
+  id: '#regex[0-9]+',
+  count: '#number',
+  odd: '#(oddSchema)',
+  data: { 
+    countryId: '#number', 
+    countryName: '#string', 
+    leagueName: '#string', 
+    status: '#number', 
+    sportName: '#string',
+    time: '#? isValidTime(_)'
+  },
+  odds: '#[] oddSchema'  
+}
+"""
+```
+
+Especially note the re-use of the `oddSchema` both as an [embedded-expression](#embedded-expressions) and as an array validation (on the last line).
+
+And you can perform conditional / cross-field validations and even business-logic validations at the same time.
+
+```cucumber
+# should be an array of size less than 5
+* match $.odds == '#[_ < 5]'
+
+# should be an array of size equal to $.count
+* match $.odds == '#[$.count]'
+
+# use a predicate function to validate each array element
+* def isValidOdd = function(o){ return o.name.length == 1 }
+* match $.odds == '#[]? isValidOdd(_)'
+```
+
+Refer to this for the complete example: [`schema-like.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/schema-like.feature)
 
 ## `get`
 By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features). For example:

@@ -642,40 +642,36 @@ public class Script {
                     return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
                 }                
                 int endBracketPos = validatorName.indexOf(']');
-                if (endBracketPos > 1) {
-                    int arrayLength = actValue.getAsList().size();
+                List actValueList = actValue.getAsList();
+                if (endBracketPos > 1) {                    
+                    int arrayLength = actValueList.size();
                     String bracketContents = validatorName.substring(1, endBracketPos);
-                    if (bracketContents.indexOf('_') != -1) { // #[_ < 5]
-                        ScriptValue parentValue = getValueOfParentNode(actRoot, path);
-                        ScriptValue result = Script.evalInNashorn(bracketContents, context, new ScriptValue(arrayLength), parentValue);
-                        if (!result.isBooleanTrue()) {
-                            return matchFailed(path, actValue.getValue(), expected, "array length expression did not evaluate to 'true'");
-                        }                        
-                    } else { // #[5]
-                        String exp = arrayLength + " == " + bracketContents; // lenient js powered equality check
-                        ScriptValue sv = evalInNashorn(exp, null);
-                        if (sv.isBooleanTrue()) {
-                            return AssertionResult.PASS;
-                        } else {
-                            return matchFailed(path, actValue.getValue(), expected, "array length was " + arrayLength + ", expected " + bracketContents);
-                        }                        
-                    }
-                    if (validatorName.length() > endBracketPos + 1) { // expression
-                        // macro-fy before attempting to re-use match-each routine
-                        String exp = validatorName.substring(endBracketPos + 1);
-                        exp = StringUtils.trimToNull(exp);
-                        if (exp != null) {
-                            if (exp.startsWith("?")) {
-                                exp = "#" + exp;
-                            } else if (exp.startsWith("#")) {
-                                // as is
-                            } else {
-                                exp = "#(" + exp + ")";
-                            }
-                            return matchNestedObject(delimiter, path, MatchType.EACH_EQUALS, actRoot, actValue.getValue(), new ScriptValue(exp), context);                            
-                        }
-                    }
+                    ScriptValue parentValue = getValueOfParentNode(actRoot, path);
+                    String expression;
+                    if (bracketContents.indexOf('_') != -1) { // #[_ < 5]  
+                        expression = bracketContents;
+                    } else { // #[5] | #[$.foo] 
+                        expression = bracketContents + " == " + arrayLength;
+                    }                     
+                    ScriptValue result = Script.evalInNashorn(expression, context, new ScriptValue(arrayLength), parentValue);
+                    if (!result.isBooleanTrue()) {
+                        return matchFailed(path, actValue.getValue(), expected, "array length expression did not evaluate to 'true'");
+                    }                        
                 }
+                if (validatorName.length() > endBracketPos + 1) { // expression
+                    // macro-fy before attempting to re-use match-each routine
+                    String expression = validatorName.substring(endBracketPos + 1);
+                    expression = StringUtils.trimToNull(expression);
+                    if (expression != null) {
+                        if (expression.startsWith("?")) {
+                            expression = "'#" + expression + "'";
+                        } else if (expression.startsWith("#")) {
+                            expression = "'" + expression + "'";
+                        } // else as-is
+                        // actRoot assumed to be json in this case                        
+                        return matchJsonPath(MatchType.EACH_EQUALS, new ScriptValue(actRoot), path, expression, context);                           
+                    }
+                }              
             } else {
                 Validator v = context.validators.get(validatorName);
                 if (v == null) {
