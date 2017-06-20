@@ -43,7 +43,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
-.... | [Java API](#java-api)
+.... | [Java API](#java-api) | [Schema Validation](#schema-validation)
 
 # Features
 * Java knowledge is not required and even non-programmers can write tests.
@@ -1263,7 +1263,7 @@ Marker | Description
 #uuid | Expects actual (string) value to conform to the UUID format
 #regex STR | Expects actual (string) value to match the regular-expression 'STR' (see examples above)
 #? EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true (see examples below)
-#[NUM] EXPR | Advanced array validation, see [Schema Validation](#schema-validation)
+#[NUM] EXPR | Advanced array validation, see [schema validation](#schema-validation)
 #(EXPR) | For completeness, [embedded expressions](#embedded-expressions) belong in this list as well
 
 ### 'Self' Validation Expressions
@@ -1468,7 +1468,7 @@ Then match each json.hotels contains { totalPrice: '#($.roomInformation[0].roomP
 There is a shortcut for `each` and equality (`==`) `match`-ing explained in the next section that can be quite useful, especially for schema-like validations.
 
 ## Schema Validation
-Karate provides a far more simpler and more powerful way than [JSON-schema](http://json-schema.org) to validate the stucture of a given payload. You can even mix data and conditional validations and perform the assertion in a single step.
+Karate provides a far more simpler and more powerful way than [JSON-schema](http://json-schema.org) to validate the stucture of a given payload. You can even mix data and conditional validations and perform all assertions in a single step.
 
 But first, a special short-cut for array validation needs to be introduced:
 
