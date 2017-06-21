@@ -52,6 +52,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Syntax 'natively' supports JSON and XML - including [JsonPath](https://github.com/jayway/JsonPath) and [XPath](https://www.w3.org/TR/xpath/) expressions
 * Express expected results as readable, well-formed JSON or XML, and assert (in a single step) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
+* Simpler and more powerful alternative to JSON-schema for validating payload structure and data-types that even supports cross-field / domain validation logic
 * Scripts can call other scripts - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
 * Embedded JavaScript engine that allows you to build a library of re-usable functions that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is so easy - that it becomes a natural habit for the test-developer
@@ -90,13 +91,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.4.1</version>
+    <version>0.4.2</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.4.1</version>
+    <version>0.4.2</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -116,7 +117,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.4.1 \
+-DarchetypeVersion=0.4.2 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -1468,7 +1469,7 @@ Then match each json.hotels contains { totalPrice: '#($.roomInformation[0].roomP
 There is a shortcut for `each` and equality (`==`) `match`-ing explained in the next section that can be quite useful, especially for schema-like validations.
 
 ## Schema Validation
-Karate provides a far more simpler and more powerful way than [JSON-schema](http://json-schema.org) to validate the stucture of a given payload. You can even mix data and conditional validations and perform all assertions in a single step.
+Karate provides a far more simpler and more powerful way than [JSON-schema](http://json-schema.org) to validate the stucture of a given payload. You can even mix domain and conditional validations and perform all assertions in a single step.
 
 But first, a special short-cut for array validation needs to be introduced:
 
