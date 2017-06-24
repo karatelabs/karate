@@ -621,6 +621,12 @@ public class Script {
             return matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
         } else if (isValidator(expected)) {
             String validatorName = expected.substring(1);
+            if (validatorName.startsWith("#")) { // optional field
+                if (actValue.isNull()) {
+                    return AssertionResult.PASS;
+                }
+                validatorName = validatorName.substring(1);
+            }
             if (validatorName.startsWith("regex")) {
                 String regex = validatorName.substring(5).trim();
                 RegexValidator v = new RegexValidator(regex);
@@ -792,16 +798,26 @@ public class Script {
                 break;
             case STRING: // an edge case when the variable is a plain string not JSON, so switch to plain string compare
                 String actualString = actual.getValue(String.class);
-                ScriptValue expected = eval(expression, context);
+                ScriptValue expectedString = eval(expression, context);
                 // exit the function early
-                if (!expected.isString()) {
-                    return matchFailed(path, actualString, expected.getValue(),
-                            "type of actual value is 'string' but that of expected is " + expected.getType());
+                if (!expectedString.isString()) {
+                    return matchFailed(path, actualString, expectedString.getValue(),
+                            "type of actual value is 'string' but that of expected is " + expectedString.getType());
                 } else {
-                    return matchStringOrPattern('.', path, matchType, null, actual, expected.getValue(String.class), context);
+                    return matchStringOrPattern('.', path, matchType, null, actual, expectedString.getValue(String.class), context);
                 }
             case PRIMITIVE:
                 return matchPrimitive(path, actual.getValue(), eval(expression, context).getValue());
+            case NULL: // edge case, assume that this is the root variable that is null and the match is for an optional e.g. '##string'
+                ScriptValue expectedNull = eval(expression, context);
+                if (expectedNull.isNull()) {
+                    return AssertionResult.PASS;
+                }
+                if (!expectedNull.isString()) {
+                    return matchFailed(path, null, expectedNull.getValue(), "actual value is null but expected is " + expectedNull);
+                } else {
+                    return matchStringOrPattern('.', path, matchType, null, actual, expectedNull.getValue(String.class), context);
+                }                
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }

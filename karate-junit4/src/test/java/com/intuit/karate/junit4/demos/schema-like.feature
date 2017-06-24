@@ -4,7 +4,7 @@ Scenario: but simpler and more powerful
 
 * def response = read('odds.json')
 
-* def oddSchema = { price: '#string', status: '#? _ < 3', ck: '#number', name: '#regex[0-9X]' }
+* def oddSchema = { price: '#string', status: '#? _ < 3', ck: '##number', name: '#regex[0-9X]' }
 * def isValidTime = read('time-validator.js')
 
 Then match response ==
@@ -16,8 +16,8 @@ Then match response ==
   data: { 
     countryId: '#number', 
     countryName: '#string', 
-    leagueName: '#string', 
-    status: '#number', 
+    leagueName: '##string', 
+    status: '#? _ >= 0', 
     sportName: '#string',
     time: '#? isValidTime(_)'
   },
@@ -32,8 +32,8 @@ Then match response ==
 # should be an array of size 4
 * match $.odds == '#[4]'
 
-# should be an array of size less than 5
-* match $.odds == '#[_ < 5]'
+# optionally present (or null) and should be an array of size greater than zero
+* match $.odds == '##[_ > 0]'
 
 # should be an array of size equal to $.count
 * match $.odds == '#[$.count]'
@@ -53,3 +53,6 @@ Then match response ==
 
 # should be an array of strings with size 2
 * match foo == '#[2] #string'
+
+# should be null or an array of strings
+* match foo == '##[] #string'

@@ -11,6 +11,7 @@ as well as demonstrate various Karate features and best-practices.
 [`kittens.feature`](src/test/java/demo/cats/kittens.feature) | Reading a complex payload expected response [from a file](https://github.com/intuit/karate#reading-files). You can do the same for request payloads as well. Observe how [JSON templating](https://github.com/intuit/karate#embedded-expressions) makes creating dynamic JSON super-easy, look at [line #24](src/test/java/demo/cats/kittens.feature#L24) for example.
 [`upload.feature`](src/test/java/demo/upload/upload.feature) | [Multi-part](https://github.com/intuit/karate#multipart-field) file-upload example, as well as comparing the binary content of a download. Also shows how to assert for expected response [headers](https://github.com/intuit/karate#match-header). Plus an example of how to call [custom Java code](https://github.com/intuit/karate#calling-java) from Karate, you can extend this approach to make JDBC calls or do pretty much anything Java can.
 [`cats-java.feature`](src/test/java/demo/java/cats-java.feature) | Another example of how to call [Java code](https://github.com/intuit/karate#calling-java) showing how you can pass JSON data around.
+[`schema.feature`](src/test/java/demo/schema/schema.feature) | Karate's simpler approach to schema-validation compared with an actual JSON-schema example taken from [json-schema.org](http://json-schema.org/example1.html). If you really want to perform JSON-schema validation, this example shows you how you can easily do so using [Java interop](https://github.com/intuit/karate#calling-java) and the [json-schema-validator](https://github.com/java-json-tools/json-schema-validator), but should you really ?
 [`dynamic-params.feature`](src/test/java/demo/search/dynamic-params.feature) | Using a `Scenario Outline` and `Examples` for data-driven testing. Since the [`params`](https://github.com/intuit/karate#params) keyword takes JSON (and keys with null values are ignored), you can easily script different permutations of query parameters. This example also uses a JavaScript function (to simplify a custom assertion), which is defined in a separate file.
 [`call-feature.feature`](src/test/java/demo/callfeature/call-feature.feature) | How you can re-use a sequence of HTTP calls in a `*.feature` file from other test scripts. This is hugely useful for those common authentication or 'set up' flows that create users, etc. Refer to the [main documentation](https://github.com/intuit/karate#calling-other-feature-files) on how you can pass parameters in and get data back from the 'called' script.
 [`call-json-array.feature`](src/test/java/demo/callarray/call-json-array.feature) | This example loads JSON data from a file and uses it to call a `*.feature` file in a loop. This approach can enable very dynamic data-driven tests, since there are a variety of ways by which you can create the JSON data, for example by calling custom Java code.
@@ -26,12 +27,36 @@ as well as demonstrate various Karate features and best-practices.
 [`karate-config.js`](src/test/java/karate-config.js) | Shows how the `demoBaseUrl` property is injected into all the test scripts on startup. Notice how JavaScript allows you to perform simple conditional logic and string manipulation, while still being a 'devops-friendly' plain-text file. It is good practice to set the `connectTimeout` and `readTimeout` so that your tests 'fail fast' if servers don't respond. Refer to the [main documentation](https://github.com/intuit/karate#configuration) for more on configuration.
 [`TestBase.java`](src/test/java/demo/TestBase.java#L22) | This is specific to Spring Boot, but this code takes care of starting the embedded app-server and dynamically chooses a free port. The chosen port value is passed to the above config routine via a Java `System.setProperty()` call.
 [`DemoTest.java`](src/test/java/demo/DemoTest.java) | This Java class is strategically placed at the root of the directory structure containing `*.feature` files. Note how the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation allows you to skip any `*.feature` files if they have `@ignore` at the start. The `plugin` option specifies the reports and formats desired, which can be over-ridden on the command-line or by the maven config described below.
-[`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) | Karate has a utility to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) and this does not depend on JUnit, TestNG or even Maven. A JUnit XML report file and Cucumber JSON report file would be generated for each feature executed. You can easily configure your CI with the location of these files so that you get proper test-reports after a build. This is now the recommended way of running Karate as part of an automated build or CI pipeline.
-[`pom.xml`](pom.xml#L69) | Line 69 shows how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect. The third-party [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin is being used (optional), and it will generate some nice reports (see screenshot below) in the `target/cucumber-html-reports` folder with the given configuration.
+[`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) | Karate has a utility to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) and this does not depend on JUnit, TestNG or even Maven. A JUnit XML report file and Cucumber JSON report file would be generated for each feature executed. You can easily configure your CI with the location of these files so that you get proper test-reports after a build. This is now the recommended way of running Karate as part of an automated build or CI pipeline. Here, the (optional) third-party [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library is being used (see details below).
+[`pom.xml`](pom.xml#L81) | Line 81 shows how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect.
 
-### Example Report
+## Example Report
 
-This is an example of using the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin along with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). You can generate this report with just a few extra lines of maven config.
+Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
+
+### `cucumber-reporting` dependency
+Add the `net.masterthought:cucumber-reporting` jar as a maven test dependency
+```xml
+<dependency>
+    <groupId>net.masterthought</groupId>
+    <artifactId>cucumber-reporting</artifactId>
+    <version>3.8.0</version>
+    <scope>test</scope>
+</dependency>
+```
+
+### log4j 2 config
+If you don't already have log4j (v2) in the mix, place this minimal config on the classpath as `log4j2.properties`
+```
+log4j.rootLogger = INFO, CONSOLE
+log4j.appender.CONSOLE = org.apache.log4j.ConsoleAppender
+log4j.appender.CONSOLE.layout = org.apache.log4j.PatternLayout
+```
+
+### programmatically generate the report
+Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) 
+
+And here is the output, which goes into `target/cucumber-html-reports` if you follow the above steps:
 
 ![Karate and Maven Cucumber Reporting](src/test/resources/karate-maven-cucumber-reporting.png) 
 
