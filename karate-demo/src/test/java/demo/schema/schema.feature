@@ -1,12 +1,16 @@
 Feature: json schema validation
 
 Scenario: using a third-party lib and a schema file
+
 * string schema = read('products-schema.json')
 * string json = read('products.json')
 * def SchemaUtils = Java.type('demo.schema.SchemaUtils')
 * assert SchemaUtils.isValid(json, schema)
 
+
 Scenario: using karate's simpler alternative to json-schema
+
+* def warehouseLocation = { latitude: '#number', longitude: '#number' }
 * def productStructure =
 """
 {
@@ -19,10 +23,7 @@ Scenario: using karate's simpler alternative to json-schema
     width: '#number',
     height: '#number'
   },
-  warehouseLocation: {
-    latitude: '#number',
-    longitude: '#number'
-  }
+  warehouseLocation: '##(warehouseLocation)'
 }
 """
 * def json = read('products.json')

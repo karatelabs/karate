@@ -32,10 +32,10 @@ as well as demonstrate various Karate features and best-practices.
 
 ## Example Report
 
-Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
+Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
 
-### `cucumber-reporting` dependency
-Add the `net.masterthought:cucumber-reporting` jar as a maven test dependency
+### Maven Dependency
+Add the `net.masterthought:cucumber-reporting` jar as dependency in `test` scope
 ```xml
 <dependency>
     <groupId>net.masterthought</groupId>
@@ -45,16 +45,16 @@ Add the `net.masterthought:cucumber-reporting` jar as a maven test dependency
 </dependency>
 ```
 
-### log4j 2 config
-If you don't already have log4j (v2) in the mix, place this minimal config on the classpath as `log4j2.properties`
+### Log4j Config File
+If you don't already have log4j (v2) in the mix, place this minimal config on the classpath as `log4j2.properties` (alongside `karate-config.js`).
 ```
 log4j.rootLogger = INFO, CONSOLE
 log4j.appender.CONSOLE = org.apache.log4j.ConsoleAppender
 log4j.appender.CONSOLE.layout = org.apache.log4j.PatternLayout
 ```
 
-### programmatically generate the report
-Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) 
+### Generate Report
+Refer to the code in the demo: [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java#L43), specifically the `generateReport()` method.
 
 And here is the output, which goes into `target/cucumber-html-reports` if you follow the above steps:
 

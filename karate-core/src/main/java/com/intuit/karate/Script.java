@@ -107,6 +107,10 @@ public class Script {
     public static final boolean isEmbeddedExpression(String text) {
         return text.startsWith("#(") && text.endsWith(")");
     }
+    
+    public static final boolean isWithinParantheses(String text) {
+        return text.startsWith("(") && text.endsWith(")");
+    }    
 
     public static final boolean isJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
@@ -165,8 +169,8 @@ public class Script {
         if (text.isEmpty()) {
             return ScriptValue.NULL;
         }
-        if (isCallSyntax(text) || isCallOnceSyntax(text)) { // special case in form "call foo arg"
-            boolean once = isCallOnceSyntax(text);
+        boolean once = isCallOnceSyntax(text);
+        if (once || isCallSyntax(text)) { // special case in form "call foo arg"
             if (once) {
                 text = text.substring(9);
             } else {
@@ -249,13 +253,13 @@ public class Script {
         switch (value.getType()) {
             case XML:
                 Node doc = value.getValue(Node.class);
-                return evalXmlPathOnXmlNode(doc, path);            
+                return evalXmlPathOnXmlNode(doc, path);
             default:
                 Node node = XmlUtils.fromMap(value.getAsMap());
                 return evalXmlPathOnXmlNode(node, path);
         }
     }
-    
+
     public static ScriptValue evalXmlPathOnXmlNode(Node doc, String path) {
         NodeList nodeList;
         try {
@@ -279,18 +283,18 @@ public class Script {
         }
         return new ScriptValue(list);
     }
-    
+
     private static ScriptValue nodeToValue(Node node) {
         int childElementCount = XmlUtils.getChildElementCount(node);
         if (childElementCount == 0) {
             // hack assuming this is the most common "intent"
             return new ScriptValue(node.getTextContent());
-        }        
+        }
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             return new ScriptValue(node);
         } else { // make sure we create a fresh doc else future xpath would run against original root
             return new ScriptValue(XmlUtils.toNewDocument(node));
-        }        
+        }
     }
 
     public static ScriptValue evalJsonPathOnVarByName(String name, String exp, ScriptContext context) {
@@ -469,22 +473,22 @@ public class Script {
     public static void assignYaml(String name, String exp, ScriptContext context) {
         assign(AssignType.YAML, name, exp, context);
     }
-    
+
     public static void assignString(String name, String exp, ScriptContext context) {
         assign(AssignType.STRING, name, exp, context);
     }
-    
+
     public static void assignJson(String name, String exp, ScriptContext context) {
         assign(AssignType.JSON, name, exp, context);
-    }    
+    }
 
     public static void assignXml(String name, String exp, ScriptContext context) {
         assign(AssignType.XML, name, exp, context);
     }
-    
+
     public static void assignXmlString(String name, String exp, ScriptContext context) {
         assign(AssignType.XML_STRING, name, exp, context);
-    }    
+    }
 
     private static void assign(AssignType assignType, String name, String exp, ScriptContext context) {
         name = StringUtils.trim(name);
@@ -538,7 +542,7 @@ public class Script {
         }
         context.vars.put(name, sv);
     }
-    
+
     private static ScriptValue toXml(String exp, ScriptContext context) {
         ScriptValue tempXml = eval(exp, context);
         if (tempXml.getType() == STRING) {
@@ -547,7 +551,7 @@ public class Script {
             return new ScriptValue(XmlUtils.fromMap(tempXml.getAsMap()));
         } else {
             throw new RuntimeException("cannot convert to xml: " + tempXml);
-        }        
+        }
     }
 
     public static boolean isQuoted(String exp) {
@@ -594,7 +598,7 @@ public class Script {
                             actual = new ScriptValue(node);
                         }
                         return matchXmlPath(matchType, actual, path, expected, context);
-                    }                    
+                    }
             }
         }
     }
@@ -605,9 +609,13 @@ public class Script {
         return matchStringOrPattern('*', path, matchType, null, actual, expected, context);
     }
 
-    public static boolean isValidator(String text) {
+    public static boolean isMacro(String text) {
         return text.startsWith("#");
     }
+    
+    public static boolean isOptionalMacro(String text) {
+        return text.startsWith("##");
+    }    
 
     public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType matchType, Object actRoot,
             ScriptValue actValue, String expected, ScriptContext context) {
@@ -615,58 +623,61 @@ public class Script {
             if (!actValue.isNull()) {
                 return matchFailed(path, actValue.getValue(), expected, "actual value is not null");
             }
-        } else if (isEmbeddedExpression(expected)) {
-            ScriptValue parentValue = getValueOfParentNode(actRoot, path);
-            ScriptValue expValue = evalInNashorn(expected.substring(1), context, actValue, parentValue);
-            return matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
-        } else if (isValidator(expected)) {
-            String validatorName = expected.substring(1);
-            if (validatorName.startsWith("#")) { // optional field
+        } else if (isMacro(expected)) {
+            String macroExpression;
+            if (isOptionalMacro(expected)) {
                 if (actValue.isNull()) {
                     return AssertionResult.PASS;
                 }
-                validatorName = validatorName.substring(1);
+                macroExpression = expected.substring(2);
+            } else {
+                macroExpression = expected.substring(1);
             }
-            if (validatorName.startsWith("regex")) {
-                String regex = validatorName.substring(5).trim();
+            if (isWithinParantheses(macroExpression)) { // '#(foo)' | '##(foo)'
+                ScriptValue parentValue = getValueOfParentNode(actRoot, path);
+                ScriptValue expValue = evalInNashorn(macroExpression, context, actValue, parentValue);
+                return matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
+            }        
+            if (macroExpression.startsWith("regex")) {
+                String regex = macroExpression.substring(5).trim();
                 RegexValidator v = new RegexValidator(regex);
                 ValidationResult vr = v.validate(actValue);
                 if (!vr.isPass()) { // TODO wrap string values in quotes
                     return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
                 }
-            } else if (validatorName.startsWith("?")) {
-                String exp = validatorName.substring(1);
+            } else if (macroExpression.startsWith("?")) {
+                String exp = macroExpression.substring(1);
                 ScriptValue parentValue = getValueOfParentNode(actRoot, path);
                 ScriptValue result = Script.evalInNashorn(exp, context, actValue, parentValue);
                 if (!result.isBooleanTrue()) {
                     return matchFailed(path, actValue.getValue(), expected, "did not evaluate to 'true'");
                 }
-             } else if (validatorName.startsWith("[") && validatorName.indexOf(']') > 0) {
+            } else if (macroExpression.startsWith("[") && macroExpression.indexOf(']') > 0) {
                 // check if array
                 ValidationResult vr = ArrayValidator.INSTANCE.validate(actValue);
                 if (!vr.isPass()) {
                     return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
-                }                
-                int endBracketPos = validatorName.indexOf(']');
+                }
+                int endBracketPos = macroExpression.indexOf(']');
                 List actValueList = actValue.getAsList();
-                if (endBracketPos > 1) {                    
+                if (endBracketPos > 1) {
                     int arrayLength = actValueList.size();
-                    String bracketContents = validatorName.substring(1, endBracketPos);
+                    String bracketContents = macroExpression.substring(1, endBracketPos);
                     ScriptValue parentValue = getValueOfParentNode(actRoot, path);
                     String expression;
                     if (bracketContents.indexOf('_') != -1) { // #[_ < 5]  
                         expression = bracketContents;
                     } else { // #[5] | #[$.foo] 
                         expression = bracketContents + " == " + arrayLength;
-                    }                     
+                    }
                     ScriptValue result = Script.evalInNashorn(expression, context, new ScriptValue(arrayLength), parentValue);
                     if (!result.isBooleanTrue()) {
                         return matchFailed(path, actValue.getValue(), expected, "array length expression did not evaluate to 'true'");
-                    }                        
+                    }
                 }
-                if (validatorName.length() > endBracketPos + 1) { // expression
+                if (macroExpression.length() > endBracketPos + 1) { // expression
                     // macro-fy before attempting to re-use match-each routine
-                    String expression = validatorName.substring(endBracketPos + 1);
+                    String expression = macroExpression.substring(endBracketPos + 1);
                     expression = StringUtils.trimToNull(expression);
                     if (expression != null) {
                         if (expression.startsWith("?")) {
@@ -675,11 +686,11 @@ public class Script {
                             expression = "'" + expression + "'";
                         } // else as-is
                         // actRoot assumed to be json in this case                        
-                        return matchJsonPath(MatchType.EACH_EQUALS, new ScriptValue(actRoot), path, expression, context);                           
+                        return matchJsonPath(MatchType.EACH_EQUALS, new ScriptValue(actRoot), path, expression, context);
                     }
-                }              
+                }
             } else {
-                Validator v = context.validators.get(validatorName);
+                Validator v = context.validators.get(macroExpression);
                 if (v == null) {
                     return matchFailed(path, actValue.getValue(), expected, "unknown validator");
                 } else {
@@ -734,7 +745,7 @@ public class Script {
         switch (expected.getType()) {
             case XML: // convert to map and then compare               
                 Node expNode = expected.getValue(Node.class);
-                expObject = XmlUtils.toObject(expNode);                
+                expObject = XmlUtils.toObject(expNode);
                 actObject = XmlUtils.toObject(actual.getValue(Node.class));
                 break;
             case MAP: // expected is already in map form, convert the actual also
@@ -817,7 +828,7 @@ public class Script {
                     return matchFailed(path, null, expectedNull.getValue(), "actual value is null but expected is " + expectedNull);
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, actual, expectedNull.getValue(String.class), context);
-                }                
+                }
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }

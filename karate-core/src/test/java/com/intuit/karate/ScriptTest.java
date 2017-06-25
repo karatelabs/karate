@@ -1054,6 +1054,14 @@ public class ScriptTest {
         Script.assign("foo", "{ val: -1002.2000000000000 }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ val: -1002.20 }", ctx).pass);
     }
+    
+    @Test
+    public void testDollarInEmbeddedExpressions() {
+        ScriptContext ctx = getContext();
+        Script.assign("temperature", "{ celsius: 100, fahrenheit: 212 }", ctx);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "temperature", null, "{ fahrenheit: 212 }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "temperature", null, "{ fahrenheit: '#($.celsius * 1.8 + 32)' }", ctx).pass);
+    }
 
     @Test
     public void testMatchArrayMacro() {
@@ -1085,13 +1093,17 @@ public class ScriptTest {
     @Test
     public void testSchemaLikeAndOptionalKeys() {
         ScriptContext ctx = getContext();
+        Script.assign("child", "{ hello: '#string' }", ctx);
         Script.assign("json", "{ foo: 'bar', baz: [1, 2, 3]}", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '#[] #number' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '#[] #number', child: '##(child)' }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '#[] #number', child: '#(child)' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '##[] #number' }", ctx).pass);
-        Script.assign("json", "{ foo: 'bar' }", ctx);
-        assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '#[] #number' }", ctx).pass);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '##[] #number' }", ctx).pass);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', blah: '##number' }", ctx).pass);
+        Script.assign("json", "{ foo: 'bar', child: { hello: 'world' } }", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '#[] #number', child: '#(child)' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '##[] #number', child: '#(child)' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '##[] #number', child: '##(child)' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', blah: '##number', child: '#(child)' }", ctx).pass);
         Script.assign("json", "{ foo: 'bar', baz: null }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: '#string', baz: '##string' }", ctx).pass);
         Script.assign("json", "null", ctx);
