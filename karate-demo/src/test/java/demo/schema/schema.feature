@@ -16,7 +16,7 @@ Scenario: using karate's simpler alternative to json-schema
 {
   id: '#number',
   name: '#string',
-  price: '#? _ > 0',
+  price: '#number? _ > 0',
   tags: '##[_ > 0] #string',
   dimensions: {
     length: '#number',

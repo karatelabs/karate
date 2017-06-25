@@ -1062,6 +1062,22 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "temperature", null, "{ fahrenheit: 212 }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "temperature", null, "{ fahrenheit: '#($.celsius * 1.8 + 32)' }", ctx).pass);
     }
+    
+    @Test
+    public void testValidationStringInsteadOfNumberInPredicate() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ bar: 5 }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#number' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#? _ == 5' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#? _ > 0' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#number? _ > 0' }", ctx).pass);
+        Script.assign("foo", "{ bar: '5' }", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#number' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#? _ == 5' }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#? _ === 5' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#? _ > 0' }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#number? _ > 0' }", ctx).pass);
+    }
 
     @Test
     public void testMatchArrayMacro() {

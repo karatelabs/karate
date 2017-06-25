@@ -645,13 +645,6 @@ public class Script {
                 if (!vr.isPass()) { // TODO wrap string values in quotes
                     return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
                 }
-            } else if (macroExpression.startsWith("?")) {
-                String exp = macroExpression.substring(1);
-                ScriptValue parentValue = getValueOfParentNode(actRoot, path);
-                ScriptValue result = Script.evalInNashorn(exp, context, actValue, parentValue);
-                if (!result.isBooleanTrue()) {
-                    return matchFailed(path, actValue.getValue(), expected, "did not evaluate to 'true'");
-                }
             } else if (macroExpression.startsWith("[") && macroExpression.indexOf(']') > 0) {
                 // check if array
                 ValidationResult vr = ArrayValidator.INSTANCE.validate(actValue);
@@ -689,14 +682,32 @@ public class Script {
                         return matchJsonPath(MatchType.EACH_EQUALS, new ScriptValue(actRoot), path, expression, context);
                     }
                 }
-            } else {
-                Validator v = context.validators.get(macroExpression);
-                if (v == null) {
-                    return matchFailed(path, actValue.getValue(), expected, "unknown validator");
+            } else { // '#? _ != 0' | '#string' | '#number? _ > 0'
+                int questionPos = macroExpression.indexOf('?');
+                String validatorName = null;
+                if (questionPos != -1) {
+                    validatorName = macroExpression.substring(0, questionPos);
                 } else {
-                    ValidationResult vr = v.validate(actValue);
-                    if (!vr.isPass()) {
-                        return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
+                    validatorName = macroExpression;
+                }
+                validatorName = StringUtils.trimToNull(validatorName);
+                if (validatorName != null) {
+                    Validator v = context.validators.get(validatorName);
+                    if (v == null) {
+                        return matchFailed(path, actValue.getValue(), expected, "unknown validator");
+                    } else {
+                        ValidationResult vr = v.validate(actValue);
+                        if (!vr.isPass()) {
+                            return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
+                        }
+                    }
+                }
+                if (questionPos != -1) {
+                    macroExpression = macroExpression.substring(questionPos + 1);
+                    ScriptValue parentValue = getValueOfParentNode(actRoot, path);
+                    ScriptValue result = Script.evalInNashorn(macroExpression, context, actValue, parentValue);
+                    if (!result.isBooleanTrue()) {
+                        return matchFailed(path, actValue.getValue(), expected, "did not evaluate to 'true'");
                     }
                 }
             }

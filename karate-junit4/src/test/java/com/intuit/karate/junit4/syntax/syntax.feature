@@ -240,6 +240,14 @@ Then match cat == { name: '#string', type: '#string', id: '#string'}
 * def date = { month: 3 }
 * match date == { month: '#? _ > 0 && _ < 13' }
 
+# built-in and self-validation combined
+* def date = { month: '3' }
+# this will pass
+* match date == { month: '#? _ > 0' }
+# but this won't
+# * match date == { month: '#number? _ > 0' }
+
+
 # validation and variables
 * def date = { month: 3 }
 * def min = 1

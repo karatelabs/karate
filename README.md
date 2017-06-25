@@ -54,7 +54,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml) or Cucumber [Scenario Outline](#the-cucumber-way) tables
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
-* Simpler and more [powerful alternative to JSON-schema](#schema-validation) for validating payload structure and data-formats that even supports cross-field / domain validation logic
+* Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and data-formats that even supports cross-field / domain validation logic
 * Scripts can [call other scripts](#calling-other-feature-files) - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
 * Embedded JavaScript engine that allows you to build a library of [re-usable functions](#calling-javascript-functions) that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is [so easy](#reading-files) - that it becomes a natural habit for the test-developer
@@ -81,7 +81,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 A set of real-life examples can be found here: [Karate Demos](karate-demo)
 
 ## Comparison with REST-assured
-For teams familiar with or currently using REST-assured, this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](http://tinyurl.com/karatera)
+For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](http://tinyurl.com/karatera)
 
 ## References
 * [Karate a Rest Test Tool – Basic API Testing](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) - blog post and video tutorial by [Joe Colantonio](https://twitter.com/jcolantonio)
@@ -1227,18 +1227,16 @@ Marker | Description
 #(EXPR) | For completeness, [embedded expressions](#embedded-expressions) belong in this list as well
 
 ### Optional Fields
-If two cross-hatch `#` symbols are used, it means that the key is optional or that the value can be null.
+If two cross-hatch `#` symbols are used as the prefix (for example: `##number`), it means that the key is optional or that the value can be null.
 ```cucumber
 * def foo = { bar: 'baz' }
 * match foo == { bar: '#string', ban: '##string' }
 ```
 
 ### 'Self' Validation Expressions
-The special 'predicate' marker in the last row of the table above is an interesting one.  It is best
-explained via examples.
+The special 'predicate' marker in the last row of the table above is an interesting one.  It is best explained via examples.
 
-Observe how the value of the field being validated (or 'self') is injected into
-the 'underscore' expression variable: '`_`'
+Observe how the value of the field being validated (or 'self') is injected into the 'underscore' expression variable: '`_`'
 ```cucumber
 * def date = { month: 3 }
 * match date == { month: '#? _ > 0 && _ < 13' }
@@ -1252,12 +1250,22 @@ What is even more interesting is that expressions can refer to variables:
 * match date == { month: '#? _ >= min && _ <= max' }
 ```
 
-And functions work as well ! You can imagine how you could evolve a nice set of utilities that 
-validate all your domain objects.
+And functions work as well ! You can imagine how you could evolve a nice set of utilities that validate all your domain objects.
 ```cucumber
 * def date = { month: 3 }
 * def isValidMonth = function(m) { return m >= 0 && m <= 12 }
 * match date == { month: '#? isValidMonth(_)' }
+```
+
+Especially since strings can be easily coerced to numbers (and vice-versa) in Javascript, you can combine built-in validators with the self-valildation 'predicate' form as follows:
+```cucumber
+# given this invalid input (string instead of number)
+* def date = { month: '3' }
+# this will pass
+* match date == { month: '#? _ > 0' }
+# but this won't
+# * match date == { month: '#number? _ > 0' }
+
 ```
 
 You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional validations ! This example uses [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' syntax - and situations where this comes in useful will be apparent when we discuss [`match each`](#match-each).
@@ -1284,18 +1292,14 @@ Then match response == read('test.pdf')
 * assert hello == 'Hello World!'
 ```
 
-Checking if a string is contained within another string is a very common need and 
-[`match` (name) `contains`](#match-contains) works just like you'd expect:
+Checking if a string is contained within another string is a very common need and [`match` (name) `contains`](#match-contains) works just like you'd expect:
 ```cucumber
 * def hello = 'Hello World!'
 * match hello contains 'World'
 ```
 
 ### `match header`
-Since asserting against header values in the response is a common task - `match header`
-has a special meaning.  It short-cuts to the pre-defined variable [`responseHeaders`](#responseheaders) and
-reduces some complexity - because strictly, HTTP headers are a 'multi-valued map' or a 
-'map of lists' - the Java-speak equivalent being `Map<String, List<String>>`.
+Since asserting against header values in the response is a common task - `match header` has a special meaning.  It short-cuts to the pre-defined variable [`responseHeaders`](#responseheaders) and reduces some complexity - because strictly, HTTP headers are a 'multi-valued map' or a 'map of lists' - the Java-speak equivalent being `Map<String, List<String>>`.
 ```cucumber
 # so after a http request
 Then match header Content-Type == 'application/json'
@@ -1304,8 +1308,7 @@ Then match header Content-Type contains 'application'
 ```  
 Note the extra convenience where you don't have to enclose the LHS key in quotes.
 
-You can always directly access the variable called [`responseHeaders`](#responseheaders)
-if you wanted to do more checks, but you typically won't need to.
+You can always directly access the variable called [`responseHeaders`](#responseheaders) if you wanted to do more checks, but you typically won't need to.
 
 ## Matching Sub-Sets of JSON Keys and Arrays
 ### `match contains`
@@ -1340,12 +1343,9 @@ The `!` (not) operator is especially useful for `contains` and JSON arrays.
 
 #### JSON Arrays
 
-This is a good time to deep-dive into JsonPath, which is perfect for slicing and dicing JSON into 
-manageable chunks. It is worth taking a few minutes to go through the documentation and examples 
-here: [JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
+This is a good time to deep-dive into JsonPath, which is perfect for slicing and dicing JSON into manageable chunks. It is worth taking a few minutes to go through the documentation and examples here: [JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
 
-Here are some example assertions performed while scraping a list of child elements out of the JSON below.
-Observe how you can `match` the result of a JsonPath expression with your expected data.
+Here are some example assertions performed while scraping a list of child elements out of the JSON below. Observe how you can `match` the result of a JsonPath expression with your expected data.
 
 ```cucumber
 Given def cat = 
@@ -1375,12 +1375,11 @@ Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob'
 Then match cat.kittens contains { id: 42, name: '#string' }
 ```
 
-It is worth mentioning that to do the equivalent of the last line in Java, you would typically have to
-traverse 2 Java Objects, one of which is within a list, and you would have to check for nulls as well.
+It is worth mentioning that to do the equivalent of the last line in Java, you would typically have to traverse 2 Java Objects, one of which is within a list, and you would have to check for nulls as well.
 
-When you use Karate, all your data assertions can be done in pure JSON and without needing a thick
-forest of companion Java objects. And when you [`read`](#read) your JSON objects from (re-usable) files,
-even complex response payload assertions can be accomplished in just a single line of Karate-script.
+When you use Karate, all your data assertions can be done in pure JSON and without needing a thick forest of companion Java objects. And when you [`read`](#read) your JSON objects from (re-usable) files, even complex response payload assertions can be accomplished in just a single line of Karate-script.
+
+Refer to this [case study](https://twitter.com/KarateDSL/status/873035687817117696) for how dramatic the reduction of lines of code can be.
 
 #### `match contains only`
 For those cases where you need to assert that **all** array elements are present but in **any order**
@@ -1451,6 +1450,9 @@ But first, a special short-cut for array validation needs to be introduced:
 # should be an array of strings with size 2
 * match foo == '#[2] #string'
 
+# should be an array of strings each of length 3
+* match foo == '#[] #string? _.length == 3'
+
 # should be null or an array of strings
 * match foo == '##[] #string'
 ```
@@ -1471,7 +1473,7 @@ Then match response ==
     countryId: '#number', 
     countryName: '#string', 
     leagueName: '##string', 
-    status: '#number', 
+    status: '#number? _ >= 0', 
     sportName: '#string',
     time: '#? isValidTime(_)'
   },
@@ -1498,7 +1500,7 @@ And you can perform conditional / cross-field validations and even business-logi
 
 Refer to this for the complete example: [`schema-like.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/schema-like.feature)
 
-And there is another example in the [karate-demos](#karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example.
+And there is another example in the [karate-demos](#karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example. You can also find a nice visual comparison and explanation [here](https://twitter.com/KarateDSL/status/878984854012022784).
 
 ## `get`
 By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features). For example:

@@ -17,7 +17,7 @@ Then match response ==
     countryId: '#number', 
     countryName: '#string', 
     leagueName: '##string', 
-    status: '#? _ >= 0', 
+    status: '#number? _ >= 0', 
     sportName: '#string',
     time: '#? isValidTime(_)'
   },
@@ -53,6 +53,9 @@ Then match response ==
 
 # should be an array of strings with size 2
 * match foo == '#[2] #string'
+
+# should be an array of strings each of length 3
+* match foo == '#[] #string? _.length == 3'
 
 # should be null or an array of strings
 * match foo == '##[] #string'
