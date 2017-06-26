@@ -583,7 +583,19 @@ Note that the parser is 'lenient' so that you don't have to enclose all keys in 
 * def cat = { name: 'Billie', scores: [2, 5] }
 * assert cat.scores[1] == 5
 ```
-When inspecting JSON (or XML) for expected values you are probably better off using [`match`](#match) instead of `assert`.
+When asserting for expected values in JSON or XML you are probably better off using [`match`](#match) instead of [`assert`](#assert).
+```cucumber
+* def cats = [{ name: 'Billie' }, { name: 'Bob' }]
+* match cats[1] == { name: 'Bob' }
+```
+
+Karate's native support for JSON means that you can assign parts of a JSON instance into another variable, which is useful when dealing with complex [`response`](#response) payloads.
+```cucumber
+* def first = cats[0]
+* match first == { name: 'Billie' }
+```
+
+For manipulating or updating JSON (or XML) using path expressions, refer to the [`set`](#set) keyword.
 
 ## XML
 ```cucumber
@@ -1683,7 +1695,7 @@ Notice how once the `authToken` variable is initialized, it is used by the above
 
 If a few steps in your flow need to temporarily change (or completely bypass) the currently-set header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the middle of a script.
 
-The [karate-demo] has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature) 
+The [karate-demo](karate-demo) has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature) 
 
 # Code Reuse / Common Routines
 

@@ -17,9 +17,19 @@ Scenario: syntax examples
 * assert c == 3
 
 # json is a first class citizen, keys don't need to be quoted and single-quotes are fine
-* def myJson = { foo: 'bar' }
+* def cat = { name: 'Billie', scores: [2, 5] }
+* assert cat.scores[1] == 5
+
+# when inspecting json for expected values you are probably better off using match instead of assert.
+* def cats = [{ name: 'Billie' }, { name: 'Bob' }]
+* match cats[1] == { name: 'Bob' }
+
+# re-assigning parts of json to other variables
+* def first = cats[0]
+* match first == { name: 'Billie' }
 
 # assert json path expressions
+* def myJson = { foo: 'bar' }
 * match myJson $.foo == 'bar'
 # prefer the shorthand for match
 * match myJson.foo == 'bar'

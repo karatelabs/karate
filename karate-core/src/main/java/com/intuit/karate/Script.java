@@ -579,6 +579,9 @@ public class Script {
             return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
         } else {
             ScriptValue actual = context.vars.get(name);
+            if (actual == null) {
+                throw new RuntimeException("variable not initialized: " + name);
+            }
             switch (actual.getType()) {
                 case STRING:
                 case INPUT_STREAM:
