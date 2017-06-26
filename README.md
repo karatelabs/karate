@@ -1269,13 +1269,13 @@ And functions work as well ! You can imagine how you could evolve a nice set of 
 * match date == { month: '#? isValidMonth(_)' }
 ```
 
-Especially since strings can be easily coerced to numbers (and vice-versa) in Javascript, you can combine built-in validators with the self-valildation 'predicate' form as follows:
+Especially since strings can be easily coerced to numbers (and vice-versa) in Javascript, you can combine built-in validators with the self-valildation 'predicate' form like this: `'#number? _ > 0'`
 ```cucumber
 # given this invalid input (string instead of number)
 * def date = { month: '3' }
 # this will pass
 * match date == { month: '#? _ > 0' }
-# but this won't
+# but this 'combined form' will fail, which is what we want
 # * match date == { month: '#number? _ > 0' }
 
 ```
