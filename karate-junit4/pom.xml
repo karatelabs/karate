@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.4.2</version>
+        <version>0.4.3</version>
     </parent>
     <artifactId>karate-junit4</artifactId>
     <packaging>jar</packaging>   
