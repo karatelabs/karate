@@ -137,6 +137,8 @@ This will create a folder called 'myproject' (or whatever you set the name to).
 
 You can refer to this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse. Also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
 
+Another blog post which is a good step-by-step reference is [this one by Micha Kops](http://www.hascode.com/2017/04/behavior-driven-development-writing-webservice-tests-with-java-and-karate/) - especially if you use the 'default' maven folder structure instead of the one recommended below.
+
 ## Folder Structure
 A Karate test script has the file extension `.feature` which is the standard followed by Cucumber.  You are free to organize your files using regular Java package conventions.
 
@@ -794,7 +796,7 @@ The `call` keyword provides an [alternate way of calling JavaScript functions](#
 
 ## Reading Files
 
-Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) as the `*.feature` file. But you can prefix the name with `classpath:` in which case the 'root' folder would be `src/test/java` (assuing you are using the [recommended folder structure](#folder-structure)).
+Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) as the `*.feature` file. But you can prefix the name with `classpath:` in which case the 'root' folder would be `src/test/java` (assuming you are using the [recommended folder structure](#folder-structure)).
 
 Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
 

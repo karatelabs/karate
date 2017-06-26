@@ -35,7 +35,7 @@ as well as demonstrate various Karate features and best-practices.
 Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
 
 ### Maven Dependency
-Add the `net.masterthought:cucumber-reporting` jar as dependency in `test` scope
+Add the `net.masterthought:cucumber-reporting` jar as a dependency in `test` scope
 ```xml
 <dependency>
     <groupId>net.masterthought</groupId>
