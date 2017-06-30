@@ -31,7 +31,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 ----- | ---- | ---- | --- | ---
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
 .... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
-.... | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Script Structure](#script-structure) | [Cucumber vs Karate](#cucumber-vs-karate)
+.... | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution) | [Script Structure](#script-structure)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`table`](#table) | [`text`](#text) / [`yaml`](#yaml)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
@@ -43,7 +43,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
  **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
-.... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured)
+.... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
 # Features
 * Java knowledge is not required and even non-programmers can write tests.
@@ -203,7 +203,7 @@ src/test/java
 ```
 Assuming you use JUnit, there are some good reasons for the recommended (best practice) naming convention and choice of file-placement shown above:
 * Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
-* `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder heirarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
+* `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder hierarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
 * `some-classpath-function.js` and `some-classpath-payload.js` are in the 'root' of the Java 'classpath' which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
 
 For details on what actually goes into a script or `*.feature` file, refer to the
@@ -212,7 +212,7 @@ For details on what actually goes into a script or `*.feature` file, refer to th
 ## Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
-If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select a single [`Scenario`](#script-structure) within A `Feature` to run at a time.
+If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time.
 
 ## Running With JUnit
 To run a script `*.feature` file from your Java IDE, you just need the following empty test-class in the same package. The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package. This comes in useful because depending on how you organize your files and folders - you can have multiple feature files executed by a single JUnit test-class.
@@ -366,7 +366,9 @@ This is the preferred way of automating the execution of all Karate tests in a p
 
 The [Karate Demo](karate-demo) has a working example of this set-up. It also [explains how](karate-demo#example-report) a third-party library can be easily used to generate some very nice-looking reports. For example, here below is an actual report generated by the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) open-source library.
 
-![Karate and Maven Cucumber Reporting](karate-demo/src/test/resources/karate-maven-cucumber-reporting.png) 
+![Karate and Maven Cucumber Reporting](karate-demo/src/test/resources/karate-maven-cucumber-reporting.png)
+
+The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-using-jacoco).
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default
@@ -720,7 +722,7 @@ Examples:
 | Smith | 
 ```
 
-Note that if you did not need to inject [`Examples:`](#data-driven-tests) using `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
+Note that if you did not need to inject [`Examples:`](#data-driven-tests) into 'placeholders' enclosed within `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
 
 ## `yaml`
 ### Import YAML as JSON
@@ -949,7 +951,7 @@ See also [`responseStatus`](#responsestatus).
 # Keywords that set key-value pairs
 They are `param`, `header`, `cookie`, `form field` and `multipart field`. 
 
-The syntax will include a '=' sign between the key and the value.  The key should not be be within quotes.
+The syntax will include a '=' sign between the key and the value.  The key should not be within quotes.
 
 > To make dynamic data-driven testing easier, the following keywords also exist: [`params`](#params), [`headers`](#headers), [`cookies`](#cookies-json) and [`form fields`](#form-fields). They use JSON to build the relevant parts of the HTTP request.
 
@@ -993,7 +995,7 @@ A common need is to send the same header(s) for _every_ request, and [`configure
 * configure headers = { Accept: 'application/xml' }
 ```
 
-If you need headers to be dynamically generated for each HTTP request, [`configure headers`](#configure-headers) is what you need - and you use a JavaScript function instead of JSON.
+If you need headers to be dynamically generated for each HTTP request, use a JavaScript function with [`configure headers`](#configure-headers) instead of JSON.
 
 Multi-value headers (though rarely used in the wild) are also supported:
 ```cucumber

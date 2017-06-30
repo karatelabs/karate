@@ -60,4 +60,9 @@ And here is the output, which goes into `target/cucumber-html-reports` if you fo
 
 ![Karate and Maven Cucumber Reporting](src/test/resources/karate-maven-cucumber-reporting.png) 
 
+## Code Coverage using Jacoco
+In the [`pom.xml`](pom.xml#L91), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Instrumentation is performed whenever tests are run and the coverage data (binary) would be saved to this file: `target/jacoco.exec`. To generate the human-readable report, run the command `mvn jacoco:report`, or to do everything in one shot - you can do `mvn clean test jacoco:report`. The HTML report would be output to `target/site/jacoco/index.html`.
 
+![Jacoco Code Coverage Report](src/test/resources/karate-jacoco.png) 
+
+As this [Spring Boot](http://projects.spring.io/spring-boot/) demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate.
