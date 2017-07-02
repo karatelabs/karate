@@ -8,7 +8,10 @@ When method get
 Then status 200
 
 # even the responseCookies can be validated using 'match'
-And match responseCookies.time contains { value: '#string' }
+And match responseCookies contains { time: '#notnull' }
+
+# example of how to check that a cookie does NOT exist
+And match responseCookies !contains { blah: '#notnull' }
 
 And def time = responseCookies.time.value
 And def token = response

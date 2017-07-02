@@ -41,7 +41,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
- **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](##xpath-functions) | [Cucumber Tags](#cucumber-tags)
+ **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
@@ -1650,7 +1650,10 @@ The `responseCookies` variable is set upon any HTTP response and is a map-like (
 * assert responseCookies['my.key'].value == 'someValue'
 
 # karate's unified data handling means that even 'match' works
-* match responseCookies.time contains { value: '#number' }
+* match responseCookies contains { time: '#notull' }
+
+# ... which means that checking if a cookie does NOT exist is easy
+* match responseCookies !contains { blah: '#notnull' }
 
 # save a response cookie for later use
 * def time = responseCookies.time.value
