@@ -38,10 +38,10 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
-**Special Variables** | [`response`](#response) / [`responseCookies`](#responsecookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
- **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
- **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
+**Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
+**Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
+ **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) / [JS `karate` object](#the-karate-object) | [Calling Java](#calling-java)
+ **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](##xpath-functions) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
@@ -1212,6 +1212,23 @@ XML and XPath works just like you'd expect.
 ```
 
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
+
+## `remove`
+This is like the opposite of [`set`](#set) where you need to remove keys or data elements. You can even remove array elements by index.
+```cucumber
+* def json = { foo: 'world', hey: 'ho', zee: [1, 2, 3] }
+* remove json.hey
+* match json == { foo: 'world', zee: [1, 2, 3] }
+* remove json.zee[1]
+* match json == { foo: 'world', zee: [1, 3] }
+```
+
+`remove` works for XML elements as well:
+```cucumber
+* def xml = <foo><bar><hello>world</hello></bar></foo>
+* remove xml/foo/bar/hello
+* match xml == <foo><bar/></foo>
+```
 
 ## Ignore or Validate
 When expressing expected results (in JSON or XML) you can mark some fields to be ignored when the match (comparison) is performed.  You can even use a regular-expression so that instead of checking for equality, Karate will just validate that the actual value conforms to the expected pattern.

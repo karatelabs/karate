@@ -1072,32 +1072,40 @@ public class Script {
             return AssertionResult.PASS; // primitives, are equal
         }
     }
-
+    
+    public static void removeValueByPath(String name, String path, ScriptContext context) {
+        setValueByPath(name, path, null, true, context);
+    }
+    
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
+        setValueByPath(name, path, exp, false, context);
+    }
+
+    public static void setValueByPath(String name, String path, String exp, boolean delete, ScriptContext context) {
         name = StringUtils.trim(name);
         path = StringUtils.trimToNull(path);
         if (path == null) {
-            Pair<String, String> pair = parseVariableAndPath(name);
-            name = pair.getLeft();
-            path = pair.getRight();
-        }
+            Pair<String, String> nameAndPath = parseVariableAndPath(name);
+            name = nameAndPath.getLeft();
+            path = nameAndPath.getRight();            
+        } 
         if ("request".equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is not a variable,"
                     + " use the form '* " + name + " <expression>' to initialize the "
                     + name + ", and <expression> can be a variable");
         }
+        ScriptValue value = delete ? ScriptValue.NULL : eval(exp, context);
         if (isJsonPath(path)) {
-            ScriptValue target = context.vars.get(name);
-            ScriptValue value = eval(exp, context);
+            ScriptValue target = context.vars.get(name);            
             switch (target.getType()) {
                 case JSON:
                     DocumentContext dc = target.getValue(DocumentContext.class);
-                    JsonUtils.setValueByPath(dc, path, value.getAfterConvertingFromJsonOrXmlIfNeeded());
+                    JsonUtils.setValueByPath(dc, path, value.getAfterConvertingFromJsonOrXmlIfNeeded(), delete);
                     break;
                 case MAP:
                     Map<String, Object> map = target.getValue(Map.class);
                     DocumentContext fromMap = JsonPath.parse(map);
-                    JsonUtils.setValueByPath(fromMap, path, value.getAfterConvertingFromJsonOrXmlIfNeeded());
+                    JsonUtils.setValueByPath(fromMap, path, value.getAfterConvertingFromJsonOrXmlIfNeeded(), delete);
                     context.vars.put(name, fromMap);
                     break;
                 default:
@@ -1105,14 +1113,17 @@ public class Script {
             }
         } else if (isXmlPath(path)) {
             Document doc = context.vars.get(name, Document.class);
-            ScriptValue sv = eval(exp, context);
-            switch (sv.getType()) {
+            switch (value.getType()) {
                 case XML:
-                    Node node = sv.getValue(Node.class);
+                    Node node = value.getValue(Node.class);
                     XmlUtils.setByPath(doc, path, node);
                     break;
                 default:
-                    XmlUtils.setByPath(doc, path, sv.getAsString());
+                    if (delete) {
+                        XmlUtils.removeByPath(doc, path);
+                    } else {
+                        XmlUtils.setByPath(doc, path, value.getAsString());
+                    }
             }
         } else {
             throw new RuntimeException("unexpected path: " + path);

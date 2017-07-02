@@ -110,41 +110,74 @@ public class JsonUtils {
             sb.append(o);
         }       
     }
-
-    public static Pair<String, String> getParentAndLeafPath(String path) {
+    
+    public static Pair<String, String> getParentAndLeafPath(String path) {       
         int pos = path.lastIndexOf('.');
-        String left = path.substring(0, pos == -1 ? 0 : pos);
+        int temp = path.lastIndexOf("['");
+        if (temp != -1 && temp > pos) {
+            pos = temp - 1;
+        }        
         String right = path.substring(pos + 1);
+        if (right.startsWith("[")) {
+            pos = pos + 1;
+        }
+        String left = path.substring(0, pos == -1 ? 0 : pos);
         return Pair.of(left, right);
     }
-
+    
+    public static void removeValueByPath(DocumentContext doc, String path) {
+        setValueByPath(doc, path, null, true);
+    }    
+    
     public static void setValueByPath(DocumentContext doc, String path, Object value) {
+        setValueByPath(doc, path, value, false);
+    }
+
+    public static void setValueByPath(DocumentContext doc, String path, Object value, boolean remove) {
         if ("$".equals(path)) {
             throw new RuntimeException("cannot replace root path $");
         }
         Pair<String, String> pathLeaf = getParentAndLeafPath(path);
         String left = pathLeaf.getLeft();
         String right = pathLeaf.getRight();
-        if (right.endsWith("]")) { // json array
+        if (right.endsWith("]") && !right.endsWith("']")) { // json array
             int indexPos = right.lastIndexOf('[');
             int index = Integer.valueOf(right.substring(indexPos + 1, right.length() - 1));
-            right = right.substring(0, indexPos);
-            List list;
-            String listPath = left + "." + right;
+            right = right.substring(0, indexPos);  
+            List list;                        
+            String listPath;
+            if (right.startsWith("[")) {
+                listPath = left + right;
+            } else {
+                listPath = left + "." + right;
+            }
             try {
                 list = doc.read(listPath);
                 if (index < list.size()) {
-                    list.set(index, value);
-                } else {
+                    if (remove) {
+                        list.remove(index);
+                    } else {
+                        list.set(index, value);
+                    }
+                } else if (!remove) {
                     list.add(value);
                 }
-            } catch (Exception e) {
-                list = new ArrayList();
-                list.add(value);
-                doc.put(left, right, list);
+            } catch (Exception e) { // path does not exist or null
+                if (!remove) {
+                    list = new ArrayList();
+                    list.add(value);
+                    doc.put(left, right, list);
+                }
             }
         } else {
-            doc.put(left, right, value);
+            if (remove) {
+                doc.delete(path);
+            } else {
+                if (right.startsWith("[")) {
+                    right = right.substring(2, right.length() - 2);
+                }
+                doc.put(left, right, value);
+            }
         }
     }
     

@@ -686,29 +686,62 @@ public class ScriptTest {
     public void testParsingVariableAndJsonPath() {
         assertEquals(Pair.of("foo", "$"), Script.parseVariableAndPath("foo"));
         assertEquals(Pair.of("foo", "$.bar"), Script.parseVariableAndPath("foo.bar"));
+        assertEquals(Pair.of("foo", "$['bar']"), Script.parseVariableAndPath("foo['bar']"));
         assertEquals(Pair.of("foo", "$[0]"), Script.parseVariableAndPath("foo[0]"));
         assertEquals(Pair.of("foo", "$[0].bar"), Script.parseVariableAndPath("foo[0].bar"));
+        assertEquals(Pair.of("foo", "$[0]['bar']"), Script.parseVariableAndPath("foo[0]['bar']"));
         assertEquals(Pair.of("foo", "/bar"), Script.parseVariableAndPath("foo/bar"));
         assertEquals(Pair.of("foo", "/"), Script.parseVariableAndPath("foo/"));
         assertEquals(Pair.of("foo", "/bar/baz[1]/ban"), Script.parseVariableAndPath("foo/bar/baz[1]/ban"));
     }
 
     @Test
-    public void testSettingPathOnVariable() {
-        ScriptContext ctx = getContext();
-        Document xml = XmlUtils.toXmlDoc("<root><foo>bar</foo></root>");
-        ctx.vars.put("xml", xml);
-        DocumentContext json = JsonUtils.toJsonDoc("{ foo: 'bar' }");
-        ctx.vars.put("json", json);
-        Script.setValueByPath("xml", "/root/foo", "'hello'", ctx);
-        assertEquals("hello", Script.evalXmlPathOnVarByName("xml", "/root/foo", ctx).getValue());
-        Script.setValueByPath("xml/root/foo", null, "'world'", ctx);
-        assertEquals("world", Script.evalXmlPathOnVarByName("xml", "/root/foo", ctx).getValue());
+    public void testSetValueOnVariableByPath() {
+        ScriptContext ctx = getContext();        
+        // json
+        Script.assign("json", "{ foo: 'bar' }", ctx);       
         Script.setValueByPath("json", "$.foo", "'hello'", ctx);
-        assertEquals("hello", Script.evalJsonPathOnVarByName("json", "$.foo", ctx).getValue());
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'hello' }", ctx).pass);
+        Script.setValueByPath("json.foo", null, "null", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: null }", ctx).pass);        
         Script.setValueByPath("json.foo", null, "'world'", ctx);
-        assertEquals("world", Script.evalJsonPathOnVarByName("json", "$.foo", ctx).getValue());
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'world' }", ctx).pass);        
+        Script.setValueByPath("json.bar[0]", null, "1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'world', bar: [1] }", ctx).pass);
+        Script.setValueByPath("json.bar[0]", null, "2", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'world', bar: [2] }", ctx).pass);
+        Script.setValueByPath("json.bar[1]", null, "3", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'world', bar: [2, 3] }", ctx).pass); 
+        // json key that needs to be within quotes
+        Script.assign("json", "{ 'bad-name': 'foo' }", ctx);       
+        Script.setValueByPath("json", "$['bad-name']", "'bar'", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ 'bad-name': 'bar' }", ctx).pass);        
+        // xml        
+        Script.assign("xml", "<root><foo>bar</foo></root>", ctx);
+        Script.setValueByPath("xml", "/root/foo", "'hello'", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo>hello</foo></root>", ctx).pass);
+        Script.setValueByPath("xml/root/foo", null, "null", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo/></root>", ctx).pass);        
+        Script.setValueByPath("xml/root/foo", null, "'world'", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo>world</foo></root>", ctx).pass);        
     }
+    
+    @Test
+    public void testDeleteValueOnVariableByPath() {
+        ScriptContext ctx = getContext();        
+        // json
+        Script.assign("json", "{ foo: 'bar', baz: 'ban' }", ctx);
+        Script.removeValueByPath("json", "$.baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'bar' }", ctx).pass);
+        Script.setValueByPath("json.baz", null, "[1, 2, 3]", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'bar', baz: [1, 2, 3] }", ctx).pass);
+        Script.removeValueByPath("json", "$.baz[1]", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'bar', baz: [1, 3] }", ctx).pass);
+        // xml        
+        Script.assign("xml", "<root><foo>bar</foo></root>", ctx);
+        Script.removeValueByPath("xml", "/root/foo", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root/>", ctx).pass);
+    }    
 
     @Test
     public void testDefaultValidators() {

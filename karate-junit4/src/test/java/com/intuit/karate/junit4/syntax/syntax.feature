@@ -68,6 +68,22 @@ Scenario: syntax examples
 # you can ignore fields marked as #ignore
 * match myJson == { cat: '#ignore', hey: 'ho', foo: 'world', zee: [5] }
 
+# delete keys
+* remove myJson.cat
+* match myJson == { foo: 'world', hey: 'ho', zee: [5] }
+
+* remove myJson.hey
+* match myJson == { foo: 'world', zee: [5] }
+
+# append to array
+* set myJson.zee[1] = 6
+* set myJson.zee[2] = 7
+* match myJson == { foo: 'world', zee: [5, 6, 7] }
+
+# delete array element by index
+* remove myJson.zee[1]
+* match myJson == { foo: 'world', zee: [5, 7] }
+
 # xml is also a first class citizen of the syntax
 Given def myXml = <hello>world</hello>
 # assert xpath expressions
@@ -87,6 +103,10 @@ Then match cat / == <cat><name>Jean</name></cat>
 * def xml = <foo><bar>baz</bar></foo>
 * set xml/foo/bar = <hello>world</hello>
 * match xml == <foo><bar><hello>world</hello></bar></foo>
+
+# delete nodes
+* remove xml/foo/bar/hello
+* match xml == <foo><bar/></foo>
 
 # assign xpath expressions to variables
 # also note the multi-line option / syntax

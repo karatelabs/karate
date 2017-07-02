@@ -477,6 +477,11 @@ public class StepDefs {
     public void setNamedByPath(String name, String path, String value) {
         Script.setValueByPath(name, path, value, context);
     }
+    
+    @Then("^remove ([^\\s]+)( .+)?")
+    public void removeByPath(String name, String path) {
+        Script.removeValueByPath(name, path, context);
+    }    
 
     @Given("^call ([^\\s]+)( .*)?")
     public final void callAndUpdateVars(String name, String arg) {

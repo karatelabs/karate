@@ -140,6 +140,17 @@ public class XmlUtils {
             node.setNodeValue(value);
         }
     }
+    
+    public static void removeByPath(Document doc, String path) {
+        Node node = getNodeByPath(doc, path);
+        if (node == null) {
+            return;
+        }
+        Node parent = node.getParentNode();
+        if (parent != null) {
+            parent.removeChild(node);
+        }
+    }
 
     public static void setByPath(Document doc, String path, Node in) {
         if (in.getNodeType() == Node.DOCUMENT_NODE) {
