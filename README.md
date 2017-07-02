@@ -36,12 +36,12 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
-**Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies-json) | [`form field`](#form-field) / [`form fields`](#form-fields)
+**Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Get, Set, Match** | [`get`](#get) / [`set`](#set) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
-**Special Variables** | [`response`](#response) / [`cookies`](#cookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
+**Special Variables** | [`response`](#response) / [`responseCookies`](#responsecookies) | [`responseHeaders`](#responseheaders) | [`responseStatus`](#responsestatus) | [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [JS `karate` object](#the-karate-object)
- **Tips / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
+ **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [Calling Java](#calling-java) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
@@ -102,13 +102,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.4.3</version>
+    <version>0.5.0</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.4.3</version>
+    <version>0.5.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -128,7 +128,7 @@ You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.4.3 \
+-DarchetypeVersion=0.5.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -1010,9 +1010,9 @@ Setting a cookie:
 Given cookie foo = 'bar'
 ```
 
-You also have the option of setting multiple cookies in one-step using the [`cookies`](#cookies-json) keyword.
+You also have the option of setting multiple cookies in one-step using the [`cookies`](#cookies) keyword.
 
-Note that any cookies returned in the HTTP response would be automatically set for any future requests. Refer to the documentation of the built-in variable [`cookies`](#cookies) for more details.
+Note that any cookies returned in the HTTP response would be automatically set for any future requests. Refer to the documentation of the built-in variable [`responseCookies`](#responsecookies) for more details.
 
 ## `form field` 
 HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response). For example:
@@ -1083,7 +1083,7 @@ See also [`param`](#param).
 
 See also [`header`](#header).
 
-## `cookies` (json)
+## `cookies`
 ```cucumber
 * cookies { someKey: 'someValue', foo: 'bar' }
 ```
@@ -1144,7 +1144,7 @@ Examples:
 # enable ssl and force the algorithm to TLSv1.2
 * configure ssl = 'TLSv1.2'
 
-# time-out if the response is not forthcoming within 10 seconds
+# time-out if the response is not received within 10 seconds (after the connection is established)
 * configure readTimeout = 10000
 
 # set the uri of the http proxy server to use
@@ -1625,17 +1625,22 @@ Then match response/cat/name == 'Billie'
 Then match /cat/name == 'Billie'
 ```
 
-## `cookies`
-The `cookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.
+## `responseCookies`
+The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.
 ```cucumber
-Then assert cookies['my.key'].value == 'someValue'
+* assert responseCookies['my.key'].value == 'someValue'
+
+# karate's unified data handling means that even 'match' works
+* match responseCookies.time contains { value: '#number' }
+
+# save a response cookie for later use
+* def time = responseCookies.time.value
 ```
-As a convenience, cookies from the previous response are collected and passed as-is as part of the next HTTP request.  This is what is normally expected and simulates a 
-browser - which makes it easy to script things like HTML-form based authentication into test-flows.
+As a convenience, cookies from the previous response are collected and passed as-is as part of the next HTTP request.  This is what is normally expected and simulates a web-browser - which makes it easy to script things like HTML-form based authentication into test-flows.
 
-Of course you can manipulate `cookies` or even set it to `null` if you wish - at any point within a test script.
+Of course you can manipulate [`cookies`](#cookies) or each individual [`cookie`](#cookie) and even over-write them to `null` if you wish - at any point within a test script.
 
-Each item within `cookies` is itself a 'map-like' object. Typically you would examine the `value` property as in the example above, but `domain` and `path` are also available.
+Each item within `responseCookies` is itself a 'map-like' object. Typically you would examine the `value` property as in the example above, but `domain` and `path` are also available.
 
 ## `responseHeaders`
 See also [`match header`](#match-header) which is what you would normally need.
@@ -1644,6 +1649,8 @@ But if you need to use values in the response headers - they will be in a variab
 ```cucumber
 * def contentType = responseHeaders['Content-Type'][0]
 ```
+And just as in the `responseCookies` example above, you can use [`match`](#match) to run complex validations on the `responseHeaders`.
+
 ## `responseStatus`
 You would normally only need to use the [`status`](#status) keyword.  But if you really need to use the HTTP response code in an expression or save it for later, you can get it as an integer:
 ```cucumber

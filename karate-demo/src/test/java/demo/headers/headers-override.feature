@@ -7,7 +7,7 @@ And path 'headers'
 When method get
 Then status 200
 And def token = response
-And def time = cookies.time.value
+And def time = responseCookies.time.value
 * header Authorization = 'invalid'
 
 Scenario:

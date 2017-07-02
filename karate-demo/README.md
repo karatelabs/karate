@@ -5,7 +5,7 @@ as well as demonstrate various Karate features and best-practices.
 | Example | Demonstrates
 ----------| --------
 [`greeting.feature`](src/test/java/demo/greeting/greeting.feature) | Simple GET requests and multiple scenarios in a test.
-[`headers.feature`](src/test/java/demo/headers/headers.feature)  | A simple example of [header management](https://github.com/intuit/karate#configure-headers) using a JS file ([`classpath:headers.js`](src/test/java/headers.js)), and also shows how cookies can be accessed and how path and query parameters can be specified.
+[`headers.feature`](src/test/java/demo/headers/headers.feature)  | Multiple examples of [header management](https://github.com/intuit/karate#configure-headers) including dynamic setting of headers for each request using a JS file ([`classpath:headers.js`](src/test/java/headers.js)). Also demonstrates handling of cookies, and path / query parameters.
 [`sign-in.feature`](src/test/java/demo/signin/sign-in.feature) | HTML form POST example. Typically you use the response to get an authentication token that can be used to [build headers](https://github.com/intuit/karate#http-basic-authentication-example) for subsequent requests.
 [`cats.feature`](src/test/java/demo/cats/cats.feature) | Great example of [embedded-expressions](https://github.com/intuit/karate#embedded-expressions) (or JSON / XML templating). Also shows how to set the `Accept` [header](https://github.com/intuit/karate#header) for getting XML from the server.
 [`kittens.feature`](src/test/java/demo/cats/kittens.feature) | Reading a complex payload expected response [from a file](https://github.com/intuit/karate#reading-files). You can do the same for request payloads as well. Observe how [JSON templating](https://github.com/intuit/karate#embedded-expressions) makes creating dynamic JSON super-easy, look at [line #24](src/test/java/demo/cats/kittens.feature#L24) for example.
@@ -65,4 +65,4 @@ In the [`pom.xml`](pom.xml#L91), code coverage using [Jacoco](http://www.baeldun
 
 ![Jacoco Code Coverage Report](src/test/resources/karate-jacoco.png) 
 
-As this [Spring Boot](http://projects.spring.io/spring-boot/) demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate.
+As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate.

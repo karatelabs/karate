@@ -6,9 +6,14 @@ Given url demoBaseUrl
 And path 'headers'
 When method get
 Then status 200
+
+# even the responseCookies can be validated using 'match'
+And match responseCookies.time contains { value: '#number' }
+
+And def time = responseCookies.time.value
 And def token = response
-And def time = cookies.time.value
-# the response cookie will be sent for all subsequent requests as well
+
+# note that the responseCookies will be auto-sent as cookies for all future requests
 
 Scenario: configure function
 
