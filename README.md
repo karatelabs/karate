@@ -40,7 +40,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
- **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) / [JS `karate` object](#the-karate-object) | [Calling Java](#calling-java)
+ **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](##xpath-functions) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
@@ -1219,7 +1219,7 @@ This is like the opposite of [`set`](#set) where you need to remove keys or data
 * def json = { foo: 'world', hey: 'ho', zee: [1, 2, 3] }
 * remove json.hey
 * match json == { foo: 'world', zee: [1, 2, 3] }
-* remove json.zee[1]
+* remove json $.zee[1]
 * match json == { foo: 'world', zee: [1, 3] }
 ```
 
@@ -1228,6 +1228,8 @@ This is like the opposite of [`set`](#set) where you need to remove keys or data
 * def xml = <foo><bar><hello>world</hello></bar></foo>
 * remove xml/foo/bar/hello
 * match xml == <foo><bar/></foo>
+* remove xml /foo/bar
+* match xml == <foo/>
 ```
 
 ## Ignore or Validate
