@@ -8,7 +8,7 @@ When method get
 Then status 200
 
 # even the responseCookies can be validated using 'match'
-And match responseCookies.time contains { value: '#number' }
+And match responseCookies.time contains { value: '#string' }
 
 And def time = responseCookies.time.value
 And def token = response
