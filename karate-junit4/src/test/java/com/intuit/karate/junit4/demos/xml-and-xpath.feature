@@ -89,3 +89,11 @@ Examples:
 | John       | Smith     |   20 |
 | Jane       | Doe       |      |
 |            | Waldo     |      |
+
+
+Scenario: test removing elements from xml from js
+
+* def base = <query><name>foo</name></query>
+* def fun = function(){ karate.remove('base', '/query/name') }
+* call fun
+* match base == <query/>

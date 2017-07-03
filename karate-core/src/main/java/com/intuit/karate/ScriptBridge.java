@@ -56,9 +56,14 @@ public class ScriptBridge {
         context.vars.put(name, o);
     }
     
-    // this makes sense for xpath manipulation from within js
+    // this makes sense for xml / xpath manipulation from within js
     public void set(String name, String path, String expr) {
         Script.setValueByPath(name, path, expr, context);
+    }
+    
+    // this makes sense for xml / xpath manipulation from within js
+    public void remove(String name, String path) {
+        Script.removeValueByPath(name, path, context);
     }    
     
     public Object get(String exp) {
