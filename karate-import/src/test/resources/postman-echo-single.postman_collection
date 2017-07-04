@@ -1,0 +1,44 @@
+{
+	"variables": [],
+	"info": {
+		"name": "postmanEchoNew",
+		"_postman_id": "92536b64-a5cb-7971-0572-46fa0ca78062",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+				{
+                			"name": "Set Cookies",
+                			"event": [
+                				{
+                					"listen": "test",
+                					"script": {
+                						"type": "text/javascript",
+                						"exec": [
+                							"var responseJSON;",
+                							"try {",
+                							"    tests[\"Body contains cookies\"] = responseBody.has(\"cookies\");",
+                							"    responseJSON = JSON.parse(responseBody);",
+                							"    tests[\"Body contains cookie foo1\"] = 'foo1' in responseJSON.cookies;",
+                							"    tests[\"Body contains cookie foo2\"] = 'foo2' in responseJSON.cookies;    ",
+                							"}",
+                							"catch (e) { }",
+                							"",
+                							"tests[\"Status code is 200\"] = responseCode.code === 200;",
+                							"",
+                							""
+                						]
+                					}
+                				}
+                			],
+                			"request": {
+                				"url": "https://echo.getpostman.com/cookies/set?foo1=bar1&foo2=bar",
+                				"method": "GET",
+                				"header": [],
+                				"body": {},
+                				"description": "The cookie setter endpoint accepts a list of cookies and their values as part of URL parameters of a `GET` request. These cookies are saved and can be subsequently retrieved or deleted. The response of this request returns a JSON with all cookies listed.\n\nTo set your own set of cookies, simply replace the URL parameters \"foo1=bar1&foo2=bar2\" with your own set of key-value pairs."
+                			},
+                			"response": []
+                		}
+	]
+}
