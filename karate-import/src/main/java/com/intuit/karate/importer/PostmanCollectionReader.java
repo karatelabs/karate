@@ -27,6 +27,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.io.FileUtils;
@@ -59,8 +60,28 @@ public class PostmanCollectionReader {
         for (Map<String, Object> map : list) {
             logger.debug("map: {}", map);
             String name = (String) map.get("name");
+            Map<String, Object> requestInfo = (Map) map.get("request");
+            String url = (String) requestInfo.get("url");
+            String method = (String) requestInfo.get("method");
+            List<Map<String, Object>> headersList = (List) requestInfo.get("header");
+            Map<String, String> headers = new HashMap<>();
+            for (Map<String, Object> header : headersList) {
+                headers.put((String) header.get("key"), (String) header.get("value"));
+            }
+            Map<String, Object> bodyInfo = (Map) requestInfo.get("body");
+            String body = null;
+            if (bodyInfo.containsKey("raw")) {
+                body = ((String) bodyInfo.get("raw")).replace(System.lineSeparator(), "");
+            }
+            else if (bodyInfo.containsKey("formdata")) {
+                body = ((List) bodyInfo.get("formdata")).toString().replace(System.lineSeparator(), "");
+            }
             PostmanRequest request = new PostmanRequest();
             request.setName(name);
+            request.setUrl(url);
+            request.setMethod(method);
+            request.setHeaders(headers);
+            request.setBody(body);
             requests.add(request);
         }
         return requests;

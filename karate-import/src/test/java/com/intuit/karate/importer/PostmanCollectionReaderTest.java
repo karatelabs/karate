@@ -19,7 +19,13 @@ public class PostmanCollectionReaderTest {
         List<PostmanRequest> requests = PostmanCollectionReader.parse("src/test/resources/postman-echo-single.postman_collection");
         logger.debug("list: {}", requests);
         assertEquals(1, requests.size());
-        assertEquals("Set Cookies", requests.get(0).getName());
+        PostmanRequest request = requests.get(0);
+        assertEquals("OAuth1.0 Verify Signature", request.getName());
+        assertEquals("https://echo.getpostman.com/oauth1", request.getUrl());
+        assertEquals("GET", request.getMethod());
+        assertEquals(1, request.getHeaders().size());
+        assertEquals("OAuth oauth_consumer_key=\"RKCGzna7bv9YD57c\",oauth_signature_method=\"HMAC-SHA1\",oauth_timestamp=\"1442394747\",oauth_nonce=\"UIGipk\",oauth_version=\"1.0\",oauth_signature=\"CaeyGPr2mns1WCq4Cpm5aLvz6Gs=\"", request.getHeaders().get("Authorization"));
+        logger.debug(request.getBody());
     }
     
 }

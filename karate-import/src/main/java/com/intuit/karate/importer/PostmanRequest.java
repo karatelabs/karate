@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.importer;
 
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -30,6 +32,42 @@ package com.intuit.karate.importer;
 public class PostmanRequest {
     
     private String name;
+    private String url;
+    private String method;
+    private Map<String, String> headers;
+    private String body;
+
+    public String getBody() {
+        return body;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(Map<String, String> headers) {
+        this.headers = headers;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
 
     public String getName() {
         return name;
@@ -43,9 +81,23 @@ public class PostmanRequest {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[name: ").append(name);
-        // sb.append(", value: ").append(value);
+        sb.append(", url: ").append(url);
+        sb.append(", method: ").append(method);
+        sb.append(", headers: ").append(headers);
+        sb.append(", body: ").append(body);
         sb.append("]");
         return sb.toString();
-    }    
+    }
+
+
+    public String convert() {
+        return new FeatureBuilder()
+                .addName(name)
+                .addUrl(url)
+                .addHeaders(headers)
+                .addBody(body)
+                .addMethod(method)
+                .build();
+    }
     
 }
