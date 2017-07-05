@@ -305,20 +305,24 @@ public class Script {
         }
         switch (value.getType()) {
             case JSON:
-                DocumentContext doc = value.getValue(DocumentContext.class);
-                return new ScriptValue(doc.read(exp));
+                DocumentContext jsonDoc = value.getValue(DocumentContext.class);
+                return new ScriptValue(jsonDoc.read(exp));
             case MAP: // this happens because some jsonpath expressions evaluate to Map
                 Map<String, Object> map = value.getValue(Map.class);
-                DocumentContext fromMap = JsonPath.parse(map);
-                return new ScriptValue(fromMap.read(exp));
+                DocumentContext mapDoc = JsonPath.parse(map);
+                return new ScriptValue(mapDoc.read(exp));
             case LIST: // this happens because some jsonpath expressions evaluate to List
                 List list = value.getValue(List.class);
-                DocumentContext fromList = JsonPath.parse(list);
-                return new ScriptValue(fromList.read(exp));
+                DocumentContext listDoc = JsonPath.parse(list);
+                return new ScriptValue(listDoc.read(exp));
             case XML: // time to auto-convert again
                 Document xml = value.getValue(Document.class);
-                DocumentContext xmlAsJson = XmlUtils.toJsonDoc(xml);
-                return new ScriptValue(xmlAsJson.read(exp));
+                DocumentContext xmlDoc = XmlUtils.toJsonDoc(xml);
+                return new ScriptValue(xmlDoc.read(exp));
+            case STRING:
+                String str = value.getValue(String.class);
+                DocumentContext strDoc = JsonPath.parse(str);
+                return new ScriptValue(strDoc.read(exp));
             default:
                 throw new RuntimeException("cannot run jsonpath on type: " + value);
         }

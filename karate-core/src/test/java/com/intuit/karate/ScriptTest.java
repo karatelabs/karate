@@ -466,7 +466,15 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "subjects", null, "['physics', 'math']", ctx).pass);
         Script.assign("teachers", "response", ctx); // becomes a map
         Script.assign("subjects", "get teachers //teacher[@department='science']/subject", ctx);
-        // assertTrue(Script.matchNamed(MatchType.EQUALS, "subjects", null, "['math', 'physics']", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "subjects", null, "['math', 'physics']", ctx).pass);
+    }
+    
+    @Test
+    public void testRunningJsonPathOnStringAutoConvertsStringToJson() {
+        ScriptContext ctx = getContext();
+        Script.assignString("response", "{ foo: { hello: 'world' } }", ctx);
+        Script.assign("foo", "response.foo", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ hello: 'world' }", ctx).pass);
     }
 
     @Test

@@ -622,8 +622,7 @@ Then def session = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(us
 ```
 So the rule is - if a string value within a JSON (or XML) object declaration is enclosed between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are alive in the context can be used in this expression.
 
-This comes in useful in some cases - and avoids needing to use the [`set`](#set) keyword, [JavaScript functions](#javascript-functions) or [JsonPath](https://github.com/jayway/JsonPath#path-examples) expressions to manipulate JSON. So you get the best of both worlds: the elegance of JSON to express complex nested data - while at 
-the same time being able to dynamically plug values (that could even be other JSON object-trees) into a JSON 'template'.
+This comes in useful in some cases - and avoids needing to use the [`set`](#set) keyword or [JavaScript functions](#javascript-functions) to manipulate JSON. So you get the best of both worlds: the elegance of JSON to express complex nested data - while at the same time being able to dynamically plug values (that could even be other JSON object-trees) into a JSON 'template'.
 
 The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the [Karate Demos](karate-demo).
 
@@ -800,6 +799,8 @@ The `call` keyword provides an [alternate way of calling JavaScript functions](#
 
 ## Reading Files
 
+Karate makes re-use of payload data, utility-functions and even other test-scripts as easy as possible. Teams typically define complicated JSON (or XML) payloads in a file and then re-use this in multiple scripts. Keywords such as [`set`](#set) and [`remove`](#remove) allow you to to 'tweak' payload-data to fit the scenario under test. You can imagine how this greatly simplifies setting up tests for boundary conditions. And such re-use makes it easier to re-factor tests when needed, which is great for maintainability,
+
 Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) as the `*.feature` file. But you can prefix the name with `classpath:` in which case the 'root' folder would be `src/test/java` (assuming you are using the [recommended folder structure](#folder-structure)).
 
 Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
@@ -836,7 +837,7 @@ You can also [re-use other `*.feature`](#calling-other-feature-files) files from
 * def result = call read('classpath:some-reusable-steps.feature')
 ```
 
-If a file does not end in '.json', '.xml', '.js' or '.txt' - it is treated as a stream which is typically what you would need for [`multipart`](#multipart-field) file uploads.
+If a file does not end in `.json`, `.xml`, `.yaml`, `.js` or `.txt` - it is treated as a stream which is typically what you would need for [`multipart`](#multipart-field) file uploads.
 ```cucumber
 * def someStream = read('some-pdf.pdf')
 ```
@@ -1652,9 +1653,9 @@ The `responseCookies` variable is set upon any HTTP response and is a map-like (
 * assert responseCookies['my.key'].value == 'someValue'
 
 # karate's unified data handling means that even 'match' works
-* match responseCookies contains { time: '#notull' }
+* match responseCookies contains { time: '#notnull' }
 
-# ... which means that checking if a cookie does NOT exist is easy
+# ... which means that checking if a cookie does NOT exist is a piece of cake
 * match responseCookies !contains { blah: '#notnull' }
 
 # save a response cookie for later use
