@@ -24,26 +24,37 @@
 package com.intuit.karate.importer;
 
 import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.List;
 
 /**
- *
- * @author pthomas3
+ * Created by rkumar32 on 7/5/17.
  */
-public class Main {
-    
-    public static void main(String[] args) {
-        String path = null;
-        if (args.length == 1) {
-            path = args[0];
-        }
-        else {
-            throw new IllegalArgumentException("Enter the path of postman collection");
-        }
-        List<PostmanRequest> requests = PostmanCollectionReader.parse(path);
+public class KarateFeatureWriter {
+    private static final Logger logger = LoggerFactory.getLogger(PostmanCollectionReader.class);
 
-        KarateFeatureWriter.write(requests, path);
+    private KarateFeatureWriter() {
+        // only static methods
+    }
+
+    public static void write(List<PostmanRequest> requests, String path) {
+        String scenarios = "";
+        for (PostmanRequest request : requests) {
+            scenarios += request.convert();
+        }
+        String feature = "Feature: \n\n" + scenarios;
+        String inputFileName = new File(path).getName();
+        String outputFileName = inputFileName.replace("postman_collection", "feature");
+        String dirPath = new File(path).getParentFile().getPath();
+        File featureFile;
+        try {
+            featureFile = new File(dirPath + "/" + outputFileName);
+            FileUtils.writeStringToFile(featureFile, feature, "utf-8");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
