@@ -149,7 +149,11 @@ public class JsonUtils {
             if (right.startsWith("[")) {
                 listPath = left + right;
             } else {
-                listPath = left + "." + right;
+                if ("".equals(left)) { // special case, root array
+                    listPath = right;
+                } else {
+                    listPath = left + "." + right;
+                }                
             }
             try {
                 list = doc.read(listPath);

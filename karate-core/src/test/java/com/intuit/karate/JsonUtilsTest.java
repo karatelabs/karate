@@ -78,6 +78,10 @@ public class JsonUtilsTest {
         doc = JsonUtils.toJsonDoc(raw);
         JsonUtils.setValueByPath(doc, "$.boo[0]", 3); // create and append as first
         assertEquals("{\"foo\":\"bar\",\"boo\":[3]}", doc.jsonString());
+        // special case if root is array
+        doc = JsonUtils.toJsonDoc("[{ foo: 'bar'}]");
+        JsonUtils.setValueByPath(doc, "$[1]", JsonUtils.toJsonDoc("{ foo: 'baz' }").read("$"));
+        assertEquals("[{\"foo\":\"bar\"},{\"foo\":\"baz\"}]", doc.jsonString());
     }
 
     @Test
