@@ -41,11 +41,7 @@ public class KarateFeatureWriter {
     }
 
     public static void write(List<PostmanRequest> requests, String path) {
-        String scenarios = "";
-        for (PostmanRequest request : requests) {
-            scenarios += request.convert();
-        }
-        String feature = "Feature: \n\n" + scenarios;
+        String feature = getFeature(requests);
         String inputFileName = new File(path).getName();
         String outputFileName = inputFileName.replace("postman_collection", "feature");
         String dirPath = new File(path).getParentFile().getPath();
@@ -56,5 +52,14 @@ public class KarateFeatureWriter {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static String getFeature(List<PostmanRequest> requests) {
+        String scenarios = "";
+        for (PostmanRequest request : requests) {
+            scenarios += request.convert();
+        }
+        String feature = "Feature: \n\n" + scenarios;
+        return feature;
     }
 }

@@ -23,13 +23,15 @@
  */
 package com.intuit.karate.web.wicket;
 
-import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.cucumber.FeatureSection;
-import com.intuit.karate.cucumber.FeatureWrapper;
+
+import com.intuit.karate.cucumber.*;
 import com.intuit.karate.web.service.KarateService;
+import com.intuit.karate.web.service.KarateSession;
 import com.intuit.karate.web.wicket.model.FeatureModel;
 import com.intuit.karate.web.wicket.model.FeatureSectionModel;
+import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.extensions.ajax.markup.html.AjaxEditableLabel;
+import org.apache.wicket.extensions.ajax.markup.html.IndicatingAjaxLink;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.link.BookmarkablePageLink;
 import org.apache.wicket.markup.html.list.ListItem;
@@ -39,13 +41,16 @@ import org.apache.wicket.model.AbstractReadOnlyModel;
 import org.apache.wicket.model.CompoundPropertyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.spring.injection.annot.SpringBean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class FeaturePanel extends Panel {
-    
+    private static final Logger logger = LoggerFactory.getLogger(FeaturePanel.class);
+
     @SpringBean(required = true)
     private KarateService service;    
 
@@ -75,6 +80,14 @@ public class FeaturePanel extends Panel {
             }
         }));
         add(new BookmarkablePageLink("home", HomePage.class));
+        add(new IndicatingAjaxLink("export") {
+            @Override
+            public void onClick(AjaxRequestTarget target) {
+                KarateSession session =  service.getSession(sessionId);
+                FeatureWrapper featureWrapper = session.getFeature();
+                FeaturePanel.this.setResponsePage(new HomePage(featureWrapper.getText()));
+            }
+        });
         ListView<FeatureSection> listView = new ListView<FeatureSection>("sections") {
             @Override
             protected void populateItem(ListItem<FeatureSection> li) {
