@@ -76,16 +76,13 @@ public class ScriptContext {
             readFunction = Script.eval(getFileReaderFunction(), this);
             headers = parent.headers;
             config = parent.config;
-            client = HttpClient.construct();
-            client.configure(config, this);            
+            client = HttpClient.construct(config, this);           
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
             readFunction = Script.eval(getFileReaderFunction(), this);
             config = new HttpConfig();
-            // needs to be done before karate-config as it can call 'configure'
-            client = HttpClient.construct();
-            client.configure(config, this);            
+            client = HttpClient.construct(config, this);            
             try {
                 Script.callAndUpdateVarsIfMapReturned("read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
@@ -125,6 +122,13 @@ public class ScriptContext {
             logPrettyRequest = value.isBooleanTrue();
             return;
         }
+        if (key.equals("httpClientClass")) {
+            config.setClientClass(value.getAsString());
+            // very different from the rest and we exit early
+            client = HttpClient.construct(config, this);
+            return;
+        }
+        // beyond this point, we don't exit early and we have to re-build the http client
         if (key.equals("ssl")) {
             if (value.isString()) {
                 config.setSslEnabled(true);

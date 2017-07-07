@@ -42,7 +42,7 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public abstract class HttpClient<T> {
-    
+
     protected static final String APPLICATION_JSON = "application/json";
     protected static final String APPLICATION_XML = "application/xml";
     protected static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
@@ -236,18 +236,33 @@ public abstract class HttpClient<T> {
         }
     }
 
-    public static HttpClient construct() {
+    public static HttpClient construct(String className) {
         try {
-            InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
-            if (is == null) {
-                String msg = KARATE_HTTP_PROPERTIES + " not found";
-                throw new RuntimeException(msg);
-            }
-            Properties props = new Properties();
-            props.load(is);
-            String className = props.getProperty("client.class");
             Class clazz = Class.forName(className);
             return (HttpClient) clazz.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static HttpClient construct(HttpConfig config, ScriptContext context) {
+        try {
+            String className;
+            if (config != null && config.getClientClass() != null) {
+                className = config.getClientClass();
+            } else {
+                InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
+                if (is == null) {
+                    String msg = KARATE_HTTP_PROPERTIES + " not found";
+                    throw new RuntimeException(msg);
+                }
+                Properties props = new Properties();
+                props.load(is);
+                className = props.getProperty("client.class");               
+            }
+            HttpClient client = construct(className);
+            client.configure(config, context);
+            return client;
         } catch (Exception e) {
             String msg = "failed to construct class by name: " + e.getMessage() + ", aborting";
             throw new RuntimeException(msg);

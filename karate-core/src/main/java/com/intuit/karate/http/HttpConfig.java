@@ -36,6 +36,7 @@ public class HttpConfig {
     private String proxyUri;
     private String proxyUsername;
     private String proxyPassword;
+    private String clientClass;
 
     public boolean isSslEnabled() {
         return sslEnabled;
@@ -92,5 +93,13 @@ public class HttpConfig {
     public void setProxyPassword(String proxyPassword) {
         this.proxyPassword = proxyPassword;
     }
+
+    public String getClientClass() {
+        return clientClass;
+    }
+
+    public void setClientClass(String clientClass) {
+        this.clientClass = clientClass;
+    }        
     
 }
