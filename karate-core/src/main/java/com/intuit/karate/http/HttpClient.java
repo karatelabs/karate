@@ -40,6 +40,7 @@ import org.w3c.dom.Node;
 /**
  *
  * @author pthomas3
+ * @param <T>
  */
 public abstract class HttpClient<T> {
 
@@ -54,7 +55,9 @@ public abstract class HttpClient<T> {
 
     protected HttpRequest request;
 
-    /** guaranteed to be called once after construct */
+    /** guaranteed to be called once if empty constructor was used 
+     * @param config
+     * @param context */
     public abstract void configure(HttpConfig config, ScriptContext context);
 
     protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);
@@ -244,9 +247,12 @@ public abstract class HttpClient<T> {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
+    }    
 
     public static HttpClient construct(HttpConfig config, ScriptContext context) {
+        if (config.getClientInstance() != null) {
+            return config.getClientInstance();
+        }
         try {
             String className;
             if (config != null && config.getClientClass() != null) {
@@ -259,7 +265,7 @@ public abstract class HttpClient<T> {
                 }
                 Properties props = new Properties();
                 props.load(is);
-                className = props.getProperty("client.class");               
+                className = props.getProperty("client.class");                
             }
             HttpClient client = construct(className);
             client.configure(config, context);
@@ -267,7 +273,7 @@ public abstract class HttpClient<T> {
         } catch (Exception e) {
             String msg = "failed to construct class by name: " + e.getMessage() + ", aborting";
             throw new RuntimeException(msg);
-        }
+        }       
     }
 
 }

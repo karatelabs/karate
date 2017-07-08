@@ -128,6 +128,12 @@ public class ScriptContext {
             client = HttpClient.construct(config, this);
             return;
         }
+        if (key.equals("httpClientInstance")) {
+            config.setClientInstance(value.getValue(HttpClient.class));
+            // again different from the rest and we exit early
+            client = HttpClient.construct(config, this);
+            return;
+        }        
         // beyond this point, we don't exit early and we have to re-build the http client
         if (key.equals("ssl")) {
             if (value.isString()) {

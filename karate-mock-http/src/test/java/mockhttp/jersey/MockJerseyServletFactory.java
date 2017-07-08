@@ -23,9 +23,6 @@
  */
 package mockhttp.jersey;
 
-import com.intuit.karate.http.HttpRequest;
-import com.intuit.karate.mock.http.MockHttpClient;
-import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -37,34 +34,30 @@ import org.springframework.mock.web.MockServletConfig;
  *
  * @author pthomas3
  */
-public class MockJerseyServlet extends MockHttpClient {
+public class MockJerseyServletFactory {
     
-    private static final Logger logger = LoggerFactory.getLogger(MockJerseyServlet.class);
+    private static final Logger logger = LoggerFactory.getLogger(MockJerseyServletFactory.class);
     
-    private final Servlet servlet;
-
+    private MockJerseyServletFactory() {
+        // only static methods
+    }
+    
     /**
-     * this zero-arg constructor will be invoked if you use the 'configure httpClientClass' option
-     * refer to the MockJerseyServletFactory for how you can construct this manually
-     * and have full control over dependency-injection specific to your environment
+     * refer to the karate-config.js on how this is integrated depending on the environment
+     * you also have the option of using the 'configure' keyword in a *.feature file
+     * but then your test script will be 'hard-coded' to this mock and you
+     * will not be able to re-use your test in http integration-testing mode
      * 
+     * @return
      * @throws Exception 
      */
-    public MockJerseyServlet() throws Exception {
-        logger.info("auto construction of mock http servlet");
+    public static MockJerseyServlet getMock() throws Exception {
+        logger.info("custom construction of mock http servlet");
         ServletConfig servletConfig = new MockServletConfig();
         ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
-        servlet = new ServletContainer(resourceConfig);
-        servlet.init(servletConfig);        
-    }
-    
-    public MockJerseyServlet(Servlet servlet) {
-        this.servlet = servlet;
-    }
-    
-    @Override
-    protected Servlet getServlet(HttpRequest request) {
-        return servlet;
+        ServletContainer servlet = new ServletContainer(resourceConfig);
+        servlet.init(servletConfig);
+        return new MockJerseyServlet(servlet);
     }
     
 }

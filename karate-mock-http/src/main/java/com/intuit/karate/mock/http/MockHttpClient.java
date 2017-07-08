@@ -32,6 +32,7 @@ import static com.intuit.karate.http.Cookie.VERSION;
 import com.intuit.karate.http.HttpBody;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
@@ -63,7 +64,7 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
     private MockHttpServletRequestBuilder requestBuilder;
     private final ServletContext defaultServletContext = new MockServletContext();
     
-    protected abstract Servlet getServlet();
+    protected abstract Servlet getServlet(HttpRequest request);
 
     protected ServletContext getServletContext() {
         return defaultServletContext;
@@ -168,7 +169,7 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
         }        
         MockHttpServletResponse res = new MockHttpServletResponse();
         try {
-            getServlet().service(req, res);
+            getServlet(request).service(req, res);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

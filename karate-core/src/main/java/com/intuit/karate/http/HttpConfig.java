@@ -39,6 +39,7 @@ public class HttpConfig {
     private String proxyUsername;
     private String proxyPassword;
     private String clientClass;
+    private HttpClient clientInstance;
     private Map<String, Object> userDefined;
 
     public boolean isSslEnabled() {
@@ -111,6 +112,14 @@ public class HttpConfig {
 
     public void setUserDefined(Map<String, Object> userDefined) {
         this.userDefined = userDefined;
+    }        
+
+    public HttpClient getClientInstance() {
+        return clientInstance;
+    }
+
+    public void setClientInstance(HttpClient clientInstance) {
+        this.clientInstance = clientInstance;
     }        
     
 }
