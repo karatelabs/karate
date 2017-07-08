@@ -30,6 +30,7 @@ import static com.intuit.karate.http.Cookie.MAX_AGE;
 import static com.intuit.karate.http.Cookie.PATH;
 import static com.intuit.karate.http.Cookie.SECURE;
 import static com.intuit.karate.http.Cookie.VERSION;
+import com.intuit.karate.http.HttpBody;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpResponse;
@@ -43,7 +44,6 @@ import java.util.Map;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
-import org.apache.commons.io.IOUtils;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
@@ -59,7 +59,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  *
  * @author pthomas3
  */
-public class MockHttpClient extends HttpClient<MockHttpEntity> {
+public class MockHttpClient extends HttpClient<HttpBody> {
 
     private static final Logger logger = LoggerFactory.getLogger(MockHttpClient.class);
 
@@ -86,28 +86,23 @@ public class MockHttpClient extends HttpClient<MockHttpEntity> {
     }
 
     @Override
-    protected MockHttpEntity getEntity(List<MultiPartItem> multiPartItems, String mediaType) {
+    protected HttpBody getEntity(List<MultiPartItem> multiPartItems, String mediaType) {
         throw new UnsupportedOperationException("multi part not implemented yet");
     }
 
     @Override
-    protected MockHttpEntity getEntity(MultiValuedMap formFields, String mediaType) {
+    protected HttpBody getEntity(MultiValuedMap formFields, String mediaType) {
         throw new UnsupportedOperationException("url-encoded form-fields not implemented yet");
     }
 
     @Override
-    protected MockHttpEntity getEntity(InputStream stream, String mediaType) {
-        try {
-            byte[] bytes = IOUtils.toByteArray(stream);
-            return new MockHttpEntity(bytes, mediaType);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    protected HttpBody getEntity(InputStream stream, String mediaType) {
+        return HttpBody.stream(stream, mediaType);
     }
 
     @Override
-    protected MockHttpEntity getEntity(String content, String mediaType) {
-        return new MockHttpEntity(content.getBytes(), mediaType);
+    protected HttpBody getEntity(String content, String mediaType) {
+        return HttpBody.string(content, mediaType);
     }
 
     @Override
@@ -167,12 +162,12 @@ public class MockHttpClient extends HttpClient<MockHttpEntity> {
     }
 
     @Override
-    protected HttpResponse makeHttpRequest(MockHttpEntity entity, long startTime) {
+    protected HttpResponse makeHttpRequest(HttpBody entity, long startTime) {
         logger.info("making mock http client request: {} - {}", request.getMethod(), getRequestUri());
-        MockHttpServletRequest req = requestBuilder.buildRequest(servletContext);
+        MockHttpServletRequest req = requestBuilder.buildRequest(servletContext);        
         if (entity != null) {
-            req.setContent(entity.bytes);
-            req.setContentType(entity.contentType);
+            req.setContent(entity.getBytes());
+            req.setContentType(entity.getContentType());
         }        
         MockHttpServletResponse res = new MockHttpServletResponse();
         try {

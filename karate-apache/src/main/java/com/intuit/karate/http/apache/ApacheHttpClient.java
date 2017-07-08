@@ -211,10 +211,9 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             }
         }
         if (hasNullName) { // multipart/related
-            String boundary = createBoundary();
-            String text = getAsStringEntity(items, boundary);
-            ContentType ct = ContentType.create(mediaType)
-                    .withParameters(new BasicNameValuePair("boundary", boundary));
+            String boundary = HttpUtils.generateMimeBoundaryMarker();
+            String text = HttpUtils.multiPartToString(items, boundary);
+            ContentType ct = ContentType.create(mediaType).withParameters(new BasicNameValuePair("boundary", boundary));
             return new StringEntity(text, ct);
         } else {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create().setContentType(ContentType.create(mediaType));
@@ -342,72 +341,6 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     @Override
     protected String getRequestUri() {
         return requestBuilder.getUri().toString();
-    }
-
-    private static final AtomicInteger BOUNDARY_COUNTER = new AtomicInteger();
-
-    public static String createBoundary() {;
-        StringBuilder sb = new StringBuilder("boundary_");
-        sb.append(BOUNDARY_COUNTER.incrementAndGet()).append('_');
-        sb.append(System.currentTimeMillis());
-        return sb.toString();
-    }
-
-    private static String getContentType(ScriptValue sv) {
-        switch (sv.getType()) {
-            case JSON:
-                return APPLICATION_JSON;
-            case XML:
-                return APPLICATION_XML;
-            case INPUT_STREAM:
-                return APPLICATION_OCTET_STREAM;
-            default:
-                return TEXT_PLAIN;
-        }
-    }
-
-    private static String getAsStringEntity(List<MultiPartItem> items, String boundary) {
-        StringBuilder sb = new StringBuilder();
-        boolean firstItem = true;
-        for (MultiPartItem item : items) {
-            if (firstItem) {
-                firstItem = false;
-                sb.append("--");
-            } else {
-                sb.append("\r\n--");
-            }
-            sb.append(boundary);
-            sb.append("\r\n");
-            ScriptValue sv = item.getValue();
-            String contentType = getContentType(sv);
-            sb.append("Content-Type: ").append(contentType);
-            sb.append("\r\n");
-            String name = item.getName();
-            if (name != null) {
-                sb.append("Content-Disposition: form-data");
-                if (sv.getType() == ScriptValue.Type.INPUT_STREAM) {
-                    sb.append("; filename=\"").append(name).append("\"");
-                }
-                sb.append("; name=\"").append(name).append("\"");
-                sb.append("\r\n");
-            }
-            sb.append("\r\n");
-            if (sv.getType() == ScriptValue.Type.INPUT_STREAM) {
-                InputStream is = sv.getValue(InputStream.class);
-                try {
-                    byte[] bytes = IOUtils.toByteArray(is);
-                    sb.append(new String(bytes, "utf-8"));
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
-                sb.append(sv.getAsString());
-            }
-        }
-        sb.append("\r\n--");
-        sb.append(boundary);
-        sb.append("--\r\n");
-        return sb.toString();
     }
 
 }
