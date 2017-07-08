@@ -54,6 +54,7 @@ public abstract class HttpClient<T> {
 
     protected HttpRequest request;
 
+    /** guaranteed to be called once after construct */
     public abstract void configure(HttpConfig config, ScriptContext context);
 
     protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);

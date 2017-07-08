@@ -149,6 +149,8 @@ public class ScriptContext {
                 config.setProxyUsername((String) map.get("username"));
                 config.setProxyPassword((String) map.get("password"));
             }
+        } else if (key.equals("userDefined")) {
+            config.setUserDefined(value.getAsMap());
         } else {
             throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }

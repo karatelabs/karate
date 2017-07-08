@@ -21,39 +21,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package mockhttp.hello;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptEnv;
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import com.intuit.karate.demo.mockhttp.HelloResource;
+import com.intuit.karate.junit4.Karate;
+import java.net.URI;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpClientTest {
+@RunWith(Karate.class)
+public class HelloHttpRunner {
+
+    private static final Logger logger = LoggerFactory.getLogger(HelloHttpRunner.class);
     
-    private ScriptContext getContext() {
-        String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        return new ScriptContext(env, null, null);
-    }    
-    
-    @Test
-    public void testSwappingHttpClient() {
-        HttpConfig config = new HttpConfig();
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", "John");
-        config.setUserDefined(map);
-        config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
-        HttpClient client = HttpClient.construct(config, getContext());
-        HttpResponse response = client.makeHttpRequest(null, 0);
-        assertArrayEquals(response.getBody(), "hello John".getBytes());        
+    private static HttpServer server;
+
+    @BeforeClass
+    public static void beforeClass() throws Exception {
+        ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
+        URI uri = URI.create("http://localhost:8080");
+        server = GrizzlyHttpServerFactory.createHttpServer(uri, resourceConfig, false);
+        server.start();
+        logger.info("server started: {}", uri);
     }
     
+    @AfterClass
+    public static void afterClass() {
+        logger.info("stopping server");
+        server.shutdownNow();
+    }
+
 }

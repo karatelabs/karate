@@ -1,3 +1,5 @@
+package mockhttp;
+
 /*
  * The MIT License
  *
@@ -21,39 +23,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
-
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptEnv;
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpClientTest {
+public class MockHttpEntity {
     
-    private ScriptContext getContext() {
-        String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        return new ScriptContext(env, null, null);
-    }    
+    protected final byte[] bytes;
+    protected final String contentType;
     
-    @Test
-    public void testSwappingHttpClient() {
-        HttpConfig config = new HttpConfig();
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", "John");
-        config.setUserDefined(map);
-        config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
-        HttpClient client = HttpClient.construct(config, getContext());
-        HttpResponse response = client.makeHttpRequest(null, 0);
-        assertArrayEquals(response.getBody(), "hello John".getBytes());        
+    public MockHttpEntity(byte[] bytes, String contentType) {
+        this.bytes = bytes;
+        this.contentType = contentType;
     }
     
 }

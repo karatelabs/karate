@@ -32,6 +32,7 @@ import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,10 +43,12 @@ import org.slf4j.LoggerFactory;
 public class DummyHttpClient extends HttpClient<String> {
     
     private static final Logger logger = LoggerFactory.getLogger(DummyHttpClient.class);
+    
+    private Map<String, Object> userDefined;
 
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
-        logger.warn("using dummy http client");
+        userDefined = config.getUserDefined();
     }
 
     @Override
@@ -96,7 +99,8 @@ public class DummyHttpClient extends HttpClient<String> {
     @Override
     protected HttpResponse makeHttpRequest(String entity, long startTime) {
         HttpResponse response = new HttpResponse();
-        response.setBody("hello world".getBytes());
+        String message = "hello " + userDefined.get("name");
+        response.setBody(message.getBytes());
         return response;
     }
 

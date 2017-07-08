@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.http;
 
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -37,6 +39,7 @@ public class HttpConfig {
     private String proxyUsername;
     private String proxyPassword;
     private String clientClass;
+    private Map<String, Object> userDefined;
 
     public boolean isSslEnabled() {
         return sslEnabled;
@@ -100,6 +103,14 @@ public class HttpConfig {
 
     public void setClientClass(String clientClass) {
         this.clientClass = clientClass;
+    }
+
+    public Map<String, Object> getUserDefined() {
+        return userDefined;
+    }
+
+    public void setUserDefined(Map<String, Object> userDefined) {
+        this.userDefined = userDefined;
     }        
     
 }

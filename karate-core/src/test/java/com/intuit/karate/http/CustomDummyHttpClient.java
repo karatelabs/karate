@@ -24,6 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.ScriptContext;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,15 +36,18 @@ public class CustomDummyHttpClient extends DummyHttpClient {
     
     private static final Logger logger = LoggerFactory.getLogger(CustomDummyHttpClient.class);
 
+    private Map<String, Object> userDefined;
+    
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
-        logger.debug("using custom dummy http client");
+        userDefined = config.getUserDefined();
     }        
 
     @Override
     protected HttpResponse makeHttpRequest(String entity, long startTime) {
         HttpResponse response = new HttpResponse();
-        response.setBody("hello world".getBytes());
+        String message = "hello " + userDefined.get("name");
+        response.setBody(message.getBytes());
         return response;
     }        
     

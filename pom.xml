@@ -47,11 +47,12 @@
         <module>karate-apache</module>        
         <module>karate-junit4</module>
         <module>karate-demo</module>
+        <module>karate-demo-mockhttp</module>
         <module>karate-jersey</module>
         <module>karate-testng</module>
         <module>karate-import</module>
         <module>karate-web</module>
-        <module>karate-archetype</module>
+        <module>karate-archetype</module>        
     </modules>
 
     <dependencies>
