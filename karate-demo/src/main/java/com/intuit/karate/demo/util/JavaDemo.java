@@ -1,4 +1,4 @@
-package demo.java;
+package com.intuit.karate.demo.util;
 
 import java.util.ArrayList;
 import java.util.List;

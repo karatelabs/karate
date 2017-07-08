@@ -4,7 +4,7 @@ Scenario: using a third-party lib and a schema file
 
 * string schema = read('products-schema.json')
 * string json = read('products.json')
-* def SchemaUtils = Java.type('demo.schema.SchemaUtils')
+* def SchemaUtils = Java.type('com.intuit.karate.demo.util.SchemaUtils')
 * assert SchemaUtils.isValid(json, schema)
 
 

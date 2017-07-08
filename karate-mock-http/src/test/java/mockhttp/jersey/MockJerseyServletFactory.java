@@ -46,7 +46,7 @@ public class MockJerseyServletFactory {
      * refer to the karate-config.js on how this is integrated depending on the environment
      * you also have the option of using the 'configure' keyword in a *.feature file
      * but then your test script will be 'hard-coded' to this mock and you
-     * will not be able to re-use your test in http integration-testing mode
+     * will not be able to re-use your test in http integration-test mode
      * 
      * @return
      * @throws Exception 

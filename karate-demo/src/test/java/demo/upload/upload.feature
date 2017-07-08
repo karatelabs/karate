@@ -21,7 +21,7 @@ And match header Content-Disposition contains 'test.pdf'
 And match header Content-Type == 'application/octet-stream'
 
 # example of calling custom java code from karate
-* def FileChecker = Java.type('demo.upload.FileChecker')
+* def FileChecker = Java.type('com.intuit.karate.demo.util.FileChecker')
 * assert 'test.pdf' == FileChecker.getMetadata(id)
 
 

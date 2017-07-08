@@ -1,4 +1,4 @@
-package demo.upload;
+package com.intuit.karate.demo.util;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;

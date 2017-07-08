@@ -71,9 +71,9 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
     }
     
     /**
-     * this is guaranteed to be called on init, so for advanced per-test set-up,
-     * over-ride this call-back and retrieve custom data via config.getUserDefined()
-     * refer to the documentation of the 'configure userDefined' keyword
+     * this is guaranteed to be called if the zero-arg constructor is used,
+     * so for advanced per-test set-up, over-ride this call-back and retrieve custom data 
+     * via config.getUserDefined() - refer to the documentation of the 'configure userDefined' keyword
      * 
      * @param config
      * @param context 

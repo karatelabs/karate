@@ -2,7 +2,7 @@ Feature: cats end-point
 
 Background:
 * url demoBaseUrl
-* def JavaDemo = Java.type('demo.java.JavaDemo')
+* def JavaDemo = Java.type('com.intuit.karate.demo.util.JavaDemo')
 
 Scenario: pass json to java
 
