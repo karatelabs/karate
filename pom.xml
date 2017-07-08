@@ -46,8 +46,8 @@
         <module>karate-core</module>
         <module>karate-apache</module>        
         <module>karate-junit4</module>
+        <module>karate-mock-http</module>
         <module>karate-demo</module>
-        <module>karate-demo-mockhttp</module>
         <module>karate-jersey</module>
         <module>karate-testng</module>
         <module>karate-import</module>

@@ -1,5 +1,3 @@
-package mockhttp;
-
 /*
  * The MIT License
  *
@@ -23,19 +21,33 @@ package mockhttp;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+package mockhttp.jersey;
+
+import com.intuit.karate.mock.http.MockHttpClient;
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
+import org.springframework.mock.web.MockServletConfig;
 
 /**
  *
  * @author pthomas3
  */
-public class MockHttpEntity {
+public class MockJerseyServlet extends MockHttpClient {
     
-    protected final byte[] bytes;
-    protected final String contentType;
+    private final Servlet servlet;
+
+    public MockJerseyServlet() throws Exception {
+        ServletConfig servletConfig = new MockServletConfig();
+        ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
+        servlet = new ServletContainer(resourceConfig);
+        servlet.init(servletConfig);        
+    }
     
-    public MockHttpEntity(byte[] bytes, String contentType) {
-        this.bytes = bytes;
-        this.contentType = contentType;
+    @Override
+    protected Servlet getServlet() {
+        return servlet;
     }
     
 }

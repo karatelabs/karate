@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package mockhttp.hello;
+package mockhttp.jersey;
 
 import com.intuit.karate.junit4.Karate;
 import org.junit.BeforeClass;

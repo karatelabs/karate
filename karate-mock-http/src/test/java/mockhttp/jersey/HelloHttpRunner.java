@@ -21,9 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package mockhttp.hello;
+package mockhttp.jersey;
 
-import com.intuit.karate.demo.mockhttp.HelloResource;
 import com.intuit.karate.junit4.Karate;
 import java.net.URI;
 import org.glassfish.grizzly.http.server.HttpServer;

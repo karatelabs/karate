@@ -21,10 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package mockhttp;
+package com.intuit.karate.mock.http;
 
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.demo.mockhttp.HelloResource;
 import static com.intuit.karate.http.Cookie.DOMAIN;
 import static com.intuit.karate.http.Cookie.MAX_AGE;
 import static com.intuit.karate.http.Cookie.PATH;
@@ -41,16 +40,13 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import javax.servlet.ServletConfig;
+import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.mock.web.MockServletConfig;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
@@ -59,30 +55,31 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  *
  * @author pthomas3
  */
-public class MockHttpClient extends HttpClient<HttpBody> {
+public abstract class MockHttpClient extends HttpClient<HttpBody> {
 
     private static final Logger logger = LoggerFactory.getLogger(MockHttpClient.class);
 
-    private final ServletContext servletContext;
-    private final ServletContainer servlet;
-
     private URI uri;
     private MockHttpServletRequestBuilder requestBuilder;
+    private final ServletContext defaultServletContext = new MockServletContext();
+    
+    protected abstract Servlet getServlet();
 
-    public MockHttpClient() throws Exception {
-        ServletConfig servletConfig = new MockServletConfig();
-        ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
-        servlet = new ServletContainer(resourceConfig);
-        servlet.init(servletConfig);
-        servletContext = new MockServletContext();
-        logger.info("init mock http client");
+    protected ServletContext getServletContext() {
+        return defaultServletContext;
     }
-
+    
+    /**
+     * this is guaranteed to be called on init, so for advanced per-test set-up,
+     * over-ride this call-back and retrieve custom data via config.getUserDefined()
+     * refer to the documentation of the 'configure userDefined' keyword
+     * 
+     * @param config
+     * @param context 
+     */
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
-        // if you want more custom set-up driven by the test script
-        // use this call-back instead of the constructor, and use config.getUserDefined()
-        // refer to the documentation of the 'configure userDefined' keyword
+
     }
 
     @Override
@@ -164,14 +161,14 @@ public class MockHttpClient extends HttpClient<HttpBody> {
     @Override
     protected HttpResponse makeHttpRequest(HttpBody entity, long startTime) {
         logger.info("making mock http client request: {} - {}", request.getMethod(), getRequestUri());
-        MockHttpServletRequest req = requestBuilder.buildRequest(servletContext);        
+        MockHttpServletRequest req = requestBuilder.buildRequest(getServletContext());        
         if (entity != null) {
             req.setContent(entity.getBytes());
             req.setContentType(entity.getContentType());
         }        
         MockHttpServletResponse res = new MockHttpServletResponse();
         try {
-            servlet.service(req, res);
+            getServlet().service(req, res);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

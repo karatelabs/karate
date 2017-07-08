@@ -8,26 +8,20 @@
         <version>0.5.0</version>
     </parent>
     
-    <artifactId>karate-demo-mockhttp</artifactId>
+    <artifactId>karate-mock-http</artifactId>
     <packaging>jar</packaging>
     
     <properties>
-        <jersey.version>2.26-b07</jersey.version>
         <spring.version>4.3.7.RELEASE</spring.version>
+        <jersey.version>2.26-b07</jersey.version>
     </properties>
 
-    <dependencies>                                                                    
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-junit4</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
+    <dependencies>
+    
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
         </dependency>        
         <dependency>
             <groupId>org.springframework</groupId>
@@ -43,17 +37,28 @@
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
             <version>3.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-junit4</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
             <artifactId>jersey-container-grizzly2-servlet</artifactId>
             <version>${jersey.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.inject</groupId>
             <artifactId>jersey-hk2</artifactId>
             <version>${jersey.version}</version>
-        </dependency>                                           		
+            <scope>test</scope>            
+        </dependency>
+        
     </dependencies>
 
     <build>
@@ -65,16 +70,6 @@
                 </excludes>
             </testResource>
         </testResources>
-        <plugins>                                  
-            <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>${nexus.staging.plugin.version}</version>
-                <configuration>
-                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
-                </configuration>
-            </plugin>             
-        </plugins>
     </build>
 
 </project>

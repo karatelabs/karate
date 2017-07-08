@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.mockhttp;
+package mockhttp.jersey;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
