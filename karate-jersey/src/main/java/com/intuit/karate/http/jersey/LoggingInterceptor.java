@@ -79,6 +79,9 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
 
     @Override
     public void filter(ClientRequestContext request) throws IOException {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }        
         int id = counter.incrementAndGet();
         StringBuilder sb = new StringBuilder();
         sb.append('\n').append(id).append(" > ").append(request.getMethod()).append(' ')
@@ -95,6 +98,9 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
 
     @Override
     public void filter(ClientRequestContext request, ClientResponseContext response) throws IOException {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }        
         int id = counter.get();
         StringBuilder sb = new StringBuilder();
         sb.append('\n').append(id).append(" < ").append(response.getStatus()).append('\n');
@@ -117,7 +123,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
     public void aroundWriteTo(WriterInterceptorContext context) throws IOException, WebApplicationException {
         LoggingFilterOutputStream out = (LoggingFilterOutputStream) context.getProperty(LoggingFilterOutputStream.KEY);
         context.proceed();
-        if (out != null) {
+        if (out != null && logger.isDebugEnabled()) {
             StringBuilder sb = out.getBuffer();
             sb.append(new String(out.getBytes().toByteArray(), UTF8)).append('\n');
             logger.debug(sb.toString());

@@ -34,13 +34,18 @@ import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
+import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
@@ -48,7 +53,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.mock.web.MockServletContext;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
@@ -62,13 +66,10 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
 
     private URI uri;
     private MockHttpServletRequestBuilder requestBuilder;
-    private final ServletContext defaultServletContext = new MockServletContext();
     
     protected abstract Servlet getServlet(HttpRequest request);
 
-    protected ServletContext getServletContext() {
-        return defaultServletContext;
-    }
+    protected abstract ServletContext getServletContext();     
     
     /**
      * this is guaranteed to be called if the zero-arg constructor is used,
@@ -84,13 +85,13 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
     }
 
     @Override
-    protected HttpBody getEntity(List<MultiPartItem> multiPartItems, String mediaType) {
-        throw new UnsupportedOperationException("multi part not implemented yet");
+    protected HttpBody getEntity(List<MultiPartItem> items, String mediaType) {
+        return HttpBody.multiPart(items, mediaType);
     }
 
     @Override
     protected HttpBody getEntity(MultiValuedMap formFields, String mediaType) {
-        throw new UnsupportedOperationException("url-encoded form-fields not implemented yet");
+        return HttpBody.formFields(formFields, mediaType);      
     }
 
     @Override
@@ -145,13 +146,15 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
         Cookie cookie = new Cookie(c.getName(), c.getValue());
         requestBuilder.cookie(cookie);
         for (Map.Entry<String, String> entry : c.entrySet()) {
-            switch (entry.getKey()) {
-                case DOMAIN:
-                    cookie.setDomain(entry.getValue());
-                    break;
-                case PATH:
-                    cookie.setPath(entry.getValue());
-                    break;
+            if (entry.getValue() != null) {
+                switch (entry.getKey()) {
+                    case DOMAIN:
+                        cookie.setDomain(entry.getValue());
+                        break;
+                    case PATH:
+                        cookie.setPath(entry.getValue());
+                        break;
+                }
             }
         }
         if (cookie.getDomain() == null) {
@@ -162,22 +165,41 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
     @Override
     protected HttpResponse makeHttpRequest(HttpBody entity, long startTime) {
         logger.info("making mock http client request: {} - {}", request.getMethod(), getRequestUri());
-        MockHttpServletRequest req = requestBuilder.buildRequest(getServletContext());        
+        MockHttpServletRequest req = requestBuilder.buildRequest(getServletContext());
+        byte[] bytes;
         if (entity != null) {
-            req.setContent(entity.getBytes());
+            bytes = entity.getBytes();            
             req.setContentType(entity.getContentType());
-        }        
+            if (entity.isMultiPart()) {
+                for (MultiPartItem item : entity.getParts()) {
+                    MockMultiPart part = new MockMultiPart(item);
+                    req.addPart(part);
+                    if (!part.isFile()) {
+                        req.addParameter(part.getName(), part.getValue());
+                    }
+                }
+            } else if (entity.isUrlEncoded()) {
+                req.addParameters(entity.getParameters());
+            } else {
+                req.setContent(bytes);
+            }
+        } else {
+            bytes = null;
+        }       
         MockHttpServletResponse res = new MockHttpServletResponse();
+        logRequest(req, bytes);
         try {
             getServlet(request).service(req, res);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         long responseTime = getResponseTime(startTime);
+        bytes = res.getContentAsByteArray();
+        logResponse(res, bytes);
         HttpResponse response = new HttpResponse();
         response.setTime(responseTime);
-        response.setUri(getRequestUri());
-        response.setBody(res.getContentAsByteArray());
+        response.setUri(getRequestUri());        
+        response.setBody(bytes);
         response.setStatus(res.getStatus());
         for (Cookie c : res.getCookies()) {
             com.intuit.karate.http.Cookie cookie = new com.intuit.karate.http.Cookie(c.getName(), c.getValue());
@@ -198,5 +220,60 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
     protected String getRequestUri() {
         return uri.toString();
     }
+    
+    private final AtomicInteger counter = new AtomicInteger();
+    
+    private void logRequest(MockHttpServletRequest req, byte[] bytes) {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }
+        int id = counter.incrementAndGet();
+        StringBuilder sb = new StringBuilder();
+        sb.append('\n').append(id).append(" > ").append(req.getMethod()).append(' ')
+                .append(req.getRequestURL()).append('\n');
+        logRequestHeaders(sb, id, req);
+        logBody(sb, bytes, req.getContentType());
+        logger.debug(sb.toString());
+    }    
+    
+    private void logResponse(MockHttpServletResponse res, byte[] bytes) {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }        
+        int id = counter.get();
+        StringBuilder sb = new StringBuilder();
+        sb.append('\n').append(id).append(" < ").append(res.getStatus()).append('\n');
+        logResponseHeaders(sb, id, res);
+        logBody(sb, bytes, res.getContentType());
+        logger.debug(sb.toString());   
+    }    
+    
+    private static void logRequestHeaders(StringBuilder sb, int id, MockHttpServletRequest request) {
+        Set<String> keys = new TreeSet(Collections.list(request.getHeaderNames()));
+        for (String key : keys) {
+            List<String> entries = Collections.list(request.getHeaders(key));
+            sb.append(id).append(' ').append('>').append(' ')
+                    .append(key).append(": ").append(entries.size() == 1 ? entries.get(0) : entries).append('\n');
+        }
+    }
+
+    private static void logResponseHeaders(StringBuilder sb, int id, MockHttpServletResponse response) {
+        Set<String> keys = new TreeSet(response.getHeaderNames());
+        for (String key : keys) {
+            List<String> entries = response.getHeaders(key);
+            sb.append(id).append(' ').append('<').append(' ')
+                    .append(key).append(": ").append(entries.size() == 1 ? entries.get(0) : entries).append('\n');
+        }
+    }
+    
+    private static void logBody(StringBuilder sb, byte[] bytes, String contentType) {
+        if (bytes != null && HttpUtils.isPrintable(contentType)) {
+            try {
+                sb.append(new String(bytes, "utf-8"));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }          
+    }    
 
 }

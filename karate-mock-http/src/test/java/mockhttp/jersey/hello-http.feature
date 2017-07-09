@@ -2,7 +2,7 @@ Feature: test that works un-changed for http as well as in-process servlet / moc
 
 Scenario: get hello
 
-When url demoUrlBase
+When url demoBaseUrl
 And path 'hello'
 When method get
 Then status 200
@@ -10,7 +10,7 @@ And match response == 'hello world'
 
 Scenario: post cat
 
-When url demoUrlBase
+When url demoBaseUrl
 And path 'hello'
 And request { name: 'Billie' }
 When method post

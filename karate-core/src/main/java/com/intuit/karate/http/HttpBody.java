@@ -24,6 +24,10 @@
 package com.intuit.karate.http;
 
 import java.io.InputStream;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -34,10 +38,20 @@ public class HttpBody {
     
     private final byte[] bytes;
     private final InputStream stream;
+    private final MultiValuedMap fields;
+    private final List<MultiPartItem> parts;
     private final String contentType;
     
     public boolean isStream() {
         return stream != null;
+    }
+    
+    public boolean isUrlEncoded() {
+        return fields != null;
+    }
+    
+    public boolean isMultiPart() {
+        return parts != null;
     }
 
     public byte[] getBytes() {
@@ -57,13 +71,51 @@ public class HttpBody {
 
     public String getContentType() {
         return contentType;
+    }
+
+    public List<MultiPartItem> getParts() {
+        return parts;
     }        
+
+    public Map<String, String[]> getParameters() {
+        if (fields == null) {
+            return Collections.EMPTY_MAP;
+        }
+        Map<String, String[]> map = new LinkedHashMap<>(fields.size());
+        for (Map.Entry<String, List> entry : fields.entrySet()) {
+            List list = entry.getValue();
+            String[] values = new String[list.size()];
+            for (int i = 0; i < values.length; i++) {
+                values[i] = list.get(i) + "";
+            }
+            map.put(entry.getKey(), values);
+        }
+        return map;
+    }
     
     private HttpBody(byte[] bytes, InputStream stream, String contentType) {
         this.bytes = bytes;
         this.stream = stream;
         this.contentType = contentType;
+        this.fields = null;
+        this.parts = null;
     }
+    
+    private HttpBody(MultiValuedMap fields, String contentType) {
+        this.bytes = null;
+        this.stream = null;
+        this.contentType = contentType;
+        this.fields = fields;
+        this.parts = null;
+    }
+    
+    private HttpBody(List<MultiPartItem> parts, String contentType) {
+        this.bytes = null;
+        this.stream = null;
+        this.contentType = contentType;
+        this.fields = null;
+        this.parts = parts;
+    }    
     
     public static HttpBody string(String value, String contentType) {
         return new HttpBody(value.getBytes(), null, contentType);
@@ -75,6 +127,14 @@ public class HttpBody {
     
     public static HttpBody bytes(byte[] bytes, String contentType) {
         return new HttpBody(bytes, null, contentType);
+    }
+    
+    public static HttpBody formFields(MultiValuedMap fields, String contentType) {
+        return new HttpBody(fields, contentType);
+    }
+    
+    public static HttpBody multiPart(List<MultiPartItem> parts, String contentType) {
+        return new HttpBody(parts, contentType);
     }
     
 }

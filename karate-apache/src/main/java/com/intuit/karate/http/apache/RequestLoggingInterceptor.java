@@ -51,6 +51,9 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
     @Override
     public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }        
         int id = counter.incrementAndGet();
         String uri = (String) context.getAttribute(ApacheHttpClient.URI_CONTEXT_KEY);
         StringBuilder sb = new StringBuilder();

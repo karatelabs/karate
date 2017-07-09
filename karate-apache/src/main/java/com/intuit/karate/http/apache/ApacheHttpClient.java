@@ -25,7 +25,6 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.ScriptContext;
 import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
-import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
@@ -35,7 +34,6 @@ import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
 import java.io.InputStream;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,13 +43,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
-import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CookieStore;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -62,17 +58,11 @@ import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.entity.mime.FormBodyPartBuilder;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.entity.mime.content.ContentBody;
-import org.apache.http.entity.mime.content.InputStreamBody;
-import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.cookie.BasicClientCookie;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.BasicHttpContext;
 
 /**
@@ -203,82 +193,12 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
 
     @Override
     protected HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
-        boolean hasNullName = false;
-        for (MultiPartItem item : items) {
-            if (item.getName() == null) {
-                hasNullName = true;
-                break;
-            }
-        }
-        if (hasNullName) { // multipart/related
-            String boundary = HttpUtils.generateMimeBoundaryMarker();
-            String text = HttpUtils.multiPartToString(items, boundary);
-            ContentType ct = ContentType.create(mediaType).withParameters(new BasicNameValuePair("boundary", boundary));
-            return new StringEntity(text, ct);
-        } else {
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create().setContentType(ContentType.create(mediaType));
-            for (MultiPartItem item : items) {
-                if (item.getValue() == null || item.getValue().isNull()) {
-                    continue;
-                }
-                String name = item.getName();
-                ScriptValue sv = item.getValue();
-                if (name == null) {
-                    // builder.addPart(bodyPart);
-                } else {
-                    FormBodyPartBuilder formBuilder = FormBodyPartBuilder.create().setName(name);
-                    ContentBody contentBody;
-                    switch (sv.getType()) {
-                        case INPUT_STREAM:
-                            InputStream is = (InputStream) sv.getValue();
-                            contentBody = new InputStreamBody(is, ContentType.APPLICATION_OCTET_STREAM, name);
-                            break;
-                        case XML:
-                            contentBody = new StringBody(sv.getAsString(), ContentType.APPLICATION_XML);
-                            break;
-                        case JSON:
-                            contentBody = new StringBody(sv.getAsString(), ContentType.APPLICATION_JSON);
-                            break;
-                        default:
-                            contentBody = new StringBody(sv.getAsString(), ContentType.TEXT_PLAIN);
-                    }
-                    formBuilder = formBuilder.setBody(contentBody);
-                    builder = builder.addPart(formBuilder.build());
-                }
-            }
-            return builder.build();
-        }
+        return ApacheHttpUtils.getEntity(items, mediaType);
     }
 
     @Override
     protected HttpEntity getEntity(MultiValuedMap fields, String mediaType) {
-        List<NameValuePair> list = new ArrayList<>(fields.size());
-        for (Entry<String, List> entry : fields.entrySet()) {
-            String stringValue;
-            List values = entry.getValue();
-            if (values == null) {
-                stringValue = null;
-            } else if (values.size() == 1) {
-                Object value = values.get(0);
-                if (value == null) {
-                    stringValue = null;
-                } else if (value instanceof String) {
-                    stringValue = (String) value;
-                } else {
-                    stringValue = value.toString();
-                }
-            } else {
-                stringValue = StringUtils.join(values, ',');
-            }
-            list.add(new BasicNameValuePair(entry.getKey(), stringValue));
-        }
-        try {
-            UrlEncodedFormEntity entity = new UrlEncodedFormEntity(list);
-            entity.setContentType(mediaType);
-            return entity;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return ApacheHttpUtils.getEntity(fields, mediaType);
     }
 
     @Override

@@ -68,6 +68,9 @@ public class HttpUtils {
     }  
     
     public static String getContentType(ScriptValue sv) {
+        if (sv == null) {
+            return null;
+        }
         switch (sv.getType()) {
             case JSON:
                 return APPLICATION_JSON;

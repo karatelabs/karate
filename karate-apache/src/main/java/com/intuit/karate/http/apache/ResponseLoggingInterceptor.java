@@ -50,6 +50,9 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
 
     @Override
     public void process(HttpResponse response, HttpContext context) throws HttpException, IOException {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }        
         int id = counter.get();
         StringBuilder sb = new StringBuilder();
         sb.append('\n').append(id).append(" < ").append(response.getStatusLine().getStatusCode()).append('\n');

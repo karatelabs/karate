@@ -21,49 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package mockhttp.jersey;
+package demo;
 
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.mock.http.MockHttpClient;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockServletConfig;
 import org.springframework.mock.web.MockServletContext;
+import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
+import org.springframework.web.servlet.DispatcherServlet;
 
 /**
  *
  * @author pthomas3
  */
-public class MockJerseyServlet extends MockHttpClient {
-
-    private static final Logger logger = LoggerFactory.getLogger(MockJerseyServlet.class);
+public class MockSpringMvcServlet extends MockHttpClient {
 
     private final Servlet servlet;
     private final ServletContext servletContext;
-
-    /**
-     * this zero-arg constructor will be invoked if you use the 'configure
-     * httpClientClass' option refer to the MockJerseyServletFactory for how you
-     * can construct this manually and have full control over
-     * dependency-injection specific to your environment
-     *
-     * @throws Exception
-     */
-    public MockJerseyServlet() throws Exception {
-        logger.info("auto construction of mock http servlet");
-        ServletConfig servletConfig = new MockServletConfig();
-        servletContext = new MockServletContext();
-        ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
-        servlet = new ServletContainer(resourceConfig);
-        servlet.init(servletConfig);
-    }
-
-    public MockJerseyServlet(Servlet servlet, ServletContext servletContext) {
+    
+    public MockSpringMvcServlet(Servlet servlet, ServletContext servletContext) {
         this.servlet = servlet;
         this.servletContext = servletContext;
     }
@@ -77,5 +56,30 @@ public class MockJerseyServlet extends MockHttpClient {
     protected ServletContext getServletContext() {
         return servletContext;
     }
-
+        
+    private static final ServletContext SERVLET_CONTEXT = new MockServletContext();
+    private static final Servlet SERVLET;
+    
+    static {
+        SERVLET = initServlet();
+    }
+    
+    private static final Servlet initServlet() {
+        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+        context.register(MockDemoConfig.class);
+        context.setServletContext(SERVLET_CONTEXT);
+        DispatcherServlet servlet = new DispatcherServlet(context);
+        ServletConfig servletConfig = new MockServletConfig();
+        try {
+            servlet.init(servletConfig);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return servlet;
+    }      
+    
+    public static MockSpringMvcServlet getMock() {
+        return new MockSpringMvcServlet(SERVLET, SERVLET_CONTEXT);
+    }
+    
 }

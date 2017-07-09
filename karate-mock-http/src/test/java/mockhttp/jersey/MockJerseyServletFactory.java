@@ -29,6 +29,7 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockServletConfig;
+import org.springframework.mock.web.MockServletContext;
 
 /**
  *
@@ -57,7 +58,7 @@ public class MockJerseyServletFactory {
         ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
         ServletContainer servlet = new ServletContainer(resourceConfig);
         servlet.init(servletConfig);
-        return new MockJerseyServlet(servlet);
+        return new MockJerseyServlet(servlet, new MockServletContext());
     }
     
 }

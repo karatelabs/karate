@@ -14,7 +14,7 @@
         </encoder>
     </appender>    
    
-    <logger name="com.intuit" level="DEBUG"/>
+    <logger name="com.intuit" level="INFO"/>
     <logger name="demo" level="DEBUG"/>
    
     <root level="info">
