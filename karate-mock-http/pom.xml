@@ -12,7 +12,6 @@
     <packaging>jar</packaging>
     
     <properties>
-        <spring.version>4.3.8.RELEASE</spring.version>
         <jersey.version>2.26-b07</jersey.version>
     </properties>
 
@@ -78,5 +77,5 @@
             </testResource>
         </testResources>
     </build>
-
+    
 </project>

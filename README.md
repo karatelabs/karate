@@ -786,7 +786,7 @@ function(s) {
 
 Any JavaScript function in Karate has a variable called [`karate`](#the-karate-object) injected into the runtime, which provides some utility functions, for e.g. logging.
 
-The `call` keyword provides an [alternate way of calling JavaScript functions](#calling-javascript-functions) that have only one argument. The argument can be provided after the function name, without parantheses, which makes things slightly more readable (and less cluttered) especially when the solitary argument is JSON.
+The `call` keyword provides an [alternate way of calling JavaScript functions](#calling-javascript-functions) that have only one argument. The argument can be provided after the function name, without parentheses, which makes things slightly more readable (and less cluttered) especially when the solitary argument is JSON.
 
 ```cucumber
 * def timeLong = call dateStringToLong '2016-12-24T03:39:21.081+0000'
@@ -1250,19 +1250,19 @@ The supported markers are the following:
 
 Marker | Description
 ------ | -----------
-#ignore | Skip comparison for this field
-#null | Expects actual value to be null
-#notnull | Expects actual value to be not-null
-#array | Expects actual value to be a JSON array
-#object | Expects actual value to be a JSON object
-#boolean | Expects actual value to be a boolean `true` or `false`
-#number | Expects actual value to be a number
-#string | Expects actual value to be a string
-#uuid | Expects actual (string) value to conform to the UUID format
-#regex STR | Expects actual (string) value to match the regular-expression 'STR' (see examples above)
-#? EXPR | Expects the JavaScript expression 'EXPR' to evaluate to true, see [self-validation expressions](#self-validation-expressions) below
-#[NUM] EXPR | Advanced array validation, see [schema validation](#schema-validation)
-#(EXPR) | For completeness, [embedded expressions](#embedded-expressions) belong in this list as well
+`#ignore` | Skip comparison for this field
+`#null` | Expects actual value to be null
+`#notnull` | Expects actual value to be not-null
+`#array` | Expects actual value to be a JSON array
+`#object` | Expects actual value to be a JSON object
+`#boolean` | Expects actual value to be a boolean `true` or `false`
+`#number` | Expects actual value to be a number
+`#string` | Expects actual value to be a string
+`#uuid` | Expects actual (string) value to conform to the UUID format
+`#regex STR` | Expects actual (string) value to match the regular-expression 'STR' (see examples above)
+`#? EXPR` | Expects the JavaScript expression 'EXPR' to evaluate to true, see [self-validation expressions](#self-validation-expressions) below
+`#[NUM] EXPR` | Advanced array validation, see [schema validation](#schema-validation)
+`#(EXPR)` | For completeness, [embedded expressions](#embedded-expressions) belong in this list as well
 
 ### Optional Fields
 If two cross-hatch `#` symbols are used as the prefix (for example: `##number`), it means that the key is optional or that the value can be null.

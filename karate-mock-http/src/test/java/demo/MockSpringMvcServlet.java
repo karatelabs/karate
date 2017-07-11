@@ -64,7 +64,7 @@ public class MockSpringMvcServlet extends MockHttpClient {
         SERVLET = initServlet();
     }
     
-    private static final Servlet initServlet() {
+    private static Servlet initServlet() {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.register(MockDemoConfig.class);
         context.setServletContext(SERVLET_CONTEXT);
