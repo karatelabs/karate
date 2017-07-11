@@ -176,7 +176,6 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     @Override
     protected void buildCookie(com.intuit.karate.http.Cookie c) {
         BasicClientCookie cookie = new BasicClientCookie(c.getName(), c.getValue());
-        cookie.setVersion(1);
         for (Entry<String, String> entry : c.entrySet()) {
             switch (entry.getKey()) {
                 case DOMAIN:
