@@ -264,8 +264,24 @@ public class StepDefs {
     @When("^table (.+) =$")
     public void table(String name, DataTable table) {
         DocumentContext doc = toJson(table);
-        name = StringUtils.trim(name);
-        context.vars.put(name, doc);
+        context.vars.put(name.trim(), doc);
+    }
+    
+    @When("^replace (\\w+)$")
+    public void replace(String name, DataTable table) {
+        name = name.trim();
+        String text = context.vars.get(name).getAsString();
+        List<Map<String, String>> list = table.asMaps(String.class, String.class);
+        String replaced = Script.replacePlaceholders(text, list, context);
+        context.vars.put(name, replaced);
+    }
+
+    @When("^replace (\\w+).([^\\s]+) = (.+)")
+    public void replace(String name, String token, String value) {
+        name = name.trim();
+        String text = context.vars.get(name).getAsString();
+        String replaced = Script.replacePlaceholderText(text, token, value, context);
+        context.vars.put(name, replaced);
     }
 
     @When("^text (.+) =$")

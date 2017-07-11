@@ -46,8 +46,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.script.Bindings;
@@ -1284,5 +1286,56 @@ public class Script {
         }
         return AssertionResult.PASS;
     }
+    
+    public static String replacePlaceholderText(String text, String token, String replaceWith, ScriptContext context) {
+        if (text == null) {
+            return null;
+        }
+        replaceWith = StringUtils.trimToNull(replaceWith);
+        if (replaceWith == null) {
+            return text;
+        }
+        try {
+            ScriptValue sv = eval(replaceWith, context);
+            replaceWith = sv.getAsString();
+        } catch (Exception e) {
+            throw new RuntimeException("expression error (replace string values need to be within quotes): " + e.getMessage());
+        }                
+        token = StringUtils.trimToNull(token);
+        if (token == null) {
+            return text;
+        }
+        char firstChar = token.charAt(0);
+        if (Character.isLetterOrDigit(firstChar)) {
+            token = '<' + token + '>';
+        }
+        return text.replace(token, replaceWith);
+    }
+
+    private static final String TOKEN = "token";
+    
+    public static String replacePlaceholders(String text, List<Map<String, String>> list, ScriptContext context) {
+        if (text == null) {
+            return null;
+        }
+        if (list == null) {
+            return text;
+        }
+        for (Map<String, String> map : list) {            
+            String token = map.get(TOKEN);
+            if (token == null) {
+                continue;
+            }
+            List<String> keys = new ArrayList(map.keySet());
+            keys.remove(TOKEN);
+            Iterator<String> iterator = keys.iterator();
+            if (iterator.hasNext()) {
+                String key = keys.iterator().next();
+                String value = map.get(key);
+                text = replacePlaceholderText(text, token, value, context);                
+            }                        
+        }
+        return text;
+    }    
 
 }

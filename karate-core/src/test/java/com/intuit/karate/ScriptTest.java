@@ -1166,5 +1166,15 @@ public class ScriptTest {
         Script.assign("json", "null", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "'##string'", ctx).pass);
     }
+    
+    @Test
+    public void testReplace() {
+        ScriptContext ctx = getContext();
+        assertEquals("foo", Script.replacePlaceholderText("foo", "foo", "'bar'", ctx));
+        assertEquals("bar", Script.replacePlaceholderText("<foo>", "foo", "'bar'", ctx));
+        assertEquals("bar", Script.replacePlaceholderText("<foo>", "foo", "'bar'", ctx));
+        assertEquals("bar", Script.replacePlaceholderText("@@foo@@", "@@foo@@", "'bar'", ctx));
+        assertEquals("bar bar bar", Script.replacePlaceholderText("<foo> <foo> <foo>", "foo", "'bar'", ctx));
+    }    
 
 }
