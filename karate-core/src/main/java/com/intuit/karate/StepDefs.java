@@ -29,8 +29,6 @@ import com.intuit.karate.http.HttpResponse;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import cucumber.api.DataTable;
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
 
 import java.io.ByteArrayInputStream;
@@ -399,13 +397,13 @@ public class StepDefs {
         request.addMultiPartItem(name, sv);
     }
 
-    @Then("^print (.+)")
+    @When("^print (.+)")
     public void print(String exp) {
         String temp = Script.evalInNashorn(exp, context).getAsString();
         context.logger.info("[print] {}", temp);
     }
 
-    @Then("^status (\\d+)")
+    @When("^status (\\d+)")
     public void status(int status) {
         if (status != response.getStatus()) {
             String rawResponse = context.vars.get(ScriptValueMap.VAR_RESPONSE).getAsString();
@@ -437,23 +435,23 @@ public class StepDefs {
         }
     }
 
-    @Then("^match (each )?([^\\s]+)( [^\\s]+)? ==$")
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? ==$")
     public void matchEqualsDocString(String each, String name, String path, String expected) {
         matchEquals(each, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?$")
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?$")
     public void matchContainsDocString(String each, String name, String path, String not, String only, String expected) {
         matchContains(each, name, path, not, only, expected);
     }   
 
-    @Then("^match (each )?([^\\s]+)( [^\\s]+)? == (.+)")
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? == (.+)")
     public void matchEquals(String each, String name, String path, String expected) {
         MatchType mt = toMatchType(each, null, null, false);
         matchNamed(mt, name, path, expected);
     }
 
-    @Then("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?(.+)")
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?(.+)")
     public void matchContains(String each, String name, String path, String not, String only, String expected) {
         MatchType mt = toMatchType(each, not, only, true);
         matchNamed(mt, name, path, expected);
@@ -464,12 +462,12 @@ public class StepDefs {
         handleFailure(ar);
     }
 
-    @Then("^set ([^\\s]+)( .+)? =$")
+    @When("^set ([^\\s]+)( .+)? =$")
     public void setByPathDocString(String name, String path, String value) {
         setNamedByPath(name, path, value);
     }
 
-    @Then("^set ([^\\s]+)( .+)? = (.+)")
+    @When("^set ([^\\s]+)( .+)? = (.+)")
     public void setByPath(String name, String path, String value) {
         setNamedByPath(name, path, value);
     }
@@ -478,12 +476,12 @@ public class StepDefs {
         Script.setValueByPath(name, path, value, context);
     }
     
-    @Then("^remove ([^\\s]+)( .+)?")
+    @When("^remove ([^\\s]+)( .+)?")
     public void removeByPath(String name, String path) {
         Script.removeValueByPath(name, path, context);
     }    
 
-    @Given("^call ([^\\s]+)( .*)?")
+    @When("^call ([^\\s]+)( .*)?")
     public final void callAndUpdateVars(String name, String arg) {
         Script.callAndUpdateVarsIfMapReturned(name, arg, context);
     }

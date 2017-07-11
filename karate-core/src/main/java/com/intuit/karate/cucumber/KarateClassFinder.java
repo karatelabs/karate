@@ -23,10 +23,6 @@
  */
 package com.intuit.karate.cucumber;
 
-import cucumber.api.java.en.And;
-import cucumber.api.java.en.But;
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
 import cucumber.runtime.ClassFinder;
 import java.util.Arrays;
@@ -46,7 +42,7 @@ public class KarateClassFinder implements ClassFinder {
 
     @Override
     public <T> Collection<Class<? extends T>> getDescendants(Class<T> parentType, String packageName) {
-        Class[] classes = new Class[]{And.class, But.class, Given.class, Then.class, When.class};
+        Class[] classes = new Class[]{When.class};
         return Arrays.asList(classes);
     }
 
