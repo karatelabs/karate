@@ -52,9 +52,13 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.cookie.Cookie;
+import org.apache.http.cookie.CookieSpec;
+import org.apache.http.cookie.CookieSpecProvider;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
@@ -64,6 +68,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 
 /**
  *
@@ -94,6 +99,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         clientBuilder.useSystemProperties();
         cookieStore = new BasicCookieStore();
         clientBuilder.setDefaultCookieStore(cookieStore);
+        clientBuilder.setDefaultCookieSpecRegistry(LenientCookieSpec.registry());
         AtomicInteger counter = new AtomicInteger();
         clientBuilder.addInterceptorLast(new RequestLoggingInterceptor(counter, context.logger));
         clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter, context.logger));
@@ -104,8 +110,8 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
             clientBuilder.setSSLSocketFactory(socketFactory);
         }
-
         RequestConfig.Builder configBuilder = RequestConfig.custom()
+                .setCookieSpec(LenientCookieSpec.KARATE)
                 .setConnectTimeout(config.getConnectTimeout())
                 .setSocketTimeout(config.getReadTimeout());
         clientBuilder.setDefaultRequestConfig(configBuilder.build());
@@ -175,6 +181,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     @Override
     protected void buildCookie(com.intuit.karate.http.Cookie c) {
         BasicClientCookie cookie = new BasicClientCookie(c.getName(), c.getValue());
+        cookie.setVersion(1);
         for (Entry<String, String> entry : c.entrySet()) {
             switch (entry.getKey()) {
                 case DOMAIN:
@@ -252,6 +259,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             cookie.put(SECURE, c.isSecure() + "");
             response.addCookie(cookie);
         }
+        cookieStore.clear(); // we rely on the StepDefs for cookie 'persistence'
         for (Header header : httpResponse.getAllHeaders()) {
             response.addHeader(header.getName(), header.getValue());
         }
