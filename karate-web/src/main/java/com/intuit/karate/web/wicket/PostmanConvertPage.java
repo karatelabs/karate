@@ -23,19 +23,13 @@
  */
 package com.intuit.karate.web.wicket;
 
-import org.apache.wicket.markup.html.link.BookmarkablePageLink;
-import org.apache.wicket.markup.html.panel.Panel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
 
-public class HeaderPanel extends Panel {
-    
-    private static final Logger logger = LoggerFactory.getLogger(HeaderPanel.class);
+public class PostmanConvertPage extends BasePage {
 
-	public HeaderPanel(String id) {
-		super(id);
-		add(new BookmarkablePageLink("browse", FeatureBrowsePage.class));
-		add(new BookmarkablePageLink("postman", PostmanConvertPage.class));
-	}
+    public PostmanConvertPage() {
+        super();
+        replace(new PostmanConvertPanel(CONTENT_ID));
+    }
 
 }

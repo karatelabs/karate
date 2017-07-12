@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.web.wicket;
 
+import com.intuit.karate.importer.KarateFeatureWriter;
+import com.intuit.karate.importer.PostmanCollectionReader;
+import com.intuit.karate.importer.PostmanRequest;
 import com.intuit.karate.web.service.KarateService;
 import com.intuit.karate.web.service.KarateSession;
 import org.apache.wicket.markup.html.form.Form;
@@ -30,45 +33,38 @@ import org.apache.wicket.markup.html.form.TextArea;
 import org.apache.wicket.markup.html.panel.FeedbackPanel;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.CompoundPropertyModel;
-import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.spring.injection.annot.SpringBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HomePanel extends Panel {
+import java.util.List;
 
-    private static final Logger logger = LoggerFactory.getLogger(HomePanel.class);
+public class PostmanConvertPanel extends Panel {
+
+    private static final Logger logger = LoggerFactory.getLogger(PostmanConvertPanel.class);
 
     @SpringBean(required = true)
     private KarateService service;
 
     private final String text;
 
-    public HomePanel(String id) {
+    public PostmanConvertPanel(String id) {
         super(id);
-        setUpPanel(id);
-        text = "Feature:\n\nScenario:\n";
-    }
-
-    public HomePanel(String id, String feature) {
-        super(id);
-        setUpPanel(id);
-        text = feature;
-
-    }
-
-    private void setUpPanel(String id) {
         setDefaultModel(new CompoundPropertyModel(this));
         Form form = new Form("form") {
             @Override
             protected void onSubmit() {
                 logger.debug("text is: {}", text);
-                KarateSession session = service.createSession("dev", text);
+                List<PostmanRequest> requests = PostmanCollectionReader.parseText(text);
+                String feature = KarateFeatureWriter.getFeature(requests);
+                KarateSession session = service.createSession("dev", feature);
                 setResponsePage(new FeaturePage(session.getId()));
             }
         };
         form.add(new TextArea("text"));
         add(form);
         add(new FeedbackPanel("feedback"));
+        text = "Paste your postman collection here.";
     }
+
 }

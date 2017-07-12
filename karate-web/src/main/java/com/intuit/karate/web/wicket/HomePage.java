@@ -29,5 +29,10 @@ public class HomePage extends BasePage {
 		super();
 		replace(new HomePanel(CONTENT_ID));		
 	}
+
+	public HomePage(String feature) {
+		super();
+		replace(new HomePanel(CONTENT_ID, feature));
+	}
 	
 }

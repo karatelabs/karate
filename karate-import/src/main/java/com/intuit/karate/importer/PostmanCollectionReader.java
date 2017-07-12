@@ -45,15 +45,8 @@ public class PostmanCollectionReader {
     private PostmanCollectionReader() {
         // only static methods
     }
-    
-    public static List<PostmanRequest> parse(String path) {
-        File file = new File(path);        
-        String json;
-        try {
-            json = FileUtils.readFileToString(file, "utf-8");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+
+    public static List<PostmanRequest> parseText(String json) {
         DocumentContext doc = JsonPath.parse(json);
         List<Map<String, Object>> list = (List) doc.read("$.item");
         List<PostmanRequest> requests = new ArrayList<>(list.size());
@@ -85,6 +78,18 @@ public class PostmanCollectionReader {
             requests.add(request);
         }
         return requests;
+    }
+
+
+    public static List<PostmanRequest> parse(String path) {
+        File file = new File(path);
+        String json;
+        try {
+            json = FileUtils.readFileToString(file, "utf-8");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return parseText(json);
     }
     
 }
