@@ -32,7 +32,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
 .... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
 .... | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution) | [Script Structure](#script-structure)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`table`](#table) | [`text`](#text) / [`yaml`](#yaml)
+**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
@@ -725,6 +725,49 @@ Examples:
 
 Note that if you did not need to inject [`Examples:`](#data-driven-tests) into 'placeholders' enclosed within `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
 
+## `replace`
+### Text Placeholder Replacement
+__Important__: this is applicable only to text content. For JSON and XML which are __natively__ supported by Karate, please refer to how to use the [`set`](#set) keyword.
+
+Karate provides an elegant 'native-like' experience for placeholder substitution within strings or text content. This is useful in any situation where you need to concatenate dynamic string fragments to form content such as GraphQL or SQL.
+
+The placeholder format defaults to angle-brackets, for example: `<replaceMe>`. Here is how to replace one placeholder at a time:
+
+```cucumber
+* def text = 'hello <foo> world'
+* replace text.foo = 'bar'
+* match text == 'hello bar world'
+```
+
+Karate makes it really easy to substitute multiple placeholders in a single, readable step as follows:
+
+```cucumber
+* def text = 'hello <one> world <two> bye'
+
+* replace text
+    | token | value   |
+    | one   | 'cruel' |
+    | two   | 'good'  |
+
+* match text == 'hello cruel world good bye'
+```
+
+Note how strings have to be enclosed in quotes. This is so that you can mix expressions into text replacements as shown below. This example also shows how you can use a custom placeholder format instead of the default:
+
+```cucumber
+* def text = 'hello <one> world ${two} bye'
+* def first = 'cruel'
+* def json = { second: 'good' }
+
+* replace text
+    | token  | value       |
+    | one    | first       |
+    | ${two} | json.second |
+
+* match text == 'hello cruel world good bye'
+```
+Refer to this file for a detailed example: [`replace.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/replace.feature)
+
 ## `yaml`
 ### Import YAML as JSON
 For those who may prefer [YAML](http://yaml.org) as a simpler way to represent data, Karate allows you to read YAML content 'in-line' or even from a [file](#reading-files) - and it will be auto-converted to JSON.
@@ -1134,6 +1177,9 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
+`httpClientClass` | TODO
+`httpClientInstance` | TODO
+`userDefined` | TODO
 
 
 Examples:
@@ -1970,14 +2016,9 @@ replace-inject a criteria expression into the right place, given a GraphQL query
 
 ```javascript
 function(args) {
-  var query = args.query;
-  karate.log('before replacement: ', query);
-  // the RegExp object is standard JavaScript
-  var regex = new RegExp('\\s' + args.field + '\\s*{');
-  karate.log('regex: ', regex);
-  query = query.replace(regex, ' ' + args.field + '(' + args.criteria + ') {');
-  karate.log('after replacement: ', query);
-  return query; 
+  var query = args.query;  
+  var regex = new RegExp('\\s' + args.field + '\\s*{'); // the RegExp object is standard JavaScript
+  return query.replace(regex, ' ' + args.field + '(' + args.criteria + ') {');
 } 
 ```
 
@@ -2003,18 +2044,6 @@ Then status 200
 * def agencies = $.data.company.taxAgencies.edges
 * match agencies[0].node == { id: '#uuid', name: 'John Smith' }
 ```
-## Multi-line Comments
-### How do I 'block-comment' multiple lines ?
-One limitation of the Cucumber / Gherkin format is the lack of a way to denote 
-multi-line comments.  This can be a pain during development when you want to comment out
-whole blocks of script.  Fortunately there is a reasonable workaround for this.
-
-Of course, if your [IDE supports the Gherkin / Cucumber format](https://github.com/cucumber/cucumber-jvm/wiki/IDE-support),
-nothing like it. But since Gherkin comments look exactly like comments in `*.properties` files, all you need
-to do is tell your IDE that `*.feature` files should be treated as `*.properties` files.
-
-And once that is done, if you hit CTRL + '/' (or Command + '/') with multiple
-lines selected - you can block-comment or un-comment them all in one-shot.
 
 ## Cucumber Tags
 Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some
