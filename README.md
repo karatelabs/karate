@@ -727,7 +727,7 @@ Note that if you did not need to inject [`Examples:`](#data-driven-tests) into '
 
 ## `replace`
 ### Text Placeholder Replacement
-__Important__: this is applicable only to text content. For JSON and XML which are __natively__ supported by Karate, please refer to how to use the [`set`](#set) keyword.
+> __Important__: this is applicable only to text content. For JSON and XML - which are __natively__ supported by Karate, please refer to how to use the [`set`](#set) keyword.
 
 Karate provides an elegant 'native-like' experience for placeholder substitution within strings or text content. This is useful in any situation where you need to concatenate dynamic string fragments to form content such as GraphQL or SQL.
 
@@ -1892,9 +1892,11 @@ And it is worth mentioning that the Karate [configuration 'bootstrap'](#configur
 A JavaScript function at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
 * `karate.set(name, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
-* `karate.set(name, path, value)` - this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](https://github.com/intuit/karate/blob/master/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L78), and it behaves the same way as the [`set`](#set) keyword.
+* `karate.set(name, path, value)` - this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L78), and it behaves the same way as the [`set`](#set) keyword.
 * `karate.remove(name, path)` - similar to the above, again very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
-* `karate.get(name)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`).
+* `karate.get(name)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
+* `karate.jsonPath(json, expression)` - brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS. You can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+* `karate.read(filename)` - read from a file, behaves exactly like [`read`](#reading-files)
 * `karate.log(... args)` - log to the same logger (and log file) being used by the parent process
 * `karate.env` - gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 * `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)

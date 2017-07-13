@@ -24,6 +24,8 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
@@ -79,6 +81,11 @@ public class ScriptBridge {
         } else {
             return null;
         }
+    }
+    
+    public Object jsonPath(Object o, String exp) {
+        DocumentContext doc = JsonPath.parse(o);
+        return doc.read(exp);
     }
     
     public Object call(String fileName) {

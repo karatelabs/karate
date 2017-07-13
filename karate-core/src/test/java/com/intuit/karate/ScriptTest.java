@@ -1066,6 +1066,14 @@ public class ScriptTest {
         Script.assign("res", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "{ foo: 'bar_someValue', baz: 'ban' }", ctx).pass);
     }
+    
+    @Test
+    public void testFromJsKarateJsonPath() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ var foo = [{v:1},{v:2}]; return karate.jsonPath(foo, '$[*].v') }", ctx);
+        Script.assign("res", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "[1, 2]", ctx).pass);
+    }    
 
     @Test
     public void testAssigningRawTextWhichOtherwiseConfusesKarate() {
@@ -1176,5 +1184,5 @@ public class ScriptTest {
         assertEquals("bar", Script.replacePlaceholderText("@@foo@@", "@@foo@@", "'bar'", ctx));
         assertEquals("bar bar bar", Script.replacePlaceholderText("<foo> <foo> <foo>", "foo", "'bar'", ctx));
     }    
-
+    
 }
