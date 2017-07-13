@@ -49,7 +49,7 @@ public class StepDefs {
     private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
-        this(getFeatureEnv(), null, null);
+        this(getFeatureEnv(), null, null, false);
     }
 
     private static ScriptEnv getFeatureEnv() {
@@ -68,8 +68,8 @@ public class StepDefs {
         }
     }
 
-    public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
-        context = new ScriptContext(env, parentContext, callArg);
+    public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg, boolean reuseParentConfig) {
+        context = new ScriptContext(env, parentContext, callArg, reuseParentConfig);
         request = new HttpRequest();
     }
 
@@ -337,14 +337,14 @@ public class StepDefs {
             if (Script.isJson(responseString)) {
                 DocumentContext doc = JsonUtils.toJsonDoc(responseString);
                 responseBody = doc;
-                if (context.logPrettyResponse && context.logger.isDebugEnabled()) {
+                if (context.isLogPrettyResponse() && context.logger.isDebugEnabled()) {
                     context.logger.debug("response:\n{}", JsonUtils.toPrettyJsonString(doc));
                 }
             } else if (Script.isXml(responseString)) {
                 try {
                     Document doc = XmlUtils.toXmlDoc(responseString);
                     responseBody = doc;
-                    if (context.logPrettyResponse && context.logger.isDebugEnabled()) {
+                    if (context.isLogPrettyResponse() && context.logger.isDebugEnabled()) {
                         context.logger.debug("response:\n{}", XmlUtils.toString(doc, true));
                     }
                 } catch (Exception e) {
@@ -496,9 +496,14 @@ public class StepDefs {
     }    
 
     @When("^call ([^\\s]+)( .*)?")
-    public final void callAndUpdateVars(String name, String arg) {
-        Script.callAndUpdateVarsIfMapReturned(name, arg, context);
+    public final void callAndUpdateConfigAndVars(String name, String arg) {
+        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, name, arg, context);
     }
+    
+    @When("^callonce ([^\\s]+)( .*)?")
+    public final void callOnceAndUpdateConfigAndVars(String name, String arg) {
+        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(true, name, arg, context);
+    }    
 
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {

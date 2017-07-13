@@ -126,7 +126,7 @@ public class CucumberRunner {
         logger.debug("loading feature: {}", featurePath);
         File featureDir = new File(featurePath).getParentFile();
         ScriptEnv env = new ScriptEnv(null, featureDir, packageFile.getName(), classLoader);
-        Backend backend = new KarateBackend(env, null, null);
+        Backend backend = new KarateBackend(env, null, null, false);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
         return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
     }
@@ -221,7 +221,7 @@ public class CucumberRunner {
     
     private static Map<String, Object> runFeature(File file, Map<String, Object> vars) {        
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, Thread.currentThread().getContextClassLoader());
-        ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, null, vars);
+        ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, null, vars, false);
         return Script.simplify(scriptValueMap);        
     }
     

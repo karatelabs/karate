@@ -97,7 +97,7 @@ public class ScriptBridge {
         switch(sv.getType()) {
             case FEATURE_WRAPPER:
                 FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
-                return Script.evalFeatureCall(feature, arg, context).getValue();
+                return Script.evalFeatureCall(feature, arg, context, false).getValue();
             case JS_FUNCTION:
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
                 return Script.evalFunctionCall(som, arg, context).getValue();

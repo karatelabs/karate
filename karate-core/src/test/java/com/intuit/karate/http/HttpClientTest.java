@@ -41,7 +41,7 @@ public class HttpClientTest {
     private ScriptContext getContext() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        return new ScriptContext(env, null, null);
+        return new ScriptContext(env, null, null, false);
     }    
     
     @Test

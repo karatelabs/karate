@@ -27,7 +27,7 @@ public class ScriptTest {
     private ScriptContext getContext() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        return new ScriptContext(env, null, null);
+        return new ScriptContext(env, null, null, false);
     }
 
     private AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
@@ -580,7 +580,7 @@ public class ScriptTest {
         Script.assign("foo", "function(){ return { bar: 'baz' } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
         assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
-        Script.callAndUpdateVarsIfMapReturned("foo", null, ctx);
+        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "foo", null, ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("baz", testBar.getValue());
     }
@@ -609,7 +609,7 @@ public class ScriptTest {
         Script.assign("foo", "function(a){ return { bar: a } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
         assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
-        Script.callAndUpdateVarsIfMapReturned("foo", "'hello'", ctx);
+        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "foo", "'hello'", ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("hello", testBar.getValue());
     }
@@ -620,7 +620,7 @@ public class ScriptTest {
         Script.assign("foo", "function(a){ return { bar: a.hello } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
         assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
-        Script.callAndUpdateVarsIfMapReturned("foo", "{ hello: 'world' }", ctx);
+        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "foo", "{ hello: 'world' }", ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("world", testBar.getValue());
     }
@@ -896,14 +896,14 @@ public class ScriptTest {
     public void testKarateEnvAccessFromScript() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("baz", new File(featureDir));
-        ScriptContext ctx = new ScriptContext(env, null, null);
+        ScriptContext ctx = new ScriptContext(env, null, null, false);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         ScriptValue bar = ctx.vars.get("bar");
         assertEquals("baz", bar.getValue());
         // null
         env = ScriptEnv.init(null, new File(featureDir));
-        ctx = new ScriptContext(env, null, null);
+        ctx = new ScriptContext(env, null, null, false);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         bar = ctx.vars.get("bar");

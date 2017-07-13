@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.ScriptValue;
 import java.util.Map;
 
 /**
@@ -38,10 +39,33 @@ public class HttpConfig {
     private String proxyUri;
     private String proxyUsername;
     private String proxyPassword;
+    private ScriptValue headers = ScriptValue.NULL;    
+    private boolean logPrettyRequest;
+    private boolean logPrettyResponse;
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
-
+    
+    public HttpConfig() {
+        // zero arg constructor
+    }
+    
+    public HttpConfig(HttpConfig parent) {
+        sslEnabled = parent.sslEnabled;
+        sslAlgorithm = parent.sslAlgorithm;
+        readTimeout = parent.readTimeout;
+        connectTimeout = parent.connectTimeout;
+        proxyUri = parent.proxyUri;
+        proxyUsername = parent.proxyUsername;
+        proxyPassword = parent.proxyPassword;
+        headers = parent.headers;
+        logPrettyRequest = parent.logPrettyRequest;
+        logPrettyResponse = parent.logPrettyResponse;
+        clientClass = parent.clientClass;
+        clientInstance = parent.clientInstance;
+        userDefined = parent.userDefined;
+    }
+    
     public boolean isSslEnabled() {
         return sslEnabled;
     }
@@ -97,6 +121,30 @@ public class HttpConfig {
     public void setProxyPassword(String proxyPassword) {
         this.proxyPassword = proxyPassword;
     }
+
+    public ScriptValue getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(ScriptValue headers) {
+        this.headers = headers;
+    }   
+
+    public boolean isLogPrettyRequest() {
+        return logPrettyRequest;
+    }
+
+    public void setLogPrettyRequest(boolean logPrettyRequest) {
+        this.logPrettyRequest = logPrettyRequest;
+    }
+
+    public boolean isLogPrettyResponse() {
+        return logPrettyResponse;
+    }
+
+    public void setLogPrettyResponse(boolean logPrettyResponse) {
+        this.logPrettyResponse = logPrettyResponse;
+    }        
 
     public String getClientClass() {
         return clientClass;

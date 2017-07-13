@@ -42,52 +42,51 @@ public class ScriptContext {
     public static final String KARATE_NAME = "karate";
     private static final String VAR_READ = "read";
 
-    protected final ScriptValueMap vars;
-
-    protected HttpClient client;
+    protected final ScriptValueMap vars;    
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;
-
-    // stateful config
-    private ScriptValue headers = ScriptValue.NULL;
-    private ScriptValue readFunction;
-    private HttpConfig config;
-    protected boolean logPrettyResponse = false;
-    private boolean logPrettyRequest = false;        
+    private final ScriptValue readFunction;
+    private final HttpConfig config;
+    
+    // this can get re-built or even swapped, so cannot be final
+    protected HttpClient client;           
 
     public ScriptValueMap getVars() {
         return vars;
-    }
+    }  
 
-    public ScriptValue getConfiguredHeaders() {
-        return headers;
+    public ScriptValue getConfigHeaders() {
+        return config.getHeaders();
     }  
 
     public boolean isLogPrettyRequest() {
-        return logPrettyRequest;
-    }        
+        return config.isLogPrettyRequest();
+    }
+    
+    public boolean isLogPrettyResponse() {
+        return config.isLogPrettyResponse();
+    }    
 
-    public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
+    public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg, boolean reuseParentConfig) {
         this.env = env.refresh(null);
         logger = env.logger;
         if (parent != null) {
             vars = Script.clone(parent.vars);
             validators = parent.validators;
-            readFunction = Script.eval(getFileReaderFunction(), this);
-            headers = parent.headers;
-            config = parent.config;
-            client = HttpClient.construct(config, this);           
+            config = reuseParentConfig ? parent.config : new HttpConfig(parent.config);                                    
         } else {
             vars = new ScriptValueMap();
-            validators = Script.getDefaultValidators();
-            readFunction = Script.eval(getFileReaderFunction(), this);
+            validators = Script.getDefaultValidators();            
             config = new HttpConfig();
-            client = HttpClient.construct(config, this);            
+        }
+        client = HttpClient.construct(config, this);
+        readFunction = Script.eval(getFileReaderFunction(), this);
+        if (parent == null) {
             try {
-                Script.callAndUpdateVarsIfMapReturned("read('classpath:karate-config.js')", null, this);
+                Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
                 logger.warn("start-up configuration failed, missing or bad 'karate-config.js'", e);
-            }
+            }            
         }
         if (arg != null) {
             for (Map.Entry<String, Object> entry : arg.entrySet()) {
@@ -111,30 +110,30 @@ public class ScriptContext {
     public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
         if (key.equals("headers")) {
-            headers = value;
+            config.setHeaders(value);
             return;
         }
         if (key.equals("logPrettyResponse")) {
-            logPrettyResponse = value.isBooleanTrue();
+            config.setLogPrettyResponse(value.isBooleanTrue());
             return;
         }
         if (key.equals("logPrettyRequest")) {
-            logPrettyRequest = value.isBooleanTrue();
+            config.setLogPrettyRequest(value.isBooleanTrue());
             return;
         }
         if (key.equals("httpClientClass")) {
             config.setClientClass(value.getAsString());
-            // very different from the rest and we exit early
+            // re-construct all the things ! and we exit early
             client = HttpClient.construct(config, this);
             return;
         }
         if (key.equals("httpClientInstance")) {
             config.setClientInstance(value.getValue(HttpClient.class));
-            // again different from the rest and we exit early
+            // here too, re-construct client - and exit early
             client = HttpClient.construct(config, this);
             return;
         }        
-        // beyond this point, we don't exit early and we have to re-build the http client
+        // beyond this point, we don't exit early and we have to re-configure the http client
         if (key.equals("ssl")) {
             if (value.isString()) {
                 config.setSslEnabled(true);

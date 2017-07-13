@@ -27,6 +27,7 @@ import com.intuit.karate.KarateException;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.XmlUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -55,9 +56,12 @@ public abstract class HttpClient<T> {
 
     protected HttpRequest request;
 
-    /** guaranteed to be called once if empty constructor was used 
+    /**
+     * guaranteed to be called once if empty constructor was used
+     *
      * @param config
-     * @param context */
+     * @param context
+     */
     public abstract void configure(HttpConfig config, ScriptContext context);
 
     protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);
@@ -220,23 +224,13 @@ public abstract class HttpClient<T> {
     }
 
     private static Map<String, Object> evalConfiguredHeaders(ScriptContext context) {
-        ScriptValue headersValue = context.getConfiguredHeaders();
-        switch (headersValue.getType()) {
-            case JS_FUNCTION:
-                ScriptObjectMirror som = headersValue.getValue(ScriptObjectMirror.class);
-                ScriptValue sv = Script.evalFunctionCall(som, null, context);
-                switch (sv.getType()) {
-                    case JS_OBJECT:
-                    case MAP:
-                        return sv.getValue(Map.class);
-                    default:
-                        return null;
-                }
-            case JSON:
-                DocumentContext json = headersValue.getValue(DocumentContext.class);
-                return json.read("$");
-            default:
-                return null;
+        ScriptValue headersValue = context.getConfigHeaders();
+        if (headersValue.getType() == Type.JS_FUNCTION) {
+            ScriptObjectMirror som = headersValue.getValue(ScriptObjectMirror.class);
+            ScriptValue sv = Script.evalFunctionCall(som, null, context);
+            return sv.isMapLike() ? sv.getAsMap() : null;
+        } else {
+            return headersValue.isMapLike() ? headersValue.getAsMap() : null;
         }
     }
 
@@ -247,7 +241,7 @@ public abstract class HttpClient<T> {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
+    }
 
     public static HttpClient construct(HttpConfig config, ScriptContext context) {
         if (config.getClientInstance() != null) {
@@ -265,7 +259,7 @@ public abstract class HttpClient<T> {
                 }
                 Properties props = new Properties();
                 props.load(is);
-                className = props.getProperty("client.class");                
+                className = props.getProperty("client.class");
             }
             HttpClient client = construct(className);
             client.configure(config, context);
@@ -273,7 +267,7 @@ public abstract class HttpClient<T> {
         } catch (Exception e) {
             String msg = "failed to construct class by name: " + e.getMessage() + ", aborting";
             throw new RuntimeException(msg);
-        }       
+        }
     }
 
 }

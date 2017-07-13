@@ -50,7 +50,7 @@ public class CucumberUtilsTest {
         assertEquals("Feature: simple feature file\n\n# some comment\n\nBackground:", stepText);
         assertEquals(5, step.getStartLine());
         File featureDir = FileUtils.getDirContaining(getClass());
-        KarateBackend backend = CucumberUtils.getBackend(env, null, null);
+        KarateBackend backend = CucumberUtils.getBackend(env, null, null, false);
         assertTrue(step.run(backend).isPass());
         
         step = steps.get(1); // first scenario (non-background) step

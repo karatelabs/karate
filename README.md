@@ -1919,28 +1919,36 @@ A JavaScript function at runtime has access to a utility object in a variable na
 Only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
 
 ### Return types
-Naturally, only one value can be returned.  But again, you can return a JSON object.
-There are two things that can happen to the returned value.
+Naturally, only one value can be returned.  But again, you can return a JSON object. There are two things that can happen to the returned value.
 
 Either - it can be assigned to a variable like so.
 ```cucumber
 * def returnValue = call myFunction
 ```
-Or - if a `call` is made without an assignment, and if the function returns a map-like
-object, it will add each key-value pair returned as a new variable into the execution context.
+
+Or - if a `call` is made without an assignment, and if the function returns a map-like object, it will add each key-value pair returned as a new variable into the execution context.
 ```cucumber
 # while this looks innocent ...
 # ... behind the scenes, it could be creating (or over-writing) a bunch of variables !
 * call someFunction
 ```
-While this sounds dangerous and should be used with care (and limits readability), the reason
-this feature exists is to quickly set (or over-write) a bunch of config variables when needed.
-In fact, this is the mechanism used when [`karate-config.js`](#configuration) is processed on start-up.
 
-You can invoke a function in a [re-usable file](#reading-files) using this short-cut.
+While this sounds dangerous and should be used with care (and limits readability), the reason this feature exists is to quickly set (or over-write) a bunch of config variables when needed. In fact, this is the mechanism used when [`karate-config.js`](#configuration) is processed on start-up.
+
+This behavior where all key-value pairs in the returned map-like object get automatically added as variables - applies to the [calling of `*.feature` files](#calling-other-feature-files) as well. This comes in useful to boil-down those 'common' steps that you have to perform at the start of multiple test-scripts - into one-liners.
+
+```cucumber
+* def config = { user: 'john', password: 'secret' }
+# this next line may perform many steps and result in multiple variables set for the rest of the script
+* call read('classpath:common-setup.feature') config
+```
+
+Note the 'inline' use of the [read](#reading-files) function as a short-cut above. This applies to JS functions as well:
+
 ```cucumber
 * call read('my-function.js')
 ```
+
 ### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme.
 Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to

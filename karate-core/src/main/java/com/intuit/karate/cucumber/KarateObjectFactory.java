@@ -39,11 +39,14 @@ public class KarateObjectFactory implements ObjectFactory {
     private final ScriptEnv scriptEnv;
     private final ScriptContext parentContext;
     private final Map<String, Object> callArg;
+    private final boolean reuseParentConfig;
     
-    public KarateObjectFactory(ScriptEnv scriptEnv, ScriptContext parentContext, Map<String, Object> callArg) {
+    public KarateObjectFactory(ScriptEnv scriptEnv, ScriptContext parentContext, 
+            Map<String, Object> callArg, boolean reuseParentConfig) {
         this.scriptEnv = scriptEnv;
         this.parentContext = parentContext;
         this.callArg = callArg;
+        this.reuseParentConfig = reuseParentConfig;
     }
 
     @Override
@@ -66,7 +69,7 @@ public class KarateObjectFactory implements ObjectFactory {
         if (stepDefs == null) {
             // the lazy init gives users the chance to over-ride the env
             // for example using a JUnit @BeforeClass hook
-            stepDefs = new StepDefs(scriptEnv, parentContext, callArg);
+            stepDefs = new StepDefs(scriptEnv, parentContext, callArg, reuseParentConfig);
         }
         return (T) stepDefs;
     }

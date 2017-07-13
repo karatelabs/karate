@@ -47,8 +47,9 @@ public class CucumberUtils {
         // only static methods
     }   
 
-    public static KarateBackend getBackend(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg) {
-        KarateBackend backend = new KarateBackend(env, parentContext, callArg);
+    public static KarateBackend getBackend(ScriptEnv env, ScriptContext parentContext, 
+            Map<String, Object> callArg, boolean reuseParentConfig) {
+        KarateBackend backend = new KarateBackend(env, parentContext, callArg, reuseParentConfig);
         ClassLoader defaultClassLoader = Thread.currentThread().getContextClassLoader();
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(defaultClassLoader));
         backend.loadGlue(glue, null);
@@ -65,9 +66,10 @@ public class CucumberUtils {
         return cucumberFeature;
     }
 
-    public static ScriptValueMap call(FeatureWrapper feature, ScriptContext parentContext, Map<String, Object> callArg) {
+    public static ScriptValueMap call(FeatureWrapper feature, ScriptContext parentContext, 
+            Map<String, Object> callArg, boolean reuseParentConfig) {
         ScriptEnv env = feature.getEnv();
-        KarateBackend backend = getBackend(env, parentContext, callArg);
+        KarateBackend backend = getBackend(env, parentContext, callArg, reuseParentConfig);
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();

@@ -166,15 +166,31 @@ public class Script {
         }
         return Pair.of(name, path);
     }
-
+    
     public static ScriptValue eval(String text, ScriptContext context) {
+        return eval(text, context, false);
+    }
+    
+    private static ScriptValue callWithCache(String text, String arg, ScriptContext context, boolean reuseParentConfig) {
+        ScriptValue callResult = context.env.getFromCallCache(text);
+        if (callResult != null) {
+            context.logger.debug("callonce cache hit for: {}", text);
+            return callResult;
+        }
+        callResult = call(text, arg, context, reuseParentConfig);
+        context.env.putInCallCache(text, callResult);
+        context.logger.debug("cached callonce: {}", text);
+        return callResult;        
+    }
+
+    private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig) {
         text = StringUtils.trimToEmpty(text);
         if (text.isEmpty()) {
             return ScriptValue.NULL;
         }
-        boolean once = isCallOnceSyntax(text);
-        if (once || isCallSyntax(text)) { // special case in form "call foo arg"
-            if (once) {
+        boolean callOnce = isCallOnceSyntax(text);
+        if (callOnce || isCallSyntax(text)) { // special case in form "call foo arg"
+            if (callOnce) {
                 text = text.substring(9);
             } else {
                 text = text.substring(5);
@@ -187,18 +203,11 @@ public class Script {
             } else {
                 arg = null;
             }
-            if (!once) {
-                return call(text, arg, context);
-            }
-            ScriptValue callResult = context.env.getFromCallCache(text);
-            if (callResult != null) {
-                context.logger.debug("callonce cache hit for: {}", text);
-                return callResult;
-            }
-            callResult = call(text, arg, context);
-            context.env.putInCallCache(text, callResult);
-            context.logger.debug("cached callonce: {}", text);
-            return callResult;
+            if (callOnce) {
+                return callWithCache(text, arg, context, reuseParentConfig);
+            } else {
+                return call(text, arg, context, reuseParentConfig);
+            }            
         } else if (isGetSyntax(text)) { // special case in form
             // get json[*].path
             // get /xml/path
@@ -1137,7 +1146,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue call(String name, String argString, ScriptContext context) {
+    public static ScriptValue call(String name, String argString, ScriptContext context, boolean reuseParentConfig) {
         ScriptValue argValue = eval(argString, context);
         ScriptValue sv = eval(name, context);
         switch (sv.getType()) {
@@ -1183,7 +1192,7 @@ public class Script {
                         throw new RuntimeException("only json, list/array or map allowed as feature call argument");
                 }
                 FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
-                return evalFeatureCall(feature, callArg, context);
+                return evalFeatureCall(feature, callArg, context, reuseParentConfig);
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
@@ -1210,7 +1219,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context) {
+    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1219,7 +1228,7 @@ public class Script {
                 Object rowArg = array[i];
                 if (rowArg instanceof Map) {
                     try {
-                        ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg);
+                        ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg, reuseParentConfig);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
                         String message = "loop feature call failed in " + feature.getEnv() + ", index: " + i + ", arg: " + rowArg + ", items: " + items;
@@ -1232,7 +1241,7 @@ public class Script {
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
             try {
-                return evalFeatureCall(feature, context, (Map) callArg);
+                return evalFeatureCall(feature, context, (Map) callArg, reuseParentConfig);
             } catch (KarateException ke) {
                 String message = "feature call failed in " + feature.getEnv() + ", arg: " + callArg;
                 context.logger.error(message, ke);
@@ -1243,14 +1252,20 @@ public class Script {
         }
     }
 
-    private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context, Map<String, Object> callArg) {
-        ScriptValueMap svm = CucumberUtils.call(feature, context, callArg);
+    private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context, 
+            Map<String, Object> callArg, boolean reuseParentConfig) {
+        ScriptValueMap svm = CucumberUtils.call(feature, context, callArg, reuseParentConfig);
         Map<String, Object> map = simplify(svm);
         return new ScriptValue(map);
     }
 
-    public static void callAndUpdateVarsIfMapReturned(String name, String arg, ScriptContext context) {
-        ScriptValue sv = call(name, arg, context);
+    public static void callAndUpdateConfigAndAlsoVarsIfMapReturned(boolean callOnce, String name, String arg, ScriptContext context) {
+        ScriptValue sv;
+        if (callOnce) {
+            sv = callWithCache(name, arg, context, true);
+        } else {
+            sv = call(name, arg, context, true);
+        }
         Map<String, Object> result;
         switch (sv.getType()) {
             case JS_OBJECT:
