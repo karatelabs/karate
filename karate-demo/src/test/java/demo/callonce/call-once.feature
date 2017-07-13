@@ -5,10 +5,10 @@ Background:
 * url demoBaseUrl
 
 * table kittens = 
-    | name     | age |
-    | Bob      | 2   |
-    | Wild     | 1   |
-    | Nyan     | 3   |
+    | name   | age |
+    | 'Bob'  | 2   |
+    | 'Wild' | 1   |
+    | 'Nyan' | 3   |
 
 # note the use of 'callonce' instead of 'call'
 * def result = callonce read('../calltable/kitten-create.feature') kittens

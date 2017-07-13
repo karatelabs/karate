@@ -4,13 +4,13 @@ Background:
 * url demoBaseUrl
 
 * table kittens = 
-    | name     | age |
-    | Bob      | 2   |
-    | Wild     | 1   |
-    | Nyan     | 3   |
-    | Keyboard | 5   |
-    | LOL      | 3   |
-    | Ceiling  | 2   |
+    | name       | age |
+    | 'Bob'      | 2   |
+    | 'Wild'     | 1   |
+    | 'Nyan'     | 3   |
+    | 'Keyboard' | 5   |
+    | 'LOL'      | 3   |
+    | 'Ceiling'  | 2   |
 
 * def result = call read('kitten-create.feature') kittens
 

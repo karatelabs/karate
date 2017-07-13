@@ -257,13 +257,11 @@ public class StepDefs {
         Script.assign(name, expression, context);
     }
 
-    private static DocumentContext toJson(DataTable table) {
-        return JsonPath.parse(table.asMaps(String.class, Object.class));
-    }
-
     @When("^table (.+) =$")
     public void table(String name, DataTable table) {
-        DocumentContext doc = toJson(table);
+        List<Map<String, Object>> list = table.asMaps(String.class, Object.class);
+        list = Script.evaluateExpressions(list, context);
+        DocumentContext doc = JsonPath.parse(list);
         context.vars.put(name.trim(), doc);
     }
     

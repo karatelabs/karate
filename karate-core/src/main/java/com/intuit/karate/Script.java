@@ -47,6 +47,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1336,6 +1337,22 @@ public class Script {
             }                        
         }
         return text;
-    }    
+    }
+
+    public static List<Map<String, Object>> evaluateExpressions(List<Map<String, Object>> list, ScriptContext context) {
+        List<Map<String, Object>> result = new ArrayList<>(list.size());
+        for (Map<String, Object> map : list) {
+            Map<String, Object> row = new LinkedHashMap<>(map);
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                Object o = entry.getValue();
+                if (o instanceof String) {
+                    ScriptValue sv = eval((String) o, context);
+                    entry.setValue(sv.getAsString());
+                }
+            }
+            result.add(row);
+        }
+        return result;
+    }
 
 }

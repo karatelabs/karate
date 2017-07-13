@@ -675,15 +675,27 @@ Now that we have seen how JSON is a 'native' data type that Karate understands, 
 
 ```cucumber
 * table cats =
-    | name | age |
-    | Bob  | 2   |
-    | Wild | 4   |
-    | Nyan | 3   |
+    | name   | age |
+    | 'Bob'  | 2   |
+    | 'Wild' | 4   |
+    | 'Nyan' | 3   |
 
 * match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]
 ```
 
 The [`match`](#match) keyword is explained later, but it should be clear right away how convenient the `table` keyword is. JSON can be combined with the ability to [call other `*.feature` files](#data-driven-features) to achieve dynamic data-driven testing in Karate.
+
+Notice that in the above example, string values within the table need to be enclosed in quotes. Otherwise they would be evaluated as expressions - which does come in useful for some dynamic data-driven situations:
+
+```cucumber
+* def one = 'hello'
+* def two = { baz: 'world' }
+* table json =
+    | foo     | bar |
+    | one     | 1   |
+    | two.baz | 2   |
+* match json == [{ foo: 'hello', bar: 1 }, { foo: 'world', bar: 2 }]
+```
 
 ## `text`
 ### Don't parse, treat as raw text

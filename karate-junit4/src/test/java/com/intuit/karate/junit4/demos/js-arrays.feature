@@ -13,3 +13,12 @@ Scenario: json-path can be performed in js
 * def res = call fun json
 * match res == [1, 2]
 
+Scenario: table to json with expressions evaluated
+* def one = 'hello'
+* def two = { baz: 'world' }
+* table json =
+    | foo     | bar |
+    | one     | 1   |
+    | two.baz | 2   |
+* match json == [{ foo: 'hello', bar: 1 }, { foo: 'world', bar: 2 }]
+ 
