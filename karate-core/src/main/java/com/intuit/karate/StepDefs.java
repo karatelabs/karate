@@ -329,12 +329,7 @@ public class StepDefs {
         context.vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
         context.vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getTime());
         context.vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
-        if (response.getHeaders() != null) {
-            DocumentContext headers = JsonPath.parse(response.getHeaders());
-            context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, headers);
-        } else {
-            context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, ScriptValue.NULL);
-        }
+        context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
         Object responseBody = convertResponseBody(response.getBody());
         if (responseBody instanceof String) {
             String responseString = (String) responseBody;
