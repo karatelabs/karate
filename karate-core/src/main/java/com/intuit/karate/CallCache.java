@@ -21,39 +21,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptEnv;
-import java.io.File;
+import com.intuit.karate.http.HttpConfig;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpClientTest {
+public class CallCache {
     
-    private ScriptContext getContext() {
-        String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        return new ScriptContext(env, null, null);
-    }    
+    protected final Map<String, CallResult> cache = new HashMap(1);
     
-    @Test
-    public void testSwappingHttpClient() {
-        HttpConfig config = new HttpConfig();
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", "John");
-        config.setUserDefined(map);
-        config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
-        HttpClient client = HttpClient.construct(config, getContext());
-        HttpResponse response = client.makeHttpRequest(null, 0);
-        assertArrayEquals(response.getBody(), "hello John".getBytes());        
+    public void put(String key, ScriptValue result, HttpConfig config) {
+        cache.put(key, new CallResult(result, config));
+    }
+    
+    public CallResult get(String key) {
+        return cache.get(key);
     }
     
 }

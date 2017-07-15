@@ -46,11 +46,11 @@ public class ScriptContext {
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;    
-    protected final HttpConfig config;
     private final ScriptValue readFunction;
 
-    // this can get re-built or even swapped, so cannot be final
+    // these can get re-built or swapped, so cannot be final
     protected HttpClient client;
+    protected HttpConfig config;
 
     public ScriptValueMap getVars() {
         return vars;
@@ -85,13 +85,13 @@ public class ScriptContext {
         return config.isLogPrettyResponse();
     }
 
-    public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg, boolean reuseParentConfig) {
+    public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
         this.env = env.refresh(null);
         logger = env.logger;
         if (parent != null) {
             vars = Script.clone(parent.vars);
             validators = parent.validators;
-            config = reuseParentConfig ? parent.config : new HttpConfig(parent.config);
+            config = new HttpConfig(parent.config);
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
@@ -121,9 +121,14 @@ public class ScriptContext {
                 + "}";
     }
 
+    public void configure(HttpConfig config) {
+        this.config = config;
+        client = HttpClient.construct(config, this);
+    }    
+    
     public void configure(String key, String exp) {
         configure(key, Script.eval(exp, this));
-    }
+    }    
 
     public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);

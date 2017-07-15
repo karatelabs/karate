@@ -41,10 +41,10 @@ public class ScriptEnv {
     public final File featureDir;
     public final String featureName;
     public final ClassLoader fileClassLoader;
-    private final Map<String, ScriptValue> callCache;
+    public final CallCache callCache;
     
     public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, 
-            Map<String, ScriptValue> callCache, Logger logger) {
+            CallCache callCache, Logger logger) {
         this.env = env;
         this.featureDir = featureDir;
         this.featureName = featureName;
@@ -54,7 +54,7 @@ public class ScriptEnv {
     }
     
     public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader) {
-        this(env, featureDir, featureName, fileClassLoader, new HashMap<>(1), LoggerFactory.getLogger("com.intuit.karate"));
+        this(env, featureDir, featureName, fileClassLoader, new CallCache(), LoggerFactory.getLogger("com.intuit.karate"));
     }
     
     public static ScriptEnv init(File featureDir, String featureName, ClassLoader classLoader) {
@@ -66,8 +66,8 @@ public class ScriptEnv {
     }
 
     public static ScriptEnv init(String env, File featureFile, String[] searchPaths, Logger logger) {
-        return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), FileUtils.createClassLoader(searchPaths), 
-                new HashMap<>(1), logger);
+        return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), 
+                FileUtils.createClassLoader(searchPaths), new CallCache(), logger);
     }    
     
     public ScriptEnv refresh(String in) { // immutable
@@ -81,14 +81,6 @@ public class ScriptEnv {
         return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache, logger);
     }
     
-    public ScriptValue getFromCallCache(String key) {
-        return callCache.get(key);
-    }
-    
-    public void putInCallCache(String key, ScriptValue value) {
-        callCache.put(key, value);
-    }
-
     @Override
     public String toString() {
         return featureName + ", env: " + env + ", dir: " + featureDir;

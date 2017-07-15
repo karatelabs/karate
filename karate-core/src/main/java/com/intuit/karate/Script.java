@@ -50,7 +50,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.script.Bindings;
@@ -172,15 +171,18 @@ public class Script {
     }
     
     private static ScriptValue callWithCache(String text, String arg, ScriptContext context, boolean reuseParentConfig) {
-        ScriptValue callResult = context.env.getFromCallCache(text);
-        if (callResult != null) {
+        CallResult result = context.env.callCache.get(text);
+        if (result != null) {
             context.logger.debug("callonce cache hit for: {}", text);
-            return callResult;
+            if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
+                context.configure(result.config);
+            }
+            return result.value;
         }
-        callResult = call(text, arg, context, reuseParentConfig);
-        context.env.putInCallCache(text, callResult);
+        ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
+        context.env.callCache.put(text, resultValue, context.config);
         context.logger.debug("cached callonce: {}", text);
-        return callResult;        
+        return resultValue;        
     }
 
     private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig) {

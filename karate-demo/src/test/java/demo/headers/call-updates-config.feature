@@ -15,9 +15,17 @@ Scenario: no extra config - they have been set automatically by 'common.feature'
     When method get
     Then status 200
 
-#Scenario: configure json
-#
-#    Given path 'headers', token
-#    And param url = demoBaseUrl
-#    When method get
-#    Then status 200
+Scenario: make sure that the second scenario works as well with callonce
+
+    Given path 'headers', token
+    And param url = demoBaseUrl
+    When method get
+    Then status 200
+
+Scenario: here we erase the configured headers to get a 400
+
+    * configure headers = null
+    Given path 'headers', token
+    And param url = demoBaseUrl
+    When method get
+    Then status 400

@@ -69,7 +69,11 @@ public class StepDefs {
     }
 
     public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg, boolean reuseParentConfig) {
-        context = new ScriptContext(env, parentContext, callArg, reuseParentConfig);
+        if (reuseParentConfig) {
+            context = parentContext;
+        } else {
+            context = new ScriptContext(env, parentContext, callArg);
+        }        
         request = new HttpRequest();
     }
 
