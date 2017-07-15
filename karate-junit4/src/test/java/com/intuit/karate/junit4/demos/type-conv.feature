@@ -68,6 +68,7 @@ Scenario: xml with namespaces
   }
 }
 """
+* match jsonVar $.ns1:root..ns2:foo.@ == [{ fizz: 'buzz', ping: 'pong' }]
 * match jsonVar $..ns2:foo.@ == [{ fizz: 'buzz', ping: 'pong' }]
 * match jsonVar $..ns2:foo.@ contains { fizz: 'buzz', ping: 'pong' }
 * match jsonVar $..ns2:foo.@ contains only { fizz: 'buzz', ping: 'pong' }
