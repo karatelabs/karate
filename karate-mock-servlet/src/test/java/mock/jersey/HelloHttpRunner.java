@@ -21,12 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package mockhttp.jersey;
+package mock.jersey;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
+import com.intuit.karate.junit4.Karate;
+import java.net.URI;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,22 +38,26 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-@Path("hello")
-public class HelloResource {
-    
-    private static final Logger logger = LoggerFactory.getLogger(HelloResource.class);
+@RunWith(Karate.class)
+public class HelloHttpRunner {
 
-    @GET
-    @Produces("text/plain")
-    public String getHello() {
-        return "hello world";
+    private static final Logger logger = LoggerFactory.getLogger(HelloHttpRunner.class);
+    
+    private static HttpServer server;
+
+    @BeforeClass
+    public static void beforeClass() throws Exception {
+        ResourceConfig resourceConfig = new ResourceConfig(HelloResource.class);
+        URI uri = URI.create("http://localhost:8080");
+        server = GrizzlyHttpServerFactory.createHttpServer(uri, resourceConfig, false);
+        server.start();
+        logger.info("server started: {}", uri);
     }
     
-    @POST
-    @Produces("application/json")
-    public String postCat(String cat) {
-        logger.info("handling POST cat: {}", cat);
-        return "{ \"success\": true }";
+    @AfterClass
+    public static void afterClass() {
+        logger.info("stopping server");
+        server.shutdownNow();
     }
 
 }

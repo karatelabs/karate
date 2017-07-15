@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package mockhttp.jersey;
+package mock.jersey;
 
 import com.intuit.karate.junit4.Karate;
 import org.junit.BeforeClass;
@@ -32,11 +32,11 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-public class MockJerseyServletFactoryTest {
+public class MockJerseyServletTest {
     
     @BeforeClass
     public static void beforeClass() {
-        System.setProperty("karate.env", "dev-mock-factory");
+        System.setProperty("karate.env", "dev-mock");
     }
 
 }

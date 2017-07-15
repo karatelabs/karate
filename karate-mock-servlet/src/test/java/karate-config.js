@@ -3,9 +3,9 @@ function() {
     demoBaseUrl: 'http://localhost:8080'
   };
   if (karate.env == 'dev-mock') {
-    karate.configure('httpClientClass', 'mockhttp.jersey.MockJerseyServlet');
+    karate.configure('httpClientClass', 'mock.jersey.MockJerseyServlet');
   } else if (karate.env == 'dev-mock-factory') {
-    var Factory = Java.type('mockhttp.jersey.MockJerseyServletFactory');
+    var Factory = Java.type('mock.jersey.MockJerseyServletFactory');
     karate.configure('httpClientInstance', Factory.getMock());
   } else if (karate.env == 'dev-mock-springmvc') {
     var Factory = Java.type('demo.MockSpringMvcServlet');

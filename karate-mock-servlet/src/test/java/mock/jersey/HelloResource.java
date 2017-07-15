@@ -21,22 +21,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package mockhttp.jersey;
+package mock.jersey;
 
-import com.intuit.karate.junit4.Karate;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-public class MockJerseyServletTest {
+@Path("hello")
+public class HelloResource {
     
-    @BeforeClass
-    public static void beforeClass() {
-        System.setProperty("karate.env", "dev-mock");
+    private static final Logger logger = LoggerFactory.getLogger(HelloResource.class);
+
+    @GET
+    @Produces("text/plain")
+    public String getHello() {
+        return "hello world";
+    }
+    
+    @POST
+    @Produces("application/json")
+    public String postCat(String cat) {
+        logger.info("handling POST cat: {}", cat);
+        return "{ \"success\": true }";
     }
 
 }

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.mock.http;
+package com.intuit.karate.mock.servlet;
 
 import static com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.http.MultiPartItem;

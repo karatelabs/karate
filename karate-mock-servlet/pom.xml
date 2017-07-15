@@ -8,7 +8,7 @@
         <version>0.5.0</version>
     </parent>
     
-    <artifactId>karate-mock-http</artifactId>
+    <artifactId>karate-mock-servlet</artifactId>
     <packaging>jar</packaging>
     
     <properties>
@@ -77,5 +77,5 @@
             </testResource>
         </testResources>
     </build>
-    
+    <name>karate-mock-servlet</name>
 </project>

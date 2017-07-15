@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.mock.http;
+package com.intuit.karate.mock.servlet;
 
 import com.intuit.karate.ScriptContext;
 import static com.intuit.karate.http.Cookie.DOMAIN;
@@ -75,9 +75,6 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
      * this is guaranteed to be called if the zero-arg constructor is used,
      * so for advanced per-test set-up, over-ride this call-back and retrieve custom data 
      * via config.getUserDefined() - refer to the documentation of the 'configure userDefined' keyword
-     * 
-     * @param config
-     * @param context 
      */
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
