@@ -24,10 +24,8 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.KarateException;
-import com.intuit.karate.Script;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
-import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.XmlUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -35,7 +33,6 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Node;
 
 /**
@@ -162,9 +159,9 @@ public abstract class HttpClient<T> {
                 }
             }
         }
-        Map<String, Object> configuredHeaders = evalConfiguredHeaders(context);
-        if (configuredHeaders != null) {
-            for (Map.Entry<String, Object> entry : configuredHeaders.entrySet()) {
+        Map<String, Object> configHeaders = context.getConfigHeaders().evalAsMap(context);
+        if (configHeaders != null) {
+            for (Map.Entry<String, Object> entry : configHeaders.entrySet()) {
                 buildHeader(entry.getKey(), entry.getValue(), true);
             }
         }
@@ -173,6 +170,10 @@ public abstract class HttpClient<T> {
                 buildCookie(cookie);
             }
         }
+        Map<String, Object> configCookies = context.getConfigCookies().evalAsMap(context);
+        for (Cookie cookie : Cookie.toCookies(configCookies)) {
+            buildCookie(cookie);
+        }       
         if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method) || "DELETE".equals(method)) {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
@@ -214,6 +215,7 @@ public abstract class HttpClient<T> {
         try {
             HttpResponse response = makeHttpRequest(body, startTime);
             context.logger.debug("response time in milliseconds: {}", response.getTime());
+            context.updateConfigCookies(response.getCookies());
             return response;
         } catch (Exception e) {
             long responseTime = getResponseTime(startTime);
@@ -221,18 +223,7 @@ public abstract class HttpClient<T> {
             context.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
-    }
-
-    private static Map<String, Object> evalConfiguredHeaders(ScriptContext context) {
-        ScriptValue headersValue = context.getConfigHeaders();
-        if (headersValue.getType() == Type.JS_FUNCTION) {
-            ScriptObjectMirror som = headersValue.getValue(ScriptObjectMirror.class);
-            ScriptValue sv = Script.evalFunctionCall(som, null, context);
-            return sv.isMapLike() ? sv.getAsMap() : null;
-        } else {
-            return headersValue.isMapLike() ? headersValue.getAsMap() : null;
-        }
-    }
+    }        
 
     public static HttpClient construct(String className) {
         try {

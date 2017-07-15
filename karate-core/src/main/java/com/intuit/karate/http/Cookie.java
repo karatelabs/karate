@@ -23,7 +23,11 @@
  */
 package com.intuit.karate.http;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -40,7 +44,28 @@ public class Cookie extends LinkedHashMap<String, String> {
     public static final String MAX_AGE = "max-age";
     public static final String SECURE = "secure";
     public static final String PERSISTENT = "persistent";
-    public static final String HTTP_ONLY = "http-only";
+    public static final String HTTP_ONLY = "http-only";    
+    
+    // cookies can be a map of maps, so some extra processing
+    public static List<Cookie> toCookies(Map<String, Object> map) {
+        if (map == null) {
+            return Collections.EMPTY_LIST;
+        }
+        List<Cookie> cookies = new ArrayList(map.size());
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            Object o = entry.getValue();
+            if (o instanceof Map) {
+                cookies.add(new Cookie((Map) o));
+            } else if (o != null) {
+                cookies.add(new Cookie(entry.getKey(), o.toString()));
+            }
+        }
+        return cookies;
+    }
+    
+    public Cookie(Map<String, String> map) {
+        super(map);
+    }            
     
     public Cookie(String name, String value) {
         put(NAME, name);

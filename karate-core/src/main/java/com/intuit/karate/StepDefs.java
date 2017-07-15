@@ -354,17 +354,8 @@ public class StepDefs {
         }
         context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
         String prevUrl = request.getUrl();
-        Map<String, Cookie> prevCookies = request.getCookies();
         request = new HttpRequest();
         request.setUrl(prevUrl);
-        if (prevCookies == null) {
-            request.setCookies(response.getCookies());
-        } else {
-            if (response.getCookies() != null) {
-                prevCookies.putAll(response.getCookies());
-            }
-            request.setCookies(prevCookies);
-        }
     }
 
     private Object convertResponseBody(byte[] bytes) {

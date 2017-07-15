@@ -193,8 +193,7 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
         long responseTime = getResponseTime(startTime);
         bytes = res.getContentAsByteArray();
         logResponse(res, bytes);
-        HttpResponse response = new HttpResponse();
-        response.setTime(responseTime);
+        HttpResponse response = new HttpResponse(responseTime);
         response.setUri(getRequestUri());        
         response.setBody(bytes);
         response.setStatus(res.getStatus());

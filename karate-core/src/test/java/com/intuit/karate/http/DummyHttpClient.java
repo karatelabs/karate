@@ -89,7 +89,7 @@ public class DummyHttpClient extends HttpClient<String> {
 
     @Override
     protected HttpResponse makeHttpRequest(String entity, long startTime) {
-        return new HttpResponse();
+        return new HttpResponse(startTime);
     }
 
     @Override

@@ -39,7 +39,8 @@ public class HttpConfig {
     private String proxyUri;
     private String proxyUsername;
     private String proxyPassword;
-    private ScriptValue headers = ScriptValue.NULL;    
+    private ScriptValue headers = ScriptValue.NULL;
+    private ScriptValue cookies = ScriptValue.NULL;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
     private String clientClass;
@@ -59,6 +60,7 @@ public class HttpConfig {
         proxyUsername = parent.proxyUsername;
         proxyPassword = parent.proxyPassword;
         headers = parent.headers;
+        cookies = parent.cookies;
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
         clientClass = parent.clientClass;
@@ -128,7 +130,15 @@ public class HttpConfig {
 
     public void setHeaders(ScriptValue headers) {
         this.headers = headers;
-    }   
+    }
+
+    public ScriptValue getCookies() {
+        return cookies;
+    }
+
+    public void setCookies(ScriptValue cookies) {
+        this.cookies = cookies;
+    }        
 
     public boolean isLogPrettyRequest() {
         return logPrettyRequest;

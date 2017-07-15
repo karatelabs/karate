@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 public class ScriptEnv {    
 
     public final Logger logger;
-
     public final String env;
     public final File featureDir;
     public final String featureName;
@@ -88,7 +87,7 @@ public class ScriptEnv {
     
     public void putInCallCache(String key, ScriptValue value) {
         callCache.put(key, value);
-    }    
+    }
 
     @Override
     public String toString() {

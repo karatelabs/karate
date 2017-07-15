@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.validator.Validator;
@@ -42,30 +43,47 @@ public class ScriptContext {
     public static final String KARATE_NAME = "karate";
     private static final String VAR_READ = "read";
 
-    protected final ScriptValueMap vars;    
+    protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
-    protected final ScriptEnv env;
+    protected final ScriptEnv env;    
+    protected final HttpConfig config;
     private final ScriptValue readFunction;
-    private final HttpConfig config;
-    
+
     // this can get re-built or even swapped, so cannot be final
-    protected HttpClient client;           
+    protected HttpClient client;
 
     public ScriptValueMap getVars() {
         return vars;
-    }  
+    }
 
     public ScriptValue getConfigHeaders() {
         return config.getHeaders();
-    }  
+    }
+
+    public ScriptValue getConfigCookies() {
+        return config.getCookies();
+    }
+
+    public void updateConfigCookies(Map<String, Cookie> cookies) {
+        if (cookies == null) {
+            return;
+        }
+        if (config.getCookies().isNull()) {
+            config.setCookies(new ScriptValue(cookies));
+        } else {
+            Map<String, Object> map = config.getCookies().evalAsMap(this);
+            map.putAll(cookies);
+            config.setCookies(new ScriptValue(map));
+        }
+    }
 
     public boolean isLogPrettyRequest() {
         return config.isLogPrettyRequest();
     }
-    
+
     public boolean isLogPrettyResponse() {
         return config.isLogPrettyResponse();
-    }    
+    }
 
     public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg, boolean reuseParentConfig) {
         this.env = env.refresh(null);
@@ -73,10 +91,10 @@ public class ScriptContext {
         if (parent != null) {
             vars = Script.clone(parent.vars);
             validators = parent.validators;
-            config = reuseParentConfig ? parent.config : new HttpConfig(parent.config);                                    
+            config = reuseParentConfig ? parent.config : new HttpConfig(parent.config);
         } else {
             vars = new ScriptValueMap();
-            validators = Script.getDefaultValidators();            
+            validators = Script.getDefaultValidators();
             config = new HttpConfig();
         }
         client = HttpClient.construct(config, this);
@@ -86,23 +104,23 @@ public class ScriptContext {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
                 logger.warn("start-up configuration failed, missing or bad 'karate-config.js'", e);
-            }            
+            }
         }
         if (arg != null) {
             for (Map.Entry<String, Object> entry : arg.entrySet()) {
                 vars.put(entry.getKey(), entry.getValue());
             }
-        }        
+        }
         logger.trace("karate context init - initial properties: {}", vars);
     }
-    
+
     private static String getFileReaderFunction() {
         return "function(path) {\n"
                 + "  var FileUtils = Java.type('" + FileUtils.class.getCanonicalName() + "');\n"
                 + "  return FileUtils.readFile(path, " + KARATE_DOT_CONTEXT + ").value;\n"
                 + "}";
-    }     
-    
+    }
+
     public void configure(String key, String exp) {
         configure(key, Script.eval(exp, this));
     }
@@ -111,6 +129,10 @@ public class ScriptContext {
         key = StringUtils.trimToEmpty(key);
         if (key.equals("headers")) {
             config.setHeaders(value);
+            return;
+        }
+        if (key.equals("cookies")) {
+            config.setCookies(value);
             return;
         }
         if (key.equals("logPrettyResponse")) {
@@ -132,7 +154,7 @@ public class ScriptContext {
             // here too, re-construct client - and exit early
             client = HttpClient.construct(config, this);
             return;
-        }        
+        }
         // beyond this point, we don't exit early and we have to re-configure the http client
         if (key.equals("ssl")) {
             if (value.isString()) {
@@ -161,12 +183,12 @@ public class ScriptContext {
         }
         client.configure(config, this);
     }
-    
+
     public Map<String, Object> getVariableBindings() {
         Map<String, Object> map = Script.simplify(vars);
         if (readFunction != null) {
             map.put(VAR_READ, readFunction.getValue());
-        }        
+        }
         return map;
     }
 

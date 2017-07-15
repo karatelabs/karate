@@ -114,6 +114,12 @@ public class CucumberRunner {
         return getRuntime(new FeatureFile(feature, new File(feature.getPath())));
     }
 
+    /**
+     * main cucumber bootstrap, common code for the default JUnit / TestNG runner
+     * and more importantly for Karate-s custom runner - such as the parallel one
+     * in the flow below, the ScriptEnv, the Backend and the ObjectFactory used
+     * by the backend are created fresh for each Feature file (and not re-used)
+     */
     public Runtime getRuntime(FeatureFile featureFile) {
         File packageFile = featureFile.file;
         String featurePath;

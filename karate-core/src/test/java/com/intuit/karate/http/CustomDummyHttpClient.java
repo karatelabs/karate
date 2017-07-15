@@ -45,7 +45,7 @@ public class CustomDummyHttpClient extends DummyHttpClient {
 
     @Override
     protected HttpResponse makeHttpRequest(String entity, long startTime) {
-        HttpResponse response = new HttpResponse();
+        HttpResponse response = new HttpResponse(startTime);
         String message = "hello " + userDefined.get("name");
         response.setBody(message.getBytes());
         return response;

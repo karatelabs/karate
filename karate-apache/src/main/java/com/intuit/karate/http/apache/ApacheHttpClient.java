@@ -237,8 +237,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             throw new RuntimeException(e);
         }
         long responseTime = getResponseTime(startTime);
-        HttpResponse response = new HttpResponse();
-        response.setTime(responseTime);
+        HttpResponse response = new HttpResponse(responseTime);
         response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(httpResponse.getStatusLine().getStatusCode());

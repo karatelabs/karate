@@ -162,6 +162,16 @@ public class ScriptValue {
         }
     }
     
+    public Map<String, Object> evalAsMap(ScriptContext context) {
+        if (type == Type.JS_FUNCTION) {
+            ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
+            ScriptValue sv = Script.evalFunctionCall(som, null, context);
+            return sv.isMapLike() ? sv.getAsMap() : null;
+        } else {
+            return isMapLike() ? getAsMap() : null;
+        }
+    }    
+    
     public String getAsPrettyString() {
         switch (type) {
             case NULL:

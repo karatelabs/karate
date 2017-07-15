@@ -31,14 +31,23 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class HttpResponse {
+public class HttpResponse {    
     
     private String uri;
     private Map<String, Cookie> cookies;
     private MultiValuedMap headers;
     private byte[] body;
     private int status;
-    private long time;
+    private final long time;
+    
+    // make sure client implementations don't forget to set response time
+    public HttpResponse(long time) {
+        this.time = time;
+    }    
+    
+    public long getTime() {
+        return time;
+    }    
 
     public void setUri(String uri) {
         this.uri = uri;
@@ -62,14 +71,6 @@ public class HttpResponse {
 
     public void setStatus(int status) {
         this.status = status;
-    }
-
-    public void setTime(long time) {
-        this.time = time;
-    }
-
-    public long getTime() {
-        return time;
     }        
 
     public void setBody(byte[] body) {

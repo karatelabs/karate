@@ -197,8 +197,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         }
         byte[] bytes = resp.readEntity(byte[].class);
         long responseTime = getResponseTime(startTime);
-        HttpResponse response = new HttpResponse();
-        response.setTime(responseTime);
+        HttpResponse response = new HttpResponse(responseTime);
         response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(resp.getStatus());
