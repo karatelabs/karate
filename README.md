@@ -43,6 +43,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
+.... | [Mock HTTP Servlet](karate-mock-servlet) | [Code Coverage](karate-demo#code-coverage-using-jacoco) | [Postman Import](karate-import) | [Web UI](karate-web)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
 # Features
@@ -66,6 +67,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
+* [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:
   * [SOAP](#soap-action) / XML requests
   * HTTPS / [SSL](#configure) - without needing certificates, key-stores or trust-stores
@@ -1179,19 +1181,20 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 
  Key | Type | Description
 ------ | ---- | ---------
-`headers` | JavaScript Function | see [`configure headers`](#configure-headers)
-`headers` | JSON | see [`configure headers`](#configure-headers)
-`logPrettyRequest` | boolean | pretty print the request payload JSON or XML with indenting
-`logPrettyResponse` | boolean | pretty print the response payload JSON or XML with indenting
+`headers` | JavaScript Function | See [`configure headers`](#configure-headers)
+`headers` | JSON | See [`configure headers`](#configure-headers)
+`cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests
+`logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting
+`logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
-`httpClientClass` | TODO
-`httpClientInstance` | TODO
-`userDefined` | TODO
+`httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
+`httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)
+`userDefined` | JSON | See [karate-mock-servlet](karate-mock-servlet)
 
 
 Examples:
@@ -1935,7 +1938,8 @@ Or - if a `call` is made without an assignment, and if the function returns a ma
 
 While this sounds dangerous and should be used with care (and limits readability), the reason this feature exists is to quickly set (or over-write) a bunch of config variables when needed. In fact, this is the mechanism used when [`karate-config.js`](#configuration) is processed on start-up.
 
-This behavior where all key-value pairs in the returned map-like object get automatically added as variables - applies to the [calling of `*.feature` files](#calling-other-feature-files) as well. This comes in useful to boil-down those 'common' steps that you have to perform at the start of multiple test-scripts - into one-liners.
+#### Shared Scope
+This behavior where all key-value pairs in the returned map-like object get automatically added as variables - applies to the [calling of `*.feature` files](#calling-other-feature-files) as well. In other words, the 'called' script not only shares all variables (and config) but can update the shared execution context. This is very useful to boil-down those 'common' steps that you may have to perform at the start of multiple test-scripts - into one-liners.
 
 ```cucumber
 * def config = { user: 'john', password: 'secret' }
@@ -1943,16 +1947,14 @@ This behavior where all key-value pairs in the returned map-like object get auto
 * call read('classpath:common-setup.feature') config
 ```
 
-Note the 'inline' use of the [read](#reading-files) function as a short-cut above. This applies to JS functions as well:
+You can use [`callonce`](#callonce) instead of `call` in case you have multiple `Scenario` sections or [`Examples`](#data-driven-tests). Note the 'inline' use of the [read](#reading-files) function as a short-cut above. This applies to JS functions as well:
 
 ```cucumber
 * call read('my-function.js')
 ```
 
 ### HTTP Basic Authentication Example
-This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme.
-Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to
-manage your environment-specific configuration values such as user-names and passwords.
+This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
 
 First the JavaScript file, `basic-auth.js`:
 ```javascript
@@ -2018,7 +2020,7 @@ function(arg) {
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
 ## `callonce`
-Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a`Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
+Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
 
 Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guaranteed to execute only once. The results of the first call are cached, and any future calls will simply return the cached result instead of executing the JavaScript function (or feature) again and again. 
 
@@ -2146,4 +2148,3 @@ who are not programmer-folk, to review, and even collaborate on test-scenarios a
 
 ### The Karate Way
 The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it.
-
