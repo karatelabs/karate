@@ -177,6 +177,14 @@ public class ScriptTest {
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("3.0", value.getAsString());
     }
+    
+    @Test
+    public void testEvalXmlEmbeddedExpressionsThatReturnChunks() {
+        ScriptContext ctx = getContext();
+        Script.assign("hello", "<hello>world</hello>", ctx);
+        Script.assign("xml", "<foo><bar>#(hello)</bar></foo>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><bar><hello>world</hello></bar></foo>", ctx).pass);
+    }    
 
     @Test
     public void testEvalXmlEmbeddedExpressionsInAttributes() {
@@ -735,6 +743,15 @@ public class ScriptTest {
     }
     
     @Test
+    public void testSetXmlChunkAutoConversion() {
+        ScriptContext ctx = getContext();
+        Script.assign("xml", "<foo><bar></bar></foo>", ctx);
+        Script.assign("chunk", "<hello>world</hello>", ctx);
+        Script.setValueByPath("xml", "/foo/bar", "chunk", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><bar><hello>world</hello></bar></foo>", ctx).pass);
+    }
+    
+    @Test
     public void testDeleteValueOnVariableByPath() {
         ScriptContext ctx = getContext();        
         // json
@@ -835,6 +852,13 @@ public class ScriptTest {
         String param = "'ACS.Itself'";
         assertEquals("ACS.Itself", Script.eval(param, ctx).getAsString());
     }
+    
+    @Test
+    public void testMatchHandlesNonStringNullsGracefully() {
+        ScriptContext ctx = getContext();
+        Script.assign("json", "{ foo: null }", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "[]", ctx).pass);
+    }    
 
     @Test
     public void testMatchJsonObjectContains() {

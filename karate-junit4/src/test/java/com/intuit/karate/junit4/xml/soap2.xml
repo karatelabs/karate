@@ -1,0 +1,14 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:acc="http://foo/bar">
+    <soapenv:Header />
+    <soapenv:Body>
+        <acc:getAccountByPhoneNumber>
+            <acc:phoneNumber>@@number@@</acc:phoneNumber>
+            <acc:phoneNumberSearchOption>
+                <acc:searchWirelessInd>@@wireless@@</acc:searchWirelessInd>
+                <acc:searchVoipInd>@@voip@@</acc:searchVoipInd>
+                <acc:searchTollFreeInd>@@tollFree@@</acc:searchTollFreeInd>
+            </acc:phoneNumberSearchOption>
+        </acc:getAccountByPhoneNumber>
+    </soapenv:Body>
+</soapenv:Envelope>

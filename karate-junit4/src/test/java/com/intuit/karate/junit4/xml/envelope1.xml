@@ -1,0 +1,5 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:acc="http://foo/bar">
+    <soapenv:Header />
+    <soapenv:Body />
+</soapenv:Envelope>

@@ -109,10 +109,10 @@ public class Script {
     public static final boolean isEmbeddedExpression(String text) {
         return text.startsWith("#(") && text.endsWith(")");
     }
-    
+
     public static final boolean isWithinParantheses(String text) {
         return text.startsWith("(") && text.endsWith(")");
-    }    
+    }
 
     public static final boolean isJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
@@ -165,11 +165,11 @@ public class Script {
         }
         return Pair.of(name, path);
     }
-    
+
     public static ScriptValue eval(String text, ScriptContext context) {
         return eval(text, context, false);
     }
-    
+
     private static ScriptValue callWithCache(String text, String arg, ScriptContext context, boolean reuseParentConfig) {
         CallResult result = context.env.callCache.get(text);
         if (result != null) {
@@ -182,7 +182,7 @@ public class Script {
         ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
         context.env.callCache.put(text, resultValue, context.config);
         context.logger.debug("cached callonce: {}", text);
-        return resultValue;        
+        return resultValue;
     }
 
     private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig) {
@@ -209,7 +209,7 @@ public class Script {
                 return callWithCache(text, arg, context, reuseParentConfig);
             } else {
                 return call(text, arg, context, reuseParentConfig);
-            }            
+            }
         } else if (isGetSyntax(text)) { // special case in form
             // get json[*].path
             // get /xml/path
@@ -469,7 +469,21 @@ public class Script {
                 if (isEmbeddedExpression(value)) {
                     try {
                         ScriptValue sv = evalInNashorn(value.substring(1), context);
-                        child.setNodeValue(sv.getAsString());
+                        if (sv.isMapLike()) {
+                            Node evalNode;
+                            if (sv.getType() == XML) {
+                                evalNode = sv.getValue(Node.class);
+                            } else {
+                                evalNode = XmlUtils.fromMap(sv.getAsMap());
+                            }
+                            if (evalNode.getNodeType() == Node.DOCUMENT_NODE) {
+                                evalNode = evalNode.getFirstChild();
+                            }
+                            evalNode = node.getOwnerDocument().importNode(evalNode, true);
+                            child.getParentNode().replaceChild(evalNode, child);
+                        } else {
+                            child.setNodeValue(sv.getAsString());
+                        }
                     } catch (Exception e) {
                         context.logger.warn("embedded xml-text script eval failed: {}", e.getMessage());
                     }
@@ -633,10 +647,10 @@ public class Script {
     public static boolean isMacro(String text) {
         return text.startsWith("#");
     }
-    
+
     public static boolean isOptionalMacro(String text) {
         return text.startsWith("##");
-    }    
+    }
 
     public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType matchType, Object actRoot,
             ScriptValue actValue, String expected, ScriptContext context) {
@@ -658,7 +672,7 @@ public class Script {
                 ScriptValue parentValue = getValueOfParentNode(actRoot, path);
                 ScriptValue expValue = evalInNashorn(macroExpression, context, actValue, parentValue);
                 return matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
-            }        
+            }
             if (macroExpression.startsWith("regex")) {
                 String regex = macroExpression.substring(5).trim();
                 RegexValidator v = new RegexValidator(regex);
@@ -958,7 +972,11 @@ public class Script {
         if (expObject instanceof String) {
             ScriptValue actValue = new ScriptValue(actObject);
             return matchStringOrPattern(delimiter, path, matchType, actRoot, actValue, expObject.toString(), context);
-        } else if (expObject instanceof Map) {
+        }
+        if (actObject == null) {
+            return matchFailed(path, actObject, expObject, "actual value is null");
+        }
+        if (expObject instanceof Map) {
             if (!(actObject instanceof Map)) {
                 return matchFailed(path, actObject, expObject, "actual value is not of type 'map'");
             }
@@ -1090,11 +1108,11 @@ public class Script {
             return AssertionResult.PASS; // primitives, are equal
         }
     }
-    
+
     public static void removeValueByPath(String name, String path, ScriptContext context) {
         setValueByPath(name, path, null, true, context);
     }
-    
+
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
         setValueByPath(name, path, exp, false, context);
     }
@@ -1105,8 +1123,8 @@ public class Script {
         if (path == null) {
             Pair<String, String> nameAndPath = parseVariableAndPath(name);
             name = nameAndPath.getLeft();
-            path = nameAndPath.getRight();            
-        } 
+            path = nameAndPath.getRight();
+        }
         if ("request".equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is not a variable,"
                     + " use the form '* " + name + " <expression>' to initialize the "
@@ -1114,7 +1132,7 @@ public class Script {
         }
         ScriptValue value = delete ? ScriptValue.NULL : eval(exp, context);
         if (isJsonPath(path)) {
-            ScriptValue target = context.vars.get(name);            
+            ScriptValue target = context.vars.get(name);
             switch (target.getType()) {
                 case JSON:
                     DocumentContext dc = target.getValue(DocumentContext.class);
@@ -1131,17 +1149,16 @@ public class Script {
             }
         } else if (isXmlPath(path)) {
             Document doc = context.vars.get(name, Document.class);
-            switch (value.getType()) {
-                case XML:
-                    Node node = value.getValue(Node.class);
-                    XmlUtils.setByPath(doc, path, node);
-                    break;
-                default:
-                    if (delete) {
-                        XmlUtils.removeByPath(doc, path);
-                    } else {
-                        XmlUtils.setByPath(doc, path, value.getAsString());
-                    }
+            if (delete) {
+                XmlUtils.removeByPath(doc, path);
+            } else if (value.getType() == XML) {
+                Node node = value.getValue(Node.class);
+                XmlUtils.setByPath(doc, path, node);
+            } else if (value.isMapLike()) { // cast to xml
+                Node node = XmlUtils.fromMap(value.getAsMap());
+                XmlUtils.setByPath(doc, path, node);
+            } else {
+                XmlUtils.setByPath(doc, path, value.getAsString());
             }
         } else {
             throw new RuntimeException("unexpected path: " + path);
@@ -1254,7 +1271,7 @@ public class Script {
         }
     }
 
-    private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context, 
+    private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
             Map<String, Object> callArg, boolean reuseParentConfig) {
         ScriptValueMap svm = CucumberUtils.call(feature, context, callArg, reuseParentConfig);
         Map<String, Object> map = simplify(svm);
@@ -1304,7 +1321,7 @@ public class Script {
         }
         return AssertionResult.PASS;
     }
-    
+
     public static String replacePlaceholderText(String text, String token, String replaceWith, ScriptContext context) {
         if (text == null) {
             return null;
@@ -1318,7 +1335,7 @@ public class Script {
             replaceWith = sv.getAsString();
         } catch (Exception e) {
             throw new RuntimeException("expression error (replace string values need to be within quotes): " + e.getMessage());
-        }                
+        }
         token = StringUtils.trimToNull(token);
         if (token == null) {
             return text;
@@ -1331,7 +1348,7 @@ public class Script {
     }
 
     private static final String TOKEN = "token";
-    
+
     public static String replacePlaceholders(String text, List<Map<String, String>> list, ScriptContext context) {
         if (text == null) {
             return null;
@@ -1339,7 +1356,7 @@ public class Script {
         if (list == null) {
             return text;
         }
-        for (Map<String, String> map : list) {            
+        for (Map<String, String> map : list) {
             String token = map.get(TOKEN);
             if (token == null) {
                 continue;
@@ -1350,8 +1367,8 @@ public class Script {
             if (iterator.hasNext()) {
                 String key = keys.iterator().next();
                 String value = map.get(key);
-                text = replacePlaceholderText(text, token, value, context);                
-            }                        
+                text = replacePlaceholderText(text, token, value, context);
+            }
         }
         return text;
     }
