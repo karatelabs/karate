@@ -10,6 +10,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import static com.intuit.karate.Script.eval;
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
 
 /**
@@ -81,6 +82,10 @@ public class FileUtils {
     
     public static String readFileAsString(String path, boolean classpath, ScriptContext context) {
         InputStream is = getFileStream(path, classpath, context);
+        if (is == null) {
+            String message = String.format("file not found: %s, classpath: %s", path, classpath);
+            throw new KarateFileNotFoundException(message);
+        }
         try {
             return IOUtils.toString(is, "utf-8");
         } catch (Exception e) {

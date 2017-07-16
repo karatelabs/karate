@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;

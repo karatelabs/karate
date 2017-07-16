@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
-import com.intuit.karate.KarateException;
+import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;

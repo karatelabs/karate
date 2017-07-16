@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.exception.KarateException;
 import static com.intuit.karate.ScriptValue.Type.*;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
@@ -368,7 +369,7 @@ public class Script {
             ScriptValue result = new ScriptValue(o);
             return result;
         } catch (Exception e) {
-            throw new RuntimeException("script failed: " + exp, e);
+            throw new RuntimeException("javascript evaluation failed: " + exp, e);
         }
     }
 

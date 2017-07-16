@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
@@ -103,7 +104,12 @@ public class ScriptContext {
             try {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
-                logger.warn("start-up configuration failed, missing or bad 'karate-config.js'", e);
+                Throwable cause = e.getCause();
+                if (cause instanceof KarateFileNotFoundException) {
+                    logger.warn("karate-config.js not found on the classpath, skipping bootstrap configuration");
+                } else {
+                    throw new RuntimeException("bootstrap configuration error, evaluation of karate-config.js failed:", cause);
+                }
             }
         }
         if (arg != null) {

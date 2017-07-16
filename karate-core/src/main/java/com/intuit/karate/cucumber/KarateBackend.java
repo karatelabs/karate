@@ -53,6 +53,10 @@ public class KarateBackend implements Backend {
         backend = new JavaBackend(objectFactory, classFinder);
     }
 
+    public KarateObjectFactory getObjectFactory() {
+        return objectFactory;
+    }   
+    
     public StepDefs getStepDefs() {
         return objectFactory.getStepDefs();
     }
