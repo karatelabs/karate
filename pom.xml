@@ -53,6 +53,7 @@
         <module>karate-jersey</module>
         <module>karate-testng</module>
         <module>karate-import</module>
+        <module>karate-ui</module>
         <module>karate-web</module>
         <module>karate-archetype</module>        
     </modules>

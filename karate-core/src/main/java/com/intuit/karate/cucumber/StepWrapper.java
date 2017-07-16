@@ -137,7 +137,7 @@ public class StepWrapper {
             match.runStep(feature.getI18n());
             return new StepResult(this, null);
         } catch (Throwable t) {
-            wrapper.getEnv().logger.error("FAILED", t);
+            wrapper.getEnv().logger.error("step failed", t.getMessage());
             return new StepResult(this, t);
         }
     }
