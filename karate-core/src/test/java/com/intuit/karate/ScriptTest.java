@@ -184,8 +184,17 @@ public class ScriptTest {
         Script.assign("hello", "<hello>world</hello>", ctx);
         Script.assign("xml", "<foo><bar>#(hello)</bar></foo>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><bar><hello>world</hello></bar></foo>", ctx).pass);
-    }    
+    }
 
+    @Test
+    public void testEvalXmlEmbeddedExpressionsThatReturnNull() {
+        ScriptContext ctx = getContext();
+        Script.assign("hello", "null", ctx);
+        Script.assign("xml", "<foo><bar>#(hello)</bar></foo>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><bar></bar></foo>", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><bar/></foo>", ctx).pass);
+    }   
+    
     @Test
     public void testEvalXmlEmbeddedExpressionsInAttributes() {
         ScriptContext ctx = getContext();
