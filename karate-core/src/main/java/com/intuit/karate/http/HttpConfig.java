@@ -43,6 +43,7 @@ public class HttpConfig {
     private ScriptValue cookies = ScriptValue.NULL;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
+    private boolean printEnabled = true;
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
@@ -154,6 +155,14 @@ public class HttpConfig {
 
     public void setLogPrettyResponse(boolean logPrettyResponse) {
         this.logPrettyResponse = logPrettyResponse;
+    }
+
+    public boolean isPrintEnabled() {
+        return printEnabled;
+    }
+
+    public void setPrintEnabled(boolean printEnabled) {
+        this.printEnabled = printEnabled;
     }        
 
     public String getClientClass() {

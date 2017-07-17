@@ -404,8 +404,10 @@ public class StepDefs {
 
     @When("^print (.+)")
     public void print(String exp) {
-        String temp = Script.evalInNashorn(exp, context).getAsString();
-        context.logger.info("[print] {}", temp);
+        if (context.isPrintEnabled() && context.logger.isInfoEnabled()) {
+            String temp = Script.evalInNashorn(exp, context).getAsString();
+            context.logger.info("[print] {}", temp);
+        }
     }
 
     @When("^status (\\d+)")

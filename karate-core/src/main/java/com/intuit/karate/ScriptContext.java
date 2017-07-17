@@ -85,6 +85,10 @@ public class ScriptContext {
     public boolean isLogPrettyResponse() {
         return config.isLogPrettyResponse();
     }
+    
+    public boolean isPrintEnabled() {
+        return config.isPrintEnabled();
+    }    
 
     public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
         this.env = env.refresh(null);
@@ -154,6 +158,10 @@ public class ScriptContext {
             config.setLogPrettyRequest(value.isBooleanTrue());
             return;
         }
+        if (key.equals("printEnabled")) {
+            config.setPrintEnabled(value.isBooleanTrue());
+            return;
+        }        
         if (key.equals("httpClientClass")) {
             config.setClientClass(value.getAsString());
             // re-construct all the things ! and we exit early

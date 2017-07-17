@@ -59,3 +59,12 @@ Then match response ==
 
 # should be null or an array of strings
 * match foo == '##[] #string'
+
+
+Scenario: pretty print json
+* def json = read('odds.json')
+* print 'pretty print:\n' + karate.pretty(json)
+
+Scenario: more pretty print
+* def myJson = { foo: 'bar', baz: [1, 2, 3]}
+* print 'pretty print:\n' + karate.pretty(myJson)

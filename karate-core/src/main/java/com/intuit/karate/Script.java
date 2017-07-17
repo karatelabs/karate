@@ -384,7 +384,7 @@ public class Script {
     }
 
     public static Map<String, Object> simplify(ScriptValueMap vars) {
-        Map<String, Object> map = new HashMap<>(vars.size());
+        Map<String, Object> map = new HashMap<>(vars.size() + 1); // 1 extra for the read function
         for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
             String key = entry.getKey();
             ScriptValue sv = entry.getValue();

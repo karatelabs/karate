@@ -4,7 +4,6 @@ Scenario: placeholders using xml embedded expressions
     * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
     * def req = read('soap1.xml')
     * def phone = req/Envelope/Body/getAccountByPhoneNumber
-    * print phone
     * match phone /getAccountByPhoneNumber/phoneNumber == '123456'
     * match phone ==
     """
@@ -76,4 +75,9 @@ Scenario: set xml chunks using embedded expressions
         </soapenv:Body>
     </soapenv:Envelope>
     """
+
+Scenario: pretty print xml
+    * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
+    * def xml = read('soap1.xml')
+    * print 'pretty print:\n' + karate.prettyXml(xml)
 

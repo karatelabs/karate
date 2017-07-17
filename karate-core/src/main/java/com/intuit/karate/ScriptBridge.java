@@ -28,6 +28,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.w3c.dom.Document;
 
 /**
  *
@@ -52,6 +53,23 @@ public class ScriptBridge {
     public Object read(String fileName) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
         return sv.getValue();
+    }
+    
+    public String pretty(Object o) {
+        ScriptValue sv = new ScriptValue(o);
+        return sv.getAsPrettyString();
+    }
+    
+    public String prettyXml(Object o) {
+        ScriptValue sv = new ScriptValue(o);
+        if (sv.isMapLike()) {
+            Document doc = XmlUtils.fromMap(sv.getAsMap());
+            return XmlUtils.toString(doc, true);
+        } else {
+            String xml = sv.getAsString();
+            Document doc = XmlUtils.toXmlDoc(xml);
+            return XmlUtils.toString(doc, true);
+        }
     }
     
     public void set(String name, Object o) {
@@ -116,7 +134,9 @@ public class ScriptBridge {
     }
     
     public void log(Object ... objects) {
-        context.logger.info("{}", new LogWrapper(objects));
+        if (context.isPrintEnabled() && context.logger.isInfoEnabled()) {
+            context.logger.info("{}", new LogWrapper(objects));
+        }
     }        
     
     // make sure toString() is lazy

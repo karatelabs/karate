@@ -578,9 +578,29 @@ Something worth mentioning here is that you would hardly need to use `assert` in
 ## `print`
 ### Log to the console
 You can use `print` to log variables to the console in the middle of a script. All of the text to the right of the `print` keyword will be evaluated as a single expression (somewhat like [`assert`](#assert)).
+
 ```cucumber
 * print 'the value of a is ' + a
 ```
+
+When dealing with complex JSON, you would often want to 'pretty print' data which is nicely indented. The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` statements, and it has a helpful `pretty` method, that takes a JSON argument.
+```cucumber
+* def myJson = { foo: 'bar', baz: [1, 2, 3]}
+* print 'pretty print:\n' + karate.pretty(myJson)
+```
+Which results in the following output:
+```
+20:29:11.290 [main] INFO  com.intuit.karate - [print] pretty print:
+{
+  "foo": "bar",
+  "baz": [
+    1,
+    2,
+    3
+  ]
+}
+```
+It is possible to pretty print XML in a similar way using the [`karate` object](#the-karate-object). Also refer to the [`configure`](#configure) keyword on how to switch on pretty-printing of all HTTP requests and responses.
 
 # 'Native' data types
 Native data types mean that you can insert them into a script without having to worry about enclosing them in strings and then having to 'escape' double-quotes all over the place. They seamlessly fit 'in-line' within your test script.
@@ -1072,7 +1092,7 @@ Given cookie foo = 'bar'
 
 You also have the option of setting multiple cookies in one-step using the [`cookies`](#cookies) keyword.
 
-Note that any cookies returned in the HTTP response would be automatically set for any future requests. This mechanism works by calling [`configure cookies`](#configure) behind the scenes and if you need to stop the adding of cookies to future requests, just do this:
+Note that any cookies returned in the HTTP response would be automatically set for any future requests. This mechanism works by calling [`configure cookies`](#configure) behind the scenes and if you need to stop auto-adding cookies for future requests, just do this:
 
 ```cucumber
 * configure cookies = null
@@ -1192,8 +1212,9 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `headers` | JavaScript Function | See [`configure headers`](#configure-headers)
 `headers` | JSON | See [`configure headers`](#configure-headers)
 `cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. However, if you need to clear any cookies, just do `configure cookies = null` at any time.
-`logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting
-`logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting
+`logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
+`logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting (default `false`)
+`printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' (default `true`)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
@@ -1730,9 +1751,7 @@ The `responseCookies` variable is set upon any HTTP response and is a map-like (
 # save a response cookie for later use
 * def time = responseCookies.time.value
 ```
-As a convenience, cookies from the previous response are collected and passed as-is as part of the next HTTP request.  This is what is normally expected and simulates a web-browser - which makes it easy to script things like HTML-form based authentication into test-flows.
-
-Of course you can manipulate [`cookies`](#cookies) or each individual [`cookie`](#cookie) and even over-write them to `null` if you wish - at any point within a test script.
+As a convenience, cookies from the previous response are collected and passed as-is as part of the next HTTP request. This is what is normally expected and simulates a web-browser - which makes it easy to script things like HTML-form based authentication into test-flows. Refer to the documentation for [`cookie`](#cookie) for details and how you can disable this if need be.
 
 Each item within `responseCookies` is itself a 'map-like' object. Typically you would examine the `value` property as in the example above, but `domain` and `path` are also available.
 
@@ -1832,7 +1851,7 @@ The contents of `my-signin.feature` are shown below. A few points to note:
 * You can add (or over-ride) variables by passing a call 'argument' as shown above. Only one JSON argument is allowed, but this does not limit you in any way as you can use any complex JSON structure. You can even initialize the JSON in a separate step and pass it by name, especially if it is complex. Observe how using JSON for parameter-passing makes things super-readable.
 * **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. Note that this includes ['built-in' variables](#special-variables), which means that things like the last value of [`response`](#response) would also be returned. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signIn`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signIn.authToken` as shown above. This design has the following advantages:
   * 'called' Karate scripts don't need to use any special keywords to 'return' data and can behave like 'normal' Karate tests in 'stand-alone' mode if needed
-  * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script
+  * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script (unless you explicitly choose to use [shared scope](#shared-scope))
   * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
 
 ```cucumber
@@ -1922,7 +1941,9 @@ Operation | Description
 `karate.get(name)` | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 `karate.jsonPath(json, expression)` | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS. You can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 `karate.read(filename)` | read from a file, behaves exactly like [`read`](#reading-files)
-`karate.log(... args)` | log to the same logger (and log file) being used by the parent process
+`karate.log(... args)` | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
+`karate.pretty(value)` | return a 'pretty-printed', nicely indented string representation of the JSON value, ideal for using in [`print`](#print) statements
+`karate.prettyXml(value)` | return a 'pretty-printed', nicely indented string representation of the XML value, ideal for using in [`print`](#print) statements
 `karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 `karate.properties[key]` | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
