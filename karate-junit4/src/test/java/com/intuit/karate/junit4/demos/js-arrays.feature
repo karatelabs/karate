@@ -21,4 +21,14 @@ Scenario: table to json with expressions evaluated
     | one     | 1   |
     | two.baz | 2   |
 * match json == [{ foo: 'hello', bar: 1 }, { foo: 'world', bar: 2 }]
+
+Scenario: json path with keys with spaces or other troublesome characters
+* def json = { 'sp ace': 'foo', 'hy-phen': 'bar', 'full.stop': 'baz' }
+* string jsonString = json
+* match jsonString == '{"sp ace":"foo","hy-phen":"bar","full.stop":"baz"}'
+# get comes to the rescue because spaces are a problem on the LHS
+* def val1 = get json $['sp ace']
+* match val1 == 'foo'
+* match json['hy-phen'] == 'bar'
+* match json['full.stop'] == 'baz'
  
