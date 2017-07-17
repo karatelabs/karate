@@ -1072,7 +1072,13 @@ Given cookie foo = 'bar'
 
 You also have the option of setting multiple cookies in one-step using the [`cookies`](#cookies) keyword.
 
-Note that any cookies returned in the HTTP response would be automatically set for any future requests. Refer to the documentation of the built-in variable [`responseCookies`](#responsecookies) for more details.
+Note that any cookies returned in the HTTP response would be automatically set for any future requests. This mechanism works by calling [`configure cookies`](#configure) behind the scenes and if you need to stop the adding of cookies to future requests, just do this:
+
+```cucumber
+* configure cookies = null
+```
+
+Also refer to the built-in variable [`responseCookies`](#responsecookies) for how you can access and perform assertions on cookie data values.
 
 ## `form field` 
 HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response). For example:
@@ -1175,6 +1181,8 @@ And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-re
 
 Here is a working example of calling a SOAP service from the Karate project test-suite: [`soap.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/soap.feature)
 
+There's also a few examples that show various ways of parameter-izing and dynamically manipulating SOAP requests. Karate is quite flexible, and allows you to choose options and evolve a pattern for tests - that fits your environment: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature)
+
 # Managing Headers, SSL, Timeouts and HTTP Proxy
 ## `configure`
 You can adjust configuration settings for the HTTP client used by Karate using this keyword. The syntax is similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the configuration keys supported:
@@ -1183,7 +1191,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 ------ | ---- | ---------
 `headers` | JavaScript Function | See [`configure headers`](#configure-headers)
 `headers` | JSON | See [`configure headers`](#configure-headers)
-`cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests
+`cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. However, if you need to clear any cookies, just do `configure cookies = null` at any time.
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting
 `logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
@@ -1906,17 +1914,19 @@ And it is worth mentioning that the Karate [configuration 'bootstrap'](#configur
 ### The `karate` object
 A JavaScript function at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
-* `karate.set(name, value)` - sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
-* `karate.set(name, path, value)` - this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L78), and it behaves the same way as the [`set`](#set) keyword.
-* `karate.remove(name, path)` - similar to the above, again very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
-* `karate.get(name)` - get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
-* `karate.jsonPath(json, expression)` - brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS. You can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
-* `karate.read(filename)` - read from a file, behaves exactly like [`read`](#reading-files)
-* `karate.log(... args)` - log to the same logger (and log file) being used by the parent process
-* `karate.env` - gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
-* `karate.properties[key]` - get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
-* `karate.configure(key, value)` - does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
-* `karate.call(fileName, [arg])` - invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
+Operation | Description
+--------- | -----------
+`karate.set(name, value)` | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
+`karate.set(name, path, value)` | this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L78), and it behaves the same way as the [`set`](#set) keyword.
+`karate.remove(name, path)` | similar to the above, again very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
+`karate.get(name)` | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
+`karate.jsonPath(json, expression)` | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS. You can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+`karate.read(filename)` | read from a file, behaves exactly like [`read`](#reading-files)
+`karate.log(... args)` | log to the same logger (and log file) being used by the parent process
+`karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
+`karate.properties[key]` | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
+`karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
+`karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 
 ### Rules for Passing Data to the JavaScript Function
 Only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
@@ -1939,7 +1949,7 @@ Or - if a `call` is made without an assignment, and if the function returns a ma
 While this sounds dangerous and should be used with care (and limits readability), the reason this feature exists is to quickly set (or over-write) a bunch of config variables when needed. In fact, this is the mechanism used when [`karate-config.js`](#configuration) is processed on start-up.
 
 #### Shared Scope
-This behavior where all key-value pairs in the returned map-like object get automatically added as variables - applies to the [calling of `*.feature` files](#calling-other-feature-files) as well. In other words, the 'called' script not only shares all variables (and config) but can update the shared execution context. This is very useful to boil-down those 'common' steps that you may have to perform at the start of multiple test-scripts - into one-liners.
+This behavior where all key-value pairs in the returned map-like object get automatically added as variables - applies to the [calling of `*.feature` files](#calling-other-feature-files) as well. In other words, when [`call`](#call) or [`callonce`](#callonce) is used without a [`def`](#def), the 'called' script not only shares all variables (and config) but can update the shared execution context. This is very useful to boil-down those 'common' steps that you may have to perform at the start of multiple test-scripts - into one-liners.
 
 ```cucumber
 * def config = { user: 'john', password: 'secret' }
@@ -1952,6 +1962,8 @@ You can use [`callonce`](#callonce) instead of `call` in case you have multiple 
 ```cucumber
 * call read('my-function.js')
 ```
+
+Refer to this directory in the [karate-demo](karate-demo) to see examples, and how calling with 'shared scope' is different from when you use a variable assignment: [karate-demo/headers](karate-demo/src/test/java/demo/headers)
 
 ### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
