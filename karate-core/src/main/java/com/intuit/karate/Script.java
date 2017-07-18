@@ -416,7 +416,7 @@ public class Script {
         if (o instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) o;
             for (Map.Entry<String, Object> entry : map.entrySet()) {
-                String childPath = path + "." + entry.getKey();
+                String childPath = JsonUtils.buildPath(path, entry.getKey());
                 evalJsonEmbeddedExpressions(childPath, entry.getValue(), context, root);
             }
         } else if (o instanceof List) {
@@ -986,11 +986,9 @@ public class Script {
             if ((matchType == MatchType.EQUALS || matchType == MatchType.CONTAINS_ONLY) && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
                 return matchFailed(path, actObject, expObject, "actual value has more keys than expected - " + actMap.size() + ":" + expMap.size());
             }
-            for (Map.Entry<String, Object> expEntry : expMap.entrySet()) { // TDDO should we assert order, maybe XML needs this ?
+            for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
-                // check if bracket notation is needed instead of dot notation
-                boolean needsQuotes = delimiter == '.' && (key.indexOf('-') != -1 || key.indexOf(' ') != -1);
-                String childPath = needsQuotes ? path + "['" + key + "']" : path + delimiter + key;
+                String childPath = delimiter == '.' ? JsonUtils.buildPath(path, key) : path + delimiter + key;
                 Object childAct = actMap.get(key);
                 Object childExp = expEntry.getValue();
                 AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, childAct, childExp, context);

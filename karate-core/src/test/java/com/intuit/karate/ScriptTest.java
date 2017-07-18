@@ -232,6 +232,14 @@ public class ScriptTest {
         logger.debug("result: {}", result);
         assertEquals("{\"foo\":\"12345\"}", result);
     }
+    
+    @Test
+    public void testEvalEmbeddedExpressionsWithJsonPathsWhichAreTricky() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ a: 1, b: 2, c: 3 }", ctx);
+        Script.assign("bar", "{ 'sp ace': '#(foo.a)', 'hy-phen': '#(foo.b)', 'full.stop': '#(foo.c)' }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ 'sp ace': 1, 'hy-phen': 2, 'full.stop': 3 }", ctx).pass);
+    }    
 
     @Test
     public void testVariableNameValidation() {

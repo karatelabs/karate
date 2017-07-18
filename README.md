@@ -585,7 +585,7 @@ You can use `print` to log variables to the console in the middle of a script. A
 
 When dealing with complex JSON, you would often want to 'pretty print' data which is nicely indented. The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` statements, and it has a helpful `pretty` method, that takes a JSON argument.
 ```cucumber
-* def myJson = { foo: 'bar', baz: [1, 2, 3]}
+* def myJson = { foo: 'bar', baz: [1, 2, 3] }
 * print 'pretty print:\n' + karate.pretty(myJson)
 ```
 Which results in the following output:
@@ -1152,7 +1152,7 @@ Then status 201
 
 # Keywords that set multiple key-value pairs in one step
 
-`params`, `headers`, `cookies` and `form fields` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing. Here is a good example in the demos: [`dynamic-params.feature`](https://github.com/intuit/karate/blob/master/karate-demo/src/test/java/demo/search/dynamic-params.feature)
+`params`, `headers`, `cookies` and `form fields` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
 
 ## `params`
 ```cucumber

@@ -189,5 +189,13 @@ public class JsonUtils {
         Yaml yaml = new Yaml();
         return JsonPath.parse(yaml.load(raw));
     }
+    
+    /**
+     * use bracket notation if needed instead of dot notation 
+     */
+    public static String buildPath(String parentPath, String key) {
+        boolean needsQuotes = key.indexOf('-') != -1 || key.indexOf(' ') != -1 || key.indexOf('.') != -1;
+        return needsQuotes ? parentPath + "['" + key + "']" : parentPath + '.' + key;        
+    }
 
 }
