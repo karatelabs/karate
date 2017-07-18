@@ -1179,7 +1179,7 @@ public class ScriptTest {
     }
 
     @Test
-    public void testMatchArrayMacro() {
+    public void testMatchMacroArray() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "['bar', 'baz']", ctx);
         Script.assign("arr", "'#string'", ctx);
@@ -1191,19 +1191,65 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[_ == 2]'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[_ != 2]'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] arr'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (arr)'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] #string'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] #number'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[2] #string'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[1] arr'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[1] (arr)'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[2]? _.length == 3'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[2]? _.length == 4'", ctx).pass);
         // non-root path
         Script.assign("foo", "{ ban: ['bar', 'baz'], count: 2 }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[] arr'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[] (arr)'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[2] arr'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[2] (arr)'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[$.count] #string'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[_ < 3]'", ctx).pass);
     }
+    
+    @Test
+    public void testMatchMacroArrayComplex() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "[{ a: 1, b: 2 }, { a: 3, b: 4 }]", ctx);
+        Script.assign("bar", "{ a: '#number', b: '#number' }", ctx);
+        Script.assign("baz", "{ c: '#number' }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EACH_EQUALS, "foo", null, "bar", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(^bar)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(!^bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(!^baz)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] bar'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] ^bar'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] !^bar'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] !^baz'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (^bar)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (!^bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (!^baz)'", ctx).pass);
+    }
+
+    @Test
+    public void testMatchMacroArrayComplexContains() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "[{ a: 1, b: 2 }, { a: 3, b: 4 }]", ctx);
+        Script.assign("bar", "{ b: '#number' }", ctx);
+        Script.assign("baz", "{ c: '#number' }", ctx);
+        assertFalse(Script.matchNamed(MatchType.EACH_EQUALS, "foo", null, "bar", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(^bar)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(!^bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo[0]", null, "'#(!^baz)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] bar'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] ^bar'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] !^bar'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] !^baz'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (^bar)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (!^bar)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (!^baz)'", ctx).pass);
+    }    
 
     @Test
     public void testSchemaLikeAndOptionalKeys() {

@@ -1626,6 +1626,23 @@ And you can perform conditional / cross-field validations and even business-logi
 * match $.odds == '#[]? isValidOdd(_)'
 ```
 
+Especially when payloads are complex (or highly dynamic), it may be more practical to use [`contains`](#match-contains) semantics. The short-cut symbol for `contains` is the `^` character. So here is what is possible:
+
+```cucumber
+* def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
+* def exact = { a: '#number', b: '#number' }
+* def partial = { b: '#number' }
+* def nope = { c: '#number' }
+
+* match foo[0] == '#(exact)'
+* match foo[0] == '#(^partial)'
+* match foo[0] == '#(!^nope)'
+
+* match foo == '#[] exact'
+* match foo == '#[] ^partial'
+* match foo == '#[] !^nope'
+```
+
 Refer to this for the complete example: [`schema-like.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/schema-like.feature)
 
 And there is another example in the [karate-demos](karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example. You can also find a nice visual comparison and explanation [here](https://twitter.com/KarateDSL/status/878984854012022784).

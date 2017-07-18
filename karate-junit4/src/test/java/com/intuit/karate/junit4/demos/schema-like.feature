@@ -60,6 +60,19 @@ Then match response ==
 # should be null or an array of strings
 * match foo == '##[] #string'
 
+# contains
+* def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
+* def exact = { a: '#number', b: '#number' }
+* def partial = { b: '#number' }
+* def nope = { c: '#number' }
+
+* match foo[0] == '#(exact)'
+* match foo[0] == '#(^partial)'
+* match foo[0] == '#(!^nope)'
+
+* match foo == '#[] exact'
+* match foo == '#[] ^partial'
+* match foo == '#[] !^nope'
 
 Scenario: pretty print json
 * def json = read('odds.json')

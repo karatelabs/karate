@@ -117,6 +117,14 @@ public class Script {
         return text.startsWith("(") && text.endsWith(")");
     }
 
+    public static final boolean isContainsMacro(String text) {
+        return text.startsWith("^");
+    }
+    
+    public static final boolean isNotContainsMacro(String text) {
+        return text.startsWith("!^");
+    }    
+
     public static final boolean isJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
     }
@@ -655,7 +663,11 @@ public class Script {
         return text.startsWith("##");
     }
 
-    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType matchType, Object actRoot,
+    private static String stripParentheses(String s) {
+        return StringUtils.trimToEmpty(s.substring(1, s.length() - 1));
+    }
+
+    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType stringMatchType, Object actRoot,
             ScriptValue actValue, String expected, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
@@ -671,7 +683,16 @@ public class Script {
             } else {
                 macroExpression = expected.substring(1);
             }
-            if (isWithinParantheses(macroExpression)) { // '#(foo)' | '##(foo)'
+            if (isWithinParantheses(macroExpression)) { // '#(foo)' | '##(foo)' | '#(^foo)'
+                MatchType matchType = MatchType.EQUALS;
+                macroExpression = stripParentheses(macroExpression);
+                if (isContainsMacro(macroExpression)) {
+                    matchType = MatchType.CONTAINS;
+                    macroExpression = macroExpression.substring(1);
+                } else if (isNotContainsMacro(macroExpression)) {
+                    matchType = MatchType.NOT_CONTAINS;
+                    macroExpression = macroExpression.substring(2);
+                }
                 ScriptValue parentValue = getValueOfParentNode(actRoot, path);
                 ScriptValue expValue = evalInNashorn(macroExpression, context, actValue, parentValue);
                 return matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
@@ -710,14 +731,26 @@ public class Script {
                     // macro-fy before attempting to re-use match-each routine
                     String expression = macroExpression.substring(endBracketPos + 1);
                     expression = StringUtils.trimToNull(expression);
+                    MatchType matchType = MatchType.EACH_EQUALS;
                     if (expression != null) {
                         if (expression.startsWith("?")) {
                             expression = "'#" + expression + "'";
                         } else if (expression.startsWith("#")) {
                             expression = "'" + expression + "'";
-                        } // else as-is
+                        } else {
+                            if (isWithinParantheses(expression)) {
+                                expression = stripParentheses(expression);
+                            }
+                            if (isContainsMacro(expression)) {
+                                matchType = MatchType.EACH_CONTAINS;
+                                expression = expression.substring(1);
+                            } else if (isNotContainsMacro(expression)) {
+                                matchType = MatchType.EACH_NOT_CONTAINS;
+                                expression = expression.substring(2);                                
+                            }
+                        }
                         // actRoot assumed to be json in this case                        
-                        return matchJsonPath(MatchType.EACH_EQUALS, new ScriptValue(actRoot), path, expression, context);
+                        return matchJsonPath(matchType, new ScriptValue(actRoot), path, expression, context);
                     }
                 }
             } else { // '#? _ != 0' | '#string' | '#number? _ > 0'
@@ -751,7 +784,7 @@ public class Script {
             }
         } else {
             String actual = actValue.getAsString();
-            switch (matchType) {
+            switch (stringMatchType) {
                 case CONTAINS:
                     if (!actual.contains(expected)) {
                         return matchFailed(path, actual, expected, "not a sub-string");
@@ -763,7 +796,7 @@ public class Script {
                     }
                     break;
                 default:
-                    throw new RuntimeException("unsupported match type for string: " + matchType);
+                    throw new RuntimeException("unsupported match type for string: " + stringMatchType);
             }
         }
         return AssertionResult.PASS;
