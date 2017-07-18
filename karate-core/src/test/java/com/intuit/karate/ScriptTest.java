@@ -904,9 +904,18 @@ public class ScriptTest {
         Script.assign("json", "[{ foo: 1 }]", ctx);
         assertTrue(Script.matchNamed(MatchType.CONTAINS_ONLY, "json", null, "{ foo: 1 }", ctx).pass);
     }
+    
+    @Test
+    public void testMatchJsonObjectErrorReporting() {   
+        ScriptContext ctx = getContext();
+        Script.assign("json", "{ a: 1, b: 2, c: 3}", ctx);
+        AssertionResult ar = Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: 1, c: 3 }", ctx);
+        assertFalse(ar.pass);        
+        assertTrue(ar.message.contains("actual value has 1 more key"));
+    } 
 
     @Test
-    public void testMatchArrayErrorReporting() {
+    public void testMatchJsonArrayErrorReporting() {
         ScriptContext ctx = getContext();
         Script.assign("json", "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]", ctx);
         AssertionResult ar = Script.matchNamed(MatchType.EQUALS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);

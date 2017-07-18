@@ -49,8 +49,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.script.Bindings;
@@ -984,7 +986,12 @@ public class Script {
             Map<String, Object> expMap = (Map) expObject;
             Map<String, Object> actMap = (Map) actObject;
             if ((matchType == MatchType.EQUALS || matchType == MatchType.CONTAINS_ONLY) && actMap.size() > expMap.size()) { // > is because of the chance of #ignore
-                return matchFailed(path, actObject, expObject, "actual value has more keys than expected - " + actMap.size() + ":" + expMap.size());
+                int sizeDiff = actMap.size() - expMap.size();
+                Map<String, Object> diffMap = new LinkedHashMap(actMap);
+                for (String key : expMap.keySet()) {
+                    diffMap.remove(key);
+                }
+                return matchFailed(path, actObject, expObject, "actual value has " + sizeDiff + " more key(s) than expected: " + diffMap);
             }
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
