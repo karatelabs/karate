@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -110,9 +111,9 @@ public class Script {
     }
 
     public static final boolean isEmbeddedExpression(String text) {
-        return text.startsWith("#(") && text.endsWith(")");
+        return (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
-
+    
     public static final boolean isWithinParantheses(String text) {
         return text.startsWith("(") && text.endsWith(")");
     }
@@ -398,8 +399,8 @@ public class Script {
         for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
             String key = entry.getKey();
             ScriptValue sv = entry.getValue();
-            if (sv == null) {
-                continue;
+            if (sv == null) { // most likely only happens in unit tests but be safe
+                sv = ScriptValue.NULL;
             }
             map.put(key, sv.getAfterConvertingFromJsonOrXmlIfNeeded());
         }
@@ -441,9 +442,14 @@ public class Script {
             String value = (String) o;
             value = StringUtils.trim(value);
             if (isEmbeddedExpression(value)) {
+                boolean optional = isOptionalMacro(value);
                 try {
-                    ScriptValue sv = evalInNashorn(value.substring(1), context);
-                    root.set(path, sv.getValue());
+                    ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
+                    if (!optional) {
+                        root.set(path, sv.getValue());
+                    } else if (sv.isNull()) { // only if optional null remove key else defer eval to string macro validation
+                        root.delete(path);
+                    }
                 } catch (Exception e) {
                     context.logger.warn("embedded json script eval failed at path {}: {}", path, e.getMessage());
                 }
@@ -455,45 +461,60 @@ public class Script {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
         }
-        NamedNodeMap attribs = node.getAttributes();
+        NamedNodeMap attribs = node.getAttributes();        
         int attribCount = attribs.getLength();
+        Set<Attr> attributesToRemove = new HashSet(attribCount);
         for (int i = 0; i < attribCount; i++) {
             Attr attrib = (Attr) attribs.item(i);
             String value = attrib.getValue();
             value = StringUtils.trimToEmpty(value);
             if (isEmbeddedExpression(value)) {
+                boolean optional = isOptionalMacro(value);
                 try {
-                    ScriptValue sv = evalInNashorn(value.substring(1), context);
-                    attrib.setValue(sv.getAsString());
+                    ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
+                    if (!optional) {
+                        attrib.setValue(sv.getAsString());
+                    } else if (sv.isNull()) {
+                        attributesToRemove.add(attrib);
+                    }                    
                 } catch (Exception e) {
                     context.logger.warn("embedded xml-attribute script eval failed: {}", e.getMessage());
                 }
             }
         }
+        for (Attr toRemove : attributesToRemove) {
+            attribs.removeNamedItem(toRemove.getName());
+        }
         NodeList nodes = node.getChildNodes();
         int childCount = nodes.getLength();
+        Set<Node> elementsToRemove = new HashSet(childCount);
         for (int i = 0; i < childCount; i++) {
             Node child = nodes.item(i);
             String value = child.getNodeValue();
             if (value != null) {
                 value = StringUtils.trimToEmpty(value);
                 if (isEmbeddedExpression(value)) {
+                    boolean optional = isOptionalMacro(value);
                     try {
-                        ScriptValue sv = evalInNashorn(value.substring(1), context);
-                        if (sv.isMapLike()) {
-                            Node evalNode;
-                            if (sv.getType() == XML) {
-                                evalNode = sv.getValue(Node.class);
+                        ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
+                        if (!optional) {
+                            if (sv.isMapLike()) {
+                                Node evalNode;
+                                if (sv.getType() == XML) {
+                                    evalNode = sv.getValue(Node.class);
+                                } else {
+                                    evalNode = XmlUtils.fromMap(sv.getAsMap());
+                                }
+                                if (evalNode.getNodeType() == Node.DOCUMENT_NODE) {
+                                    evalNode = evalNode.getFirstChild();
+                                }
+                                evalNode = node.getOwnerDocument().importNode(evalNode, true);
+                                child.getParentNode().replaceChild(evalNode, child);
                             } else {
-                                evalNode = XmlUtils.fromMap(sv.getAsMap());
+                                child.setNodeValue(sv.getAsString());
                             }
-                            if (evalNode.getNodeType() == Node.DOCUMENT_NODE) {
-                                evalNode = evalNode.getFirstChild();
-                            }
-                            evalNode = node.getOwnerDocument().importNode(evalNode, true);
-                            child.getParentNode().replaceChild(evalNode, child);
-                        } else {
-                            child.setNodeValue(sv.getAsString());
+                        } else if (sv.isNull()) {
+                            elementsToRemove.add(child);
                         }
                     } catch (Exception e) {
                         context.logger.warn("embedded xml-text script eval failed: {}", e.getMessage());
@@ -502,6 +523,10 @@ public class Script {
             } else if (child.hasChildNodes()) {
                 evalXmlEmbeddedExpressions(child, context);
             }
+        }
+        for (Node toRemove : elementsToRemove) {
+            Node element = toRemove.getParentNode();
+            element.getParentNode().removeChild(element);
         }
     }
 

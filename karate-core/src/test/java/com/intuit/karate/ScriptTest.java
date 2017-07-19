@@ -206,6 +206,22 @@ public class ScriptTest {
         logger.debug("result: {}", result);
         assertTrue(result.endsWith("<foo bar=\"5\">5</foo>"));
     }
+    
+    @Test
+    public void testEvalXmlEmbeddedOptionalExpressionsInAttributes() {
+        ScriptContext ctx = getContext();
+        Script.assign("a", "null", ctx);
+        Script.assign("xml", "<foo bar=\"##(a)\">baz</foo>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo>baz</foo>", ctx).pass);
+    }
+
+    @Test
+    public void testEvalXmlEmbeddedOptionalExpressions() {
+        ScriptContext ctx = getContext();
+        Script.assign("a", "null", ctx);
+        Script.assign("xml", "<foo><a>hello</a><b>##(a)</b></foo>", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><a>hello</a></foo>", ctx).pass);
+    }   
 
     @Test
     public void testEvalJsonEmbeddedExpressions() {
@@ -239,7 +255,15 @@ public class ScriptTest {
         Script.assign("foo", "{ a: 1, b: 2, c: 3 }", ctx);
         Script.assign("bar", "{ 'sp ace': '#(foo.a)', 'hy-phen': '#(foo.b)', 'full.stop': '#(foo.c)' }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ 'sp ace': 1, 'hy-phen': 2, 'full.stop': 3 }", ctx).pass);
-    }    
+    }
+
+    @Test
+    public void testEvalEmbeddedOptionalExpressions() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ a: null, b: null }", ctx);
+        Script.assign("bar", "{ hello: '#(foo.a)', world: '##(foo.b)'  }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ hello: null }", ctx).pass);
+    }
 
     @Test
     public void testVariableNameValidation() {
