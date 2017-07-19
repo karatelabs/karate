@@ -31,4 +31,16 @@ Scenario: json path with keys with spaces or other troublesome characters
 * match val1 == 'foo'
 * match json['hy-phen'] == 'bar'
 * match json['full.stop'] == 'baz'
+
+Scenario: pass json var (becomes a map) to a function
+* def json = { foo: 'bar', hello: 'world' }
+* def fun = function(o){ return o }
+* def result = call fun json
+* match result == json
+
+Scenario: remove json key from js
+* def json = { foo: 'bar', hello: 'world' }
+* def fun = function(){ karate.remove('json', '$.foo') }
+* call fun
+* match json == { hello: 'world' }
  

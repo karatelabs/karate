@@ -783,7 +783,16 @@ public class ScriptTest {
         Script.assign("xml", "<root><foo>bar</foo></root>", ctx);
         Script.removeValueByPath("xml", "/root/foo", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root/>", ctx).pass);
-    }    
+    } 
+    
+    @Test
+    public void testCallJsFunctionWithMap() {
+        ScriptContext ctx = getContext();
+        Script.assign("json", "{ foo: 'bar', hello: 'world' }", ctx);
+        Script.assign("fun", "function(o){ return o }", ctx);
+        Script.assign("res", "call fun json", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "json", ctx).pass);
+    }
 
     @Test
     public void testDefaultValidators() {
