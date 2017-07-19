@@ -43,4 +43,7 @@ Scenario: remove json key from js
 * def fun = function(){ karate.remove('json', '$.foo') }
 * call fun
 * match json == { hello: 'world' }
- 
+
+Scenario: optional json values
+* def response = [{a: 'one', b: 'two'}, { a: 'one' }]
+* match each response contains { a: 'one', b: '##("two")' }

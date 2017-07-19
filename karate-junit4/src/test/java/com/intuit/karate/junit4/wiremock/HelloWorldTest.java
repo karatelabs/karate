@@ -70,7 +70,12 @@ public class HelloWorldTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{ \"success\": true }")));       
+                        .withBody("{ \"success\": true }")));
+        stubFor(get(urlEqualTo("/v1/german"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/xml")
+                        .withBody("<name>Müller</name>")));         
     }
 
 }
