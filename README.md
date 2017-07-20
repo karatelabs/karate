@@ -835,28 +835,6 @@ input:
 * def bar = read('data.yaml')
 ```
 
-## Karate Expressions
-The right-hand-side of a [`def`](#def) assignment statement takes a wide variety of 'shapes':
-
- Example | Shape | Description
--------- | ----- | -----------
-`* def foo = 'bar'` | primitive | simple strings, numbers or booleans
-`* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
-`* def foo = ('bar' + 1)` | JS | Karate assumes that users need JsonPath most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
-`* def foo = { bar: 1 }` | JSON | anything that starts with a `{` or a `[` is treated as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
-`* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is treated as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
-`* def foo = function(arg){ return arg + bar }` | JS Function | anything that starts with `function(...){` is treated as a JS function.
-`* def foo = $.bar[0]` | JsonPath | short-cut JsonPath on the [`response`](#response)
-`* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
-`* def foo = bar.baz[0]` | Named JsonPath | JsonPath on the variable `bar`
-`* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
-`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | JsonPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
-`* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
-`* def foo = karate.pretty(bar)` | [`karate` JS](#the-karate-object) | using the built-in `karate` object in JS expressions
-`* def foo = Java.type('com.mycompany.Bar')` | Java Type | [Java Interop](#java-interop)
-`* def foo = call bar { baz: 'ban' }` | [`call`](#call) | or [`callonce`](#callonce)
-
-
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.  
 Standard JavaScript syntax rules apply.
@@ -971,6 +949,28 @@ So you have the following type markers you can use instead of [`def`](#def):
 These are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
 
 If you want to 'pretty print' a JSON or XML value with indenting, refer to the documentation of the [`print`](#print) keyword.
+
+# Karate Expressions
+Before we get to the HTTP keywords, it is worth doing a recap of the various 'shapes' that the right-hand-side of an assignment statement can take:
+
+ Example | Shape | Description
+-------- | ----- | -----------
+`* def foo = 'bar'` | primitive | simple strings, numbers or booleans
+`* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
+`* def foo = ('bar' + 1)` | JS | Karate assumes that users need JsonPath most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
+`* def foo = { bar: 1 }` | JSON | anything that starts with a `{` or a `[` is treated as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
+`* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is treated as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
+`* def foo = function(arg){ return arg + bar }` | JS Function | anything that starts with `function(...){` is treated as a JS function.
+`* def foo = read('bar.json')` | Read | using the built-in [`read()`](#reading-files) function
+`* def foo = $.bar[0]` | JsonPath | short-cut JsonPath on the [`response`](#response)
+`* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
+`* def foo = bar.baz[0]` | Named JsonPath | JsonPath on the variable `bar`
+`* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
+`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | JsonPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
+`* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
+`* def foo = karate.pretty(bar)` | [`karate` JS](#the-karate-object) | using the built-in `karate` object in JS expressions
+`* def foo = Java.type('com.mycompany.Bar')` | Java Type | [Java Interop](#java-interop), and even one-liners like `java.lang.System.currentTimeMillis()` are possible
+`* def foo = call bar { baz: 'ban' }` | [`call`](#call) | or [`callonce`](#callonce), where expressions like [`read('foo.js')`](#reading-files) are allowed as the object to be called or the argument
 
 # Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
