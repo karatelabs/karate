@@ -562,7 +562,7 @@ Then print myVar
 ```
 Note that `def` will over-write any variable that was using the same name earlier. Keep in mind that the start-up [configuration routine](#configuration) could have already initialized some variables before the script even started.
 
-A variety of expressions are supported on the right hand side of the `=` symbol. The section on [Karate Expressions](#karate-expressions) goes into the details.
+The examples above are simple, but a variety of expression 'shapes' are supported on the right hand side of the `=` symbol. The section on [Karate Expressions](#karate-expressions) goes into the details.
 
 ## `assert`
 ### Assert if an expression evaluates to `true`
@@ -837,8 +837,9 @@ input:
 
 ## Karate Expressions
 The right-hand-side of a [`def`](#def) assignment statement takes a wide variety of 'shapes':
+
  Example | Shape | Description
--------- | -----| -----------
+-------- | ----- | -----------
 `* def foo = 'bar'` | primitive | simple strings, numbers or booleans
 `* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
 `* def foo = ('bar' + 1)` | JS | Karate assumes that users need JsonPath most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
@@ -849,7 +850,7 @@ The right-hand-side of a [`def`](#def) assignment statement takes a wide variety
 `* def foo = bar.baz[0]` | Named JsonPath | JsonPath on the variable `bar`
 `* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
 `* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | JsonPath on the variable `bar`. In cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
-`* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`. In cases where Karate fails to detect XPath correctly on the RHS  (especially when using XPath functions)
+`* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`. In cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
 `* def foo = karate.pretty(bar)` | [`karate` JS](#the-karate-object) | using the built-in `karate` object in JS expressions
 
 ## JavaScript Functions
@@ -1992,7 +1993,7 @@ Operation | Description
 `karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 `karate.properties[key]` | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
-`karate.toBean(obj, className)` | converts a string, JSON or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
+`karate.toBean(json, className)` | converts a JSON string or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 
 ### Rules for Passing Data to the JavaScript Function
