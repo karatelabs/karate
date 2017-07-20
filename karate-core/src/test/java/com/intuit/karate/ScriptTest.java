@@ -575,6 +575,22 @@ public class ScriptTest {
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("<root><foo>bar</foo></root>", value.getValue());
     }
+    
+    @Test
+    public void testCastPojoToJson() {
+        ScriptContext ctx = getContext();
+        Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
+        Script.assignJson("json", "pojo", ctx);
+        assertTrue(Script.matchNamed("json", null, "{ foo: null, bar: 0 }", ctx).pass);
+    }
+    
+    @Test
+    public void testCastPojoToXml() {
+        ScriptContext ctx = getContext();
+        Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
+        Script.assignXml("xml", "pojo", ctx);
+        assertTrue(Script.matchNamed("xml", null, "<root><foo></foo><bar>0</bar></root>", ctx).pass);
+    }    
 
     @Test
     public void testXmlShortCutsForResponse() {
@@ -1312,6 +1328,6 @@ public class ScriptTest {
         assertEquals("bar", Script.replacePlaceholderText("<foo>", "foo", "'bar'", ctx));
         assertEquals("bar", Script.replacePlaceholderText("@@foo@@", "@@foo@@", "'bar'", ctx));
         assertEquals("bar bar bar", Script.replacePlaceholderText("<foo> <foo> <foo>", "foo", "'bar'", ctx));
-    }    
+    }
     
 }

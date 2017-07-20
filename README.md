@@ -562,6 +562,8 @@ Then print myVar
 ```
 Note that `def` will over-write any variable that was using the same name earlier. Keep in mind that the start-up [configuration routine](#configuration) could have already initialized some variables before the script even started.
 
+A variety of expressions are supported on the right hand side of the `=` symbol. The section on [Karate Expressions](#karate-expressions) goes into the details.
+
 ## `assert`
 ### Assert if an expression evaluates to `true`
 Once defined, you can refer to a variable by name. Expressions are evaluated using the embedded JavaScript engine. The assert keyword can be used to assert that an expression returns a boolean value.
@@ -833,6 +835,23 @@ input:
 * def bar = read('data.yaml')
 ```
 
+## Karate Expressions
+The right-hand-side of a [`def`](#def) assignment statement takes a wide variety of 'shapes':
+ Example | Shape | Description
+-------- | -----| -----------
+`* def foo = 'bar'` | primitive | simple strings, numbers or booleans
+`* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
+`* def foo = ('bar' + 1)` | JS | Karate assumes that users need JsonPath most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
+`* def foo = { bar: 1 }` | JSON | anything that starts with a `{` or a `[` is treated as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
+`* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is treated as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
+`* def foo = $.bar[0]` | JsonPath | short-cut JsonPath on the [`response`](#response)
+`* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
+`* def foo = bar.baz[0]` | Named JsonPath | JsonPath on the variable `bar`
+`* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
+`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | JsonPath on the variable `bar`. In cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
+`* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`. In cases where Karate fails to detect XPath correctly on the RHS  (especially when using XPath functions)
+`* def foo = karate.pretty(bar)` | [`karate` JS](#the-karate-object) | using the built-in `karate` object in JS expressions
+
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.  
 Standard JavaScript syntax rules apply.
@@ -851,7 +870,7 @@ For more complex functions you are better off using the [multi-line](#multi-line
 * def dateStringToLong =
 """
 function(s) {
-  var SimpleDateFormat = Java.type("java.text.SimpleDateFormat");
+  var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
   var sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
   return sdf.parse(s).time; // '.getTime()' would also have worked instead of '.time'
 } 
@@ -860,8 +879,6 @@ function(s) {
 ```
 
 > More examples of Java interop and how to invoke custom code can be found in the section on [Calling Java](#calling-java).
-
-Any JavaScript function in Karate has a variable called [`karate`](#the-karate-object) injected into the runtime, which provides some utility functions, for e.g. logging.
 
 The `call` keyword provides an [alternate way of calling JavaScript functions](#calling-javascript-functions) that have only one argument. The argument can be provided after the function name, without parentheses, which makes things slightly more readable (and less cluttered) especially when the solitary argument is JSON.
 
@@ -941,12 +958,14 @@ In some rare cases, for e.g. if you acquired a string from some external source,
 One example of when you may want to convert JSON (or XML) to a string is when you are passing a payload to custom code via [Java interop](#calling-java). Do note that when passing JSON, the default `Map` and `List` representations should suffice for most needs ([see example](karate-demo/src/test/java/demo/java/cats-java.feature)), and using them would avoid un-necessary string-conversion.
 
 So you have the following type markers you can use instead of [`def`](#def):
-* `string` - convert XML, JSON or any other data-type to a string
-* `json` - convert XML, a map-like or list-like object, or a string into JSON
-* `xml` - convert JSON, a map-like object, or a string into XML
+* `string` - convert JSON or any other data-type (except XML) to a string
+* `json` - convert XML, a map-like or list-like object, a string, or even a Java bean (POJO) into JSON
+* `xml` - convert JSON, a map-like object, a string, or even a Java bean (POJO) into XML
 * `xmlstring` - specifically for converting XML into a string
 
 These are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
+
+If you want to 'pretty print' a JSON or XML value with indenting, refer to the documentation of the [`print`](#print) keyword.
 
 # Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
@@ -1359,6 +1378,15 @@ If two cross-hatch `#` symbols are used as the prefix (for example: `##number`),
 ```cucumber
 * def foo = { bar: 'baz' }
 * match foo == { bar: '#string', ban: '##string' }
+```
+
+#### Remove If Null
+A very useful behavior when you combine the optional marker with an [embedded expression](#embedded-expressions) is as follows: if the embedded expression evaluates to `null` - the JSON key (or XML element or attribute) will be deleted from the payload (the equivalent of [`remove`](#remove)).
+
+```cucumber
+* def data = { a: 'hello', b: null, c: null }
+* def json = { foo: '#(data.a)', bar: '#(data.b)', baz: '##(data.c)' }
+* match json == { foo: 'hello', bar: null }
 ```
 
 ### 'Self' Validation Expressions
@@ -1964,6 +1992,7 @@ Operation | Description
 `karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 `karate.properties[key]` | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
+`karate.toBean(obj, className)` | converts a string, JSON or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 
 ### Rules for Passing Data to the JavaScript Function

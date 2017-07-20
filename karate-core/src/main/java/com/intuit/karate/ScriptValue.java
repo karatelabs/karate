@@ -107,6 +107,14 @@ public class ScriptValue {
     public boolean isString() {
         return type == Type.STRING;
     }
+    
+    public boolean isStream() {
+        return type == Type.INPUT_STREAM;
+    }
+    
+    public boolean isUnknownType() {
+        return type == Type.UNKNOWN;
+    }
 
     public boolean isBooleanTrue() {
         return type == Type.PRIMITIVE && "true".equals(value.toString());

@@ -106,6 +106,12 @@ public class ScriptBridge {
         return doc.read(exp);
     }
     
+    public Object toBean(Object o, String className) {
+        ScriptValue sv = new ScriptValue(o);
+        DocumentContext doc = Script.toJsonDoc(sv, context);
+        return JsonUtils.fromJson(doc.jsonString(), className);
+    }
+    
     public Object call(String fileName) {
         return call(fileName, null);
     }

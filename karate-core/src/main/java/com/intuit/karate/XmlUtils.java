@@ -333,5 +333,15 @@ public class XmlUtils {
         doc.appendChild(node);
         return doc;
     }
+    
+    public static Document toXmlDoc(Object o) {
+        DocumentContext json = JsonUtils.toJsonDoc(o);
+        Object mapOrArray = json.read("$"); // for pojos will always be a map
+        return fromObject("root", mapOrArray); // keep it simple for people to write generic xpath starting with /root
+    }    
+    
+    public static String toXml(Object o) {
+        return toString(toXmlDoc(o));
+    }        
 
 }

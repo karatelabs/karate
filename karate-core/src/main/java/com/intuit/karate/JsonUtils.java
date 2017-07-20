@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import net.minidev.json.JSONObject;
+import net.minidev.json.JSONValue;
 import org.apache.commons.lang3.tuple.Pair;
 import org.yaml.snakeyaml.Yaml;
 
@@ -47,9 +48,27 @@ public class JsonUtils {
         return JsonPath.parse(raw);
     }
 
-    public static String toJsonString(String raw) {
+    public static String toStrictJsonString(String raw) {
         DocumentContext dc = toJsonDoc(raw);
         return dc.jsonString();
+    }
+    
+    public static String toJson(Object o) {
+        return JSONValue.toJSONString(o);
+    }
+        
+    public static DocumentContext toJsonDoc(Object o) {
+        return toJsonDoc(toJson(o));
+    }
+    
+    // could have used generics, but this is only going to be called from js / karate
+    public static Object fromJson(String s, String className) {
+        try {
+            Class clazz = Class.forName(className);
+            return JSONValue.parse(s, clazz);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }        
     }
     
     public static String toPrettyJsonString(DocumentContext doc) {

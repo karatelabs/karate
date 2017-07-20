@@ -44,6 +44,16 @@ Scenario: remove json key from js
 * call fun
 * match json == { hello: 'world' }
 
+Scenario: remove json value
+* def data = { a: 'hello', b: null, c: null }
+* def json = { foo: '#(data.a)', bar: '#(data.b)', baz: '##(data.c)' }
+* match json == { foo: 'hello', bar: null }
+
 Scenario: optional json values
 * def response = [{a: 'one', b: 'two'}, { a: 'one' }]
 * match each response contains { a: 'one', b: '##("two")' }
+
+Scenario: get and json path
+* def foo = { bar: { baz: 'ban' } }
+* def res = get foo $..bar[?(@.baz)]
+* match res contains { baz: 'ban' }

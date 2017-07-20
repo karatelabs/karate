@@ -77,7 +77,7 @@ public class FeatureSectionPanel extends Panel {
                     StepResult result = step.run(backend);
                     step.setPass(result.isPass());
                     StepPanel stepPanel = (StepPanel) li.get("step");
-                    String json = JsonUtils.toJsonString(
+                    String json = JsonUtils.toStrictJsonString(
                             "{ type: 'step', buttonId: '" + stepPanel.getRunButton().getMarkupId() + "' }");
                     featurePage.pushJsonWebSocketMessage(json);
                 }

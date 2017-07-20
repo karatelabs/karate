@@ -563,6 +563,9 @@ public class Script {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
+        if ("karate".equals(name)) {
+            throw new RuntimeException("'karate' is a reserved name");
+        }
         if ("request".equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " " + exp + "' instead");
         }
@@ -585,40 +588,54 @@ public class Script {
                 sv = new ScriptValue(tempString.getAsString());
                 break;
             case JSON:
-                ScriptValue tempJson = eval(exp, context);
-                if (tempJson.getType() == STRING) {
-                    sv = eval(tempJson.getValue(String.class), context);
-                } else if (tempJson.isListLike()) {
-                    DocumentContext listDoc = JsonPath.parse(tempJson.getAsList());
-                    sv = new ScriptValue(listDoc);
-                } else if (tempJson.isMapLike()) {
-                    DocumentContext mapDoc = JsonPath.parse(tempJson.getAsMap());
-                    sv = new ScriptValue(mapDoc);
-                } else {
-                    throw new RuntimeException("cannot convert to json: " + tempJson);
-                }
+                DocumentContext jsonDoc = toJsonDoc(eval(exp, context), context);
+                sv = new ScriptValue(jsonDoc);
                 break;
             case XML:
-                sv = toXml(exp, context);
+                Document xmlDoc = toXmlDoc(eval(exp, context), context);
+                sv = new ScriptValue(xmlDoc);
                 break;
             case XML_STRING:
-                ScriptValue tempXml = toXml(exp, context);
-                sv = new ScriptValue(tempXml.getAsString());
+                Document xmlStringDoc = toXmlDoc(eval(exp, context), context);
+                sv = new ScriptValue(XmlUtils.toString(xmlStringDoc));
                 break;
             default: // AUTO
                 sv = eval(exp, context);
         }
         context.vars.put(name, sv);
     }
-
-    private static ScriptValue toXml(String exp, ScriptContext context) {
-        ScriptValue tempXml = eval(exp, context);
-        if (tempXml.getType() == STRING) {
-            return eval(tempXml.getValue(String.class), context);
-        } else if (tempXml.isMapLike()) {
-            return new ScriptValue(XmlUtils.fromMap(tempXml.getAsMap()));
+    
+    public static DocumentContext toJsonDoc(ScriptValue sv, ScriptContext context) {
+        if (sv.isListLike()) {
+            return JsonPath.parse(sv.getAsList());
+        } else if (sv.isMapLike()) {
+            return JsonPath.parse(sv.getAsMap());
+        } else if (sv.isUnknownType()) { // POJO
+            return JsonUtils.toJsonDoc(sv.getValue());
+        } else if (sv.isString() || sv.isStream()) {            
+            ScriptValue temp = eval(sv.getAsString(), context);
+            if (temp.getType() != JSON) {
+                throw new RuntimeException("cannot convert, not a json string: " + sv);
+            }
+            return temp.getValue(DocumentContext.class);            
         } else {
-            throw new RuntimeException("cannot convert to xml: " + tempXml);
+            throw new RuntimeException("cannot convert to json: " + sv);
+        }
+    }
+
+    private static Document toXmlDoc(ScriptValue sv, ScriptContext context) {
+        if (sv.isMapLike()) {
+            return XmlUtils.fromMap(sv.getAsMap());
+        } else if (sv.isUnknownType()) {
+            return XmlUtils.toXmlDoc(sv.getValue());
+        } else if (sv.isString() || sv.isStream()) {
+            ScriptValue temp = eval(sv.getAsString(), context);
+            if (temp.getType() != XML) {
+                throw new RuntimeException("cannot convert, not an xml string: " + sv);
+            }
+            return temp.getValue(Document.class);           
+        } else {
+            throw new RuntimeException("cannot convert to xml: " + sv);
         }
     }
 

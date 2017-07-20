@@ -442,9 +442,9 @@ public class StepDefs {
         }
     }
 
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? ==$")
-    public void matchEqualsDocString(String each, String name, String path, String expected) {
-        matchEquals(each, name, path, expected);
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?)$")
+    public void matchEqualsDocString(String each, String name, String path, String eqSymbol, String expected) {
+        matchEquals(each, name, path, eqSymbol, expected);
     }
 
     @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?$")
@@ -452,8 +452,11 @@ public class StepDefs {
         matchContains(each, name, path, not, only, expected);
     }   
 
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? == (.+)")
-    public void matchEquals(String each, String name, String path, String expected) {
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?) (.+)")
+    public void matchEquals(String each, String name, String path, String eqSymbol, String expected) {
+        if (!eqSymbol.equals("==")) {
+            throw new RuntimeException("use '==' for match (not '=')");
+        }        
         MatchType mt = toMatchType(each, null, null, false);
         matchNamed(mt, name, path, expected);
     }

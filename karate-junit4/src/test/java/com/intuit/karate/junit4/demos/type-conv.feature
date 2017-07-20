@@ -73,3 +73,20 @@ Scenario: xml with namespaces
 * match jsonVar $..ns2:foo.@ contains { fizz: 'buzz', ping: 'pong' }
 * match jsonVar $..ns2:foo.@ contains only { fizz: 'buzz', ping: 'pong' }
 * match each jsonVar $..ns2:foo.@ contains { ping: 'pong' }
+
+Scenario: java pojo to json
+* def className = 'com.intuit.karate.junit4.demos.SimplePojo'
+* def Pojo = Java.type(className)
+* def pojo = new Pojo()
+* json jsonVar = pojo
+* match jsonVar == { foo: null, bar: 0 }
+* def testJson = { foo: 'hello', bar: 5 }
+* def testPojo = karate.toBean(testJson, className)
+* assert testPojo.foo == 'hello'
+* assert testPojo.bar == 5
+
+Scenario: java pojo to xml
+* def Pojo = Java.type('com.intuit.karate.junit4.demos.SimplePojo')
+* def pojo = new Pojo()
+* xml xmlVar = pojo
+* match xmlVar == <root><foo></foo><bar>0</bar></root>
