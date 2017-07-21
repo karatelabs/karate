@@ -1327,8 +1327,15 @@ XML and XPath works just like you'd expect.
 * set xml/foo/bar = <hello>world</hello>
 * match xml == <foo><bar><hello>world</hello></bar></foo>
 ```
-
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
+
+### `match` and variables
+In case you were wondering, variables (and even expressions) are supported on the right-hand-side. So you can compare 2 JSON (or XML) payloads if you wanted to:
+```cucumber
+* def foo = { hello: 'world', baz: 'ban' }
+* def bar = { baz: 'ban', hello: 'world' }
+* match foo == bar
+```
 
 ## `remove`
 This is like the opposite of [`set`](#set) if you need to remove keys or data elements from JSON or XML instances. You can even remove JSON array elements by index.

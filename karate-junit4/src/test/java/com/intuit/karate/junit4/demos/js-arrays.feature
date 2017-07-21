@@ -57,3 +57,8 @@ Scenario: get and json path
 * def foo = { bar: { baz: 'ban' } }
 * def res = get foo $..bar[?(@.baz)]
 * match res contains { baz: 'ban' }
+
+Scenario: comparing 2 payloads
+* def foo = { hello: 'world', baz: 'ban' }
+* def bar = { baz: 'ban', hello: 'world' }
+* match foo == bar
