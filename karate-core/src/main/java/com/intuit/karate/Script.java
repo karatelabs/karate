@@ -490,6 +490,9 @@ public class Script {
         Set<Node> elementsToRemove = new HashSet(childCount);
         for (int i = 0; i < childCount; i++) {
             Node child = nodes.item(i);
+            if (child == null) { // not sure, but this seems to happen if we remove ##(null) etc
+                continue;
+            }
             String value = child.getNodeValue();
             if (value != null) {
                 value = StringUtils.trimToEmpty(value);

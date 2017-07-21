@@ -57,10 +57,13 @@ Scenario: set xml chunks using xpath
 
 Scenario: set xml chunks using embedded expressions
     * def phone = '123456'
+    # this will remove the <acc:phoneNumberSearchOption> element
+    * def searchOption = null
     * def search = 
     """
     <acc:getAccountByPhoneNumber>
         <acc:phoneNumber>#(phone)</acc:phoneNumber>
+        <acc:phoneNumberSearchOption>##(searchOption)</acc:phoneNumberSearchOption>        
     </acc:getAccountByPhoneNumber>
     """
     * def req = read('envelope2.xml')

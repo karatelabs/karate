@@ -585,7 +585,7 @@ You can use `print` to log variables to the console in the middle of a script. A
 * print 'the value of a is ' + a
 ```
 
-When dealing with complex JSON, you would often want to 'pretty print' data which is nicely indented. The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` statements, and it has a helpful `pretty` method, that takes a JSON argument.
+When dealing with complex JSON, you would often want to 'pretty print' data which is nicely indented. The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` (and even `assert`) statements, and it has a helpful `pretty` method, that takes a JSON argument.
 ```cucumber
 * def myJson = { foo: 'bar', baz: [1, 2, 3] }
 * print 'pretty print:\n' + karate.pretty(myJson)
@@ -648,7 +648,7 @@ So the rule is - if a string value within a JSON (or XML) object declaration is 
 
 This comes in useful in some cases - and avoids needing to use the [`set`](#set) keyword or [JavaScript functions](#javascript-functions) to manipulate JSON. So you get the best of both worlds: the elegance of JSON to express complex nested data - while at the same time being able to dynamically plug values (that could even be other JSON object-trees) into a JSON 'template'.
 
-The [GraphQL / RegEx Replacement example](#graphql--regex-replacement-example) also demonstrates the usage of 'embedded expressions', look for: `'#(query)'`. And there are more examples in the [Karate Demos](karate-demo).
+A [special case](#remove-if-null) of embedded expressions can remove a JSON key (or XML element / attribute) if the expression evaluates to `null`.
 
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
@@ -968,7 +968,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 `* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
 `* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | JsonPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
 `* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
-`* def foo = karate.pretty(bar)` | [`karate` JS](#the-karate-object) | using the built-in `karate` object in JS expressions
+`* def foo = karate.pretty(bar)` | `karate` JS | using the [built-in `karate` object](#the-karate-object) in JS expressions
 `* def foo = Java.type('com.mycompany.Bar')` | Java Type | [Java Interop](#java-interop), and even one-liners like `java.lang.System.currentTimeMillis()` are possible
 `* def foo = call bar { baz: 'ban' }` | [`call`](#call) | or [`callonce`](#callonce), where expressions like [`read('foo.js')`](#reading-files) are allowed as the object to be called or the argument
 
