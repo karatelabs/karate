@@ -1,3 +1,39 @@
-# Karate Mock HTTP
+# Karate Mock Servlet
 
-Refer to this [thread for instructions](https://github.com/intuit/karate/issues/100#issuecomment-313902944).
+## Test any Java Servlet without a Container
+That's right, you can test Spring MVC or Spring Boot controllers and even Jersey JAX-RS resource end-points without having to start Tomcat, Jetty, Grizzly or the like.
+
+And you can re-use your traditional HTTP integration tests without changes - just switch your environment, and Karate can run tests and bypass HTTP on the wire.
+
+This can be huge time-saver as you don't have to spend time waiting for your app-server to start and stop. You also don't need to worry about having free ports on your local machine, no more fiddling with HTTPS and certificates, and if you do things right - you can achieve TDD and code-coverage for all the layers of your application, starting from the web-service controllers.
+
+So yes, you can test HTTP web-services with the same ease that you expect from traditional unit-tests. Especially for micro-services - when you combine this approach with Karate's data-driven and data-matching capabilities, you can lean towards having more integration tests without losing any of the benefits of unit-tests.
+
+## Switching the HTTP Client
+Karate actually allows you to switch the implementation of the Karate [`HttpClient`](../karate-core/src/main/java/com/intuit/karate/http/HttpClient.java) even *during* a test. For servlet mocking, you don't need to implement it from scratch (you only over-ride one or two methods), but if you have to do this for some reason, refer to the implementation of the [`MockHttpClient`](src/main/java/com/intuit/karate/mock/servlet/MockHttpClient.java) which is the base of the Servlet mocking approach.
+
+Let's take a closer look at the following [`configure`](../#configure) keys:
+
+ Key | Type | Description
+------ | ---- | ---------
+`httpClientClass` | string | The class name of the implementation you wish to use. By default the Karate Apache (or Jersey) HTTP client is used. You need a zero-argument constructor. If you need more control over construction, refer to the next row.
+`httpClientInstance` | Java Object | A fully constructed instance of an `HttpClient` implementation. Useful if you need more dynamic control over things like dependency-injection.
+`userDefined` | JSON | You normally would not need this general-purpose extension mechanism where you can pass custom JSON data to the HTTP Client instance via the [`configure`](../#configure) keyword. Refer to [this test](#../karate-core/src/test/java/com/intuit/karate/http/HttpClientTest.java) for an idea of how you can use this for advanced needs.
+
+## Mocking Your Servlet
+You only need to over-ride two methods: 
+* `Servlet getServlet(HttpRequest request)`
+* `ServletContext getServletContext()`
+
+Once you refer to the following examples, you should be able to get up and running for your project.
+* [Spring MVC Dispatcher Servlet example](src/test/java/demo/MockSpringMvcServlet.java)
+* [Jersey JAX-RS Resource example](src/test/java/mock/jersey/MockJerseyServlet.java)
+
+## Configuration
+Everything is typically tied together in [bootstrap configuration](../#configuration). If you do this right, your `*.feature` files can be re-used for mock as well as *real* integration tests.
+
+You can use the test configuration for this `karate-mock-servlet` project as a reference: [`karate-config.js`](src/test/java/karate-config.js)
+
+
+
+

@@ -1395,7 +1395,7 @@ A very useful behavior when you combine the optional marker with an [embedded ex
 ```
 
 ### 'Self' Validation Expressions
-The special 'predicate' marker in the last row of the table above is an interesting one.  It is best explained via examples.
+The special 'predicate' marker `#? EXPR` in the table above is an interesting one.  It is best explained via examples.
 
 Observe how the value of the field being validated (or 'self') is injected into the 'underscore' expression variable: '`_`'
 ```cucumber
