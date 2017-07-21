@@ -5,7 +5,7 @@ That's right, you can test Spring MVC or Spring Boot controllers and even Jersey
 
 And you can re-use your traditional HTTP integration tests without changes - just switch your environment, and Karate can run tests and bypass HTTP on the wire.
 
-This can be huge time-saver as you don't have to spend time waiting for your app-server to start and stop. You also don't need to worry about having free ports on your local machine, no more fiddling with HTTPS and certificates, and if you do things right - you can achieve TDD and code-coverage for all the layers of your application, starting from the web-service controllers.
+This can be a huge time-saver as you don't have to spend time waiting for your app-server to start and stop. You also don't need to worry about having free ports on your local machine, there's no more fiddling with HTTPS and certificates, and if you do things right - you can achieve TDD and code-coverage for all your application layers, starting from the web-controllers.
 
 So yes, you can test HTTP web-services with the same ease that you expect from traditional unit-tests. Especially for micro-services - when you combine this approach with Karate's data-driven and data-matching capabilities, you can lean towards having more integration tests without losing any of the benefits of unit-tests.
 
