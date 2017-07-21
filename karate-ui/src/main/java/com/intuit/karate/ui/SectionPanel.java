@@ -23,47 +23,54 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.cucumber.FeatureSection;
+import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
 import com.intuit.karate.cucumber.ScenarioWrapper;
-import com.intuit.karate.cucumber.StepWrapper;
-import java.util.ArrayList;
-import java.util.List;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
 
 /**
  *
  * @author pthomas3
  */
-public class ScenarioPanel extends BorderPane {
+public class SectionPanel extends TitledPane {
     
     private final VBox content;    
     private final AppSession session;
-
-    private ScenarioWrapper scenario;
-    private final List<StepPanel> stepPanels;
     
-    public ScenarioPanel(AppSession session, ScenarioWrapper scenario) {
+    private FeatureSection section;
+    private OutlinePanel outlinePanel;
+    private ScenarioPanel scenarioPanel;
+    
+    public SectionPanel(AppSession session, FeatureSection section) {
         super();
-        content = new VBox(0);
-        setCenter(content);
+        this.section = section;
         this.session = session;
-        this.scenario = scenario;
-        stepPanels = new ArrayList(scenario.getSteps().size());
-        initTitleAndContent();        
+        content = new VBox(0);
+        setContent(content);
+        initTitleAndContent();
     }
     
     private void initTitleAndContent() {
-        for (StepWrapper step : scenario.getSteps()) {
-            StepPanel stepPanel = new StepPanel(session, step);
-            content.getChildren().add(stepPanel);
-            stepPanels.add(stepPanel);
-        }       
+        if (section.isOutline()) {
+            ScenarioOutlineWrapper outline = section.getScenarioOutline();
+            setText(outline.getScenarioOutline().getVisualName());
+            outlinePanel = new OutlinePanel(session, outline);
+            content.getChildren().add(outlinePanel);
+        } else {
+            ScenarioWrapper scenario = section.getScenario();
+            setText(scenario.getScenario().getVisualName());
+            scenarioPanel = new ScenarioPanel(session, scenario);
+            content.getChildren().add(scenarioPanel);
+        }
     }
     
     public void refresh() {
-        scenario = session.refresh(scenario);
-        for (StepPanel panel : stepPanels) {
-            panel.refresh();
+        section = session.refresh(section);
+        if (section.isOutline()) {
+            outlinePanel.refresh();
+        } else {
+            scenarioPanel.refresh();
         }
     }
     

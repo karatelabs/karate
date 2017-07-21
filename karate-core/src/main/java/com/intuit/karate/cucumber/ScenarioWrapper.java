@@ -70,7 +70,11 @@ public class ScenarioWrapper {
     }        
 
     public FeatureSection getSection() {
-        return section;
+        if (section == null) {
+            return parent.getSection();
+        } else {
+            return section;
+        }
     }        
 
     public int getIndex() {

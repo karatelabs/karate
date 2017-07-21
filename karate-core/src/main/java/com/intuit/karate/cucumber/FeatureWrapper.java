@@ -99,8 +99,7 @@ public class FeatureWrapper {
     public String joinLines() {
         int lineCount = lines.size();
         return joinLines(0, lineCount);
-    }
-       
+    }       
     
     public List<String> getLines() {
         return lines;
@@ -121,6 +120,25 @@ public class FeatureWrapper {
     public FeatureWrapper addLine(int index, String line) {
         lines.add(index, line);
         return new FeatureWrapper(joinLines(), scriptEnv);
+    }
+    
+    public FeatureSection getSection(int sectionIndex) {
+        return featureSections.get(sectionIndex);
+    }
+    
+    public ScenarioWrapper getScenario(int sectionIndex, int scenarioIndex) {
+        FeatureSection section = getSection(sectionIndex);
+        if (scenarioIndex == -1) {
+            return section.getScenario();
+        }
+        ScenarioOutlineWrapper outline = section.getScenarioOutline();
+        return outline.getScenarios().get(scenarioIndex);        
+        
+    }
+    
+    public StepWrapper getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
+        ScenarioWrapper scenario = getScenario(sectionIndex, scenarioIndex);
+        return scenario.getSteps().get(stepIndex);
     }
     
     public FeatureWrapper replaceStep(StepWrapper step, String text) {

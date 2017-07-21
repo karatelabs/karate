@@ -25,8 +25,12 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.cucumber.CucumberUtils;
+import com.intuit.karate.cucumber.FeatureSection;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.cucumber.KarateBackend;
+import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
+import com.intuit.karate.cucumber.ScenarioWrapper;
+import com.intuit.karate.cucumber.StepWrapper;
 import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,15 +39,54 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class AppUtils {
+public class AppSession {
     
-    private static final Logger logger = LoggerFactory.getLogger(AppUtils.class);
+    private static final Logger logger = LoggerFactory.getLogger(AppSession.class);
     
-    private AppUtils() {
-        // only static methods
+    public FeatureWrapper feature;
+    public final KarateBackend backend;
+    private FeaturePanel featurePanel;
+
+    public void setFeaturePanel(FeaturePanel featurePanel) {
+        this.featurePanel = featurePanel;
+    }
+
+    public FeaturePanel getFeaturePanel() {
+        return featurePanel;
+    }        
+    
+    public AppSession(FeatureWrapper feature, KarateBackend backend) {
+        this.feature = feature;
+        this.backend = backend;
     }
     
-    public static FeatureBackend getFeatureBackend(String rootPath, String featurePath) {
+    public FeatureSection refresh(FeatureSection section) {
+        return feature.getSection(section.getIndex());
+    }
+    
+    public ScenarioOutlineWrapper refresh(ScenarioOutlineWrapper outline) {
+        return feature.getSection(outline.getSection().getIndex()).getScenarioOutline();
+    }
+    
+    public ScenarioWrapper refresh(ScenarioWrapper scenario) {
+        return feature.getScenario(scenario.getSection().getIndex(), scenario.getIndex());
+    }
+    
+    public StepWrapper refresh(StepWrapper step) {
+        int stepIndex = step.getIndex();
+        int scenarioIndex = step.getScenario().getIndex();
+        int sectionIndex = step.getScenario().getSection().getIndex();
+        return feature.getStep(sectionIndex, scenarioIndex, stepIndex);        
+    }
+    
+    public void replace(StepWrapper step, String text) {
+        feature = feature.replaceStep(step, text);
+        if (featurePanel != null) {
+            featurePanel.refresh();
+        }
+    }
+    
+    public static AppSession init(String rootPath, String featurePath, boolean test) {
         File rootFile = new File(rootPath);
         rootPath = rootFile.getPath(); // fix for windows
         featurePath = rootFile.getPath() + File.separator + featurePath; // fix for windows
@@ -55,7 +98,11 @@ public class AppUtils {
         KarateBackend backend = CucumberUtils.getBackendWithGlue(env, null, null, false);
         // force bootstrap
         backend.getObjectFactory().getInstance(null);
-        return new FeatureBackend(feature, backend);
+        AppSession session = new AppSession(feature, backend);
+        if (!test) {
+            session.setFeaturePanel(new FeaturePanel(session));
+        }
+        return session;
     }
     
 }

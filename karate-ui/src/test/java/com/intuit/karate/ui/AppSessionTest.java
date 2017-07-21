@@ -38,13 +38,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class AppUtilsTest {
+public class AppSessionTest {
     
-    private static final Logger logger = LoggerFactory.getLogger(AppUtilsTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(AppSessionTest.class);
     
     @Test
     public void testRunning() {
-        FeatureBackend fb = AppUtils.getFeatureBackend("src/test/java", "feature/test.feature");
+        AppSession fb = AppSession.init("src/test/java", "feature/test.feature", true);
         for (FeatureSection section : fb.feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();

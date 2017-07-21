@@ -26,6 +26,8 @@ package com.intuit.karate.ui;
 import com.intuit.karate.cucumber.FeatureSection;
 import cucumber.runtime.model.CucumberScenario;
 import cucumber.runtime.model.CucumberScenarioOutline;
+import java.util.ArrayList;
+import java.util.List;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 
@@ -36,19 +38,30 @@ import javafx.scene.layout.VBox;
 public class FeaturePanel extends ScrollPane {
 
     private final VBox content;
-    private final FeatureBackend backend;
+    private final AppSession session;
+    private final List<SectionPanel> sectionPanels;
 
-    public FeaturePanel(FeatureBackend backend) {
+    public FeaturePanel(AppSession session) {
         content = new VBox(0);
         setContent(content);
         setFitToWidth(true);
-        this.backend = backend;
+        this.session = session;
+        int sectionCount = session.feature.getSections().size();
+        sectionPanels = new ArrayList(sectionCount);
         addSections();
     }
     
     private void addSections() {
-        for (FeatureSection section : backend.feature.getSections()) {
-            content.getChildren().add(new ScenarioPanel(section));
+        for (FeatureSection section : session.feature.getSections()) {
+            SectionPanel sectionPanel = new SectionPanel(session, section);
+            sectionPanels.add(sectionPanel);
+            content.getChildren().add(sectionPanel);
+        }
+    }
+    
+    public void refresh() {
+        for (SectionPanel panel : sectionPanels) {
+            panel.refresh();
         }
     }
 

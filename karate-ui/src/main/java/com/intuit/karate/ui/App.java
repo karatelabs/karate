@@ -37,10 +37,9 @@ public class App extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        FeatureBackend backend = AppUtils.getFeatureBackend("src/test/java", "feature/test.feature");
-        FeaturePanel featurePanel = new FeaturePanel(backend);
+        AppSession session = AppSession.init("src/test/java", "feature/test.feature", false);
         Button addButton = new Button("Add");
-        Scene scene = new Scene(new BorderPane(featurePanel, null, null, addButton, null), 400, 400);
+        Scene scene = new Scene(new BorderPane(session.getFeaturePanel(), null, null, addButton, null), 800, 600);
         primaryStage.setScene(scene);
         primaryStage.setTitle("Karate UI");
         primaryStage.show();
