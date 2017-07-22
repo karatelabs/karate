@@ -22,7 +22,7 @@ public class AssertionResult {
 
     @Override
     public String toString() {
-        return pass ? "PASSED" : "FAILED, " + message;            
+        return pass ? "passed" : "assertion failed: " + message;            
     }        
     
 }

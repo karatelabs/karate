@@ -23,31 +23,22 @@
  */
 package com.intuit.karate.cucumber;
 
-import cucumber.runtime.model.CucumberFeature;
 import java.io.File;
 
 /**
- * this only exists to associate the original file with a parsed feature
- * since the cucumber api does not expose this information (all private)
+ * this class only exists to represent the feature file and the
+ * resource search paths (typically 'src/test/java' and 'src/test/resources')
  * 
  * @author pthomas3
  */
-public class FeatureFile {
+public class FeatureFilePath {
     
-    protected final CucumberFeature feature;
-    protected final File file;
+    public final File file;
+    public final String[] searchPaths;
     
-    public FeatureFile(CucumberFeature feature, File file) {
-        this.feature = feature;
+    public FeatureFilePath(File file, String[] searchPaths) {
         this.file = file;
+        this.searchPaths = searchPaths;
     }
-
-    public CucumberFeature getFeature() {
-        return feature;
-    }
-
-    public File getFile() {
-        return file;
-    }        
     
 }

@@ -30,6 +30,7 @@ import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
 import com.intuit.karate.cucumber.ScenarioWrapper;
 import com.intuit.karate.cucumber.StepResult;
 import com.intuit.karate.cucumber.StepWrapper;
+import java.io.File;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,8 @@ public class AppSessionTest {
     
     @Test
     public void testRunning() {
-        AppSession fb = AppSession.init("src/test/java", "feature/test.feature", true);
+        File tempFile = new File("src/test/java/feature/test.feature");
+        AppSession fb = AppSession.init(tempFile, true);
         for (FeatureSection section : fb.feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();

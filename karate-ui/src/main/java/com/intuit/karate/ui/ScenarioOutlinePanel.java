@@ -23,47 +23,51 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.FeatureSection;
+import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
+import com.intuit.karate.cucumber.ScenarioWrapper;
 import java.util.ArrayList;
 import java.util.List;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
 /**
  *
  * @author pthomas3
  */
-public class FeaturePanel extends ScrollPane {
-
+public class ScenarioOutlinePanel extends BorderPane {
+    
     private final VBox content;
     private final AppSession session;
-    private final List<SectionPanel> sectionPanels;
-
-    public FeaturePanel(AppSession session) {
-        content = new VBox(0);
-        setContent(content);
-        setFitToWidth(true);
+    
+    private ScenarioOutlineWrapper outline;
+    private final List<ExamplesPanel> examplesPanels;
+    
+    public ScenarioOutlinePanel(AppSession session, ScenarioOutlineWrapper outline) {
+        super();
         this.session = session;
-        int sectionCount = session.feature.getSections().size();
-        sectionPanels = new ArrayList(sectionCount);
-        addSections();
+        this.outline = outline;
+        content = new VBox(0);        
+        setCenter(content);        
+        examplesPanels = new ArrayList(outline.getScenarios().size());
+        initTitleAndContent();
     }
     
-    private void addSections() {
-        for (FeatureSection section : session.feature.getSections()) {
-            SectionPanel sectionPanel = new SectionPanel(session, section);            
-            content.getChildren().add(sectionPanel);
-            if (!sectionPanels.isEmpty()) {
-                sectionPanel.setExpanded(false);
+    private void initTitleAndContent() {
+        for (ScenarioWrapper scenario : outline.getScenarios()) {
+            ExamplesPanel examplePanel = new ExamplesPanel(session, scenario);
+            content.getChildren().add(examplePanel);
+            if (!examplesPanels.isEmpty()) {
+                examplePanel.setExpanded(false);
             }
-            sectionPanels.add(sectionPanel);
-        }
+            examplesPanels.add(examplePanel);
+        }       
     }
     
     public void refresh() {
-        for (SectionPanel panel : sectionPanels) {
+        outline = session.refresh(outline);
+        for (ExamplesPanel panel : examplesPanels) {
             panel.refresh();
         }
     }
-
+    
 }

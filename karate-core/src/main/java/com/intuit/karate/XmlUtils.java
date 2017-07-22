@@ -63,9 +63,12 @@ public class XmlUtils {
 
     public static String toString(Node node) {
         return toString(node, false);
-    }    
-    
+    }
+
     public static String toString(Node node, boolean pretty) {
+        if (pretty) {
+            trimWhiteSpace(node);
+        }
         DOMSource domSource = new DOMSource(node);
         StringWriter writer = new StringWriter();
         StreamResult result = new StreamResult(writer);
@@ -81,6 +84,18 @@ public class XmlUtils {
             return writer.toString();
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public static void trimWhiteSpace(Node node) {
+        NodeList children = node.getChildNodes();
+        int count = children.getLength();
+        for (int i = 0; i < count; ++i) {
+            Node child = children.item(i);
+            if (child.getNodeType() == Node.TEXT_NODE) {
+                child.setTextContent(child.getTextContent().trim());
+            }
+            trimWhiteSpace(child);
         }
     }
 
@@ -104,7 +119,7 @@ public class XmlUtils {
             throw new RuntimeException(e);
         }
     }
-    
+
     public static NodeList getNodeListByPath(Node node, String path) {
         XPathExpression expr = compile(path);
         try {
@@ -112,7 +127,7 @@ public class XmlUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
+    }
 
     public static Node getNodeByPath(Node node, String path) {
         XPathExpression expr = compile(path);
@@ -140,7 +155,7 @@ public class XmlUtils {
             node.setNodeValue(value);
         }
     }
-    
+
     public static void removeByPath(Document doc, String path) {
         Node node = getNodeByPath(doc, path);
         if (node == null) {
@@ -155,7 +170,7 @@ public class XmlUtils {
     public static void setByPath(Document doc, String path, Node in) {
         if (in.getNodeType() == Node.DOCUMENT_NODE) {
             in = in.getFirstChild();
-        }        
+        }
         Node node = getNodeByPath(doc, path);
         if (node == null) {
             throw new RuntimeException("no results for xpath: " + path);
@@ -182,7 +197,7 @@ public class XmlUtils {
         }
         return map;
     }
-    
+
     public static int getChildElementCount(Node node) {
         NodeList nodes = node.getChildNodes();
         int childCount = nodes.getLength();
@@ -195,7 +210,7 @@ public class XmlUtils {
         }
         return childElementCount;
     }
-    
+
     private static Object getElementAsObject(Node node) {
         int childElementCount = getChildElementCount(node);
         if (childElementCount == 0) {
@@ -203,7 +218,7 @@ public class XmlUtils {
         }
         Map<String, Object> map = new LinkedHashMap<>(childElementCount);
         NodeList nodes = node.getChildNodes();
-        int childCount = nodes.getLength();        
+        int childCount = nodes.getLength();
         for (int i = 0; i < childCount; i++) {
             Node child = nodes.item(i);
             if (child.getNodeType() != Node.ELEMENT_NODE) {
@@ -227,11 +242,11 @@ public class XmlUtils {
                 map.put(childName, childValue);
             }
         }
-        return map;       
+        return map;
     }
 
-    public static Object toObject(Node node) {        
-        if (node.getNodeType() == Node.DOCUMENT_NODE) {            
+    public static Object toObject(Node node) {
+        if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
             Map<String, Object> map = new LinkedHashMap<>(1);
             map.put(node.getNodeName(), toObject(node));
@@ -247,12 +262,12 @@ public class XmlUtils {
             return value;
         }
     }
-    
+
     public static Document fromMap(Map<String, Object> map) {
         Map.Entry<String, Object> first = map.entrySet().iterator().next();
         return fromObject(first.getKey(), first.getValue());
-    }    
-    
+    }
+
     public static Document fromObject(String name, Object o) {
         Document doc = newDocument();
         List<Element> list = fromObject(doc, name, o);
@@ -265,10 +280,10 @@ public class XmlUtils {
         if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
             Object value = map.get("_");
-            if (value != null) {                
+            if (value != null) {
                 List<Element> elements = fromObject(doc, name, value);
                 Map<String, Object> attribs = (Map) map.get("@");
-                addAttributes(elements.get(0), attribs);           
+                addAttributes(elements.get(0), attribs);
                 return elements;
             } else {
                 Element element = createElement(doc, name, null, null);
@@ -277,12 +292,12 @@ public class XmlUtils {
                     Object childValue = entry.getValue();
                     List<Element> childNodes = fromObject(doc, childName, childValue);
                     for (Element e : childNodes) {
-                      element.appendChild(e);    
-                    }                    
+                        element.appendChild(e);
+                    }
                 }
                 return Collections.singletonList(element);
             }
-        } else if (o instanceof List) {            
+        } else if (o instanceof List) {
             List list = (List) o;
             List<Element> elements = new ArrayList(list.size());
             for (Object child : list) {
@@ -298,7 +313,7 @@ public class XmlUtils {
             return Collections.singletonList(element);
         }
     }
-    
+
     public static Document newDocument() {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder;
@@ -307,41 +322,41 @@ public class XmlUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return builder.newDocument();          
-    }    
-    
+        return builder.newDocument();
+    }
+
     public static void addAttributes(Element element, Map<String, Object> map) {
         if (map != null) {
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 Object attrValue = entry.getValue();
                 element.setAttribute(entry.getKey(), attrValue == null ? null : attrValue.toString());
             }
-        }        
+        }
     }
-    
+
     public static Element createElement(Node node, String name, String value, Map<String, Object> attributes) {
         Document doc = node.getNodeType() == Node.DOCUMENT_NODE ? (Document) node : node.getOwnerDocument();
-		Element element = doc.createElement(name);
+        Element element = doc.createElement(name);
         element.setTextContent(value);
         addAttributes(element, attributes);
         return element;
     }
-    
+
     public static Document toNewDocument(Node in) {
         Document doc = newDocument();
         Node node = doc.importNode(in, true);
         doc.appendChild(node);
         return doc;
     }
-    
+
     public static Document toXmlDoc(Object o) {
         DocumentContext json = JsonUtils.toJsonDoc(o);
         Object mapOrArray = json.read("$"); // for pojos will always be a map
         return fromObject("root", mapOrArray); // keep it simple for people to write generic xpath starting with /root
-    }    
-    
+    }
+
     public static String toXml(Object o) {
         return toString(toXmlDoc(o));
-    }        
+    }
 
 }

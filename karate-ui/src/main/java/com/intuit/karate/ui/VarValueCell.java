@@ -21,33 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate.ui;
 
-import cucumber.runtime.model.CucumberFeature;
-import java.io.File;
+import com.intuit.karate.ScriptValue;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.Tooltip;
 
 /**
- * this only exists to associate the original file with a parsed feature
- * since the cucumber api does not expose this information (all private)
- * 
+ *
  * @author pthomas3
  */
-public class FeatureFile {
+public class VarValueCell extends TableCell<Var, ScriptValue> {
+
+    private Tooltip tooltip;
     
-    protected final CucumberFeature feature;
-    protected final File file;
-    
-    public FeatureFile(CucumberFeature feature, File file) {
-        this.feature = feature;
-        this.file = file;
+    public Tooltip getCustomTooltip() {
+        return tooltip;
     }
 
-    public CucumberFeature getFeature() {
-        return feature;
+    @Override
+    protected void updateItem(ScriptValue item, boolean empty) {
+        super.updateItem(item, empty);
+        if (!empty) {
+            setText(item.getAsString());
+            tooltip = new Tooltip(item.getAsPrettyString());
+        }
     }
 
-    public File getFile() {
-        return file;
-    }        
-    
 }

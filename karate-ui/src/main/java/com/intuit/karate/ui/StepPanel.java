@@ -48,6 +48,9 @@ public class StepPanel extends AnchorPane {
         this.session = session;
         Button button = new Button("►");
         textArea = new TextArea();
+        textArea.setFont(App.DEFAULT_FONT);        
+        textArea.setMinHeight(0);
+        textArea.setWrapText(true);
         this.step = orig;
         initTextArea();
         button.setOnAction(e -> {
@@ -61,13 +64,15 @@ public class StepPanel extends AnchorPane {
             } else {
                 button.setStyle("-fx-base: red");
             }
+            session.refreshVarsTable();
         });        
-        getChildren().addAll(textArea, button);
-        setLeftAnchor(textArea, 5.0);
-        setTopAnchor(textArea, 5.0);
-        setRightAnchor(button, 5.0);
-        setTopAnchor(button, 5.0);
-        setBottomAnchor(button, 5.0);
+        getChildren().addAll(textArea, button);        
+        setLeftAnchor(textArea, 0.0);
+        setRightAnchor(textArea, 30.0);
+        setBottomAnchor(textArea, 0.0);
+        setRightAnchor(button, 0.0);
+        setTopAnchor(button, 2.0);
+        setBottomAnchor(button, 0.0);
     }
     
     public void refresh() {
@@ -77,8 +82,17 @@ public class StepPanel extends AnchorPane {
     
     private void initTextArea() {
         oldText = step.getText();
-        textArea.setText(oldText);
-        textArea.setPrefRowCount(step.getLineCount());         
+        textArea.setText(oldText);        
+        int lineCount = step.getLineCount();
+        if (lineCount == 1) {
+            int wrapEstimate = oldText.length() / 60;
+            if (wrapEstimate > 1) {
+                lineCount = wrapEstimate;
+            } else {
+                lineCount = 0;
+            }
+        }
+        textArea.setPrefRowCount(lineCount);
     }
 
 }

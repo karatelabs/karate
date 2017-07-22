@@ -23,11 +23,9 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.ScenarioWrapper;
-import com.intuit.karate.cucumber.StepWrapper;
-import java.util.ArrayList;
-import java.util.List;
-import javafx.scene.control.TitledPane;
+import javafx.geometry.Insets;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
@@ -35,38 +33,25 @@ import javafx.scene.layout.VBox;
  *
  * @author pthomas3
  */
-public class ExamplePanel extends TitledPane {
+public class LogPanel extends BorderPane {
     
-    private final VBox content;    
-    private final AppSession session;
-
-    private ScenarioWrapper scenario;
-    private final List<StepPanel> stepPanels;
+    private final TextArea textArea;
+    private final TextAreaLogAppender appender;
     
-    public ExamplePanel(AppSession session, ScenarioWrapper scenario) {
-        super();
-        content = new VBox(0);
-        setContent(content);
-        this.session = session;
-        this.scenario = scenario;
-        stepPanels = new ArrayList(scenario.getSteps().size());
-        initTitleAndContent();        
+    public LogPanel() {
+        setPadding(new Insets(2.0));
+        VBox content = new VBox(2.0);
+        setCenter(content);
+        textArea = new TextArea();
+        textArea.setFont(App.DEFAULT_FONT);
+        Button clearButton = new Button("Clear Log");
+        clearButton.setOnAction(e -> textArea.clear());        
+        appender = new TextAreaLogAppender(textArea);
+        content.getChildren().addAll(textArea, clearButton);
     }
     
-    private void initTitleAndContent() {
-        setText(scenario.getScenario().getVisualName());
-        for (StepWrapper step : scenario.getSteps()) {
-            StepPanel stepPanel = new StepPanel(session, step);
-            content.getChildren().add(stepPanel);
-            stepPanels.add(stepPanel);
-        }       
-    }
-    
-    public void refresh() {
-        scenario = session.refresh(scenario);
-        for (StepPanel panel : stepPanels) {
-            panel.refresh();
-        }
+    public void append(String s) {
+        textArea.appendText(s);
     }
     
 }

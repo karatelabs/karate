@@ -21,33 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate.ui;
 
-import cucumber.runtime.model.CucumberFeature;
-import java.io.File;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 
 /**
- * this only exists to associate the original file with a parsed feature
- * since the cucumber api does not expose this information (all private)
- * 
+ *
  * @author pthomas3
  */
-public class FeatureFile {
+public class HeaderPanel extends BorderPane {
     
-    protected final CucumberFeature feature;
-    protected final File file;
+    private final VBox content;
+    private final AppSession session;    
     
-    public FeatureFile(CucumberFeature feature, File file) {
-        this.feature = feature;
-        this.file = file;
+    public HeaderPanel(AppSession session) {
+        this.session = session;
+        content = new VBox(0);
+        setCenter(content);
     }
-
-    public CucumberFeature getFeature() {
-        return feature;
-    }
-
-    public File getFile() {
-        return file;
-    }        
     
 }

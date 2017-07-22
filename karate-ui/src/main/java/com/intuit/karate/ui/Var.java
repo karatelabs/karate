@@ -21,33 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate.ui;
 
-import cucumber.runtime.model.CucumberFeature;
-import java.io.File;
+import com.intuit.karate.ScriptValue;
 
 /**
- * this only exists to associate the original file with a parsed feature
- * since the cucumber api does not expose this information (all private)
- * 
+ *
  * @author pthomas3
  */
-public class FeatureFile {
+public class Var {
     
-    protected final CucumberFeature feature;
-    protected final File file;
+    private final String name;
+    private final ScriptValue value;
     
-    public FeatureFile(CucumberFeature feature, File file) {
-        this.feature = feature;
-        this.file = file;
+    public Var(String name, ScriptValue value) {
+        this.name = name;
+        this.value = value;
     }
 
-    public CucumberFeature getFeature() {
-        return feature;
+    public String getName() {
+        return name;
     }
 
-    public File getFile() {
-        return file;
-    }        
+    public ScriptValue getValue() {
+        return value;
+    }
     
+    public String getType() {
+        return value.getTypeAsShortString();
+    }
+    
+    public String getAsString() {
+        return value.getAsString();
+    }
+        
 }

@@ -1,16 +1,23 @@
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.FeatureFilePath;
+import java.io.File;
 import java.io.InputStream;
+import java.util.Arrays;
 import org.apache.commons.io.IOUtils;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class FileUtilsTest {
+    
+    private static final Logger logger = LoggerFactory.getLogger(FileUtilsTest.class);
     
     @Test
     public void testClassLoading() throws Exception {
@@ -30,6 +37,15 @@ public class FileUtilsTest {
         String eclipse = "com.intuit.karate.StepDefs - cucumber.api.cli.Main /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature --glue classpath: --plugin pretty --monochrome";
         path = FileUtils.getFeaturePath(eclipse, cwd);
         assertEquals(expected, path);
+    }
+    
+    @Test
+    public void testParsingFeatureFilePath() {
+        String path = "/foo/src/test/java/demo/test.feature";
+        File file = new File(path);
+        FeatureFilePath ffp = FileUtils.parseFeaturePath(new File(path));
+        assertEquals(file, ffp.file);
+        logger.debug("search: {}", Arrays.toString(ffp.searchPaths));
     }
     
 }

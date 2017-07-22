@@ -9,6 +9,7 @@ import java.util.List;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import static com.intuit.karate.Script.eval;
+import com.intuit.karate.cucumber.FeatureFilePath;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
@@ -144,5 +145,38 @@ public class FileUtils {
         }
         return commandLine.substring(start, end + 8);
     }
-     
+    
+    private static String searchPattern(String one, String two, char c) {
+        return c + "src" + c + one + c + two + c;
+    }
+    
+    private static final String[] SEARCH_PATTERNS = { 
+        searchPattern("test", "java", '/'), 
+        searchPattern("test", "resources", '/'),
+        searchPattern("main", "java", '/'),
+        searchPattern("main", "resources", '/')
+    };
+    
+    private static String[] getSearchPaths(String rootPath) {
+        String[] res = new String[SEARCH_PATTERNS.length];
+        for (int i = 0; i < SEARCH_PATTERNS.length; i++) {
+            res[i] = new File(rootPath + SEARCH_PATTERNS[i]).getPath();
+        }
+        return res;
+    };    
+    
+    public static FeatureFilePath parseFeaturePath(File file) {        
+        String path = file.getAbsolutePath();
+        path = path.replace('\\', '/'); // normalize windows
+        for (String pattern : SEARCH_PATTERNS) {
+            int pos = path.lastIndexOf(pattern);
+            if (pos != -1) { // found
+                String rootPath = path.substring(0, pos);
+                String[] searchPaths = getSearchPaths(rootPath);
+                return new FeatureFilePath(file, searchPaths);
+            }
+        }
+        String[] searchPaths = { file.getParentFile().getPath() };
+        return new FeatureFilePath(file, searchPaths);
+    }
 }

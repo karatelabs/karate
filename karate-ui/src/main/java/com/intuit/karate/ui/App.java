@@ -23,10 +23,15 @@
  */
 package com.intuit.karate.ui;
 
+import java.io.File;
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.text.Font;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 /**
@@ -34,15 +39,44 @@ import javafx.stage.Stage;
  * @author pthomas3
  */
 public class App extends Application {
+    
+    public static final Font DEFAULT_FONT = Font.font("Courier");
+    
+    private final FileChooser fileChooser = new FileChooser();
+    
+    private File workingDir = new File(".");
+    private final BorderPane rootPane = new BorderPane();
+    
+    private File chooseFile(Stage stage) {
+        fileChooser.setTitle("Choose Feature File");
+        fileChooser.setInitialDirectory(workingDir);
+        return fileChooser.showOpenDialog(stage);
+    }
 
+    private void initUi(File file) {
+        AppSession session = AppSession.init(file, false);
+        rootPane.setCenter(session.getFeaturePanel());
+        rootPane.setRight(session.getVarsPanel());
+        rootPane.setBottom(session.getLogPanel());
+    }
+    
     @Override
-    public void start(Stage primaryStage) throws Exception {
-        AppSession session = AppSession.init("src/test/java", "feature/test.feature", false);
-        Button addButton = new Button("Add");
-        Scene scene = new Scene(new BorderPane(session.getFeaturePanel(), null, null, addButton, null), 800, 600);
-        primaryStage.setScene(scene);
-        primaryStage.setTitle("Karate UI");
-        primaryStage.show();
+    public void start(Stage stage) throws Exception {        
+        MenuBar menuBar = new MenuBar();
+        Menu fileMenu = new Menu("File");
+        menuBar.getMenus().addAll(fileMenu);
+        rootPane.setTop(menuBar);
+        MenuItem openFileMenuItem = new MenuItem("Open");        
+        fileMenu.getItems().addAll(openFileMenuItem);
+        openFileMenuItem.setOnAction(e -> {
+            File file = chooseFile(stage);
+            workingDir = file.getParentFile();
+            initUi(file);
+        });
+        Scene scene = new Scene(rootPane, 900, 750);                
+        stage.setScene(scene);
+        stage.setTitle("Karate UI");
+        stage.show();
     }
 
     public static void main(String[] args) {

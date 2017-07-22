@@ -23,47 +23,49 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
 import com.intuit.karate.cucumber.ScenarioWrapper;
+import com.intuit.karate.cucumber.StepWrapper;
 import java.util.ArrayList;
 import java.util.List;
+import javafx.geometry.Insets;
 import javafx.scene.control.TitledPane;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
 /**
  *
  * @author pthomas3
  */
-public class OutlinePanel extends BorderPane {
+public class ExamplesPanel extends TitledPane {
     
-    private final VBox content;
+    private final VBox content;    
     private final AppSession session;
+
+    private ScenarioWrapper scenario;
+    private final List<StepPanel> stepPanels;
     
-    private ScenarioOutlineWrapper outline;
-    private final List<ExamplePanel> examplePanels;
-    
-    public OutlinePanel(AppSession session, ScenarioOutlineWrapper outline) {
+    public ExamplesPanel(AppSession session, ScenarioWrapper scenario) {
         super();
-        this.session = session;
-        this.outline = outline;
         content = new VBox(0);
-        setCenter(content);
-        examplePanels = new ArrayList(outline.getScenarios().size());
-        initTitleAndContent();
+        setContent(content);
+        content.setPadding(new Insets(4.5, 4.5, 4.5, 4.5));
+        this.session = session;
+        this.scenario = scenario;
+        stepPanels = new ArrayList(scenario.getSteps().size());
+        initTitleAndContent();        
     }
     
     private void initTitleAndContent() {
-        for (ScenarioWrapper scenario : outline.getScenarios()) {
-            ExamplePanel examplePanel = new ExamplePanel(session, scenario);
-            content.getChildren().add(examplePanel);
-            examplePanels.add(examplePanel);
+        setText(scenario.getScenario().getVisualName());
+        for (StepWrapper step : scenario.getSteps()) {
+            StepPanel stepPanel = new StepPanel(session, step);
+            content.getChildren().add(stepPanel);
+            stepPanels.add(stepPanel);
         }       
     }
     
     public void refresh() {
-        outline = session.refresh(outline);
-        for (ExamplePanel panel : examplePanels) {
+        scenario = session.refresh(scenario);
+        for (StepPanel panel : stepPanels) {
             panel.refresh();
         }
     }

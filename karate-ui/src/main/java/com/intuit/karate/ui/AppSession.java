@@ -23,8 +23,12 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.ScriptValue;
+import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.cucumber.CucumberUtils;
+import com.intuit.karate.cucumber.FeatureFilePath;
 import com.intuit.karate.cucumber.FeatureSection;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.cucumber.KarateBackend;
@@ -32,6 +36,11 @@ import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
 import com.intuit.karate.cucumber.ScenarioWrapper;
 import com.intuit.karate.cucumber.StepWrapper;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +55,8 @@ public class AppSession {
     public FeatureWrapper feature;
     public final KarateBackend backend;
     private FeaturePanel featurePanel;
+    private VarsPanel varsPanel;
+    private LogPanel logPanel;
 
     public void setFeaturePanel(FeaturePanel featurePanel) {
         this.featurePanel = featurePanel;
@@ -53,11 +64,39 @@ public class AppSession {
 
     public FeaturePanel getFeaturePanel() {
         return featurePanel;
+    }       
+
+    public void setVarsPanel(VarsPanel varsPanel) {
+        this.varsPanel = varsPanel;
+    }       
+
+    public VarsPanel getVarsPanel() {
+        return varsPanel;
+    }
+
+    public void setLogPanel(LogPanel logPanel) {
+        this.logPanel = logPanel;
+    }
+
+    public LogPanel getLogPanel() {
+        return logPanel;
     }        
     
     public AppSession(FeatureWrapper feature, KarateBackend backend) {
         this.feature = feature;
         this.backend = backend;
+    }
+    
+    public void logVar(Var var) {
+        if (logPanel != null) {
+            logPanel.append(var.getValue().getAsPrettyString());
+        }
+    }
+    
+    public void refreshVarsTable() {
+        if (varsPanel != null) {
+            varsPanel.refresh();
+        }
     }
     
     public FeatureSection refresh(FeatureSection section) {
@@ -86,21 +125,28 @@ public class AppSession {
         }
     }
     
-    public static AppSession init(String rootPath, String featurePath, boolean test) {
-        File rootFile = new File(rootPath);
-        rootPath = rootFile.getPath(); // fix for windows
-        featurePath = rootFile.getPath() + File.separator + featurePath; // fix for windows
-        logger.info("feature path: {}", featurePath);
-        File featureFile = new File(featurePath);
-        String[] searchPaths = new String[]{rootPath};
-        ScriptEnv env = ScriptEnv.init(rootPath, featureFile, searchPaths, logger);
-        FeatureWrapper feature = FeatureWrapper.fromFile(featureFile, env);
+    public ObservableList<Var> getVars() {
+        if (backend.getStepDefs() == null) {
+            return FXCollections.emptyObservableList();
+        }
+        ScriptValueMap map = backend.getStepDefs().getContext().getVars();
+        List<Var> list = new ArrayList(map.size());
+        for (Map.Entry<String, ScriptValue> entry : map.entrySet()) {
+            list.add(new Var(entry.getKey(), entry.getValue()));
+        }
+        return FXCollections.observableList(list);
+    } 
+    
+    public static AppSession init(File file, boolean test) {
+        FeatureFilePath ffp = FileUtils.parseFeaturePath(file);
+        ScriptEnv env = ScriptEnv.init(null, ffp.file, ffp.searchPaths, logger);
+        FeatureWrapper feature = FeatureWrapper.fromFile(ffp.file, env);
         KarateBackend backend = CucumberUtils.getBackendWithGlue(env, null, null, false);
-        // force bootstrap
-        backend.getObjectFactory().getInstance(null);
         AppSession session = new AppSession(feature, backend);
         if (!test) {
             session.setFeaturePanel(new FeaturePanel(session));
+            session.setVarsPanel(new VarsPanel(session));
+            session.setLogPanel(new LogPanel());
         }
         return session;
     }
