@@ -58,6 +58,11 @@ public class StepPanel extends AnchorPane {
         textArea.setFont(App.DEFAULT_FONT);
         textArea.setMinHeight(0);
         textArea.setWrapText(true);
+        textArea.focusedProperty().addListener((val, before, after) -> {
+            if (!after) { // if we lost focus
+                rebuildFeatureIfTextChanged();
+            }
+        });
         this.step = step;
         initTextArea();
         runButton.setOnAction(e -> run());
@@ -70,11 +75,15 @@ public class StepPanel extends AnchorPane {
         setBottomAnchor(runButton, 0.0);
     }
     
-    private void run() {
+    private void rebuildFeatureIfTextChanged() {
         String newText = textArea.getText();
         if (!newText.equals(oldText)) {
             session.replace(step, newText);
-        }
+        }        
+    }
+    
+    private void run() {
+        rebuildFeatureIfTextChanged();
         StepResult result = step.run(session.backend);
         pass = result.isPass();
         initStyleColor();

@@ -26,15 +26,17 @@ package com.intuit.karate.ui;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.text.Font;
 
 /**
  *
@@ -45,19 +47,30 @@ public class HeaderPanel extends BorderPane {
     private final HBox content;
     private final AppSession session;    
     private final MenuItem openFileMenuItem;
+    private final TextArea textContent;
+    
+    private String oldText;
     
     public HeaderPanel() {
         this(null);
     }
-    
-    private static final Font SMALL_TEXT = Font.font("Courier", 10);
-    private static final Font SMALL_LABEL = Font.font(10);
     
     public HeaderPanel(AppSession session) {
         this.session = session;
         content = new HBox(5);
         content.setPadding(new Insets(5));
         setCenter(content);
+        textContent = new TextArea();
+        textContent.setPrefRowCount(20);
+        textContent.setVisible(false);
+        setBottom(textContent);
+        textContent.setManaged(false);
+        textContent.setFont(App.DEFAULT_FONT);
+        textContent.focusedProperty().addListener((val, before, after) -> {
+            if (!after) { // if we lost focus
+                rebuildFeatureIfTextChanged();
+            }
+        });        
         MenuBar menuBar = new MenuBar();
         Menu fileMenu = new Menu("File");
         menuBar.getMenus().addAll(fileMenu);
@@ -68,19 +81,46 @@ public class HeaderPanel extends BorderPane {
             Label envLabel = new Label("karate.env");
             envLabel.setPadding(new Insets(5, 0, 0, 0));
             TextField envTextField = new TextField();
-            // envTextField.setFont(SMALL_TEXT);
             envTextField.setText(session.getEnv().env);
             Button envButton = new Button("Reset");
             envButton.setOnAction(e -> session.reset(envTextField.getText()));
-            // envButton.setFont(SMALL_LABEL);
             Button runAllButton = new Button("Run ►►");
-            runAllButton.setOnAction(e -> session.runAll());
-            content.getChildren().addAll(envLabel, envTextField, envButton, runAllButton);
+            runAllButton.setOnAction(e -> session.runAll());            
+            Button showContentButton = new Button(getContentButtonText(false));
+            initTextContent();
+            showContentButton.setOnAction(e -> { 
+                boolean visible = !textContent.isVisible();
+                textContent.setVisible(visible);
+                textContent.setManaged(visible);
+                showContentButton.setText(getContentButtonText(visible));
+            });
+            content.getChildren().addAll(envLabel, envTextField, envButton, runAllButton, showContentButton);            
         }
+    }
+    
+    private String getContentButtonText(boolean visible) {
+        return visible ? "Hide Raw" : "Show Raw";
     }
     
     public void setFileOpenAction(EventHandler<ActionEvent> handler) {
         openFileMenuItem.setOnAction(handler);
+    }
+    
+    public void initTextContent() {
+        oldText = session.getFeature().getText();
+        textContent.setText(oldText);
+    }
+    
+    public void rebuildFeatureIfTextChanged() {
+        String newText = textContent.getText();
+        if (!newText.equals(oldText)) {
+            Alert alert = new Alert(AlertType.INFORMATION);
+            alert.setHeaderText("Read Only");
+            alert.setTitle("Not Implemented");
+            alert.setContentText("Raw text editing is not supported.");
+            alert.show();
+            textContent.setText(oldText);
+        }
     }
     
 }

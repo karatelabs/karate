@@ -145,6 +145,7 @@ public class AppSession {
     public void replace(StepWrapper step, String text) {
         feature = feature.replaceStep(step, text);
         featurePanel.action(AppAction.REFRESH);
+        headerPanel.initTextContent();
     }
 
     public ObservableList<Var> getVars() {
