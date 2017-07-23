@@ -50,6 +50,7 @@ public class StepPanel extends AnchorPane {
     private static final String STYLE_FAIL = "-fx-base: #D52B1E";
     private static final String STYLE_METHOD = "-fx-base: #34BFFF";
     private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
+    private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
 
     public StepPanel(AppSession session, StepWrapper step) {
         this.session = session;
@@ -126,7 +127,7 @@ public class StepPanel extends AnchorPane {
         textArea.setText(oldText);
         int lineCount = step.getLineCount();
         if (lineCount == 1) {
-            int wrapEstimate = oldText.length() / 60;
+            int wrapEstimate = oldText.length() / 40;
             if (wrapEstimate > 1) {
                 lineCount = wrapEstimate;
             } else {
@@ -136,9 +137,13 @@ public class StepPanel extends AnchorPane {
         textArea.setPrefRowCount(lineCount);
         if (step.isHttpCall()) {
             setStyle(STYLE_METHOD);
+            textArea.setStyle(STYLE_METHOD);
         } else {
             setStyle(STYLE_DEFAULT);
-        }         
+        }
+        if (step.isBackground()) {
+            textArea.setStyle(STYLE_BACKGROUND);
+        }
         initStyleColor();
     }
 
