@@ -42,6 +42,7 @@ public class SectionPanel extends TitledPane {
     private FeatureSection section;
     private ScenarioOutlinePanel outlinePanel;
     private ScenarioPanel scenarioPanel;
+    private boolean runStarted;
     
     public SectionPanel(AppSession session, FeatureSection section) {
         super();
@@ -68,7 +69,20 @@ public class SectionPanel extends TitledPane {
     }
     
     public void action(AppAction action) {
-        section = session.refresh(section);
+        switch (action) {
+            case REFRESH:
+                section = session.refresh(section);
+                break;
+            case RUN:
+                if (!runStarted) {
+                    session.resetBackendAndVarsTable(null);
+                    runStarted = true;
+                }
+                break;
+            case RESET:
+                runStarted = false;
+                break;
+        }
         if (section.isOutline()) {
             outlinePanel.action(action);
         } else {

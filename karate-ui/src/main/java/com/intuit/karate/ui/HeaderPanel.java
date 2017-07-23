@@ -83,7 +83,7 @@ public class HeaderPanel extends BorderPane {
             TextField envTextField = new TextField();
             envTextField.setText(session.getEnv().env);
             Button envButton = new Button("Reset");
-            envButton.setOnAction(e -> session.reset(envTextField.getText()));
+            envButton.setOnAction(e -> session.resetAll(envTextField.getText()));
             Button runAllButton = new Button("Run ►►");
             runAllButton.setOnAction(e -> session.runAll());            
             Button showContentButton = new Button(getContentButtonText(false));

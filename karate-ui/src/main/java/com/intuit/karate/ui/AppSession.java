@@ -72,10 +72,14 @@ public class AppSession {
     public ScriptEnv getEnv() {
         return backend.getEnv();
     }
-
-    public void reset(String env) {
+    
+    public void resetBackendAndVarsTable(String env) {
         backend.getObjectFactory().reset(env);
-        refreshVarsTable();
+        refreshVarsTable();        
+    }
+
+    public void resetAll(String env) {
+        resetBackendAndVarsTable(env);
         featurePanel.action(AppAction.RESET);
     }
     
