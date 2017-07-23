@@ -28,6 +28,7 @@ package com.intuit.karate.importer;
  */
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Created by rkumar32 on 5/24/17.
@@ -120,7 +121,7 @@ public class FeatureBuilder {
     }
 
     public String build() {
-        if (method == "POST" && body == "") {
+        if ("POST".equals(method) && StringUtils.isBlank(body)) {
             throw new IllegalArgumentException("Body can't be null if method is POST");
         }
         return String.format(SCENARIO_TEMPLATE,  name,
