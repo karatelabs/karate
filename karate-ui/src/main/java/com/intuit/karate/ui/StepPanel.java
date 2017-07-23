@@ -76,13 +76,12 @@ public class StepPanel extends AnchorPane {
             session.replace(step, newText);
         }
         StepResult result = step.run(session.backend);
-        if (result.isPass()) {
-            runButton.setStyle(STYLE_PASS);
-        } else {
-            runButton.setStyle(STYLE_FAIL);
-        }
         pass = result.isPass();
-        session.refreshVarsTable();        
+        initStyleColor();
+        session.refreshVarsTable();
+        if (!pass) {
+            throw new StepException(result);
+        }
     }
 
     public void action(AppAction action) {
@@ -101,16 +100,16 @@ public class StepPanel extends AnchorPane {
                 }
                 break;
         }
-
     }
     
     private void initStyleColor() {
-        runButton.setStyle("");
-        if (step.isHttpCall()) {
-            setStyle(STYLE_METHOD);
+        if (pass == null) {
+            runButton.setStyle("");
+        } else if (pass) {
+            runButton.setStyle(STYLE_PASS);
         } else {
-            setStyle(STYLE_DEFAULT);
-        }        
+            runButton.setStyle(STYLE_FAIL);
+        }       
     }
 
     private void initTextArea() {
@@ -126,6 +125,11 @@ public class StepPanel extends AnchorPane {
             }
         }
         textArea.setPrefRowCount(lineCount);
+        if (step.isHttpCall()) {
+            setStyle(STYLE_METHOD);
+        } else {
+            setStyle(STYLE_DEFAULT);
+        }         
         initStyleColor();
     }
 

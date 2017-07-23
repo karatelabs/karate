@@ -80,7 +80,11 @@ public class AppSession {
     }
     
     public void runAll() {
-        featurePanel.action(AppAction.RUN);
+        try {
+            featurePanel.action(AppAction.RUN);
+        } catch (StepException se) {
+            logger.error("step execution paused.");
+        }
     }
 
     public AppSession(File featureFile, String envString, boolean test) {

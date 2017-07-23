@@ -55,7 +55,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml) or Cucumber [Scenario Outline](#the-cucumber-way) tables
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
-* Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and data-formats that even supports cross-field / domain validation logic
+* Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and format that even supports cross-field / domain validation logic
 * Scripts can [call other scripts](#calling-other-feature-files) - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
 * Embedded JavaScript engine that allows you to build a library of [re-usable functions](#calling-javascript-functions) that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is [so easy](#reading-files) - that it becomes a natural habit for the test-developer
@@ -969,7 +969,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 `* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
 `* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
 `* def foo = karate.pretty(bar)` | `karate` JS | using the [built-in `karate` object](#the-karate-object) in JS expressions
-`* def Foo = Java.type('com.mycompany.Foo')` | Java Type | [Java Interop](#java-interop), and even fully package-name-spaced one-liners like `java.lang.System.currentTimeMillis()` are possible
+`* def Foo = Java.type('com.mycompany.Foo')` | Java Type | [Java Interop](#java-interop), and even package-name-spaced one-liners like `java.lang.System.currentTimeMillis()` are possible
 `* def foo = call bar { baz: 'ban' }` | [`call`](#call) | or [`callonce`](#callonce), where expressions like [`read('foo.js')`](#reading-files) are allowed as the object to be called or the argument
 
 # Core Keywords
