@@ -24,11 +24,9 @@
 package com.intuit.karate.ui;
 
 import java.io.File;
+import java.util.List;
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
@@ -50,29 +48,43 @@ public class App extends Application {
     private File chooseFile(Stage stage) {
         fileChooser.setTitle("Choose Feature File");
         fileChooser.setInitialDirectory(workingDir);
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("*.feature files", "*.feature");
+        fileChooser.getExtensionFilters().add(extFilter);
         return fileChooser.showOpenDialog(stage);
     }
 
-    private void initUi(File file) {
-        AppSession session = AppSession.init(file, false);
-        rootPane.setCenter(session.getFeaturePanel());
-        rootPane.setRight(session.getVarsPanel());
-        rootPane.setBottom(session.getLogPanel());
+    private void initUi(File file, String envString, Stage stage) {
+        AppSession session = new AppSession(file, envString);
+        rootPane.setTop(session.headerPanel);
+        rootPane.setCenter(session.featurePanel);
+        rootPane.setRight(session.varsPanel);
+        rootPane.setBottom(session.logPanel);
+        initFileOpenAction(session.headerPanel, envString, stage);
+        workingDir = file.getParentFile();        
+    }
+    
+    private void initFileOpenAction(HeaderPanel header, String envString, Stage stage) {
+        header.setFileOpenAction(e -> {
+            File file = chooseFile(stage);            
+            initUi(file, envString, stage);
+        });
     }
     
     @Override
     public void start(Stage stage) throws Exception {        
-        MenuBar menuBar = new MenuBar();
-        Menu fileMenu = new Menu("File");
-        menuBar.getMenus().addAll(fileMenu);
-        rootPane.setTop(menuBar);
-        MenuItem openFileMenuItem = new MenuItem("Open");        
-        fileMenu.getItems().addAll(openFileMenuItem);
-        openFileMenuItem.setOnAction(e -> {
-            File file = chooseFile(stage);
-            workingDir = file.getParentFile();
-            initUi(file);
-        });
+        List<String> params = getParameters().getUnnamed();
+        String envString = System.getProperty("karate.env");
+        if (!params.isEmpty()) {
+            String fileName = params.get(0);
+            if (params.size() > 1) {
+                envString = params.get(1);
+            }
+            initUi(new File(fileName), envString, stage);
+        } else {
+            HeaderPanel header = new HeaderPanel();
+            rootPane.setTop(header);
+            initFileOpenAction(header, envString, stage);
+        }
         Scene scene = new Scene(rootPane, 900, 750);                
         stage.setScene(scene);
         stage.setTitle("Karate UI");
@@ -81,6 +93,10 @@ public class App extends Application {
 
     public static void main(String[] args) {
         App.launch(args);
+    }
+    
+    public static void run(String featurePath, String env) {
+        App.launch(new String[]{featurePath, env});
     }
 
 }

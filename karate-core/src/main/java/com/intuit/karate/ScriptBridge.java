@@ -36,7 +36,7 @@ import org.w3c.dom.Document;
  */
 public class ScriptBridge {               
     
-    private final ScriptContext context;
+    public final ScriptContext context;
     
     public ScriptBridge(ScriptContext context) {
         this.context = context;       

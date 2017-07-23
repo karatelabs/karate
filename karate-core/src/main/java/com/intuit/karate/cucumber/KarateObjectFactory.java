@@ -36,7 +36,7 @@ import java.util.Map;
 public class KarateObjectFactory implements ObjectFactory {    
        
     private StepDefs stepDefs;
-    private final ScriptEnv scriptEnv;
+    private ScriptEnv scriptEnv;
     private final ScriptContext parentContext;
     private final Map<String, Object> callArg;
     private final boolean reuseParentConfig;
@@ -48,7 +48,21 @@ public class KarateObjectFactory implements ObjectFactory {
         this.callArg = callArg;
         this.reuseParentConfig = reuseParentConfig;
     }
+    
+    public StepDefs reset(String envString) {
+        scriptEnv = scriptEnv.refresh(envString);
+        stop(); // clear step defs
+        return getInstance(null);
+    }
 
+    public ScriptEnv getEnv() {
+        if (stepDefs != null) { // get the latest, just in case it was clobbered
+            return stepDefs.getContext().getEnv();
+        } else {
+            return scriptEnv;
+        }
+    }
+    
     @Override
     public void start() {
         

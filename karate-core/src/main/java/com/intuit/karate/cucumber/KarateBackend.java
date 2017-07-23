@@ -47,6 +47,10 @@ public class KarateBackend implements Backend {
     private final KarateObjectFactory objectFactory;
     private Glue glue;
     
+    public ScriptEnv getEnv() {
+        return objectFactory.getEnv();
+    }
+    
     public KarateBackend(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg, boolean reuseParentConfig) {
         ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);
         objectFactory = new KarateObjectFactory(env, parentContext, callArg, reuseParentConfig);

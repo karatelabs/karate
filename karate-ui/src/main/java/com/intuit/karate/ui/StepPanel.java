@@ -36,53 +36,86 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class StepPanel extends AnchorPane {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(StepPanel.class);
-    
+
     private final AppSession session;
-    private final TextArea textArea;    
+    private final TextArea textArea;
+    private final Button runButton;
     private String oldText;
     private StepWrapper step;
+    private Boolean pass = null;
 
-    public StepPanel(AppSession session, StepWrapper orig) {
+    private static final String STYLE_PASS = "-fx-base: #53B700";
+    private static final String STYLE_FAIL = "-fx-base: #D52B1E";
+    private static final String STYLE_METHOD = "-fx-base: #34BFFF";
+    private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
+
+    public StepPanel(AppSession session, StepWrapper step) {
         this.session = session;
-        Button button = new Button("►");
+        runButton = new Button("►");        
         textArea = new TextArea();
-        textArea.setFont(App.DEFAULT_FONT);        
+        textArea.setFont(App.DEFAULT_FONT);
         textArea.setMinHeight(0);
         textArea.setWrapText(true);
-        this.step = orig;
+        this.step = step;
         initTextArea();
-        button.setOnAction(e -> {
-            String newText = textArea.getText();            
-            if (!newText.equals(oldText)) {
-                session.replace(orig, newText);               
-            }
-            StepResult result = step.run(session.backend);
-            if (result.isPass()) {
-                button.setStyle("-fx-base: green");
-            } else {
-                button.setStyle("-fx-base: red");
-            }
-            session.refreshVarsTable();
-        });        
-        getChildren().addAll(textArea, button);        
+        runButton.setOnAction(e -> run());
+        getChildren().addAll(textArea, runButton);
         setLeftAnchor(textArea, 0.0);
         setRightAnchor(textArea, 30.0);
         setBottomAnchor(textArea, 0.0);
-        setRightAnchor(button, 0.0);
-        setTopAnchor(button, 2.0);
-        setBottomAnchor(button, 0.0);
+        setRightAnchor(runButton, 0.0);
+        setTopAnchor(runButton, 2.0);
+        setBottomAnchor(runButton, 0.0);
     }
     
-    public void refresh() {
-        step = session.refresh(step);
-        initTextArea();
+    private void run() {
+        String newText = textArea.getText();
+        if (!newText.equals(oldText)) {
+            session.replace(step, newText);
+        }
+        StepResult result = step.run(session.backend);
+        if (result.isPass()) {
+            runButton.setStyle(STYLE_PASS);
+        } else {
+            runButton.setStyle(STYLE_FAIL);
+        }
+        pass = result.isPass();
+        session.refreshVarsTable();        
+    }
+
+    public void action(AppAction action) {
+        switch (action) {
+            case REFRESH:
+                step = session.refresh(step);
+                initTextArea();
+                break;
+            case RESET:
+                pass = null;
+                initStyleColor();
+                break;
+            case RUN:
+                if (pass == null) {
+                    run();
+                }
+                break;
+        }
+
     }
     
+    private void initStyleColor() {
+        runButton.setStyle("");
+        if (step.isHttpCall()) {
+            setStyle(STYLE_METHOD);
+        } else {
+            setStyle(STYLE_DEFAULT);
+        }        
+    }
+
     private void initTextArea() {
         oldText = step.getText();
-        textArea.setText(oldText);        
+        textArea.setText(oldText);
         int lineCount = step.getLineCount();
         if (lineCount == 1) {
             int wrapEstimate = oldText.length() / 60;
@@ -93,6 +126,7 @@ public class StepPanel extends AnchorPane {
             }
         }
         textArea.setPrefRowCount(lineCount);
+        initStyleColor();
     }
 
 }

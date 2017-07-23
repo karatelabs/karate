@@ -957,7 +957,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 -------- | ----- | -----------
 `* def foo = 'bar'` | primitive | simple strings, numbers or booleans
 `* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
-`* def foo = ('bar' + 1)` | JS | Karate assumes that users need JsonPath most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
+`* def foo = ('bar' + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
 `* def foo = { bar: 1 }` | JSON | anything that starts with a `{` or a `[` is treated as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
 `* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is treated as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
 `* def foo = function(arg){ return arg + bar }` | JS Function | anything that starts with `function(...){` is treated as a JS function.
@@ -966,10 +966,10 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 `* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
 `* def foo = bar.baz[0]` | Named JsonPath | JsonPath on the variable `bar`
 `* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
-`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | JsonPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
+`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
 `* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
 `* def foo = karate.pretty(bar)` | `karate` JS | using the [built-in `karate` object](#the-karate-object) in JS expressions
-`* def foo = Java.type('com.mycompany.Bar')` | Java Type | [Java Interop](#java-interop), and even one-liners like `java.lang.System.currentTimeMillis()` are possible
+`* def Foo = Java.type('com.mycompany.Foo')` | Java Type | [Java Interop](#java-interop), and even fully package-name-spaced one-liners like `java.lang.System.currentTimeMillis()` are possible
 `* def foo = call bar { baz: 'ban' }` | [`call`](#call) | or [`callonce`](#callonce), where expressions like [`read('foo.js')`](#reading-files) are allowed as the object to be called or the argument
 
 # Core Keywords

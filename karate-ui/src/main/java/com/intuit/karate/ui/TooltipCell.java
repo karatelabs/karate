@@ -23,48 +23,45 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.ScenarioWrapper;
-import com.intuit.karate.cucumber.StepWrapper;
-import java.util.ArrayList;
-import java.util.List;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
+import javafx.geometry.Point2D;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.Tooltip;
 
 /**
  *
  * @author pthomas3
+ * @param <S>
+ * @param <T>
  */
-public class ScenarioPanel extends BorderPane {
-    
-    private final VBox content;    
-    private final AppSession session;
+public abstract class TooltipCell<S, T> extends TableCell<S, T> {
 
-    private ScenarioWrapper scenario;
-    private final List<StepPanel> stepPanels;
+    private Tooltip customTooltip;
     
-    public ScenarioPanel(AppSession session, ScenarioWrapper scenario) {
-        super();
-        content = new VBox(0);
-        setCenter(content);
-        this.session = session;
-        this.scenario = scenario;
-        stepPanels = new ArrayList(scenario.getSteps().size());
-        initTitleAndContent();        
+    protected abstract String getCellText(T t);
+    protected abstract String getTooltipText(T t);
+
+    private void initTooltipMouseEvents() {
+        setOnMouseEntered(e -> {
+            if (customTooltip != null) {
+                Point2D p = localToScreen(getLayoutBounds().getMaxX(), getLayoutBounds().getMaxY());
+                customTooltip.show(this, p.getX(), p.getY());
+            }
+        });
+        setOnMouseExited(e -> {
+            if (customTooltip != null) {
+                customTooltip.hide();
+            }
+        });
     }
-    
-    private void initTitleAndContent() {
-        for (StepWrapper step : scenario.getSteps()) {
-            StepPanel stepPanel = new StepPanel(session, step);
-            content.getChildren().add(stepPanel);
-            stepPanels.add(stepPanel);
-        }       
-    }
-    
-    public void action(AppAction action) {
-        scenario = session.refresh(scenario);
-        for (StepPanel panel : stepPanels) {
-            panel.action(action);
+
+    @Override
+    protected void updateItem(T item, boolean empty) {
+        super.updateItem(item, empty);
+        if (!empty) {
+            setText(getCellText(item));
+            customTooltip = new Tooltip(getTooltipText(item));
+            initTooltipMouseEvents();
         }
-    }
-    
+    }    
+
 }

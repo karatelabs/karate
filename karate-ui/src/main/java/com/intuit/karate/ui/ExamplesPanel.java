@@ -63,10 +63,10 @@ public class ExamplesPanel extends TitledPane {
         }       
     }
     
-    public void refresh() {
+    public void refresh(AppAction action) {
         scenario = session.refresh(scenario);
         for (StepPanel panel : stepPanels) {
-            panel.refresh();
+            panel.action(action);
         }
     }
     

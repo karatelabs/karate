@@ -53,6 +53,10 @@ public class ScriptContext {
     protected HttpClient client;
     protected HttpConfig config;
 
+    public ScriptEnv getEnv() {
+        return env;
+    }        
+
     public ScriptValueMap getVars() {
         return vars;
     }

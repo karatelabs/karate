@@ -25,12 +25,10 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.ScriptValue;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.geometry.Point2D;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 
 /**
@@ -48,25 +46,12 @@ public class VarsPanel extends BorderPane {
         setCenter(table);
         TableColumn nameCol = new TableColumn("Variable");
         nameCol.setCellValueFactory(new PropertyValueFactory("name"));
+        nameCol.setCellFactory(c -> new StringTooltipCell());
         TableColumn typeCol = new TableColumn("Type");
         typeCol.setCellValueFactory(new PropertyValueFactory("type"));
         TableColumn<Var, ScriptValue> valueCol = new TableColumn("Value");
         valueCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper(c.getValue().getValue()));        
-        valueCol.setCellFactory(c -> {
-            VarValueCell cell = new VarValueCell();
-            cell.setOnMouseEntered(e -> {
-                if (cell.getCustomTooltip() != null) {
-                    Point2D p = cell.localToScreen(cell.getLayoutBounds().getMaxX(), cell.getLayoutBounds().getMaxY());
-                    cell.getCustomTooltip().show(cell, p.getX(), p.getY());
-                }
-            });
-            cell.setOnMouseExited(e -> {
-                if (cell.getCustomTooltip() != null) {
-                    cell.getCustomTooltip().hide();
-                }
-            });
-            return cell;
-        });
+        valueCol.setCellFactory(c -> new VarValueCell());
         table.getColumns().addAll(nameCol, typeCol, valueCol);
         table.setItems(session.getVars());
         table.setRowFactory(tv -> {

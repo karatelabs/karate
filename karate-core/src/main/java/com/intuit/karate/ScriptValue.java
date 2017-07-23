@@ -231,6 +231,8 @@ public class ScriptValue {
                 Map map = getAsMap();
                 DocumentContext mapDoc = JsonPath.parse(map);
                 return mapDoc.jsonString();
+            case JS_FUNCTION:
+                return value.toString().replace("\n", " ");                
             case INPUT_STREAM:
                 try {
                     return IOUtils.toString(getValue(InputStream.class), "utf-8");

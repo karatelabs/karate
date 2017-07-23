@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,82 +50,99 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class AppSession {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(AppSession.class);
-    
-    public FeatureWrapper feature;
+
+    public final File featureFile;
+    private FeatureWrapper feature; // mutable, can be re-built
     public final KarateBackend backend;
-    private FeaturePanel featurePanel;
-    private VarsPanel varsPanel;
-    private LogPanel logPanel;
+    public final HeaderPanel headerPanel;
+    public final FeaturePanel featurePanel;
+    public final VarsPanel varsPanel;
+    public final LogPanel logPanel;
 
-    public void setFeaturePanel(FeaturePanel featurePanel) {
-        this.featurePanel = featurePanel;
+    public FeatureWrapper getFeature() {
+        return feature;
     }
 
-    public FeaturePanel getFeaturePanel() {
-        return featurePanel;
-    }       
-
-    public void setVarsPanel(VarsPanel varsPanel) {
-        this.varsPanel = varsPanel;
-    }       
-
-    public VarsPanel getVarsPanel() {
-        return varsPanel;
+    public AppSession(File featureFile, String envString) {
+        this(featureFile, envString, false);
     }
 
-    public void setLogPanel(LogPanel logPanel) {
-        this.logPanel = logPanel;
+    public ScriptEnv getEnv() {
+        return backend.getEnv();
     }
 
-    public LogPanel getLogPanel() {
-        return logPanel;
-    }        
-    
-    public AppSession(FeatureWrapper feature, KarateBackend backend) {
-        this.feature = feature;
-        this.backend = backend;
+    public void reset(String env) {
+        backend.getObjectFactory().reset(env);
+        refreshVarsTable();
+        featurePanel.action(AppAction.RESET);
     }
     
+    public void runAll() {
+        featurePanel.action(AppAction.RUN);
+    }
+
+    public AppSession(File featureFile, String envString, boolean test) {
+        this.featureFile = featureFile;
+        FeatureFilePath ffp = FileUtils.parseFeaturePath(featureFile);
+        ScriptEnv env = ScriptEnv.init(envString, ffp.file, ffp.searchPaths, logger);
+        feature = FeatureWrapper.fromFile(ffp.file, env);
+        backend = CucumberUtils.getBackendWithGlue(env, null, null, false);
+        if (!test) {
+            headerPanel = new HeaderPanel(this);
+            featurePanel = new FeaturePanel(this);
+            varsPanel = new VarsPanel(this);
+            logPanel = new LogPanel();
+        } else {
+            headerPanel = null;
+            featurePanel = null;
+            varsPanel = null;
+            logPanel = null;
+        }
+    }
+
     public void logVar(Var var) {
         if (logPanel != null) {
-            logPanel.append(var.getValue().getAsPrettyString());
+            String description = var.getName() + " (" + var.getValue().getTypeAsShortString() + "): ";
+            logPanel.append(description);
+            String value = var.getValue().getAsPrettyString();
+            if (value != null && value.indexOf('\n') != -1) {
+                String dashes = StringUtils.repeat('-', description.length() - 1);
+                logPanel.append('\n' + dashes + '\n');
+            }
+            logPanel.append(var.getValue().getAsPrettyString() + '\n');
         }
     }
-    
+
     public void refreshVarsTable() {
-        if (varsPanel != null) {
-            varsPanel.refresh();
-        }
+        varsPanel.refresh();
     }
-    
+
     public FeatureSection refresh(FeatureSection section) {
         return feature.getSection(section.getIndex());
     }
-    
+
     public ScenarioOutlineWrapper refresh(ScenarioOutlineWrapper outline) {
         return feature.getSection(outline.getSection().getIndex()).getScenarioOutline();
     }
-    
+
     public ScenarioWrapper refresh(ScenarioWrapper scenario) {
         return feature.getScenario(scenario.getSection().getIndex(), scenario.getIndex());
     }
-    
+
     public StepWrapper refresh(StepWrapper step) {
         int stepIndex = step.getIndex();
         int scenarioIndex = step.getScenario().getIndex();
         int sectionIndex = step.getScenario().getSection().getIndex();
-        return feature.getStep(sectionIndex, scenarioIndex, stepIndex);        
+        return feature.getStep(sectionIndex, scenarioIndex, stepIndex);
     }
-    
+
     public void replace(StepWrapper step, String text) {
         feature = feature.replaceStep(step, text);
-        if (featurePanel != null) {
-            featurePanel.refresh();
-        }
+        featurePanel.action(AppAction.REFRESH);
     }
-    
+
     public ObservableList<Var> getVars() {
         if (backend.getStepDefs() == null) {
             return FXCollections.emptyObservableList();
@@ -135,20 +153,6 @@ public class AppSession {
             list.add(new Var(entry.getKey(), entry.getValue()));
         }
         return FXCollections.observableList(list);
-    } 
-    
-    public static AppSession init(File file, boolean test) {
-        FeatureFilePath ffp = FileUtils.parseFeaturePath(file);
-        ScriptEnv env = ScriptEnv.init(null, ffp.file, ffp.searchPaths, logger);
-        FeatureWrapper feature = FeatureWrapper.fromFile(ffp.file, env);
-        KarateBackend backend = CucumberUtils.getBackendWithGlue(env, null, null, false);
-        AppSession session = new AppSession(feature, backend);
-        if (!test) {
-            session.setFeaturePanel(new FeaturePanel(session));
-            session.setVarsPanel(new VarsPanel(session));
-            session.setLogPanel(new LogPanel());
-        }
-        return session;
     }
-    
+
 }

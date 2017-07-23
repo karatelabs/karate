@@ -23,23 +23,20 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.ScriptValue;
-
 /**
  *
  * @author pthomas3
  */
-public class VarValueCell extends TooltipCell<Var, ScriptValue> {
-    
+public class StringTooltipCell extends TooltipCell<Var, String> {
 
     @Override
-    protected String getCellText(ScriptValue sv) {
-        return sv.getAsString();
+    protected String getCellText(String s) {
+        return s;
     }
 
     @Override
-    protected String getTooltipText(ScriptValue sv) {
-        return sv.getAsPrettyString();
-    }    
+    protected String getTooltipText(String s) {
+        return s;
+    }
 
 }

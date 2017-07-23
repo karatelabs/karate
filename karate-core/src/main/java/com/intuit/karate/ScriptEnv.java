@@ -66,7 +66,7 @@ public class ScriptEnv {
     public static ScriptEnv init(String env, File featureFile, String[] searchPaths, Logger logger) {
         return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), 
                 FileUtils.createClassLoader(searchPaths), new CallCache(), logger);
-    }    
+    }
     
     public ScriptEnv refresh(String in) { // immutable
         String karateEnv = StringUtils.trimToNull(in);

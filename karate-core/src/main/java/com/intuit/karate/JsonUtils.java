@@ -25,12 +25,18 @@ package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import net.minidev.json.JSONObject;
+import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
+import net.minidev.json.reader.JsonWriter;
+import net.minidev.json.reader.JsonWriterI;
 import org.apache.commons.lang3.tuple.Pair;
 import org.yaml.snakeyaml.Yaml;
 
@@ -44,6 +50,26 @@ public class JsonUtils {
         // only static methods
     }
 
+    private static class NashornObjectJsonWriter implements JsonWriterI<ScriptObjectMirror> {
+
+        @Override
+        public <E extends ScriptObjectMirror> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
+            if (value.isArray()) {
+                Object[] array = value.values().toArray();
+                JsonWriter.arrayWriter.writeJSONString(array, out, compression);
+            } else if (value.isFunction()) {
+                JsonWriter.toStringWriter.writeJSONString("\"#function\"", out, compression);
+            } else { // JSON
+                JsonWriter.JSONMapWriter.writeJSONString(value, out, compression);
+            }
+        }
+
+    }
+
+    static { // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
+        JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
+    }
+
     public static DocumentContext toJsonDoc(String raw) {
         return JsonPath.parse(raw);
     }
@@ -52,15 +78,15 @@ public class JsonUtils {
         DocumentContext dc = toJsonDoc(raw);
         return dc.jsonString();
     }
-    
+
     public static String toJson(Object o) {
         return JSONValue.toJSONString(o);
     }
-        
+
     public static DocumentContext toJsonDoc(Object o) {
         return toJsonDoc(toJson(o));
     }
-    
+
     // could have used generics, but this is only going to be called from js / karate
     public static Object fromJson(String s, String className) {
         try {
@@ -68,9 +94,9 @@ public class JsonUtils {
             return JSONValue.parse(s, clazz);
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }        
+        }
     }
-    
+
     public static String toPrettyJsonString(DocumentContext doc) {
         Object o = doc.read("$");
         StringBuilder sb = new StringBuilder();
@@ -78,17 +104,17 @@ public class JsonUtils {
         sb.append('\n');
         return sb.toString();
     }
-    
+
     private static void pad(StringBuilder sb, int depth) {
         for (int i = 0; i < depth; i++) {
             sb.append(' ').append(' ');
         }
     }
-    
+
     private static void recursePretty(Object o, StringBuilder sb, int depth) {
         if (o == null) {
             sb.append("null");
-        } else if (o instanceof Map) {            
+        } else if (o instanceof Map) {
             sb.append('{').append('\n');
             Map<String, Object> map = (Map<String, Object>) o;
             int size = map.size();
@@ -102,8 +128,8 @@ public class JsonUtils {
                 recursePretty(entry.getValue(), sb, depth + 1);
                 if (i != size - 1) {
                     sb.append(',');
-                }                
-                sb.append('\n');                
+                }
+                sb.append('\n');
             }
             pad(sb, depth);
             sb.append('}');
@@ -123,19 +149,19 @@ public class JsonUtils {
             pad(sb, depth);
             sb.append(']');
         } else if (o instanceof String) {
-            String value = (String) o;            
+            String value = (String) o;
             sb.append('"').append(JSONObject.escape(value)).append('"');
         } else {
             sb.append(o);
-        }       
+        }
     }
-    
-    public static Pair<String, String> getParentAndLeafPath(String path) {       
+
+    public static Pair<String, String> getParentAndLeafPath(String path) {
         int pos = path.lastIndexOf('.');
         int temp = path.lastIndexOf("['");
         if (temp != -1 && temp > pos) {
             pos = temp - 1;
-        }        
+        }
         String right = path.substring(pos + 1);
         if (right.startsWith("[")) {
             pos = pos + 1;
@@ -143,11 +169,11 @@ public class JsonUtils {
         String left = path.substring(0, pos == -1 ? 0 : pos);
         return Pair.of(left, right);
     }
-    
+
     public static void removeValueByPath(DocumentContext doc, String path) {
         setValueByPath(doc, path, null, true);
-    }    
-    
+    }
+
     public static void setValueByPath(DocumentContext doc, String path, Object value) {
         setValueByPath(doc, path, value, false);
     }
@@ -162,8 +188,8 @@ public class JsonUtils {
         if (right.endsWith("]") && !right.endsWith("']")) { // json array
             int indexPos = right.lastIndexOf('[');
             int index = Integer.valueOf(right.substring(indexPos + 1, right.length() - 1));
-            right = right.substring(0, indexPos);  
-            List list;                        
+            right = right.substring(0, indexPos);
+            List list;
             String listPath;
             if (right.startsWith("[")) {
                 listPath = left + right;
@@ -172,7 +198,7 @@ public class JsonUtils {
                     listPath = right;
                 } else {
                     listPath = left + "." + right;
-                }                
+                }
             }
             try {
                 list = doc.read(listPath);
@@ -203,18 +229,18 @@ public class JsonUtils {
             }
         }
     }
-    
+
     public static DocumentContext fromYaml(String raw) {
         Yaml yaml = new Yaml();
         return JsonPath.parse(yaml.load(raw));
     }
-    
+
     /**
-     * use bracket notation if needed instead of dot notation 
+     * use bracket notation if needed instead of dot notation
      */
     public static String buildPath(String parentPath, String key) {
         boolean needsQuotes = key.indexOf('-') != -1 || key.indexOf(' ') != -1 || key.indexOf('.') != -1;
-        return needsQuotes ? parentPath + "['" + key + "']" : parentPath + '.' + key;        
+        return needsQuotes ? parentPath + "['" + key + "']" : parentPath + '.' + key;
     }
 
 }

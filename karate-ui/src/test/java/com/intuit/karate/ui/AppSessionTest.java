@@ -46,15 +46,15 @@ public class AppSessionTest {
     @Test
     public void testRunning() {
         File tempFile = new File("src/test/java/feature/test.feature");
-        AppSession fb = AppSession.init(tempFile, true);
-        for (FeatureSection section : fb.feature.getSections()) {
+        AppSession session = new AppSession(tempFile, null, true);
+        for (FeatureSection section : session.getFeature().getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();
                 for (ScenarioWrapper scenario : outline.getScenarios()) {
-                    call(scenario, fb.backend);
+                    call(scenario, session.backend);
                 }
             } else {
-                call(section.getScenario(), fb.backend);
+                call(section.getScenario(), session.backend);
             }
         }        
     }

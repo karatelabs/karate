@@ -67,12 +67,12 @@ public class SectionPanel extends TitledPane {
         }
     }
     
-    public void refresh() {
+    public void action(AppAction action) {
         section = session.refresh(section);
         if (section.isOutline()) {
-            outlinePanel.refresh();
+            outlinePanel.action(action);
         } else {
-            scenarioPanel.refresh();
+            scenarioPanel.action(action);
         }
     }
     

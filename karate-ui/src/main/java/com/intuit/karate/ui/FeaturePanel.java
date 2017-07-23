@@ -44,13 +44,13 @@ public class FeaturePanel extends ScrollPane {
         setContent(content);
         setFitToWidth(true);
         this.session = session;
-        int sectionCount = session.feature.getSections().size();
+        int sectionCount = session.getFeature().getSections().size();
         sectionPanels = new ArrayList(sectionCount);
         addSections();
     }
     
     private void addSections() {
-        for (FeatureSection section : session.feature.getSections()) {
+        for (FeatureSection section : session.getFeature().getSections()) {
             SectionPanel sectionPanel = new SectionPanel(session, section);            
             content.getChildren().add(sectionPanel);
             if (!sectionPanels.isEmpty()) {
@@ -60,10 +60,10 @@ public class FeaturePanel extends ScrollPane {
         }
     }
     
-    public void refresh() {
+    public void action(AppAction action) {
         for (SectionPanel panel : sectionPanels) {
-            panel.refresh();
+            panel.action(action);
         }
-    }
+    }    
 
 }

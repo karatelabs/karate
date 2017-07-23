@@ -63,10 +63,10 @@ public class ScenarioOutlinePanel extends BorderPane {
         }       
     }
     
-    public void refresh() {
+    public void action(AppAction action) {
         outline = session.refresh(outline);
         for (ExamplesPanel panel : examplesPanels) {
-            panel.refresh();
+            panel.refresh(action);
         }
     }
     
