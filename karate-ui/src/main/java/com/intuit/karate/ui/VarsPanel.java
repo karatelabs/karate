@@ -52,8 +52,8 @@ public class VarsPanel extends BorderPane {
         nameCol.setCellValueFactory(new PropertyValueFactory("name"));
         nameCol.setCellFactory(c -> new StringTooltipCell());
         TableColumn typeCol = new TableColumn("Type");
-        typeCol.setMinWidth(40);
-        typeCol.setMaxWidth(40);
+        typeCol.setMinWidth(45);
+        typeCol.setMaxWidth(60);
         typeCol.setCellValueFactory(new PropertyValueFactory("type"));
         TableColumn<Var, ScriptValue> valueCol = new TableColumn("Value");
         valueCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper(c.getValue().getValue()));        

@@ -201,7 +201,7 @@ public class ScriptValue {
                 DocumentContext mapDoc = JsonPath.parse(map);
                 return JsonUtils.toPrettyJsonString(mapDoc);
             case INPUT_STREAM:
-                return "[..stream..]";
+                return "(..stream..)";
             default:
                 return value.toString();            
         }

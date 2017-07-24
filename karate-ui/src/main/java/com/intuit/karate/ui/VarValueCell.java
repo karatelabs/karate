@@ -34,7 +34,11 @@ public class VarValueCell extends TooltipCell<Var, ScriptValue> {
 
     @Override
     protected String getCellText(ScriptValue sv) {
-        return sv.getAsString();
+        if (sv.isStream()) {
+            return sv.getAsPrettyString();
+        } else {
+            return sv.getAsString();
+        }
     }
 
     @Override

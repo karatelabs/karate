@@ -23,11 +23,11 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -65,9 +65,19 @@ public class JsonUtils {
         }
 
     }
+    
+    private static class FeatureWrapperJsonWriter implements JsonWriterI<FeatureWrapper> {
+
+        @Override
+        public <E extends FeatureWrapper> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
+            JsonWriter.toStringWriter.writeJSONString("\"#feature\"", out, compression);
+        }
+        
+    }
 
     static { // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
         JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
+        JSONValue.registerWriter(FeatureWrapper.class, new FeatureWrapperJsonWriter());
     }
 
     public static DocumentContext toJsonDoc(String raw) {
