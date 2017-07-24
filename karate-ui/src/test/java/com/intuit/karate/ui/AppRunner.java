@@ -10,7 +10,7 @@ public class AppRunner {
     
     @Test
     public void testApp() {
-        App.run("../karate-demo/src/test/java/demo/headers/headers.feature", "dev");
+        App.run("../karate-demo/src/test/java/demo/cats/cats.feature", "dev");
     }
     
 }

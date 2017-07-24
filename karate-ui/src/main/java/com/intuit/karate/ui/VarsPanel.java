@@ -43,16 +43,19 @@ public class VarsPanel extends BorderPane {
     public VarsPanel(AppSession session) {
         this.session = session;        
         table = new TableView();
+        table.setPrefWidth(300);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         setCenter(table);
         TableColumn nameCol = new TableColumn("Variable");
-        nameCol.prefWidthProperty().bind(table.widthProperty().multiply(0.4));
+        nameCol.setMinWidth(120);
+        nameCol.setMaxWidth(250);
         nameCol.setCellValueFactory(new PropertyValueFactory("name"));
         nameCol.setCellFactory(c -> new StringTooltipCell());
         TableColumn typeCol = new TableColumn("Type");
-        typeCol.prefWidthProperty().bind(table.widthProperty().multiply(0.2));
+        typeCol.setMinWidth(40);
+        typeCol.setMaxWidth(40);
         typeCol.setCellValueFactory(new PropertyValueFactory("type"));
         TableColumn<Var, ScriptValue> valueCol = new TableColumn("Value");
-        valueCol.prefWidthProperty().bind(table.widthProperty().multiply(0.4));
         valueCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper(c.getValue().getValue()));        
         valueCol.setCellFactory(c -> new VarValueCell());
         table.getColumns().addAll(nameCol, typeCol, valueCol);

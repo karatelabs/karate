@@ -34,14 +34,14 @@ import java.util.List;
  * @author pthomas3
  */
 public class ScenarioWrapper {
-    
+
     private final int index;
     private final FeatureWrapper feature;
     private FeatureSection section;
-    private final CucumberScenario scenario; 
+    private final CucumberScenario scenario;
     private final ScenarioOutlineWrapper parent;
-    private final List<StepWrapper> steps;    
-    
+    private final List<StepWrapper> steps;
+
     public ScenarioWrapper(FeatureWrapper feature, int index, CucumberScenario scenario, ScenarioOutlineWrapper parent) {
         this.feature = feature;
         this.index = index;
@@ -53,13 +53,17 @@ public class ScenarioWrapper {
         int currentLine = 0;
         if (cucumberBackground != null) {
             for (Step step : cucumberBackground.getSteps()) {
-                String priorText = feature.joinLines(currentLine, step.getLine() - 1);
+                int firstLine = step.getLine();
+                int lastLine = step.getLineRange().getLast();
+                String priorText = feature.joinLines(currentLine, firstLine - 1);
                 steps.add(new StepWrapper(this, counter++, priorText, step, true));
                 currentLine = step.getLineRange().getLast();
             }
         }
         for (Step step : scenario.getSteps()) {
-            String priorText = feature.joinLines(currentLine, step.getLine() - 1);
+            int firstLine = step.getLine();
+            int lastLine = step.getLineRange().getLast();
+            String priorText = feature.joinLines(currentLine, firstLine - 1);
             steps.add(new StepWrapper(this, counter++, priorText, step, false));
             currentLine = step.getLineRange().getLast();
         }
@@ -67,7 +71,7 @@ public class ScenarioWrapper {
 
     public void setSection(FeatureSection section) {
         this.section = section;
-    }        
+    }
 
     public FeatureSection getSection() {
         if (section == null) {
@@ -75,15 +79,15 @@ public class ScenarioWrapper {
         } else {
             return section;
         }
-    }        
+    }
 
     public int getIndex() {
         return index;
-    }        
+    }
 
     public List<StepWrapper> getSteps() {
         return steps;
-    }        
+    }
 
     public FeatureWrapper getFeature() {
         return feature;
@@ -91,18 +95,18 @@ public class ScenarioWrapper {
 
     public CucumberScenario getScenario() {
         return scenario;
-    } 
+    }
 
     public ScenarioOutlineWrapper getParent() {
         return parent;
     }
-   
+
     public boolean isChild() {
         return parent != null;
     }
-    
+
     public int getLine() {
         return scenario.getGherkinModel().getLine();
     }
-    
+
 }

@@ -61,7 +61,7 @@ public class HeaderPanel extends BorderPane {
         content.setPadding(new Insets(5));
         setCenter(content);
         textContent = new TextArea();
-        textContent.setPrefRowCount(20);
+        textContent.setPrefRowCount(16);
         textContent.setVisible(false);
         setBottom(textContent);
         textContent.setManaged(false);

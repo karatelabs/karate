@@ -56,6 +56,11 @@ public class StepPanel extends Panel {
     private KarateService service;
 
     private final IndicatingAjaxLink runButton;
+    private Boolean pass;
+
+    public void setPass(Boolean pass) {
+        this.pass = pass;
+    }        
 
     public IndicatingAjaxLink getRunButton() {
         return runButton;
@@ -113,7 +118,8 @@ public class StepPanel extends Panel {
             public Object getObject() {
                 StepWrapper sw = model.getObject();
                 String cls = "form-control";
-                if (sw.isOneLine()) {
+                int lineCount = sw.getLineCount();
+                if (lineCount == 1) {
                     cls = cls + " kt-one-line";
                 }
                 if (sw.isHttpCall()) {
@@ -146,9 +152,9 @@ public class StepPanel extends Panel {
             @Override
             public Object getObject() {
                 StepWrapper sw = model.getObject();
-                if (sw.isPass() == null) {
+                if (pass == null) {
                     return "btn btn-sm btn-default";
-                } else if (sw.isPass()) {
+                } else if (pass) {
                     return "btn btn-sm btn-success";
                 } else {
                     return "btn btn-sm btn-danger";
@@ -164,7 +170,7 @@ public class StepPanel extends Panel {
                 StepWrapper step = model.getObject();
                 KarateBackend backend = session.getBackend();
                 StepResult result = step.run(backend);
-                step.setPass(result.isPass());
+                pass = result.isPass();
                 target.add(this);
             }
         };

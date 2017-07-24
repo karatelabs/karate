@@ -26,6 +26,7 @@ package com.intuit.karate.cucumber;
 import cucumber.runtime.Glue;
 import cucumber.runtime.StepDefinitionMatch;
 import cucumber.runtime.model.CucumberFeature;
+import gherkin.formatter.model.DataTableRow;
 import gherkin.formatter.model.DocString;
 import gherkin.formatter.model.Step;
 import org.apache.commons.lang3.StringUtils;
@@ -41,7 +42,7 @@ public class StepWrapper {
     private final Step step;
     private final boolean background;
     private final String priorText;
-    private Boolean pass;
+    private final String text;
 
     public StepWrapper(ScenarioWrapper scenario, int index, String priorText, Step step, boolean background) {
         this.scenario = scenario;
@@ -49,14 +50,24 @@ public class StepWrapper {
         this.priorText = StringUtils.trimToNull(priorText);
         this.background = background;
         this.step = step;
+        this.text = getStepText(step, scenario);
     }
-
-    public void setPass(boolean passed) {
-        this.pass = passed;
-    }
-
-    public Boolean isPass() {
-        return pass;
+    
+    private static String getStepText(Step step, ScenarioWrapper scenario) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(step.getKeyword());
+        sb.append(step.getName());
+        DocString docString = step.getDocString();
+        if (docString != null) {
+            sb.append("\n\"\"\"\n");
+            sb.append(docString.getValue());
+            sb.append("\n\"\"\"");
+        }
+        if (step.getRows() != null) {
+            String text = scenario.getFeature().joinLines(step.getLine(), step.getLineRange().getLast() + 1);
+            sb.append('\n').append(text);
+        }
+        return sb.toString();
     }
 
     public boolean isHttpCall() {
@@ -105,27 +116,11 @@ public class StepWrapper {
     }
 
     public String getText() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(step.getKeyword());
-        sb.append(step.getName());
-        DocString docString = step.getDocString();
-        if (docString != null) {
-            sb.append("\n\"\"\"\n");
-            sb.append(docString.getValue());
-            sb.append("\n\"\"\"");
-        }
-        return sb.toString();
-    }
-    
-    public boolean isOneLine() {
-        return getStartLine() == getEndLine();
+        return text;
     }
 
     public int getLineCount() {
-        if (isOneLine()) {
-            return 1;
-        }
-        return getEndLine() - getStartLine();
+        return getEndLine() - getStartLine() + 1;
     }
 
     public StepResult run(KarateBackend backend) {
