@@ -25,6 +25,7 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.http.HttpBody;
+import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
@@ -33,7 +34,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
@@ -116,26 +116,27 @@ public class ApacheHttpUtils {
                 if (item.getValue() == null || item.getValue().isNull()) {
                     continue;
                 }
-                String name = item.getName();
-                ScriptValue sv = item.getValue();
+                String name = item.getName();                
                 if (name == null) {
+                    // will never happen because we divert this flow to the home-made multi-part builder above
                     // builder.addPart(bodyPart);
                 } else {
+                    ScriptValue sv = item.getValue();
+                    String ct = item.getContentType();                    
+                    if (ct == null) {
+                        ct = HttpUtils.getContentType(sv);
+                    }                    
+                    ContentType contentType = ContentType.create(ct);
                     FormBodyPartBuilder formBuilder = FormBodyPartBuilder.create().setName(name);
                     ContentBody contentBody;
-                    switch (sv.getType()) {
-                        case INPUT_STREAM:
-                            InputStream is = (InputStream) sv.getValue();
-                            contentBody = new InputStreamBody(is, ContentType.APPLICATION_OCTET_STREAM, name);
-                            break;
-                        case XML:
-                            contentBody = new StringBody(sv.getAsString(), ContentType.APPLICATION_XML);
-                            break;
-                        case JSON:
-                            contentBody = new StringBody(sv.getAsString(), ContentType.APPLICATION_JSON);
-                            break;
-                        default:
-                            contentBody = new StringBody(sv.getAsString(), ContentType.TEXT_PLAIN);
+                    String filename = item.getFilename();
+                    if (filename != null) {
+                        InputStream is = sv.getAsStream();
+                        contentBody = new InputStreamBody(is, contentType, filename);
+                    } else if (sv.isStream()) {
+                        contentBody = new InputStreamBody(sv.getAsStream(), contentType);
+                    } else {                    
+                        contentBody = new StringBody(sv.getAsString(), contentType);
                     }
                     formBuilder = formBuilder.setBody(contentBody);
                     builder = builder.addPart(formBuilder.build());

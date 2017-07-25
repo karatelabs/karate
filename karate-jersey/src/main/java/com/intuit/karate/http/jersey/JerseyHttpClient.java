@@ -25,7 +25,6 @@ package com.intuit.karate.http.jersey;
 
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
-import com.intuit.karate.XmlUtils;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
@@ -33,7 +32,6 @@ import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
-import com.jayway.jsonpath.DocumentContext;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map.Entry;
@@ -56,7 +54,6 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
-import org.w3c.dom.Document;
 
 /**
  *
@@ -146,28 +143,21 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 continue;
             }
             String name = item.getName();
+            String filename = item.getFilename();
             ScriptValue sv = item.getValue();
-            if (name == null) {
-                BodyPart bp;
-                switch (sv.getType()) {
-                    case JSON:
-                        DocumentContext dc = sv.getValue(DocumentContext.class);
-                        bp = new BodyPart().entity(dc.jsonString()).type(MediaType.APPLICATION_JSON_TYPE);
-                        break;
-                    case XML:
-                        Document doc = sv.getValue(Document.class);
-                        bp = new BodyPart().entity(XmlUtils.toString(doc)).type(MediaType.APPLICATION_XML_TYPE);
-                        break;
-                    default:
-                        bp = new BodyPart().entity(sv.getValue());
-                }
+            String ct = item.getContentType();                    
+            if (ct == null) {
+                ct = HttpUtils.getContentType(sv);
+            }
+            MediaType itemType = MediaType.valueOf(ct);
+            if (name == null) { // most likely multipart/mixed
+                BodyPart bp = new BodyPart().entity(sv.getAsString()).type(itemType);
                 multiPart.bodyPart(bp);
-            } else if (sv.getType() == ScriptValue.Type.INPUT_STREAM) {
-                InputStream is = (InputStream) sv.getValue();
-                StreamDataBodyPart part = new StreamDataBodyPart(name, is);
+            } else if (filename != null) {
+                StreamDataBodyPart part = new StreamDataBodyPart(name, sv.getAsStream(), filename, itemType);
                 multiPart.bodyPart(part);
             } else {
-                multiPart.bodyPart(new FormDataBodyPart(name, sv.getAsString()));
+                multiPart.bodyPart(new FormDataBodyPart(name, sv.getAsString(), itemType));
             }
         }
         return Entity.entity(multiPart, mediaType);

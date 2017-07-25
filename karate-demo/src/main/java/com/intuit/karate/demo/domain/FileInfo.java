@@ -29,20 +29,36 @@ package com.intuit.karate.demo.domain;
  */
 public class FileInfo {
     
-    private final String id;
-    private final String name;
+    private String id;
+    private String filename;
+    private String message;
+    private String contentType;
     
-    public FileInfo(String id, String name) {
+    public FileInfo() {
+        // zero arg constructor
+    }
+    
+    public FileInfo(String id, String filename, String message, String contentType) {
         this.id = id;
-        this.name = name;
+        this.filename = filename;
+        this.message = message;
+        this.contentType = contentType;
     }
 
     public String getId() {
         return id;
     }
 
-    public String getName() {
-        return name;
-    }      
+    public String getFilename() {
+        return filename;
+    }  
+
+    public String getMessage() {
+        return message;
+    }        
+
+    public String getContentType() {
+        return contentType;
+    }        
     
 }

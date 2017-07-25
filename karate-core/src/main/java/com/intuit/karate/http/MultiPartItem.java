@@ -33,11 +33,13 @@ public class MultiPartItem {
     
     private final String name;
     private final ScriptValue value;
+    private String filename;
+    private String contentType;
     
     public MultiPartItem(String name, ScriptValue value) {
         this.name = name;
         this.value = value;
-    }
+    }       
 
     public String getName() {
         return name;
@@ -45,6 +47,22 @@ public class MultiPartItem {
 
     public ScriptValue getValue() {
         return value;
-    }        
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }    
     
 }

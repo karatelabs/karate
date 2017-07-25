@@ -37,7 +37,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
-.... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
+.... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity) | [`multipart file`](#multipart-file)
 **Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
@@ -1144,16 +1144,24 @@ Multi-values are supported the way you would expect (e.g. for simulating check-b
 You can also dynamically set multiple fields in one step using the [`form fields`](#form-fields) keyword.
 
 ## `multipart field`
-Use this for building multipart named (form) field requests.
+Use this for building multipart named (form) field requests. This is typically combined with `multipart file` as shown below.
+
+## `multipart file`
 
  ```cucumber
-Given multipart field file = read('test.pdf')
-And multipart field fileName = 'some-name.pdf'
+Given multipart file myFile = { read: 'test.pdf', filename: 'upload-name.pdf', contentType: 'application/pdf' }
+And multipart field message = 'hello world'
 When method post
 Then status 200
 ```
 
-When 'multipart' content is involved, the `Content-Type` header defaults to `multipart/form-data`.
+Note that `multipart file` takes a JSON argument so that you can easily set the `filename` and the `contentType` in one step.
+
+* `read`: mandatory, - the name of a file, and the [`classpath:`](#reading-files) prefix also is allowed.
+* `filename`: optional, will default to the multipart field name if not specified
+* `contentType`: optional, will default to `application/octet-stream`
+
+When 'multipart' content is involved, the `Content-Type` header of the HTTP request defaults to `multipart/form-data`.
 You can over-ride it by using the [`header`](#header) keyword before the `method` step.  Look at
 [`multipart entity`](#multipart-entity) for an example.
 

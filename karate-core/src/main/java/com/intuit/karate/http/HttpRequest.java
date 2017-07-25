@@ -45,7 +45,7 @@ public class HttpRequest {
     private List<MultiPartItem> multiPartItems;
     private ScriptValue body;
     private String method;
-    private String soapAction; 
+    private String soapAction;
 
     public void setUrl(String url) {
         this.url = url;
@@ -65,18 +65,18 @@ public class HttpRequest {
     public List<String> getPaths() {
         return paths;
     }
-    
+
     public void removeHeader(String name) {
         if (headers == null) {
             return;
         }
         headers.remove(name);
     }
-    
+
     public void setHeader(String name, String value) {
         setHeader(name, Collections.singletonList(value));
     }
-    
+
     public void setHeader(String name, List<String> values) {
         if (headers == null) {
             headers = new MultiValuedMap();
@@ -87,14 +87,14 @@ public class HttpRequest {
     public MultiValuedMap getHeaders() {
         return headers;
     }
-    
+
     public void removeParam(String name) {
         if (params == null) {
             return;
         }
         params.remove(name);
     }
-    
+
     public void setParam(String name, String value) {
         setParam(name, Collections.singletonList(value));
     }
@@ -109,7 +109,7 @@ public class HttpRequest {
     public MultiValuedMap getParams() {
         return params;
     }
-    
+
     public void removeCookie(String name) {
         if (cookies == null) {
             return;
@@ -121,7 +121,7 @@ public class HttpRequest {
         if (cookies == null) {
             cookies = new LinkedHashMap<>();
         }
-        cookies.put(cookie.getName(), cookie);       
+        cookies.put(cookie.getName(), cookie);
     }
 
     public Map<String, Cookie> getCookies() {
@@ -130,15 +130,15 @@ public class HttpRequest {
 
     public void setCookies(Map<String, Cookie> cookies) {
         this.cookies = cookies;
-    }   
-    
+    }
+
     public void removeFormField(String name) {
         if (formFields == null) {
             return;
         }
         formFields.remove(name);
     }
-    
+
     public void setFormField(String name, String value) {
         setFormField(name, Collections.singletonList(value));
     }
@@ -155,15 +155,23 @@ public class HttpRequest {
     }
 
     public void addMultiPartItem(String name, ScriptValue value) {
+        MultiPartItem item = new MultiPartItem(name, value);
+        if (value.isStream()) { // short-cut, assume that intent is file-upload
+            item.setFilename(name);
+        }
+        addMultiPartItem(item);
+    }
+    
+    public void addMultiPartItem(MultiPartItem item) {
         if (multiPartItems == null) {
             multiPartItems = new ArrayList<>();
         }
-        multiPartItems.add(new MultiPartItem(name, value));
+        multiPartItems.add(item);
     }
 
     public List<MultiPartItem> getMultiPartItems() {
         return multiPartItems;
-    }    
+    }
 
     public ScriptValue getBody() {
         return body;
@@ -198,6 +206,6 @@ public class HttpRequest {
 
     public String getSoapAction() {
         return soapAction;
-    }        
+    }
 
 }

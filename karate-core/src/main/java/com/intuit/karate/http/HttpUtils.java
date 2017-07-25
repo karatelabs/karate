@@ -68,18 +68,14 @@ public class HttpUtils {
     }  
     
     public static String getContentType(ScriptValue sv) {
-        if (sv == null) {
-            return null;
-        }
-        switch (sv.getType()) {
-            case JSON:
-                return APPLICATION_JSON;
-            case XML:
-                return APPLICATION_XML;
-            case INPUT_STREAM:
-                return APPLICATION_OCTET_STREAM;
-            default:
-                return TEXT_PLAIN;
+        if (sv.isStream()) {
+            return APPLICATION_OCTET_STREAM;
+        } else if (sv.getType() == Type.XML) {
+            return APPLICATION_XML;
+        } else if (sv.isMapLike()) {
+            return APPLICATION_JSON;
+        } else {
+            return TEXT_PLAIN;
         }
     }
     
