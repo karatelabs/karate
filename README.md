@@ -957,7 +957,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 -------- | ----- | -----------
 `* def foo = 'bar'` | primitive | simple strings, numbers or booleans
 `* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
-`* def foo = ('bar' + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
+`* def foo = (bar.baz + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
 `* def foo = { bar: 1 }` | JSON | anything that starts with a `{` or a `[` is treated as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
 `* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is treated as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
 `* def foo = function(arg){ return arg + bar }` | JS Function | anything that starts with `function(...){` is treated as a JS function.
