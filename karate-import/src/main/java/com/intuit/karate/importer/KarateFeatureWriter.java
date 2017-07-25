@@ -40,7 +40,7 @@ public class KarateFeatureWriter {
         // only static methods
     }
 
-    public static void write(List<PostmanRequest> requests, String path) {
+    public static File write(List<PostmanRequest> requests, String path) {
         String feature = getFeature(requests);
         String inputFileName = new File(path).getName();
         String outputFileName = inputFileName.replace("postman_collection", "feature");
@@ -49,6 +49,7 @@ public class KarateFeatureWriter {
         try {
             featureFile = new File(dirPath + "/" + outputFileName);
             FileUtils.writeStringToFile(featureFile, feature, "utf-8");
+            return featureFile;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

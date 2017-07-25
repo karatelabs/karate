@@ -25,6 +25,10 @@ package com.intuit.karate.ui;
 
 import java.io.File;
 import java.util.List;
+
+import com.intuit.karate.importer.KarateFeatureWriter;
+import com.intuit.karate.importer.PostmanCollectionReader;
+import com.intuit.karate.importer.PostmanRequest;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
@@ -45,10 +49,10 @@ public class App extends Application {
     private File workingDir = new File(".");
     private final BorderPane rootPane = new BorderPane();
     
-    private File chooseFile(Stage stage) {
+    private File chooseFile(Stage stage, String description, String extension) {
         fileChooser.setTitle("Choose Feature File");
         fileChooser.setInitialDirectory(workingDir);
-        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("*.feature files", "*.feature");
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(description, extension);
         fileChooser.getExtensionFilters().add(extFilter);
         return fileChooser.showOpenDialog(stage);
     }
@@ -60,13 +64,23 @@ public class App extends Application {
         rootPane.setRight(session.varsPanel);
         rootPane.setBottom(session.logPanel);
         initFileOpenAction(session.headerPanel, envString, stage);
+        initImportOpenAction(session.headerPanel, envString, stage);
         workingDir = file.getParentFile();        
     }
     
     private void initFileOpenAction(HeaderPanel header, String envString, Stage stage) {
         header.setFileOpenAction(e -> {
-            File file = chooseFile(stage);            
+            File file = chooseFile(stage, "*.feature files", "*.feature");
             initUi(file, envString, stage);
+        });
+    }
+
+    private void initImportOpenAction(HeaderPanel header, String envString, Stage stage) {
+        header.setImportOpenAction(e -> {
+            File file = chooseFile(stage, "*.postman_collection files", "*.postman_collection");
+            List<PostmanRequest> requests = PostmanCollectionReader.parse(file.getPath());
+            File featureFile = KarateFeatureWriter.write(requests, file.getPath());
+            initUi(featureFile, envString, stage);
         });
     }
     
@@ -84,6 +98,7 @@ public class App extends Application {
             HeaderPanel header = new HeaderPanel();
             rootPane.setTop(header);
             initFileOpenAction(header, envString, stage);
+            initImportOpenAction(header, envString, stage);
         }
         Scene scene = new Scene(rootPane, 900, 750);                
         stage.setScene(scene);
