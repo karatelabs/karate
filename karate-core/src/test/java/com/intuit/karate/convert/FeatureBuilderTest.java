@@ -1,4 +1,4 @@
-package com.intuit.karate.importer;
+package com.intuit.karate.convert;
 
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -16,7 +16,7 @@ public class FeatureBuilderTest {
 
     @Test
     public void testConverting() {
-        List<PostmanRequest> requests = PostmanCollectionReader.parse("src/test/resources/postman-echo-single.postman_collection");
+        List<PostmanRequest> requests = PostmanCollectionReader.parse("src/test/java/postman-echo-single.postman_collection");
         logger.debug("list: {}", requests);
         assertEquals(1, requests.size());
         PostmanRequest request = requests.get(0);

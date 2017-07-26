@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.importer;
+package com.intuit.karate.convert;
 
 /**
  * Created by rkumar32 on 7/5/17.

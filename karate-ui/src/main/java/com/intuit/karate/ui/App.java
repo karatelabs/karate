@@ -26,9 +26,9 @@ package com.intuit.karate.ui;
 import java.io.File;
 import java.util.List;
 
-import com.intuit.karate.importer.KarateFeatureWriter;
-import com.intuit.karate.importer.PostmanCollectionReader;
-import com.intuit.karate.importer.PostmanRequest;
+import com.intuit.karate.convert.KarateFeatureWriter;
+import com.intuit.karate.convert.PostmanCollectionReader;
+import com.intuit.karate.convert.PostmanRequest;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;

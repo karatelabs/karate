@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.importer;
+package com.intuit.karate.convert;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;

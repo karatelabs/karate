@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.web.wicket;
 
-import com.intuit.karate.importer.KarateFeatureWriter;
-import com.intuit.karate.importer.PostmanCollectionReader;
-import com.intuit.karate.importer.PostmanRequest;
+import com.intuit.karate.convert.KarateFeatureWriter;
+import com.intuit.karate.convert.PostmanCollectionReader;
+import com.intuit.karate.convert.PostmanRequest;
 import com.intuit.karate.web.service.KarateService;
 import com.intuit.karate.web.service.KarateSession;
 import org.apache.wicket.markup.html.form.Form;

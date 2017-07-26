@@ -1,5 +1,7 @@
-package com.intuit.karate.importer;
+package com.intuit.karate.convert;
 
+import com.intuit.karate.convert.PostmanCollectionReader;
+import com.intuit.karate.convert.PostmanRequest;
 import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -16,7 +18,7 @@ public class PostmanCollectionReaderTest {
     
     @Test
     public void testReading() {
-        List<PostmanRequest> requests = PostmanCollectionReader.parse("src/test/resources/postman-echo-single.postman_collection");
+        List<PostmanRequest> requests = PostmanCollectionReader.parse("src/test/java/postman-echo-single.postman_collection");
         logger.debug("list: {}", requests);
         assertEquals(1, requests.size());
         PostmanRequest request = requests.get(0);
