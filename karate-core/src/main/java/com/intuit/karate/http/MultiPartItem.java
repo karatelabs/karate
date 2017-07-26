@@ -32,7 +32,7 @@ import com.intuit.karate.ScriptValue;
 public class MultiPartItem {
     
     private final String name;
-    private final ScriptValue value;
+    private ScriptValue value;
     private String filename;
     private String contentType;
     
@@ -48,6 +48,10 @@ public class MultiPartItem {
     public ScriptValue getValue() {
         return value;
     }
+
+    public void setValue(ScriptValue value) {
+        this.value = value;
+    }        
 
     public String getFilename() {
         return filename;

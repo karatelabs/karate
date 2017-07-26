@@ -48,12 +48,6 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-
-        <dependency>
-            <groupId>org.springframework.restdocs</groupId>
-            <artifactId>spring-restdocs-core</artifactId>
-            <version>1.2.1.RELEASE</version>
-        </dependency>
 		
     </dependencies>
 

@@ -27,20 +27,13 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.restdocs.KarateRequestConverter;
-import com.intuit.karate.restdocs.KarateResponseConverter;
-import com.intuit.karate.restdocs.KarateRestDocumentationConfigurer;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.springframework.restdocs.ManualRestDocumentation;
-import org.springframework.restdocs.RestDocumentationContext;
-import org.springframework.restdocs.generate.RestDocumentationGenerator;
 import org.w3c.dom.Node;
 
 /**
@@ -224,25 +217,6 @@ public abstract class HttpClient<T> {
             HttpResponse response = makeHttpRequest(body, startTime);
             context.logger.debug("response time in milliseconds: {}", response.getTime());
             context.updateConfigCookies(response.getCookies());
-
-            ManualRestDocumentation restDocumentation = new ManualRestDocumentation();
-            restDocumentation.beforeTest(this.getClass(), "invoke");
-            KarateRestDocumentationConfigurer configurer = new KarateRestDocumentationConfigurer(restDocumentation);
-            configurer.apply();
-
-            RestDocumentationGenerator<HttpRequest, HttpResponse> delegate =
-                    new RestDocumentationGenerator<>("sample",
-                            new KarateRequestConverter(),
-                            new KarateResponseConverter());
-
-            HashMap<String, Object> configuration = configurer.getConfiguration();
-            RestDocumentationContext restDocumentationContext = configurer.getContext();
-
-            configuration.put(RestDocumentationContext.class.getName(), restDocumentationContext);
-
-            delegate.handle(request, response, configuration);
-
-
             return response;
         } catch (Exception e) {
             long responseTime = getResponseTime(startTime);

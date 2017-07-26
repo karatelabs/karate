@@ -49,6 +49,7 @@
         <module>karate-apache</module>        
         <module>karate-junit4</module>        
         <module>karate-demo</module>
+        <module>karate-restdocs</module>
         <module>karate-mock-servlet</module>
         <module>karate-jersey</module>
         <module>karate-testng</module>
