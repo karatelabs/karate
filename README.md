@@ -43,7 +43,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
-.... | [Mock HTTP Servlet](karate-mock-servlet) | [Code Coverage](karate-demo#code-coverage-using-jacoco) | [Postman Import](karate-import) | [Web UI](karate-web)
+.... | [Mock HTTP Servlet](karate-mock-servlet) | [Code Coverage](karate-demo#code-coverage-using-jacoco) | [Postman Import](https://github.com/intuit/karate/wiki/Karate-UI#postman-import) | [KarateUI](https://github.com/intuit/karate/wiki/Karate-UI)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
 # Features
@@ -55,6 +55,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml) or Cucumber [Scenario Outline](#the-cucumber-way) tables
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
+* [Embedded UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through a script in debug mode where you can even re-play a step while editing it - a huge time-saver
 * Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and format that even supports cross-field / domain validation logic
 * Scripts can [call other scripts](#calling-other-feature-files) - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
 * Embedded JavaScript engine that allows you to build a library of [re-usable functions](#calling-javascript-functions) that suit your specific environment or organization

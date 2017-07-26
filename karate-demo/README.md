@@ -20,6 +20,7 @@ as well as demonstrate various Karate features and best-practices.
 [`call-once.feature`](src/test/java/demo/callonce/call-once.feature) | Cucumber has a [limitation](https://github.com/cucumber/cucumber-jvm/issues/515) where `Background` steps are re-run for every `Scenario` and even for every `Examples` row within a `Scenario Outline`. This is a problem when you have expensive and time-consuming HTTP calls in your 'set-up' routines. Fortunately you have an elegant work-around with Karate's [`callonce`](https://github.com/intuit/karate#callonce) keyword.
 [`polling.feature`](src/test/java/demo/polling/polling.feature) | If you need to keep polling until the response changes to something you expect, you can achieve this by combining JavaScript functions with [calling another `*feature` file](https://github.com/intuit/karate#calling-other-feature-files).
 [`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). This is useful in some situations, for example if you want to mix API-calls into a Selenium / WebDriver test.
+[`CatsUiRunner.java`](src/test/java/demo/cats/CatsUiRunner.java) | (Experimental) You can use the Karate UI to debug and step-through (even replay) each step of a test. Here is a video that shows the possibilities: [link](https://twitter.com/ptrthomas/status/889356965461217281)
 
 ## Configuration and Best Practices
 | File | Demonstrates
