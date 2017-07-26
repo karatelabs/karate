@@ -47,6 +47,7 @@ public class HeaderPanel extends BorderPane {
     private final HBox content;
     private final AppSession session;    
     private final MenuItem openFileMenuItem;
+    private final MenuItem openImportMenuItem;
     private final TextArea textContent;
     
     private String oldText;
@@ -73,10 +74,16 @@ public class HeaderPanel extends BorderPane {
         });        
         MenuBar menuBar = new MenuBar();
         Menu fileMenu = new Menu("File");
-        menuBar.getMenus().addAll(fileMenu);
-        setTop(menuBar);
-        openFileMenuItem = new MenuItem("Open");        
+        openFileMenuItem = new MenuItem("Open");
         fileMenu.getItems().addAll(openFileMenuItem);
+
+        Menu importMenu = new Menu("Import");
+        openImportMenuItem = new MenuItem("Open");
+        importMenu.getItems().addAll(openImportMenuItem);
+
+        menuBar.getMenus().addAll(fileMenu, importMenu);
+        setTop(menuBar);
+
         if (session != null) {
             Label envLabel = new Label("karate.env");
             envLabel.setPadding(new Insets(5, 0, 0, 0));
@@ -104,6 +111,10 @@ public class HeaderPanel extends BorderPane {
     
     public void setFileOpenAction(EventHandler<ActionEvent> handler) {
         openFileMenuItem.setOnAction(handler);
+    }
+
+    public void setImportOpenAction(EventHandler<ActionEvent> handler) {
+        openImportMenuItem.setOnAction(handler);
     }
     
     public void initTextContent() {
