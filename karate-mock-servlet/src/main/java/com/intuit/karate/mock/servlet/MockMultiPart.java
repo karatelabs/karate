@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.mock.servlet;
 
+import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.HttpUtils;
@@ -49,17 +50,23 @@ public class MockMultiPart implements Part {
     
     public MockMultiPart(MultiPartItem item) {
         this.item = item;
-        if (item.getValue().isNull()) {
+        ScriptValue sv = item.getValue();
+        if (sv.isNull()) {
             bytes = new byte[0];
         } else {
-            String temp = item.getValue().getAsString();
+            String temp = sv.getAsString();
             bytes = temp.getBytes();
         }
-        headers = new HashMap<>(2);
-        headers.put(CONTENT_TYPE, HttpUtils.getContentType(item.getValue()));
+        headers = new HashMap<>(2);        
+        String ct = item.getContentType();                    
+        if (ct == null) {
+            ct = HttpUtils.getContentType(sv);
+        }        
+        headers.put(CONTENT_TYPE, ct);
         String disposition = "form-data";
-        if (item.getValue().getType() == Type.INPUT_STREAM) {
-            disposition = disposition + "; filename=\"" + item.getName() + "\"";
+        String filename = item.getFilename();
+        if (filename != null) {
+            disposition = disposition + "; filename=\"" + filename + "\"";
         }
         disposition = disposition + "; name=\"" + item.getName() + "\"";
         headers.put(CONTENT_DISPOSITION, disposition);

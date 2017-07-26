@@ -27,6 +27,7 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
+import com.intuit.karate.http.MultiPartItem;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import cucumber.api.DataTable;
@@ -396,7 +397,38 @@ public class StepDefs {
     public void multiPartFormField(String name, String value) {
         multiPart(name, value);
     }
-
+    
+    private static String asString(Map<String, Object> map, String key) {
+        Object o = map.get(key);
+        return o == null ? null : o.toString();
+    }    
+    
+    @When("^multipart file (.+) = (.+)")
+    public void multiPartFile(String name, String value) {
+        name = name.trim();
+        ScriptValue sv = Script.eval(value, context);
+        if (!sv.isMapLike()) {
+            throw new RuntimeException("mutipart file value should be json");
+        }
+        Map<String, Object> map = sv.getAsMap();
+        String read = asString(map, "read");
+        if (read == null) {
+            throw new RuntimeException("mutipart file json should have a value for 'read'");
+        }
+        ScriptValue fileValue = FileUtils.readFile(read, context);        
+        MultiPartItem item = new MultiPartItem(name, fileValue);
+        String filename = asString(map, "filename");
+        if (filename == null) {
+            filename = name;
+        }
+        item.setFilename(filename);
+        String contentType = asString(map, "contentType");
+        if (contentType != null) {
+            item.setContentType(contentType);
+        }
+        request.addMultiPartItem(item);
+    }     
+    
     public void multiPart(String name, String value) {
         ScriptValue sv = Script.eval(value, context);
         request.addMultiPartItem(name, sv);

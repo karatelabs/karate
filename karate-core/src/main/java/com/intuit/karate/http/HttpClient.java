@@ -50,12 +50,12 @@ import org.w3c.dom.Node;
  */
 public abstract class HttpClient<T> {
 
-    protected static final String APPLICATION_JSON = "application/json";
-    protected static final String APPLICATION_XML = "application/xml";
-    protected static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
-    protected static final String TEXT_PLAIN = "text/plain";
-    protected static final String MULTIPART_FORM_DATA = "multipart/form-data";
-    protected static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
+    public static final String APPLICATION_JSON = "application/json";
+    public static final String APPLICATION_XML = "application/xml";
+    public static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+    public static final String TEXT_PLAIN = "text/plain";
+    public static final String MULTIPART_FORM_DATA = "multipart/form-data";
+    public static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
 
     private static final String KARATE_HTTP_PROPERTIES = "karate-http.properties";
 
@@ -188,7 +188,7 @@ public abstract class HttpClient<T> {
                 if (mediaType == null) {
                     mediaType = MULTIPART_FORM_DATA;
                 }
-                return HttpClient.this.getEntity(request.getMultiPartItems(), mediaType);
+                return getEntity(request.getMultiPartItems(), mediaType);
             } else if (request.getFormFields() != null) {
                 return getEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
             } else {

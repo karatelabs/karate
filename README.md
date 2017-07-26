@@ -1,6 +1,6 @@
 # Karate
 ## Web-Services Testing Made `Simple.`
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://karate-dsl.slack.com/shared_invite/MTU5Nzk3NzEyMTYyLTE0OTA0OTcyMzktNDkyOTg0MmMyYQ) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.intuit.karate/karate-core/badge.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert that the responses are as expected.  It makes it really easy to build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' of two JSON or XML documents without being affected by white-space or the order in which data-elements actually appear, and you can opt to ignore fields that you choose.
 
@@ -37,7 +37,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
-.... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
+.... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity) | [`multipart file`](#multipart-file)
 **Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
@@ -1144,16 +1144,24 @@ Multi-values are supported the way you would expect (e.g. for simulating check-b
 You can also dynamically set multiple fields in one step using the [`form fields`](#form-fields) keyword.
 
 ## `multipart field`
-Use this for building multipart named (form) field requests.
+Use this for building multipart named (form) field requests. This is typically combined with `multipart file` as shown below.
+
+## `multipart file`
 
  ```cucumber
-Given multipart field file = read('test.pdf')
-And multipart field fileName = 'some-name.pdf'
+Given multipart file myFile = { read: 'test.pdf', filename: 'upload-name.pdf', contentType: 'application/pdf' }
+And multipart field message = 'hello world'
 When method post
 Then status 200
 ```
 
-When 'multipart' content is involved, the `Content-Type` header defaults to `multipart/form-data`.
+Note that `multipart file` takes a JSON argument so that you can easily set the `filename` and the `contentType` (mime-type) in one step.
+
+* `read`: mandatory, - the name of a file, and the [`classpath:`](#reading-files) prefix also is allowed.
+* `filename`: optional, will default to the multipart field name if not specified
+* `contentType`: optional, will default to `application/octet-stream`
+
+When 'multipart' content is involved, the `Content-Type` header of the HTTP request defaults to `multipart/form-data`.
 You can over-ride it by using the [`header`](#header) keyword before the `method` step.  Look at
 [`multipart entity`](#multipart-entity) for an example.
 

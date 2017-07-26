@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.demo.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intuit.karate.demo.domain.FileInfo;
 import java.io.File;
 import java.util.UUID;
@@ -32,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,6 +54,8 @@ public class UploadController {
     private static final Logger logger = LoggerFactory.getLogger(UploadController.class);
 
     private static final String FILES_BASE = "target/demofiles/";
+    
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public UploadController() throws Exception {
         File file = new File(FILES_BASE);
@@ -63,12 +65,16 @@ public class UploadController {
 
     @PostMapping
     public @ResponseBody
-    FileInfo upload(@RequestParam("file") MultipartFile multipartFile, @RequestParam String name) throws Exception {
+    FileInfo upload(@RequestParam("myFile") MultipartFile file, @RequestParam("message") String message) throws Exception {
         String uuid = UUID.randomUUID().toString();
         String filePath = FILES_BASE + uuid;
-        FileUtils.copyToFile(multipartFile.getInputStream(), new File(filePath));
-        FileUtils.writeStringToFile(new File(filePath + "_meta.txt"), name, "utf-8");
-        return new FileInfo(uuid, name);
+        FileUtils.copyToFile(file.getInputStream(), new File(filePath));
+        String filename = file.getOriginalFilename();
+        String contentType = file.getContentType();
+        FileInfo fileInfo = new FileInfo(uuid, filename, message, contentType);
+        String json = mapper.writeValueAsString(fileInfo);
+        FileUtils.writeStringToFile(new File(filePath + "_meta.txt"), json, "utf-8");
+        return fileInfo;
     }
 
     @GetMapping("/{id:.+}")
@@ -76,11 +82,12 @@ public class UploadController {
         String filePath = FILES_BASE + id;
         File file = new File(filePath);
         File meta = new File(filePath + "_meta.txt");
-        String name = FileUtils.readFileToString(meta, "utf-8");
+        String json = FileUtils.readFileToString(meta, "utf-8");
+        FileInfo fileInfo = mapper.readValue(json, FileInfo.class);
         return ResponseEntity
                 .ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "\"")
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileInfo.getFilename() + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, fileInfo.getContentType())
                 .body(new FileSystemResource(file));
     }
 

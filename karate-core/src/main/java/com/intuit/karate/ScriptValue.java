@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -241,6 +242,17 @@ public class ScriptValue {
                 }
             default:
                 return value.toString();
+        }
+    }
+    
+    public InputStream getAsStream() {
+        switch (type) {
+            case NULL:
+                return null;
+            case INPUT_STREAM:
+                return getValue(InputStream.class);
+            default:
+                return new ByteArrayInputStream(getAsString().getBytes());
         }
     }
 
