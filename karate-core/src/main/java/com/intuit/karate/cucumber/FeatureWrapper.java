@@ -41,6 +41,7 @@ import org.apache.commons.io.IOUtils;
  */
 public class FeatureWrapper {
     
+    private final String path;
     private final String text;
     private final List<String> lines;
     private final CucumberFeature feature;
@@ -59,7 +60,8 @@ public class FeatureWrapper {
     public static FeatureWrapper fromFile(File file, ClassLoader classLoader) {        
         try {
             String text = FileUtils.readFileToString(file, "utf-8");
-            return new FeatureWrapper(text, ScriptEnv.init(file.getParentFile(), file.getName(), classLoader));
+            ScriptEnv env = ScriptEnv.init(file.getParentFile(), file.getName(), classLoader);
+            return new FeatureWrapper(text, env, file.getPath());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -68,20 +70,20 @@ public class FeatureWrapper {
     public static FeatureWrapper fromFile(File file, ScriptEnv env) {        
         try {
             String text = FileUtils.readFileToString(file, "utf-8");
-            return new FeatureWrapper(text, env);
+            return new FeatureWrapper(text, env, file.getPath());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }    
     
-    public static FeatureWrapper fromString(String text, ScriptEnv scriptEnv) {
-        return new FeatureWrapper(text, scriptEnv);
+    public static FeatureWrapper fromString(String text, ScriptEnv scriptEnv, String path) {
+        return new FeatureWrapper(text, scriptEnv, path);
     }
         
-    public static FeatureWrapper fromStream(InputStream is, ScriptEnv scriptEnv) {
+    public static FeatureWrapper fromStream(InputStream is, ScriptEnv scriptEnv, String path) {
         try {
             String text = IOUtils.toString(is, "utf-8");
-            return new FeatureWrapper(text, scriptEnv);
+            return new FeatureWrapper(text, scriptEnv, path);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -111,6 +113,10 @@ public class FeatureWrapper {
 
     public List<FeatureSection> getSections() {
         return featureSections;
+    } 
+
+    public String getPath() {
+        return path;
     }        
 
     public String getText() {
@@ -119,7 +125,7 @@ public class FeatureWrapper {
     
     public FeatureWrapper addLine(int index, String line) {
         lines.add(index, line);
-        return new FeatureWrapper(joinLines(), scriptEnv);
+        return new FeatureWrapper(joinLines(), scriptEnv, path);
     }
     
     public FeatureSection getSection(int sectionIndex) {
@@ -150,15 +156,16 @@ public class FeatureWrapper {
             lines.remove(start);
         }
         lines.set(start, text);
-        return new FeatureWrapper(joinLines(), scriptEnv);
+        return new FeatureWrapper(joinLines(), scriptEnv, path);
     }
 
     public FeatureWrapper removeLine(int index) {
         lines.remove(index);
-        return new FeatureWrapper(joinLines(), scriptEnv);
+        return new FeatureWrapper(joinLines(), scriptEnv, path);
     }
     
-    private FeatureWrapper(String text, ScriptEnv scriptEnv) {        
+    private FeatureWrapper(String text, ScriptEnv scriptEnv, String path) {
+        this.path = path;
         this.text = text;
         this.scriptEnv = scriptEnv;
         this.feature = CucumberUtils.parse(text);

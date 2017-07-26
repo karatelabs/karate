@@ -63,21 +63,22 @@ public class FileUtils {
         fileName = StringUtils.trim(fileName);
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
-            return eval(contents, context);
+            ScriptValue temp = eval(contents, context);
+            return new ScriptValue(temp.getValue(), text);
         } else if (isTextFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
-            return new ScriptValue(contents);
+            return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
-            FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env); // TODO determine file dir
-            return new ScriptValue(feature);
+            FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env, text);
+            return new ScriptValue(feature, text);
         } else if (isYamlFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
             DocumentContext doc = JsonUtils.fromYaml(contents);
-            return new ScriptValue(doc);
+            return new ScriptValue(doc, text);
         } else {
             InputStream is = getFileStream(fileName, isClassPath(text), context);
-            return new ScriptValue(is);
+            return new ScriptValue(is, text);
         }        
     }       
     

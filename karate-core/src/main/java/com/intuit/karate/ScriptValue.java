@@ -63,6 +63,7 @@ public class ScriptValue {
 
     private final Object value;
     private final Type type;
+    private final String source; // file this came from, for better debug / logging
 
     public Object getValue() {
         return value;
@@ -279,9 +280,14 @@ public class ScriptValue {
         }
         return (T) value;
     }
-
+    
     public ScriptValue(Object value) {
+        this(value, null);
+    } 
+
+    public ScriptValue(Object value, String source) {        
         this.value = value;
+        this.source = source;
         if (value == null) {
             type = Type.NULL;
         } else if (value instanceof DocumentContext) {
@@ -321,6 +327,9 @@ public class ScriptValue {
         StringBuilder sb = new StringBuilder();
         sb.append("[type: ").append(type);
         sb.append(", value: ").append(value);
+        if (source != null) {
+            sb.append(", source: ").append(source);
+        }
         sb.append("]");
         return sb.toString();
     }

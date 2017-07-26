@@ -1335,7 +1335,7 @@ public class Script {
                         ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg, reuseParentConfig);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "loop feature call failed in " + feature.getEnv() + ", index: " + i + ", arg: " + rowArg + ", items: " + items;
+                        String message = "loop feature call failed: " + feature.getPath() + ", caller: "+ feature.getEnv().featureName + ", index: " + i + ", arg: " + rowArg + ", items: " + items;
                         throw new KarateException(message, ke);
                     }
                 } else {
@@ -1347,7 +1347,7 @@ public class Script {
             try {
                 return evalFeatureCall(feature, context, (Map) callArg, reuseParentConfig);
             } catch (KarateException ke) {
-                String message = "feature call failed in " + feature.getEnv() + ", arg: " + callArg;
+                String message = "feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", arg: " + callArg;
                 context.logger.error(message, ke);
                 throw new KarateException(message, ke);
             }

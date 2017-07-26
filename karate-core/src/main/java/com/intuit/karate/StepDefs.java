@@ -72,7 +72,12 @@ public class StepDefs {
 
     public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg, boolean reuseParentConfig) {
         if (reuseParentConfig) {
-            context = parentContext;
+            context = parentContext; // re-use parent context
+            if (callArg != null) { // but over-ride any variables (TODO - this clobbers self)
+                for (Map.Entry<String, Object> entry : callArg.entrySet()) {
+                    context.vars.put(entry.getKey(), entry.getValue());
+                }
+            }
         } else {
             context = new ScriptContext(env, parentContext, callArg);
         }        

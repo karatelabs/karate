@@ -1,6 +1,5 @@
 package com.intuit.karate.cucumber;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptEnv;
 import java.io.File;
 import java.io.InputStream;
@@ -33,8 +32,9 @@ public class CucumberUtilsTest {
     @Test
     public void testScenario() {
         ScriptEnv env = getEnv();
-        InputStream is = getClass().getResourceAsStream("scenario.feature");
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
+        String filename = "scenario.feature";
+        InputStream is = getClass().getResourceAsStream(filename);
+        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
         List<String> lines = fw.getLines();
         printLines(lines);
         assertEquals(16, lines.size());
@@ -74,9 +74,10 @@ public class CucumberUtilsTest {
     
     @Test
     public void testScenarioOutline() {
-        InputStream is = getClass().getResourceAsStream("outline.feature");
+        String filename = "outline.feature";
+        InputStream is = getClass().getResourceAsStream(filename);
         ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
+        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
         List<String> lines = fw.getLines();
         printLines(lines);
         assertEquals(13, lines.size());
@@ -89,9 +90,10 @@ public class CucumberUtilsTest {
     
     @Test
     public void testInsert() {
-        InputStream is = getClass().getResourceAsStream("scenario.feature");
+        String filename = "scenario.feature";
+        InputStream is = getClass().getResourceAsStream(filename);
         ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
+        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
         fw = fw.addLine(9, "Then assert 2 == 2");
         List<String> lines = fw.getLines();
         printLines(lines);
@@ -101,9 +103,10 @@ public class CucumberUtilsTest {
     
     @Test
     public void testEdit() {
-        InputStream is = getClass().getResourceAsStream("scenario.feature");
+        String filename = "scenario.feature";
+        InputStream is = getClass().getResourceAsStream(filename);
         ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
+        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
         printLines(fw.getLines());
         StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(0);
         int line = step.getStartLine();        
@@ -116,9 +119,10 @@ public class CucumberUtilsTest {
 
     @Test
     public void testMultiLineEdit() {
-        InputStream is = getClass().getResourceAsStream("scenario.feature");
+        String filename = "scenario.feature";
+        InputStream is = getClass().getResourceAsStream(filename);
         ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env);
+        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
         printLines(fw.getLines());
         StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(2);        
         fw = fw.replaceStep(step, "Then assert 2 == 2");
@@ -135,7 +139,7 @@ public class CucumberUtilsTest {
     public void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
         ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromString(text, env);
+        FeatureWrapper fw = FeatureWrapper.fromString(text, env, null);
         printLines(fw.getLines());
         StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(0);
         logger.debug("step name: '{}'", step.getStep().getName());

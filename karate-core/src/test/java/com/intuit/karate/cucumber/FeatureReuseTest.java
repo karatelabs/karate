@@ -46,8 +46,24 @@ public class FeatureReuseTest {
         KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
         runner.run(reporter);
         reporter.done();
+        assertEquals(1, reporter.getJunitFormatter().getFailCount());
         String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
         assertTrue(contents.contains("assert evaluated to false: input != 4"));
     }
+    
+    @Test
+    public void testArgumentsPassedForSharedScope() throws Exception {
+        String reportPath = "target/pass.xml";
+        File file = new File("src/test/java/com/intuit/karate/cucumber/caller-shared.feature");
+        CucumberRunner runner = new CucumberRunner(file);  
+        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
+        runner.run(reporter);
+        reporter.done();
+        assertEquals(0, reporter.getJunitFormatter().getFailCount());
+        String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
+        assertTrue(contents.contains("passed"));
+    }    
+    
+
     
 }
