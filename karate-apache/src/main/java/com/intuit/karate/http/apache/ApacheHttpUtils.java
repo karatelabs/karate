@@ -25,7 +25,6 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.http.HttpBody;
-import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;

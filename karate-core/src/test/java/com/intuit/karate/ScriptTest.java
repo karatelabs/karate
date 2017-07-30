@@ -1250,11 +1250,14 @@ public class ScriptTest {
         assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[2]? _.length == 4'", ctx).pass);
         // non-root path
         Script.assign("foo", "{ ban: ['bar', 'baz'], count: 2 }", ctx);
+        Script.assign("len", "2", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[] arr'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[] (arr)'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[2] arr'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[2] (arr)'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[$.count] #string'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[foo.count] #string'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[len] #string'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.ban", null, "'#[_ < 3]'", ctx).pass);
     }
     

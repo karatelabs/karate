@@ -37,13 +37,13 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
-.... | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity) | [`multipart file`](#multipart-file)
+.... | [`multipart file`](#multipart-file) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
-.... | [Mock HTTP Servlet](karate-mock-servlet) | [Code Coverage](karate-demo#code-coverage-using-jacoco) | [Postman Import](https://github.com/intuit/karate/wiki/Karate-UI#postman-import) | [KarateUI](https://github.com/intuit/karate/wiki/Karate-UI)
+.... | [Mock HTTP Servlet](karate-mock-servlet) | [Code Coverage](karate-demo#code-coverage-using-jacoco) | [Postman Import](https://github.com/intuit/karate/wiki/Karate-UI#postman-import) | [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
 # Features
@@ -92,6 +92,8 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 * [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
 * [Karate for Complex Web-Service API Testing](https://www.slideshare.net/intuit_india/karate-for-complex-webservice-api-testing-by-peter-thomas) - slide-deck by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - a detailed tutorial by [Micha Kops](https://twitter.com/hascode) - featured on the [Semaphore CI](https://twitter.com/semaphoreci) site
+
+You can find more links at the [community wiki](https://github.com/intuit/karate/wiki/Community-News).
 
 # Getting Started
 Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and [Maven](http://maven.apache.org) to be installed.
@@ -1630,6 +1632,9 @@ But first, a special short-cut for array validation needs to be introduced:
 # should be an array of strings with size 2
 * match foo == '#[2] #string'
 
+# each array element should have a 'length' property with value 3
+* match foo == '#[]? _.length == 3'
+
 # should be an array of strings each of length 3
 * match foo == '#[] #string? _.length == 3'
 
@@ -1865,9 +1870,10 @@ Here is an example JavaScript function that uses some variables in the context (
 
 ```javascript
 function() {
-  var out = { // hard-coded here, but you can dynamically generate these values if needed
-    txid_header: '1e2bd51d-a865-4d37-9ac9-c345dc59119b',
-    ip_header: '123.45.67.89',    
+  var uuid = '' + java.util.UUID.randomUUID(); // convert to string
+  var out = { // so now the txid_header would be a unique uuid for each request
+    txid_header: uuid,
+    ip_header: '123.45.67.89', // hard coded here, but also can be as dynamic as you want   
   };
   var authString = '';
   var authToken = karate.get('authToken'); // use the 'karate' helper to do a 'safe' get of a 'dynamic' variable
@@ -1877,8 +1883,8 @@ function() {
         + ',auth_user=' + authToken.userId
         + ',auth_project=' + authToken.projectId;
   }
-  // the 'appId' variable here is expected to have been set via config / init and will never change
-  out.Authorization = 'My_Auth app_id=' + appId + authString;
+  // the 'appId' variable here is expected to have been set via karate-config.js (bootstrap init) and will never change
+  out['Authorization'] = 'My_Auth app_id=' + appId + authString;
   return out;
 }
 ```
@@ -1958,10 +1964,10 @@ Here is an example that combines the [`table`](#table) keyword with calling a `*
 
 ```cucumber
 * table kittens = 
-    | name     | age |
-    | Bob      | 2   |
-    | Wild     | 1   |
-    | Nyan     | 3   |
+    | name   | age |
+    | 'Bob'  |   2 |
+    | 'Wild' |   1 |
+    | 'Nyan' |   3 |
 
 * def result = call read('cat-create.feature') kittens
 * def created = get result[*].response
