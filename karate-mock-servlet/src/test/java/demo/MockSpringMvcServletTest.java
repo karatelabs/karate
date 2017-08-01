@@ -43,7 +43,8 @@ public class MockSpringMvcServletTest {
         File srcDir = new File("../karate-demo/src/test/java");
         File destDir = new File("target/test-classes");
         // don't over-write karate-config.js
-        FileUtils.copyDirectory(srcDir, destDir, f -> !f.getName().equals("karate-config.js"), false);
+        FileUtils.copyDirectory(srcDir, destDir, 
+                f -> !f.getName().equals("karate-config.js") && !f.getName().equals("sign-in.feature"), false);
         System.setProperty("karate.env", "dev-mock-springmvc");
         KarateStats stats = CucumberRunner.parallel(getClass(), 5);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);

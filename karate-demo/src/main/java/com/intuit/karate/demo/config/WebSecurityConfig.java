@@ -21,40 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.controller;
+package com.intuit.karate.demo.config;
 
-import com.intuit.karate.demo.domain.SignIn;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.WebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
 /**
  *
  * @author pthomas3
  */
-@RestController
-@RequestMapping("/signin")
-public class SignInController {
+ @Configuration
+public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.csrf().ignoringAntMatchers("/cats/**", "/files");
+    }
     
-    @GetMapping
-    public String getCsrfToken(HttpServletRequest request) {
-        CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-        return token.getToken();
-    }
-
-    @PostMapping
-    public String greetingSubmit(@ModelAttribute SignIn signin) {
-        if (signin.getUsername().equals("john") && signin.getPassword().equals("secret")) {
-            return "success";
-        } else {
-            return "failure";
-        }
-    }
-
 }
