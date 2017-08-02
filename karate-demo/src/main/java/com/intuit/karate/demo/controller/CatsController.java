@@ -27,6 +27,7 @@ import com.intuit.karate.demo.domain.Cat;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -66,6 +67,20 @@ public class CatsController {
     @GetMapping("/{id:.+}/kittens")
     public Collection<Cat> getKittens(@PathVariable int id) {
         return cats.get(id).getKittens();
+    } 
+    
+    @DeleteMapping("/{id:.+}")
+    public void delete(@PathVariable int id) {        
+        Cat cat = cats.remove(id);
+        if (cat == null) {
+            throw new RuntimeException("cat not found, id: " + id);
+        }
+    }
+
+    @DeleteMapping
+    public void deleteWithBody(@RequestBody Cat cat) {
+        int id = cat.getId();
+        delete(id);
     }    
     
 }

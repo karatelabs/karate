@@ -47,6 +47,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
+import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.HttpUrlConnectorProvider;
 import org.glassfish.jersey.media.multipart.BodyPart;
@@ -67,7 +68,11 @@ public class JerseyHttpClient extends HttpClient<Entity> {
 
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
+        ClientConfig cc = new ClientConfig();
+        // support request body for DELETE (non-standard)
+        cc.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true);        
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
+                .withConfig(cc)
                 .register(new LoggingInterceptor(context.logger)) // must be first
                 .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
