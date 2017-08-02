@@ -143,6 +143,38 @@ public class ScriptValue {
                 throw new RuntimeException("cannot convert to list: " + this);
         }
     }
+    
+    public boolean isJsonLike() {
+        switch (type) {
+            case JSON:
+            case MAP:
+            case JS_OBJECT:    
+            case JS_ARRAY:
+            case LIST:
+                return true;
+            default:
+                return false;
+        }
+    }
+    
+    public DocumentContext getAsJsonDocument() {
+        switch (type) {
+            case JSON:
+                return getValue(DocumentContext.class);
+            case JS_ARRAY: // happens for json resulting from nashorn
+                ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
+                return JsonPath.parse(som.values());
+            case JS_OBJECT: // is a map-like object, happens for json resulting from nashorn
+            case MAP: // this happens because some jsonpath operations result in Map
+                Map<String, Object> map = getValue(Map.class);
+                return JsonPath.parse(map);
+            case LIST: // this also happens because some jsonpath operations result in List
+                List list = getValue(List.class);
+                return JsonPath.parse(list);
+            default:
+                throw new RuntimeException("cannot convert to json: " + this);
+        }
+    }
 
     public boolean isMapLike() {
         switch (type) {

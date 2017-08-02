@@ -7,6 +7,12 @@ Scenario: arrays returned from js can be used in match
 * def expected = fun()
 * match json == expected
 
+Scenario: arrays returned from js can be modified using 'set'
+* def fun = function(){ return [{a: 1}, {a: 2}, {b: 3}] }
+* def json = fun()
+* set json[1].a = 5
+* match json == [{a: 1}, {a: 5}, {b: 3}]
+
 Scenario: json-path can be performed in js
 * def json = [{foo: 1}, {foo: 2}]
 * def fun = function(arg) { return karate.jsonPath(arg, '$[*].foo') }

@@ -50,7 +50,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -916,20 +915,11 @@ public class Script {
         DocumentContext actualDoc;
         switch (actual.getType()) {
             case JSON:
-                actualDoc = actual.getValue(DocumentContext.class);
-                break;
-            case JS_ARRAY: // happens for json resulting from nashorn
-                ScriptObjectMirror som = actual.getValue(ScriptObjectMirror.class);
-                actualDoc = JsonPath.parse(som.values());
-                break;
-            case JS_OBJECT: // is a map-like object, happens for json resulting from nashorn
-            case MAP: // this happens because some jsonpath operations result in Map
-                Map<String, Object> map = actual.getValue(Map.class);
-                actualDoc = JsonPath.parse(map);
-                break;
-            case LIST: // this also happens because some jsonpath operations result in List
-                List list = actual.getValue(List.class);
-                actualDoc = JsonPath.parse(list);
+            case JS_ARRAY:
+            case JS_OBJECT:
+            case MAP:
+            case LIST:
+                actualDoc = actual.getAsJsonDocument();
                 break;
             case XML: // auto convert !
                 actualDoc = XmlUtils.toJsonDoc(actual.getValue(Node.class));
@@ -1219,14 +1209,12 @@ public class Script {
             ScriptValue target = context.vars.get(name);
             switch (target.getType()) {
                 case JSON:
-                    DocumentContext dc = target.getValue(DocumentContext.class);
-                    JsonUtils.setValueByPath(dc, path, value.getAfterConvertingFromJsonOrXmlIfNeeded(), delete);
-                    break;
                 case MAP:
-                    Map<String, Object> map = target.getValue(Map.class);
-                    DocumentContext fromMap = JsonPath.parse(map);
-                    JsonUtils.setValueByPath(fromMap, path, value.getAfterConvertingFromJsonOrXmlIfNeeded(), delete);
-                    context.vars.put(name, fromMap);
+                case JS_OBJECT:    
+                case JS_ARRAY:
+                case LIST:
+                    DocumentContext dc = target.getAsJsonDocument();
+                    JsonUtils.setValueByPath(dc, path, value.getAfterConvertingFromJsonOrXmlIfNeeded(), delete);
                     break;
                 default:
                     throw new RuntimeException("cannot set json path on unexpected type: " + target);

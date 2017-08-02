@@ -1095,6 +1095,15 @@ public class ScriptTest {
         ScriptValue c = Script.evalJsonPathOnVarByName("foo", "$[0].c", ctx);
         assertEquals(100, c.getValue());
     }
+    
+    @Test
+    public void testSetOnJsonArrayCreatedByJavaScript() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return [{a: 1}, {a: 2}, {b: 3}] }", ctx);
+        Script.assign("json", "call fun", ctx);
+        Script.setValueByPath("json[1].a", null, "5", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "[{a: 1}, {a: 5}, {b: 3}]", ctx).pass);
+    }    
 
     @Test
     public void testGetSyntaxForJson() {
