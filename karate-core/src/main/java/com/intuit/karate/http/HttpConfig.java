@@ -64,6 +64,7 @@ public class HttpConfig {
         cookies = parent.cookies;
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
+        printEnabled = parent.printEnabled;        
         clientClass = parent.clientClass;
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
