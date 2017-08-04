@@ -220,6 +220,10 @@ If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you shoul
 
 If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time.
 
+### Troubleshooting Cucumber IDE Support
+* On Eclipse you may see warnings such as `Step 'xxx' does not have a matching glue code` and on IntelliJ: `Unimplemented substep definition`. Refer to [this ticket](https://github.com/intuit/karate/issues/90) on how to solve this.
+* On IntelliJ you may run into issues if JavaFX is not installed by default (e.g. on Ubuntu). Refer to [this ticket](https://github.com/intuit/karate/issues/124#issuecomment-320212727) for solutions.
+
 ## Running With JUnit
 To run a script `*.feature` file from your Java IDE, you just need the following empty test-class in the same package. The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package. This comes in useful because depending on how you organize your files and folders - you can have multiple feature files executed by a single JUnit test-class.
 
