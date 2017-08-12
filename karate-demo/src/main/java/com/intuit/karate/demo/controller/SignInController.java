@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -40,15 +41,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/signin")
 public class SignInController {
     
-    @GetMapping
+    @GetMapping("/token")
     public String getCsrfToken(HttpServletRequest request) {
         CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
         return token.getToken();
     }
 
     @PostMapping
-    public String greetingSubmit(@ModelAttribute SignIn signin) {
-        if (signin.getUsername().equals("john") && signin.getPassword().equals("secret")) {
+    public String signInPost(@ModelAttribute SignIn signin) {
+        if ("john".equals(signin.getUsername()) && "secret".equals(signin.getPassword())) {
+            return "success";
+        } else {
+            return "failure";
+        }
+    }
+    
+    @GetMapping
+    public String signInGet(@RequestParam String username, @RequestParam String password) {
+        if ("john".equals(username) && "secret".equals(password)) {
             return "success";
         } else {
             return "failure";

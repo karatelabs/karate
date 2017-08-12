@@ -184,7 +184,7 @@ public abstract class HttpClient<T> {
                 return getEntity(request.getMultiPartItems(), mediaType);
             } else if (request.getFormFields() != null) {
                 return getEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
-            } else {
+            } else {               
                 ScriptValue body = request.getBody();
                 if ((body == null || body.isNull())) {
                     if ("DELETE".equals(method)) {
@@ -200,6 +200,11 @@ public abstract class HttpClient<T> {
                 return getEntityInternal(body, mediaType);
             }
         } else {
+            if (request.getFormFields() != null) { // not POST, move form-fields to params
+                for (Map.Entry<String, List> entry : request.getFormFields().entrySet()) {
+                    buildParam(entry.getKey(), entry.getValue().toArray());
+                }
+            }             
             return null;
         }
     }
