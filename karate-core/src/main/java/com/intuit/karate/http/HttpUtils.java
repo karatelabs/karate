@@ -107,8 +107,8 @@ public class HttpUtils {
             String name = item.getName();
             if (name != null) {
                 sb.append("Content-Disposition: form-data");
-                if (sv.getType() == Type.INPUT_STREAM) {
-                    sb.append("; filename=\"").append(name).append("\"");
+                if (item.getFilename() != null) {
+                    sb.append("; filename=\"").append(item.getFilename()).append("\"");
                 }
                 sb.append("; name=\"").append(name).append("\"");
                 sb.append("\r\n");

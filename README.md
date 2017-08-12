@@ -1042,10 +1042,8 @@ Lower-case is fine.
 ```cucumber
 When method post
 ```
-It is worth internalizing that during test-execution, it is upon the `method` keyword that the actual HTTP request is issued.  Which suggests that the step should be in the `When`
-form, for e.g.: `When method post`. And steps that follow should logically be in the `Then` form.
+It is worth internalizing that during test-execution, it is upon the `method` keyword that the actual HTTP request is issued. Which suggests that the step should be in the `When` form, for example: `When method post`. And steps that follow should logically be in the `Then` form.
 
-For example:
 ```cucumber
 When method get
 # the step that immediately follows the above would typically be:
