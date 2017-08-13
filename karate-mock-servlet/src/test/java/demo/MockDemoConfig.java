@@ -24,6 +24,7 @@
 package demo;
 
 import com.intuit.karate.demo.controller.CatsController;
+import com.intuit.karate.demo.controller.EncodingController;
 import com.intuit.karate.demo.controller.GreetingController;
 import com.intuit.karate.demo.controller.HeadersController;
 import com.intuit.karate.demo.controller.SearchController;
@@ -75,6 +76,11 @@ public class MockDemoConfig {
     @Bean
     public UploadController uploadController() throws Exception {
         return new UploadController();
-    }        
+    }
+    
+    @Bean
+    public EncodingController encodingController() {
+        return new EncodingController();
+    }
     
 }

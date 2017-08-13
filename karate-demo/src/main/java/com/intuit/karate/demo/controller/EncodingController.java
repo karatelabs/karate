@@ -21,33 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package demo;
+package com.intuit.karate.demo.controller;
 
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
-import cucumber.api.CucumberOptions;
-import java.io.File;
-import org.apache.commons.io.FileUtils;
-import static org.junit.Assert.assertTrue;
-import org.junit.Test;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = {"~@ignore"})
-public class MockSpringMvcServletTest {
-    
-    @Test
-    public void testSpringBootDemo() throws Exception {        
-        File srcDir = new File("../karate-demo/src/test/java");
-        File destDir = new File("target/test-classes");
-        // don't over-write karate-config.js, and the csrf TODO support filters
-        FileUtils.copyDirectory(srcDir, destDir, 
-                f -> !f.getName().equals("karate-config.js") && !f.getName().equals("sign-in.feature"), false);
-        System.setProperty("karate.env", "dev-mock-springmvc");
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);
+@RestController
+@RequestMapping("/encoding")
+public class EncodingController {
+
+    @RequestMapping("/{token:.+}")
+    public String greeting(@PathVariable String token) {
+        return token;
     }
-    
+
 }

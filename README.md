@@ -387,7 +387,7 @@ The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-us
 console logging may be too verbose for your needs.
 
 Karate uses [LOGBack](http://logback.qos.ch) which looks for a file called logback-test.xml 
-on the classpath.  If you use the Maven `<test-resources>` tweak described earlier (recommended), 
+on the classpath.  If you use the Maven `<test-resources>` tweak [described earlier](#folder-structure) (recommended), 
 keep this file in `src/test/java`, or else it should go into `src/test/resources`.  
 
 Here is a sample `logback-test.xml` for you to get started.
@@ -511,7 +511,7 @@ Feature: brief description of what is being tested
     more lines of description if needed.
 
 Background:
-# steps here are expecuted before each Scenario in this file
+# steps here are executed before each Scenario in this file
 
 Scenario: brief description of this scenario
 # steps for this scenario
