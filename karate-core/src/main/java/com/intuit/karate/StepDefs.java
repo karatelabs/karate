@@ -329,6 +329,12 @@ public class StepDefs {
         handleFailure(ar);
     }
 
+    @When("^assertexpression (.+)")
+    public void assertExpressionBoolean(String expression) {
+        expression = Script.eval(expression, context).getAsString();
+        asssertBoolean(expression);
+    }
+
     @When("^method (\\w+)")
     public void method(String method) {
         request.setMethod(method);
