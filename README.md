@@ -88,10 +88,10 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 
 ## References
 * [Karate a REST Test Tool – Basic API Testing](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) - blog post and video tutorial by [Joe Colantonio](https://twitter.com/jcolantonio)
-* [Writing BDD-Style Webservice Tests with Karate and Java](http://www.hascode.com/2017/04/behavior-driven-development-writing-webservice-tests-with-java-and-karate/) - blog post and step-by-step tutorial by [Micha Kops](https://twitter.com/hascode)
 * [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
 * [Karate for Complex Web-Service API Testing](https://www.slideshare.net/intuit_india/karate-for-complex-webservice-api-testing-by-peter-thomas) - slide-deck by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - a detailed tutorial by [Micha Kops](https://twitter.com/hascode) - featured on the [Semaphore CI](https://twitter.com/semaphoreci) site
+* [5 top open-source API testing tools: How to choose](https://techbeacon.com/5-top-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
 
 You can find more links at the [community wiki](https://github.com/intuit/karate/wiki/Community-News).
 
@@ -143,7 +143,7 @@ This will create a folder called 'myproject' (or whatever you set the name to).
 
 You can refer to this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse. Also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
 
-Another blog post which is a good step-by-step reference is [this one by Micha Kops](http://www.hascode.com/2017/04/behavior-driven-development-writing-webservice-tests-with-java-and-karate/) - especially if you use the 'default' maven folder structure instead of the one recommended below.
+Another blog post which is a good step-by-step reference is [this one by Micha Kops](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - especially if you use the 'default' maven folder structure instead of the one recommended below.
 
 ## Folder Structure
 A Karate test script has the file extension `.feature` which is the standard followed by Cucumber.  You are free to organize your files using regular Java package conventions.
@@ -1105,7 +1105,7 @@ A common need is to send the same header(s) for _every_ request, and [`configure
 * configure headers = { 'Content-Type': 'application/xml' }
 ```
 
-> Note: in this example above, `Content-Type` had to be enclosed in quotes because the hyphen `-` is not a legal JSON key-name.
+> Note: in this example above, `Content-Type` had to be enclosed in quotes because the hyphen `-` would cause problems otherwise.
 
 If you need headers to be dynamically generated for each HTTP request, use a JavaScript function with [`configure headers`](#configure-headers) instead of JSON.
 
