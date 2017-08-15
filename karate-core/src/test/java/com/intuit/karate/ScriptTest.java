@@ -1342,4 +1342,15 @@ public class ScriptTest {
         assertEquals("bar bar bar", Script.replacePlaceholderText("<foo> <foo> <foo>", "foo", "'bar'", ctx));
     }
     
+    @Test
+    public void testEvalFromJs() {
+        ScriptContext ctx = getContext();
+        Script.assign("temperature", "{ celsius: 100, fahrenheit: 212 }", ctx);
+        Script.assign("res", "karate.eval('temperature.celsius')", ctx);
+        Script.assign("bool", "karate.eval('temperature.celsius == 100')", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "100", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "bool", null, "true", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "temperature.fahrenheit", null, "karate.eval('temperature.celsius * 1.8 + 32')", ctx).pass);
+    }
+    
 }

@@ -131,6 +131,11 @@ public class ScriptBridge {
         }        
     }
     
+    public Object eval(String exp) {
+        ScriptValue sv = Script.evalInNashorn(exp, context);
+        return sv.getValue();
+    }
+    
     public String getEnv() {
         return context.env.env;
     }

@@ -2016,7 +2016,7 @@ Operation | Description
 `karate.set(name, path, value)` | this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L78), and it behaves the same way as the [`set`](#set) keyword.
 `karate.remove(name, path)` | similar to the above, again very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 `karate.get(name)` | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
-`karate.jsonPath(json, expression)` | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS. You can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+`karate.jsonPath(json, expression)` | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 `karate.read(filename)` | read from a file, behaves exactly like [`read`](#reading-files)
 `karate.log(... args)` | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
 `karate.pretty(value)` | return a 'pretty-printed', nicely indented string representation of the JSON value, ideal for using in [`print`](#print) statements
@@ -2026,6 +2026,7 @@ Operation | Description
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
 `karate.toBean(json, className)` | converts a JSON string or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
+`karate.eval(expression)` | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 
 ### Rules for Passing Data to the JavaScript Function
 Only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.

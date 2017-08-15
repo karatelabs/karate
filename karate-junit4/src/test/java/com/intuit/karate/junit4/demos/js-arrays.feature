@@ -68,3 +68,11 @@ Scenario: comparing 2 payloads
 * def foo = { hello: 'world', baz: 'ban' }
 * def bar = { baz: 'ban', hello: 'world' }
 * match foo == bar
+
+Scenario: js eval
+* def temperature = { celsius: 100, fahrenheit: 212 }
+* string expression = 'temperature.celsius'
+* def celsius = karate.eval(expression)
+* assert celsius == 100
+* string expression = 'temperature.celsius * 1.8 + 32'
+* match temperature.fahrenheit == karate.eval(expression)
