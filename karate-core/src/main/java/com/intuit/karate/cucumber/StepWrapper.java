@@ -26,8 +26,8 @@ package com.intuit.karate.cucumber;
 import cucumber.runtime.Glue;
 import cucumber.runtime.StepDefinitionMatch;
 import cucumber.runtime.model.CucumberFeature;
-import gherkin.formatter.model.DataTableRow;
 import gherkin.formatter.model.DocString;
+import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Step;
 import org.apache.commons.lang3.StringUtils;
 
@@ -123,15 +123,27 @@ public class StepWrapper {
         return getEndLine() - getStartLine() + 1;
     }
 
-    public StepResult run(KarateBackend backend) {
+    public StepResult run(KarateBackend backend, KarateReporter reporter) {
         FeatureWrapper wrapper = scenario.getFeature();
         CucumberFeature feature = wrapper.getFeature();
         Glue glue = backend.getGlue();
         StepDefinitionMatch match = glue.stepDefinitionMatch("", step, feature.getI18n());
-        try {
+        if (reporter != null) {
+            reporter.step(step);
+            reporter.match(match);            
+        }
+        try {            
             match.runStep(feature.getI18n());
-            return new StepResult(this, null);
+            if (reporter != null) {
+                Result result = new Result(Result.PASSED, 0L, null, new Object());
+                reporter.result(result);                
+            }
+            return new StepResult(this, null);            
         } catch (Throwable t) {
+            if (reporter != null) {
+                Result result = new Result(Result.FAILED, 0L, t, new Object());
+                reporter.result(result);
+            }
             wrapper.getEnv().logger.error("step failed: {}", t.getMessage());
             return new StepResult(this, t);
         }

@@ -61,7 +61,7 @@ public class AppSessionTest {
     
     private static void call(ScenarioWrapper scenario, KarateBackend backend) {
         for (StepWrapper step : scenario.getSteps()) {
-            StepResult result = step.run(backend);            
+            StepResult result = step.run(backend, null);            
             if (!result.isPass()) {
                 ScriptEnv env = scenario.getFeature().getEnv();
                 throw new RuntimeException("failed: " + env, result.getError());

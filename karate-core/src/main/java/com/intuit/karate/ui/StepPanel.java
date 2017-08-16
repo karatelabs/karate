@@ -85,7 +85,7 @@ public class StepPanel extends AnchorPane {
     
     private void run() {
         rebuildFeatureIfTextChanged();
-        StepResult result = step.run(session.backend);
+        StepResult result = step.run(session.backend, null);
         pass = result.isPass();
         initStyleColor();
         session.refreshVarsTable();

@@ -169,7 +169,7 @@ public class StepPanel extends Panel {
                 KarateSession session = service.getSession(model.getSessionId());
                 StepWrapper step = model.getObject();
                 KarateBackend backend = session.getBackend();
-                StepResult result = step.run(backend);
+                StepResult result = step.run(backend, null);
                 pass = result.isPass();
                 target.add(this);
             }
