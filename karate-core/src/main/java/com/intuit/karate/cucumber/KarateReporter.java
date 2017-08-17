@@ -47,6 +47,19 @@ public class KarateReporter implements Formatter, Reporter {
     private final KarateJunitFormatter junit;
     private final CucumberJSONFormatter json;
     
+    private static final Object DUMMY_OBJECT = new Object();
+    public static final Result PASSED = new Result(Result.PASSED, 0L, null, DUMMY_OBJECT);
+
+    public static Result failed(Throwable t) {
+        return new Result(Result.FAILED, 0L, t, DUMMY_OBJECT);
+    }
+
+    public void step(String text) {
+        Step step = new Step(null, "* ", text, 0, null, null);
+        step(step);
+        result(PASSED);
+    }
+    
     public KarateJunitFormatter getJunitFormatter() {
         return junit;
     }

@@ -27,6 +27,7 @@ import com.intuit.karate.exception.KarateException;
 import static com.intuit.karate.ScriptValue.Type.*;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.cucumber.KarateReporter;
 import com.intuit.karate.validator.ArrayValidator;
 import com.intuit.karate.validator.BooleanValidator;
 import com.intuit.karate.validator.IgnoreValidator;
@@ -41,6 +42,7 @@ import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import cucumber.runtime.StepDefinitionMatch;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -1310,6 +1312,14 @@ public class Script {
             throw new KarateException(message, e);
         }
     }
+    
+    private static void reportFeatureCall(FeatureWrapper feature, ScriptContext context, int index) {
+        ScriptEnv env = context.getEnv();
+        if (env.reporter != null) {            
+            String suffix = index == -1 ? " " : "[" + index + "] ";
+            env.reporter.step("#call" + suffix + feature.getPath());            
+        }
+    }
 
     public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {
         if (callArg instanceof Collection) { // JSON array
@@ -1320,7 +1330,7 @@ public class Script {
                 Object rowArg = array[i];
                 if (rowArg instanceof Map) {
                     try {
-                        ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg, reuseParentConfig);
+                        ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg, reuseParentConfig, i);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
                         String message = "loop feature call failed: " + feature.getPath() + ", caller: "+ feature.getEnv().featureName + ", index: " + i + ", arg: " + rowArg + ", items: " + items;
@@ -1331,9 +1341,9 @@ public class Script {
                 }
             }
             return new ScriptValue(result);
-        } else if (callArg == null || callArg instanceof Map) {
+        } else if (callArg == null || callArg instanceof Map) {            
             try {
-                return evalFeatureCall(feature, context, (Map) callArg, reuseParentConfig);
+                return evalFeatureCall(feature, context, (Map) callArg, reuseParentConfig, -1);
             } catch (KarateException ke) {
                 String message = "feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", arg: " + callArg;
                 context.logger.error(message, ke);
@@ -1345,7 +1355,8 @@ public class Script {
     }
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
-            Map<String, Object> callArg, boolean reuseParentConfig) {
+            Map<String, Object> callArg, boolean reuseParentConfig, int index) {
+        reportFeatureCall(feature, context, index);
         ScriptValueMap svm = CucumberUtils.call(feature, context, callArg, reuseParentConfig);
         Map<String, Object> map = simplify(svm);
         return new ScriptValue(map);

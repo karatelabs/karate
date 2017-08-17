@@ -27,7 +27,6 @@ import cucumber.runtime.Glue;
 import cucumber.runtime.StepDefinitionMatch;
 import cucumber.runtime.model.CucumberFeature;
 import gherkin.formatter.model.DocString;
-import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Step;
 import org.apache.commons.lang3.StringUtils;
 
@@ -122,7 +121,7 @@ public class StepWrapper {
     public int getLineCount() {
         return getEndLine() - getStartLine() + 1;
     }
-
+    
     public StepResult run(KarateBackend backend, KarateReporter reporter) {
         FeatureWrapper wrapper = scenario.getFeature();
         CucumberFeature feature = wrapper.getFeature();
@@ -135,14 +134,12 @@ public class StepWrapper {
         try {            
             match.runStep(feature.getI18n());
             if (reporter != null) {
-                Result result = new Result(Result.PASSED, 0L, null, new Object());
-                reporter.result(result);                
+                reporter.result(KarateReporter.PASSED);                
             }
             return new StepResult(this, null);            
         } catch (Throwable t) {
             if (reporter != null) {
-                Result result = new Result(Result.FAILED, 0L, t, new Object());
-                reporter.result(result);
+                reporter.result(KarateReporter.failed(t));
             }
             wrapper.getEnv().logger.error("step failed: {}", t.getMessage());
             return new StepResult(this, t);
