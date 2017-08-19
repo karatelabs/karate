@@ -64,6 +64,17 @@ public class FeatureReuseTest {
         assertTrue(contents.contains("passed"));
     }    
     
-
+    @Test
+    public void testCallerTwo() throws Exception {
+        String reportPath = "target/pass2.xml";
+        File file = new File("src/test/java/com/intuit/karate/cucumber/caller_2.feature");
+        CucumberRunner runner = new CucumberRunner(file);  
+        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
+        runner.run(reporter);
+        reporter.done();
+        assertEquals(0, reporter.getJunitFormatter().getFailCount());
+        String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
+        assertTrue(contents.contains("passed"));
+    } 
     
 }

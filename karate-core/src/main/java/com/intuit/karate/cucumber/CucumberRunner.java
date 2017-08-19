@@ -26,8 +26,6 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
-import cucumber.runtime.Backend;
-import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeGlue;
 import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.RuntimeOptionsFactory;
@@ -39,7 +37,6 @@ import cucumber.runtime.model.CucumberFeature;
 import cucumber.runtime.xstream.LocalizedXStreams;
 import gherkin.formatter.Formatter;
 import java.io.File;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -110,7 +107,7 @@ public class CucumberRunner {
         return classLoader;
     }
 
-    public Runtime getRuntime(CucumberFeature feature) {
+    public KarateRuntime getRuntime(CucumberFeature feature) {
         return getRuntime(new FeatureFile(feature, new File(feature.getPath())), null);
     }
 
@@ -120,7 +117,7 @@ public class CucumberRunner {
      * in the flow below, the ScriptEnv, the Backend and the ObjectFactory used
      * by the backend are created fresh for each Feature file (and not re-used)
      */
-    public Runtime getRuntime(FeatureFile featureFile, KarateReporter reporter) {
+    public KarateRuntime getRuntime(FeatureFile featureFile, KarateReporter reporter) {
         File packageFile = featureFile.file;
         String featurePath;
         if (packageFile.exists()) { // loaded by karate
@@ -132,9 +129,9 @@ public class CucumberRunner {
         logger.debug("loading feature: {}", featurePath);
         File featureDir = new File(featurePath).getParentFile();
         ScriptEnv env = new ScriptEnv(null, featureDir, packageFile.getName(), classLoader, reporter);
-        Backend backend = new KarateBackend(env, null, null, false);
+        KarateBackend backend = new KarateBackend(env, null, null, false);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
-        return new Runtime(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, StopWatch.SYSTEM, glue);
+        return new KarateRuntime(resourceLoader, classLoader, backend, runtimeOptions, glue);
     }
 
     // only called for TestNG ?
@@ -145,7 +142,7 @@ public class CucumberRunner {
     }
 
     public void run(FeatureFile featureFile, KarateReporter reporter) {
-        Runtime runtime = getRuntime(featureFile, reporter);
+        KarateRuntime runtime = getRuntime(featureFile, reporter);
         featureFile.feature.run(reporter, reporter, runtime);
     }
 

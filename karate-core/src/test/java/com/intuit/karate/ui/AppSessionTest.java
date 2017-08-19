@@ -23,13 +23,11 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureSection;
 import com.intuit.karate.cucumber.KarateBackend;
 import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
 import com.intuit.karate.cucumber.ScenarioWrapper;
-import com.intuit.karate.cucumber.StepResult;
-import com.intuit.karate.cucumber.StepWrapper;
 import java.io.File;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -60,14 +58,7 @@ public class AppSessionTest {
     }
     
     private static void call(ScenarioWrapper scenario, KarateBackend backend) {
-        for (StepWrapper step : scenario.getSteps()) {
-            StepResult result = step.run(backend, null);            
-            if (!result.isPass()) {
-                ScriptEnv env = scenario.getFeature().getEnv();
-                throw new RuntimeException("failed: " + env, result.getError());
-            }
-            logger.debug("passed: {} - {}", result.isPass(), result.getStep().getText());
-        }
+        CucumberUtils.call(scenario, backend);
     }    
     
 }

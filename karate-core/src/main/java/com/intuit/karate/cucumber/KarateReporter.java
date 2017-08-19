@@ -23,10 +23,12 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.JsonUtils;
 import cucumber.runtime.formatter.CucumberJSONFormatter;
 import gherkin.formatter.Formatter;
 import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Background;
+import gherkin.formatter.model.DocString;
 import gherkin.formatter.model.Examples;
 import gherkin.formatter.model.Feature;
 import gherkin.formatter.model.Match;
@@ -37,38 +39,63 @@ import gherkin.formatter.model.Step;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  *
  * @author pthomas3
  */
 public class KarateReporter implements Formatter, Reporter {
-    
+
     private final KarateJunitFormatter junit;
     private final CucumberJSONFormatter json;
-    
-    private static final Object DUMMY_OBJECT = new Object();
-    public static final Result PASSED = new Result(Result.PASSED, 0L, null, DUMMY_OBJECT);
+    private final ReporterLogAppender logAppender;
 
-    public static Result failed(Throwable t) {
-        return new Result(Result.FAILED, 0L, t, DUMMY_OBJECT);
+    public static final Object DUMMY_OBJECT = new Object();
+
+    public static Result passed(long time) {
+        return new Result(Result.PASSED, time, null, DUMMY_OBJECT);
     }
 
-    public void step(String text) {
-        Step step = new Step(null, "* ", text, 0, null, null);
-        step(step);
-        result(PASSED);
+    public static Result failed(long time, Throwable t) {
+        return new Result(Result.FAILED, null, t, DUMMY_OBJECT);
     }
-    
+
+    public void call(FeatureWrapper feature, int index, Map<String, Object> arg) {
+        DocString docString = null;
+        if (arg != null) {
+            String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(arg));
+            docString = new DocString("", json, 0);
+        }
+        String suffix = index == -1 ? " " : "[" + index + "] ";
+        Step step = new Step(null, "* ", "call" + suffix + feature.getPath(), 0, null, docString);
+        karateStep(step);
+        match(Match.UNDEFINED);
+        result(passed(0L));
+    }
+
+    // see the step() method for an explanation of this hack
+    public void karateStep(Step step) {
+        if (step.getDocString() == null) {
+            String log = logAppender.collect();
+            DocString docString = log.isEmpty() ? null : new DocString("", log, step.getLine());
+            step = new Step(step.getComments(), step.getKeyword(), step.getName(), step.getLine(), step.getRows(), docString);
+        }
+        junit.step(step);
+        json.step(step);
+    }
+
     public KarateJunitFormatter getJunitFormatter() {
         return junit;
     }
-    
+
     public KarateReporter(String featurePath, String reportPath) throws IOException {
         junit = new KarateJunitFormatter(featurePath, reportPath);
         String jsonReportPath = reportPath.replaceFirst("\\.xml$", ".json");
         FileWriter fileWriter = new FileWriter(jsonReportPath);
         json = new CucumberJSONFormatter(fileWriter);
+        logAppender = new ReporterLogAppender();
     }
 
     @Override
@@ -121,8 +148,12 @@ public class KarateReporter implements Formatter, Reporter {
 
     @Override
     public void step(Step step) {
-        junit.step(step);
-        json.step(step);
+        // hack alert !
+        // normally the cucumber formatter iterates over all steps before execution begins
+        // we don't, and this actually speeds up things considerably, see also CucumberUtils.runStep()
+        // now we can 'in-line' called feature steps in the final report, plus time stats - see StepWrapper.run()
+        // the downside is that on failure, we don't show skipped steps
+        // but really, this should not be a big concern for karate users
     }
 
     @Override
@@ -184,5 +215,5 @@ public class KarateReporter implements Formatter, Reporter {
         junit.write(text);
         json.write(text);
     }
-    
+
 }

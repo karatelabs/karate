@@ -27,11 +27,19 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
+import cucumber.runtime.AmbiguousStepDefinitionsException;
 import cucumber.runtime.FeatureBuilder;
+import cucumber.runtime.Glue;
 import cucumber.runtime.RuntimeGlue;
+import cucumber.runtime.StepDefinitionMatch;
 import cucumber.runtime.UndefinedStepsTracker;
 import cucumber.runtime.model.CucumberFeature;
 import cucumber.runtime.xstream.LocalizedXStreams;
+import gherkin.I18n;
+import gherkin.formatter.Reporter;
+import gherkin.formatter.model.Match;
+import gherkin.formatter.model.Result;
+import gherkin.formatter.model.Step;
 import gherkin.parser.Parser;
 import java.util.ArrayList;
 import java.util.List;
@@ -83,14 +91,65 @@ public class CucumberUtils {
         return backend.getStepDefs().getContext().getVars();
     }
 
-    private static void call(ScenarioWrapper scenario, KarateBackend backend) {
-        ScriptEnv env = backend.getEnv();
+    public static void call(ScenarioWrapper scenario, KarateBackend backend) {
         for (StepWrapper step : scenario.getSteps()) {
-            StepResult result = step.run(backend, env.reporter);
+            StepResult result = runStep(step, backend);
             if (!result.isPass()) {                
-                throw new KarateException("failed: " + env, result.getError());
+                throw new KarateException("failed: " + backend.getEnv(), result.getError());
             }
         }
+    }
+    
+    public static StepResult runStep(StepWrapper step, KarateBackend backend) {
+        FeatureWrapper wrapper = step.getScenario().getFeature();
+        CucumberFeature feature = wrapper.getFeature();
+        return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend.getGlue(), true);
+    }    
+    
+    private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
+    
+    // adapted from cucumber.runtime.Runtime.runStep
+    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, Glue glue, boolean called) {
+        if (reporter == null) {
+            reporter = DUMMY_REPORTER;
+        }      
+        StepDefinitionMatch match;
+        Result result;
+        try {
+            match = glue.stepDefinitionMatch(featurePath, step, i18n);
+        } catch (AmbiguousStepDefinitionsException e) {
+            match = e.getMatches().get(0);
+            result = new Result(Result.FAILED, 0L, e, KarateReporter.DUMMY_OBJECT);
+            reportStep(reporter, step, match, result);
+            return new StepResult(step, e);
+        }
+        if (match == null) {
+            reportStep(reporter, step, Match.UNDEFINED, Result.UNDEFINED);
+            return new StepResult(step, new KarateException("match undefined"));
+        }
+        String status = Result.PASSED;
+        Throwable error = null;
+        long startTime = System.nanoTime();
+        try {
+            match.runStep(i18n);
+        } catch (Throwable t) {
+            error = t;
+            status = Result.FAILED;
+        } finally {
+            long duration = called ? 0 : System.nanoTime() - startTime;
+            result = new Result(status, duration, error, KarateReporter.DUMMY_OBJECT);
+            reportStep(reporter, step, match, result);
+            return new StepResult(step, error);
+        }        
+    }
+    
+    private static void reportStep(Reporter reporter, Step step, Match match, Result result) {
+        if (reporter instanceof KarateReporter) {
+            KarateReporter karateReporter = (KarateReporter) reporter;
+            karateReporter.karateStep(step);
+        }        
+        reporter.match(match);
+        reporter.result(result);
     }
 
 }

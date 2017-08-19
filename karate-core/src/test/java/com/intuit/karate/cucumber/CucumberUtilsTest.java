@@ -28,7 +28,7 @@ public class CucumberUtilsTest {
     private ScriptEnv getEnv() {
         return new ScriptEnv("dev", new File("."), null, getClass().getClassLoader(), null);
     }
-
+    
     @Test
     public void testScenario() {
         ScriptEnv env = getEnv();
@@ -50,14 +50,14 @@ public class CucumberUtilsTest {
         assertEquals("Feature: simple feature file\n\n# some comment\n\nBackground:", stepText);
         assertEquals(5, step.getStartLine());
         KarateBackend backend = CucumberUtils.getBackendWithGlue(env, null, null, false);
-        assertTrue(step.run(backend, null).isPass());
+        assertTrue(CucumberUtils.runStep(step, backend).isPass());
         
         step = steps.get(1); // first scenario (non-background) step
         assertFalse(step.isBackground());
         stepText = step.getPriorText();
         assertEquals("Scenario: test", stepText);
         assertEquals(8, step.getStartLine());        
-        assertTrue(step.run(backend, null).isPass());
+        assertTrue(CucumberUtils.runStep(step, backend).isPass());
         
         step = steps.get(2);
         stepText = step.getPriorText();

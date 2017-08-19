@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.web.wicket;
 
+import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.cucumber.KarateBackend;
 import com.intuit.karate.cucumber.StepResult;
@@ -169,7 +170,7 @@ public class StepPanel extends Panel {
                 KarateSession session = service.getSession(model.getSessionId());
                 StepWrapper step = model.getObject();
                 KarateBackend backend = session.getBackend();
-                StepResult result = step.run(backend, null);
+                StepResult result = CucumberUtils.runStep(step, backend);
                 pass = result.isPass();
                 target.add(this);
             }

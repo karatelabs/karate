@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.StepResult;
 import com.intuit.karate.cucumber.StepWrapper;
 import javafx.scene.control.Button;
@@ -85,7 +86,7 @@ public class StepPanel extends AnchorPane {
     
     private void run() {
         rebuildFeatureIfTextChanged();
-        StepResult result = step.run(session.backend, null);
+        StepResult result = CucumberUtils.runStep(step, session.backend);
         pass = result.isPass();
         initStyleColor();
         session.refreshVarsTable();

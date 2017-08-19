@@ -24,6 +24,7 @@
 package com.intuit.karate.web.wicket;
 
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.KarateBackend;
 import com.intuit.karate.cucumber.StepResult;
 import com.intuit.karate.cucumber.StepWrapper;
@@ -74,7 +75,7 @@ public class FeatureSectionPanel extends Panel {
                 FeaturePage featurePage = (FeaturePage) getPage();                
                 for (ListItem<StepWrapper> li : listItems) {
                     StepWrapper step = li.getModelObject();
-                    StepResult result = step.run(backend, null);
+                    StepResult result = CucumberUtils.runStep(step, backend);
                     StepPanel stepPanel = (StepPanel) li.get("step");
                     stepPanel.setPass(result.isPass());
                     String json = JsonUtils.toStrictJsonString(

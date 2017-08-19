@@ -42,7 +42,6 @@ import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-import cucumber.runtime.StepDefinitionMatch;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -114,7 +113,7 @@ public class Script {
     public static final boolean isEmbeddedExpression(String text) {
         return (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
-    
+
     public static final boolean isWithinParantheses(String text) {
         return text.startsWith("(") && text.endsWith(")");
     }
@@ -122,10 +121,10 @@ public class Script {
     public static final boolean isContainsMacro(String text) {
         return text.startsWith("^");
     }
-    
+
     public static final boolean isNotContainsMacro(String text) {
         return text.startsWith("!^");
-    }    
+    }
 
     public static final boolean isJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
@@ -462,7 +461,7 @@ public class Script {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
         }
-        NamedNodeMap attribs = node.getAttributes();        
+        NamedNodeMap attribs = node.getAttributes();
         int attribCount = attribs.getLength();
         Set<Attr> attributesToRemove = new HashSet(attribCount);
         for (int i = 0; i < attribCount; i++) {
@@ -477,7 +476,7 @@ public class Script {
                         attrib.setValue(sv.getAsString());
                     } else if (sv.isNull()) {
                         attributesToRemove.add(attrib);
-                    }                    
+                    }
                 } catch (Exception e) {
                     context.logger.warn("embedded xml-attribute script eval failed: {}", e.getMessage());
                 }
@@ -608,7 +607,7 @@ public class Script {
         }
         context.vars.put(name, sv);
     }
-    
+
     public static DocumentContext toJsonDoc(ScriptValue sv, ScriptContext context) {
         if (sv.isListLike()) {
             return JsonPath.parse(sv.getAsList());
@@ -616,12 +615,12 @@ public class Script {
             return JsonPath.parse(sv.getAsMap());
         } else if (sv.isUnknownType()) { // POJO
             return JsonUtils.toJsonDoc(sv.getValue());
-        } else if (sv.isString() || sv.isStream()) {            
+        } else if (sv.isString() || sv.isStream()) {
             ScriptValue temp = eval(sv.getAsString(), context);
             if (temp.getType() != JSON) {
                 throw new RuntimeException("cannot convert, not a json string: " + sv);
             }
-            return temp.getValue(DocumentContext.class);            
+            return temp.getValue(DocumentContext.class);
         } else {
             throw new RuntimeException("cannot convert to json: " + sv);
         }
@@ -637,7 +636,7 @@ public class Script {
             if (temp.getType() != XML) {
                 throw new RuntimeException("cannot convert, not an xml string: " + sv);
             }
-            return temp.getValue(Document.class);           
+            return temp.getValue(Document.class);
         } else {
             throw new RuntimeException("cannot convert to xml: " + sv);
         }
@@ -792,7 +791,7 @@ public class Script {
                                 expression = expression.substring(1);
                             } else if (isNotContainsMacro(expression)) {
                                 matchType = MatchType.EACH_NOT_CONTAINS;
-                                expression = expression.substring(2);                                
+                                expression = expression.substring(2);
                             }
                         }
                         // actRoot assumed to be json in this case                        
@@ -1212,7 +1211,7 @@ public class Script {
             switch (target.getType()) {
                 case JSON:
                 case MAP:
-                case JS_OBJECT:    
+                case JS_OBJECT:
                 case JS_ARRAY:
                 case LIST:
                     DocumentContext dc = target.getAsJsonDocument();
@@ -1312,38 +1311,44 @@ public class Script {
             throw new KarateException(message, e);
         }
     }
-    
-    private static void reportFeatureCall(FeatureWrapper feature, ScriptContext context, int index) {
-        ScriptEnv env = context.getEnv();
-        if (env.reporter != null) {            
-            String suffix = index == -1 ? " " : "[" + index + "] ";
-            env.reporter.step("#call" + suffix + feature.getPath());            
-        }
-    }
 
     public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {
+        ScriptEnv env = context.getEnv();
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
             List result = new ArrayList(array.length);
-            for (int i = 0; i < array.length; i++) {
-                Object rowArg = array[i];
+            List<String> errors = new ArrayList(array.length);
+            for (int i = 0; i < array.length; i++) {               
+                Object rowArg = array[i];                
                 if (rowArg instanceof Map) {
+                    Map<String, Object> argAsMap = (Map) rowArg;
+                    if (env.reporter != null) {
+                        env.reporter.call(feature, i, argAsMap);
+                    }                     
                     try {
-                        ScriptValue rowResult = evalFeatureCall(feature, context, (Map) rowArg, reuseParentConfig, i);
+                        ScriptValue rowResult = evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "loop feature call failed: " + feature.getPath() + ", caller: "+ feature.getEnv().featureName + ", index: " + i + ", arg: " + rowArg + ", items: " + items;
-                        throw new KarateException(message, ke);
+                        String message = "index: " + i + ", arg: " + rowArg + ", " + ke.getCause().getMessage();
+                        errors.add(message);
                     }
                 } else {
                     throw new RuntimeException("argument not json or map for feature call loop array position: " + i + ", " + rowArg);
                 }
             }
+            if (!errors.isEmpty()) {
+                String message = "loop feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", items: " + items; 
+                throw new KarateException(message + " " + errors);
+            }
             return new ScriptValue(result);
-        } else if (callArg == null || callArg instanceof Map) {            
+        } else if (callArg == null || callArg instanceof Map) {
+            Map<String, Object> argAsMap = (Map) callArg;
+            if (env.reporter != null) {
+                env.reporter.call(feature, -1, argAsMap);
+            }             
             try {
-                return evalFeatureCall(feature, context, (Map) callArg, reuseParentConfig, -1);
+                return evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
             } catch (KarateException ke) {
                 String message = "feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", arg: " + callArg;
                 context.logger.error(message, ke);
@@ -1355,8 +1360,7 @@ public class Script {
     }
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
-            Map<String, Object> callArg, boolean reuseParentConfig, int index) {
-        reportFeatureCall(feature, context, index);
+            Map<String, Object> callArg, boolean reuseParentConfig) {
         ScriptValueMap svm = CucumberUtils.call(feature, context, callArg, reuseParentConfig);
         Map<String, Object> map = simplify(svm);
         return new ScriptValue(map);

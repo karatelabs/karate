@@ -23,32 +23,32 @@
  */
 package com.intuit.karate.cucumber;
 
+import cucumber.runtime.Runtime;
+import cucumber.runtime.RuntimeGlue;
+import cucumber.runtime.RuntimeOptions;
+import cucumber.runtime.io.ResourceLoader;
+import gherkin.I18n;
+import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Step;
+import java.util.Collections;
 
 /**
  *
  * @author pthomas3
  */
-public class StepResult {
+public class KarateRuntime extends Runtime {  
     
-    private final Step step;
-    private final Throwable error;
-
-    public StepResult(Step step, Throwable error) {
-        this.step = step;
-        this.error = error;
+    private final RuntimeGlue glue;
+    
+    public KarateRuntime(ResourceLoader resourceLoader, ClassLoader classLoader, KarateBackend backend,
+                   RuntimeOptions runtimeOptions, RuntimeGlue glue) { 
+        super(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, glue);
+        this.glue = glue;
     }
 
-    public Step getStep() {
-        return step;
-    }
-
-    public Throwable getError() {
-        return error;
-    }    
-
-    public boolean isPass() {
-        return error == null;
-    }
+    @Override
+    public void runStep(String featurePath, Step step, Reporter reporter, I18n i18n) {
+        CucumberUtils.runStep(featurePath, step, reporter, i18n, glue, false);
+    }        
     
 }
