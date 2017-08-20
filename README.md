@@ -29,12 +29,11 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
 :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square:  
 ----- | ---- | ---- | --- | ---
-+**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) 
++**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folders](#folder-structure) / [Naming Conventions](#naming-conventions) | [Script Structure](#script-structure)
 .... | [JUnit](#running-with-junit) / [TestNG](#running-with-testng) | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging)
-.... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution) 
-.... | [Script Structure](#script-structure)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
+.... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
+**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)

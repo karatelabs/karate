@@ -50,7 +50,7 @@ sourceSets {
                 // but can run happily via IDE of the developer without needed to be
                 // compiled by gradle.  
                 srcDir file('src/test/java')
-                exclude '**/*UIRunner*.java'
+                exclude '**/*UiRunner*.java'
             }
         resources
             {
