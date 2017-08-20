@@ -54,5 +54,10 @@ public class Var {
     public String getAsString() {
         return value.getAsString();
     }
+
+    @Override
+    public String toString() {
+        return value.toPrettyString(name);
+    }        
         
 }

@@ -21,34 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate;
 
-import cucumber.runtime.Runtime;
-import cucumber.runtime.RuntimeGlue;
-import cucumber.runtime.RuntimeOptions;
-import cucumber.runtime.io.ResourceLoader;
-import gherkin.I18n;
-import gherkin.formatter.Reporter;
+import com.intuit.karate.cucumber.StepResult;
 import gherkin.formatter.model.Step;
-import java.util.Collections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateRuntime extends Runtime {  
+public class Debug {
     
-    private final KarateBackend backend;
+    private static final Logger logger = LoggerFactory.getLogger(Debug.class);
     
-    public KarateRuntime(ResourceLoader resourceLoader, ClassLoader classLoader, KarateBackend backend,
-                   RuntimeOptions runtimeOptions, RuntimeGlue glue) { 
-        super(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, glue);
-        this.backend = backend;
+    public void beforeStep(String feature, int line, Step step, ScriptValueMap vars) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("line: {}, step: {}, feature: {}", line, step.getName(), feature);
+        }
     }
-
-    @Override
-    public void runStep(String featurePath, Step step, Reporter reporter, I18n i18n) {
-        CucumberUtils.runStep(featurePath, step, reporter, i18n, backend, false);
-    }        
+    
+    public void afterStep(String feature, int line, StepResult result, ScriptValueMap vars) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("line: {}, pass: {}, feature: {}", line, result.isPass(), feature);            
+        }
+    }    
     
 }

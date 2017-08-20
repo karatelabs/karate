@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,14 +111,7 @@ public class AppSession {
 
     public void logVar(Var var) {
         if (logPanel != null) {
-            String description = var.getName() + " (" + var.getValue().getTypeAsShortString() + "): ";
-            logPanel.append(description);
-            String value = var.getValue().getAsPrettyString();
-            if (value != null && value.indexOf('\n') != -1) {
-                String dashes = StringUtils.repeat('-', description.length() - 1);
-                logPanel.append('\n' + dashes + '\n');
-            }
-            logPanel.append(var.getValue().getAsPrettyString() + '\n');
+            logPanel.append(var.toString());
         }
     }
 

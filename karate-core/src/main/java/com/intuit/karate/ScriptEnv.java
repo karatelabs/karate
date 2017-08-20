@@ -42,9 +42,10 @@ public class ScriptEnv {
     public final ClassLoader fileClassLoader;
     public final CallCache callCache;
     public final KarateReporter reporter;
+    public final Debug debug;
     
     public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, 
-            CallCache callCache, Logger logger, KarateReporter reporter) {
+            CallCache callCache, Logger logger, KarateReporter reporter, Debug debug) {
         this.env = env;
         this.featureDir = featureDir;
         this.featureName = featureName;
@@ -52,11 +53,13 @@ public class ScriptEnv {
         this.callCache = callCache;
         this.logger = logger;
         this.reporter = reporter;
+        this.debug = debug;
     }
     
-    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, KarateReporter reporter) {
+    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, 
+            KarateReporter reporter) {
         this(env, featureDir, featureName, fileClassLoader, new CallCache(), 
-                LoggerFactory.getLogger("com.intuit.karate"), reporter);
+                LoggerFactory.getLogger("com.intuit.karate"), reporter, new Debug());
     }
     
     public static ScriptEnv init(File featureDir, String featureName, ClassLoader classLoader) {
@@ -69,7 +72,7 @@ public class ScriptEnv {
 
     public static ScriptEnv init(String env, File featureFile, String[] searchPaths, Logger logger) {
         return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), 
-                FileUtils.createClassLoader(searchPaths), new CallCache(), logger, null);
+                FileUtils.createClassLoader(searchPaths), new CallCache(), logger, null, new Debug());
     }
     
     public ScriptEnv refresh(String in) { // immutable
@@ -80,7 +83,7 @@ public class ScriptEnv {
                 karateEnv = StringUtils.trimToNull(System.getProperty("karate.env"));
             }
         }
-        return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache, logger, reporter);
+        return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache, logger, reporter, debug);
     }
     
     @Override

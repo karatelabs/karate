@@ -25,6 +25,7 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepDefs;
 import cucumber.runtime.Backend;
 import cucumber.runtime.ClassFinder;
@@ -50,6 +51,22 @@ public class KarateBackend implements Backend {
     public ScriptEnv getEnv() {
         return objectFactory.getEnv();
     }
+    
+    public ScriptValueMap getVars() {
+        StepDefs stepDefs = getStepDefs();
+        if (stepDefs == null) { // first step
+            return null;
+        }
+        return stepDefs.getContext().getVars();
+    }
+    
+    public void beforeStep(String feature, Step step) {
+        getEnv().debug.beforeStep(feature, step.getLine(), step, getVars());
+    }
+    
+    public void afterStep(String feature, StepResult result) {
+        getEnv().debug.afterStep(feature, result.getStep().getLine(), result, getVars());
+    }    
     
     public KarateBackend(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg, boolean reuseParentConfig) {
         ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);

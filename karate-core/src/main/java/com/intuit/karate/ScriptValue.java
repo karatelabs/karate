@@ -35,6 +35,7 @@ import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ClassUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Node;
 
 /**
@@ -353,6 +354,19 @@ public class ScriptValue {
             type = Type.UNKNOWN;
         }
     }
+    
+    public String toPrettyString(String key) {
+        StringBuilder sb = new StringBuilder();
+        String description = key + " (" + getTypeAsShortString() + "): ";
+        sb.append(description);
+        String temp = getAsPrettyString();
+        if (temp != null && temp.indexOf('\n') != -1) {
+            String dashes = StringUtils.repeat('-', description.length() - 1);
+            sb.append('\n').append(dashes).append('\n');
+        }
+        sb.append(temp).append('\n');
+        return sb.toString();
+    }    
 
     @Override
     public String toString() {

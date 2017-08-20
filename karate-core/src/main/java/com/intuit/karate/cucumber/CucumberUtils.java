@@ -26,10 +26,10 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import cucumber.runtime.AmbiguousStepDefinitionsException;
 import cucumber.runtime.FeatureBuilder;
-import cucumber.runtime.Glue;
 import cucumber.runtime.RuntimeGlue;
 import cucumber.runtime.StepDefinitionMatch;
 import cucumber.runtime.UndefinedStepsTracker;
@@ -103,53 +103,62 @@ public class CucumberUtils {
     public static StepResult runStep(StepWrapper step, KarateBackend backend) {
         FeatureWrapper wrapper = step.getScenario().getFeature();
         CucumberFeature feature = wrapper.getFeature();
-        return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend.getGlue(), true);
+        return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend, true);
     }    
     
     private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
     
     // adapted from cucumber.runtime.Runtime.runStep
-    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, Glue glue, boolean called) {
+    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, KarateBackend backend, boolean called) {
+        backend.beforeStep(featurePath, step);
         if (reporter == null) {
             reporter = DUMMY_REPORTER;
         }      
         StepDefinitionMatch match;
-        Result result;
         try {
-            match = glue.stepDefinitionMatch(featurePath, step, i18n);
+            match = backend.getGlue().stepDefinitionMatch(featurePath, step, i18n);
         } catch (AmbiguousStepDefinitionsException e) {
             match = e.getMatches().get(0);
-            result = new Result(Result.FAILED, 0L, e, KarateReporter.DUMMY_OBJECT);
-            reportStep(reporter, step, match, result);
-            return new StepResult(step, e);
+            Result result = new Result(Result.FAILED, 0L, e, KarateReporter.DUMMY_OBJECT);
+            return afterStep(reporter, step, match, result, e, featurePath, backend);
         }
         if (match == null) {
-            reportStep(reporter, step, Match.UNDEFINED, Result.UNDEFINED);
-            return new StepResult(step, new KarateException("match undefined"));
+            return afterStep(reporter, step, Match.UNDEFINED, Result.UNDEFINED, 
+                    new KarateException("match undefined"), featurePath, backend);
         }
         String status = Result.PASSED;
         Throwable error = null;
         long startTime = System.nanoTime();
-        try {
+        try {            
             match.runStep(i18n);
         } catch (Throwable t) {
             error = t;
             status = Result.FAILED;
         } finally {
             long duration = called ? 0 : System.nanoTime() - startTime;
-            result = new Result(status, duration, error, KarateReporter.DUMMY_OBJECT);
-            reportStep(reporter, step, match, result);
-            return new StepResult(step, error);
+            Result result = new Result(status, duration, error, KarateReporter.DUMMY_OBJECT);
+            return afterStep(reporter, step, match, result, error, featurePath, backend);
         }        
     }
     
-    private static void reportStep(Reporter reporter, Step step, Match match, Result result) {
+    private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, 
+            Throwable error, String feature, KarateBackend backend) {
+        if (error != null) { // dump variable state to log for convenience         
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, ScriptValue> entry : backend.getVars().entrySet()) {
+                sb.append(entry.getValue().toPrettyString(entry.getKey()));
+            }
+            backend.getEnv().logger.error("{}:{} - variable state:\n{}", feature, step.getLine(), sb);         
+        }
         if (reporter instanceof KarateReporter) {
             KarateReporter karateReporter = (KarateReporter) reporter;
-            karateReporter.karateStep(step);
+            karateReporter.karateStep(step); // this would also collect log output into a 'docstring'
         }        
         reporter.match(match);
         reporter.result(result);
+        StepResult stepResult = new StepResult(step, error);
+        backend.afterStep(feature, stepResult);
+        return stepResult;
     }
 
 }
