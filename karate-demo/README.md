@@ -31,6 +31,22 @@ as well as demonstrate various Karate features and best-practices.
 [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) | Karate has a utility to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) and this does not depend on JUnit, TestNG or even Maven. A JUnit XML report file and Cucumber JSON report file would be generated for each feature executed. You can easily configure your CI with the location of these files so that you get proper test-reports after a build. This is now the recommended way of running Karate as part of an automated build or CI pipeline. Here, the (optional) third-party [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library is being used (see details below).
 [`pom.xml`](pom.xml#L81) | Line 81 shows how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect.
 
+## Gradle
+
+The project contains an example build.gradle that will allow gradle users make use of the karate framework with the best practice layout.
+
+To generate the gradle wrapper (as per gradle best practice):
+
+```
+gradle wrapper
+```
+
+After that use the gradle wrapper to run the tests:
+
+```
+./gradlew test
+```
+
 ## Example Report
 
 > This is optional and if you use the parallel runner as described above, the JUnit XML emitted is sufficient for most CI tools (e.g. Jenkins) to generate test reports and determine whether the build passed or failed.

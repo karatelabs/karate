@@ -29,9 +29,10 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
 :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square:  
 ----- | ---- | ---- | --- | ---
-**Getting Started** | [Maven / Quickstart](#maven) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) | [JUnit](#running-with-junit) / [TestNG](#running-with-testng)
-.... | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging) | [Configuration](#configuration)
-.... | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution) | [Script Structure](#script-structure)
++**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folder Structure](#folder-structure) | [Naming Conventions](#naming-conventions) 
+.... | [JUnit](#running-with-junit) / [TestNG](#running-with-testng) | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging)
+.... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution) 
+.... | [Script Structure](#script-structure)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
@@ -118,7 +119,17 @@ So you need two `<dependencies>`:
     <scope>test</scope>
 </dependency>
 ```
+
 And if you run into class-loading conflicts, for example if an older version of the Apache libraries are being used within your project - then use `karate-jersey` instead of `karate-apache`.
+
+## Gradle
+
+Alternatively for Gradle you need two `dependencies`:
+
+```yml
+    testCompile 'com.intuit.karate:karate-junit4:0.5.1'
+    testCompile 'com.intuit.karate:karate-apache:0.5.1'
+```
 
 ### TestNG instead of JUnit
 If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so that you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
@@ -168,6 +179,20 @@ This can be easily achieved with the following tweak to your maven `<build>` sec
 ```
 
 This is very common in the world of Maven users and keep in mind that these are tests and not production code.  
+
+Alternatively, if using gradle then add the following `sourceSets` definition
+         
+```yml
+sourceSets {
+    test {
+        resources
+            {
+                srcDir file('src/test/java')
+                exclude '**/*.java'
+            }
+    }
+}
+```
 
 With the above in place, you don't have to keep switching between your `src/test/java` and `src/test/resources` folders, you can have all your test-code and artifacts under 
 `src/test/java` and everything will work as expected.
@@ -292,6 +317,25 @@ mvn test -Dcucumber.options="--plugin html:target/cucumber-html"
 
 Note that the `mvn test` command only runs test classes that follow the `*Test.java` [naming convention](#naming-conventions) by default.
 
+For gradle you must extend the test task to allow the cucumuber.options to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
+
+```yml
+test {
+    // Pull cucumber options into the cucumber JVM
+    systemProperty "cucumber.options", System.properties.getProperty("cucumber.options")
+    // Pull karate options into the JVM
+    systemProperty "karate.env", System.properties.getProperty("karate.env")
+    // Ensure tests are always run
+    outputs.upToDateWhen { false }
+}
+```
+
+And then the above command in gradle would look like:
+
+```
+./gradlew test -Dcucumber.options="--plugin html:target/cucumber-html"
+```
+
 A problem you may run into is that the report is generated for every JUnit class with the `@RunWith(Karate.class)` annotation. So if you have multiple JUnit classes involved in a test-run, you will end up with only the report for the last class as it would have over-written everything else. There are a couple of solutions, one is to use [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) - but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above' (in terms of folder hierarchy) all the main `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions):
 
 ```
@@ -330,9 +374,23 @@ With the above in place, you don't have to use `-Dtest=AnimalsTest` on the comma
 
 The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line.
 
+For gradle, you simply specify that test is to be included:
+
+```yml
+test {
+    include 'animals/AnimalsTest.java'
+    // Pull cucumber options into the cucumber JVM
+    systemProperty "cucumber.options", System.properties.getProperty("cucumber.options")
+    // Pull karate options into the JVM
+    systemProperty "karate.env", System.properties.getProperty("karate.env")
+    // Ensure tests are always run
+    outputs.upToDateWhen { false }
+}
+```
+
 The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel although you have the option of choosing other 'built-in' report formats - for e.g. `html`. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on emitting the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
 
-And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml`.
+And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
 ## Parallel Execution
 Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven.
@@ -469,6 +527,13 @@ The recipe for doing this when running Maven from the command line is:
 ```
 mvn test -DargLine="-Dkarate.env=e2e"
 ```
+
+or in gradle:
+
+```
+./gradlew test -Dkarate.env=e2e
+```
+
 You can refer to the documentation of the
 [Maven Surefire Plugin](http://maven.apache.org/plugins-archives/maven-surefire-plugin-2.12.4/examples/system-properties.html)
 for alternate ways of achieving this, but the `argLine` approach is the simplest and should be more than sufficient for your Continuous Integration or test-automation needs.
