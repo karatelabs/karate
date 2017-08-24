@@ -143,14 +143,14 @@ public class CucumberUtils {
     
     private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, 
             Throwable error, String feature, KarateBackend backend) {
-        if (error != null) { // dump variable state to log for convenience         
-            StringBuilder sb = new StringBuilder();
-            for (Map.Entry<String, ScriptValue> entry : backend.getVars().entrySet()) {
-                sb.append(entry.getValue().toPrettyString(entry.getKey()));
-            }
-            backend.getEnv().logger.error("{}:{} - variable state:\n{}", feature, step.getLine(), sb);         
-        }
         if (reporter instanceof KarateReporter) {
+            if (error != null) { // dump variable state to log for convenience         
+                StringBuilder sb = new StringBuilder();
+                for (Map.Entry<String, ScriptValue> entry : backend.getVars().entrySet()) {
+                    sb.append(entry.getValue().toPrettyString(entry.getKey()));
+                }
+                backend.getEnv().logger.error("{}:{} - variable state:\n{}", feature, step.getLine(), sb);         
+            }            
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step); // this would also collect log output into a 'docstring'
         }        

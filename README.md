@@ -29,7 +29,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
 :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square:  
 ----- | ---- | ---- | --- | ---
-+**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folders](#folder-structure) / [Naming Conventions](#naming-conventions) | [Script Structure](#script-structure)
+**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folders](#folder-structure) / [Naming Conventions](#naming-conventions) | [Script Structure](#script-structure)
 .... | [JUnit](#running-with-junit) / [TestNG](#running-with-testng) | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging)
 .... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
@@ -47,8 +47,8 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
 # Features
-* Java knowledge is not required and even non-programmers can write tests.
-* Scripts are plain-text files and require no compilation step or IDE
+* Java knowledge is not required and even non-programmers can write tests
+* Scripts are plain-text files, require no compilation step or IDE, and teams can collaborate using standard version-control / Git
 * Based on the popular Cucumber / Gherkin standard, and [IDE support](#running-in-eclipse-or-intellij) and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
 * Eliminate the need for 'POJO's or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
@@ -138,7 +138,7 @@ Use the TestNG test-runner only when you are trying to add Karate tests side-by-
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure and starter files would be created for you.
 
-You can replace the values of 'com.mycompany' and 'myproject' as per your needs.
+You can replace the values of `com.mycompany` and `myproject` as per your needs.
 
 ```
 mvn archetype:generate \
@@ -149,7 +149,7 @@ mvn archetype:generate \
 -DartifactId=myproject
 ```
 
-This will create a folder called 'myproject' (or whatever you set the name to).
+This will create a folder called `myproject` (or whatever you set the name to).
 
 You can refer to this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse. Also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
 
@@ -515,6 +515,8 @@ This decision to use JavaScript for config is influenced by years of experience 
 
 Karate's approach frees you from Maven, is far more expressive, allows you to eyeball all environments in one place, and is still a plain-text file.  If you want, you could even create nested chunks of JSON that 'name-space' your config variables.
 
+> One way to appreciate Karate's approach is to look at what it takes to add a new environment-dependent variable (e.g. a password) into a test. In typical frameworks it could mean changing multiple properties files, maven profiles and placeholders, maybe even threading the value via a dependency-injection framework - before you can even access the value within your test.
+
 This approach is indeed slightly more complicated than traditional `*.properties` files - but you _need_ this complexity. Keep in mind that these are tests (not production code) and this config is going to be maintained more by the dev or QE team instead of the 'ops' or operations team.
 
 And there is no more worrying about Maven profiles and whether the 'right' `*.properties` file has been copied to the proper place.
@@ -597,7 +599,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 
 :white_small_square: | Cucumber | Karate
 -------------------- | -------- | ------
-**Step Definitions Built-In** | **No**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation#comment-40). | :white_check_mark: **Yes**. No extra Java code needed.
+**Step Definitions Built-In** | **No**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://thepracticaldeveloper.com/2017/08/03/microservices-end-to-end-tests-with-cucumber-and-spring-boot/), especially since for [dependency-injection](https://cucumber.io/docs/reference/java-di), you are [on your own](http://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation?refreshed=y#comment-40). | :white_check_mark: **Yes**. No extra Java code needed.
 **Single Layer of Code To Maintain** | **No**. There are 2 Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | :white_check_mark: **Yes**. Only 1 layer of Karate-script (based on Gherkin).
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | :x: **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | :white_check_mark: [**Yes**](#calling-other-feature-files).
@@ -918,6 +920,9 @@ are **not** supported.
 * def greeter = function(name){ return 'hello ' + name }
 * assert greeter('Bob') == 'hello Bob'
 ```
+
+> When JavaScript executes in Karate, the built-in [`karate` object](#the-karate-object) provides some commonly used helper functions.
+
 ### Java Interop
 For more complex functions you are better off using the [multi-line](#multi-line-expressions) 'doc-string' approach. This example actually calls into existing Java code, and being able to do this opens up a whole lot of possibilities. The JavaScript interpreter will try to convert types across Java and JavaScript as smartly as possible. For e.g. JSON objects become Java Map-s, JSON arrays become Java List-s, and Java Bean properties are accessible (and update-able) using dot notation e.g. '`object.name`'
 
@@ -1435,6 +1440,8 @@ This is like the opposite of [`set`](#set) if you need to remove keys or data el
 * remove xml /foo/bar
 * match xml == <foo/>
 ```
+
+Also take a look at how a special case of [embedded-expressions](#embedded-expressions) can remove key-value pairs from a JSON (or XML) payload: [Remove if Null](#remove-if-null).
 
 ## Ignore or Validate
 When expressing expected results (in JSON or XML) you can mark some fields to be ignored when the match (comparison) is performed.  You can even use a regular-expression so that instead of checking for equality, Karate will just validate that the actual value conforms to the expected pattern.
