@@ -921,7 +921,7 @@ are **not** supported.
 * assert greeter('Bob') == 'hello Bob'
 ```
 
-> When JavaScript executes in Karate, the built-in [`karate` object](#the-karate-object) provides some commonly used helper functions.
+> When JavaScript executes in Karate, the built-in [`karate` object](#the-karate-object) provides some commonly used utility functions.
 
 ### Java Interop
 For more complex functions you are better off using the [multi-line](#multi-line-expressions) 'doc-string' approach. This example actually calls into existing Java code, and being able to do this opens up a whole lot of possibilities. The JavaScript interpreter will try to convert types across Java and JavaScript as smartly as possible. For e.g. JSON objects become Java Map-s, JSON arrays become Java List-s, and Java Bean properties are accessible (and update-able) using dot notation e.g. '`object.name`'

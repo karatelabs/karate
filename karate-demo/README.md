@@ -92,4 +92,4 @@ mvn clean test -Pcoverage
 
 ![Jacoco Code Coverage Report](src/test/resources/karate-jacoco.png) 
 
-As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate.
+As this demo example shows - if you are able to start your app-server and run Karate tests in the same JVM process, code-coverage reports for even HTTP integration tests will be very easy to generate. This is even easier with the [karate-mock-servlet](../karate-mock-servlet) as you don't even need to boot an app-server.
