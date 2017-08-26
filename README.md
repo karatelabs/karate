@@ -789,11 +789,12 @@ Notice that in the above example, string values within the table need to be encl
 * def one = 'hello'
 * def two = { baz: 'world' }
 * table json =
-    | foo     | bar |
-    | one     | 1   |
-    | two.baz | 2   |
-* match json == [{ foo: 'hello', bar: 1 }, { foo: 'world', bar: 2 }]
+    | foo     | bar            |
+    | one     | { baz: 1 }     |
+    | two.baz | ['baz', 'ban'] |
+* match json == [{ foo: 'hello', bar: { baz: 1 } }, { foo: 'world', bar: ['baz', 'ban'] }]
 ```
+Yes, you can even nest chunks of JSON in tables, and things work as you would expect.
 
 ## `text`
 ### Don't parse, treat as raw text
@@ -1017,7 +1018,7 @@ In some rare cases, for e.g. if you acquired a string from some external source,
 
 One example of when you may want to convert JSON (or XML) to a string is when you are passing a payload to custom code via [Java interop](#calling-java). Do note that when passing JSON, the default `Map` and `List` representations should suffice for most needs ([see example](karate-demo/src/test/java/demo/java/cats-java.feature)), and using them would avoid un-necessary string-conversion.
 
-So you have the following type markers you can use instead of [`def`](#def):
+So you have the following type markers you can use instead of [`def`](#def) (or the rarely used [`text`](#text)):
 * `string` - convert JSON or any other data-type (except XML) to a string
 * `json` - convert XML, a map-like or list-like object, a string, or even a Java bean (POJO) into JSON
 * `xml` - convert JSON, a map-like object, a string, or even a Java bean (POJO) into XML
@@ -1052,7 +1053,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 # Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
 
-These are essential HTTP operations, they focus on setting one (non-keyed) value at a time and don't involve any '=' signs in the syntax.
+These are essential HTTP operations, they focus on setting one (un-named or 'key-less') value at a time and therefore don't need an `=` sign in the syntax.
 ## `url`
 ```cucumber
 Given url 'https://myhost.com/v1/cats'
@@ -1261,7 +1262,7 @@ Then status 201
 
 # Keywords that set multiple key-value pairs in one step
 
-`params`, `headers`, `cookies` and `form fields` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
+`params`, `headers`, `cookies` and `form fields` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing, especially because any JSON key with a `null` value will be ignored. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
 
 ## `params`
 ```cucumber

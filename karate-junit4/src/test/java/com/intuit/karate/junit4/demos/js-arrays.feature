@@ -28,6 +28,15 @@ Scenario: table to json with expressions evaluated
     | two.baz | 2   |
 * match json == [{ foo: 'hello', bar: 1 }, { foo: 'world', bar: 2 }]
 
+Scenario: table to json with nested json
+* def one = 'hello'
+* def two = { baz: 'world' }
+* table json =
+    | foo     | bar            |
+    | one     | { baz: 1 }     |
+    | two.baz | ['baz', 'ban'] |
+* match json == [{ foo: 'hello', bar: { baz: 1 } }, { foo: 'world', bar: ['baz', 'ban'] }]
+
 Scenario: json path with keys with spaces or other troublesome characters
 * def json = { 'sp ace': 'foo', 'hy-phen': 'bar', 'full.stop': 'baz' }
 * string jsonString = json

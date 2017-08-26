@@ -1353,4 +1353,11 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "temperature.fahrenheit", null, "karate.eval('temperature.celsius * 1.8 + 32')", ctx).pass);
     }
     
+    @Test
+    public void testRemoveIfNullMultiple() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ first: 'bar', second: '##(null)', third: '##(null)' }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ first: 'bar' }", ctx).pass);
+    }
+    
 }

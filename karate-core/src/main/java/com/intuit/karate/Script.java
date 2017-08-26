@@ -426,9 +426,12 @@ public class Script {
         }
         if (o instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) o;
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                String childPath = JsonUtils.buildPath(path, entry.getKey());
-                evalJsonEmbeddedExpressions(childPath, entry.getValue(), context, root);
+            // cache keys here, since they could be removed by the 'remove if null' ##(macro)
+            // else we get a java.util.ConcurrentModificationException
+            Collection<String> keys = new ArrayList(map.keySet());
+            for (String key: keys) {
+                String childPath = JsonUtils.buildPath(path, key);
+                evalJsonEmbeddedExpressions(childPath, map.get(key), context, root);
             }
         } else if (o instanceof List) {
             List list = (List) o;
@@ -1332,6 +1335,8 @@ public class Script {
                     } catch (KarateException ke) {
                         String message = "index: " + i + ", arg: " + rowArg + ", " + ke.getCause().getMessage();
                         errors.add(message);
+                        // log but don't stop (yet)
+                        context.logger.error(message, ke);
                     }
                 } else {
                     throw new RuntimeException("argument not json or map for feature call loop array position: " + i + ", " + rowArg);
@@ -1467,9 +1472,13 @@ public class Script {
             Map<String, Object> row = new LinkedHashMap<>(map);
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 Object o = entry.getValue();
-                if (o instanceof String) {
+                if (o instanceof String) { // else will be number or boolean primitives
                     ScriptValue sv = eval((String) o, context);
-                    entry.setValue(sv.getAsString());
+                    if (sv.isJsonLike()) {
+                        entry.setValue(sv.getAsJsonDocument().read("$")); // will be Map or List
+                    } else {
+                        entry.setValue(sv.getAsString());
+                    }
                 }
             }
             result.add(row);
