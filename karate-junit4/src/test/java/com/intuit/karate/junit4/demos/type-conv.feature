@@ -1,5 +1,40 @@
 Feature: convert between json, xml and string
 
+Scenario: multi-line text
+# although the value starts with '{' it is not parsed as JSON, and line-feeds are retained
+* text query =
+"""
+{
+  hero(name: "Luke Skywalker") {
+    height
+    mass
+  }
+}
+"""
+* match query == read('query.txt')
+
+Scenario Outline: multi-line text in a scenario outline
+* text query =
+"""
+{
+  hero(name: "<name>") {
+    height
+    mass
+  }
+}
+"""
+* match query == read('query.txt')
+
+Examples:
+| name           |
+| Luke Skywalker |
+
+Scenario: multi-line string expression
+# this is normally never required since you can use replace
+* def name = 'Luke Skywalker'
+* string query = '{\n  hero(name: "' + name + '") {\n    height\n    mass\n  }\n}'
+* match query == read('query.txt')
+
 Scenario: string to json
 # this would be of type string (not JSON)
 * def strVar = '{ "foo": "bar" }'

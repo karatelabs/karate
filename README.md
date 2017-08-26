@@ -798,26 +798,18 @@ Yes, you can even nest chunks of JSON in tables, and things work as you would ex
 
 ## `text`
 ### Don't parse, treat as raw text
-Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. The other advantage is that 'white space' such as 'line-feeds' (which are significant in GraphQL) would be handled correctly, and retained. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests).
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving place-holder substitutions in strings.
 
 ```cucumber
 Scenario Outline:
 # note the 'text' keyword instead of 'def'
 * text query =
 """
-mutation { 
-  someEntity(input: { 
-    clientMutationId: "1" 
-    someChild: { 
-      name: "<name>"
-    } 
-  }) {
-    clientMutationId
-    someChild {
-      id 
-      name 
-    } 
-  } 
+{
+  hero(name: "<name>") {
+    height
+    mass
+  }
 }
 """
 Given path 'graphql'
@@ -825,8 +817,6 @@ And request { query: '#(query)' }
 And header Accept = 'application/json'
 When method post
 Then status 200
-And def child = response.data.someEntity.someChild
-And match child == { id: '#notnull', name: '<name>' }
 
 Examples:
 | name  |
@@ -835,6 +825,8 @@ Examples:
 ```
 
 Note that if you did not need to inject [`Examples:`](#data-driven-tests) into 'placeholders' enclosed within `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
+
+For placeholder-substitution, the [`replace`](#replace) keyword can be used instead, but with the advantage that the text can be read from a file or dynamically created.
 
 ## `replace`
 ### Text Placeholder Replacement

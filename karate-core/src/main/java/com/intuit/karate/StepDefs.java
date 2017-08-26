@@ -291,7 +291,7 @@ public class StepDefs {
         String text = context.vars.get(name).getAsString();
         String replaced = Script.replacePlaceholderText(text, token, value, context);
         context.vars.put(name, replaced);
-    }
+    }   
 
     @When("^text (.+) =$")
     public void textDocString(String name, String expression) {

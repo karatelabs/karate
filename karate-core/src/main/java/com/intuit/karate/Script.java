@@ -578,11 +578,7 @@ public class Script {
         ScriptValue sv;
         switch (assignType) {
             case TEXT:
-                exp = exp.replace("\n", "\\n");
-                if (!isQuoted(exp)) {
-                    exp = "'" + exp + "'";
-                }
-                sv = evalInNashorn(exp, context);
+                sv = new ScriptValue(exp);
                 break;
             case YAML:
                 DocumentContext doc = JsonUtils.fromYaml(exp);
