@@ -1473,7 +1473,7 @@ public class Script {
                     if (sv.isJsonLike()) {
                         entry.setValue(sv.getAsJsonDocument().read("$")); // will be Map or List
                     } else {
-                        entry.setValue(sv.getAsString());
+                        entry.setValue(sv.getValue());
                     }
                 }
             }

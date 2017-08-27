@@ -35,7 +35,9 @@ Scenario: table to json with nested json
     | foo     | bar            |
     | one     | { baz: 1 }     |
     | two.baz | ['baz', 'ban'] |
-* match json == [{ foo: 'hello', bar: { baz: 1 } }, { foo: 'world', bar: ['baz', 'ban'] }]
+    | true    | one == 'hello' |
+* print json
+* match json == [{ foo: 'hello', bar: { baz: 1 } }, { foo: 'world', bar: ['baz', 'ban'] }, { foo: '#boolean? true', bar: '#boolean? true' }]
 
 Scenario: json path with keys with spaces or other troublesome characters
 * def json = { 'sp ace': 'foo', 'hy-phen': 'bar', 'full.stop': 'baz' }
