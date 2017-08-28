@@ -43,7 +43,7 @@ public class LogPanel extends BorderPane {
         VBox content = new VBox(2.0);
         setCenter(content);
         textArea = new TextArea();
-        textArea.setFont(App.DEFAULT_FONT);
+        textArea.setFont(App.getDefaultFont());
         Button clearButton = new Button("Clear Log");
         clearButton.setOnAction(e -> textArea.clear());        
         appender = new TextAreaLogAppender(textArea);

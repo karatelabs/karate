@@ -42,12 +42,14 @@ import javafx.stage.Stage;
  */
 public class App extends Application {
     
-    public static final Font DEFAULT_FONT = Font.font("Courier");
-    
     private final FileChooser fileChooser = new FileChooser();
     
     private File workingDir = new File(".");
     private final BorderPane rootPane = new BorderPane();
+    
+    public static Font getDefaultFont() {
+    	return Font.font("Courier");
+    }
     
     private File chooseFile(Stage stage, String description, String extension) {
         fileChooser.setTitle("Choose Feature File");

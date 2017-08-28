@@ -66,7 +66,7 @@ public class HeaderPanel extends BorderPane {
         textContent.setVisible(false);
         setBottom(textContent);
         textContent.setManaged(false);
-        textContent.setFont(App.DEFAULT_FONT);
+        textContent.setFont(App.getDefaultFont());
         textContent.focusedProperty().addListener((val, before, after) -> {
             if (!after) { // if we lost focus
                 rebuildFeatureIfTextChanged();

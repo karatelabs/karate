@@ -57,7 +57,7 @@ public class StepPanel extends AnchorPane {
         this.session = session;
         runButton = new Button("►");        
         textArea = new TextArea();
-        textArea.setFont(App.DEFAULT_FONT);
+        textArea.setFont(App.getDefaultFont());
         textArea.setMinHeight(0);
         textArea.setWrapText(true);
         textArea.focusedProperty().addListener((val, before, after) -> {
