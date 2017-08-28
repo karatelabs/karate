@@ -22,14 +22,14 @@ public class FeatureBuilderTest {
         PostmanRequest request = requests.get(0);
         FeatureBuilder builder = new FeatureBuilder();
         builder.addName(request.getName());
-        assertEquals("OAuth1.0 Verify Signature\n", builder.getName());
+        assertEquals("OAuth1.0 Verify Signature", builder.getName().trim());
         builder.addUrl(request.getUrl());
-        assertEquals("'https://echo.getpostman.com/oauth1'\n", builder.getUrl());
+        assertEquals("'https://echo.getpostman.com/oauth1'", builder.getUrl().trim());
         builder.addHeaders(request.getHeaders());
         String authorizationValue = "OAuth oauth_consumer_key=\"RKCGzna7bv9YD57c\",oauth_signature_method=\"HMAC-SHA1\",oauth_timestamp=\"1442394747\",oauth_nonce=\"UIGipk\",oauth_version=\"1.0\",oauth_signature=\"CaeyGPr2mns1WCq4Cpm5aLvz6Gs=\"";
-        assertEquals("And header Authorization = '"+ authorizationValue + "'\n", builder.getHeaders());
+        assertEquals("And header Authorization = '"+ authorizationValue + "'", builder.getHeaders().trim());
         builder.addMethod(request.getMethod());
-        assertEquals("GET\n", builder.getMethod());
+        assertEquals("GET", builder.getMethod().trim());
         builder.addBody(request.getBody());
         logger.debug(builder.getBody());
     }

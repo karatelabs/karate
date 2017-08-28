@@ -184,6 +184,8 @@ public class XmlUtilsTest {
                 + "    <goo>moo</goo>\n"
                 + "  </ban>\n"
                 + "</foo>\n";
+        
+        expected = expected.replace("\n", System.lineSeparator());
         assertEquals(temp, expected);
     }
     
