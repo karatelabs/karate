@@ -745,7 +745,7 @@ public class Script {
                 String regex = macroExpression.substring(5).trim();
                 RegexValidator v = new RegexValidator(regex);
                 ValidationResult vr = v.validate(actValue);
-                if (!vr.isPass()) { // TODO wrap string values in quotes
+                if (!vr.isPass()) {
                     return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
                 }
             } else if (macroExpression.startsWith("[") && macroExpression.indexOf(']') > 0) {
@@ -826,7 +826,7 @@ public class Script {
                     }
                 }
             }
-        } else {
+        } else if (actValue.isString() || actValue.isStream()) {
             String actual = actValue.getAsString();
             switch (stringMatchType) {
                 case CONTAINS:
@@ -842,6 +842,9 @@ public class Script {
                 default:
                     throw new RuntimeException("unsupported match type for string: " + stringMatchType);
             }
+        } else { // actual value is not a string
+            Object actual = actValue.getValue();
+            return matchFailed(path, actual, expected, "actual value is not a string");
         }
         return AssertionResult.PASS;
     }
@@ -1020,6 +1023,14 @@ public class Script {
             return o;
         }
     }
+    
+    private static Object quoteIfString(Object o) {
+        if (o instanceof String) {
+            return "'" + o + "'";
+        } else {
+            return o;
+        }
+    }
 
     public static AssertionResult matchFailed(String path, Object actObject, Object expObject, String reason) {
         if (path.startsWith("/")) {
@@ -1028,7 +1039,7 @@ public class Script {
             expObject = toXmlString(leafName, expObject);
             path = path.replace("/@/", "/@");
         }
-        String message = String.format("path: %s, actual: %s, expected: %s, reason: %s", path, actObject, expObject, reason);
+        String message = String.format("path: %s, actual: %s, expected: %s, reason: %s", path, quoteIfString(actObject), quoteIfString(expObject), reason);
         return AssertionResult.fail(message);
     }
 
@@ -1165,8 +1176,8 @@ public class Script {
                 } else {
                     return AssertionResult.PASS;
                 }
-            } else {
-                // types are not the same, use the JS engine for a lenient equality check
+            } else if (actObject instanceof Number && expObject instanceof Number) {
+                // use the JS engine for a lenient equality check
                 String exp = actObject + " == " + expObject;
                 ScriptValue sv = evalInNashorn(exp, null);
                 if (sv.isBooleanTrue()) {

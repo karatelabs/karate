@@ -137,7 +137,7 @@ Then match cat / == <cat><name>Jean</name></cat>
 # sadly, xpath list indexes start from 1
 * match cat/cat/scores/score[2] == '5'
 # but karate allows you to traverse xml like json
-* match cat.cat.scores.score[1] == 5
+* match cat.cat.scores.score[1] == '5'
 
 # functions !
 * def adder = function(a, b) { return a + b }

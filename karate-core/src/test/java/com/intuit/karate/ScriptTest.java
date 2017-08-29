@@ -608,12 +608,8 @@ public class ScriptTest {
         Document doc = XmlUtils.toXmlDoc("<cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>");
         ctx.vars.put("myXml", doc);
         assertTrue(Script.matchNamed("myXml/cat/scores/score[2]", null, "'5'", ctx).pass);
-        // lenient primitive equality check
-        assertTrue(Script.matchNamed("myXml/cat/scores/score[2]", null, "5", ctx).pass);
         // using json path for xml !
         assertTrue(Script.matchNamed("myXml.cat.scores.score[1]", null, "'5'", ctx).pass);
-        // lenient primitive equality check
-        assertTrue(Script.matchNamed("myXml.cat.scores.score[1]", null, "5", ctx).pass);
     }
 
     @Test
@@ -1358,6 +1354,16 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Script.assign("foo", "{ first: 'bar', second: '##(null)', third: '##(null)' }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ first: 'bar' }", ctx).pass);
+    }
+    
+    @Test
+    public void testMatchingIsStrictForDataTypes() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ a: '5', b: 5, c: true, d: 'true' }", ctx);        
+        assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ a: 5 }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ b: '5' }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ c: 'true' }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ d: true }", ctx).pass);
     }
     
 }

@@ -37,7 +37,7 @@ Scenario: table to json with nested json
     | two.baz | ['baz', 'ban'] |
     | true    | one == 'hello' |
 * print json
-* match json == [{ foo: 'hello', bar: { baz: 1 } }, { foo: 'world', bar: ['baz', 'ban'] }, { foo: '#boolean? true', bar: '#boolean? true' }]
+* match json == [{ foo: 'hello', bar: { baz: 1 } }, { foo: 'world', bar: ['baz', 'ban'] }, { foo: true, bar: true }]
 
 Scenario: json path with keys with spaces or other troublesome characters
 * def json = { 'sp ace': 'foo', 'hy-phen': 'bar', 'full.stop': 'baz' }
@@ -94,3 +94,11 @@ Scenario: js and numbers - float vs int
 * match json == '{"bar":10.0}'
 * string json = { bar: '#(~~foo)' }
 * match json == '{"bar":10}'
+
+Scenario: js match is strict for data types
+* def foo = { a: '5', b: 5, c: true, d: 'true' }
+* match foo !contains { a: 5 }
+* match foo !contains { b: '5' }
+* match foo !contains { c: 'true' }
+* match foo !contains { d: true }
+* match foo == { a: '5', b: 5, c: true, d: 'true' }

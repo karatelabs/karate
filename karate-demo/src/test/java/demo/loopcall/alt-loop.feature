@@ -9,7 +9,7 @@ Scenario Outline:
 * def res1 = call read(file) cat
 * def res2 = call read('result.feature') { id: '#(res1.id)' }
 * def response = res2.response
-* match response == { id: '#(res1.id)' , name: 'Tom' }
+* match response == { id: '#(~~res1.id)' , name: 'Tom' }
 
 Examples:
 | type |
