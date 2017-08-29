@@ -87,3 +87,10 @@ Scenario: js eval
 * assert celsius == 100
 * string expression = 'temperature.celsius * 1.8 + 32'
 * match temperature.fahrenheit == karate.eval(expression)
+
+Scenario: js and numbers - float vs int
+* def foo = parseInt('10')
+* string json = { bar: '#(foo)' }
+* match json == '{"bar":10.0}'
+* string json = { bar: '#(~~foo)' }
+* match json == '{"bar":10}'
