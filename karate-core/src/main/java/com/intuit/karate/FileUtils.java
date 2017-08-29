@@ -48,8 +48,8 @@ public class FileUtils {
         return text.endsWith(".txt");
     }
     
-    public static final boolean isGraphQLFile(String text) {
-        return text.endsWith(".graphql");
+    public static final boolean isGraphQlFile(String text) {
+        return text.endsWith(".graphql") || text.endsWith(".gql");
     }
     
     public static final boolean isFeatureFile(String text) {
@@ -69,7 +69,7 @@ public class FileUtils {
             String contents = readFileAsString(fileName, isClassPath(text), context);
             ScriptValue temp = eval(contents, context);
             return new ScriptValue(temp.getValue(), text);
-        } else if (isTextFile(text) || isGraphQLFile(text)) {
+        } else if (isTextFile(text) || isGraphQlFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
             return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {

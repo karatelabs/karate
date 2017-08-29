@@ -984,7 +984,8 @@ You can also [re-use other `*.feature`](#calling-other-feature-files) files from
 * def result = call read('classpath:some-reusable-steps.feature')
 ```
 
-If a file does not end in `.json`, `.xml`, `.yaml`, `.js` or `.txt` - it is treated as a stream which is typically what you would need for [`multipart`](#multipart-field) file uploads.
+If a file does not end in `.json`, `.xml`, `.yaml`, `.js` or `.txt` - it is treated as a stream which is typically what you would need for [`multipart`](#multipart-field) file uploads. The `.graphql` and `.gql` extensions are also recognized (for GraphQL) but are handled the same way as `.txt` and treated as a string.
+
 ```cucumber
 * def someStream = read('some-pdf.pdf')
 ```
