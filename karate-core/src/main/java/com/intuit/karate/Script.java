@@ -77,6 +77,7 @@ public class Script {
 
     public static final String VAR_SELF = "_";
     public static final String VAR_DOLLAR = "$";
+    public static final String VAR_LOOP = "__loop";
 
     private Script() {
         // only static methods
@@ -1332,7 +1333,9 @@ public class Script {
             for (int i = 0; i < array.length; i++) {               
                 Object rowArg = array[i];                
                 if (rowArg instanceof Map) {
-                    Map<String, Object> argAsMap = (Map) rowArg;
+                    // clone so as to not clobber calling context
+                    Map<String, Object> argAsMap = new LinkedHashMap((Map) rowArg);
+                    argAsMap.put(VAR_LOOP, i);
                     if (env.reporter != null) {
                         env.reporter.call(feature, i, argAsMap);
                     }                     

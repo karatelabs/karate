@@ -16,6 +16,13 @@ Background:
 
 * def created = get result[*].response
 
+# for each iteration, a variable called '__loop' is set for convenience
+# which can be accessed in the called feature as well
+* match result[*].__loop == [0, 1, 2, 3, 4, 5]
+
+# which is not even needed for most data-driven assertions
+* match created[*].name == get kittens[*].name
+
 Scenario: create parent cat using kittens
 
 # create mom cat
