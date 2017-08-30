@@ -39,6 +39,7 @@ import java.util.Collections;
 public class KarateRuntime extends Runtime {  
     
     private final KarateBackend backend;
+    private boolean hasError;
     
     public KarateRuntime(ResourceLoader resourceLoader, ClassLoader classLoader, KarateBackend backend,
                    RuntimeOptions runtimeOptions, RuntimeGlue glue) { 
@@ -48,7 +49,13 @@ public class KarateRuntime extends Runtime {
 
     @Override
     public void runStep(String featurePath, Step step, Reporter reporter, I18n i18n) {
-        CucumberUtils.runStep(featurePath, step, reporter, i18n, backend, false);
+        if (hasError) { // specifc to JUnit or TestNG execution - stop on first error
+            return;
+        }
+        StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend, false);
+        if (!result.isPass()) {
+            hasError = true;            
+        }
     }        
     
 }
