@@ -91,7 +91,7 @@ public class Script {
     }
 
     public static final boolean isGetSyntax(String text) {
-        return text.startsWith("get ");
+        return text.startsWith("get ") || text.startsWith("get[");
     }
 
     public static final boolean isJson(String text) {
@@ -233,8 +233,13 @@ public class Script {
             // $json[*].path
             // get /xml/path
             // get xpath-function(expression)
+            int index = -1;
             if (text.startsWith("$")) {
                 text = text.substring(1);
+            } else if (text.startsWith("get[")) {
+                int pos = text.indexOf(']');
+                index = Integer.valueOf(text.substring(4, pos));
+                text = text.substring(pos + 2);
             } else {
                 text = text.substring(4);
             }
@@ -249,11 +254,19 @@ public class Script {
                 left = pair.getLeft();
                 right = pair.getRight();
             }
+            ScriptValue sv;
             if (isXmlPath(right) || isXmlPathFunction(right)) {
-                return evalXmlPathOnVarByName(left, right, context);
+                sv = evalXmlPathOnVarByName(left, right, context);
             } else {
-                return evalJsonPathOnVarByName(left, right, context);
+                sv = evalJsonPathOnVarByName(left, right, context);
             }
+            if (index != -1 && sv.isListLike()) {
+                List list = sv.getAsList();
+                if (!list.isEmpty()) {
+                    return new ScriptValue(list.get(index));
+                }
+            }
+            return sv;
         } else if (isJson(text)) {
             DocumentContext doc = JsonUtils.toJsonDoc(text);
             evalJsonEmbeddedExpressions(doc, context);

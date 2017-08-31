@@ -115,3 +115,9 @@ Scenario: json path in expressions
 # the $ prefix indicates a path expression on a variable, it behaves like 'get'
 * match foo[*].a == $data[*].a
 * match foo[*].b == $data[*].b
+
+Scenario: get combined with array index
+* def foo = [{a: 1, b: 'x'}, {a: 2, b: 'y'}]
+* def first = get[0] foo[*].a
+* match first == 1
+* match first == get[0] foo[*].a

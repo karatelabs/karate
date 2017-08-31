@@ -1107,6 +1107,10 @@ public class ScriptTest {
         Script.assign("foo", "[{baz: 1}, {baz: 2}, {baz: 3}]", ctx);
         Script.assign("nums", "get foo[*].baz", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
+        Script.assign("first", "get[0] foo[*].baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "first", null, "1", ctx).pass);
+        Script.assign("second", "get[1] foo[*].baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "second", null, "2", ctx).pass);        
         // alternative to get, usable in-line within match statements
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo[*].baz", null, "$foo[*].baz", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "$foo[*].baz", null, "$foo[*].baz", ctx).pass);

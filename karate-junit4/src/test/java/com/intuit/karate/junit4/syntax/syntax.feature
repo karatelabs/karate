@@ -317,6 +317,15 @@ Then match cat.kittens[*].id == [23, 42]
 * match kitnames == ['Bob', 'Wild']
 * match kitnames == $cat.kittens[*].name
 
+# get by index - instead of this
+* def kitnums = get cat.kittens[*].id
+* def first = kitnums[0]
+* match first == 23
+
+# you can do this in one line
+* def first = get[0] cat.kittens[*].id
+* match first == 23
+
 # when inspecting a json array, 'contains' just checks if the expected items exist
 # and the size and order of the actual array does not matter
 Then match cat.kittens[*].id contains 23

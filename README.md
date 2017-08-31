@@ -1796,6 +1796,20 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 * match kitnames == $cat.kittens[*].name
 ```
 
+### `get` plus index
+A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` in JsonPath, you get a list back even though you typically might only be interested in the first item.
+
+```cucumber
+# so instead of this
+* def kitnums = get cat.kittens[*].id
+* def first = kitnums[0]
+* match first == 23
+
+# you can do this in one line
+* def first = get[0] cat.kittens[*].id
+* match first == 23
+```
+
 ### XPath Functions
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. XPath functions are not supported directly within [`match`](#match) statements. But by using the `get` keyword, you should be able to achieve any assertion involving XPath functions in two steps.
 
