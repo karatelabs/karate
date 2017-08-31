@@ -130,6 +130,10 @@ public class Script {
     public static final boolean isJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
     }
+    
+    public static final boolean isDollarPrefixed(String text) {
+        return text.startsWith("$");
+    }
 
     public static final boolean isVariable(String text) {
         return VARIABLE_PATTERN.matcher(text).matches();
@@ -171,7 +175,7 @@ public class Script {
         } else {
             path = text.substring(matcher.end());
         }
-        if (Script.isXmlPath(path) || Script.isXmlPathFunction(path)) {
+        if (isXmlPath(path) || isXmlPathFunction(path)) {
             // xml, don't prefix for json
         } else {
             path = "$" + path;
@@ -246,6 +250,8 @@ public class Script {
             }
         } else if (isJsonPath(text)) {
             return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
+        } else if (isDollarPrefixed(text)) {
+            return evalVariableAndPath(text.substring(1), context);
         } else if (isJson(text)) {
             DocumentContext doc = JsonUtils.toJsonDoc(text);
             evalJsonEmbeddedExpressions(doc, context);
@@ -322,6 +328,17 @@ public class Script {
         } else { // make sure we create a fresh doc else future xpath would run against original root
             return new ScriptValue(XmlUtils.toNewDocument(node));
         }
+    }
+    
+    private static ScriptValue evalVariableAndPath(String varAndPath, ScriptContext context) {
+        Pair<String, String> pair = parseVariableAndPath(varAndPath);
+        String name = pair.getLeft();
+        String path = pair.getRight();
+        if (path.indexOf('/') != -1) {
+            return evalXmlPathOnVarByName(name, path, context);
+        } else {
+            return evalJsonPathOnVarByName(name, path, context);
+        }        
     }
 
     public static ScriptValue evalJsonPathOnVarByName(String name, String exp, ScriptContext context) {
@@ -656,6 +673,9 @@ public class Script {
             path = name;
             name = ScriptValueMap.VAR_RESPONSE;
         }
+        if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
+            name = name.substring(1);
+        }
         path = StringUtils.trimToNull(path);
         if (path == null) {
             Pair<String, String> pair = parseVariableAndPath(name);
@@ -681,7 +701,7 @@ public class Script {
                 // break; 
                 // fall through to JSON. yes, dot notation can be used on XML !!
                 default:
-                    if (isJsonPath(path)) {
+                    if (isDollarPrefixed(path)) {
                         return matchJsonPath(matchType, actual, path, expected, context);
                     } else { // xpath
                         if (actual.getType() != XML) { // force conversion to xml

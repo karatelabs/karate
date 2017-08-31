@@ -33,13 +33,15 @@ Scenario: create a cat with kittens
 
     # again, even though cucumber will re-run the 'Background:' section for each `Scenario:' in a feature file,
     # 'kitten-create.feature' will not be called and the value of 'result' will be retrieved from cache
-    * def created = get result[*].response
+    * def created = $result[*].response
 
     Given path 'cats'
     And request { name: 'Billie', kittens: '#(created)' }
     When method post
     Then status 200
     And match response.kittens[*].name contains only ['Bob', 'Wild', 'Nyan']
+    # the ultimate data-driven test
+    And match response.kittens[*].name contains only $kittens[*].name
 
 
 

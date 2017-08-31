@@ -18,6 +18,9 @@ Scenario: get for complex things such as xpath functions
 * def second = get foo //record[@index=2]
 * assert second == 'b'
 
+# short-cut alternative to get
+* match second == $foo//record[@index=2]
+
 * match foo //record[@foo='bar'] == 'c'
 
 * match foo == <records><record index="1">a</record><record index="#? _ &gt; 1">b</record><record index="3" foo="bar">#string</record></records>

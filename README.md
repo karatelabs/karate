@@ -1772,7 +1772,7 @@ Refer to this for the complete example: [`schema-like.feature`](karate-junit4/sr
 And there is another example in the [karate-demos](karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example. You can also find a nice visual comparison and explanation [here](https://twitter.com/KarateDSL/status/878984854012022784).
 
 ## `get`
-By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features). For example:
+By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features). Note that the 'short cut' `$variableName` form is also supported. For example:
 
 ```cucumber
 * def cat = 
@@ -1789,6 +1789,11 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 * match kitnums == [23, 42]
 * def kitnames = get cat $.kittens[*].name
 * match kitnames == ['Bob', 'Wild']
+
+# this short-cut is also allowed, and can be mixed into match expressions
+* def kitnames = $cat.kittens[*].name
+* match kitnames == ['Bob', 'Wild']
+* match kitnames == $cat.kittens[*].name
 ```
 
 ### XPath Functions
@@ -2027,7 +2032,7 @@ If the argument passed to the [call of a `*.feature` file](#calling-other-featur
 
 But this time, the return value from the `call` step will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
 
-Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) keyword is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
+Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) shortcut is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
 
 ```cucumber
 * table kittens = 
@@ -2037,7 +2042,7 @@ Here is an example that combines the [`table`](#table) keyword with calling a `*
     | 'Nyan' |   3 |
 
 * def result = call read('cat-create.feature') kittens
-* def created = get result[*].response
+* def created = $result[*].response
 * match each created == { id: '#number', name: '#string', age: '#number' }
 * match created[*].name contains only ['Bob', 'Wild', 'Nyan']
 ```

@@ -10,7 +10,7 @@ Background:
 # the above could be written in one line as follows
 # * def result = call read('kitten-create.feature') read('kittens.json')
 
-* def created = get result[*].response
+* def created = $result[*].response
 
 Scenario: create parent cat using kittens
 

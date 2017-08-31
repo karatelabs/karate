@@ -312,6 +312,11 @@ Given def cat =
 # normal 'equality' match. note the wildcard '*' in the JsonPath (returns an array)
 Then match cat.kittens[*].id == [23, 42]
 
+# this short-cut instead of get is also allowed, and can be mixed into match expressions
+* def kitnames = $cat.kittens[*].name
+* match kitnames == ['Bob', 'Wild']
+* match kitnames == $cat.kittens[*].name
+
 # when inspecting a json array, 'contains' just checks if the expected items exist
 # and the size and order of the actual array does not matter
 Then match cat.kittens[*].id contains 23

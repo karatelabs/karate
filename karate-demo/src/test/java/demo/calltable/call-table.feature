@@ -14,14 +14,14 @@ Background:
 
 * def result = call read('kitten-create.feature') kittens
 
-* def created = get result[*].response
+* def created = $result[*].response
 
 # for each iteration, a variable called '__loop' is set for convenience
 # which can be accessed in the called feature as well
 * match result[*].__loop == [0, 1, 2, 3, 4, 5]
 
 # which is not even needed for most data-driven assertions
-* match created[*].name == get kittens[*].name
+* match created[*].name == $kittens[*].name
 
 Scenario: create parent cat using kittens
 

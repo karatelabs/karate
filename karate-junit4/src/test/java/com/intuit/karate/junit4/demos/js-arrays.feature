@@ -102,3 +102,16 @@ Scenario: js match is strict for data types
 * match foo !contains { c: 'true' }
 * match foo !contains { d: true }
 * match foo == { a: '5', b: 5, c: true, d: 'true' }
+
+Scenario: json path in expressions
+* table data =
+    | a | b   |
+    | 1 | 'x' |
+    | 2 | 'y' |
+* def foo = [{a: 1, b: 'x'}, {a: 2, b: 'y'}]
+* match data == foo
+* match foo == data
+* match foo[*].a == [1, 2]
+# the $ prefix indicates a path expression on a variable, it behaves like 'get'
+* match foo[*].a == $data[*].a
+* match foo[*].b == $data[*].b
