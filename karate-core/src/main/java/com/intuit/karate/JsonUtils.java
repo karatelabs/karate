@@ -29,6 +29,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -235,7 +236,11 @@ public class JsonUtils {
                 if (right.startsWith("[")) {
                     right = right.substring(2, right.length() - 2);
                 }
-                doc.put(left, right, value);
+                if (doc.read(left) == null) {
+                    Pair<String, String> parentPath = getParentAndLeafPath(left);
+                    doc.put(parentPath.getLeft(), parentPath.getRight(), new LinkedHashMap(1));
+                }
+                doc.put(left, right, value);               
             }
         }
     }

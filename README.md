@@ -1408,6 +1408,45 @@ XML and XPath works just like you'd expect.
 ```
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
 
+### `set` multiple
+Karate has an elegant way to set multiple keys (via path expressions) in one step. As expected, non-existent keys (or array elements) will be created. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+
+```cucumber
+* def cat = { name: '' }
+
+* set cat
+| path   | value |
+| name   | 'Bob' |
+| age    | 5     |
+
+* match cat == { name: 'Bob', age: 5 }
+```
+
+This even works for XML. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature).
+
+```cucumber
+* def search = 
+"""
+<acc:getAccountByPhoneNumber>
+    <acc:phoneNumber></acc:phoneNumber>
+    <acc:phoneNumberSearchOption></acc:phoneNumberSearchOption>        
+</acc:getAccountByPhoneNumber>
+"""
+
+* set search /getAccountByPhoneNumber
+| path                    | value |
+| phoneNumber             | 1234  |   
+| phoneNumberSearchOption | 'all' |
+
+* match search ==
+"""
+<acc:getAccountByPhoneNumber>
+    <acc:phoneNumber>1234</acc:phoneNumber>
+    <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
+</acc:getAccountByPhoneNumber>
+"""
+```
+
 ### `match` and variables
 In case you were wondering, variables (and even expressions) are supported on the right-hand-side. So you can compare 2 JSON (or XML) payloads if you wanted to:
 ```cucumber

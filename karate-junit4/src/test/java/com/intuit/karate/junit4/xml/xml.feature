@@ -79,6 +79,26 @@ Scenario: set xml chunks using embedded expressions
     </soapenv:Envelope>
     """
 
+Scenario: set via table
+    * def search = 
+    """
+    <acc:getAccountByPhoneNumber>
+        <acc:phoneNumber></acc:phoneNumber>
+        <acc:phoneNumberSearchOption></acc:phoneNumberSearchOption>        
+    </acc:getAccountByPhoneNumber>
+    """
+    * set search /getAccountByPhoneNumber
+    | path                    | value |
+    | phoneNumber             | 1234  |   
+    | phoneNumberSearchOption | 'all' |
+    * match search ==
+    """
+    <acc:getAccountByPhoneNumber>
+        <acc:phoneNumber>1234</acc:phoneNumber>
+        <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
+    </acc:getAccountByPhoneNumber>
+    """
+
 Scenario: pretty print xml
     * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
     * def xml = read('soap1.xml')

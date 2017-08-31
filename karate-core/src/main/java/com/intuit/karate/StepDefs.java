@@ -518,6 +518,12 @@ public class StepDefs {
     public void setByPath(String name, String path, String value) {
         setNamedByPath(name, path, value);
     }
+    
+    @When("^set ([^\\s]+)( [^=]+)?$")
+    public void setByPathTable(String name, String path, DataTable table) {
+        List<Map<String, String>> list = table.asMaps(String.class, String.class);
+        Script.evaluateAndSet(name, path, list, context);
+    }    
 
     public void setNamedByPath(String name, String path, String value) {
         Script.setValueByPath(name, path, value, context);

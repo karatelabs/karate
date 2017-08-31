@@ -121,3 +121,26 @@ Scenario: get combined with array index
 * def first = get[0] foo[*].a
 * match first == 1
 * match first == get[0] foo[*].a
+
+Scenario: set via table
+* def cat = { name: '' }
+* set cat
+| path   | value |
+| name   | 'Bob' |
+| age    | 5     |
+* match cat == { name: 'Bob', age: 5 }
+
+Scenario: set nested via table
+* def cat = { name: 'Wild', kitten: null }
+* set cat $.kitten
+| path   | value |
+| name   | 'Bob' |
+| age    | 5     |
+* match cat == { name: 'Wild', kitten: { name: 'Bob', age: 5 } }
+
+Scenario: set nested json via table
+* def cat = { name: 'Wild', kitten: null }
+* set cat
+| path   | value                   |
+| kitten | { name: 'Bob', age: 5 } |
+* match cat == { name: 'Wild', kitten: { name: 'Bob', age: 5 } }

@@ -151,6 +151,8 @@ public class XmlUtils {
         Node node = getNodeByPath(doc, path);
         if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
             node.getFirstChild().setTextContent(value);
+        } else if (node.getNodeType() == Node.ELEMENT_NODE) {
+            node.setTextContent(value);
         } else {
             node.setNodeValue(value);
         }

@@ -1488,6 +1488,7 @@ public class Script {
             if (token == null) {
                 continue;
             }
+            // TODO refactor with evaluateAndSet, the verbosity below is to be lenient with table second column name
             List<String> keys = new ArrayList(map.keySet());
             keys.remove(TOKEN);
             Iterator<String> iterator = keys.iterator();
@@ -1519,5 +1520,43 @@ public class Script {
         }
         return result;
     }
+    
+    private static final String PATH = "path";
+    
+    public static void evaluateAndSet(String name, String path, List<Map<String, String>> list, ScriptContext context) {
+        name = StringUtils.trim(name);
+        path = StringUtils.trimToNull(path);
+        for (Map<String, String> map : list) {
+            String append = (String) map.get(PATH);
+            if (append == null) {
+                continue;
+            }
+            List<String> keys = new ArrayList(map.keySet());
+            keys.remove(PATH);
+            Iterator<String> iterator = keys.iterator(); 
+            if (iterator.hasNext()) {                                
+                String fullPath;
+                if (append.startsWith("/") || (path != null && path.startsWith("/"))) { // XML
+                    if (path == null) {
+                        fullPath = append;
+                    } else {
+                        if (path.endsWith("/")) {
+                            path = path.substring(0, path.length() - 1);
+                        }
+                        fullPath = path + '/' + append;
+                    }
+                } else {
+                    if (path == null) {
+                        path = "$";
+                    }
+                    fullPath = JsonUtils.buildPath(path, append);                    
+                }
+                String key = keys.iterator().next();
+                String expression = map.get(key);                
+                setValueByPath(name, fullPath, expression, context);
+            }            
+        }
+    }
+    
 
 }
