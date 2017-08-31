@@ -27,7 +27,6 @@ import com.intuit.karate.exception.KarateException;
 import static com.intuit.karate.ScriptValue.Type.*;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
-import com.intuit.karate.cucumber.KarateReporter;
 import com.intuit.karate.validator.ArrayValidator;
 import com.intuit.karate.validator.BooleanValidator;
 import com.intuit.karate.validator.IgnoreValidator;
@@ -227,11 +226,18 @@ public class Script {
             } else {
                 return call(text, arg, context, reuseParentConfig);
             }
-        } else if (isGetSyntax(text)) { // special case in form
+        } else if (isJsonPath(text)) {
+            return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);            
+        } else if (isGetSyntax(text) || isDollarPrefixed(text)) { // special case in form
             // get json[*].path
+            // $json[*].path
             // get /xml/path
             // get xpath-function(expression)
-            text = text.substring(4);
+            if (text.startsWith("$")) {
+                text = text.substring(1);
+            } else {
+                text = text.substring(4);
+            }
             String left;
             String right;
             if (isVariableAndSpaceAndPath(text)) {
@@ -248,10 +254,6 @@ public class Script {
             } else {
                 return evalJsonPathOnVarByName(left, right, context);
             }
-        } else if (isJsonPath(text)) {
-            return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
-        } else if (isDollarPrefixed(text)) {
-            return evalVariableAndPath(text.substring(1), context);
         } else if (isJson(text)) {
             DocumentContext doc = JsonUtils.toJsonDoc(text);
             evalJsonEmbeddedExpressions(doc, context);
@@ -328,17 +330,6 @@ public class Script {
         } else { // make sure we create a fresh doc else future xpath would run against original root
             return new ScriptValue(XmlUtils.toNewDocument(node));
         }
-    }
-    
-    private static ScriptValue evalVariableAndPath(String varAndPath, ScriptContext context) {
-        Pair<String, String> pair = parseVariableAndPath(varAndPath);
-        String name = pair.getLeft();
-        String path = pair.getRight();
-        if (path.indexOf('/') != -1) {
-            return evalXmlPathOnVarByName(name, path, context);
-        } else {
-            return evalJsonPathOnVarByName(name, path, context);
-        }        
     }
 
     public static ScriptValue evalJsonPathOnVarByName(String name, String exp, ScriptContext context) {
