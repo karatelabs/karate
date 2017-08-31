@@ -359,7 +359,13 @@ public class ScriptValue {
         StringBuilder sb = new StringBuilder();
         String description = key + " (" + getTypeAsShortString() + "): ";
         sb.append(description);
-        String temp = getAsPrettyString();
+        String temp = null;
+        try {
+            temp = getAsPrettyString();
+        } catch (Exception e) {
+            e.printStackTrace();
+            temp = e.getMessage();
+        }
         if (temp != null && temp.indexOf('\n') != -1) {
             String dashes = StringUtils.repeat('-', description.length() - 1);
             sb.append('\n').append(dashes).append('\n');
