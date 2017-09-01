@@ -181,9 +181,13 @@ public class Script {
         }
         return Pair.of(name, path);
     }
+    
+    public static ScriptValue evalForMatch(String text, ScriptContext context) {
+        return eval(text, context, false, true);
+    }    
 
     public static ScriptValue eval(String text, ScriptContext context) {
-        return eval(text, context, false);
+        return eval(text, context, false, false);
     }
 
     private static ScriptValue callWithCache(String text, String arg, ScriptContext context, boolean reuseParentConfig) {
@@ -201,7 +205,7 @@ public class Script {
         return resultValue;
     }
 
-    private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig) {
+    private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig, boolean forMatch) {
         text = StringUtils.trimToEmpty(text);
         if (text.isEmpty()) {
             return ScriptValue.NULL;
@@ -269,11 +273,11 @@ public class Script {
             return sv;
         } else if (isJson(text)) {
             DocumentContext doc = JsonUtils.toJsonDoc(text);
-            evalJsonEmbeddedExpressions(doc, context);
+            evalJsonEmbeddedExpressions(doc, context, forMatch);
             return new ScriptValue(doc);
         } else if (isXml(text)) {
             Document doc = XmlUtils.toXmlDoc(text);
-            evalXmlEmbeddedExpressions(doc, context);
+            evalXmlEmbeddedExpressions(doc, context, forMatch);
             return new ScriptValue(doc);
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
@@ -437,12 +441,12 @@ public class Script {
         return VARIABLE_PATTERN.matcher(name).matches();
     }
 
-    public static void evalJsonEmbeddedExpressions(DocumentContext doc, ScriptContext context) {
+    public static void evalJsonEmbeddedExpressions(DocumentContext doc, ScriptContext context, boolean forMatch) {
         Object o = doc.read("$");
-        evalJsonEmbeddedExpressions("$", o, context, doc);
+        evalJsonEmbeddedExpressions("$", o, context, doc, forMatch);
     }
 
-    private static void evalJsonEmbeddedExpressions(String path, Object o, ScriptContext context, DocumentContext root) {
+    private static void evalJsonEmbeddedExpressions(String path, Object o, ScriptContext context, DocumentContext root, boolean forMatch) {
         if (o == null) {
             return;
         }
@@ -453,7 +457,7 @@ public class Script {
             Collection<String> keys = new ArrayList(map.keySet());
             for (String key: keys) {
                 String childPath = JsonUtils.buildPath(path, key);
-                evalJsonEmbeddedExpressions(childPath, map.get(key), context, root);
+                evalJsonEmbeddedExpressions(childPath, map.get(key), context, root, forMatch);
             }
         } else if (o instanceof List) {
             List list = (List) o;
@@ -461,7 +465,7 @@ public class Script {
             for (int i = 0; i < size; i++) {
                 Object child = list.get(i);
                 String childPath = path + "[" + i + "]";
-                evalJsonEmbeddedExpressions(childPath, child, context, root);
+                evalJsonEmbeddedExpressions(childPath, child, context, root, forMatch);
             }
         } else if (o instanceof String) {
             String value = (String) o;
@@ -470,10 +474,10 @@ public class Script {
                 boolean optional = isOptionalMacro(value);
                 try {
                     ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
-                    if (!optional) {
+                    if (optional && (forMatch || sv.isNull())) {
+                        root.delete(path);                    
+                    } else { 
                         root.set(path, sv.getValue());
-                    } else if (sv.isNull()) { // only if optional null remove key else defer eval to string macro validation
-                        root.delete(path);
                     }
                 } catch (Exception e) {
                     context.logger.warn("embedded json script eval failed at path {}: {}", path, e.getMessage());
@@ -482,7 +486,7 @@ public class Script {
         }
     }
 
-    public static void evalXmlEmbeddedExpressions(Node node, ScriptContext context) {
+    public static void evalXmlEmbeddedExpressions(Node node, ScriptContext context, boolean forMatch) {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
         }
@@ -497,10 +501,10 @@ public class Script {
                 boolean optional = isOptionalMacro(value);
                 try {
                     ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
-                    if (!optional) {
+                    if (optional && (forMatch || sv.isNull())) {
+                        attributesToRemove.add(attrib);                        
+                    } else {
                         attrib.setValue(sv.getAsString());
-                    } else if (sv.isNull()) {
-                        attributesToRemove.add(attrib);
                     }
                 } catch (Exception e) {
                     context.logger.warn("embedded xml-attribute script eval failed: {}", e.getMessage());
@@ -525,7 +529,9 @@ public class Script {
                     boolean optional = isOptionalMacro(value);
                     try {
                         ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
-                        if (!optional) {
+                        if (optional && (forMatch || sv.isNull())) {
+                            elementsToRemove.add(child);
+                        } else {
                             if (sv.isMapLike()) {
                                 Node evalNode;
                                 if (sv.getType() == XML) {
@@ -541,15 +547,13 @@ public class Script {
                             } else {
                                 child.setNodeValue(sv.getAsString());
                             }
-                        } else if (sv.isNull()) {
-                            elementsToRemove.add(child);
                         }
                     } catch (Exception e) {
                         context.logger.warn("embedded xml-text script eval failed: {}", e.getMessage());
                     }
                 }
             } else if (child.hasChildNodes()) {
-                evalXmlEmbeddedExpressions(child, context);
+                evalXmlEmbeddedExpressions(child, context, forMatch);
             }
         }
         for (Node toRemove : elementsToRemove) {
@@ -604,7 +608,7 @@ public class Script {
                 break;
             case YAML:
                 DocumentContext doc = JsonUtils.fromYaml(exp);
-                evalJsonEmbeddedExpressions(doc, context);
+                evalJsonEmbeddedExpressions(doc, context, false);
                 sv = new ScriptValue(doc);
                 break;
             case STRING:
@@ -978,7 +982,7 @@ public class Script {
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }
         Object actObject = actualDoc.read(path);
-        ScriptValue expected = eval(expression, context);
+        ScriptValue expected = evalForMatch(expression, context);
         Object expObject;
         switch (expected.getType()) {
             case JSON: // convert to map or list
@@ -1488,7 +1492,7 @@ public class Script {
             if (token == null) {
                 continue;
             }
-            // TODO refactor with evaluateAndSet, the verbosity below is to be lenient with table second column name
+            // TODO refactor with setTable, the verbosity below is to be lenient with table second column name
             List<String> keys = new ArrayList(map.keySet());
             keys.remove(TOKEN);
             Iterator<String> iterator = keys.iterator();
@@ -1501,7 +1505,7 @@ public class Script {
         return text;
     }
 
-    public static List<Map<String, Object>> evaluateExpressions(List<Map<String, Object>> list, ScriptContext context) {
+    public static List<Map<String, Object>> evalTable(List<Map<String, Object>> list, ScriptContext context) {
         List<Map<String, Object>> result = new ArrayList<>(list.size());
         for (Map<String, Object> map : list) {
             Map<String, Object> row = new LinkedHashMap<>(map);
@@ -1523,7 +1527,7 @@ public class Script {
     
     private static final String PATH = "path";
     
-    public static void evaluateAndSet(String name, String path, List<Map<String, String>> list, ScriptContext context) {
+    public static void setTable(String name, String path, List<Map<String, String>> list, ScriptContext context) {
         name = StringUtils.trim(name);
         path = StringUtils.trimToNull(path); // TODO re-factor these few lines cut and paste
         if (path == null) {
@@ -1554,7 +1558,7 @@ public class Script {
                     if (path == null) {
                         path = "$";
                     }
-                    fullPath = JsonUtils.buildPath(path, append);                    
+                    fullPath = path + '.' + append;                    
                 }
                 String key = keys.iterator().next();
                 String expression = map.get(key);                

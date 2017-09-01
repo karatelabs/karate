@@ -271,7 +271,7 @@ public class StepDefs {
     @When("^table (.+) =$")
     public void table(String name, DataTable table) {
         List<Map<String, Object>> list = table.asMaps(String.class, Object.class);
-        list = Script.evaluateExpressions(list, context);
+        list = Script.evalTable(list, context);
         DocumentContext doc = JsonPath.parse(list);
         context.vars.put(name.trim(), doc);
     }
@@ -522,7 +522,7 @@ public class StepDefs {
     @When("^set ([^\\s]+)( [^=]+)?$")
     public void setByPathTable(String name, String path, DataTable table) {
         List<Map<String, String>> list = table.asMaps(String.class, String.class);
-        Script.evaluateAndSet(name, path, list, context);
+        Script.setTable(name, path, list, context);
     }    
 
     public void setNamedByPath(String name, String path, String value) {

@@ -68,31 +68,28 @@ Scenario: when xpath exressions return xml chunks (or node lists)
 
 Scenario Outline: conditionally build xml from scenario-outline and examples
 
-# this is an extreme example, you normally will never need to do this
+* def firstName = '<_firstName>' || null
+* def lastName = '<_lastName>' || null
+* def age = '<_age>' || null
 
-* def base = <query><name></name></query>
-* def firstName = '<_firstName>'
-* def lastName = '<_lastName>'
-* def age = '<_age>'
-
-* def builder =
+* def xml = 
 """
-function() {
-  if (firstName) karate.set('base', '/query/name', '<firstName>#(firstName)</firstName>');
-  if (lastName) karate.set('base', '/query/name', '<lastName>#(lastName)</lastName>');
-  if (age) karate.set('base', '/query', '<age>#(age)</age>');  
-}
+<query>
+  <name>
+    <firstName>##(firstName)</firstName>
+    <lastName>##(lastName)</lastName>
+  </name>
+  <age>##(age)</age>
+</query>
 """
 
-* call builder
-* print base
+* match xml == <_expected>
 
 Examples:
-| _firstName | _lastName | _age |
-| John       | Smith     |   20 |
-| Jane       | Doe       |      |
-|            | Waldo     |      |
-
+| _firstName | _lastName | _age | _expected                                                                                      |
+| John       | Smith     |   20 | <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query> |
+| Jane       | Doe       |      | <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>                |
+|            | Waldo     |      | <query><name><lastName>Waldo</lastName></name></query>                                         |
 
 Scenario: test removing elements from xml from js
 

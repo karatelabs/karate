@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -238,7 +239,13 @@ public class JsonUtils {
                 if (right.startsWith("[")) {
                     right = right.substring(2, right.length() - 2);
                 }
-                if (doc.read(left) == null) {
+                boolean pathExists;
+                try {
+                    pathExists = doc.read(left) != null;
+                } catch (PathNotFoundException pnfe) {
+                    pathExists = false;
+                }
+                if (!pathExists) {
                     Pair<String, String> parentPath = getParentAndLeafPath(left);
                     doc.put(parentPath.getLeft(), parentPath.getRight(), new LinkedHashMap(1));
                 }

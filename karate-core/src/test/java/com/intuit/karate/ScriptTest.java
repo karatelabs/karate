@@ -171,7 +171,7 @@ public class ScriptTest {
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
         Document doc = XmlUtils.toXmlDoc("<root><foo>#(a + b)</foo></root>");
-        Script.evalXmlEmbeddedExpressions(doc, ctx);
+        Script.evalXmlEmbeddedExpressions(doc, ctx, false);
         ctx.vars.put("myXml", doc);
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
@@ -201,7 +201,7 @@ public class ScriptTest {
         ctx.vars.put("a", 5);
         String xml = "<foo bar=\"#(a)\">#(a)</foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Script.evalXmlEmbeddedExpressions(doc, ctx);
+        Script.evalXmlEmbeddedExpressions(doc, ctx, false);
         String result = XmlUtils.toString(doc);
         logger.debug("result: {}", result);
         assertTrue(result.endsWith("<foo bar=\"5\">5</foo>"));
@@ -229,7 +229,7 @@ public class ScriptTest {
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: '#(a + b)' }");
-        Script.evalJsonEmbeddedExpressions(doc, ctx);
+        Script.evalJsonEmbeddedExpressions(doc, ctx, false);
         ctx.vars.put("myJson", doc);
         ScriptValue value = Script.evalJsonPathOnVarByName("myJson", "$.foo", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
@@ -243,7 +243,7 @@ public class ScriptTest {
         ctx.vars.put("ticket", JsonUtils.toJsonDoc(ticket));
         String json = "{ foo: '#(ticket.userId)' }";
         DocumentContext doc = JsonUtils.toJsonDoc(json);
-        Script.evalJsonEmbeddedExpressions(doc, ctx);
+        Script.evalJsonEmbeddedExpressions(doc, ctx, false);
         String result = doc.jsonString();
         logger.debug("result: {}", result);
         assertEquals("{\"foo\":\"12345\"}", result);

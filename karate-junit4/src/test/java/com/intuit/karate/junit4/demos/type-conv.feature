@@ -125,3 +125,21 @@ Scenario: java pojo to xml
 * def pojo = new Pojo()
 * xml xmlVar = pojo
 * match xmlVar == <root><foo></foo><bar>0</bar></root>
+
+Scenario: json manipulation using string-replace
+* def data =
+"""
+{
+  foo: '<foo>',
+  bar: { hello: '<bar>'}
+}
+"""
+# replace is convenient sometimes because you don't need to worry about complex nested paths
+* replace data
+    | token | value |
+    | foo   | 'bar' |
+    | bar   | 'baz' |
+
+# don't forget to cast back to json though
+* json data = data
+* match data == { foo: 'bar', bar: { hello: 'baz' } }

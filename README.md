@@ -830,7 +830,7 @@ For placeholder-substitution, the [`replace`](#replace) keyword can be used inst
 
 ## `replace`
 ### Text Placeholder Replacement
-> __Important__: this is applicable only to text content. For JSON and XML - which are __natively__ supported by Karate, please refer to how to use the [`set`](#set) keyword.
+> JSON and XML are __natively__ supported by Karate via the [`set`](#set) keyword. But when you deal with complex, nested JSON - it may be easier in some cases to use `replace`, especially when you want to substitute multiple placeholders with one value, and when you don't need array manipulation. Since `replace` auto-converts the result to a string, make sure you perform [type conversion](#type-conversion) back to JSON if applicable.
 
 Karate provides an elegant 'native-like' experience for placeholder substitution within strings or text content. This is useful in any situation where you need to concatenate dynamic string fragments to form content such as GraphQL or SQL.
 
@@ -1007,7 +1007,7 @@ Take a look at the [Karate Demos](karate-demo) for real-life examples of how you
 ## Type Conversion
 Internally, Karate will auto-convert JSON (and even XML) to Java `Map` objects. And JSON arrays would become Java `List`-s. But you will never need to worry about this internal data-representation most of the time.
 
-In some rare cases, for e.g. if you acquired a string from some external source, or if you generated JSON (or XML) by concatenating text, you may want to convert a string to JSON and vice-versa. You can even perform a conversion from XML to JSON if you want.
+In some rare cases, for e.g. if you acquired a string from some external source, or if you generated JSON (or XML) by concatenating text or using [`replace`](#replace), you may want to convert a string to JSON and vice-versa. You can even perform a conversion from XML to JSON if you want.
 
 One example of when you may want to convert JSON (or XML) to a string is when you are passing a payload to custom code via [Java interop](#calling-java). Do note that when passing JSON, the default `Map` and `List` representations should suffice for most needs ([see example](karate-demo/src/test/java/demo/java/cats-java.feature)), and using them would avoid un-necessary string-conversion.
 

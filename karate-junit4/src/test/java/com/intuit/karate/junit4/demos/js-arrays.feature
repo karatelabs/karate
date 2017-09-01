@@ -146,9 +146,12 @@ Scenario: set variable plus path via table
 | age    | 5     |
 * match cat == { name: 'Wild', kitten: { name: 'Bob', age: 5 } }
 
-Scenario: set nested json via table
-* def cat = { name: 'Wild', kitten: null }
-* set cat
-| path   | value                   |
-| kitten | { name: 'Bob', age: 5 } |
-* match cat == { name: 'Wild', kitten: { name: 'Bob', age: 5 } }
+Scenario Outline: examples and optional json keys
+* def search = { name: { first: "##(<first>)", last: "##(<last>)" }, age: "##(<age>)" }
+* match search == <expected>
+
+Examples:
+| first  | last    | age  | expected                                            |
+| 'John' | 'Smith' | 20   | { name: { first: 'John', last: 'Smith' }, age: 20 } |
+| 'Jane' | 'Doe'   | null | { name: { first: 'Jane', last: 'Doe' } }            |
+| null   | 'Waldo' | null | { name: { last: 'Waldo' } }                         |
