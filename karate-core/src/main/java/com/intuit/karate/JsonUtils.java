@@ -128,8 +128,9 @@ public class JsonUtils {
             sb.append('{').append('\n');
             Map<String, Object> map = (Map<String, Object>) o;
             int size = map.size();
+            int i = 0;
             Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
-            for (int i = 0; i < size; i++) {
+            while(iterator.hasNext()) {
                 Map.Entry<String, Object> entry = iterator.next();
                 String key = entry.getKey();
                 pad(sb, depth + 1);
@@ -140,6 +141,7 @@ public class JsonUtils {
                     sb.append(',');
                 }
                 sb.append('\n');
+                i++;
             }
             pad(sb, depth);
             sb.append('}');
