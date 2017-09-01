@@ -1409,7 +1409,7 @@ XML and XPath works just like you'd expect.
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
 
 ### `set` multiple
-Karate has an elegant way to set multiple keys (via path expressions) in one step. As expected, non-existent keys (or array elements) will be created. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+Karate has an elegant way to set multiple keys (via path expressions) in one step. As you would expect, non-existent keys (or array elements) will be created automatically. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 
 ```cucumber
 * def cat = { name: '' }
@@ -2114,6 +2114,8 @@ And request { name: '#(name)', age: '#(age)' }
 When method post
 Then status 200
 ```
+
+> A built-in variable called `__loop` will be available within the feature file called in a loop. It will hold the value of the current loop index. So you can do things like this `* def name = name + __loop` or you can use the loop index value for looking up other values that may be in scope - in a data-driven style.
 
 If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you could go about dynamic data-driven testing.
 

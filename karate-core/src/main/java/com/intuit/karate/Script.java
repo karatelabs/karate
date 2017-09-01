@@ -1525,7 +1525,12 @@ public class Script {
     
     public static void evaluateAndSet(String name, String path, List<Map<String, String>> list, ScriptContext context) {
         name = StringUtils.trim(name);
-        path = StringUtils.trimToNull(path);
+        path = StringUtils.trimToNull(path); // TODO re-factor these few lines cut and paste
+        if (path == null) {
+            Pair<String, String> nameAndPath = parseVariableAndPath(name);
+            name = nameAndPath.getLeft();
+            path = nameAndPath.getRight();
+        }        
         for (Map<String, String> map : list) {
             String append = (String) map.get(PATH);
             if (append == null) {

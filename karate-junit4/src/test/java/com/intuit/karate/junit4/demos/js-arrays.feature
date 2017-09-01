@@ -138,6 +138,14 @@ Scenario: set nested via table
 | age    | 5     |
 * match cat == { name: 'Wild', kitten: { name: 'Bob', age: 5 } }
 
+Scenario: set variable plus path via table
+* def cat = { name: 'Wild', kitten: null }
+* set cat.kitten
+| path   | value |
+| name   | 'Bob' |
+| age    | 5     |
+* match cat == { name: 'Wild', kitten: { name: 'Bob', age: 5 } }
+
 Scenario: set nested json via table
 * def cat = { name: 'Wild', kitten: null }
 * set cat
