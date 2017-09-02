@@ -195,7 +195,9 @@ public class CucumberRunner {
             callables.add(() -> {
                 String threadName = Thread.currentThread().getName();
                 KarateReporter reporter = getReporter(reportDir, featureFile);
-                logger.info(">>>> feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
+                if (logger.isTraceEnabled()) {
+                    logger.trace(">>>> feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
+                }
                 runner.run(featureFile, reporter);
                 logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
                 reporter.done();

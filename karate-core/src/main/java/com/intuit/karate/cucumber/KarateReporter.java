@@ -107,12 +107,24 @@ public class KarateReporter implements Formatter, Reporter {
     public void uri(String uri) {
         junit.uri(uri);
         json.uri(uri);
+        this.uri = uri;
+    }
+
+    private String uri;
+
+    private Feature rename(Feature f) {
+        String name = uri; // swap
+        String description = f.getName();
+        if (f.getDescription() != null) {
+            description = description + '\n' + f.getDescription();
+        }
+        return new Feature(f.getComments(), f.getTags(), f.getKeyword(), name, description, f.getLine(), f.getId());
     }
 
     @Override
     public void feature(Feature feature) {
         junit.feature(feature);
-        json.feature(feature);
+        json.feature(rename(feature)); // use the uri as the name
     }
 
     @Override
