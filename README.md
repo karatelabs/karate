@@ -87,11 +87,11 @@ A set of real-life examples can be found here: [Karate Demos](karate-demo)
 For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](http://tinyurl.com/karatera)
 
 ## References
-* [Karate a REST Test Tool – Basic API Testing](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) - blog post and video tutorial by [Joe Colantonio](https://twitter.com/jcolantonio)
 * [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
 * [Karate for Complex Web-Service API Testing](https://www.slideshare.net/intuit_india/karate-for-complex-webservice-api-testing-by-peter-thomas) - slide-deck by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - a detailed tutorial by [Micha Kops](https://twitter.com/hascode) - featured on the [Semaphore CI](https://twitter.com/semaphoreci) site
 * [5 top open-source API testing tools: How to choose](https://techbeacon.com/5-top-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
+* [Nailing Down API Testing With Karate Framework](https://blog.testproject.io/2017/08/21/api-testing-karate-framework/) - a tutorial quick-start by [Neill Lima](https://twitter.com/neillfontes) featured at [TestProject.io](https://twitter.com/TestProject_io)
 
 You can find more links at the [community wiki](https://github.com/intuit/karate/wiki/Community-News).
 
@@ -308,13 +308,13 @@ multiple feature files with a JUnit test, you could do this:
 > For TestNG: The `@CucumberOptions` annotation can be used the same way.
 
 ## Command Line
-Once you have a JUnit 'runner' class in place, it will be possible to run tests from the command-line as well.  Refer to the [Cucumber documentation](https://cucumber.io/docs/reference/jvm) for more, including how to enable other report output formats such as HTML. For example, if you wanted to generate a report in the Cucumber HTML format:
+Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.
+
+Note that the `mvn test` command only runs test classes that follow the `*Test.java` [naming convention](#naming-conventions) by default. But you can choose a single test to run like this:
 
 ```
-mvn test -Dcucumber.options="--plugin html:target/cucumber-html"
+mvn test -Dtest=CatsRunner
 ```
-
-Note that the `mvn test` command only runs test classes that follow the `*Test.java` [naming convention](#naming-conventions) by default.
 
 For gradle you must extend the test task to allow the cucumuber.options to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
 
@@ -332,23 +332,25 @@ test {
 And then the above command in gradle would look like:
 
 ```
-./gradlew test -Dcucumber.options="--plugin html:target/cucumber-html"
+./gradlew test -Dtest=CatsRunner
 ```
 
-A problem you may run into is that the report is generated for every JUnit class with the `@RunWith(Karate.class)` annotation. So if you have multiple JUnit classes involved in a test-run, you will end up with only the report for the last class as it would have over-written everything else. There are a couple of solutions, one is to use [JUnit suites](https://github.com/junit-team/junit4/wiki/Aggregating-tests-in-suites) - but the simplest should be to have a JUnit class (with the Karate annotation) at a level 'above' (in terms of folder hierarchy) all the main `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions):
+## Test Suites
+> The recommended way to define and run test-suites and reporting in Karate is to use the [parallel runner](#parallel-execution). The information in this section is more useful for troubleshooting in dev-mode, using your IDE.
+
+One way to define 'test-suites' in Karate is to have a JUnit class with the `@RunWith(Karate.class)` annotation at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions):
 
 ```
-mvn test -Dcucumber.options="--plugin junit:target/cucumber-junit.xml --tags ~@ignore" -Dtest=AnimalsTest
+mvn test -Dcucumber.options="--tags ~@ignore" -Dtest=AnimalsTest
 ```
-Here, `AnimalsTest` is the name of the Java class we designated to run all your tests. And yes, Cucumber has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
+Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. Cucumber has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
 
-The reporting and tag options can be specified in the test-class via the `@CucumberOptions` annotation, in which case you don't need to pass the `-Dcucumber.options` on the command-line:
+The tag options can be specified in the test-class via the `@CucumberOptions` annotation, in which case you don't need to pass the `-Dcucumber.options` on the command-line:
 
 ```java
-@CucumberOptions(plugin = {"pretty", "html:target/cucumber"}, tags = {"~@ignore"})
+@CucumberOptions(tags = {"~@ignore"})
 ```
 
-## Test Reports
 You can 'lock down' the fact that you only want to execute the single JUnit class that functions as a test-suite - by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
 
 ```xml
@@ -361,17 +363,13 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
             <include>animals/AnimalsTest.java</include>
         </includes>
         <systemProperties>
-            <cucumber.options>--plugin junit:target/cucumber-junit.xml</cucumber.options>
+            <cucumber.options>--tags ~@ignore</cucumber.options>
         </systemProperties>            
     </configuration>
 </plugin> 
 ```
 
-Note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`). So for the above example, any `plugin` options present on the annotation would not take effect, but anything else (for example `tags`) would continue to work.
-
-With the above in place, you don't have to use `-Dtest=AnimalsTest` on the command-line any more. You may need to point your CI to the location of the JUnit XML report (e.g. `target/cucumber-junit.xml`) so that test-reports are generated correctly.
-
-The [Karate Demo](karate-demo) has a working example of this set-up.  Also refer to the section on [switching the environment](#switching-the-environment) for more ways of running tests via Maven using the command-line.
+Note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`).
 
 For gradle, you simply specify that test is to be included:
 
@@ -387,7 +385,7 @@ test {
 }
 ```
 
-The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel although you have the option of choosing other 'built-in' report formats - for e.g. `html`. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on emitting the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
+The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on emitting the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
 
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
@@ -433,7 +431,12 @@ scenarios: 12 | failed:  0 | skipped:  0
 
 This is the preferred way of automating the execution of all Karate tests in a project, mainly because the other 'native' Cucumber reports (e.g. HTML) are not thread-safe. In other words, please rely on the `CucumberRunner.parallel()` JUnit XML and Cucumber JSON output for CI and test result reporting, and if you see any problems, or if your CI tool does not support the JUnit XML format, please submit a defect report.
 
-The [Karate Demo](karate-demo) has a working example of this set-up. It also [explains how](karate-demo#example-report) a third-party library can be easily used to generate some very nice-looking reports. For example, here below is an actual report generated by the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) open-source library.
+## Test Reports
+As mentioned above, most CI tools would be able to process the JUnit XML output of the [parallel runner](#parallel-execution) and determine the status of the build as well a generate reports.
+
+The [Karate Demo](karate-demo) has a working example of the recommended parallel-runner set up. It also [details how](karate-demo#example-report) a third-party library can be easily used to generate some very nice-looking reports.
+
+For example, here below is an actual report generated by the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) open-source library. This report is recommended especially because Karate's integration includes the HTTP request and response logs [in-line with the test report](https://twitter.com/KarateDSL/status/899671441221623809), which is extremely useful for troubleshooting test failures. 
 
 ![Karate and Maven Cucumber Reporting](karate-demo/src/test/resources/karate-maven-cucumber-reporting.png)
 
@@ -515,7 +518,7 @@ This decision to use JavaScript for config is influenced by years of experience 
 
 Karate's approach frees you from Maven, is far more expressive, allows you to eyeball all environments in one place, and is still a plain-text file.  If you want, you could even create nested chunks of JSON that 'name-space' your config variables.
 
-> One way to appreciate Karate's approach is to look at what it takes to add a new environment-dependent variable (e.g. a password) into a test. In typical frameworks it could mean changing multiple properties files, maven profiles and placeholders, maybe even threading the value via a dependency-injection framework - before you can even access the value within your test.
+> One way to appreciate Karate's approach is to think over what it takes to add a new environment-dependent variable (e.g. a password) into a test. In typical frameworks it could mean changing multiple properties files, maven profiles and placeholders, and maybe even threading the value via a dependency-injection framework - before you can even access the value within your test.
 
 This approach is indeed slightly more complicated than traditional `*.properties` files - but you _need_ this complexity. Keep in mind that these are tests (not production code) and this config is going to be maintained more by the dev or QE team instead of the 'ops' or operations team.
 
@@ -536,8 +539,7 @@ or in gradle:
 ```
 
 You can refer to the documentation of the
-[Maven Surefire Plugin](http://maven.apache.org/plugins-archives/maven-surefire-plugin-2.12.4/examples/system-properties.html)
-for alternate ways of achieving this, but the `argLine` approach is the simplest and should be more than sufficient for your Continuous Integration or test-automation needs.
+[Maven Surefire Plugin](http://maven.apache.org/plugins-archives/maven-surefire-plugin-2.12.4/examples/system-properties.html) for alternate ways of achieving this, but the `argLine` approach is the simplest and should be more than sufficient for your Continuous Integration or test-automation needs.
 
 Here's a reminder that running any [single JUnit test via Maven](https://maven.apache.org/surefire/maven-surefire-plugin/examples/single-test.html) can be done by:
 ```
