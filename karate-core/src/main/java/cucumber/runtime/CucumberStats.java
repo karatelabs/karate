@@ -21,41 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
-
-import gherkin.formatter.model.Result;
-import gherkin.formatter.model.Step;
+package cucumber.runtime;
 
 /**
  *
  * @author pthomas3
  */
-public class StepResult {
+public class CucumberStats extends Stats {
     
-    private final Step step;
-    private final Result result;
-    private final Throwable error;
-
-    public StepResult(Step step, Result result, Throwable error) {
-        this.step = step;
-        this.result = result;
-        this.error = error;        
-    }
-
-    public Step getStep() {
-        return step;
-    }
-
-    public Result getResult() {
-        return result;
-    }        
-
-    public Throwable getError() {
-        return error;
-    }    
-
-    public boolean isPass() {
-        return error == null;
+    public CucumberStats(boolean monochrome) {
+        super(monochrome);
     }
     
 }

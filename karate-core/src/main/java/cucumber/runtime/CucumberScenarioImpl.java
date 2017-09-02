@@ -21,41 +21,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package cucumber.runtime;
 
+import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Result;
-import gherkin.formatter.model.Step;
+import gherkin.formatter.model.Scenario;
+import gherkin.formatter.model.Tag;
+import java.util.Set;
 
 /**
  *
  * @author pthomas3
  */
-public class StepResult {
+public class CucumberScenarioImpl extends ScenarioImpl {
     
-    private final Step step;
-    private final Result result;
-    private final Throwable error;
-
-    public StepResult(Step step, Result result, Throwable error) {
-        this.step = step;
-        this.result = result;
-        this.error = error;        
+    public CucumberScenarioImpl(Reporter reporter, Set<Tag> tags, Scenario gherkinScenario) {
+        super(reporter, tags, gherkinScenario);
     }
 
-    public Step getStep() {
-        return step;
-    }
-
-    public Result getResult() {
-        return result;
+    @Override
+    public void add(Result result) {
+        super.add(result);
     }        
-
-    public Throwable getError() {
-        return error;
-    }    
-
-    public boolean isPass() {
-        return error == null;
-    }
     
 }

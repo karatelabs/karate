@@ -109,7 +109,8 @@ public class CucumberUtils {
     private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
     
     // adapted from cucumber.runtime.Runtime.runStep
-    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, KarateBackend backend, boolean called) {
+    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, 
+            KarateBackend backend, boolean called) {
         backend.beforeStep(featurePath, step);
         if (reporter == null) {
             reporter = DUMMY_REPORTER;
@@ -120,11 +121,11 @@ public class CucumberUtils {
         } catch (AmbiguousStepDefinitionsException e) {
             match = e.getMatches().get(0);
             Result result = new Result(Result.FAILED, 0L, e, KarateReporter.DUMMY_OBJECT);
-            return afterStep(reporter, step, match, result, e, featurePath, backend);
+            return afterStep(reporter, step, match, result, e, featurePath, backend, called);
         }
         if (match == null) {
             return afterStep(reporter, step, Match.UNDEFINED, Result.UNDEFINED, 
-                    new KarateException("match undefined"), featurePath, backend);
+                    new KarateException("match undefined"), featurePath, backend, called);
         }
         String status = Result.PASSED;
         Throwable error = null;
@@ -137,13 +138,14 @@ public class CucumberUtils {
         } finally {
             long duration = called ? 0 : System.nanoTime() - startTime;
             Result result = new Result(status, duration, error, KarateReporter.DUMMY_OBJECT);
-            return afterStep(reporter, step, match, result, error, featurePath, backend);
+            return afterStep(reporter, step, match, result, error, featurePath, backend, called);
         }        
     }
     
     private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, 
-            Throwable error, String feature, KarateBackend backend) {
-        if (reporter instanceof KarateReporter) {
+            Throwable error, String feature, KarateBackend backend, boolean called) {
+        boolean isKarateReporter = reporter instanceof KarateReporter;
+        if (isKarateReporter) {
             if (error != null && backend.getVars() != null) { // dump variable state to log for convenience         
                 StringBuilder sb = new StringBuilder();
                 for (Map.Entry<String, ScriptValue> entry : backend.getVars().entrySet()) {
@@ -153,10 +155,12 @@ public class CucumberUtils {
             }            
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step); // this would also collect log output into a 'docstring'
-        }        
-        reporter.match(match);
-        reporter.result(result);
-        StepResult stepResult = new StepResult(step, error);
+        }
+        if (!called || isKarateReporter) { // don't confuse cucumber native reporters with called steps
+            reporter.match(match);
+            reporter.result(result);            
+        }
+        StepResult stepResult = new StepResult(step, result, error);
         backend.afterStep(feature, stepResult);
         return stepResult;
     }
