@@ -1,5 +1,7 @@
 package com.intuit.karate.convert;
 
+import com.intuit.karate.FileUtils;
+import java.io.InputStream;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,11 +14,14 @@ import static org.junit.Assert.assertEquals;
  * Created by rkumar32 on 7/5/17.
  */
 public class FeatureBuilderTest {
+    
     private static final Logger logger = LoggerFactory.getLogger(FeatureBuilderTest.class);
 
     @Test
     public void testConverting() {
-        List<PostmanRequest> requests = PostmanCollectionReader.parse("src/test/java/postman-echo-single.postman_collection");
+        InputStream is = getClass().getResourceAsStream("postman-echo-single.postman_collection");
+        String json = FileUtils.toString(is);
+        List<PostmanRequest> requests = ConvertUtils.readPostmanJson(json);
         logger.debug("list: {}", requests);
         assertEquals(1, requests.size());
         PostmanRequest request = requests.get(0);

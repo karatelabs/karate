@@ -33,7 +33,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Node;
@@ -269,11 +268,7 @@ public class ScriptValue {
             case JS_FUNCTION:
                 return value.toString().replace("\n", " ");                
             case INPUT_STREAM:
-                try {
-                    return IOUtils.toString(getValue(InputStream.class), "utf-8");
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+                return FileUtils.toString(getValue(InputStream.class));
             default:
                 return value.toString();
         }

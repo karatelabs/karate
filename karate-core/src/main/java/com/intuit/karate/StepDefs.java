@@ -372,7 +372,7 @@ public class StepDefs {
         // then the string conversion will corrupt it.
         // in that case just return the byte array stream
         try {
-            String rawString = new String(bytes, "utf-8");
+            String rawString = FileUtils.toString(bytes);
             if (Arrays.equals(bytes, rawString.getBytes())) {
                 return rawString;
             }

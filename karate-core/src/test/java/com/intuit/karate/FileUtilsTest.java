@@ -4,7 +4,6 @@ import com.intuit.karate.cucumber.FeatureFilePath;
 import java.io.File;
 import java.io.InputStream;
 import java.util.Arrays;
-import org.apache.commons.io.IOUtils;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -23,7 +22,7 @@ public class FileUtilsTest {
     public void testClassLoading() throws Exception {
         ClassLoader cl = FileUtils.createClassLoader("src/main/java/com/intuit/karate");
         InputStream is = cl.getResourceAsStream("StepDefs.java");
-        String s = IOUtils.toString(is, "utf-8");
+        String s = FileUtils.toString(is);
         assertTrue(s.trim().startsWith("/*"));
     }
 

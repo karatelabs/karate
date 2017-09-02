@@ -29,7 +29,6 @@ import com.intuit.karate.ScriptValueMap;
 import cucumber.runtime.RuntimeGlue;
 import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.RuntimeOptionsFactory;
-import cucumber.runtime.StopWatch;
 import cucumber.runtime.UndefinedStepsTracker;
 import cucumber.runtime.io.MultiLoader;
 import cucumber.runtime.io.ResourceLoader;
@@ -126,7 +125,9 @@ public class CucumberRunner {
             String temp = packageFile.getPath().replace('\\', '/'); // fix for windows
             featurePath = classLoader.getResource(temp).getFile();
         }
-        logger.debug("loading feature: {}", featurePath);
+        if (logger.isTraceEnabled()) {
+            logger.debug("loading feature: {}", featurePath);
+        }
         File featureDir = new File(featurePath).getParentFile();
         ScriptEnv env = new ScriptEnv(null, featureDir, packageFile.getName(), classLoader, reporter);
         KarateBackend backend = new KarateBackend(env, null, null, false);

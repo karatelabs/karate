@@ -13,12 +13,16 @@ import com.intuit.karate.cucumber.FeatureFilePath;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  *
  * @author pthomas3
  */
-public class FileUtils {   
+public class FileUtils {
+    
+    public static final Charset UTF8 = StandardCharsets.UTF_8;
     
     private FileUtils() {
         // only static methods
@@ -93,7 +97,7 @@ public class FileUtils {
             throw new KarateFileNotFoundException(message);
         }
         try {
-            return IOUtils.toString(is, "utf-8");
+            return IOUtils.toString(is, UTF8);
         } catch (Exception e) {
             String message = String.format("could not read file: %s, classpath: %s", path, classpath);
             context.logger.error(message);
@@ -107,9 +111,7 @@ public class FileUtils {
         }
         String fullPath = context.env.featureDir + File.separator + path;
         try {
-            InputStream is = org.apache.commons.io.FileUtils.openInputStream(new File(fullPath));
-            context.logger.debug("loaded file from: {} - {}: {}", fullPath, path, is);
-            return is;
+            return org.apache.commons.io.FileUtils.openInputStream(new File(fullPath));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -184,4 +186,56 @@ public class FileUtils {
         String[] searchPaths = { file.getParentFile().getPath() };
         return new FeatureFilePath(file, searchPaths);
     }
+    
+    public static String toString(File file) {        
+        try {
+            return org.apache.commons.io.FileUtils.readFileToString(file, UTF8);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }                
+    }
+    
+    public static String toString(InputStream is) {
+        try {
+            return IOUtils.toString(is, UTF8);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }         
+    }
+    
+    public static String toString(byte[] bytes) {
+        if (bytes == null) {
+            return null;
+        }
+        return new String(bytes, UTF8);
+    }
+    
+    public static byte[] toBytes(String string) {
+        if (string == null) {
+            return null;
+        }
+        return string.getBytes(UTF8);
+    }
+    
+    public static void writeToFile(File file, String data) {
+        try {
+            org.apache.commons.io.FileUtils.writeStringToFile(file, data, UTF8);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    public static InputStream toInputStream(String text) {
+        return IOUtils.toInputStream(text, UTF8);
+    }
+    
+    public static List<String> toStringLines(String text) {
+        InputStream is = toInputStream(text);
+        try {
+            return IOUtils.readLines(is, UTF8);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
 }

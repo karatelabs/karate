@@ -29,6 +29,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
+import com.intuit.karate.FileUtils;
 import javafx.scene.control.TextArea;
 import org.slf4j.LoggerFactory;
 
@@ -37,11 +38,11 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class TextAreaLogAppender extends AppenderBase<ILoggingEvent> {
-    
+
     private final TextArea textArea;
     private final Logger logger;
     private final PatternLayoutEncoder encoder;
-    
+
     public TextAreaLogAppender(TextArea textArea) {
         this.textArea = textArea;
         logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
@@ -54,18 +55,14 @@ public class TextAreaLogAppender extends AppenderBase<ILoggingEvent> {
         encoder.start();
         start();
         logger.addAppender(this);
-        logger.setLevel(Level.DEBUG);        
+        logger.setLevel(Level.DEBUG);
     }
 
     @Override
     protected void append(ILoggingEvent event) {
         byte[] bytes = encoder.encode(event);
-        try {
-            String line = new String(bytes, "utf-8");
-            textArea.appendText(line);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        String line = FileUtils.toString(bytes);
+        textArea.appendText(line);
     }
-    
+
 }

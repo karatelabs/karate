@@ -23,10 +23,10 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.FileUtils;
 import cucumber.api.CucumberOptions;
 import java.io.File;
 import java.util.Map;
-import org.apache.commons.io.FileUtils;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -43,12 +43,8 @@ public class CucumberRunnerTest {
     private static final Logger logger = LoggerFactory.getLogger(CucumberRunnerTest.class);
     
     private boolean contains(String reportPath, String textToFind) {
-        try {
-            String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
-            return contents.contains(textToFind);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        String contents = FileUtils.toString(new File(reportPath));
+        return contents.contains(textToFind);
     }
     
     @Test 

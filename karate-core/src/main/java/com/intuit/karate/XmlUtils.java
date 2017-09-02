@@ -25,10 +25,8 @@ package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -103,7 +101,7 @@ public class XmlUtils {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
             DocumentBuilder builder = factory.newDocumentBuilder();
-            InputStream is = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
+            InputStream is = FileUtils.toInputStream(xml);
             return builder.parse(is);
         } catch (Exception e) {
             throw new RuntimeException(e);

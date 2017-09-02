@@ -23,11 +23,11 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.FileUtils;
 import java.io.File;
 import java.util.List;
 
-import com.intuit.karate.convert.KarateFeatureWriter;
-import com.intuit.karate.convert.PostmanCollectionReader;
+import com.intuit.karate.convert.ConvertUtils;
 import com.intuit.karate.convert.PostmanRequest;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -80,8 +80,9 @@ public class App extends Application {
     private void initImportOpenAction(HeaderPanel header, String envString, Stage stage) {
         header.setImportOpenAction(e -> {
             File file = chooseFile(stage, "*.postman_collection files", "*.postman_collection");
-            List<PostmanRequest> requests = PostmanCollectionReader.parse(file.getPath());
-            File featureFile = KarateFeatureWriter.write(requests, file.getPath());
+            String json = FileUtils.toString(file);
+            List<PostmanRequest> requests = ConvertUtils.readPostmanJson(json);
+            File featureFile = ConvertUtils.write(requests, file.getPath());
             initUi(featureFile, envString, stage);
         });
     }

@@ -23,30 +23,50 @@
  */
 package com.intuit.karate.convert;
 
+import com.intuit.karate.FileUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- *
- * @author pthomas3
+ * Created by rkumar32 on 7/5/17.
  */
-public class PostmanCollectionReader {
+public class ConvertUtils {
     
-    private static final Logger logger = LoggerFactory.getLogger(PostmanCollectionReader.class);
-    
-    private PostmanCollectionReader() {
+    private static final Logger logger = LoggerFactory.getLogger(ConvertUtils.class);
+
+    private ConvertUtils() {
         // only static methods
     }
 
-    public static List<PostmanRequest> parseText(String json) {
+    public static File write(List<PostmanRequest> requests, String path) {
+        String feature = toKarateFeature(requests);
+        String inputFileName = new File(path).getName();
+        String outputFileName = inputFileName.replace("postman_collection", "feature");
+        String dirPath = new File(path).getParentFile().getPath();
+        File featureFile;
+        featureFile = new File(dirPath + "/" + outputFileName);
+        FileUtils.writeToFile(featureFile, feature);
+        return featureFile;
+    }
+
+    public static String toKarateFeature(List<PostmanRequest> requests) {
+        String scenarios = "";
+        for (PostmanRequest request : requests) {
+            scenarios += request.convert();
+        }
+        String feature = "Feature: \n\n" + scenarios;
+        return feature;
+    }
+    
+    public static List<PostmanRequest> readPostmanJson(String json) {
         DocumentContext doc = JsonPath.parse(json);
         List<Map<String, Object>> list = (List) doc.read("$.item");
         List<PostmanRequest> requests = new ArrayList<>(list.size());
@@ -78,18 +98,6 @@ public class PostmanCollectionReader {
             requests.add(request);
         }
         return requests;
-    }
-
-
-    public static List<PostmanRequest> parse(String path) {
-        File file = new File(path);
-        String json;
-        try {
-            json = FileUtils.readFileToString(file, "utf-8");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return parseText(json);
-    }
+    }    
     
 }

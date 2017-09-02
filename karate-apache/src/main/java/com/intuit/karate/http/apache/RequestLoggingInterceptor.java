@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.http.apache;
 
+import com.intuit.karate.FileUtils;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -64,7 +64,7 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
             HttpEntity entity = entityRequest.getEntity();
             if (LoggingUtils.isPrintable(entity)) {
                 LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity);
-                String buffer = IOUtils.toString(wrapper.getContent(), "utf-8");
+                String buffer = FileUtils.toString(wrapper.getContent());
                 sb.append(buffer).append('\n');
                 entityRequest.setEntity(wrapper);
             }

@@ -29,6 +29,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.classic.Logger;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.Script;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -80,14 +82,10 @@ public class WebSocketLogAppender extends AppenderBase<ILoggingEvent> {
     @Override
     protected void append(ILoggingEvent event) {
         byte[] bytes = encoder.encode(event);
-        try {
-            String line = new String(bytes, "utf-8");
-            sb.append(line);
-            if (target != null) {
-                target.append(line);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        String line = FileUtils.toString(bytes);
+        sb.append(line);
+        if (target != null) {
+            target.append(line);
         }
     }
 

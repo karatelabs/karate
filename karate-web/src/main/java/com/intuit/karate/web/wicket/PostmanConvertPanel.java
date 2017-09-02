@@ -23,8 +23,7 @@
  */
 package com.intuit.karate.web.wicket;
 
-import com.intuit.karate.convert.KarateFeatureWriter;
-import com.intuit.karate.convert.PostmanCollectionReader;
+import com.intuit.karate.convert.ConvertUtils;
 import com.intuit.karate.convert.PostmanRequest;
 import com.intuit.karate.web.service.KarateService;
 import com.intuit.karate.web.service.KarateSession;
@@ -55,8 +54,8 @@ public class PostmanConvertPanel extends Panel {
             @Override
             protected void onSubmit() {
                 logger.debug("text is: {}", text);
-                List<PostmanRequest> requests = PostmanCollectionReader.parseText(text);
-                String feature = KarateFeatureWriter.getFeature(requests);
+                List<PostmanRequest> requests = ConvertUtils.readPostmanJson(text);
+                String feature = ConvertUtils.toKarateFeature(requests);
                 KarateSession session = service.createSession("dev", feature);
                 setResponsePage(new FeaturePage(session.getId()));
             }

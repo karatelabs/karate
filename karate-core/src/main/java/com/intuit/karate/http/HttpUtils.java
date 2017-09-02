@@ -1,5 +1,7 @@
 package com.intuit.karate.http;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
 import static com.intuit.karate.http.HttpClient.*;
@@ -116,12 +118,8 @@ public class HttpUtils {
             sb.append("\r\n");
             if (sv.getType() == Type.INPUT_STREAM) {
                 InputStream is = sv.getValue(InputStream.class);
-                try {
-                    byte[] bytes = IOUtils.toByteArray(is);
-                    sb.append(new String(bytes, "utf-8"));
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+                String bytes = FileUtils.toString(is);
+                sb.append(bytes);
             } else {
                 sb.append(sv.getAsString());
             }

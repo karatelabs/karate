@@ -23,12 +23,12 @@
  */
 package com.intuit.karate.http.jersey;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.LoggingFilterOutputStream;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -42,7 +42,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.WriterInterceptor;
 import javax.ws.rs.ext.WriterInterceptorContext;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 
 /**
@@ -55,9 +54,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
     
     public LoggingInterceptor(Logger logger) {
         this.logger = logger;
-    }
-    
-    private static final Charset UTF8 = Charset.forName("UTF-8");    
+    }    
 
     private final AtomicInteger counter = new AtomicInteger();
 
@@ -111,7 +108,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
                 is = new BufferedInputStream(is);
             }
             is.mark(Integer.MAX_VALUE);
-            String buffer = IOUtils.toString(is, UTF8);
+            String buffer = FileUtils.toString(is);
             sb.append(buffer).append('\n');
             is.reset();
             response.setEntityStream(is); // in case it was swapped
@@ -125,7 +122,8 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         context.proceed();
         if (out != null && logger.isDebugEnabled()) {
             StringBuilder sb = out.getBuffer();
-            sb.append(new String(out.getBytes().toByteArray(), UTF8)).append('\n');
+            String bytes = FileUtils.toString(out.getBytes().toByteArray());
+            sb.append(bytes).append('\n');
             logger.debug(sb.toString());
         }
     }

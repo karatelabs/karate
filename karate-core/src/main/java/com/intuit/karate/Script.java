@@ -73,10 +73,10 @@ import org.w3c.dom.NodeList;
  * @author pthomas3
  */
 public class Script {
-
+    
     public static final String VAR_SELF = "_";
     public static final String VAR_DOLLAR = "$";
-    public static final String VAR_LOOP = "__loop";
+    public static final String VAR_LOOP = "__loop";    
 
     private Script() {
         // only static methods

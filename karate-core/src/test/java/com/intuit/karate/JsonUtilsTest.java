@@ -2,10 +2,10 @@ package com.intuit.karate;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -109,7 +109,8 @@ public class JsonUtilsTest {
 
     @Test
     public void testYamlToMutation() throws Exception {
-        String yaml = IOUtils.toString(getClass().getResourceAsStream("mutation.yaml"), "utf-8");
+        InputStream is = getClass().getResourceAsStream("mutation.yaml");
+        String yaml = FileUtils.toString(is);
         DocumentContext doc = JsonUtils.fromYaml(yaml);
         assertTrue(doc.jsonString().contains("[\"id\",\"name\",\"notes\",\"deleted\"]"));
     }

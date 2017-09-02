@@ -1,7 +1,7 @@
 package com.intuit.karate.convert;
 
-import com.intuit.karate.convert.PostmanCollectionReader;
-import com.intuit.karate.convert.PostmanRequest;
+import com.intuit.karate.FileUtils;
+import java.io.InputStream;
 import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -12,13 +12,15 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class PostmanCollectionReaderTest {
+public class ConvertUtilsTest {
     
-     private static final Logger logger = LoggerFactory.getLogger(PostmanCollectionReaderTest.class);
+     private static final Logger logger = LoggerFactory.getLogger(ConvertUtilsTest.class);
     
     @Test
     public void testReading() {
-        List<PostmanRequest> requests = PostmanCollectionReader.parse("src/test/java/postman-echo-single.postman_collection");
+        InputStream is = getClass().getResourceAsStream("postman-echo-single.postman_collection");
+        String json = FileUtils.toString(is);
+        List<PostmanRequest> requests = ConvertUtils.readPostmanJson(json);
         logger.debug("list: {}", requests);
         assertEquals(1, requests.size());
         PostmanRequest request = requests.get(0);

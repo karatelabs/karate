@@ -23,10 +23,6 @@
  */
 package com.intuit.karate.convert;
 
-/**
- * Created by rkumar32 on 7/5/17.
- */
-import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 
@@ -41,15 +37,11 @@ public class FeatureBuilder {
     private String headers;
     private String body;
 
-    private final String SCENARIO_TEMPLATE = "Scenario: %s" +                                   // Scenario Description
-            "Given url " + "%s" +                                                               // Url
-            "%s" +                                                                              // Headers
-            "%s" +                                                                              // Body
-            "When method %s" + System.lineSeparator();                                          // Method
-
-
-    public FeatureBuilder() {
-    }
+    private final String SCENARIO_TEMPLATE = "Scenario: %s" +  // Scenario Description
+            "Given url " + "%s" +                              // url
+            "%s" +                                             // Headers
+            "%s" +                                             // Body
+            "When method %s" + System.lineSeparator();         // Method
 
     public FeatureBuilder addName(String name) {
         if (name != null) {
@@ -130,5 +122,6 @@ public class FeatureBuilder {
                 body,
                 method);
     }
+    
 }
 

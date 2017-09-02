@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.FileUtils;
 import java.io.File;
-import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -47,7 +47,7 @@ public class FeatureReuseTest {
         runner.run(reporter);
         reporter.done();
         assertEquals(1, reporter.getJunitFormatter().getFailCount());
-        String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
+        String contents = FileUtils.toString(new File(reportPath));
         assertTrue(contents.contains("assert evaluated to false: input != 4"));
     }
     
@@ -60,7 +60,7 @@ public class FeatureReuseTest {
         runner.run(reporter);
         reporter.done();
         assertEquals(0, reporter.getJunitFormatter().getFailCount());
-        String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
+        String contents = FileUtils.toString(new File(reportPath));
         assertTrue(contents.contains("passed"));
     }    
     
@@ -73,7 +73,7 @@ public class FeatureReuseTest {
         runner.run(reporter);
         reporter.done();
         assertEquals(0, reporter.getJunitFormatter().getFailCount());
-        String contents = FileUtils.readFileToString(new File(reportPath), "utf-8");
+        String contents = FileUtils.toString(new File(reportPath));
         assertTrue(contents.contains("passed"));
     } 
     
