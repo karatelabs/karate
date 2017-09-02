@@ -40,6 +40,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  *
@@ -115,8 +116,9 @@ public class KarateReporter implements Formatter, Reporter {
     private Feature rename(Feature f) {
         String name = uri; // swap
         String description = f.getName();
-        if (f.getDescription() != null) {
-            description = description + '\n' + f.getDescription();
+        String extra = StringUtils.trimToNull(f.getDescription());
+        if (extra != null) {
+            description = description + '\n' + extra;
         }
         return new Feature(f.getComments(), f.getTags(), f.getKeyword(), name, description, f.getLine(), f.getId());
     }
