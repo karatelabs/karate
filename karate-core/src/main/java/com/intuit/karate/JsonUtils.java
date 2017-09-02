@@ -129,8 +129,6 @@ public class JsonUtils {
         } else if (o instanceof Map) {
             sb.append('{').append('\n');
             Map<String, Object> map = (Map<String, Object>) o;
-            int size = map.size();
-            int i = 0;
             Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
             while(iterator.hasNext()) {
                 Map.Entry<String, Object> entry = iterator.next();
@@ -139,23 +137,22 @@ public class JsonUtils {
                 sb.append('"').append(JSONObject.escape(key)).append('"');
                 sb.append(':').append(' ');
                 recursePretty(entry.getValue(), sb, depth + 1);
-                if (i != size - 1) {
+                if (iterator.hasNext()) {
                     sb.append(',');
                 }
                 sb.append('\n');
-                i++;
             }
             pad(sb, depth);
             sb.append('}');
         } else if (o instanceof List) {
             List list = (List) o;
-            int size = list.size();
+            Iterator iterator = list.iterator();
             sb.append('[').append('\n');
-            for (int i = 0; i < size; i++) {
-                Object child = list.get(i);
+            while (iterator.hasNext()) {
+                Object child = iterator.next();
                 pad(sb, depth + 1);
                 recursePretty(child, sb, depth + 1);
-                if (i != size - 1) {
+                if (iterator.hasNext()) {
                     sb.append(',');
                 }
                 sb.append('\n');
