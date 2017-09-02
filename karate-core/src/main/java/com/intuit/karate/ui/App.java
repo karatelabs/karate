@@ -82,7 +82,10 @@ public class App extends Application {
             File file = chooseFile(stage, "*.postman_collection files", "*.postman_collection");
             String json = FileUtils.toString(file);
             List<PostmanRequest> requests = ConvertUtils.readPostmanJson(json);
-            File featureFile = ConvertUtils.write(requests, file.getPath());
+            String featureText = ConvertUtils.toKarateFeature(requests);
+            String featurePath = FileUtils.replaceFileExtension(file.getPath(), "feature");
+            File featureFile = new File(featurePath);
+            FileUtils.writeToFile(featureFile, featureText);
             initUi(featureFile, envString, stage);
         });
     }

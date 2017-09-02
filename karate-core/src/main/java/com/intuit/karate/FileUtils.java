@@ -238,4 +238,13 @@ public class FileUtils {
         }
     }
     
+    public static String replaceFileExtension(String path, String extension) {
+        int pos = path.lastIndexOf('.');
+        if (pos == -1) {
+            return path + '.' + extension;
+        } else {
+            return path.substring(0, pos + 1) + extension;
+        }
+    }
+    
 }

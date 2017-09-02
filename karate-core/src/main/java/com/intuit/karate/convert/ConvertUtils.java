@@ -23,13 +23,11 @@
  */
 package com.intuit.karate.convert;
 
-import com.intuit.karate.FileUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,17 +42,6 @@ public class ConvertUtils {
 
     private ConvertUtils() {
         // only static methods
-    }
-
-    public static File write(List<PostmanRequest> requests, String path) {
-        String feature = toKarateFeature(requests);
-        String inputFileName = new File(path).getName();
-        String outputFileName = inputFileName.replace("postman_collection", "feature");
-        String dirPath = new File(path).getParentFile().getPath();
-        File featureFile;
-        featureFile = new File(dirPath + "/" + outputFileName);
-        FileUtils.writeToFile(featureFile, feature);
-        return featureFile;
     }
 
     public static String toKarateFeature(List<PostmanRequest> requests) {
