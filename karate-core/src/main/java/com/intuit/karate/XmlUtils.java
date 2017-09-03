@@ -127,12 +127,45 @@ public class XmlUtils {
         }
     }
 
-    public static Node getNodeByPath(Node node, String path) {
+    public static Node getNodeByPath(Node node, String path, boolean create) {
         XPathExpression expr = compile(path);
+        Node result;
         try {
-            return (Node) expr.evaluate(node, XPathConstants.NODE);
+            result = (Node) expr.evaluate(node, XPathConstants.NODE);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
+            result = null;
+        }
+        if (result == null) {
+            Document doc = node.getNodeType() == Node.DOCUMENT_NODE ? (Document) node : node.getOwnerDocument();
+            return createNodeByPath(doc, path);
+        } else {
+            return result;
+        }
+    }
+    
+    public static Node createNodeByPath(Document doc, String path) {
+        int pos = path.lastIndexOf('/');
+        if (pos == 0) { // root
+            Node root = doc.getDocumentElement();
+            if (root == null) {
+                root = createElement(doc, path.substring(1), null, null);
+                doc.appendChild(root);                
+            }
+            return root;
+        }
+        String left = path.substring(0, pos);
+        Node parent = createNodeByPath(doc, left);        
+        String right = path.substring(pos + 1);
+        if (right.startsWith("@")) { // attribute
+            Element parentElement = (Element) parent;
+            right = right.substring(1);
+            parentElement.setAttribute(right, "");
+            return parentElement.getAttributeNode(right);
+        } else {
+            Element element = createElement(parent, right, null, null);
+            parent.appendChild(element);
+            return element;            
         }
     }
 
@@ -146,7 +179,7 @@ public class XmlUtils {
     }
 
     public static void setByPath(Node doc, String path, String value) {
-        Node node = getNodeByPath(doc, path);
+        Node node = getNodeByPath(doc, path, true);
         if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
             node.getFirstChild().setTextContent(value);
         } else if (node.getNodeType() == Node.ELEMENT_NODE) {
@@ -157,7 +190,7 @@ public class XmlUtils {
     }
 
     public static void removeByPath(Document doc, String path) {
-        Node node = getNodeByPath(doc, path);
+        Node node = getNodeByPath(doc, path, false);
         if (node == null) {
             return;
         }
@@ -171,7 +204,7 @@ public class XmlUtils {
         if (in.getNodeType() == Node.DOCUMENT_NODE) {
             in = in.getFirstChild();
         }
-        Node node = getNodeByPath(doc, path);
+        Node node = getNodeByPath(doc, path, true);
         if (node == null) {
             throw new RuntimeException("no results for xpath: " + path);
         }

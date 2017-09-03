@@ -1,5 +1,16 @@
 Feature: xml samples and tests
 
+Scenario: pretty print xml
+    * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
+    * def xml = read('soap1.xml')
+    * print 'pretty print:\n' + karate.prettyXml(xml)
+
+Scenario: test removing elements from xml from js
+    * def base = <query><name>foo</name></query>
+    * def fun = function(){ karate.remove('base', '/query/name') }
+    * call fun
+    * match base == <query/>
+
 Scenario: placeholders using xml embedded expressions
     * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
     * def req = read('soap1.xml')
@@ -87,10 +98,12 @@ Scenario: set via table
         <acc:phoneNumberSearchOption></acc:phoneNumberSearchOption>        
     </acc:getAccountByPhoneNumber>
     """
+
     * set search /getAccountByPhoneNumber
     | path                    | value |
     | phoneNumber             | 1234  |   
     | phoneNumberSearchOption | 'all' |
+
     * match search ==
     """
     <acc:getAccountByPhoneNumber>
@@ -99,8 +112,40 @@ Scenario: set via table
     </acc:getAccountByPhoneNumber>
     """
 
-Scenario: pretty print xml
-    * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
-    * def xml = read('soap1.xml')
-    * print 'pretty print:\n' + karate.prettyXml(xml)
+Scenario: set via table, variable and xml nodes will be auto-built
+    * set search /acc:getAccountByPhoneNumber
+    | path                        | value |
+    | acc:phoneNumber             | 1234  |   
+    | acc:phoneNumberSearchOption | 'all' |
 
+    * match search ==
+    """
+    <acc:getAccountByPhoneNumber>
+        <acc:phoneNumber>1234</acc:phoneNumber>
+        <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
+    </acc:getAccountByPhoneNumber>
+    """
+
+Scenario Outline: conditionally build xml from scenario-outline and examples
+    * def firstName = '<_firstName>' || null
+    * def lastName = '<_lastName>' || null
+    * def age = '<_age>' || null
+
+    * def xml = 
+    """
+    <query>
+      <name>
+        <firstName>##(firstName)</firstName>
+        <lastName>##(lastName)</lastName>
+      </name>
+      <age>##(age)</age>
+    </query>
+    """
+
+    * match xml == <_expected>
+
+    Examples:
+    | _firstName | _lastName | _age | _expected                                                                                      |
+    | John       | Smith     |   20 | <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query> |
+    | Jane       | Doe       |      | <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>                |
+    |            | Waldo     |      | <query><name><lastName>Waldo</lastName></name></query>                                         |

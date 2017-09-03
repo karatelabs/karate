@@ -73,10 +73,10 @@ import org.w3c.dom.NodeList;
  * @author pthomas3
  */
 public class Script {
-    
+
     public static final String VAR_SELF = "_";
     public static final String VAR_DOLLAR = "$";
-    public static final String VAR_LOOP = "__loop";    
+    public static final String VAR_LOOP = "__loop";
 
     private Script() {
         // only static methods
@@ -129,7 +129,7 @@ public class Script {
     public static final boolean isJsonPath(String text) {
         return text.startsWith("$.") || text.startsWith("$[") || text.equals("$");
     }
-    
+
     public static final boolean isDollarPrefixed(String text) {
         return text.startsWith("$");
     }
@@ -181,10 +181,10 @@ public class Script {
         }
         return Pair.of(name, path);
     }
-    
+
     public static ScriptValue evalForMatch(String text, ScriptContext context) {
         return eval(text, context, false, true);
-    }    
+    }
 
     public static ScriptValue eval(String text, ScriptContext context) {
         return eval(text, context, false, false);
@@ -231,7 +231,7 @@ public class Script {
                 return call(text, arg, context, reuseParentConfig);
             }
         } else if (isJsonPath(text)) {
-            return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);            
+            return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
         } else if (isGetSyntax(text) || isDollarPrefixed(text)) { // special case in form
             // get json[*].path
             // $json[*].path
@@ -455,7 +455,7 @@ public class Script {
             // cache keys here, since they could be removed by the 'remove if null' ##(macro)
             // else we get a java.util.ConcurrentModificationException
             Collection<String> keys = new ArrayList(map.keySet());
-            for (String key: keys) {
+            for (String key : keys) {
                 String childPath = JsonUtils.buildPath(path, key);
                 evalJsonEmbeddedExpressions(childPath, map.get(key), context, root, forMatch);
             }
@@ -475,8 +475,8 @@ public class Script {
                 try {
                     ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
                     if (optional && (forMatch || sv.isNull())) {
-                        root.delete(path);                    
-                    } else { 
+                        root.delete(path);
+                    } else {
                         root.set(path, sv.getValue());
                     }
                 } catch (Exception e) {
@@ -502,7 +502,7 @@ public class Script {
                 try {
                     ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
                     if (optional && (forMatch || sv.isNull())) {
-                        attributesToRemove.add(attrib);                        
+                        attributesToRemove.add(attrib);
                     } else {
                         attrib.setValue(sv.getAsString());
                     }
@@ -1052,7 +1052,7 @@ public class Script {
             return o;
         }
     }
-    
+
     private static Object quoteIfString(Object o) {
         if (o instanceof String) {
             return "'" + o + "'";
@@ -1089,7 +1089,7 @@ public class Script {
         }
         if (expObject instanceof Map) {
             if (!(actObject instanceof Map)) {
-                return matchFailed(path, actObject, expObject, "actual value is not of type 'map'");
+                return matchFailed(path, actObject, expObject, "actual value is not map-like");
             }
             Map<String, Object> expMap = (Map) expObject;
             Map<String, Object> actMap = (Map) actObject;
@@ -1115,6 +1115,9 @@ public class Script {
             }
             return AssertionResult.PASS; // map compare done
         } else if (expObject instanceof List) {
+            if (!(actObject instanceof List)) {
+                return matchFailed(path, actObject, expObject, "actual value is not list-like");
+            }            
             List expList = (List) expObject;
             List actList = (List) actObject;
             int actCount = actList.size();
@@ -1224,14 +1227,14 @@ public class Script {
     }
 
     public static void removeValueByPath(String name, String path, ScriptContext context) {
-        setValueByPath(name, path, null, true, context);
+        setValueByPath(name, path, null, true, context, false);
     }
 
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
-        setValueByPath(name, path, exp, false, context);
+        setValueByPath(name, path, exp, false, context, false);
     }
 
-    public static void setValueByPath(String name, String path, String exp, boolean delete, ScriptContext context) {
+    public static void setValueByPath(String name, String path, String exp, boolean delete, ScriptContext context, boolean viaTable) {
         name = StringUtils.trim(name);
         path = StringUtils.trimToNull(path);
         if (path == null) {
@@ -1247,6 +1250,20 @@ public class Script {
         ScriptValue value = delete ? ScriptValue.NULL : eval(exp, context);
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
+            if (target == null || target.isNull()) {
+                if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    DocumentContext empty;
+                    if (path.startsWith("$[") && !path.startsWith("$['")) {
+                        empty = JsonUtils.emptyJsonArray(0);                        
+                    } else {
+                        empty = JsonUtils.emptyJsonObject();
+                    }
+                    target = new ScriptValue(empty);
+                    context.vars.put(name, target);
+                } else {
+                    throw new RuntimeException("variable is null or not set '" + name + "'");
+                }
+            }
             switch (target.getType()) {
                 case JSON:
                 case MAP:
@@ -1260,7 +1277,17 @@ public class Script {
                     throw new RuntimeException("cannot set json path on unexpected type: " + target);
             }
         } else if (isXmlPath(path)) {
-            Document doc = context.vars.get(name, Document.class);
+            ScriptValue target = context.vars.get(name);
+            if (target == null || target.isNull()) {
+                if (viaTable) { // auto create if using set via cucumber table as a convenience
+                    Document empty = XmlUtils.newDocument();
+                    target = new ScriptValue(empty);
+                    context.vars.put(name, target);
+                } else {
+                    throw new RuntimeException("variable is null or not set '" + name + "'");
+                }
+            }
+            Document doc = target.getValue(Document.class);
             if (delete) {
                 XmlUtils.removeByPath(doc, path);
             } else if (value.getType() == XML) {
@@ -1358,15 +1385,15 @@ public class Script {
             Object[] array = items.toArray();
             List result = new ArrayList(array.length);
             List<String> errors = new ArrayList(array.length);
-            for (int i = 0; i < array.length; i++) {               
-                Object rowArg = array[i];                
+            for (int i = 0; i < array.length; i++) {
+                Object rowArg = array[i];
                 if (rowArg instanceof Map) {
                     // clone so as to not clobber calling context
                     Map<String, Object> argAsMap = new LinkedHashMap((Map) rowArg);
                     argAsMap.put(VAR_LOOP, i);
                     if (env.reporter != null) {
                         env.reporter.call(feature, i, argAsMap);
-                    }                     
+                    }
                     try {
                         ScriptValue rowResult = evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
                         result.add(rowResult.getValue());
@@ -1381,7 +1408,7 @@ public class Script {
                 }
             }
             if (!errors.isEmpty()) {
-                String message = "loop feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", items: " + items; 
+                String message = "loop feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", items: " + items;
                 throw new KarateException(message + " " + errors);
             }
             return new ScriptValue(result);
@@ -1389,7 +1416,7 @@ public class Script {
             Map<String, Object> argAsMap = (Map) callArg;
             if (env.reporter != null) {
                 env.reporter.call(feature, -1, argAsMap);
-            }             
+            }
             try {
                 return evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
             } catch (KarateException ke) {
@@ -1492,7 +1519,7 @@ public class Script {
             if (token == null) {
                 continue;
             }
-            // TODO refactor with setTable, the verbosity below is to be lenient with table second column name
+            // TODO refactor with setByPathTable, the verbosity below is to be lenient with table second column name
             List<String> keys = new ArrayList(map.keySet());
             keys.remove(TOKEN);
             Iterator<String> iterator = keys.iterator();
@@ -1524,17 +1551,17 @@ public class Script {
         }
         return result;
     }
-    
+
     private static final String PATH = "path";
-    
-    public static void setTable(String name, String path, List<Map<String, String>> list, ScriptContext context) {
+
+    public static void setByPathTable(String name, String path, List<Map<String, String>> list, ScriptContext context) {
         name = StringUtils.trim(name);
         path = StringUtils.trimToNull(path); // TODO re-factor these few lines cut and paste
         if (path == null) {
             Pair<String, String> nameAndPath = parseVariableAndPath(name);
             name = nameAndPath.getLeft();
             path = nameAndPath.getRight();
-        }        
+        }
         for (Map<String, String> map : list) {
             String append = (String) map.get(PATH);
             if (append == null) {
@@ -1542,30 +1569,33 @@ public class Script {
             }
             List<String> keys = new ArrayList(map.keySet());
             keys.remove(PATH);
-            Iterator<String> iterator = keys.iterator(); 
-            if (iterator.hasNext()) {                                
-                String fullPath;
+            int columnCount = keys.size();
+            for (int i = 0; i < columnCount; i++) {
+                String key = keys.get(i);
+                String expression = map.get(key);
+                String suffix;
+                try {
+                    int arrayIndex = Integer.valueOf(key);
+                    suffix = "[" + arrayIndex + "]";
+                } catch (NumberFormatException e) {
+                    suffix = columnCount > 1 ? "[" + i + "]" : "";
+                }
+                String finalPath;
                 if (append.startsWith("/") || (path != null && path.startsWith("/"))) { // XML
                     if (path == null) {
-                        fullPath = append;
+                        finalPath = append + suffix;
                     } else {
-                        if (path.endsWith("/")) {
-                            path = path.substring(0, path.length() - 1);
-                        }
-                        fullPath = path + '/' + append;
+                        finalPath = path + suffix + '/' + append;
                     }
                 } else {
                     if (path == null) {
                         path = "$";
                     }
-                    fullPath = path + '.' + append;                    
-                }
-                String key = keys.iterator().next();
-                String expression = map.get(key);                
-                setValueByPath(name, fullPath, expression, context);
-            }            
+                    finalPath = path + suffix + '.' + append;
+                }                
+                setValueByPath(name, finalPath, expression, false, context, true);
+            }
         }
     }
-    
 
 }

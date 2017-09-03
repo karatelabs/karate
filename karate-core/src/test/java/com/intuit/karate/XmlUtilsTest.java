@@ -32,7 +32,7 @@ public class XmlUtilsTest {
     public void testXpath() {
         String xml = "<foo><bar>baz</bar></foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Node node = XmlUtils.getNodeByPath(doc, "/foo");
+        Node node = XmlUtils.getNodeByPath(doc, "/foo", false);
         assertEquals("foo", node.getNodeName());
         String value = XmlUtils.getTextValueByPath(doc, "/foo/bar");
         assertEquals("baz", value);
@@ -130,7 +130,34 @@ public class XmlUtilsTest {
         String result = XmlUtils.toString(doc);
         assertEquals(result, "<foo><bar><baz hello=\"world\">ban</baz></bar></foo>");
     }
+    
+    @Test
+    public void testCreateElementByPath() {
+        Document doc = XmlUtils.newDocument();
+        XmlUtils.createNodeByPath(doc, "/foo/bar");
+        String result = XmlUtils.toString(doc);
+        assertEquals(result, "<foo><bar/></foo>");
+    }
+    
+   @Test
+    public void testSetElementCreatingNonExistentParents() {
+        String xml = "<foo></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        Node temp = XmlUtils.toXmlDoc("<hello>world</hello>");
+        XmlUtils.setByPath(doc, "/foo/bar", temp);
+        String result = XmlUtils.toString(doc);
+        assertEquals(result, "<foo><bar><hello>world</hello></bar></foo>");
+    }
 
+   @Test
+    public void testSetAttributeCreatingNonExistentParents() {
+        String xml = "<foo></foo>";
+        Document doc = XmlUtils.toXmlDoc(xml);
+        XmlUtils.setByPath(doc, "/foo/bar/@baz", "ban");
+        String result = XmlUtils.toString(doc);
+        assertEquals(result, "<foo><bar baz=\"ban\"/></foo>");
+    }      
+    
     private Document getDocument() {
         return XmlUtils.newDocument();
     }
@@ -193,11 +220,11 @@ public class XmlUtilsTest {
     public void testCreatingNewDocumentFromSomeChildNode() {
         String xml = "<root><foo><bar>baz</bar></foo></root>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Node node = XmlUtils.getNodeByPath(doc, "/root/foo");
+        Node node = XmlUtils.getNodeByPath(doc, "/root/foo", false);
         Document tempDoc = XmlUtils.toNewDocument(node);
         String tempString = XmlUtils.getTextValueByPath(tempDoc, "/foo/bar");
         assertEquals(tempString, "baz");
-        Node tempNode = XmlUtils.getNodeByPath(tempDoc, "/");
+        Node tempNode = XmlUtils.getNodeByPath(tempDoc, "/", false);
         assertEquals(XmlUtils.toString(tempNode), "<foo><bar>baz</bar></foo>");
     }
     

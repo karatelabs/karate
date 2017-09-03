@@ -798,6 +798,8 @@ Notice that in the above example, string values within the table need to be encl
 ```
 Yes, you can even nest chunks of JSON in tables, and things work as you would expect.
 
+An alternate way to create data is using the [`set` multiple](#set-multiple) syntax. It is actually a 'transpose' of the `table` approach, and can be convenient when there are a large number of keys per row.
+
 ## `text`
 ### Don't parse, treat as raw text
 Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving place-holder substitutions in strings.
@@ -1411,7 +1413,7 @@ XML and XPath works just like you'd expect.
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
 
 ### `set` multiple
-Karate has an elegant way to set multiple keys (via path expressions) in one step. As you would expect, non-existent keys (or array elements) will be created automatically. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+Karate has an elegant way to set multiple keys (via path expressions) in one step. For convenience, non-existent keys (or array elements) will be created automatically. You can find more JSON examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 
 ```cucumber
 * def cat = { name: '' }
@@ -1424,7 +1426,17 @@ Karate has an elegant way to set multiple keys (via path expressions) in one ste
 * match cat == { name: 'Bob', age: 5 }
 ```
 
-This even works for XML. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature).
+One extra convenience for JSON is that if the variable does not exist, it will be created automatically. You can even create (or modify existing) JSON arrays by using multiple columns.
+
+```cucumber
+* set foo
+| path | 0     | 1     |
+| bar  | 'baz' | 'ban' |
+
+* match foo == [{ bar: 'baz' }, { bar: 'ban' }]
+```
+
+You can also do the same for XML. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 ```cucumber
 * def search = 

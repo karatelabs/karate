@@ -155,3 +155,53 @@ Examples:
 | 'John' | 'Smith' | 20   | { name: { first: 'John', last: 'Smith' }, age: 20 } |
 | 'Jane' | 'Doe'   | null | { name: { first: 'Jane', last: 'Doe' } }            |
 | null   | 'Waldo' | null | { name: { last: 'Waldo' } }                         |
+
+Scenario: set via table where variable does not exist
+# note how karate will create parent paths if needed
+* set foo
+| path | value      |
+| bar  | 'baz'      |
+| a.b  | 'c'        |
+| fizz | { d: 'e' } |
+* match foo == { bar: 'baz', a: { b: 'c' }, fizz: { d: 'e' } }
+
+Scenario: set array via table where variable does not exist
+* set foo
+| path | 0     |
+| bar  | 'baz' |
+* match foo == [{ bar: 'baz' }]
+
+Scenario: set array via table, multiple items, var does not exist
+* set foo
+| path | 0     | 1     |
+| bar  | 'baz' | 'ban' |
+* match foo == [{ bar: 'baz' }, { bar: 'ban' }]
+
+Scenario: set array via table, var exists, indexes specified
+# the column headings are used as indexes
+* def foo = [{ bar: 'a' }, { bar: 'b' }, { bar: 'c' }, { bar: 'd' }]
+* set foo
+| path | 3     | 1     |
+| bar  | 'baz' | 'ban' |
+* match foo == [{ bar: 'a' }, { bar: 'ban' }, { bar: 'c' }, { bar: 'baz' }]
+
+Scenario: set array via table, var does not exist, no array indexes
+# if the column headings are not integers, karate uses the column position
+# but column headings have to be unique, but they can be used to describe the column effectively
+* set foo
+| path | one   | two   |
+| bar  | 'baz' | 'ban' |
+* match foo == [{ bar: 'baz' }, { bar: 'ban' }]
+
+Scenario: set via table, var does not exist, different nesting options
+* set first
+| path | value          |
+| one  | { bar: 'baz' } |
+| two  | { bar: 'ban' } |
+* match first == { one: { bar: 'baz' }, two: { bar: 'ban' } }
+
+* set second
+| path     | value |
+| one.bar  | 'baz' |
+| two.bar  | 'ban' |
+* match second == first

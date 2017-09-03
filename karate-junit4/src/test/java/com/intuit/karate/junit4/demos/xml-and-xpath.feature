@@ -65,35 +65,3 @@ Scenario: when xpath exressions return xml chunks (or node lists)
 * def subjects = get teachers //teacher[@department='science']/subject
 * match subjects contains ['physics', 'math']
 * match teachers //teacher[@department='science']/subject == ['math', 'physics']
-
-Scenario Outline: conditionally build xml from scenario-outline and examples
-
-* def firstName = '<_firstName>' || null
-* def lastName = '<_lastName>' || null
-* def age = '<_age>' || null
-
-* def xml = 
-"""
-<query>
-  <name>
-    <firstName>##(firstName)</firstName>
-    <lastName>##(lastName)</lastName>
-  </name>
-  <age>##(age)</age>
-</query>
-"""
-
-* match xml == <_expected>
-
-Examples:
-| _firstName | _lastName | _age | _expected                                                                                      |
-| John       | Smith     |   20 | <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query> |
-| Jane       | Doe       |      | <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>                |
-|            | Waldo     |      | <query><name><lastName>Waldo</lastName></name></query>                                         |
-
-Scenario: test removing elements from xml from js
-
-* def base = <query><name>foo</name></query>
-* def fun = function(){ karate.remove('base', '/query/name') }
-* call fun
-* match base == <query/>

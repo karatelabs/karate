@@ -83,6 +83,12 @@ public class JsonUtilsTest {
         doc = JsonUtils.toJsonDoc("[{ foo: 'bar'}]");
         JsonUtils.setValueByPath(doc, "$[1]", JsonUtils.toJsonDoc("{ foo: 'baz' }").read("$"));
         assertEquals("[{\"foo\":\"bar\"},{\"foo\":\"baz\"}]", doc.jsonString());
+        doc = JsonUtils.toJsonDoc("{}");
+        JsonUtils.setValueByPath(doc, "$.foo.bar", 1);
+        assertEquals("{\"foo\":{\"bar\":1}}", doc.jsonString());
+        doc = JsonUtils.toJsonDoc("[]");
+        JsonUtils.setValueByPath(doc, "$[0].foo.bar", 1);
+        assertEquals("[{\"foo\":{\"bar\":1}}]", doc.jsonString());
     }
 
     @Test
@@ -157,5 +163,25 @@ public class JsonUtilsTest {
         s = XmlUtils.toXml(pojo);
         assertEquals(s, "<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>");
     }
+    
+    @Test
+    public void testEmptyJsonObject() {
+        DocumentContext doc = JsonUtils.emptyJsonObject();
+        String json = doc.jsonString();
+        assertEquals("{}", json);
+    }
+    
+    @Test
+    public void testEmptyJsonArray() {
+        DocumentContext doc = JsonUtils.emptyJsonArray(0);
+        String json = doc.jsonString();
+        assertEquals("[]", json);
+        doc = JsonUtils.emptyJsonArray(1);
+        json = doc.jsonString();
+        assertEquals("[{}]", json);
+        doc = JsonUtils.emptyJsonArray(2);
+        json = doc.jsonString();
+        assertEquals("[{},{}]", json);         
+    }      
 
 }

@@ -236,19 +236,40 @@ public class JsonUtils {
                 if (right.startsWith("[")) {
                     right = right.substring(2, right.length() - 2);
                 }
-                boolean pathExists;
-                try {
-                    pathExists = doc.read(left) != null;
-                } catch (PathNotFoundException pnfe) {
-                    pathExists = false;
-                }
-                if (!pathExists) {
-                    Pair<String, String> parentPath = getParentAndLeafPath(left);
-                    doc.put(parentPath.getLeft(), parentPath.getRight(), new LinkedHashMap(1));
+                if (!pathExists(doc, left)) {
+                    createParents(doc, left);
                 }
                 doc.put(left, right, value);               
             }
         }
+    }
+    
+    private static void createParents(DocumentContext doc, String path) {
+        Pair<String, String> pathLeaf = getParentAndLeafPath(path);
+        String left = pathLeaf.getLeft();
+        String right = pathLeaf.getRight();        
+        if ("".equals(left)) { // if root
+            if (!"$".equals(right)) { // special case, root is array, typically "$[0]"
+                doc.add("$", new LinkedHashMap()); // TODO we assume that second level is always object (not array of arrays)
+            }
+            return;
+        }
+        createParents(doc, left);
+        Object empty;
+        if (right.endsWith("]") && !right.endsWith("']")) {
+            empty = new ArrayList();
+        } else {
+            empty = new LinkedHashMap();           
+        }
+        doc.put(left, right, empty);
+    }
+    
+    public static boolean pathExists(DocumentContext doc, String path) {
+        try {
+            return doc.read(path) != null;
+        } catch (PathNotFoundException pnfe) {
+            return false;
+        }    
     }
 
     public static DocumentContext fromYaml(String raw) {
@@ -263,5 +284,17 @@ public class JsonUtils {
         boolean needsQuotes = key.indexOf('-') != -1 || key.indexOf(' ') != -1 || key.indexOf('.') != -1;
         return needsQuotes ? parentPath + "['" + key + "']" : parentPath + '.' + key;
     }
+    
+    public static DocumentContext emptyJsonObject() {
+        return toJsonDoc(new LinkedHashMap());
+    }
+    
+    public static DocumentContext emptyJsonArray(int length) {
+        List list = new ArrayList(length);
+        for (int i = 0; i < length; i++) {
+            list.add(new LinkedHashMap());
+        }
+        return toJsonDoc(list);
+    }    
 
 }
