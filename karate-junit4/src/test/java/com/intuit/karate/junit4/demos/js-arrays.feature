@@ -165,6 +165,13 @@ Scenario: set via table where variable does not exist
 | fizz | { d: 'e' } |
 * match foo == { bar: 'baz', a: { b: 'c' }, fizz: { d: 'e' } }
 
+Scenario: set via table with fancy array paths
+* set foo
+| path   | value   |
+| bar[0] | 'baz'   |
+| a[0].b | 'ban'   |
+* match foo == { bar: [ 'baz'], a: [{ b: 'ban' }] }
+
 Scenario: set array via table where variable does not exist
 * set foo
 | path | 0     |

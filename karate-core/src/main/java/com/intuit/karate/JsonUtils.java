@@ -255,9 +255,13 @@ public class JsonUtils {
             return;
         }
         createParents(doc, left);
-        Object empty;
+        Object empty;      
         if (right.endsWith("]") && !right.endsWith("']")) {
-            empty = new ArrayList();
+            int pos = right.indexOf('[');
+            right = right.substring(0, pos);
+            List list = new ArrayList();
+            list.add(new LinkedHashMap());
+            empty = list;
         } else {
             empty = new LinkedHashMap();           
         }
