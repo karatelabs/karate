@@ -253,5 +253,14 @@ public class XmlUtilsTest {
         String after = XmlUtils.toString(temp);
         assertEquals(after, before);
     }
+    
+    @Test
+    public void testStripNameSpacePrefixes() {
+        assertEquals("/", XmlUtils.stripNameSpacePrefixes("/"));
+        assertEquals("/foo", XmlUtils.stripNameSpacePrefixes("/foo"));
+        assertEquals("/bar", XmlUtils.stripNameSpacePrefixes("/foo:bar"));
+        assertEquals("/bar/baz", XmlUtils.stripNameSpacePrefixes("/foo:bar/foo:baz"));
+        assertEquals("/bar/baz/@ban", XmlUtils.stripNameSpacePrefixes("/foo:bar/foo:baz/@ban"));
+    }
 
 }

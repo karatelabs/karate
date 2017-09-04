@@ -126,6 +126,23 @@ Scenario: set via table, variable and xml nodes will be auto-built
     </acc:getAccountByPhoneNumber>
     """
 
+Scenario: set via table, build xml including attributes
+    * set search /acc:getAccountByPhoneNumber
+    | path                        | value |
+    | acc:phoneNumber             | 1234  |
+    | acc:phoneNumber/@foo        | 'bar' |   
+    | acc:phoneNumberSearchOption | 'all' |
+
+    * print karate.prettyXml(search)
+
+    * match search ==
+    """
+    <acc:getAccountByPhoneNumber>
+        <acc:phoneNumber foo="bar">1234</acc:phoneNumber>
+        <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
+    </acc:getAccountByPhoneNumber>
+    """
+
 Scenario Outline: conditionally build xml from scenario-outline and examples
     * def firstName = '<_firstName>' || null
     * def lastName = '<_lastName>' || null

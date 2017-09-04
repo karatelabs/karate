@@ -43,6 +43,7 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
+import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -126,9 +127,27 @@ public class XmlUtils {
             throw new RuntimeException(e);
         }
     }
+    
+    public static String stripNameSpacePrefixes(String path) {
+        if (path.indexOf(':') == -1) {
+            return path;
+        }
+        StringBuilder sb = new StringBuilder();        
+        for (String s : StringUtils.split(path, '/')) {
+            sb.append('/');
+            int pos = s.lastIndexOf(':');
+            if (pos == -1) {
+                sb.append(s);
+            } else {
+                sb.append(s.substring(pos + 1));
+            }
+        }
+        return sb.toString();
+    }
 
     public static Node getNodeByPath(Node node, String path, boolean create) {
-        XPathExpression expr = compile(path);
+        String searchPath = create ? stripNameSpacePrefixes(path) : path;
+        XPathExpression expr = compile(searchPath);
         Node result;
         try {
             result = (Node) expr.evaluate(node, XPathConstants.NODE);
@@ -136,7 +155,7 @@ public class XmlUtils {
             e.printStackTrace();
             result = null;
         }
-        if (result == null) {
+        if (result == null && create) {
             Document doc = node.getNodeType() == Node.DOCUMENT_NODE ? (Document) node : node.getOwnerDocument();
             return createNodeByPath(doc, path);
         } else {
@@ -155,9 +174,9 @@ public class XmlUtils {
             return root;
         }
         String left = path.substring(0, pos);
-        Node parent = createNodeByPath(doc, left);        
+        Node parent = getNodeByPath(doc, left, true);       
         String right = path.substring(pos + 1);
-        if (right.startsWith("@")) { // attribute
+         if (right.startsWith("@")) { // attribute
             Element parentElement = (Element) parent;
             right = right.substring(1);
             parentElement.setAttribute(right, "");
@@ -180,12 +199,12 @@ public class XmlUtils {
 
     public static void setByPath(Node doc, String path, String value) {
         Node node = getNodeByPath(doc, path, true);
-        if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
+        if (node.getNodeType() == Node.ATTRIBUTE_NODE) {
+            node.setNodeValue(value);
+        } else if (node.hasChildNodes() && node.getFirstChild().getNodeType() == Node.TEXT_NODE) {
             node.getFirstChild().setTextContent(value);
         } else if (node.getNodeType() == Node.ELEMENT_NODE) {
             node.setTextContent(value);
-        } else {
-            node.setNodeValue(value);
         }
     }
 
