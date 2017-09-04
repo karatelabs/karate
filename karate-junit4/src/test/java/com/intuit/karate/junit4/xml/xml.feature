@@ -81,7 +81,7 @@ Scenario: set xml chunks using embedded expressions
     * match req ==
     """
     <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:acc="http://foo/bar">
-        <soapenv:Header />
+        <soapenv:Header/>
         <soapenv:Body>
             <acc:getAccountByPhoneNumber>
                 <acc:phoneNumber>123456</acc:phoneNumber>
@@ -126,6 +126,22 @@ Scenario: set via table, variable and xml nodes will be auto-built
     </acc:getAccountByPhoneNumber>
     """
 
+Scenario: set via table, mixing xml chunks
+    * set search /acc:getAccountByPhoneNumber
+    | path                        | value |
+    | acc:phoneNumber             | 1234  |
+    | acc:foo    | <acc:bar>baz</acc:bar> |
+
+    * match search ==
+    """
+    <acc:getAccountByPhoneNumber>
+        <acc:phoneNumber>1234</acc:phoneNumber>
+        <acc:foo>
+            <acc:bar>baz</acc:bar>
+        </acc:foo>        
+    </acc:getAccountByPhoneNumber>
+    """
+
 Scenario: set via table, build xml including attributes and repeated elements
     * set search /acc:getAccountByPhoneNumber
     | path                        | value |
@@ -146,18 +162,14 @@ Scenario: set via table, build xml including attributes and repeated elements
     """
 
 Scenario Outline: conditionally build xml from scenario-outline and examples
-    * def firstName = '<_firstName>' || null
-    * def lastName = '<_lastName>' || null
-    * def age = '<_age>' || null
-
     * def xml = 
     """
     <query>
       <name>
-        <firstName>##(firstName)</firstName>
-        <lastName>##(lastName)</lastName>
+        <firstName>##(<_firstName>)</firstName>
+        <lastName>##(<_lastName>)</lastName>
       </name>
-      <age>##(age)</age>
+      <age>##(<_age>)</age>
     </query>
     """
 
@@ -165,6 +177,21 @@ Scenario Outline: conditionally build xml from scenario-outline and examples
 
     Examples:
     | _firstName | _lastName | _age | _expected                                                                                      |
-    | John       | Smith     |   20 | <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query> |
-    | Jane       | Doe       |      | <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>                |
-    |            | Waldo     |      | <query><name><lastName>Waldo</lastName></name></query>                                         |
+    | 'John'     | 'Smith'   |   20 | <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query> |
+    | 'Jane'     | 'Doe'     | null | <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>                |
+    | null       | 'Waldo'   | null | <query><name><lastName>Waldo</lastName></name></query>                                         |
+
+
+Scenario: a cleaner way to achieve the above by using tables and the 'set' keyword
+    * set search /queries/query
+        | path           | 1        | 2      | 3       |
+        | name/firstName | 'John'   | 'Jane' |         |
+        | name/lastName  | 'Smith'  | 'Doe'  | 'Waldo' |
+        | age            | 20       |        |         |
+        
+    * match search/queries/query[1] == <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query>
+    * match search/queries/query[2] == <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>
+    * match search/queries/query[3] == <query><name><lastName>Waldo</lastName></name></query>
+    
+
+

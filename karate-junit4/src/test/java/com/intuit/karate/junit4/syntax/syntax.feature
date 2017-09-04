@@ -415,7 +415,7 @@ Then match pdf == read('test.pdf')
 * print 'current balance: ' + currentBalance
 
 # data tables to json
-* table cats =
+* table cats
     | name   | age |
     | 'Bob'  | 2   |
     | 'Wild' | 4   |

@@ -4,7 +4,7 @@ Background:
 
 * url demoBaseUrl
 
-* table kittens = 
+* table kittens
     | name   | age |
     | 'Bob'  | 2   |
     | 'Wild' | 1   |

@@ -3,7 +3,7 @@ Feature: calling another feature file in a loop
 Background:
 * url demoBaseUrl
 
-* table kittens = 
+* table kittens
     | name       | age |
     | 'Bob'      | 2   |
     | 'Wild'     | 1   |

@@ -774,7 +774,7 @@ Then match response ==
 Now that we have seen how JSON is a 'native' data type that Karate understands, there is a very nice way to create JSON using Cucumber's support for expressing [data-tables](http://www.thinkcode.se/blog/2014/06/30/cucumber-data-tables).
 
 ```cucumber
-* table cats =
+* table cats
     | name   | age |
     | 'Bob'  | 2   |
     | 'Wild' | 4   |
@@ -790,7 +790,7 @@ Notice that in the above example, string values within the table need to be encl
 ```cucumber
 * def one = 'hello'
 * def two = { baz: 'world' }
-* table json =
+* table json
     | foo     | bar            |
     | one     | { baz: 1 }     |
     | two.baz | ['baz', 'ban'] |
@@ -798,7 +798,19 @@ Notice that in the above example, string values within the table need to be encl
 ```
 Yes, you can even nest chunks of JSON in tables, and things work as you would expect.
 
-An alternate way to create data is using the [`set` multiple](#set-multiple) syntax. It is actually a 'transpose' of the `table` approach, and can be convenient when there are a large number of keys per row.
+An alternate way to create data is using the [`set` multiple](#set-multiple) syntax. It is actually a 'transpose' of the `table` approach, and can be very convenient when there are a large number of keys per row or if the nesting is complex. Here is an example of what is possible:
+
+```cucumber
+* set search
+    | path       | 0        | 1      | 2       |
+    | name.first | 'John'   | 'Jane' |         |
+    | name.last  | 'Smith'  | 'Doe'  | 'Waldo' |
+    | age        | 20       |        |         |
+
+* match search[0] == { name: { first: 'John', last: 'Smith' }, age: 20 }
+* match search[1] == { name: { first: 'Jane', last: 'Doe' } }
+* match search[2] == { name: { last: 'Waldo' } }
+```
 
 ## `text`
 ### Don't parse, treat as raw text
@@ -1436,26 +1448,23 @@ One extra convenience for JSON is that if the variable does not exist, it will b
 * match foo == [{ bar: 'baz' }, { bar: 'ban' }]
 ```
 
-You can also do the same for XML. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
+The same concept applies to XML and you can build complicated payloads from scratch in just a few, extremely readable lines. The `value` column can take expressions, *even* XML chunks. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 ```cucumber
-* def search = 
-"""
-<acc:getAccountByPhoneNumber>
-    <acc:phoneNumber></acc:phoneNumber>
-    <acc:phoneNumberSearchOption></acc:phoneNumberSearchOption>        
-</acc:getAccountByPhoneNumber>
-"""
-
-* set search /getAccountByPhoneNumber
-| path                    | value |
-| phoneNumber             | 1234  |   
-| phoneNumberSearchOption | 'all' |
+* set search /acc:getAccountByPhoneNumber
+| path                        | value |
+| acc:phone/@foo              | 'bar' |
+| acc:phone/acc:number[1]     | 1234  |
+| acc:phone/acc:number[2]     | 5678  |     
+| acc:phoneNumberSearchOption | 'all' |
 
 * match search ==
 """
 <acc:getAccountByPhoneNumber>
-    <acc:phoneNumber>1234</acc:phoneNumber>
+    <acc:phone foo="bar">
+        <acc:number>1234</acc:number>
+        <acc:number>5678</acc:number>
+    </acc:phone>
     <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
 </acc:getAccountByPhoneNumber>
 """
@@ -2102,7 +2111,7 @@ But this time, the return value from the `call` step will be a JSON array of the
 Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) shortcut is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
 
 ```cucumber
-* table kittens = 
+* table kittens 
     | name   | age |
     | 'Bob'  |   2 |
     | 'Wild' |   1 |

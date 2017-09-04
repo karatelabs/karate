@@ -114,7 +114,7 @@ public class Script {
         return (text.startsWith("#(") || text.startsWith("##(")) && text.endsWith(")");
     }
 
-    public static final boolean isWithinParantheses(String text) {
+    public static final boolean isWithinParentheses(String text) {
         return text.startsWith("(") && text.endsWith(")");
     }
 
@@ -756,7 +756,7 @@ public class Script {
             } else {
                 macroExpression = expected.substring(1);
             }
-            if (isWithinParantheses(macroExpression)) { // '#(foo)' | '##(foo)' | '#(^foo)'
+            if (isWithinParentheses(macroExpression)) { // '#(foo)' | '##(foo)' | '#(^foo)'
                 MatchType matchType = MatchType.EQUALS;
                 macroExpression = stripParentheses(macroExpression);
                 if (isContainsMacro(macroExpression)) {
@@ -811,7 +811,7 @@ public class Script {
                         } else if (expression.startsWith("#")) {
                             expression = "'" + expression + "'";
                         } else {
-                            if (isWithinParantheses(expression)) {
+                            if (isWithinParentheses(expression)) {
                                 expression = stripParentheses(expression);
                             }
                             if (isContainsMacro(expression)) {
@@ -1235,6 +1235,12 @@ public class Script {
     }
 
     public static void setValueByPath(String name, String path, String exp, boolean delete, ScriptContext context, boolean viaTable) {
+        ScriptValue value = delete ? ScriptValue.NULL : eval(exp, context);
+        if (viaTable && value.isNull() && !isWithinParentheses(exp)) {
+            // by default, skip any expression that evaluates to null unless the user expressed
+            // intent to over-ride by enclosing the expression in parentheses
+            return;
+        }        
         name = StringUtils.trim(name);
         path = StringUtils.trimToNull(path);
         if (path == null) {
@@ -1247,7 +1253,6 @@ public class Script {
                     + " use the form '* " + name + " <expression>' to initialize the "
                     + name + ", and <expression> can be a variable");
         }
-        ScriptValue value = delete ? ScriptValue.NULL : eval(exp, context);
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
             if (target == null || target.isNull()) {
@@ -1519,7 +1524,7 @@ public class Script {
             if (token == null) {
                 continue;
             }
-            // TODO refactor with setByPathTable, the verbosity below is to be lenient with table second column name
+            // the verbosity below is to be lenient with table second column name
             List<String> keys = new ArrayList(map.keySet());
             keys.remove(TOKEN);
             Iterator<String> iterator = keys.iterator();
@@ -1572,12 +1577,18 @@ public class Script {
             int columnCount = keys.size();
             for (int i = 0; i < columnCount; i++) {
                 String key = keys.get(i);
-                String expression = map.get(key);
+                String expression = StringUtils.trimToNull(map.get(key));
+                if (expression == null) { // cucumber cell was left blank
+                    continue; // skip
+                    // default behavior is to skip nulls when the expression evaluates 
+                    // this is driven by the routine in setValueByPath
+                    // and users can over-ride this by simple enclosing the expression in parentheses
+                } 
                 String suffix;
                 try {
                     int arrayIndex = Integer.valueOf(key);
                     suffix = "[" + arrayIndex + "]";
-                } catch (NumberFormatException e) {
+                } catch (NumberFormatException e) { // default to the column position as the index
                     suffix = columnCount > 1 ? "[" + i + "]" : "";
                 }
                 String finalPath;

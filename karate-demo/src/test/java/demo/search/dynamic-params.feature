@@ -62,7 +62,7 @@ Scenario Outline: here the parameters are set to null in the data table itself
 
 
 Scenario: using a data-driven called feature instead of a scenario outline
-    * table data =
+    * table data
     | name   | country   | active | limit | missing                      |
     | 'foo'  | 'IN'      | true   |     1 | []                           |
     | 'bar'  |           |        |     5 | ['country', 'active']        |

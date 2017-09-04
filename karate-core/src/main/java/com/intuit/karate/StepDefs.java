@@ -266,10 +266,14 @@ public class StepDefs {
     @When("^def (.+) = (.+)")
     public void def(String name, String expression) {
         Script.assign(name, expression, context);
-    }
+    }       
 
-    @When("^table (.+) =$")
-    public void table(String name, DataTable table) {
+    @When("^table (.+)")
+    public void assignTable(String name, DataTable table) {
+        int pos = name.indexOf('='); // backward compatibility
+        if (pos != -1) {
+            name = name.substring(0, pos);
+        }
         List<Map<String, Object>> list = table.asMaps(String.class, Object.class);
         list = Script.evalTable(list, context);
         DocumentContext doc = JsonPath.parse(list);
