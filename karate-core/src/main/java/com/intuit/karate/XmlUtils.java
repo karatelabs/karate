@@ -182,6 +182,10 @@ public class XmlUtils {
             parentElement.setAttribute(right, "");
             return parentElement.getAttributeNode(right);
         } else {
+            int bracketPos = right.indexOf('[');
+            if (bracketPos != -1) { // index, we assume it is 1 and still append
+                right = right.substring(0, bracketPos);
+            }
             Element element = createElement(parent, right, null, null);
             parent.appendChild(element);
             return element;            

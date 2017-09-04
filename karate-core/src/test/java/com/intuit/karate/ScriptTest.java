@@ -784,7 +784,14 @@ public class ScriptTest {
         // json key that needs to be within quotes
         Script.assign("json", "{ 'bad-name': 'foo' }", ctx);       
         Script.setValueByPath("json", "$['bad-name']", "'bar'", ctx);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ 'bad-name': 'bar' }", ctx).pass);        
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ 'bad-name': 'bar' }", ctx).pass);         
+        // json where parent nodes are built automatically
+        Script.assign("json", "{}", ctx);
+        Script.setValueByPath("json", "$.foo.bar", "'hello'", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: { bar: 'hello' } }", ctx).pass);
+        Script.assign("json", "[]", ctx);
+        Script.setValueByPath("json", "$[0].a[0].c", "1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "[{a:[{c:1}]}]", ctx).pass);        
         // xml        
         Script.assign("xml", "<root><foo>bar</foo></root>", ctx);
         Script.setValueByPath("xml", "/root/foo", "'hello'", ctx);
@@ -792,7 +799,16 @@ public class ScriptTest {
         Script.setValueByPath("xml/root/foo", null, "null", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo/></root>", ctx).pass);        
         Script.setValueByPath("xml/root/foo", null, "'world'", ctx);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo>world</foo></root>", ctx).pass);        
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo>world</foo></root>", ctx).pass);
+        // xml where parent nodes are built automatically
+        Script.assign("xml", "<root/>", ctx);
+        Script.setValueByPath("xml", "/root/foo", "'hello'", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo>hello</foo></root>", ctx).pass);
+        Script.assign("xml", "<root/>", ctx);
+        Script.setValueByPath("xml/root/foo/@bar", null, "1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo bar=\"1\"/></root>", ctx).pass);
+        Script.setValueByPath("xml/root/foo[2]", null, "1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo bar=\"1\"/><foo>1</foo></root>", ctx).pass);
     }
     
     @Test

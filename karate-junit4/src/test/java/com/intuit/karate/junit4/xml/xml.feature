@@ -126,19 +126,21 @@ Scenario: set via table, variable and xml nodes will be auto-built
     </acc:getAccountByPhoneNumber>
     """
 
-Scenario: set via table, build xml including attributes
+Scenario: set via table, build xml including attributes and repeated elements
     * set search /acc:getAccountByPhoneNumber
     | path                        | value |
-    | acc:phoneNumber             | 1234  |
-    | acc:phoneNumber/@foo        | 'bar' |   
+    | acc:phone/@foo              | 'bar' |
+    | acc:phone/acc:number[1]     | 1234  |
+    | acc:phone/acc:number[2]     | 5678  |     
     | acc:phoneNumberSearchOption | 'all' |
-
-    * print karate.prettyXml(search)
 
     * match search ==
     """
     <acc:getAccountByPhoneNumber>
-        <acc:phoneNumber foo="bar">1234</acc:phoneNumber>
+        <acc:phone foo="bar">
+            <acc:number>1234</acc:number>
+            <acc:number>5678</acc:number>
+        </acc:phone>
         <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
     </acc:getAccountByPhoneNumber>
     """
