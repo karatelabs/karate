@@ -269,8 +269,8 @@ public class StepDefs {
     }       
 
     @When("^table (.+)")
-    public void assignTable(String name, DataTable table) {
-        int pos = name.indexOf('='); // backward compatibility
+    public void table(String name, DataTable table) {
+        int pos = name.indexOf('='); // backward compatibility, we used to require this till v0.5.0
         if (pos != -1) {
             name = name.substring(0, pos);
         }

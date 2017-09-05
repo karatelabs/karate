@@ -5,6 +5,11 @@ Scenario: pretty print xml
     * def xml = read('soap1.xml')
     * print 'pretty print:\n' + karate.prettyXml(xml)
 
+Scenario: test removing elements using keyword
+    * def base = <query><name>foo</name></query>
+    * remove base /query/name
+    * match base == <query/>
+
 Scenario: test removing elements from xml from js
     * def base = <query><name>foo</name></query>
     * def fun = function(){ karate.remove('base', '/query/name') }

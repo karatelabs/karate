@@ -55,6 +55,11 @@ Scenario: pass json var (becomes a map) to a function
     * def result = call fun json
     * match result == json
 
+Scenario: remove json key using keyword
+    * def json = { foo: 'bar', hello: 'world' }
+    * remove json $.foo
+    * match json == { hello: 'world' }
+
 Scenario: remove json key from js
     * def json = { foo: 'bar', hello: 'world' }
     * def fun = function(){ karate.remove('json', '$.foo') }
