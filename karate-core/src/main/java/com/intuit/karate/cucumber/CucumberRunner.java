@@ -111,10 +111,11 @@ public class CucumberRunner {
     }
 
     /**
-     * main cucumber bootstrap, common code for the default JUnit / TestNG runner
-     * and more importantly for Karate-s custom runner - such as the parallel one
-     * in the flow below, the ScriptEnv, the Backend and the ObjectFactory used
-     * by the backend are created fresh for each Feature file (and not re-used)
+     * main cucumber bootstrap, common code for the default JUnit / TestNG
+     * runner and more importantly for Karate-s custom runner - such as the
+     * parallel one in the flow below, the ScriptEnv, the Backend and the
+     * ObjectFactory used by the backend are created fresh for each Feature file
+     * (and not re-used)
      */
     public KarateRuntime getRuntime(FeatureFile featureFile, KarateReporter reporter) {
         File packageFile = featureFile.file;
@@ -198,9 +199,17 @@ public class CucumberRunner {
                 if (logger.isTraceEnabled()) {
                     logger.trace(">>>> feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
                 }
-                runner.run(featureFile, reporter);
-                logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
-                reporter.done();
+                try {
+                    try {
+                        runner.run(featureFile, reporter);
+                        logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());                    
+                    } finally { // try our best to close the report file gracefully so that report generation is not broken
+                        reporter.done();
+                    }
+                } catch (Exception e) {
+                    logger.error("karate xml/json generation failed for: {}", featureFile.file);
+                    reporter.setFailureReason(e);
+                }
                 return reporter;
             });
         }
@@ -208,8 +217,12 @@ public class CucumberRunner {
             List<Future<KarateReporter>> futures = executor.invokeAll(callables);
             stats.stopTimer();
             for (Future<KarateReporter> future : futures) {
-                KarateReporter reporter = future.get();
+                KarateReporter reporter = future.get(); // guaranteed to be not-null
                 KarateJunitFormatter formatter = reporter.getJunitFormatter();
+                if (reporter.getFailureReason() != null) {
+                    logger.error("karate xml/json generation failed: {}", formatter.getFeaturePath());
+                    logger.error("karate xml/json error stack trace", reporter.getFailureReason());
+                }                
                 stats.addToTestCount(formatter.getTestCount());
                 stats.addToFailCount(formatter.getFailCount());
                 stats.addToSkipCount(formatter.getSkipCount());
@@ -223,23 +236,23 @@ public class CucumberRunner {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }     
-    
-    private static Map<String, Object> runFeature(File file, Map<String, Object> vars) {        
+    }
+
+    private static Map<String, Object> runFeature(File file, Map<String, Object> vars) {
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, Thread.currentThread().getContextClassLoader());
         ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, null, vars, false);
-        return Script.simplify(scriptValueMap);        
+        return Script.simplify(scriptValueMap);
     }
-    
+
     public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars) {
         File dir = com.intuit.karate.FileUtils.getDirContaining(relativeTo);
-        File file = new File(dir.getPath() + File.separator + path);        
+        File file = new File(dir.getPath() + File.separator + path);
         return runFeature(file, vars);
     }
-    
+
     public static Map<String, Object> runClasspathFeature(String path, Map<String, Object> vars) {
         File file = new File("target/test-classes/" + path);
         return runFeature(file, vars);
     }
-    
+
 }

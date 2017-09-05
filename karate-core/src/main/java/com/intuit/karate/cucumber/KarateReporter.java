@@ -51,6 +51,16 @@ public class KarateReporter implements Formatter, Reporter {
     private final KarateJunitFormatter junit;
     private final CucumberJSONFormatter json;
     private final ReporterLogAppender logAppender;
+    
+    private Exception failureReason;
+
+    public void setFailureReason(Exception failureReason) {
+        this.failureReason = failureReason;
+    }
+
+    public Exception getFailureReason() {
+        return failureReason;
+    }        
 
     public static final Object DUMMY_OBJECT = new Object();
 

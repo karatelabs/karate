@@ -255,3 +255,12 @@ Scenario: expressions are allowed, and the default behavior is to skip anything 
     * match search[0] == { name: { first: 'John', last: 'Smith' }, age: 20 }
     * match search[1] == { name: { first: 'Jane', last: 'Doe' } }
     * match search[2] == { name: { first: null, last: 'Waldo' } } 
+
+Scenario: just to be clear about how to set a null if really needed in the resulting json
+    * set foo
+        | path       | value  |
+        | name.first | null   |
+        | name.last  | (null) |
+        | age        |        |
+    
+    * match foo == { name: { last: null } }
