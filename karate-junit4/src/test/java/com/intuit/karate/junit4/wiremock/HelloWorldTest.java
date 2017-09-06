@@ -71,6 +71,11 @@ public class HelloWorldTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("{ \"success\": true }")));
+        stubFor(get(urlEqualTo("/v1/multiparams?foo=bar&foo=baz"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{ \"success\": true }")));
         stubFor(get(urlEqualTo("/v1/german"))
                 .willReturn(aResponse()
                         .withStatus(200)

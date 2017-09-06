@@ -25,21 +25,26 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.ScriptContext;
 import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
+
 import static com.intuit.karate.http.Cookie.*;
+
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
+
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
+
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -66,7 +71,6 @@ import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.BasicHttpContext;
 
 /**
- *
  * @author pthomas3
  */
 public class ApacheHttpClient extends HttpClient<HttpEntity> {
@@ -157,10 +161,11 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             Object v = values[0];
             if (v != null) {
                 uriBuilder.setParameter(name, v.toString());
-            }            
+            }
         } else {
-            String v = StringUtils.join(values, ',');
-            uriBuilder.setParameter(name, v);
+            Arrays.stream(values)
+                    .filter(Objects::nonNull)
+                    .forEach(o -> uriBuilder.addParameter(name, o.toString()));
         }
         build();
     }

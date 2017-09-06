@@ -1,36 +1,18 @@
 @ignore
 Feature: testing commas in param values
 
-Scenario: using csv params in a string
+  Scenario: using csv params in a string
 
-  Given url 'http://localhost:' + wiremockPort + '/v1/commas'
-  And param foo = 'bar,baz'
-  When method get
-  Then status 200
-  And match response == { success: true }
+    Given url 'http://localhost:' + wiremockPort + '/v1/commas'
+    And param foo = 'bar,baz'
+    When method get
+    Then status 200
+    And match response == { success: true }
 
-Scenario: using params in a list
+  Scenario: using json string
 
-  Given url 'http://localhost:' + wiremockPort + '/v1/commas'
-  And param foo = 'bar', 'baz'
-  When method get
-  Then status 200
-  And match response == { success: true }
-
-
-Scenario: using json string
-
-  Given url 'http://localhost:' + wiremockPort + '/v1/commas'
-  And params { foo: 'bar,baz' }
-  When method get
-  Then status 200
-  And match response == { success: true }
-
-
-Scenario: using json array
-
-  Given url 'http://localhost:' + wiremockPort + '/v1/commas'
-  And params { foo: ['bar', 'baz'] }
-  When method get
-  Then status 200
-  And match response == { success: true }
+    Given url 'http://localhost:' + wiremockPort + '/v1/commas'
+    And params { foo: 'bar,baz' }
+    When method get
+    Then status 200
+    And match response == { success: true }
