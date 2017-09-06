@@ -99,4 +99,30 @@ Scenario: using the set keyword to build json and nulls are skipped by default
     | data[3] | { name: '#notnull', active: '#notnull' }                     |
     | data[4] | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
 
-    * def result = call read('search-simple.feature') search 
+    * def result = call read('search-simple.feature') search
+
+Scenario: test that multi-params work as expected
+    
+    Given path 'search'
+    And param foo = 'bar', 'baz'
+    When method get
+    Then status 200
+    And match response == { foo: ['bar', 'baz'] }
+
+    Given path 'search'
+    And params { foo: ['bar', 'baz'] }
+    When method get
+    Then status 200
+    And match response == { foo: ['bar', 'baz'] }
+
+    Given path 'search'
+    And param foo = 'bar,baz'
+    When method get
+    Then status 200
+    And match response == { foo: ['bar,baz'] }
+
+    Given path 'search'
+    And params { foo: 'bar,baz' }
+    When method get
+    Then status 200
+    And match response == { foo: ['bar,baz'] }
