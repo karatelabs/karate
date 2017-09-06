@@ -1,17 +1,17 @@
 Feature: dynamic params using scenario-outline, examples and json
 
 Background:
-* url demoBaseUrl
-* def nullify = 
-"""
-function(o) {
-  for (var key in o) {
-    if (o[key] == '') o[key] = null;
-  }
-  return o;
-}
-"""
-* def getResponseParam = read('get-response-param.js')
+    * url demoBaseUrl
+    * def nullify = 
+    """
+    function(o) {
+      for (var key in o) {
+        if (o[key] == '') o[key] = null;
+      }
+      return o;
+    }
+    """
+    * def getResponseParam = read('get-response-param.js')
 
 Scenario Outline: using a function to pre-process the search parameters
     * def query = { name: '<name>', country: '<country>', active: '<active>', limit: '<limit>' }
@@ -70,7 +70,7 @@ Scenario: using a data-driven called feature instead of a scenario outline
     |        | 'US'      |        |     3 | ['name', 'active']           |
     |        |           | false  |       | ['name', 'country', 'limit'] |
     
-    * def result = call read('search.feature') data    
+    * def result = call read('search-complex.feature') data    
 
 Scenario: params json with embedded expressions
     * def data = { one: 'one', two: 'two' }
@@ -80,3 +80,23 @@ Scenario: params json with embedded expressions
     When method get
     Then status 200
     And match response == { name: ['one'], country: ['two'] }
+
+Scenario: using the set keyword to build json and nulls are skipped by default
+    this is possibly the simplest form of all the above, avoiding any javascript
+
+    * set data
+    | path    | 0       | 1       | 2       | 3       | 4       |
+    | name    | 'foo'   | 'bar'   | 'bar'   |         |         |
+    | country | 'IN'    |         | 'JP'    | 'US'    |         |
+    | active  | true    |         |         |         | false   |
+    | limit   | 1       | 5       |         | 3       |         |
+    
+    * table search
+    | params  | missing                                                      |
+    | data[0] | {}                                                           |
+    | data[1] | { country: '#notnull', active: '#notnull' }                  |
+    | data[2] | { active: '#notnull', limit: '#notnull' }                    |
+    | data[3] | { name: '#notnull', active: '#notnull' }                     |
+    | data[4] | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
+
+    * def result = call read('search-simple.feature') search 
