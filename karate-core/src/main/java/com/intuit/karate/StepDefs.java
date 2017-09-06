@@ -168,9 +168,7 @@ public class StepDefs {
                 request.removeParam(key);
             } else {
                 if (temp instanceof List) {
-                    List list = (List) temp;
-                    String csv = StringUtils.join(list, ',');
-                    request.setParam(key, csv);
+                    request.setParam(key, (List) temp);
                 } else {
                     request.setParam(key, temp.toString());
                 }
