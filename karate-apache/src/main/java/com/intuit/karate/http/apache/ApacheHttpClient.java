@@ -24,6 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.ScriptContext;
+import com.intuit.karate.StringUtils;
 import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
@@ -39,7 +40,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;

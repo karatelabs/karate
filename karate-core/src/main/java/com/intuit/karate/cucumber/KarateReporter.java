@@ -24,6 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.StringUtils;
 import cucumber.runtime.formatter.CucumberJSONFormatter;
 import gherkin.formatter.Formatter;
 import gherkin.formatter.Reporter;
@@ -40,7 +41,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  *

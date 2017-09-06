@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -93,17 +92,17 @@ public class JsonUtilsTest {
 
     @Test
     public void testParsingParentAndLeafName() {
-        assertEquals(Pair.of("", "$"), JsonUtils.getParentAndLeafPath("$"));
-        assertEquals(Pair.of("$", "foo"), JsonUtils.getParentAndLeafPath("$.foo"));
-        assertEquals(Pair.of("$", "['foo']"), JsonUtils.getParentAndLeafPath("$['foo']"));
-        assertEquals(Pair.of("$.foo", "bar"), JsonUtils.getParentAndLeafPath("$.foo.bar"));
-        assertEquals(Pair.of("$.foo", "['bar']"), JsonUtils.getParentAndLeafPath("$.foo['bar']"));
-        assertEquals(Pair.of("$.foo", "bar[0]"), JsonUtils.getParentAndLeafPath("$.foo.bar[0]"));
-        assertEquals(Pair.of("$.foo", "['bar'][0]"), JsonUtils.getParentAndLeafPath("$.foo['bar'][0]"));
-        assertEquals(Pair.of("$.foo[2]", "bar[0]"), JsonUtils.getParentAndLeafPath("$.foo[2].bar[0]"));
-        assertEquals(Pair.of("$.foo[2]", "['bar'][0]"), JsonUtils.getParentAndLeafPath("$.foo[2]['bar'][0]"));
-        assertEquals(Pair.of("$.foo[2]", "bar"), JsonUtils.getParentAndLeafPath("$.foo[2].bar"));
-        assertEquals(Pair.of("$.foo[2]", "['bar']"), JsonUtils.getParentAndLeafPath("$.foo[2]['bar']"));
+        assertEquals(StringUtils.pair("", "$"), JsonUtils.getParentAndLeafPath("$"));
+        assertEquals(StringUtils.pair("$", "foo"), JsonUtils.getParentAndLeafPath("$.foo"));
+        assertEquals(StringUtils.pair("$", "['foo']"), JsonUtils.getParentAndLeafPath("$['foo']"));
+        assertEquals(StringUtils.pair("$.foo", "bar"), JsonUtils.getParentAndLeafPath("$.foo.bar"));
+        assertEquals(StringUtils.pair("$.foo", "['bar']"), JsonUtils.getParentAndLeafPath("$.foo['bar']"));
+        assertEquals(StringUtils.pair("$.foo", "bar[0]"), JsonUtils.getParentAndLeafPath("$.foo.bar[0]"));
+        assertEquals(StringUtils.pair("$.foo", "['bar'][0]"), JsonUtils.getParentAndLeafPath("$.foo['bar'][0]"));
+        assertEquals(StringUtils.pair("$.foo[2]", "bar[0]"), JsonUtils.getParentAndLeafPath("$.foo[2].bar[0]"));
+        assertEquals(StringUtils.pair("$.foo[2]", "['bar'][0]"), JsonUtils.getParentAndLeafPath("$.foo[2]['bar'][0]"));
+        assertEquals(StringUtils.pair("$.foo[2]", "bar"), JsonUtils.getParentAndLeafPath("$.foo[2].bar"));
+        assertEquals(StringUtils.pair("$.foo[2]", "['bar']"), JsonUtils.getParentAndLeafPath("$.foo[2]['bar']"));
     }
 
     @Test

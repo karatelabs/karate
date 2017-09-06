@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.StringUtils;
 import gherkin.formatter.model.DocString;
 import gherkin.formatter.model.Step;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  *

@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.convert;
 
+import com.intuit.karate.StringUtils;
 import java.util.Map;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * Created by rkumar32 on 5/24/17.

@@ -7,7 +7,6 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import static com.intuit.karate.Script.eval;
 import com.intuit.karate.cucumber.FeatureFilePath;
 import com.intuit.karate.cucumber.FeatureWrapper;
@@ -66,9 +65,9 @@ public class FileUtils {
     }
 
     public static ScriptValue readFile(String text, ScriptContext context) {
-        text = StringUtils.trim(text);
+        text = StringUtils.trimToEmpty(text);
         String fileName = removePrefix(text);
-        fileName = StringUtils.trim(fileName);
+        fileName = StringUtils.trimToEmpty(fileName);
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(fileName, isClassPath(text), context);
             ScriptValue temp = eval(contents, context);
@@ -123,7 +122,7 @@ public class FileUtils {
     }
     
     public static URL toFileUrl(String path) {
-        path = StringUtils.trim(path);
+        path = StringUtils.trimToEmpty(path);
         File file = new File(path);        
         try {
             return file.getAbsoluteFile().toURI().toURL();

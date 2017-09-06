@@ -39,7 +39,6 @@ import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.reader.JsonWriter;
 import net.minidev.json.reader.JsonWriterI;
-import org.apache.commons.lang3.tuple.Pair;
 import org.yaml.snakeyaml.Yaml;
 
 /**
@@ -167,7 +166,7 @@ public class JsonUtils {
         }
     }
 
-    public static Pair<String, String> getParentAndLeafPath(String path) {
+    public static StringUtils.Pair getParentAndLeafPath(String path) {
         int pos = path.lastIndexOf('.');
         int temp = path.lastIndexOf("['");
         if (temp != -1 && temp > pos) {
@@ -178,7 +177,7 @@ public class JsonUtils {
             pos = pos + 1;
         }
         String left = path.substring(0, pos == -1 ? 0 : pos);
-        return Pair.of(left, right);
+        return StringUtils.pair(left, right);
     }
 
     public static void removeValueByPath(DocumentContext doc, String path) {
@@ -193,9 +192,9 @@ public class JsonUtils {
         if ("$".equals(path)) {
             throw new RuntimeException("cannot replace root path $");
         }
-        Pair<String, String> pathLeaf = getParentAndLeafPath(path);
-        String left = pathLeaf.getLeft();
-        String right = pathLeaf.getRight();
+        StringUtils.Pair pathLeaf = getParentAndLeafPath(path);
+        String left = pathLeaf.left;
+        String right = pathLeaf.right;
         if (right.endsWith("]") && !right.endsWith("']")) { // json array
             int indexPos = right.lastIndexOf('[');
             int index = Integer.valueOf(right.substring(indexPos + 1, right.length() - 1));
@@ -245,9 +244,9 @@ public class JsonUtils {
     }
     
     private static void createParents(DocumentContext doc, String path) {
-        Pair<String, String> pathLeaf = getParentAndLeafPath(path);
-        String left = pathLeaf.getLeft();
-        String right = pathLeaf.getRight();        
+        StringUtils.Pair pathLeaf = getParentAndLeafPath(path);
+        String left = pathLeaf.left;
+        String right = pathLeaf.right;        
         if ("".equals(left)) { // if root
             if (!"$".equals(right)) { // special case, root is array, typically "$[0]"
                 doc.add("$", new LinkedHashMap()); // TODO we assume that second level is always object (not array of arrays)

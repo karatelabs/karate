@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -753,15 +752,15 @@ public class ScriptTest {
 
     @Test
     public void testParsingVariableAndJsonPath() {
-        assertEquals(Pair.of("foo", "$"), Script.parseVariableAndPath("foo"));
-        assertEquals(Pair.of("foo", "$.bar"), Script.parseVariableAndPath("foo.bar"));
-        assertEquals(Pair.of("foo", "$['bar']"), Script.parseVariableAndPath("foo['bar']"));
-        assertEquals(Pair.of("foo", "$[0]"), Script.parseVariableAndPath("foo[0]"));
-        assertEquals(Pair.of("foo", "$[0].bar"), Script.parseVariableAndPath("foo[0].bar"));
-        assertEquals(Pair.of("foo", "$[0]['bar']"), Script.parseVariableAndPath("foo[0]['bar']"));
-        assertEquals(Pair.of("foo", "/bar"), Script.parseVariableAndPath("foo/bar"));
-        assertEquals(Pair.of("foo", "/"), Script.parseVariableAndPath("foo/"));
-        assertEquals(Pair.of("foo", "/bar/baz[1]/ban"), Script.parseVariableAndPath("foo/bar/baz[1]/ban"));
+        assertEquals(StringUtils.pair("foo", "$"), Script.parseVariableAndPath("foo"));
+        assertEquals(StringUtils.pair("foo", "$.bar"), Script.parseVariableAndPath("foo.bar"));
+        assertEquals(StringUtils.pair("foo", "$['bar']"), Script.parseVariableAndPath("foo['bar']"));
+        assertEquals(StringUtils.pair("foo", "$[0]"), Script.parseVariableAndPath("foo[0]"));
+        assertEquals(StringUtils.pair("foo", "$[0].bar"), Script.parseVariableAndPath("foo[0].bar"));
+        assertEquals(StringUtils.pair("foo", "$[0]['bar']"), Script.parseVariableAndPath("foo[0]['bar']"));
+        assertEquals(StringUtils.pair("foo", "/bar"), Script.parseVariableAndPath("foo/bar"));
+        assertEquals(StringUtils.pair("foo", "/"), Script.parseVariableAndPath("foo/"));
+        assertEquals(StringUtils.pair("foo", "/bar/baz[1]/ban"), Script.parseVariableAndPath("foo/bar/baz[1]/ban"));
     }
 
     @Test

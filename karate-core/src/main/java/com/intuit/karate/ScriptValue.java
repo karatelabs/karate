@@ -33,8 +33,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Node;
 
 /**
@@ -341,7 +339,7 @@ public class ScriptValue {
             type = Type.STRING;
         } else if (value instanceof InputStream) {
             type = Type.INPUT_STREAM;
-        } else if (ClassUtils.isPrimitiveOrWrapper(value.getClass())) {
+        } else if (Script.isPrimitive(value.getClass())) {
             type = Type.PRIMITIVE;
         } else if (value instanceof FeatureWrapper) {
             type = Type.FEATURE_WRAPPER;

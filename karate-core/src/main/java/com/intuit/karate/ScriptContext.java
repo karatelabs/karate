@@ -29,7 +29,6 @@ import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.validator.Validator;
 import java.util.Map;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
 /**

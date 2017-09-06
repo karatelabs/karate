@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.cucumber.KarateReporter;
 import java.io.File;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

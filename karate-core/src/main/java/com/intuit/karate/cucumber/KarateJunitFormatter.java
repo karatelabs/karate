@@ -24,6 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.StringUtils;
 import cucumber.runtime.CucumberException;
 import cucumber.runtime.formatter.StrictAware;
 import cucumber.runtime.io.URLOutputStream;
@@ -61,7 +62,6 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

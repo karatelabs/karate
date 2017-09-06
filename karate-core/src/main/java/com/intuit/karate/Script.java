@@ -59,9 +59,6 @@ import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -164,7 +161,7 @@ public class Script {
 
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
 
-    public static Pair<String, String> parseVariableAndPath(String text) {
+    public static StringUtils.Pair parseVariableAndPath(String text) {
         Matcher matcher = VAR_AND_PATH_PATTERN.matcher(text);
         matcher.find();
         String name = text.substring(0, matcher.end());
@@ -179,7 +176,7 @@ public class Script {
         } else {
             path = "$" + path;
         }
-        return Pair.of(name, path);
+        return StringUtils.pair(name, path);
     }
 
     public static ScriptValue evalForMatch(String text, ScriptContext context) {
@@ -254,9 +251,9 @@ public class Script {
                 right = text.substring(pos + 1);
                 left = text.substring(0, pos);
             } else {
-                Pair<String, String> pair = parseVariableAndPath(text);
-                left = pair.getLeft();
-                right = pair.getRight();
+                StringUtils.Pair pair = parseVariableAndPath(text);
+                left = pair.left;
+                right = pair.right;
             }
             ScriptValue sv;
             if (isXmlPath(right) || isXmlPathFunction(right)) {
@@ -284,11 +281,11 @@ public class Script {
         } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
             return evalInNashorn(text, context);
         } else if (isVariableAndJsonPath(text)) {
-            Pair<String, String> pair = parseVariableAndPath(text);
-            return evalJsonPathOnVarByName(pair.getLeft(), pair.getRight(), context);
+            StringUtils.Pair pair = parseVariableAndPath(text);
+            return evalJsonPathOnVarByName(pair.left, pair.right, context);
         } else if (isVariableAndXmlPath(text)) {
-            Pair<String, String> pair = parseVariableAndPath(text);
-            return evalXmlPathOnVarByName(pair.getLeft(), pair.getRight(), context);
+            StringUtils.Pair pair = parseVariableAndPath(text);
+            return evalXmlPathOnVarByName(pair.left, pair.right, context);
         } else {
             // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, 5, true
             // including function declarations e.g. function() { }
@@ -469,7 +466,7 @@ public class Script {
             }
         } else if (o instanceof String) {
             String value = (String) o;
-            value = StringUtils.trim(value);
+            value = StringUtils.trimToEmpty(value);
             if (isEmbeddedExpression(value)) {
                 boolean optional = isOptionalMacro(value);
                 try {
@@ -591,7 +588,7 @@ public class Script {
     }
 
     private static void assign(AssignType assignType, String name, String exp, ScriptContext context) {
-        name = StringUtils.trim(name);
+        name = StringUtils.trimToEmpty(name);
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
@@ -676,7 +673,7 @@ public class Script {
     }
 
     public static AssertionResult matchNamed(MatchType matchType, String name, String path, String expected, ScriptContext context) {
-        name = StringUtils.trim(name);
+        name = StringUtils.trimToEmpty(name);
         if (isJsonPath(name) || isXmlPath(name)) { // short-cut for operating on response
             path = name;
             name = ScriptValueMap.VAR_RESPONSE;
@@ -686,11 +683,11 @@ public class Script {
         }
         path = StringUtils.trimToNull(path);
         if (path == null) {
-            Pair<String, String> pair = parseVariableAndPath(name);
-            name = pair.getLeft();
-            path = pair.getRight();
+            StringUtils.Pair pair = parseVariableAndPath(name);
+            name = pair.left;
+            path = pair.right;
         }
-        expected = StringUtils.trim(expected);
+        expected = StringUtils.trimToEmpty(expected);
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
             return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
         } else {
@@ -880,13 +877,13 @@ public class Script {
 
     private static ScriptValue getValueOfParentNode(Object actRoot, String path) {
         if (actRoot instanceof DocumentContext) {
-            Pair<String, String> parentAndLeaf = JsonUtils.getParentAndLeafPath(path);
+            StringUtils.Pair parentAndLeaf = JsonUtils.getParentAndLeafPath(path);
             DocumentContext actDoc = (DocumentContext) actRoot;
             Object thisObject;
-            if ("".equals(parentAndLeaf.getLeft())) { // edge case, this IS the root
+            if ("".equals(parentAndLeaf.left)) { // edge case, this IS the root
                 thisObject = actDoc;
             } else {
-                thisObject = actDoc.read(parentAndLeaf.getLeft());
+                thisObject = actDoc.read(parentAndLeaf.left);
             }
             return new ScriptValue(thisObject);
         } else {
@@ -1158,8 +1155,6 @@ public class Script {
                 }
                 return AssertionResult.PASS; // lists (and order) are identical
             }
-        } else if (ClassUtils.isPrimitiveOrWrapper(expObject.getClass())) {
-            return matchPrimitive(path, actObject, expObject);
         } else if (expObject instanceof BigDecimal) {
             BigDecimal expNumber = (BigDecimal) expObject;
             if (actObject instanceof BigDecimal) {
@@ -1174,9 +1169,17 @@ public class Script {
                 }
             }
             return AssertionResult.PASS;
+        } else if (isPrimitive(expObject.getClass())) {
+            return matchPrimitive(path, actObject, expObject);            
         } else { // this should never happen
             throw new RuntimeException("unexpected type: " + expObject.getClass());
         }
+    }
+
+    public static boolean isPrimitive(Class clazz) {
+        return clazz.isPrimitive() 
+                || Number.class.isAssignableFrom(clazz)
+                || Boolean.class.equals(clazz);
     }
 
     private static String buildListPath(char delimiter, String path, int index) {
@@ -1241,12 +1244,12 @@ public class Script {
             // intent to over-ride by enclosing the expression in parentheses
             return;
         }        
-        name = StringUtils.trim(name);
+        name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
         if (path == null) {
-            Pair<String, String> nameAndPath = parseVariableAndPath(name);
-            name = nameAndPath.getLeft();
-            path = nameAndPath.getRight();
+            StringUtils.Pair nameAndPath = parseVariableAndPath(name);
+            name = nameAndPath.left;
+            path = nameAndPath.right;
         }
         if ("request".equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is not a variable,"
@@ -1560,12 +1563,12 @@ public class Script {
     private static final String PATH = "path";
 
     public static void setByPathTable(String name, String path, List<Map<String, String>> list, ScriptContext context) {
-        name = StringUtils.trim(name);
+        name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path); // TODO re-factor these few lines cut and paste
         if (path == null) {
-            Pair<String, String> nameAndPath = parseVariableAndPath(name);
-            name = nameAndPath.getLeft();
-            path = nameAndPath.getRight();
+            StringUtils.Pair nameAndPath = parseVariableAndPath(name);
+            name = nameAndPath.left;
+            path = nameAndPath.right;
         }
         for (Map<String, String> map : list) {
             String append = (String) map.get(PATH);

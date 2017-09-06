@@ -24,6 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.http.HttpBody;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
@@ -33,7 +34,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
