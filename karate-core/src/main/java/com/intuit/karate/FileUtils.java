@@ -6,14 +6,22 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.io.IOUtils;
 import static com.intuit.karate.Script.eval;
 import com.intuit.karate.cucumber.FeatureFilePath;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -96,11 +104,11 @@ public class FileUtils {
             throw new KarateFileNotFoundException(message);
         }
         try {
-            return IOUtils.toString(is, UTF8);
-        } catch (Exception e) {
+            return toString(is);
+        } catch (Exception e) {            
             String message = String.format("could not read file: %s, classpath: %s", path, classpath);
-            context.logger.error(message);
-            throw new RuntimeException(message, e);
+            context.logger.error(message);            
+            throw new RuntimeException(message, e.getCause());
         }
     } 
     
@@ -110,8 +118,8 @@ public class FileUtils {
         }
         String fullPath = context.env.featureDir + File.separator + path;
         try {
-            return org.apache.commons.io.FileUtils.openInputStream(new File(fullPath));
-        } catch (Exception e) {
+            return new FileInputStream(fullPath);
+        } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
@@ -186,20 +194,38 @@ public class FileUtils {
         return new FeatureFilePath(file, searchPaths);
     }
     
-    public static String toString(File file) {        
+    public static String toString(File file) {
         try {
-            return org.apache.commons.io.FileUtils.readFileToString(file, UTF8);
-        } catch (Exception e) {
+            return toString(new FileInputStream(file));
+        } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
-        }                
+        }
     }
     
     public static String toString(InputStream is) {
         try {
-            return IOUtils.toString(is, UTF8);
+            return toByteStream(is).toString(UTF8.name());
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }         
+        }
+    }
+    
+    public static byte[] toBytes(InputStream is) {
+        return toByteStream(is).toByteArray();
+    }    
+    
+    private static ByteArrayOutputStream toByteStream(InputStream is) {
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int length;
+        try {
+            while ((length = is.read(buffer)) != -1) {
+                result.write(buffer, 0, length);
+            }
+            return result;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
     
     public static String toString(byte[] bytes) {
@@ -218,23 +244,20 @@ public class FileUtils {
     
     public static void writeToFile(File file, String data) {
         try {
-            org.apache.commons.io.FileUtils.writeStringToFile(file, data, UTF8);
+            FileOutputStream fos = new FileOutputStream(file);
+            fos.write(data.getBytes(UTF8));
+            fos.close();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
     
     public static InputStream toInputStream(String text) {
-        return IOUtils.toInputStream(text, UTF8);
+        return new ByteArrayInputStream(text.getBytes(UTF8));
     }
     
     public static List<String> toStringLines(String text) {
-        InputStream is = toInputStream(text);
-        try {
-            return IOUtils.readLines(is, UTF8);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return new BufferedReader(new StringReader(text)).lines().collect(Collectors.toList());
     }
     
     public static String replaceFileExtension(String path, String extension) {

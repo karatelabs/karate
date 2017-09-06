@@ -44,7 +44,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,7 +156,7 @@ public class CucumberRunner {
     private static KarateReporter getReporter(String reportDirPath, FeatureFile featureFile) {
         File reportDir = new File(reportDirPath);
         try {
-            FileUtils.forceMkdirParent(reportDir);
+            reportDir.mkdirs();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

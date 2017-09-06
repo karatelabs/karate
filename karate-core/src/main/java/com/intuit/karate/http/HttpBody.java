@@ -23,12 +23,12 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.FileUtils;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.io.IOUtils;
 
 /**
  *
@@ -56,11 +56,7 @@ public class HttpBody {
 
     public byte[] getBytes() {
         if (isStream()) {
-            try {
-                return IOUtils.toByteArray(stream);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            return FileUtils.toBytes(stream);
         }
         return bytes;
     }

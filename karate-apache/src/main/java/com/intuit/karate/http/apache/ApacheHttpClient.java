@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.http.apache;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.StringUtils;
 import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
 
 import static com.intuit.karate.http.Cookie.*;
@@ -45,7 +45,6 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -237,7 +236,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 bytes = new byte[0];
             } else {
                 InputStream is = responseEntity.getContent();
-                bytes = IOUtils.toByteArray(is);
+                bytes = FileUtils.toBytes(is);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

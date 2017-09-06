@@ -7,8 +7,8 @@ Scenario: get binary result and make sure it hasn't been corrupted
   function(b){
     var Runner = Java.type('com.intuit.karate.junit4.wiremock.HelloWorldTest')
     var expected =  Runner.testBytes;
-    var IOUtils = Java.type('org.apache.commons.io.IOUtils');
-    var actualBytes = IOUtils.toByteArray(b);
+    var FileUtils = Java.type('com.intuit.karate.FileUtils');
+    var actualBytes = FileUtils.toBytes(b);
     print('expected byte count: ' + expected.length + ', response byte count: ' + actualBytes.length);
     return(expected.length == actualBytes.length)
   }

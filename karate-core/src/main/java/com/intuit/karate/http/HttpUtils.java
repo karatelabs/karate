@@ -1,7 +1,6 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
 import static com.intuit.karate.http.HttpClient.*;
@@ -14,7 +13,6 @@ import java.security.cert.CertificateException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
-import org.apache.commons.io.IOUtils;
 
 /**
  *
