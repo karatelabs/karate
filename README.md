@@ -52,7 +52,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Based on the popular Cucumber / Gherkin standard, and [IDE support](#running-in-eclipse-or-intellij) and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
 * Eliminate the need for 'POJO's or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
-* Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml) or Cucumber [Scenario Outline](#the-cucumber-way) tables
+* Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml), Cucumber [Scenario](#the-cucumber-way) Outline [tables](#table), or a [payload builder](#set-multiple) approach [unique to Karate](https://gist.github.com/ptrthomas/d6beb17e92a43220d254af942e3ed3d9)
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
 * [Embedded UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through a script in debug mode where you can even re-play a step while editing it - a huge time-saver
@@ -65,6 +65,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - with both JUnit and TestNG being supported
 * Support for multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for HTTP integration tests
 * Built-in [test-reports](#test-reports) powered by Cucumber-JVM with the option of using third-party (open-source) maven-plugins for even [better-looking reports](karate-demo#example-report)
+* Reports include HTTP request and response [logs in-line](#test-reports), which makes troubleshooting a lot easier
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
@@ -108,13 +109,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.5.1</version>
+    <version>0.6.0</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.5.1</version>
+    <version>0.6.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -126,8 +127,8 @@ And if you run into class-loading conflicts, for example if an older version of 
 Alternatively for Gradle you need two `dependencies`:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit4:0.5.1'
-    testCompile 'com.intuit.karate:karate-apache:0.5.1'
+    testCompile 'com.intuit.karate:karate-junit4:0.6.0'
+    testCompile 'com.intuit.karate:karate-apache:0.6.0'
 ```
 
 ### TestNG instead of JUnit
@@ -144,7 +145,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.5.1 \
+-DarchetypeVersion=0.6.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
