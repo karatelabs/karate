@@ -2,6 +2,9 @@ Feature: dynamic params using scenario-outline, examples and json
 
 Background:
     * url demoBaseUrl
+
+Scenario Outline: using a function to pre-process the search parameters
+    * def query = { name: '<name>', country: '<country>', active: '<active>', limit: '<limit>' }
     * def nullify = 
     """
     function(o) {
@@ -12,9 +15,6 @@ Background:
     }
     """
     * def getResponseParam = read('get-response-param.js')
-
-Scenario Outline: using a function to pre-process the search parameters
-    * def query = { name: '<name>', country: '<country>', active: '<active>', limit: '<limit>' }
     * def query = nullify(query)
     * print query
 
