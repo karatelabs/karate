@@ -70,9 +70,14 @@ public class ReporterLogAppender extends AppenderBase<ILoggingEvent> {
         if (!threadName.equals(event.getThreadName())) {
             return;
         }
-        byte[] bytes = encoder.encode(event);
-        String line = FileUtils.toString(bytes);
-        sb.append(line);
+        try {
+            byte[] bytes = encoder.encode(event);
+            String line = FileUtils.toString(bytes);
+            sb.append(line);
+        } catch (Exception e) {
+            System.err.println("possible logback version conflict: " + e.getMessage());
+            e.printStackTrace();
+        }
     }    
     
 }
