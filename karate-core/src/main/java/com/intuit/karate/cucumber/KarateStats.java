@@ -39,6 +39,7 @@ public class KarateStats {
     private final long startTime;
     private long endTime;
     private List<String> failedList;
+    private Throwable failureReason;
     
     private KarateStats(long startTime) {
         this.startTime = startTime;
@@ -54,6 +55,14 @@ public class KarateStats {
     public static KarateStats startTimer() {
         return new KarateStats(System.currentTimeMillis());
     }
+
+    public void setFailureReason(Throwable failureReason) {
+        this.failureReason = failureReason;
+    }
+
+    public Throwable getFailureReason() {
+        return failureReason;
+    }        
     
     public void addToTestCount(int count) {
         testCount += count;
@@ -85,6 +94,10 @@ public class KarateStats {
         System.out.println("=========================================================");
         if (failedList != null) {
             System.out.println("failed: " + failedList);
+        }
+        if (failureReason != null) {
+            System.out.println("*** runner exception stack trace ***");
+            failureReason.printStackTrace();
         }
     }
 

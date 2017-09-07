@@ -185,43 +185,41 @@ public class CucumberRunner {
     public static KarateStats parallel(Class clazz, int threadCount, String reportDir) {
         KarateStats stats = KarateStats.startTimer();
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-        CucumberRunner runner = new CucumberRunner(clazz);
-        List<FeatureFile> featureFiles = runner.getFeatureFiles();
-        List<Callable<KarateReporter>> callables = new ArrayList<>(featureFiles.size());
-        int count = featureFiles.size();
-        for (int i = 0; i < count; i++) {
-            int index = i + 1;
-            FeatureFile featureFile = featureFiles.get(i);
-            callables.add(() -> {
-                String threadName = Thread.currentThread().getName();
-                KarateReporter reporter = getReporter(reportDir, featureFile);
-                if (logger.isTraceEnabled()) {
-                    logger.trace(">>>> feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
-                }
-                try {
+        try {
+            CucumberRunner runner = new CucumberRunner(clazz);
+            List<FeatureFile> featureFiles = runner.getFeatureFiles();
+            List<Callable<KarateReporter>> callables = new ArrayList<>(featureFiles.size());
+            int count = featureFiles.size();
+            for (int i = 0; i < count; i++) {
+                int index = i + 1;
+                FeatureFile featureFile = featureFiles.get(i);
+                callables.add(() -> {
+                    String threadName = Thread.currentThread().getName();
+                    KarateReporter reporter = getReporter(reportDir, featureFile);
+                    if (logger.isTraceEnabled()) {
+                        logger.trace(">>>> feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
+                    }
                     try {
                         runner.run(featureFile, reporter);
-                        logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());                    
+                        logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, featureFile.feature.getPath());
+                    } catch (Exception e) {
+                        logger.error("karate xml/json generation failed for: {}", featureFile.file);
+                        reporter.setFailureReason(e);
                     } finally { // try our best to close the report file gracefully so that report generation is not broken
                         reporter.done();
                     }
-                } catch (Exception e) {
-                    logger.error("karate xml/json generation failed for: {}", featureFile.file);
-                    reporter.setFailureReason(e);
-                }
-                return reporter;
-            });
-        }
-        try {
+                    return reporter;
+                });
+            }            
             List<Future<KarateReporter>> futures = executor.invokeAll(callables);
-            stats.stopTimer();
+            stats.stopTimer();            
             for (Future<KarateReporter> future : futures) {
                 KarateReporter reporter = future.get(); // guaranteed to be not-null
                 KarateJunitFormatter formatter = reporter.getJunitFormatter();
                 if (reporter.getFailureReason() != null) {
                     logger.error("karate xml/json generation failed: {}", formatter.getFeaturePath());
                     logger.error("karate xml/json error stack trace", reporter.getFailureReason());
-                }                
+                }
                 stats.addToTestCount(formatter.getTestCount());
                 stats.addToFailCount(formatter.getFailCount());
                 stats.addToSkipCount(formatter.getSkipCount());
@@ -229,12 +227,15 @@ public class CucumberRunner {
                 if (formatter.isFail()) {
                     stats.addToFailedList(formatter.getFeaturePath());
                 }
-            }
-            stats.printStats(threadCount);
-            return stats;
+            }            
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            logger.error("karate parallel runner failed: ", e.getMessage());
+            stats.setFailureReason(e);
+        } finally {
+            executor.shutdownNow();                        
         }
+        stats.printStats(threadCount);
+        return stats;
     }
 
     private static Map<String, Object> runFeature(File file, Map<String, Object> vars) {
