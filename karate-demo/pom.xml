@@ -31,7 +31,20 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
             <version>${spring.boot.version}</version>
+        </dependency> 
+        
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>${spring.version}</version>
         </dependency>        
+        
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>1.4.196</version>
+            <scope>runtime</scope>
+        </dependency>                     
         
         <dependency>
             <groupId>commons-io</groupId>
@@ -51,7 +64,7 @@
             <artifactId>karate-apache</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>
+        </dependency>                
         
         <dependency>
             <groupId>net.masterthought</groupId>

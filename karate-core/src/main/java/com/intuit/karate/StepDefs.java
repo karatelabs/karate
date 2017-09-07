@@ -260,7 +260,7 @@ public class StepDefs {
         def(name, expression);
     }
 
-    @When("^def (.+) = (.+)")
+    @When("^def (\\w+) = (.+)")
     public void def(String name, String expression) {
         Script.assign(name, expression, context);
     }       

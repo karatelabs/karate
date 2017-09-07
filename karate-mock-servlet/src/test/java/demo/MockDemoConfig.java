@@ -24,6 +24,7 @@
 package demo;
 
 import com.intuit.karate.demo.controller.CatsController;
+import com.intuit.karate.demo.controller.DogsController;
 import com.intuit.karate.demo.controller.EncodingController;
 import com.intuit.karate.demo.controller.GreetingController;
 import com.intuit.karate.demo.controller.HeadersController;
@@ -52,6 +53,11 @@ public class MockDemoConfig {
     public CatsController catsController() {
         return new CatsController();
     }
+    
+    @Bean
+    public DogsController dogsController() {
+        return new DogsController();
+    }    
     
     @Bean
     public GreetingController greetingController() {

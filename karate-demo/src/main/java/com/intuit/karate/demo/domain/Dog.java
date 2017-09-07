@@ -21,22 +21,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.config;
-
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+package com.intuit.karate.demo.domain;
 
 /**
  *
  * @author pthomas3
  */
- @Configuration
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().ignoringAntMatchers("/cats/**", "/dogs/**", "/files/**");
+public class Dog {
+    
+    private int id;
+    private String name;
+    
+    public Dog() {
+        // zero arg constructor
     }
+    
+    public Dog(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }        
     
 }
