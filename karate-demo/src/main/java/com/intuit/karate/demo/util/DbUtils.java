@@ -31,11 +31,15 @@ public class DbUtils {
         logger.info("init jdbc template: {}", url);
     }
     
-    public Map<String, Object> readOne(String query) {
+    public Object readValue(String query) {
+        return jdbc.queryForObject(query, Object.class);
+    }    
+    
+    public Map<String, Object> readRow(String query) {
         return jdbc.queryForMap(query);
     }
     
-    public List<Map<String, Object>> readList(String query) {
+    public List<Map<String, Object>> readRows(String query) {
         return jdbc.queryForList(query);
     }     
     
