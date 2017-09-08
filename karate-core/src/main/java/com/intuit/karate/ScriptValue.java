@@ -108,6 +108,10 @@ public class ScriptValue {
         return type == Type.STRING;
     }
     
+    public boolean isXml() {
+        return type == Type.XML;
+    }
+    
     public boolean isStream() {
         return type == Type.INPUT_STREAM;
     }

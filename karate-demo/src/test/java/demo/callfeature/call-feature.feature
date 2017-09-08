@@ -11,7 +11,8 @@ Scenario: create kittens and then create parent cat
 
 # create mom cat
 Given path 'cats'
-And request { name: 'Billie', kittens: ['#(bob)', '#(wild)'] }
+# sometimes, enclosed javascript is more convenient than embedded expressions
+And request ({ name: 'Billie', kittens: [bob, wild] })
 When method post
 Then status 200
 And match response == read('../cats/billie-expected.json')

@@ -76,7 +76,8 @@ Scenario: params json with embedded expressions
     * def data = { one: 'one', two: 'two' }
 
     Given path 'search'
-    And params { name: '#(data.one)', country: '#(data.two)' }
+    # using enclosed javascript instead of an embedded expression for convenience
+    And params ({ name: data.one, country: data.two })
     When method get
     Then status 200
     And match response == { name: ['one'], country: ['two'] }

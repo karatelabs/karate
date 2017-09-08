@@ -731,6 +731,22 @@ This comes in useful in some cases - and avoids needing to use the [`set`](#set)
 
 A [special case](#remove-if-null) of embedded expressions can remove a JSON key (or XML element / attribute) if the expression evaluates to `null`.
 
+### Enclosed JavaScript
+An alternative to embedded expressions (for JSON only) is to enclose the entire payload within parentheses - which tells Karate to evaluate it as pure JavaScript. This can be a lot simpler than embedded expressions in many cases, and JavaScript programmers will feel more home.
+
+The example below shows the difference between embedded expressions and enclosed JavaScript:
+
+```cucumber
+When def user = { name: 'john', age: 21 }
+And def lang = 'en'
+
+* def embedded = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(user)'  }
+* def enclosed = ({ name: user.name, locale: lang, sessionUser: user  })
+* match embedded == enclosed
+```
+
+[Embedded expressions](#embedded-expressions) are needed when you start using [validation](#ignore-or-validate) [short-cuts](#schema-validation).
+
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
 ```cucumber
@@ -969,6 +985,8 @@ The `call` keyword provides an [alternate way of calling JavaScript functions](#
 
 Karate makes re-use of payload data, utility-functions and even other test-scripts as easy as possible. Teams typically define complicated JSON (or XML) payloads in a file and then re-use this in multiple scripts. Keywords such as [`set`](#set) and [`remove`](#remove) allow you to to 'tweak' payload-data to fit the scenario under test. You can imagine how this greatly simplifies setting up tests for boundary conditions. And such re-use makes it easier to re-factor tests when needed, which is great for maintainability,
 
+> Note that the [`set` (multiple)](#set-multiple) keyword can build complex, nested JSON (or XML) from scratch in a data-driven manner, and you may not even need to read from files for many situations. Test data can be within the main flow itself, which makes scripts highly readable.
+
 Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) as the `*.feature` file. But you can prefix the name with `classpath:` in which case the 'root' folder would be `src/test/java` (assuming you are using the [recommended folder structure](#folder-structure)).
 
 Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
@@ -1050,7 +1068,8 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 `* def foo = 'bar'` | primitive | simple strings, numbers or booleans
 `* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
 `* def foo = (bar.baz + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
-`* def foo = { bar: 1 }` | JSON | anything that starts with a `{` or a `[` is treated as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
+`* def foo = { bar: '#(baz)' }` | JSON | anything that starts with a `{` or a `[` is treated as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
+`* def foo = ({ bar: baz })` | JS | [enclosed JavaScript](#enclosed-javascript), the result of which is exactly equivalent to the above
 `* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is treated as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
 `* def foo = function(arg){ return arg + bar }` | JS Function | anything that starts with `function(...){` is treated as a JS function.
 `* def foo = read('bar.json')` | Read | using the built-in [`read()`](#reading-files) function
@@ -1058,7 +1077,8 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 `* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
 `* def foo = bar.baz[0]` | Named JsonPath | JsonPath on the variable `bar`
 `* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
-`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria)
+`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria). You can also use [`get[0]`](#get-plus-index) to get the first item if the JsonPath evaluates to an array.
+`* def foo = $bar..baz[?(@.ban)]` | [convenience short-cut]() for the above
 `* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
 `* def foo = karate.pretty(bar)` | `karate` JS | using the [built-in `karate` object](#the-karate-object) in JS expressions
 `* def Foo = Java.type('com.mycompany.Foo')` | Java Type | [Java Interop](#java-interop), and even package-name-spaced one-liners like `java.lang.System.currentTimeMillis()` are possible
@@ -1817,7 +1837,7 @@ And you can perform conditional / cross-field validations and even business-logi
 * match $.odds == '#[]? isValidOdd(_)'
 ```
 
-Especially when payloads are complex (or highly dynamic), it may be more practical to use [`contains`](#match-contains) semantics. The short-cut symbol for `contains` is the `^` character. And `^^` translates to [`contains only`](#match-contains-only) So here is what is possible:
+Especially when payloads are complex (or highly dynamic), it may be more practical to use [`contains`](#match-contains) semantics. The short-cut symbol for `contains` is the `^` character. And `^^` translates to [`contains only`](#match-contains-only) So here is what's possible:
 
 ```cucumber
 * def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
@@ -1842,7 +1862,7 @@ Refer to this for the complete example: [`schema-like.feature`](karate-junit4/sr
 And there is another example in the [karate-demos](karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example. You can also find a nice visual comparison and explanation [here](https://twitter.com/KarateDSL/status/878984854012022784).
 
 ## `get`
-By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features). Note that the 'short cut' `$variableName` form is also supported. For example:
+By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features).
 
 ```cucumber
 * def cat = 
@@ -1859,25 +1879,30 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 * match kitnums == [23, 42]
 * def kitnames = get cat $.kittens[*].name
 * match kitnames == ['Bob', 'Wild']
+```
 
-# this short-cut is also allowed, and can be mixed into match expressions
+### `get` short-cut
+The 'short cut' `$variableName` form is also supported. So the above could be re-written as follows:
+
+```cucumber
+* def kitnums = $cat.kittens[*].id
+* match kitnums == [23, 42]
 * def kitnames = $cat.kittens[*].name
 * match kitnames == ['Bob', 'Wild']
-* match kitnames == $cat.kittens[*].name
 ```
 
 ### `get` plus index
-A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` in JsonPath, you get a list back even though you typically might only be interested in the first item.
+A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` in JsonPath, you get a list back even though you typically might be only interested in the first item.
 
 ```cucumber
+* def actual = 23
+
 # so instead of this
 * def kitnums = get cat.kittens[*].id
-* def first = kitnums[0]
-* match first == 23
+* match actual == kitnums[0]
 
 # you can do this in one line
-* def first = get[0] cat.kittens[*].id
-* match first == 23
+* match actual == get[0] cat.kittens[*].id
 ```
 
 ### XPath Functions
@@ -1969,6 +1994,7 @@ Then match /cat/name == 'Billie'
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.
+
 ```cucumber
 * assert responseCookies['my.key'].value == 'someValue'
 
@@ -1981,6 +2007,7 @@ The `responseCookies` variable is set upon any HTTP response and is a map-like (
 # save a response cookie for later use
 * def time = responseCookies.time.value
 ```
+
 As a convenience, cookies from the previous response are collected and passed as-is as part of the next HTTP request. This is what is normally expected and simulates a web-browser - which makes it easy to script things like HTML-form based authentication into test-flows. Refer to the documentation for [`cookie`](#cookie) for details and how you can disable this if need be.
 
 Each item within `responseCookies` is itself a 'map-like' object. Typically you would examine the `value` property as in the example above, but `domain` and `path` are also available.

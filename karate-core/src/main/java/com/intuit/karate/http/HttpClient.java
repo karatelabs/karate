@@ -85,44 +85,29 @@ public abstract class HttpClient<T> {
     protected abstract String getRequestUri();
 
     private T getEntityInternal(ScriptValue body, String mediaType) {
-        switch (body.getType()) {
-            case JSON:
-                if (mediaType == null) {
-                    mediaType = APPLICATION_JSON;
-                }
-                DocumentContext json = body.getValue(DocumentContext.class);
-                return getEntity(json.jsonString(), mediaType);
-            case MAP:
-                if (mediaType == null) {
-                    mediaType = APPLICATION_JSON;
-                }
-                Map<String, Object> map = body.getValue(Map.class);
-                DocumentContext mapDoc = JsonPath.parse(map);
-                return getEntity(mapDoc.jsonString(), mediaType);
-            case LIST:
-                if (mediaType == null) {
-                    mediaType = APPLICATION_JSON;
-                }
-                List list = body.getValue(List.class);
-                DocumentContext listDoc = JsonPath.parse(list);
-                return getEntity(listDoc.jsonString(), mediaType);
-            case XML:
-                Node node = body.getValue(Node.class);
-                if (mediaType == null) {
-                    mediaType = APPLICATION_XML;
-                }
-                return getEntity(XmlUtils.toString(node), mediaType);
-            case INPUT_STREAM:
-                InputStream is = body.getValue(InputStream.class);
-                if (mediaType == null) {
-                    mediaType = APPLICATION_OCTET_STREAM;
-                }
-                return getEntity(is, mediaType);
-            default:
-                if (mediaType == null) {
-                    mediaType = TEXT_PLAIN;
-                }
-                return getEntity(body.getAsString(), mediaType);
+        if (body.isJsonLike()) {
+            if (mediaType == null) {
+                mediaType = APPLICATION_JSON;
+            }
+            DocumentContext json = body.getAsJsonDocument();
+            return getEntity(json.jsonString(), mediaType);
+        } else if (body.isXml()) {
+            Node node = body.getValue(Node.class);
+            if (mediaType == null) {
+                mediaType = APPLICATION_XML;
+            }
+            return getEntity(XmlUtils.toString(node), mediaType);           
+        } else if (body.isStream()) {
+            InputStream is = body.getValue(InputStream.class);
+            if (mediaType == null) {
+                mediaType = APPLICATION_OCTET_STREAM;
+            }
+            return getEntity(is, mediaType);           
+        } else {
+            if (mediaType == null) {
+                mediaType = TEXT_PLAIN;
+            }
+            return getEntity(body.getAsString(), mediaType);          
         }
     }
 

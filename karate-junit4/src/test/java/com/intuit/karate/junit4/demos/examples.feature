@@ -31,5 +31,20 @@ Then match temp == { id: 42, value: 'world' }
 Given def temperature = { celsius: 100, fahrenheit: 212 }
 Then match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }
 
+When def user = { name: 'john', age: 21 }
+And def lang = 'en'
+
+* def embedded = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(user)'  }
+* def enclosed = ({ name: user.name, locale: lang, sessionUser: user  })
+* match embedded == enclosed
+
+* def actual = 23
+# so instead of this
+* def kitnums = get cat.kittens[*].id
+* match actual == kitnums[0]
+
+# you can do this in one line
+* match actual == get[0] cat.kittens[*].id
+
 
 

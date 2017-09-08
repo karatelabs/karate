@@ -21,7 +21,8 @@ And def wild = response
 
 # create mom cat
 Given path 'cats'
-And request { name: 'Billie', kittens: ['#(bob)', '#(wild)'] }
+# sometimes, enclosed javascript is more convenient than embedded expressions
+And request ({ name: 'Billie', kittens: [bob, wild] })
 When method post
 Then status 200
 And match response == read('billie-expected.json')
