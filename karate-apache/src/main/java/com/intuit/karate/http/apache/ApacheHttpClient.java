@@ -94,7 +94,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
 
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
-        clientBuilder = HttpClientBuilder.create();
+        clientBuilder = HttpClientBuilder.create().disableRedirectHandling();
         clientBuilder.useSystemProperties();
         cookieStore = new BasicCookieStore();
         clientBuilder.setDefaultCookieStore(cookieStore);
