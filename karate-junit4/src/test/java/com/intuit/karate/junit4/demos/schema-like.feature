@@ -66,14 +66,17 @@ Then match response ==
 # contains
 * def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
 * def exact = { a: '#number', b: '#number' }
+* def reversed = { b: '#number', a: '#number' }
 * def partial = { b: '#number' }
 * def nope = { c: '#number' }
 
 * match foo[0] == '#(exact)'
+* match foo[0] == '#(^^reversed)'
 * match foo[0] == '#(^partial)'
 * match foo[0] == '#(!^nope)'
 
 * match foo == '#[] exact'
+* match foo == '#[] ^^reversed'
 * match foo == '#[] ^partial'
 * match foo == '#[] !^nope'
 

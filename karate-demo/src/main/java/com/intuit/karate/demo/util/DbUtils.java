@@ -15,7 +15,7 @@ public class DbUtils {
     
     private static final Logger logger = LoggerFactory.getLogger(DbUtils.class); 
     
-    private JdbcTemplate jdbc;
+    private final JdbcTemplate jdbc;
 
     public DbUtils(Map<String, Object> config) {
         String url = (String) config.get("url");

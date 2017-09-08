@@ -118,6 +118,10 @@ public class Script {
     public static final boolean isContainsMacro(String text) {
         return text.startsWith("^");
     }
+    
+    public static final boolean isContainsOnlyMacro(String text) {
+        return text.startsWith("^^");
+    }    
 
     public static final boolean isNotContainsMacro(String text) {
         return text.startsWith("!^");
@@ -757,8 +761,13 @@ public class Script {
                 MatchType matchType = MatchType.EQUALS;
                 macroExpression = stripParentheses(macroExpression);
                 if (isContainsMacro(macroExpression)) {
-                    matchType = MatchType.CONTAINS;
-                    macroExpression = macroExpression.substring(1);
+                    if (isContainsOnlyMacro(macroExpression)) {
+                        matchType = MatchType.CONTAINS_ONLY;
+                        macroExpression = macroExpression.substring(2);                        
+                    } else {
+                        matchType = MatchType.CONTAINS;
+                        macroExpression = macroExpression.substring(1);                        
+                    }
                 } else if (isNotContainsMacro(macroExpression)) {
                     matchType = MatchType.NOT_CONTAINS;
                     macroExpression = macroExpression.substring(2);
@@ -812,8 +821,13 @@ public class Script {
                                 expression = stripParentheses(expression);
                             }
                             if (isContainsMacro(expression)) {
-                                matchType = MatchType.EACH_CONTAINS;
-                                expression = expression.substring(1);
+                                if (isContainsOnlyMacro(expression)) {
+                                    matchType = MatchType.EACH_CONTAINS_ONLY;
+                                    expression = expression.substring(2);                                    
+                                } else {
+                                    matchType = MatchType.EACH_CONTAINS;
+                                    expression = expression.substring(1);                                    
+                                }
                             } else if (isNotContainsMacro(expression)) {
                                 matchType = MatchType.EACH_NOT_CONTAINS;
                                 expression = expression.substring(2);
