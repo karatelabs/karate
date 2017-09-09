@@ -17,7 +17,8 @@ Scenario: test removing elements from xml from js
     * match base == <query/>
 
 Scenario: placeholders using xml embedded expressions
-    * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
+    * def phoneNumber = '123456'
+    * def search = { wireless: true, voip: false, tollFree: false }
     * def req = read('soap1.xml')
     * def phone = req/Envelope/Body/getAccountByPhoneNumber
     * match phone /getAccountByPhoneNumber/phoneNumber == '123456'

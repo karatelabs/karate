@@ -269,7 +269,7 @@ public class XmlUtils {
     private static Object getElementAsObject(Node node) {
         int childElementCount = getChildElementCount(node);
         if (childElementCount == 0) {
-            return node.getTextContent();
+            return StringUtils.trimToNull(node.getTextContent());
         }
         Map<String, Object> map = new LinkedHashMap<>(childElementCount);
         NodeList nodes = node.getChildNodes();

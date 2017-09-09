@@ -3,7 +3,7 @@
     <soapenv:Header />
     <soapenv:Body>
         <acc:getAccountByPhoneNumber>
-            <acc:phoneNumber>#(search.number)</acc:phoneNumber>
+            <acc:phoneNumber>#(phoneNumber)</acc:phoneNumber>
             <acc:phoneNumberSearchOption>
                 <acc:searchWirelessInd>#(search.wireless)</acc:searchWirelessInd>
                 <acc:searchVoipInd>#(search.voip)</acc:searchVoipInd>

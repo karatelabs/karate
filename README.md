@@ -744,7 +744,7 @@ And def lang = 'en'
 * match embedded == enclosed
 ```
 
-[Embedded expressions](#embedded-expressions) are useful when you [`read`](#reading-files) JSON from files, because you can auto-replace (or even [remove](#remove-if-null)) data with dynamic, variable values. And the JSON will still be 'well-formed', and editable in your IDE or text-editor. Embedded expressions also make sense in some [validation](#ignore-or-validate) and [schema-like](#schema-validation) short-cut situations.
+> So how would you choose between the two approaches to create JSON ? [Embedded expressions](#embedded-expressions) are useful when you have complex JSON [`read`](#reading-files) from files, because you can auto-replace (or even [remove](#remove-if-null)) data-elements with values dynamically evaluated from variables. And the JSON will still be 'well-formed', and editable in your IDE or text-editor. Embedded expressions also make more sense in [validation](#ignore-or-validate) and [schema-like](#schema-validation) short-cut situations.
 
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
@@ -866,7 +866,7 @@ For placeholder-substitution, the [`replace`](#replace) keyword can be used inst
 
 ## `replace`
 ### Text Placeholder Replacement
-> JSON and XML are __natively__ supported by Karate via the [`set`](#set) keyword. But when you deal with complex, nested JSON - it may be easier in some cases to use `replace`, especially when you want to substitute multiple placeholders with one value, and when you don't need array manipulation. Since `replace` auto-converts the result to a string, make sure you perform [type conversion](#type-conversion) back to JSON if applicable.
+> JSON and XML are __natively__ supported by Karate via the [`set`](#set) keyword and `replace` is primarily intended for dealing with raw strings. But when you deal with complex, nested JSON (or XML) - it may be easier in some cases to use `replace`, especially when you want to substitute multiple placeholders with one value, and when you don't need array manipulation. Since `replace` auto-converts the result to a string, make sure you perform [type conversion](#type-conversion) back to JSON (or XML) if applicable.
 
 Karate provides an elegant 'native-like' experience for placeholder substitution within strings or text content. This is useful in any situation where you need to concatenate dynamic string fragments to form content such as GraphQL or SQL.
 
@@ -1055,7 +1055,7 @@ So you have the following type markers you can use instead of [`def`](#def) (or 
 * `string` - convert JSON or any other data-type (except XML) to a string
 * `json` - convert XML, a map-like or list-like object, a string, or even a Java bean (POJO) into JSON
 * `xml` - convert JSON, a map-like object, a string, or even a Java bean (POJO) into XML
-* `xmlstring` - specifically for converting XML into a string
+* `xmlstring` - specifically for converting the map-like Karate internal representation of XML into a string
 
 These are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
 

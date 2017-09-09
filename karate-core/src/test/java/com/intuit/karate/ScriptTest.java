@@ -220,8 +220,8 @@ public class ScriptTest {
         Script.assign("a", "null", ctx);
         Script.assign("xml", "<foo><a>hello</a><b>##(a)</b></foo>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><a>hello</a></foo>", ctx).pass);
-    }   
-
+    }
+    
     @Test
     public void testEvalJsonEmbeddedExpressions() {
         ScriptContext ctx = getContext();
@@ -263,7 +263,7 @@ public class ScriptTest {
         Script.assign("bar", "{ hello: '#(foo.a)', world: '##(foo.b)'  }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ hello: null }", ctx).pass);
     }
-
+    
     @Test
     public void testVariableNameValidation() {
         assertTrue(Script.isValidVariableName("foo"));

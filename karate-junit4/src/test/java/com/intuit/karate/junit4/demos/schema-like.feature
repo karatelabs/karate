@@ -71,11 +71,13 @@ Then match response ==
 * def nope = { c: '#number' }
 
 * match foo[0] == '#(exact)'
+* match foo[0] == '#(^^exact)'
 * match foo[0] == '#(^^reversed)'
 * match foo[0] == '#(^partial)'
 * match foo[0] == '#(!^nope)'
 
 * match foo == '#[] exact'
+* match foo == '#[] ^^exact'
 * match foo == '#[] ^^reversed'
 * match foo == '#[] ^partial'
 * match foo == '#[] !^nope'

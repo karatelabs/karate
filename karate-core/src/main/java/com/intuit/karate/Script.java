@@ -118,10 +118,10 @@ public class Script {
     public static final boolean isContainsMacro(String text) {
         return text.startsWith("^");
     }
-    
+
     public static final boolean isContainsOnlyMacro(String text) {
         return text.startsWith("^^");
-    }    
+    }
 
     public static final boolean isNotContainsMacro(String text) {
         return text.startsWith("!^");
@@ -211,7 +211,7 @@ public class Script {
         if (text.isEmpty()) {
             return ScriptValue.NULL;
         }
-        if (isVariable(text)) { 
+        if (isVariable(text)) {
             // don't re-evaluate if this is clearly a direct reference to a variable
             // this avoids un-necessary conversion of xml into a map in some cases 
             // e.g. 'Given request foo' - where foo is a ScriptValue of type XML
@@ -490,7 +490,9 @@ public class Script {
                         root.set(path, sv.getValue());
                     }
                 } catch (Exception e) {
-                    context.logger.warn("embedded json script eval failed at path {}: {}", path, e.getMessage());
+                    if (context.logger.isTraceEnabled()) {
+                        context.logger.trace("embedded json eval failed, removing path {}: {}", path, e.getMessage());
+                    }
                 }
             }
         }
@@ -517,21 +519,23 @@ public class Script {
                         attrib.setValue(sv.getAsString());
                     }
                 } catch (Exception e) {
-                    context.logger.warn("embedded xml-attribute script eval failed: {}", e.getMessage());
+                    if (context.logger.isTraceEnabled()) {
+                        context.logger.trace("embedded xml-attribute eval failed, removing {}: {}", attrib.getName(), e.getMessage());
+                    }
                 }
             }
         }
         for (Attr toRemove : attributesToRemove) {
             attribs.removeNamedItem(toRemove.getName());
         }
-        NodeList nodes = node.getChildNodes();
-        int childCount = nodes.getLength();
-        Set<Node> elementsToRemove = new HashSet(childCount);
+        NodeList nodeList = node.getChildNodes();
+        int childCount = nodeList.getLength();
+        List<Node> nodes = new ArrayList(childCount);
         for (int i = 0; i < childCount; i++) {
-            Node child = nodes.item(i);
-            if (child == null) { // not sure, but this seems to happen if we remove ##(null) etc
-                continue;
-            }
+            nodes.add(nodeList.item(i));
+        }
+        Set<Node> elementsToRemove = new HashSet(childCount);
+        for (Node child : nodes) {
             String value = child.getNodeValue();
             if (value != null) {
                 value = StringUtils.trimToEmpty(value);
@@ -559,16 +563,19 @@ public class Script {
                             }
                         }
                     } catch (Exception e) {
-                        context.logger.warn("embedded xml-text script eval failed: {}", e.getMessage());
+                        if (context.logger.isTraceEnabled()) {
+                            context.logger.trace("embedded xml-text eval failed, removing {}: {}", child.getNodeName(), e.getMessage());
+                        }
                     }
                 }
             } else if (child.hasChildNodes()) {
                 evalXmlEmbeddedExpressions(child, context, forMatch);
             }
         }
-        for (Node toRemove : elementsToRemove) {
-            Node element = toRemove.getParentNode();
-            element.getParentNode().removeChild(element);
+        for (Node toRemove : elementsToRemove) { // because of how the above routine works, these are always of type TEXT_NODE
+            Node parent = toRemove.getParentNode(); // element containing the text-node
+            Node grandParent = parent.getParentNode(); // parent element
+            grandParent.removeChild(parent);
         }
     }
 
@@ -772,10 +779,10 @@ public class Script {
                 if (isContainsMacro(macroExpression)) {
                     if (isContainsOnlyMacro(macroExpression)) {
                         matchType = MatchType.CONTAINS_ONLY;
-                        macroExpression = macroExpression.substring(2);                        
+                        macroExpression = macroExpression.substring(2);
                     } else {
                         matchType = MatchType.CONTAINS;
-                        macroExpression = macroExpression.substring(1);                        
+                        macroExpression = macroExpression.substring(1);
                     }
                 } else if (isNotContainsMacro(macroExpression)) {
                     matchType = MatchType.NOT_CONTAINS;
@@ -832,10 +839,10 @@ public class Script {
                             if (isContainsMacro(expression)) {
                                 if (isContainsOnlyMacro(expression)) {
                                     matchType = MatchType.EACH_CONTAINS_ONLY;
-                                    expression = expression.substring(2);                                    
+                                    expression = expression.substring(2);
                                 } else {
                                     matchType = MatchType.EACH_CONTAINS;
-                                    expression = expression.substring(1);                                    
+                                    expression = expression.substring(1);
                                 }
                             } else if (isNotContainsMacro(expression)) {
                                 matchType = MatchType.EACH_NOT_CONTAINS;
@@ -1137,7 +1144,7 @@ public class Script {
         } else if (expObject instanceof List) {
             if (!(actObject instanceof List)) {
                 return matchFailed(path, actObject, expObject, "actual value is not list-like");
-            }            
+            }
             List expList = (List) expObject;
             List actList = (List) actObject;
             int actCount = actList.size();
@@ -1193,14 +1200,14 @@ public class Script {
             }
             return AssertionResult.PASS;
         } else if (isPrimitive(expObject.getClass())) {
-            return matchPrimitive(path, actObject, expObject);            
+            return matchPrimitive(path, actObject, expObject);
         } else { // this should never happen
             throw new RuntimeException("unexpected type: " + expObject.getClass());
         }
     }
 
     public static boolean isPrimitive(Class clazz) {
-        return clazz.isPrimitive() 
+        return clazz.isPrimitive()
                 || Number.class.isAssignableFrom(clazz)
                 || Boolean.class.equals(clazz);
     }
@@ -1266,7 +1273,7 @@ public class Script {
             // by default, skip any expression that evaluates to null unless the user expressed
             // intent to over-ride by enclosing the expression in parentheses
             return;
-        }        
+        }
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
         if (path == null) {
@@ -1285,7 +1292,7 @@ public class Script {
                 if (viaTable) { // auto create if using set via cucumber table as a convenience
                     DocumentContext empty;
                     if (path.startsWith("$[") && !path.startsWith("$['")) {
-                        empty = JsonUtils.emptyJsonArray(0);                        
+                        empty = JsonUtils.emptyJsonArray(0);
                     } else {
                         empty = JsonUtils.emptyJsonObject();
                     }
@@ -1609,7 +1616,7 @@ public class Script {
                     // default behavior is to skip nulls when the expression evaluates 
                     // this is driven by the routine in setValueByPath
                     // and users can over-ride this by simple enclosing the expression in parentheses
-                } 
+                }
                 String suffix;
                 try {
                     int arrayIndex = Integer.valueOf(key);
@@ -1629,7 +1636,7 @@ public class Script {
                         path = "$";
                     }
                     finalPath = path + suffix + '.' + append;
-                }                
+                }
                 setValueByPath(name, finalPath, expression, false, context, true);
             }
         }
