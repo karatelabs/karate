@@ -211,6 +211,15 @@ public class Script {
         if (text.isEmpty()) {
             return ScriptValue.NULL;
         }
+        if (isVariable(text)) { 
+            // don't re-evaluate if this is clearly a direct reference to a variable
+            // this avoids un-necessary conversion of xml into a map in some cases 
+            // e.g. 'Given request foo' - where foo is a ScriptValue of type XML
+            ScriptValue value = context.vars.get(text);
+            if (value != null) {
+                return value;
+            }
+        }
         boolean callOnce = isCallOnceSyntax(text);
         if (callOnce || isCallSyntax(text)) { // special case in form "call foo arg"
             if (callOnce) {

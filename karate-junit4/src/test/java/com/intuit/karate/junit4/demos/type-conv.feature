@@ -53,7 +53,8 @@ Scenario: string to xml
 
 Scenario: xml to string (incorrect)
 * def xmlVar = <root><foo>bar</foo></root>
-* string strVar = xmlVar
+# the parentheses forces evaluation as javascript and converts the xml to a map
+* string strVar = (xmlVar)
 # because of karate's internal map-like default representation, this happens. see 'xmlstring' below
 * match strVar == '{"root":{"foo":"bar"}}'
 

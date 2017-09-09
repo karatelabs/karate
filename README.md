@@ -185,11 +185,10 @@ Alternatively, if using gradle then add the following `sourceSets` definition
 ```yml
 sourceSets {
     test {
-        resources
-            {
-                srcDir file('src/test/java')
-                exclude '**/*.java'
-            }
+        resources {
+            srcDir file('src/test/java')
+            exclude '**/*.java'
+        }
     }
 }
 ```
@@ -321,11 +320,11 @@ For gradle you must extend the test task to allow the cucumuber.options to be pa
 
 ```yml
 test {
-    // Pull cucumber options into the cucumber JVM
+    // pull cucumber options into the cucumber jvm
     systemProperty "cucumber.options", System.properties.getProperty("cucumber.options")
-    // Pull karate options into the JVM
+    // pull karate options into the jvm
     systemProperty "karate.env", System.properties.getProperty("karate.env")
-    // Ensure tests are always run
+    // ensure tests are always run
     outputs.upToDateWhen { false }
 }
 ```
@@ -337,7 +336,7 @@ And then the above command in gradle would look like:
 ```
 
 ## Test Suites
-> The recommended way to define and run test-suites and reporting in Karate is to use the [parallel runner](#parallel-execution). The information in this section is more useful for troubleshooting in dev-mode, using your IDE.
+> The recommended way to define and run test-suites and reporting in Karate is to use the [parallel runner](#parallel-execution), described in the next section. The approach in this section is more for troubleshooting in dev-mode, using your IDE.
 
 One way to define 'test-suites' in Karate is to have a JUnit class with the `@RunWith(Karate.class)` annotation at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions):
 
@@ -377,11 +376,11 @@ For gradle, you simply specify that test is to be included:
 ```yml
 test {
     include 'animals/AnimalsTest.java'
-    // Pull cucumber options into the cucumber JVM
+    // pull cucumber options into the cucumber jvm
     systemProperty "cucumber.options", System.properties.getProperty("cucumber.options")
-    // Pull karate options into the JVM
+    // pull karate options into the jvm
     systemProperty "karate.env", System.properties.getProperty("karate.env")
-    // Ensure tests are always run
+    // ensure tests are always run
     outputs.upToDateWhen { false }
 }
 ```
@@ -732,7 +731,7 @@ This comes in useful in some cases - and avoids needing to use the [`set`](#set)
 A [special case](#remove-if-null) of embedded expressions can remove a JSON key (or XML element / attribute) if the expression evaluates to `null`.
 
 ### Enclosed JavaScript
-An alternative to embedded expressions (for JSON only) is to enclose the entire payload within parentheses - which tells Karate to evaluate it as pure JavaScript. This can be a lot simpler than embedded expressions in many cases, and JavaScript programmers will feel more home.
+An alternative to embedded expressions (for JSON only) is to enclose the entire payload within parentheses - which tells Karate to evaluate it as pure JavaScript. This can be a lot simpler than embedded expressions in many cases, and JavaScript programmers will feel right at home.
 
 The example below shows the difference between embedded expressions and enclosed JavaScript:
 
@@ -745,7 +744,7 @@ And def lang = 'en'
 * match embedded == enclosed
 ```
 
-[Embedded expressions](#embedded-expressions) are needed when you start using [validation](#ignore-or-validate) [short-cuts](#schema-validation).
+[Embedded expressions](#embedded-expressions) are useful when you [`read`](#reading-files) JSON from files, because you can auto-replace (or even [remove](#remove-if-null)) data with dynamic, variable values. And the JSON will still be 'well-formed', and editable in your IDE or text-editor. Embedded expressions also make sense in some [validation](#ignore-or-validate) and [schema-like](#schema-validation) short-cut situations.
 
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
@@ -1029,6 +1028,8 @@ If a file does not end in `.json`, `.xml`, `.yaml`, `.js` or `.txt` - it is trea
 * def someStream = read('some-pdf.pdf')
 ```
 
+For JSON and XML files, Karate will evaluate any [embedded expressions](#embedded-expressions) on load. This enables more concise tests, and the file can be re-usable in multiple, data-driven tests.
+
 Since it is internally implemented as a JavaScript function, you can mix calls to `read()` freely wherever JavaScript expressions are allowed:
 
 ```cucumber
@@ -1065,24 +1066,25 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 
  Example | Shape | Description
 -------- | ----- | -----------
-`* def foo = 'bar'` | JS primitive | simple strings, numbers or booleans
-`* def foo = 'bar' + baz[0]` | JS expression | any valid JavaScript expression, and variables can be mixed in
-`* def foo = (bar.baz + 1)` | JS expression | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
+`* def foo = 'bar'` | JS | simple strings, numbers or booleans
+`* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
+`* def foo = (bar.baz + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
 `* def foo = { bar: '#(baz)' }` | JSON | anything that starts with a `{` or a `[` is parsed as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
-`* def foo = ({ bar: baz })` | JS expression | [enclosed JavaScript](#enclosed-javascript), the result of which is exactly equivalent to the above
+`* def foo = ({ bar: baz })` | JS | [enclosed JavaScript](#enclosed-javascript), the result of which is exactly equivalent to the above
 `* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is parsed as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
-`* def foo = function(arg){ return arg + bar }` | JS Function | anything that starts with `function(...){` is parsed as a JS function.
-`* def foo = read('bar.json')` | JS expression | using the built-in [`read()`](#reading-files) function
+`* def foo = function(arg){ return arg + bar }` | JS Fn | anything that starts with `function(...){` is parsed as a JS function.
+`* def foo = read('bar.json')` | JS | using the built-in [`read()`](#reading-files) function
 `* def foo = $.bar[0]` | JsonPath | short-cut JsonPath on the [`response`](#response)
 `* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
-`* def foo = bar.baz[0]` | Named JsonPath | JsonPath on the variable `bar`
-`* def foo = bar/baz/ban[1]` | Named XPath | XPath on the variable `bar`
+`* def foo = bar.baz[0]` | var.JsonPath | JsonPath on the variable `bar`
+`* def foo = bar/baz/ban[1]` | var/XPath | XPath on the variable `bar`
 `* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria). You can also use [`get[0]`](#get-plus-index) to get the first item if the JsonPath evaluates to an array.
-`* def foo = $bar..baz[?(@.ban)]` | Named JsonPath | [convenience short-cut](#get-short-cut) for the above
+`* def foo = $bar..baz[?(@.ban)]` | $var.JsonPath | [convenience short-cut](#get-short-cut) for the above
 `* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
-`* def foo = karate.pretty(bar)` | JS expression | using the [built-in `karate` object](#the-karate-object) in JS expressions
-`* def Foo = Java.type('com.mycompany.Foo')` | Java Interop | [Java Interop](#java-interop), and even package-name-spaced one-liners like `java.lang.System.currentTimeMillis()` are possible
-`* def foo = call bar { baz: 'ban' }` | [`call`](#call) | or [`callonce`](#callonce), where expressions like [`read('foo.js')`](#reading-files) are allowed as the object to be called or the argument
+`* def foo = karate.pretty(bar)` | JS | using the [built-in `karate` object](#the-karate-object) in JS expressions
+`* def Foo = Java.type('com.mycompany.Foo')` | JS-Java | [Java Interop](#java-interop), and even package-name-spaced one-liners like `java.lang.System.currentTimeMillis()` are possible
+`* def foo = call bar { baz: '#(ban)' }` | [`call`](#call) | or [`callonce`](#callonce), where expressions like [`read('foo.js')`](#reading-files) are allowed as the object to be called or the argument
+`* def foo = bar({ baz: ban })` | JS | equivalent to the above, JavaScript function invocation
 
 # Core Keywords
 They are `url`, `path`, `request`, `method` and `status`.
