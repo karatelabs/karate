@@ -65,6 +65,9 @@ public class KarateRuntime extends Runtime {
     @Override
     public void runStep(String featurePath, Step step, Reporter reporter, I18n i18n) {
         if (failed) {
+            if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
+                ((KarateReporter) reporter).karateStep(step);
+            }
             reporter.match(Match.UNDEFINED);
             addStepToCounterAndResult(Result.SKIPPED);
             reporter.result(Result.SKIPPED);
@@ -88,6 +91,7 @@ public class KarateRuntime extends Runtime {
     public void disposeBackendWorlds(String scenarioDesignation) {
         stats.addScenario(scenarioResult.getStatus(), scenarioDesignation);
         backend.disposeWorld();
+        failed = false; // else a failed scenario results in all remaining ones in the feature being skipped !
     }
 
     @Override

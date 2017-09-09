@@ -72,14 +72,17 @@ public class CucumberRunnerTest {
     @Test 
     public void testParallel() {
         KarateStats stats = CucumberRunner.parallel(getClass(), 1);
-        assertEquals(1, stats.getFailCount());
+        assertEquals(2, stats.getFailCount());
         String pathBase = "target/surefire-reports/TEST-com.intuit.karate.cucumber.";
         assertTrue(contains(pathBase + "scenario.xml", "Then match b == { foo: 'bar'}"));
         assertTrue(contains(pathBase + "outline.xml", "Then assert a == 55"));
         assertTrue(contains(pathBase + "multi-scenario.xml", "Then assert a != 2"));
-        assertEquals(1, stats.getFailedList().size());
-        assertEquals("com.intuit.karate.cucumber.no-scenario-name", stats.getFailedList().get(0));
-    }
+        // a scenario failure should not stop other features from running
+        assertTrue(contains(pathBase + "multi-scenario-fail.xml", "Then assert a != 2..........................................................passed"));
+        assertEquals(2, stats.getFailedList().size());
+        assertTrue(stats.getFailedList().contains("com.intuit.karate.cucumber.no-scenario-name"));
+        assertTrue(stats.getFailedList().contains("com.intuit.karate.cucumber.multi-scenario-fail"));
+    }    
     
     @Test
     public void testRunningFeatureFromJavaApi() {
