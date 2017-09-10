@@ -1019,7 +1019,7 @@ public class Script {
                 ScriptObjectMirror som = expected.getValue(ScriptObjectMirror.class);
                 expObject = new ArrayList(som.values());
                 break;
-            default:
+            default: // btw JS_OBJECT is already a map 
                 expObject = expected.getValue();
         }
         switch (matchType) {

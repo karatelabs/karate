@@ -1452,6 +1452,16 @@ XML and XPath works just like you'd expect.
 ```
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
 
+### `match` and variables
+In case you were wondering, variables (and even expressions) are supported on the right-hand-side. So you can compare 2 JSON (or XML) payloads if you wanted to:
+```cucumber
+* def foo = { hello: 'world', baz: 'ban' }
+* def bar = { baz: 'ban', hello: 'world' }
+* match foo == bar
+```
+
+If you are wondering about the finer details of the `match` syntax, the left-hand-side has to be either a variable name, or a 'named' Json-Path or XPath expression. And the right-hand-side can be any valid [Karate expression](#karate-expressions).
+
 ### `set` multiple
 Karate has an elegant way to set multiple keys (via path expressions) in one step. For convenience, non-existent keys (or array elements) will be created automatically. You can find more JSON examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 
@@ -1496,14 +1506,6 @@ The same concept applies to XML and you can build complicated payloads from scra
     <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
 </acc:getAccountByPhoneNumber>
 """
-```
-
-### `match` and variables
-In case you were wondering, variables (and even expressions) are supported on the right-hand-side. So you can compare 2 JSON (or XML) payloads if you wanted to:
-```cucumber
-* def foo = { hello: 'world', baz: 'ban' }
-* def bar = { baz: 'ban', hello: 'world' }
-* match foo == bar
 ```
 
 ## `remove`
@@ -1909,9 +1911,7 @@ A convenience that the `get` syntax supports (not the `$` short-cut form) is to 
 ```
 
 ### XPath Functions
-When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. XPath functions are not supported directly within [`match`](#match) statements. But by using the `get` keyword, you should be able to achieve any assertion involving XPath functions in two steps.
-
-The last line below also shows how 'normal' (uncomplicated) XPath can be used to do a `match` in a single step.
+When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. Any valid XPath expression is allowed on the left-hand-side of a [`match`](#match) statement.
 
 ```cucumber
 * def myXml =
@@ -1922,17 +1922,10 @@ The last line below also shows how 'normal' (uncomplicated) XPath can be used to
   <record index="3" foo="bar">c</record>
 </records>
 """
-* def count = get myXml count(/records//record)
-* assert count == 3
 
-# you can actually do this 'JSON-style' in one step !
-* assert myXml.records.record.length == 3
-
-# some 'standard' xpath examples
-* def second = get myXml //record[@index=2]
-* assert second == 'b'
-
-* match myXml //record[@foo='bar'] == 'c'
+* match foo count(/records//record) == 3
+* match foo //record[@index=2] == 'b'
+* match foo //record[@foo='bar'] == 'c'
 ```
 
 ### Advanced XPath
