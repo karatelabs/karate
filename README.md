@@ -1842,7 +1842,15 @@ And you can perform conditional / cross-field validations and even business-logi
 * match $.odds == '#[]? isValidOdd(_)'
 ```
 
-Especially when payloads are complex (or highly dynamic), it may be more practical to use [`contains`](#match-contains) semantics. The short-cut symbol for `contains` is the `^` character. And `^^` translates to [`contains only`](#match-contains-only) So here is what's possible:
+Especially when payloads are complex (or highly dynamic), it may be more practical to use [`contains`](#match-contains) semantics. Karate has the following short-cut symbols designed to be mixed into [`embedded expressions`](#embedded-expressions):
+
+Symbol  | Means
+------- | ------                               
+| `^`   | [`contains`](#match-contains)           
+| `^^`  | [`contains only`](#match-contains-only) 
+| `!^`  | [`not contains`](#not-contains)
+
+Which gives rise to the following possibilities:         
 
 ```cucumber
 * def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
@@ -1860,6 +1868,23 @@ Especially when payloads are complex (or highly dynamic), it may be more practic
 * match foo == '#[] ^^reversed'
 * match foo == '#[] ^partial'
 * match foo == '#[] !^nope'
+```
+
+In real-life, what this means is that when you have JSON arrays where the order of elements is not predictable, you can easily assert that all expected elements were present _and_ do this in-line as part of a 'full' payload [`match`](#match).
+
+```cucumber
+* def cat = 
+"""
+{
+  name: 'Billie',
+  kittens: [
+    { id: 23, name: 'Bob' },
+    { id: 42, name: 'Wild' }
+  ]
+}
+"""
+* def expected = [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
+* match cat == { name: 'Billie', kittens: '#(^^expected)' }
 ```
 
 Refer to this for the complete example: [`schema-like.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/schema-like.feature)
