@@ -1326,6 +1326,11 @@ public class ScriptTest {
     public void testMatchMacroArrayComplexContains() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "[{ a: 1, b: 2 }, { a: 3, b: 4 }]", ctx);
+        Script.assign("rev", "[{ a: 3, b: 4 }, { a: 1, b: 2 }]", ctx);
+        Script.assign("part", "[{ a: 1, b: 2 }]", ctx);
+        Script.assign("one", "{ a: 1, b: 2 }", ctx);
+        Script.assign("nopes", "[{ a: 6, b: 7 }, { a: 8, b: 9 }]", ctx);
+        Script.assign("nope", "{ a: 8, b: 9 }", ctx);
         Script.assign("bar", "{ b: '#number' }", ctx);
         Script.assign("baz", "{ c: '#number' }", ctx);
         assertFalse(Script.matchNamed(MatchType.EACH_EQUALS, "foo", null, "bar", ctx).pass);
@@ -1341,6 +1346,26 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (^bar)'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (!^bar)'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#[] (!^baz)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(foo)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^foo)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^^foo)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^rev)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^^rev)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(rev)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^part)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^^part)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(!^part)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^one)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^^one)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(!^one)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(nopes)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^nopes)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^^nopes)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(!^nopes)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(nope)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^nope)'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(^^nope)'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'#(!^nope)'", ctx).pass);        
     }    
 
     @Test

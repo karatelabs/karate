@@ -1842,6 +1842,12 @@ And you can perform conditional / cross-field validations and even business-logi
 * match $.odds == '#[]? isValidOdd(_)'
 ```
 
+Refer to this for the complete example: [`schema-like.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/schema-like.feature)
+
+And there is another example in the [karate-demos](karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example. You can also find a nice visual comparison and explanation [here](https://twitter.com/KarateDSL/status/878984854012022784).
+
+### `contains` short-cuts
+
 Especially when payloads are complex (or highly dynamic), it may be more practical to use [`contains`](#match-contains) semantics. Karate has the following short-cut symbols designed to be mixed into [`embedded expressions`](#embedded-expressions):
 
 Symbol  | Means
@@ -1850,27 +1856,38 @@ Symbol  | Means
 | `^^`  | [`contains only`](#match-contains-only) 
 | `!^`  | [`not contains`](#not-contains)
 
-Which gives rise to the following possibilities:         
+So given the following data:
 
 ```cucumber
 * def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
+
 * def exact = { a: '#number', b: '#number' }
-* def reversed = { b: '#number', a: '#number' }
-* def partial = { b: '#number' }
+* def partial = { a: '#number' }
 * def nope = { c: '#number' }
 
-* match foo[0] == '#(exact)'
-* match foo[0] == '#(^^reversed)'
-* match foo[0] == '#(^partial)'
-* match foo[0] == '#(!^nope)'
+* def reversed = [{ a: 3, b: 4 }, { a: 1, b: 2 }]
+* def first = { a: 1, b: 2 }
+* def other = { a: 6, b: 7 }
+```       
 
-* match foo == '#[] exact'
-* match foo == '#[] ^^reversed'
-* match foo == '#[] ^partial'
-* match foo == '#[] !^nope'
-```
+These are the short-cuts possible.
 
-In real-life, what this means is that when you have JSON arrays where the order of elements is not predictable, you can easily assert that all expected elements were present _and_ do this in-line as part of a 'full' payload [`match`](#match).
+Normal | Short-Cut
+------ | ---------
+`* match foo[0] == exact` | `* match foo[0] == '#(exact)'`
+`* match foo[0] contains partial` | `* match foo[0] == '#(^partial)'`
+`* match foo[0] !contains nope` | `* match foo[0] == '#(!^nope)'`
+`* match each foo == exact` | `* match foo == '#[] exact'`
+`* match each foo contains partial` | `* match foo == '#[] ^partial'`
+`* match each foo !contains nope` | `* match foo == '#[] !^nope'`
+`* match foo contains only reversed` | `* match foo == '#(^^reversed)'`
+`* match foo contains first` | `* match foo == '#(^first)'`
+`* match foo !contains other` | `* match foo == '#(!^other)'`
+`* assert foo.length == 2` | `* match foo == '#[2]'`
+
+> The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule, prefer [`match`](#match) over [`assert`](#assert), because failure messages for `match` are more detailed and descriptive.
+
+These short-cuts are useful especially when you deal with arrays returned from the server - where the order of elements are not guaranteed. What this means in real-life is that you can easily assert that all expected elements are present, _even_ in nested parts of your JSON, using these in-line short-cuts - while doing a [`match`](#match) on the _full_ payload.
 
 ```cucumber
 * def cat = 
@@ -1886,10 +1903,6 @@ In real-life, what this means is that when you have JSON arrays where the order 
 * def expected = [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 * match cat == { name: 'Billie', kittens: '#(^^expected)' }
 ```
-
-Refer to this for the complete example: [`schema-like.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/schema-like.feature)
-
-And there is another example in the [karate-demos](karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example. You can also find a nice visual comparison and explanation [here](https://twitter.com/KarateDSL/status/878984854012022784).
 
 ## `get`
 By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features).

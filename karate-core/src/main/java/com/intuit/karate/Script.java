@@ -776,6 +776,7 @@ public class Script {
             if (isWithinParentheses(macroExpression)) { // '#(foo)' | '##(foo)' | '#(^foo)'
                 MatchType matchType = MatchType.EQUALS;
                 macroExpression = stripParentheses(macroExpression);
+                boolean isContains = true;
                 if (isContainsMacro(macroExpression)) {
                     if (isContainsOnlyMacro(macroExpression)) {
                         matchType = MatchType.CONTAINS_ONLY;
@@ -787,9 +788,14 @@ public class Script {
                 } else if (isNotContainsMacro(macroExpression)) {
                     matchType = MatchType.NOT_CONTAINS;
                     macroExpression = macroExpression.substring(2);
+                } else {
+                    isContains = false;
                 }
                 ScriptValue parentValue = getValueOfParentNode(actRoot, path);
                 ScriptValue expValue = evalInNashorn(macroExpression, context, actValue, parentValue);
+                if (isContains && actValue.isListLike() && ! expValue.isListLike()) { // if RHS is not list, make it so for contains                    
+                    expValue = new ScriptValue(Collections.singletonList(expValue.getValue()));
+                }
                 return matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
             }
             if (macroExpression.startsWith("regex")) {

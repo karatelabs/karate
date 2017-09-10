@@ -65,22 +65,44 @@ Then match response ==
 
 # contains
 * def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
+
 * def exact = { a: '#number', b: '#number' }
-* def reversed = { b: '#number', a: '#number' }
-* def partial = { b: '#number' }
+* def partial = { a: '#number' }
 * def nope = { c: '#number' }
 
+* def reversed = [{ a: 3, b: 4 }, { a: 1, b: 2 }]
+* def first = { a: 1, b: 2 }
+* def other = { a: 6, b: 7 }
+
+* match foo[0] == exact
 * match foo[0] == '#(exact)'
-* match foo[0] == '#(^^exact)'
-* match foo[0] == '#(^^reversed)'
+
+* match foo[0] contains partial
 * match foo[0] == '#(^partial)'
+
+* match foo[0] !contains nope
 * match foo[0] == '#(!^nope)'
 
+* match each foo == exact
 * match foo == '#[] exact'
-* match foo == '#[] ^^exact'
-* match foo == '#[] ^^reversed'
+
+* match each foo contains partial
 * match foo == '#[] ^partial'
+
+* match each foo !contains nope
 * match foo == '#[] !^nope'
+
+* match foo contains only reversed
+* match foo == '#(^^reversed)'
+
+* match foo contains first
+* match foo == '#(^first)'
+
+* match foo !contains other
+* match foo == '#(!^other)'
+
+* assert foo.length == 2
+* match foo == '#[2]'
 
 Scenario: pretty print json
 * def json = read('odds.json')
