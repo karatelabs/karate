@@ -98,7 +98,7 @@ Then match response ==
 * match foo contains first
 * match foo == '#(^first)'
 
-* match foo !contains other
+* match foo !contains others
 * match foo == '#(!^others)'
 
 * assert foo.length == 2
