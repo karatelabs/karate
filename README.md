@@ -1867,13 +1867,13 @@ So given the following data:
 
 * def reversed = [{ a: 3, b: 4 }, { a: 1, b: 2 }]
 * def first = { a: 1, b: 2 }
-* def other = { a: 6, b: 7 }
+* def others = [{ a: 6, b: 7 }, { a: 8, b: 9 }]
 ```       
 
-These are the short-cuts possible.
+Here are the alternative forms compared with the 'normal' form. Note that the short-cut forms on the right all resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ payload `match`, using [embedded expressions](#embedded-expressions).
 
-Normal | Short-Cut
------- | ---------
+Normal Form | In-Line Form
+----------- | ------------
 `* match foo[0] == exact` | `* match foo[0] == '#(exact)'`
 `* match foo[0] contains partial` | `* match foo[0] == '#(^partial)'`
 `* match foo[0] !contains nope` | `* match foo[0] == '#(!^nope)'`
@@ -1882,12 +1882,12 @@ Normal | Short-Cut
 `* match each foo !contains nope` | `* match foo == '#[] !^nope'`
 `* match foo contains only reversed` | `* match foo == '#(^^reversed)'`
 `* match foo contains first` | `* match foo == '#(^first)'`
-`* match foo !contains other` | `* match foo == '#(!^other)'`
+`* match foo !contains other` | `* match foo == '#(!^others)'`
 `* assert foo.length == 2` | `* match foo == '#[2]'`
 
-> The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule, prefer [`match`](#match) over [`assert`](#assert), because failure messages for `match` are more detailed and descriptive.
+> The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
 
-These short-cuts are useful especially when you deal with arrays returned from the server - where the order of elements are not guaranteed. What this means in real-life is that you can easily assert that all expected elements are present, _even_ in nested parts of your JSON, using these in-line short-cuts - while doing a [`match`](#match) on the _full_ payload.
+In real-life tests, these are very useful when the order of items in arrays returned from the server are not guaranteed. You can easily assert that all expected elements are present, _even_ in nested parts of your JSON - while doing a [`match`](#match) on the _full_ payload.
 
 ```cucumber
 * def cat = 

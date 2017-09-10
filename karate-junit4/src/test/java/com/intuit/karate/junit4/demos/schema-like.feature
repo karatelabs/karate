@@ -72,7 +72,7 @@ Then match response ==
 
 * def reversed = [{ a: 3, b: 4 }, { a: 1, b: 2 }]
 * def first = { a: 1, b: 2 }
-* def other = { a: 6, b: 7 }
+* def others = [{ a: 6, b: 7 }, { a: 8, b: 9 }]
 
 * match foo[0] == exact
 * match foo[0] == '#(exact)'
@@ -99,7 +99,7 @@ Then match response ==
 * match foo == '#(^first)'
 
 * match foo !contains other
-* match foo == '#(!^other)'
+* match foo == '#(!^others)'
 
 * assert foo.length == 2
 * match foo == '#[2]'
