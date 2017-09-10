@@ -7,7 +7,7 @@ function() {
     // and so behaves like a constant, use 'karate.get' for dynamic values
     return { 
         Authorization: token + time + demoBaseUrl,
-        request_id: uuid 
+        request_id: uuid + '' // convert the java uuid into a string
     };
   } else {
     return {};
