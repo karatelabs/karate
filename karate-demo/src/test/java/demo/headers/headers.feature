@@ -23,6 +23,9 @@ Background:
     And match responseCookies !contains { blah: '#notnull' }
    
 Scenario: configure function
+    this is the approach that most projects would use, especially if some header needs
+    to be dynamic for each request. for e.g. see how a 'request_id' header is set in 'headers.js'
+
     * configure headers = read('classpath:headers.js')
     Given path 'headers', token
     And param url = demoBaseUrl
