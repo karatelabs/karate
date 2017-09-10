@@ -170,6 +170,14 @@ Scenario: set via table with fancy array paths and multi-dimensional arrays
     | c[1]   | [3, 4]  |   
     * match foo == { bar: [ 'baz'], a: [{ b: 'ban' }], c: [[1, 2], [3, 4]] }
 
+Scenario: set via table, complex paths
+    * set expected
+    | path            | value   |
+    | first           | 'hello' |
+    | client.id       | 'goodbye'            |
+    | client.foo.bar  | 'world' |
+    * match expected == { first: 'hello', client: { id: 'goodbye', foo: { bar: 'world' }}}
+
 Scenario: set array via table where variable does not exist
     * set foo
     | path | 0     |

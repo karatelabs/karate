@@ -253,7 +253,9 @@ public class JsonUtils {
             }
             return;
         }
-        createParents(doc, left);
+        if (!pathExists(doc, left)) {
+            createParents(doc, left);
+        }        
         Object empty;      
         if (right.endsWith("]") && !right.endsWith("']")) {
             int pos = right.indexOf('[');
