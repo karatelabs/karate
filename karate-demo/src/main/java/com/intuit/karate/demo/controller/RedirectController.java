@@ -23,11 +23,10 @@
  */
 package com.intuit.karate.demo.controller;
 
-import java.util.Map;
+import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,17 +35,17 @@ import org.springframework.web.bind.annotation.RestController;
  * @author pthomas3
  */
 @RestController
-@RequestMapping("/search")
-public class SearchController {
-
-    @GetMapping
-    public Map<String, String[]> search(HttpServletRequest request) {
-        return request.getParameterMap();
-    }
+@RequestMapping("/redirect")
+public class RedirectController {
     
-    @PostMapping
-    public String echo(@RequestBody String request) {
-        return request;
+    @GetMapping
+    public void from(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String url = request.getRequestURL().toString();
+        String uri = url.replace("/redirect", "");
+        if ("".equals(uri)) {
+            uri = "http://localhost:8080"; // hard code for karate-mock-servlet
+        }
+        response.sendRedirect(uri + "/greeting");
     }    
-
+    
 }

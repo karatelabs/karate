@@ -1363,6 +1363,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' (default `true`)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
+`followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.

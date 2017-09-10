@@ -33,6 +33,7 @@ import java.util.Map;
 public class HttpConfig {
     
     private boolean sslEnabled = false;
+    private boolean followRedirects = true;
     private String sslAlgorithm = "TLS";
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
@@ -43,7 +44,7 @@ public class HttpConfig {
     private ScriptValue cookies = ScriptValue.NULL;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
-    private boolean printEnabled = true;
+    private boolean printEnabled = true;    
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
@@ -54,6 +55,7 @@ public class HttpConfig {
     
     public HttpConfig(HttpConfig parent) {
         sslEnabled = parent.sslEnabled;
+        followRedirects = parent.followRedirects;
         sslAlgorithm = parent.sslAlgorithm;
         readTimeout = parent.readTimeout;
         connectTimeout = parent.connectTimeout;
@@ -77,6 +79,14 @@ public class HttpConfig {
     public void setSslEnabled(boolean sslEnabled) {
         this.sslEnabled = sslEnabled;
     }
+
+    public boolean isFollowRedirects() {
+        return followRedirects;
+    }
+
+    public void setFollowRedirects(boolean followRedirects) {
+        this.followRedirects = followRedirects;
+    }        
 
     public String getSslAlgorithm() {
         return sslAlgorithm;

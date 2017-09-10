@@ -185,6 +185,8 @@ public class ScriptContext {
             } else {
                 config.setSslEnabled(value.isBooleanTrue());
             }
+        } else if (key.equals("followRedirects")) {
+            config.setFollowRedirects(value.isBooleanTrue());
         } else if (key.equals("connectTimeout")) {
             config.setConnectTimeout(Integer.valueOf(value.getAsString()));
         } else if (key.equals("readTimeout")) {

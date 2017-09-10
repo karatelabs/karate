@@ -70,7 +70,10 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     public void configure(HttpConfig config, ScriptContext context) {
         ClientConfig cc = new ClientConfig();
         // support request body for DELETE (non-standard)
-        cc.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true);        
+        cc.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true);
+        if (!config.isFollowRedirects()) {
+            cc.property(ClientProperties.FOLLOW_REDIRECTS, false);
+        }
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(cc)
                 .register(new LoggingInterceptor(context.logger)) // must be first

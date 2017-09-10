@@ -28,6 +28,7 @@ import com.intuit.karate.demo.controller.DogsController;
 import com.intuit.karate.demo.controller.EncodingController;
 import com.intuit.karate.demo.controller.GreetingController;
 import com.intuit.karate.demo.controller.HeadersController;
+import com.intuit.karate.demo.controller.RedirectController;
 import com.intuit.karate.demo.controller.SearchController;
 import com.intuit.karate.demo.controller.SignInController;
 import com.intuit.karate.demo.controller.UploadController;
@@ -88,5 +89,10 @@ public class MockDemoConfig {
     public EncodingController encodingController() {
         return new EncodingController();
     }
+    
+    @Bean
+    public RedirectController redirectController() {
+        return new RedirectController();
+    }    
     
 }
