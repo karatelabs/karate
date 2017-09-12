@@ -97,7 +97,7 @@ public class CucumberUtilsTest {
         fw = fw.addLine(9, "Then assert 2 == 2");
         List<String> lines = fw.getLines();
         printLines(lines);
-        assertEquals(17, lines.size());
+        assertEquals(16, lines.size());
         assertEquals(1, fw.getSections().size());
     }
     
@@ -113,7 +113,7 @@ public class CucumberUtilsTest {
         fw = fw.replaceLines(line, line, "Then assert 2 == 2");
         List<String> lines = fw.getLines();
         printLines(lines);
-        assertEquals(16, lines.size());
+        assertEquals(15, lines.size());
         assertEquals(1, fw.getSections().size());
     }
 
@@ -128,7 +128,7 @@ public class CucumberUtilsTest {
         fw = fw.replaceStep(step, "Then assert 2 == 2");
         List<String> lines = fw.getLines();
         printLines(lines);
-        assertEquals(13, lines.size());
+        assertEquals(12, lines.size());
         assertEquals("# another comment", fw.getLines().get(9));
         assertEquals("Then assert 2 == 2", fw.getLines().get(10));
         assertEquals("Then match b == { foo: 'bar'}", fw.getLines().get(11));

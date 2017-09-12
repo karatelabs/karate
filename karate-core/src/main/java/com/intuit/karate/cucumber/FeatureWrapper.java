@@ -78,6 +78,9 @@ public class FeatureWrapper {
 
     public String joinLines(int startLine, int endLine) {
         StringBuilder sb = new StringBuilder();
+        if (endLine > lines.size() - 1) {
+            endLine = lines.size() - 1;
+        }
         for (int i = startLine; i < endLine; i++) {
             String line = lines.get(i);
             sb.append(line).append("\n");

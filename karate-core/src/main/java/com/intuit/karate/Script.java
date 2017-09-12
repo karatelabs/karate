@@ -365,26 +365,30 @@ public class Script {
             context.logger.warn("no var found with name: {}", name);
             return ScriptValue.NULL;
         }
-        switch (value.getType()) {
+        switch (value.getType()) { // TODO merge with ScriptValue getAsJsonDocument
             case JSON:
                 DocumentContext jsonDoc = value.getValue(DocumentContext.class);
                 return new ScriptValue(jsonDoc.read(exp));
+            case JS_OBJECT:
             case MAP: // this happens because some jsonpath expressions evaluate to Map
                 Map<String, Object> map = value.getValue(Map.class);
                 DocumentContext mapDoc = JsonPath.parse(map);
                 return new ScriptValue(mapDoc.read(exp));
+            case JS_ARRAY:
+                ScriptObjectMirror som = value.getValue(ScriptObjectMirror.class);
+                return new ScriptValue(JsonPath.parse(som.values()));               
             case LIST: // this happens because some jsonpath expressions evaluate to List
                 List list = value.getValue(List.class);
                 DocumentContext listDoc = JsonPath.parse(list);
                 return new ScriptValue(listDoc.read(exp));
             case XML: // time to auto-convert again
-                Document xml = value.getValue(Document.class);
-                DocumentContext xmlDoc = XmlUtils.toJsonDoc(xml);
-                return new ScriptValue(xmlDoc.read(exp));
+            Document xml = value.getValue(Document.class);
+            DocumentContext xmlDoc = XmlUtils.toJsonDoc(xml);
+            return new ScriptValue(xmlDoc.read(exp));   
             case STRING:
                 String str = value.getValue(String.class);
-                DocumentContext strDoc = JsonPath.parse(str);
-                return new ScriptValue(strDoc.read(exp));
+            DocumentContext strDoc = JsonPath.parse(str);
+            return new ScriptValue(strDoc.read(exp));            
             default:
                 throw new RuntimeException("cannot run jsonpath on type: " + value);
         }

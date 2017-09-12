@@ -125,7 +125,8 @@ public class CucumberUtils {
         }
         if (match == null) {
             return afterStep(reporter, step, Match.UNDEFINED, Result.UNDEFINED, 
-                    new KarateException("match undefined"), featurePath, backend, called);
+                    new KarateException("syntax error: " + step.getName()),
+                    featurePath, backend, called);
         }
         String status = Result.PASSED;
         Throwable error = null;
