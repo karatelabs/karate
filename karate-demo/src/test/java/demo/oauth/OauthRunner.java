@@ -1,4 +1,4 @@
-package com.intuit.karate.junit4.oauth;
+package demo.oauth;
 
 import com.intuit.karate.junit4.Karate;
 import org.junit.runner.RunWith;
