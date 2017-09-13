@@ -45,7 +45,7 @@ public class RedirectController {
         if ("".equals(uri)) {
             uri = "http://localhost:8080"; // hard code for karate-mock-servlet
         }
-        response.sendRedirect(uri + "/greeting");
+        response.sendRedirect(uri + "/search");
     }    
     
 }

@@ -8,11 +8,12 @@ Scenario: check if the call redirects to greeting
 Given path 'redirect'
 When method get
 Then status 302
-And match header Location == demoBaseUrl + '/greeting'
+And match header Location == demoBaseUrl + '/search'
 
 * def location = responseHeaders['Location'][0]
 
 Given url location
+And param foo = 'bar'
 When method get
 Then status 200
-And match response == { id: '#number', content: 'Hello World!' }
+And match response == { foo: ['bar'] }
