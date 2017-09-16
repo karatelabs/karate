@@ -42,10 +42,7 @@ public class FeatureReuseTest {
     public void testFailureInCalledShouldFailTest() throws Exception {
         String reportPath = "target/fail.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/caller.feature");
-        CucumberRunner runner = new CucumberRunner(file);  
-        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
-        runner.run(reporter);
-        reporter.done();
+        KarateReporter reporter = CucumberRunnerTest.run(file, reportPath);
         assertEquals(1, reporter.getJunitFormatter().getFailCount());
         String contents = FileUtils.toString(new File(reportPath));
         assertTrue(contents.contains("assert evaluated to false: input != 4"));
@@ -55,10 +52,7 @@ public class FeatureReuseTest {
     public void testArgumentsPassedForSharedScope() throws Exception {
         String reportPath = "target/pass.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/caller-shared.feature");
-        CucumberRunner runner = new CucumberRunner(file);  
-        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
-        runner.run(reporter);
-        reporter.done();
+        KarateReporter reporter = CucumberRunnerTest.run(file, reportPath);
         assertEquals(0, reporter.getJunitFormatter().getFailCount());
         String contents = FileUtils.toString(new File(reportPath));
         assertTrue(contents.contains("passed"));
@@ -68,10 +62,7 @@ public class FeatureReuseTest {
     public void testCallerTwo() throws Exception {
         String reportPath = "target/pass2.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/caller_2.feature");
-        CucumberRunner runner = new CucumberRunner(file);  
-        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
-        runner.run(reporter);
-        reporter.done();
+        KarateReporter reporter = CucumberRunnerTest.run(file, reportPath);
         assertEquals(0, reporter.getJunitFormatter().getFailCount());
         String contents = FileUtils.toString(new File(reportPath));
         assertTrue(contents.contains("passed"));

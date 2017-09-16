@@ -212,7 +212,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
             response.addCookie(cookie);
         }
         for (Entry<String, List<Object>> entry : resp.getHeaders().entrySet()) {
-            response.addHeader(entry.getKey(), entry.getValue());
+            response.putHeader(entry.getKey(), entry.getValue());
         }
         return response;
     }

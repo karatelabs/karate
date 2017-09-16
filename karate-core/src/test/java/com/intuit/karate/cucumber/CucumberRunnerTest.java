@@ -47,14 +47,21 @@ public class CucumberRunnerTest {
         return contents.contains(textToFind);
     }
     
+    public static KarateReporter run(File file, String reportPath) throws Exception {
+        CucumberRunner runner = new CucumberRunner(file);     
+        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
+        for (FeatureFile featureFile : runner.getFeatureFiles()) {
+            runner.run(featureFile, reporter);
+        }
+        reporter.done();
+        return reporter;
+    }
+    
     @Test 
     public void testScenario() throws Exception {
         String reportPath = "target/scenario.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/scenario.feature");
-        CucumberRunner runner = new CucumberRunner(file);        
-        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
-        runner.run(reporter);
-        reporter.done();
+        run(file, reportPath);
         assertTrue(contains(reportPath, "Then match b == { foo: 'bar'}"));
     }
     
@@ -62,10 +69,7 @@ public class CucumberRunnerTest {
     public void testScenarioOutline() throws Exception {
         String reportPath = "target/outline.xml";
         File file = new File("src/test/java/com/intuit/karate/cucumber/outline.feature");
-        CucumberRunner runner = new CucumberRunner(file);        
-        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
-        runner.run(reporter);
-        reporter.done();
+        run(file, reportPath);
         assertTrue(contains(reportPath, "When def a = 55"));
     }  
     

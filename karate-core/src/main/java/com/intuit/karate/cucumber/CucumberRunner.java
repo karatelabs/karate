@@ -147,12 +147,6 @@ public class CucumberRunner {
         featureFile.feature.run(reporter, reporter, runtime);
     }
 
-    public void run(KarateReporter reporter) {
-        for (FeatureFile featureFile : getFeatureFiles()) {
-            run(featureFile, reporter);
-        }
-    }
-
     private static KarateReporter getReporter(String reportDirPath, FeatureFile featureFile) {
         File reportDir = new File(reportDirPath);
         try {

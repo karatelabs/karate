@@ -48,5 +48,9 @@ And def lang = 'en'
 # you can do this in one line
 * match actual == get[0] cat.kittens[*].id
 
-
+* def LocalDateTime = Java.type('java.time.LocalDateTime')
+* def createDate = LocalDateTime.now() + ''
+* def expiryDate = LocalDateTime.now().plusMinutes(5) + ''
+* def testRequest = { createDateTime: '#(createDate)', expiryDate: '#(expiryDate)' }
+* print karate.pretty(testRequest)
 

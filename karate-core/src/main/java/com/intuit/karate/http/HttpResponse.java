@@ -99,7 +99,7 @@ public class HttpResponse {
         headers.add(name, value);
     }    
     
-    public void addHeader(String name, List values) {
+    public void putHeader(String name, List values) {
         if (headers == null) {
             headers = new MultiValuedMap();
         }

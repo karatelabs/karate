@@ -209,7 +209,7 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
             response.addCookie(cookie);
         }
         for (String headerName : res.getHeaderNames()) {
-            response.addHeader(headerName, res.getHeaders(headerName));
+            response.putHeader(headerName, res.getHeaders(headerName));
         }
         return response;
     }
