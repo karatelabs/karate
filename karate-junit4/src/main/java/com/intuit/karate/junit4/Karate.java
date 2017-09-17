@@ -39,7 +39,7 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
         reporter = new JUnitReporter(ro.reporter(cl), ro.formatter(cl), ro.isStrict(), junitOptions);
         children = new ArrayList<>(cucumberFeatures.size());        
         for (CucumberFeature feature : cucumberFeatures) {
-            Runtime runtime = cr.getRuntime(feature);
+            Runtime runtime = cr.getRuntime(feature, null);
             FeatureRunner runner = new FeatureRunner(feature, runtime, reporter);
             children.add(new KarateFeatureRunner(runner, runtime));            
         }        

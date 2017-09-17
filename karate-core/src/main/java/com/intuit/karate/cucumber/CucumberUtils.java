@@ -63,12 +63,12 @@ public class CucumberUtils {
         backend.loadGlue(glue, null);
         return backend;
     }
-
-    public static CucumberFeature parse(String text) {
+    
+    public static CucumberFeature parse(String text, String featurePath) {
         final List<CucumberFeature> features = new ArrayList<>();
         final FeatureBuilder builder = new FeatureBuilder(features);
         Parser parser = new Parser(builder);
-        parser.parse(text, "", 0);
+        parser.parse(text, featurePath, 0);
         CucumberFeature cucumberFeature = features.get(0);
         cucumberFeature.setI18n(parser.getI18nLanguage());
         return cucumberFeature;

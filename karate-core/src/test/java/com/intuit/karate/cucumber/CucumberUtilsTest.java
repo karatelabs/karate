@@ -139,7 +139,7 @@ public class CucumberUtilsTest {
     public void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
         ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromString(text, env, null);
+        FeatureWrapper fw = FeatureWrapper.fromString(text, env, "dummy.feature");
         printLines(fw.getLines());
         StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(0);
         logger.debug("step name: '{}'", step.getStep().getName());

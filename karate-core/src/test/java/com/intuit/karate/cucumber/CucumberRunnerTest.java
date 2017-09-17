@@ -25,6 +25,7 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
 import cucumber.api.CucumberOptions;
+import cucumber.runtime.model.CucumberFeature;
 import java.io.File;
 import java.util.Map;
 import static org.junit.Assert.assertTrue;
@@ -50,8 +51,8 @@ public class CucumberRunnerTest {
     public static KarateReporter run(File file, String reportPath) throws Exception {
         CucumberRunner runner = new CucumberRunner(file);     
         KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
-        for (FeatureFile featureFile : runner.getFeatureFiles()) {
-            runner.run(featureFile, reporter);
+        for (CucumberFeature feature : runner.getFeatures()) {
+            runner.run(feature, reporter);
         }
         reporter.done();
         return reporter;

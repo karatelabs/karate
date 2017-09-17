@@ -43,7 +43,7 @@ public abstract class KarateRunner {
     @Test(groups = "cucumber", description = "Runs Cucumber Feature", dataProvider = "features")
     public void feature(CucumberFeatureWrapper wrapper) {
         CucumberFeature feature = wrapper.getCucumberFeature();
-        Runtime runtime = runner.getRuntime(feature);
+        Runtime runtime = runner.getRuntime(feature, null);
         resultListener.startFeature();
         RuntimeOptions ro = runner.getRuntimeOptions();
         feature.run(ro.formatter(runner.getClassLoader()), resultListener, runtime);

@@ -124,6 +124,18 @@ public class FileUtils {
         }
     }
     
+    public static File resolveIfClassPath(String path) {
+        File file = new File(path);
+        if (file.exists()) { // loaded by karate
+            return file;
+        } else { // was loaded by cucumber-jvm, is relative to classpath
+            String temp = file.getPath().replace('\\', '/'); // fix for windows
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            String actualPath = cl.getResource(temp).getFile();
+            return new File(actualPath);
+        }        
+    }
+    
     public static File getDirContaining(Class clazz) {
         String resourcePath = clazz.getResource(clazz.getSimpleName() + ".class").getFile();
         return new File(resourcePath).getParentFile();

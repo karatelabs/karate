@@ -158,7 +158,7 @@ public class FeatureWrapper {
         this.path = path;
         this.text = text;
         this.scriptEnv = scriptEnv;
-        this.feature = CucumberUtils.parse(text);
+        this.feature = CucumberUtils.parse(text, path);
         this.lines = FileUtils.toStringLines(text);
         featureSections = new ArrayList<>();
         List<CucumberTagStatement> elements = feature.getFeatureElements();
