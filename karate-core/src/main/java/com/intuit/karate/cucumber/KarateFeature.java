@@ -23,12 +23,13 @@
  */
 package com.intuit.karate.cucumber;
 
-import cucumber.runtime.RuntimeOptions;
-import cucumber.runtime.RuntimeOptionsFactory;
-import cucumber.runtime.io.MultiLoader;
-import cucumber.runtime.io.ResourceLoader;
+import com.intuit.karate.FileUtils;
 import cucumber.runtime.model.CucumberFeature;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -36,30 +37,50 @@ import java.io.File;
  */
 public class KarateFeature {
     
-    private final File file;
-    private final ClassLoader classLoader;
-    private final RuntimeOptions runtimeOptions;
-    private final ResourceLoader resourceLoader;    
-    private final CucumberFeature feature;
+    private static final Logger logger = LoggerFactory.getLogger(KarateFeature.class);
+    
+    private final KarateRuntimeOptions runtimeOptions;
+    private final File file;    
+    private final CucumberFeature feature;       
+
+    public CucumberFeature getFeature() {
+        return feature;
+    }        
+    
+    public KarateFeature(CucumberFeature feature, KarateRuntimeOptions karateOptions) {
+        file = FileUtils.resolveIfClassPath(feature.getPath());
+        this.feature = feature;
+        this.runtimeOptions = karateOptions;
+    }
     
     public KarateFeature(File file) {
         this.file = file;
-        classLoader = Thread.currentThread().getContextClassLoader();
-        resourceLoader = new MultiLoader(classLoader);
-        RuntimeOptionsFactory runtimeOptionsFactory = new RuntimeOptionsFactory(getClass());
-        runtimeOptions = runtimeOptionsFactory.create();
-        FeatureWrapper wrapper = FeatureWrapper.fromFile(file, classLoader);
-        feature = wrapper.getFeature();        
+        runtimeOptions = new KarateRuntimeOptions(file);
+        feature = runtimeOptions.loadFeatures().get(0);
     }
     
-    private KarateReporter getKarateReporter(String reportDirPath) {
+    public static List<KarateFeature> loadFeatures(KarateRuntimeOptions runtimeOptions) {
+        List<CucumberFeature> features = runtimeOptions.loadFeatures();
+        List<KarateFeature> karateFeatures = new ArrayList(features.size());
+        for (CucumberFeature feature : features) {
+            KarateFeature kf = new KarateFeature(feature, runtimeOptions);
+            karateFeatures.add(kf);
+        }
+        return karateFeatures;
+    }
+    
+    public KarateRuntime getRuntime(KarateReporter reporter) {
+        return runtimeOptions.getRuntime(file, reporter);
+    }
+    
+    public KarateReporter getReporter(String reportDirPath) {
         File reportDir = new File(reportDirPath);
         try {
             reportDir.mkdirs();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        String featurePath = file.getPath();
+        String featurePath = feature.getPath();
         String featurePackagePath = featurePath.replace(File.separator, ".");
         if (featurePackagePath.endsWith(".feature")) {
             featurePackagePath = featurePackagePath.substring(0, featurePackagePath.length() - 8);
@@ -71,10 +92,6 @@ public class KarateFeature {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }        
-    }
-    
-//    private KarateRuntime getKarateRuntime() {
-//        
-//    }
+    }    
     
 }

@@ -1,12 +1,12 @@
 package com.intuit.karate.junit4;
 
-import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.cucumber.KarateFeature;
+import com.intuit.karate.cucumber.KarateRuntimeOptions;
 import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.junit.FeatureRunner;
 import cucumber.runtime.junit.JUnitOptions;
 import cucumber.runtime.junit.JUnitReporter;
-import cucumber.runtime.model.CucumberFeature;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,18 +31,18 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
-        CucumberRunner cr = new CucumberRunner(clazz);
-        RuntimeOptions ro = cr.getRuntimeOptions();        
-        List<CucumberFeature> cucumberFeatures = cr.getFeatures();
-        ClassLoader cl = cr.getClassLoader();
+        KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
+        RuntimeOptions ro = kro.getRuntimeOptions();
+        ClassLoader cl = kro.getClassLoader();
         JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
         reporter = new JUnitReporter(ro.reporter(cl), ro.formatter(cl), ro.isStrict(), junitOptions);
-        children = new ArrayList<>(cucumberFeatures.size());        
-        for (CucumberFeature feature : cucumberFeatures) {
-            Runtime runtime = cr.getRuntime(feature, null);
-            FeatureRunner runner = new FeatureRunner(feature, runtime, reporter);
-            children.add(new KarateFeatureRunner(runner, runtime));            
-        }        
+        List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
+        children = new ArrayList(karateFeatures.size());
+        for (KarateFeature kf : karateFeatures) {
+            Runtime runtime = kf.getRuntime(null);
+            FeatureRunner runner = new FeatureRunner(kf.getFeature(), runtime, reporter);
+            children.add(new KarateFeatureRunner(runner, runtime));
+        }
     }
     
     @Override

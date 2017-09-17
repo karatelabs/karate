@@ -27,8 +27,6 @@ import cucumber.runtime.CucumberScenarioImpl;
 import cucumber.runtime.CucumberStats;
 import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeGlue;
-import cucumber.runtime.RuntimeOptions;
-import cucumber.runtime.io.ResourceLoader;
 import gherkin.I18n;
 import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Match;
@@ -50,11 +48,10 @@ public class KarateRuntime extends Runtime {
     private CucumberScenarioImpl scenarioResult;
     private boolean failed;
     
-    public KarateRuntime(ResourceLoader resourceLoader, ClassLoader classLoader, KarateBackend backend,
-                   RuntimeOptions runtimeOptions, RuntimeGlue glue) { 
-        super(resourceLoader, classLoader, Collections.singletonList(backend), runtimeOptions, glue);
+    public KarateRuntime(KarateRuntimeOptions kro, KarateBackend backend, RuntimeGlue glue) {
+        super(kro.getResourceLoader(), kro.getClassLoader(), Collections.singletonList(backend), kro.getRuntimeOptions(), glue);
         this.backend = backend;
-        this.stats = new CucumberStats(runtimeOptions.isMonochrome());
+        this.stats = new CucumberStats(kro.getRuntimeOptions().isMonochrome());
     }
     
     private void addStepToCounterAndResult(Result result) {

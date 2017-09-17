@@ -49,11 +49,10 @@ public class CucumberRunnerTest {
     }
     
     public static KarateReporter run(File file, String reportPath) throws Exception {
-        CucumberRunner runner = new CucumberRunner(file);     
+        KarateFeature kf = new KarateFeature(file);     
         KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
-        for (CucumberFeature feature : runner.getFeatures()) {
-            runner.run(feature, reporter);
-        }
+        KarateRuntime runtime = kf.getRuntime(reporter);
+        kf.getFeature().run(reporter, reporter, runtime);
         reporter.done();
         return reporter;
     }
