@@ -45,6 +45,7 @@ public class KarateBackend implements Backend {
     
     private final JavaBackend backend;
     private final KarateObjectFactory objectFactory;
+    private final CallContext callContext;
     private Glue glue;
     
     public ScriptEnv getEnv() {
@@ -68,6 +69,7 @@ public class KarateBackend implements Backend {
     }    
     
     public KarateBackend(ScriptEnv env, CallContext callContext) {
+        this.callContext = callContext;
         ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);
         objectFactory = new KarateObjectFactory(env, callContext);
         backend = new JavaBackend(objectFactory, classFinder);
@@ -83,6 +85,14 @@ public class KarateBackend implements Backend {
 
     public Glue getGlue() {
         return glue;
+    }        
+
+    public String getCallingFeature() {
+        if (callContext.parentContext != null) {
+            return callContext.parentContext.getEnv().featureName;
+        } else {
+            return null;
+        }
     }        
 
     @Override

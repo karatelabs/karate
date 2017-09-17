@@ -29,6 +29,7 @@ import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValueMap;
 import cucumber.runtime.model.CucumberFeature;
 import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -121,8 +122,11 @@ public class CucumberRunner {
     }
 
     public static Map<String, Object> runClasspathFeature(String classPath, Map<String, Object> vars, boolean evalKarateConfig) {
-        String path = Thread.currentThread().getContextClassLoader().getResource(classPath).getFile();
-        File file = new File(path);
+        URL url = Thread.currentThread().getContextClassLoader().getResource(classPath);
+        if (url == null) {
+            throw new RuntimeException("file not found: " + classPath);
+        }
+        File file = new File(url.getFile());
         return runFeature(file, vars, evalKarateConfig);
     }
 

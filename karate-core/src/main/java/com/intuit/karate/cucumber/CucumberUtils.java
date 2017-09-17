@@ -93,8 +93,11 @@ public class CucumberUtils {
     public static void call(ScenarioWrapper scenario, KarateBackend backend) {
         for (StepWrapper step : scenario.getSteps()) {
             StepResult result = runStep(step, backend);
-            if (!result.isPass()) {                
-                throw new KarateException("failed: " + backend.getEnv(), result.getError());
+            if (!result.isPass()) {
+                FeatureWrapper feature = scenario.getFeature();
+                String caller = backend.getCallingFeature();
+                String message = feature.getPath() + ", line: " + step.getStep().getLine() + " (caller: " + caller + ")";
+                throw new KarateException(message, result.getError());
             }
         }
     }
