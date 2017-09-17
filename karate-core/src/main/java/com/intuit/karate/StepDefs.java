@@ -50,7 +50,7 @@ public class StepDefs {
     private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
-        this(getFeatureEnv(), null, null, false);
+        this(getFeatureEnv(), new CallContext(null, null, false, true));
     }
 
     private static ScriptEnv getFeatureEnv() {
@@ -69,16 +69,16 @@ public class StepDefs {
         }
     }
 
-    public StepDefs(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg, boolean reuseParentConfig) {
-        if (reuseParentConfig) {
-            context = parentContext; // re-use parent context
-            if (callArg != null) { // but over-ride any variables (TODO - this clobbers self)
-                for (Map.Entry<String, Object> entry : callArg.entrySet()) {
+    public StepDefs(ScriptEnv scriptEnv, CallContext call) {
+        if (call.reuseParentContext) {
+            context = call.parentContext; // re-use parent context
+            if (call.callArg != null) { // but over-ride any variables (TODO - this clobbers self)
+                for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
                     context.vars.put(entry.getKey(), entry.getValue());
                 }
             }
         } else {
-            context = new ScriptContext(env, parentContext, callArg);
+            context = new ScriptContext(scriptEnv, call);
         }        
         request = new HttpRequest();
     }

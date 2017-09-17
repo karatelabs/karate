@@ -93,13 +93,13 @@ public class ScriptContext {
         return config.isPrintEnabled();
     }    
 
-    public ScriptContext(ScriptEnv env, ScriptContext parent, Map<String, Object> arg) {
+    public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
         logger = env.logger;
-        if (parent != null) {
-            vars = Script.clone(parent.vars);
-            validators = parent.validators;
-            config = new HttpConfig(parent.config);
+        if (call.parentContext != null) {
+            vars = Script.clone(call.parentContext.vars);
+            validators = call.parentContext.validators;
+            config = new HttpConfig(call.parentContext.config);
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
@@ -107,7 +107,7 @@ public class ScriptContext {
         }
         client = HttpClient.construct(config, this);
         readFunction = Script.eval(getFileReaderFunction(), this);
-        if (parent == null) {
+        if (call.parentContext == null && call.evalKarateConfig) {
             try {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
@@ -119,8 +119,8 @@ public class ScriptContext {
                 }
             }
         }
-        if (arg != null) {
-            for (Map.Entry<String, Object> entry : arg.entrySet()) {
+        if (call.callArg != null) {
+            for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
                 vars.put(entry.getKey(), entry.getValue());
             }
         }

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.web.service;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
@@ -74,7 +75,8 @@ public class KarateService {
     }
     
     private KarateSession initSessionBackend(FeatureWrapper feature, WebSocketLogAppender appender) {
-        KarateBackend backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), null, null, false);        
+        CallContext callContext = new CallContext(null, null, false, true);
+        KarateBackend backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);        
         KarateSession session = new KarateSession(appender.getSessionId(), feature, backend, appender);
         sessions.put(session.getId(), session);
         return session;        

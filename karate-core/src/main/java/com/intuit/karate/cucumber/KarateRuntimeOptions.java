@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.ScriptEnv;
 import cucumber.runtime.RuntimeGlue;
 import cucumber.runtime.RuntimeOptions;
@@ -61,7 +62,8 @@ public class KarateRuntimeOptions {
     public KarateRuntime getRuntime(File file, KarateReporter reporter) {
         File featureDir = file.getParentFile();
         ScriptEnv env = new ScriptEnv(null, featureDir, file.getName(), classLoader, reporter);
-        KarateBackend backend = new KarateBackend(env, null, null, false);
+        CallContext callContext = new CallContext(null, null, false, true);
+        KarateBackend backend = new KarateBackend(env, callContext);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
         return new KarateRuntime(this, backend, glue);         
     }    

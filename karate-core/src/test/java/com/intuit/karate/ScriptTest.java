@@ -26,7 +26,8 @@ public class ScriptTest {
     private ScriptContext getContext() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        return new ScriptContext(env, null, null);
+        CallContext callContext = new CallContext(null, null, false, true);
+        return new ScriptContext(env, callContext);
     }
 
     private AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
@@ -1006,14 +1007,15 @@ public class ScriptTest {
     public void testKarateEnvAccessFromScript() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("baz", new File(featureDir));
-        ScriptContext ctx = new ScriptContext(env, null, null);
+        CallContext callContext = new CallContext(null, null, false, true);
+        ScriptContext ctx = new ScriptContext(env, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         ScriptValue bar = ctx.vars.get("bar");
         assertEquals("baz", bar.getValue());
         // null
         env = ScriptEnv.init(null, new File(featureDir));
-        ctx = new ScriptContext(env, null, null);
+        ctx = new ScriptContext(env, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         bar = ctx.vars.get("bar");

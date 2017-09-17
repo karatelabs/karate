@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.CallContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepDefs;
@@ -36,7 +36,6 @@ import cucumber.runtime.snippets.FunctionNameGenerator;
 import gherkin.formatter.model.Step;
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
@@ -68,9 +67,9 @@ public class KarateBackend implements Backend {
         getEnv().debug.afterStep(feature, result.getStep().getLine(), result, getVars());
     }    
     
-    public KarateBackend(ScriptEnv env, ScriptContext parentContext, Map<String, Object> callArg, boolean reuseParentConfig) {
+    public KarateBackend(ScriptEnv env, CallContext callContext) {
         ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);
-        objectFactory = new KarateObjectFactory(env, parentContext, callArg, reuseParentConfig);
+        objectFactory = new KarateObjectFactory(env, callContext);
         backend = new JavaBackend(objectFactory, classFinder);
     }
 

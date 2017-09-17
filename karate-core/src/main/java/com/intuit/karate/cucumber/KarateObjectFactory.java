@@ -23,11 +23,10 @@
  */
 package com.intuit.karate.cucumber;
 
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.CallContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import cucumber.api.java.ObjectFactory;
-import java.util.Map;
 
 /**
  *
@@ -37,16 +36,11 @@ public class KarateObjectFactory implements ObjectFactory {
        
     private StepDefs stepDefs;
     private ScriptEnv scriptEnv;
-    private final ScriptContext parentContext;
-    private final Map<String, Object> callArg;
-    private final boolean reuseParentConfig;
+    private final CallContext callContext;
     
-    public KarateObjectFactory(ScriptEnv scriptEnv, ScriptContext parentContext, 
-            Map<String, Object> callArg, boolean reuseParentConfig) {
+    public KarateObjectFactory(ScriptEnv scriptEnv, CallContext callContext) {
         this.scriptEnv = scriptEnv;
-        this.parentContext = parentContext;
-        this.callArg = callArg;
-        this.reuseParentConfig = reuseParentConfig;
+        this.callContext = callContext;
     }
     
     public StepDefs reset(String envString) {
@@ -83,7 +77,7 @@ public class KarateObjectFactory implements ObjectFactory {
         if (stepDefs == null) {
             // the lazy init gives users the chance to over-ride the env
             // for example using a JUnit @BeforeClass hook
-            stepDefs = new StepDefs(scriptEnv, parentContext, callArg, reuseParentConfig);
+            stepDefs = new StepDefs(scriptEnv, callContext);
         }
         return (T) stepDefs;
     }

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
@@ -95,7 +96,8 @@ public class AppSession {
         FeatureFilePath ffp = FileUtils.parseFeaturePath(featureFile);
         ScriptEnv env = ScriptEnv.init(envString, ffp.file, ffp.searchPaths, logger);
         feature = FeatureWrapper.fromFile(ffp.file, env);
-        backend = CucumberUtils.getBackendWithGlue(env, null, null, false);
+        CallContext callContext = new CallContext(null, null, false, true);
+        backend = CucumberUtils.getBackendWithGlue(env, callContext);
         if (!test) {
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);

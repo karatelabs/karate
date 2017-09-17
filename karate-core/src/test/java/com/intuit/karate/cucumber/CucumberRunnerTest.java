@@ -25,7 +25,6 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
 import cucumber.api.CucumberOptions;
-import cucumber.runtime.model.CucumberFeature;
 import java.io.File;
 import java.util.Map;
 import static org.junit.Assert.assertTrue;
@@ -90,7 +89,7 @@ public class CucumberRunnerTest {
     
     @Test
     public void testRunningFeatureFromJavaApi() {
-        Map<String, Object> result = CucumberRunner.runFeature(getClass(), "scenario.feature", null);
+        Map<String, Object> result = CucumberRunner.runFeature(getClass(), "scenario.feature", null, true);
         assertEquals(1, result.get("a"));
         Map<String, Object> temp = (Map) result.get("b");
         assertEquals("bar", temp.get("foo"));
@@ -99,7 +98,7 @@ public class CucumberRunnerTest {
     
     @Test
     public void testRunningRelativePathFeatureFromJavaApi() {
-        Map<String, Object> result = CucumberRunner.runClasspathFeature("com/intuit/karate/test-called.feature", null);
+        Map<String, Object> result = CucumberRunner.runClasspathFeature("com/intuit/karate/test-called.feature", null, true);
         assertEquals(1, result.get("a"));
         assertEquals(2, result.get("b"));
         assertEquals("someValue", result.get("someConfig"));

@@ -1464,7 +1464,8 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
             Map<String, Object> callArg, boolean reuseParentConfig) {
-        ScriptValueMap svm = CucumberUtils.call(feature, context, callArg, reuseParentConfig);
+        CallContext callContext = new CallContext(context, callArg, reuseParentConfig, false);
+        ScriptValueMap svm = CucumberUtils.call(feature, callContext);
         Map<String, Object> map = simplify(svm);
         return new ScriptValue(map);
     }

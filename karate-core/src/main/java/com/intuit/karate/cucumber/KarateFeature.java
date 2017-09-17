@@ -92,6 +92,6 @@ public class KarateFeature {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }        
-    }    
+    }
     
 }

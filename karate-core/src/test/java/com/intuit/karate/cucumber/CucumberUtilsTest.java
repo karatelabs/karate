@@ -1,5 +1,6 @@
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.ScriptEnv;
 import java.io.File;
 import java.io.InputStream;
@@ -49,7 +50,8 @@ public class CucumberUtilsTest {
         String stepText = step.getPriorText();
         assertEquals("Feature: simple feature file\n\n# some comment\n\nBackground:", stepText);
         assertEquals(5, step.getStartLine());
-        KarateBackend backend = CucumberUtils.getBackendWithGlue(env, null, null, false);
+        CallContext callContext = new CallContext(null, null, false, true);
+        KarateBackend backend = CucumberUtils.getBackendWithGlue(env, callContext);
         assertTrue(CucumberUtils.runStep(step, backend).isPass());
         
         step = steps.get(1); // first scenario (non-background) step

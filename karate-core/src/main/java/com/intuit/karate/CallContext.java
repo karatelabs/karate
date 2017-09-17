@@ -21,41 +21,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptEnv;
-import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpClientTest {
+public class CallContext {
     
-    private ScriptContext getContext() {
-        String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        CallContext callContext = new CallContext(null, null, false, true);
-        return new ScriptContext(env, callContext);
-    }    
+    public final ScriptContext parentContext;
+    public final Map<String, Object> callArg;
+    public final boolean reuseParentContext;
+    public final boolean evalKarateConfig;
     
-    @Test
-    public void testSwappingHttpClient() {
-        HttpConfig config = new HttpConfig();
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", "John");
-        config.setUserDefined(map);
-        config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
-        HttpClient client = HttpClient.construct(config, getContext());
-        HttpResponse response = client.makeHttpRequest(null, 0);
-        assertArrayEquals(response.getBody(), "hello John".getBytes());        
+    public CallContext(ScriptContext parentContext, Map<String, Object> callArg,
+        boolean reuseParentContext, boolean evalKarateConfig) {
+        this.parentContext = parentContext;
+        this.callArg = callArg;
+        this.reuseParentContext = reuseParentContext;
+        this.evalKarateConfig = evalKarateConfig;
     }
     
 }

@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValueMap;
 import cucumber.runtime.model.CucumberFeature;
@@ -105,21 +107,23 @@ public class CucumberRunner {
         return stats;
     }
 
-    private static Map<String, Object> runFeature(File file, Map<String, Object> vars) {
+    private static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, Thread.currentThread().getContextClassLoader());
-        ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, null, vars, false);
+        CallContext callContext = new CallContext(null, vars, false, evalKarateConfig);
+        ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, callContext);
         return Script.simplify(scriptValueMap);
     }
 
-    public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars) {
-        File dir = com.intuit.karate.FileUtils.getDirContaining(relativeTo);
+    public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars, boolean evalKarateConfig) {
+        File dir = FileUtils.getDirContaining(relativeTo);
         File file = new File(dir.getPath() + File.separator + path);
-        return runFeature(file, vars);
+        return runFeature(file, vars, evalKarateConfig);
     }
 
-    public static Map<String, Object> runClasspathFeature(String path, Map<String, Object> vars) {
-        File file = new File("target/test-classes/" + path);
-        return runFeature(file, vars);
+    public static Map<String, Object> runClasspathFeature(String classPath, Map<String, Object> vars, boolean evalKarateConfig) {
+        String path = Thread.currentThread().getContextClassLoader().getResource(classPath).getFile();
+        File file = new File(path);
+        return runFeature(file, vars, evalKarateConfig);
     }
 
 }
