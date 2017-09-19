@@ -1259,6 +1259,8 @@ Then status 200
 And def authToken = response.token
 ```
 
+A good example of the use of `form field` for a typical sign-in flow is this OAuth 2 demo: [`oauth2.feature`](karate-demo/src/test/java/demo/oauth/oauth2.feature).
+
 Multi-values are supported the way you would expect (e.g. for simulating check-boxes and multi-selects):
 ```cucumber
 * form field selected = 'apple', 'orange'
