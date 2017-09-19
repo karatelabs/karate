@@ -239,7 +239,12 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 For details on what actually goes into a script or `*.feature` file, refer to the
 [syntax guide](#syntax-guide).
 
-## Running in Eclipse or IntelliJ
+## IDE Support
+Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
+
+> A [debug helper](karate-core/src/main/java/com/intuit/karate/Debug.java) was introduced in version 0.6.0 - which helps you [set conditional break-points](https://twitter.com/KarateDSL/status/902387883478097924) while running tests.
+
+### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
 If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time.
@@ -1072,7 +1077,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 -------- | ----- | -----------
 `* def foo = 'bar'` | JS | simple strings, numbers or booleans
 `* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
-`* def foo = (bar.baz + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parantheses
+`* def foo = (bar.baz + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parentheses
 `* def foo = { bar: '#(baz)' }` | JSON | anything that starts with a `{` or a `[` is parsed as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
 `* def foo = ({ bar: baz })` | JS | [enclosed JavaScript](#enclosed-javascript), the result of which is exactly equivalent to the above
 `* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is parsed as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
