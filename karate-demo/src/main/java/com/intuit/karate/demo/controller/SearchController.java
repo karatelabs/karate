@@ -23,6 +23,10 @@
  */
 package com.intuit.karate.demo.controller;
 
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,6 +51,23 @@ public class SearchController {
     @PostMapping
     public String echo(@RequestBody String request) {
         return request;
+    }
+
+    @GetMapping("/headers")
+    public Map<String, Object> echoHeaders(HttpServletRequest request) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            Enumeration<String> headerValues = request.getHeaders(headerName);
+            List<String> list = new ArrayList();
+            while (headerValues.hasMoreElements()) {
+                String headerValue = headerValues.nextElement();
+                list.add(headerValue);
+            }
+            map.put(headerName, list);
+        }
+        return map;
     }    
 
 }
