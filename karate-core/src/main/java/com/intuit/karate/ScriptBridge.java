@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.util.List;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
@@ -134,6 +135,10 @@ public class ScriptBridge {
     public Object eval(String exp) {
         ScriptValue sv = Script.evalInNashorn(exp, context);
         return sv.getValue();
+    }
+    
+    public List<String> getTags() {
+        return context.tags;
     }
     
     public String getEnv() {

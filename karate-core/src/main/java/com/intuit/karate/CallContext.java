@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,6 +36,16 @@ public class CallContext {
     public final Map<String, Object> callArg;
     public final boolean reuseParentContext;
     public final boolean evalKarateConfig;
+    
+    private List<String> tags;
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
+    }        
     
     public CallContext(ScriptContext parentContext, Map<String, Object> callArg,
         boolean reuseParentContext, boolean evalKarateConfig) {

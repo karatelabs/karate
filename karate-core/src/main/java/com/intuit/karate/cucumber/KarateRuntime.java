@@ -34,7 +34,9 @@ import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Scenario;
 import gherkin.formatter.model.Step;
 import gherkin.formatter.model.Tag;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -81,6 +83,15 @@ public class KarateRuntime extends Runtime {
     @Override
     public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario gherkinScenario) {
         backend.buildWorld();
+        List<String> tagList = new ArrayList(tags.size());
+        for (Tag tag : tags) {
+            String name = tag.getName();
+            if (name.startsWith("@")) {
+                name = name.substring(1);
+            }
+            tagList.add(name);
+        }
+        backend.setTags(tagList); // this will be passed into the step-defs constructor for each scenario
         scenarioResult = new CucumberScenarioImpl(reporter, tags, gherkinScenario);
     }      
 

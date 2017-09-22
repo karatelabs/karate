@@ -28,6 +28,7 @@ import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.validator.Validator;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 
@@ -43,6 +44,7 @@ public class ScriptContext {
     public static final String KARATE_NAME = "karate";
     private static final String VAR_READ = "read";
 
+    protected final List<String> tags;
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;    
@@ -96,6 +98,7 @@ public class ScriptContext {
     public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
         logger = env.logger;
+        tags = call.getTags();
         if (call.parentContext != null) {
             vars = Script.clone(call.parentContext.vars);
             validators = call.parentContext.validators;

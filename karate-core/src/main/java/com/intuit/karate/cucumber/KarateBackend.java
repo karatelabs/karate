@@ -47,6 +47,10 @@ public class KarateBackend implements Backend {
     private final KarateObjectFactory objectFactory;
     private final CallContext callContext;
     private Glue glue;
+
+    public void setTags(List<String> tags) {
+        callContext.setTags(tags);
+    }      
     
     public ScriptEnv getEnv() {
         return objectFactory.getEnv();
