@@ -27,6 +27,7 @@ import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
@@ -140,6 +141,10 @@ public class ScriptBridge {
     public List<String> getTags() {
         return context.tags;
     }
+    
+    public Map<String, List<String>> getTagValues() {
+        return context.tagValues;
+    }    
     
     public String getEnv() {
         return context.env.env;

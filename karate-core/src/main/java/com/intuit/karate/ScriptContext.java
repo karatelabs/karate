@@ -45,6 +45,7 @@ public class ScriptContext {
     private static final String VAR_READ = "read";
 
     protected final List<String> tags;
+    protected final Map<String, List<String>> tagValues;
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;    
@@ -99,6 +100,7 @@ public class ScriptContext {
         this.env = env.refresh(null);
         logger = env.logger;
         tags = call.getTags();
+        tagValues = call.getTagValues();
         if (call.parentContext != null) {
             vars = Script.clone(call.parentContext.vars);
             validators = call.parentContext.validators;

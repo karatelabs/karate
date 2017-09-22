@@ -36,6 +36,7 @@ import cucumber.runtime.snippets.FunctionNameGenerator;
 import gherkin.formatter.model.Step;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -50,7 +51,11 @@ public class KarateBackend implements Backend {
 
     public void setTags(List<String> tags) {
         callContext.setTags(tags);
-    }      
+    }  
+
+    public void setTagValues(Map<String, List<String>> tagValues) {
+        callContext.setTagValues(tagValues);
+    }    
     
     public ScriptEnv getEnv() {
         return objectFactory.getEnv();

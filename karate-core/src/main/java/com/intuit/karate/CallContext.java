@@ -38,6 +38,7 @@ public class CallContext {
     public final boolean evalKarateConfig;
     
     private List<String> tags;
+    private Map<String, List<String>> tagValues;
 
     public List<String> getTags() {
         return tags;
@@ -45,6 +46,14 @@ public class CallContext {
 
     public void setTags(List<String> tags) {
         this.tags = tags;
+    }
+
+    public void setTagValues(Map<String, List<String>> tagValues) {
+        this.tagValues = tagValues;
+    }
+
+    public Map<String, List<String>> getTagValues() {
+        return tagValues;
     }        
     
     public CallContext(ScriptContext parentContext, Map<String, Object> callArg,

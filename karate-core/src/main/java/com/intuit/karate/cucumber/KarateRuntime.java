@@ -36,7 +36,10 @@ import gherkin.formatter.model.Step;
 import gherkin.formatter.model.Tag;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -80,18 +83,49 @@ public class KarateRuntime extends Runtime {
         addStepToCounterAndResult(result.getResult());       
     } 
     
-    @Override
-    public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario gherkinScenario) {
-        backend.buildWorld();
-        List<String> tagList = new ArrayList(tags.size());
+    private void resolveTagValues(Set<Tag> tags) {
+        if (tags.isEmpty()) {
+            backend.setTagValues(Collections.emptyMap());
+            backend.setTags(Collections.emptyList());
+        }
+        Map<String, List<String>> tagValues = new LinkedHashMap(tags.size());
+        Map<String, Integer> tagKeyLines = new HashMap(tags.size());
+        List<String> rawTags = new ArrayList(tags.size());
         for (Tag tag : tags) {
+            Integer line = tag.getLine();
             String name = tag.getName();
+            List<String> values = new ArrayList();
             if (name.startsWith("@")) {
                 name = name.substring(1);
             }
-            tagList.add(name);
+            rawTags.add(name);
+            Integer prevTagLine = tagKeyLines.get(name);
+            if (prevTagLine != null && prevTagLine > line) {
+                continue; // skip tag with same name but lower line number, 
+            }
+            tagKeyLines.put(name, line);
+            int pos = name.indexOf('=');
+            if (pos != -1) {
+                if (name.length() == pos + 1) { // edge case, @foo=
+                    values.add("");
+                } else {
+                    String temp = name.substring(pos + 1);
+                    for (String s : temp.split(",")) {
+                        values.add(s);
+                    }
+                }
+                name = name.substring(0, pos);
+            }
+            tagValues.put(name, values);
         }
-        backend.setTags(tagList); // this will be passed into the step-defs constructor for each scenario
+        backend.setTagValues(tagValues);
+        backend.setTags(rawTags);
+    }
+    
+    @Override
+    public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario gherkinScenario) {
+        backend.buildWorld();
+        resolveTagValues(tags);
         scenarioResult = new CucumberScenarioImpl(reporter, tags, gherkinScenario);
     }      
 
