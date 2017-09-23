@@ -791,7 +791,20 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: { bar: 'hello' } }", ctx).pass);
         Script.assign("json", "[]", ctx);
         Script.setValueByPath("json", "$[0].a[0].c", "1", ctx);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "[{a:[{c:1}]}]", ctx).pass);        
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "[{a:[{c:1}]}]", ctx).pass);
+        // json append to arrays
+        Script.assign("json", "[]", ctx);
+        Script.setValueByPath("json", "$[]", "1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "[1]", ctx).pass);
+        Script.assign("json", "{ a: [] }", ctx);
+        Script.setValueByPath("json", "$.a[]", "1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: [1] }", ctx).pass); 
+        Script.assign("json", "{}", ctx);
+        Script.setValueByPath("json", "$.a[]", "1", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: [1] }", ctx).pass);
+        Script.assign("json", "{ a: [1] }", ctx);
+        Script.setValueByPath("json", "$.a[]", "2", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: [1, 2] }", ctx).pass);         
         // xml        
         Script.assign("xml", "<root><foo>bar</foo></root>", ctx);
         Script.setValueByPath("xml", "/root/foo", "'hello'", ctx);

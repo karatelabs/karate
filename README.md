@@ -1444,15 +1444,19 @@ Setting values on JSON documents is simple using the `set` keyword and [JsonPath
 * set myJson.zee[0] = 5
 * match myJson == { foo: 'world', hey: 'ho', zee: [5] }
 
+# omit the array index to append
+* set myJson.zee[] = 6
+* match myJson == { foo: 'world', hey: 'ho', zee: [5, 6] }
+
 # nested json ? no problem
 * set myJson.cat = { name: 'Billie' }
-* match myJson == { foo: 'world', hey: 'ho', zee: [5], cat: { name: 'Billie' } }
+* match myJson == { foo: 'world', hey: 'ho', zee: [5, 6], cat: { name: 'Billie' } }
 
 # and for match - the order of keys does not matter
-* match myJson == { cat: { name: 'Billie' }, hey: 'ho', foo: 'world', zee: [5] }
+* match myJson == { cat: { name: 'Billie' }, hey: 'ho', foo: 'world', zee: [5, 6] }
 
 # you can ignore fields marked with '#ignore'
-* match myJson == { cat: '#ignore', hey: 'ho', foo: 'world', zee: [5] }
+* match myJson == { cat: '#ignore', hey: 'ho', foo: 'world', zee: [5, 6] }
 ```
 
 XML and XPath works just like you'd expect.

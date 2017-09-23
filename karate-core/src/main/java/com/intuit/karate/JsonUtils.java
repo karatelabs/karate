@@ -197,7 +197,14 @@ public class JsonUtils {
         String right = pathLeaf.right;
         if (right.endsWith("]") && !right.endsWith("']")) { // json array
             int indexPos = right.lastIndexOf('[');
-            int index = Integer.valueOf(right.substring(indexPos + 1, right.length() - 1));
+            int index = -1; // append, for case 'foo[]' (no integer, empty brackets)
+            if (right.length() != indexPos + 1) {
+                try {
+                    index = Integer.valueOf(right.substring(indexPos + 1, right.length() - 1));
+                } catch (Exception e) {
+                    // index will be -1, default to append
+                }
+            }
             right = right.substring(0, indexPos);
             List list;
             String listPath;
@@ -212,6 +219,9 @@ public class JsonUtils {
             }
             try {
                 list = doc.read(listPath);
+                if (index == -1) {
+                    index = list.size();
+                }
                 if (index < list.size()) {
                     if (remove) {
                         list.remove(index);

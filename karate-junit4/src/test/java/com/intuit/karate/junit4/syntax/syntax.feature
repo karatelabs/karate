@@ -58,30 +58,34 @@ Scenario: syntax examples
 * set myJson.zee[0] = 5
 * match myJson == { foo: 'world', hey: 'ho', zee: [5] }
 
+# omit the array index to append
+* set myJson.zee[] = 6
+* match myJson == { foo: 'world', hey: 'ho', zee: [5, 6] }
+
+
 # json chunks
 * set myJson.cat = { name: 'Billie' }
-* match myJson == { foo: 'world', hey: 'ho', zee: [5], cat: { name: 'Billie' } }
+* match myJson == { foo: 'world', hey: 'ho', zee: [5, 6], cat: { name: 'Billie' } }
 
 # and the order of keys does not matter
-* match myJson == { cat: { name: 'Billie' }, hey: 'ho', foo: 'world', zee: [5] }
+* match myJson == { cat: { name: 'Billie' }, hey: 'ho', foo: 'world', zee: [5, 6] }
 
 # you can ignore fields marked as #ignore
-* match myJson == { cat: '#ignore', hey: 'ho', foo: 'world', zee: [5] }
+* match myJson == { cat: '#ignore', hey: 'ho', foo: 'world', zee: [5, 6] }
 
 # remove keys
 * remove myJson.cat
-* match myJson == { foo: 'world', hey: 'ho', zee: [5] }
+* match myJson == { foo: 'world', hey: 'ho', zee: [5, 6] }
 * remove myJson.hey
-* match myJson == { foo: 'world', zee: [5] }
+* match myJson == { foo: 'world', zee: [5, 6] }
 
-# append to array
-* set myJson.zee[1] = 6
-* set myJson.zee[2] = 7
-* match myJson == { foo: 'world', zee: [5, 6, 7] }
+# replace an array element
+* set myJson.zee[1] = 7
+* match myJson == { foo: 'world', zee: [5, 7] }
 
 # remove array element by index
 * remove myJson.zee[1]
-* match myJson == { foo: 'world', zee: [5, 7] }
+* match myJson == { foo: 'world', zee: [5] }
 
 # remove doc example
 * def json = { foo: 'world', hey: 'ho', zee: [1, 2, 3] }
