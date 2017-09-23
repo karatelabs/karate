@@ -1305,17 +1305,11 @@ public class Script {
                     throw new RuntimeException("variable is null or not set '" + name + "'");
                 }
             }
-            switch (target.getType()) {
-                case JSON:
-                case MAP:
-                case JS_OBJECT:
-                case JS_ARRAY:
-                case LIST:
-                    DocumentContext dc = target.getAsJsonDocument();
-                    JsonUtils.setValueByPath(dc, path, value.getAfterConvertingFromJsonOrXmlIfNeeded(), delete);
-                    break;
-                default:
-                    throw new RuntimeException("cannot set json path on unexpected type: " + target);
+            if (target.isJsonLike()) {
+                DocumentContext dc = target.getAsJsonDocument();
+                JsonUtils.setValueByPath(dc, path, value.getAfterConvertingFromJsonOrXmlIfNeeded(), delete);                
+            } else {
+                throw new RuntimeException("cannot set json path on unexpected type: " + target);
             }
         } else if (isXmlPath(path)) {
             ScriptValue target = context.vars.get(name);
