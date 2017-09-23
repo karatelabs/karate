@@ -441,10 +441,33 @@ public class StepDefs {
     }
 
     @When("^print (.+)")
-    public void print(String exp) {
+    public void print(List<String> exps) {
         if (context.isPrintEnabled() && context.logger.isInfoEnabled()) {
-            String temp = Script.evalInNashorn(exp, context).getAsString();
-            context.logger.info("[print] {}", temp);
+            String prev = ""; // handle rogue commas embedded in string literals
+            StringBuilder sb = new StringBuilder();
+            sb.append("[print]");
+            for (String exp : exps) {
+                if (!prev.isEmpty()) {
+                    exp = prev + exp;
+                }
+                exp = StringUtils.trimToNull(exp);
+                if (exp == null) {
+                    sb.append("null");
+                } else {
+                    ScriptValue sv = Script.getIfVariableReference(exp, context);
+                    if (sv == null) {
+                        try {
+                            sv = Script.evalInNashorn(exp, context);
+                            prev = ""; // eval success, reset rogue comma detector
+                        } catch (Exception e) {
+                            prev = exp + ", ";
+                            continue;
+                        }
+                    }
+                    sb.append(' ').append(sv.getAsPrettyString());
+                }
+            }
+            context.logger.info("{}", sb);
         }
     }
 

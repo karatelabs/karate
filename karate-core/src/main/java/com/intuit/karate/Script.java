@@ -205,12 +205,8 @@ public class Script {
         context.logger.debug("cached callonce: {}", text);
         return resultValue;
     }
-
-    private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig, boolean forMatch) {
-        text = StringUtils.trimToEmpty(text);
-        if (text.isEmpty()) {
-            return ScriptValue.NULL;
-        }
+    
+    public static ScriptValue getIfVariableReference(String text, ScriptContext context) {
         if (isVariable(text)) {
             // don't re-evaluate if this is clearly a direct reference to a variable
             // this avoids un-necessary conversion of xml into a map in some cases 
@@ -218,7 +214,19 @@ public class Script {
             ScriptValue value = context.vars.get(text);
             if (value != null) {
                 return value;
-            }
+            }            
+        }
+        return null;
+    }
+
+    private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig, boolean forMatch) {
+        text = StringUtils.trimToNull(text);
+        if (text == null) {
+            return ScriptValue.NULL;
+        }
+        ScriptValue varValue = getIfVariableReference(text, context);
+        if (varValue != null) {
+            return varValue;
         }
         boolean callOnce = isCallOnceSyntax(text);
         if (callOnce || isCallSyntax(text)) { // special case in form "call foo arg"

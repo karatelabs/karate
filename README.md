@@ -668,21 +668,21 @@ Something worth mentioning here is that you would hardly need to use `assert` in
 
 ## `print`
 ### Log to the console
-You can use `print` to log variables to the console in the middle of a script. All of the text to the right of the `print` keyword will be evaluated as a single expression (somewhat like [`assert`](#assert)).
+You can use `print` to log variables to the console in the middle of a script. For convenience, you can have multiple expressions separated by commas, so this is the recommended pattern:
 
 ```cucumber
-* print 'the value of a is ' + a
+* print 'the value of a is:', a
 ```
 
-When dealing with complex JSON, you would often want to 'pretty print' data which is nicely indented. The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` (and even `assert`) statements, and it has a helpful `pretty` method, that takes a JSON argument.
+If you use commas (instead of concatenating strings using `+`), Karate will 'pretty-print' variables, which is what you typically want when dealing with JSON or XML.
+
 ```cucumber
 * def myJson = { foo: 'bar', baz: [1, 2, 3] }
-* print 'pretty print:\n' + karate.pretty(myJson)
+* print 'the value of myJson is:', myJson
 ```
 Which results in the following output:
 ```
-20:29:11.290 [main] INFO  com.intuit.karate - [print] pretty print:
-{
+20:29:11.290 [main] INFO  com.intuit.karate - [print] the value of myJson is: {
   "foo": "bar",
   "baz": [
     1,
@@ -691,7 +691,10 @@ Which results in the following output:
   ]
 }
 ```
-It is possible to pretty print XML in a similar way using the [`karate` object](#the-karate-object). Also refer to the [`configure`](#configure) keyword on how to switch on pretty-printing of all HTTP requests and responses.
+
+> The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` (and even `assert`) statements, and it has a helpful `pretty` method, that takes a JSON argument and a `prettyXml` method that deals with XML. So you could have also done: `* print 'the value of myJson is:\n' + karate.pretty(myJson)`
+
+Also refer to the [`configure`](#configure) keyword on how to switch on pretty-printing of all HTTP requests and responses.
 
 # 'Native' data types
 Native data types mean that you can insert them into a script without having to worry about enclosing them in strings and then having to 'escape' double-quotes all over the place. They seamlessly fit 'in-line' within your test script.
