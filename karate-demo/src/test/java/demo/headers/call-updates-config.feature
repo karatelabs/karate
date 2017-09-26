@@ -3,8 +3,9 @@ Feature: a called feature can 'contribute' to variables and config
 
 Background:
 # the shape of the next line is important. if the line starts with call (or callonce)
-# the called script will update the context here in this file.
-# think of it as similar to an 'include' directive
+# the called script will update the context here in this file: 'Shared Scope'
+# think of it as similar to an 'include' directive in some programming languages
+# detailed documentation: https://github.com/intuit/karate#shared-scope
 * callonce read('common.feature')
 * url demoBaseUrl
 
