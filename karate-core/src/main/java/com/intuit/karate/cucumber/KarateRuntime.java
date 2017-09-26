@@ -87,6 +87,7 @@ public class KarateRuntime extends Runtime {
         if (tags.isEmpty()) {
             backend.setTagValues(Collections.emptyMap());
             backend.setTags(Collections.emptyList());
+            return;
         }
         Map<String, List<String>> tagValues = new LinkedHashMap(tags.size());
         Map<String, Integer> tagKeyLines = new HashMap(tags.size());

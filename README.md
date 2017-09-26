@@ -139,7 +139,7 @@ Use the TestNG test-runner only when you are trying to add Karate tests side-by-
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure and starter files would be created for you.
 
-> If you are behind a corporate proxy, or especially if your local Maven installation has been configured to point to a repository within your local network, the command below may not work. One workaround is to temporarily rename or disable the [`settings.xml`](https://maven.apache.org/settings.html) file, and try again.
+> If you are behind a corporate proxy, or especially if your local Maven installation has been configured to point to a repository within your local network, the command below may not work. One workaround is to temporarily disable or rename your Maven [`settings.xml`](https://maven.apache.org/settings.html) file, and try again.
 
 You can replace the values of `com.mycompany` and `myproject` as per your needs.
 
