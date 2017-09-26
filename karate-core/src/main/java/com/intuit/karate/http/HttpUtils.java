@@ -6,10 +6,7 @@ import com.intuit.karate.ScriptValue.Type;
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;
 import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.security.cert.CertificateException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
@@ -21,28 +18,15 @@ import javax.net.ssl.SSLContext;
 public class HttpUtils {
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
-    
+
     private HttpUtils() {
         // only static methods
-    }    
+    }
 
     public static SSLContext getSslContext(String algorithm) {
-        TrustManager[] certs = new TrustManager[]{new X509TrustManager() {
-            @Override
-            public X509Certificate[] getAcceptedIssuers() {
-                return new X509Certificate[0];
-            }
-            @Override
-            public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-                
-            }
-            @Override
-            public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-                
-            }
-        }};
+        TrustManager[] certs = new TrustManager[]{new LenientTrustManager()};
         SSLContext ctx = null;
-        if (algorithm == null) {            
+        if (algorithm == null) {
             algorithm = "TLS";
         }
         try {
@@ -50,10 +34,10 @@ public class HttpUtils {
             ctx.init(null, certs, new SecureRandom());
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }        
+        }
         return ctx;
     }
-    
+
     public static boolean isPrintable(String mediaType) {
         if (mediaType == null) {
             return false;
@@ -65,8 +49,8 @@ public class HttpUtils {
             }
         }
         return false;
-    }  
-    
+    }
+
     public static String getContentType(ScriptValue sv) {
         if (sv.isStream()) {
             return APPLICATION_OCTET_STREAM;
@@ -78,7 +62,7 @@ public class HttpUtils {
             return TEXT_PLAIN;
         }
     }
-    
+
     private static final AtomicInteger BOUNDARY_COUNTER = new AtomicInteger();
 
     public static String generateMimeBoundaryMarker() {;
@@ -86,8 +70,8 @@ public class HttpUtils {
         sb.append(BOUNDARY_COUNTER.incrementAndGet()).append('_');
         sb.append(System.currentTimeMillis());
         return sb.toString();
-    }    
-    
+    }
+
     public static String multiPartToString(List<MultiPartItem> items, String boundary) {
         StringBuilder sb = new StringBuilder();
         boolean firstItem = true;
@@ -126,6 +110,6 @@ public class HttpUtils {
         sb.append(boundary);
         sb.append("--\r\n");
         return sb.toString();
-    }    
+    }
 
 }
