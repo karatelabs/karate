@@ -2434,7 +2434,7 @@ challenge is that the HTTP port may be determined at run-time. So how can you ge
 into the Karate configuration ?
 
 It so happens that the [`karate`](#the-karate-object) object has a field called `properties` 
-which can read a Java system-property by name like this: `properties['myName']`. Since the `karate` object is injected
+which can read a Java system-property by name like this: `karate.properties['myName']`. Since the `karate` object is injected
 within [`karate-config.js`](#configuration) on start-up, it is a simple and effective way for other 
 processes within the same JVM to pass configuration values into Karate at run-time.
 
