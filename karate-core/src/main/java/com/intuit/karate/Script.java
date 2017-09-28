@@ -403,7 +403,8 @@ public class Script {
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, ScriptValue parentValue) {
         //ScriptEngineManager manager = new ScriptEngineManager();
         //ScriptEngine nashorn = manager.getEngineByName("nashorn");
-        ScriptEngine nashorn = new NashornScriptEngineFactory().getScriptEngine();
+        ScriptEngine nashorn = new ScriptEngineManager(null).getEngineByName("nashorn");
+        //ScriptEngine nashorn = new NashornScriptEngineFactory().getScriptEngine();
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
         if (context != null) {
             Map<String, Object> map = context.getVariableBindings();
