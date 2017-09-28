@@ -57,7 +57,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -394,8 +393,6 @@ public class Script {
     }
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, ScriptValue parentValue) {
-        //ScriptEngineManager manager = new ScriptEngineManager();
-        //ScriptEngine nashorn = manager.getEngineByName("nashorn");
         ScriptEngine nashorn = new NashornScriptEngineFactory().getScriptEngine();
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
         if (context != null) {
