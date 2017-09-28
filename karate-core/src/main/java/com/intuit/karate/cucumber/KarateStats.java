@@ -96,6 +96,9 @@ public class KarateStats {
             System.out.println("failed: " + failedList);
         }
         if (failureReason != null) {
+            if (failCount == 0) {
+                failCount = 1;
+            }
             System.out.println("*** runner exception stack trace ***");
             failureReason.printStackTrace();
         }

@@ -45,6 +45,7 @@ import gherkin.parser.Parser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
 
 /**
  *
@@ -149,12 +150,16 @@ public class CucumberUtils {
             Throwable error, String feature, KarateBackend backend, boolean called) {
         boolean isKarateReporter = reporter instanceof KarateReporter;
         if (isKarateReporter) {
-            if (error != null && backend.getVars() != null) { // dump variable state to log for convenience         
-                StringBuilder sb = new StringBuilder();
-                for (Map.Entry<String, ScriptValue> entry : backend.getVars().entrySet()) {
-                    sb.append(entry.getValue().toPrettyString(entry.getKey()));
+            if (error != null && backend.getVars() != null) { // dump variable state to log for convenience                  
+                Logger logger = backend.getEnv().logger;
+                if (logger.isTraceEnabled()) {
+                    logger.error("{}:{} - variable state:", feature, step.getLine());
+                    for (Map.Entry<String, ScriptValue> entry : backend.getVars().entrySet()) {
+                        logger.debug("{}", entry.getValue().toPrettyString(entry.getKey()));
+                    }   
+                } else {
+                    logger.error("{}:{} - to dump variable state, set log level to TRACE", feature, step.getLine());
                 }
-                backend.getEnv().logger.error("{}:{} - variable state:\n{}", feature, step.getLine(), sb);         
             }            
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step); // this would also collect log output into a 'docstring'
