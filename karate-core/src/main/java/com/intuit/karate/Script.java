@@ -893,6 +893,11 @@ public class Script {
                         return matchFailed(path, actual, expected, "not a sub-string");
                     }
                     break;
+                case NOT_CONTAINS:
+                    if (actual.contains(expected)) {
+                        return matchFailed(path, actual, expected, "does contain expected");
+                    }
+                    break;
                 case EQUALS:
                     if (!expected.equals(actual)) {
                         return matchFailed(path, actual, expected, "not equal");

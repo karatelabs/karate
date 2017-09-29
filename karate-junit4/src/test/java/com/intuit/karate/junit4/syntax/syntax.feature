@@ -365,6 +365,7 @@ Then assert text == 'Hello World!'
 
 # contains for strings
 Then match text contains 'World'
+And match text !contains 'blah'
 
 * def hello = 'Hello World!'
 * match hello == 'Hello World!'

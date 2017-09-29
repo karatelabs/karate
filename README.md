@@ -1657,6 +1657,7 @@ Checking if a string is contained within another string is a very common need an
 ```cucumber
 * def hello = 'Hello World!'
 * match hello contains 'World'
+* match hello !contains 'blah'
 ```
 
 ### `match header`

@@ -1014,6 +1014,8 @@ public class ScriptTest {
         Script.assign("foo", "'hello world'", ctx);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "foo", null, "'hello'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "'zoo'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "foo", null, "'blah'", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.NOT_CONTAINS, "foo", null, "'world'", ctx).pass);
     }
 
     @Test
