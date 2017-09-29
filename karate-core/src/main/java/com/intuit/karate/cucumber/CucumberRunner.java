@@ -59,6 +59,7 @@ public class CucumberRunner {
             KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
             List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
             int count = karateFeatures.size();
+            stats.setFeatureCount(count);
             List<Callable<KarateReporter>> callables = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 KarateFeature karateFeature = karateFeatures.get(i);

@@ -169,7 +169,7 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         System.out.println("---------------------------------------------------------");
         System.out.println("feature: " + featurePath);
         System.out.println("report: " + reportPath);
-        System.out.println(String.format("scenarios: %2d | failed: %2d | skipped: %2d | time: %f", testCount, failCount, skipCount, timeTaken));
+        System.out.println(String.format("scenarios: %2d | failed: %2d | skipped: %2d | time: %.2f", testCount, failCount, skipCount, timeTaken));
         System.out.println("---------------------------------------------------------");
     }
 

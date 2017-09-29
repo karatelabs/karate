@@ -431,11 +431,11 @@ Things to note:
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
 
 ```
-======================================================
-elapsed time: 1.778000 | test time: 7.895000
-thread count:  5 | parallel efficiency: 0.888076
-scenarios: 12 | failed:  0 | skipped:  0
-======================================================
+====================================================
+elapsed time: 3.62 | total thread time: 13.79
+features:    31 | threads:   5 | efficiency: 0.76
+scenarios:   70 | failed:    0 | skipped:    0
+====================================================
 ```
 
 This is the preferred way of automating the execution of all Karate tests in a project, mainly because the other 'native' Cucumber reports (e.g. HTML) are not thread-safe.
