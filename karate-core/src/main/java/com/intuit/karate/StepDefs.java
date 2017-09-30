@@ -483,28 +483,36 @@ public class StepDefs {
         }
     }
 
-    private static MatchType toMatchType(String each, String not, String only, boolean contains) {
+    private static MatchType toMatchType(String eqSymbol, String each, String notContains, String only, boolean contains) {
+        boolean notEquals = eqSymbol.startsWith("!");
         if (each == null) {
-            if (not != null) {
+            if (notContains != null) {
                 return MatchType.NOT_CONTAINS;
             }
             if (only != null) {
                 return MatchType.CONTAINS_ONLY;
             }
-            return contains ? MatchType.CONTAINS : MatchType.EQUALS;
+            return contains ? MatchType.CONTAINS : notEquals ? MatchType.NOT_EQUALS : MatchType.EQUALS;
         } else {
-            if (not != null) {
+            if (notContains != null) {
                 return MatchType.EACH_NOT_CONTAINS;
             }
             if (only != null) {
                 return MatchType.EACH_CONTAINS_ONLY;
             }
-            return contains ? MatchType.EACH_CONTAINS : MatchType.EACH_EQUALS;
+            return contains ? MatchType.EACH_CONTAINS : notEquals ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
+        }
+    }
+    
+    private static void validateEqualsSign(String eqSymbol) {
+        if (eqSymbol.equals("=")) {
+            throw new RuntimeException("use '==' for match (not '=')");
         }
     }
 
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?)$")
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=)$")
     public void matchEqualsDocString(String each, String name, String path, String eqSymbol, String expected) {
+        validateEqualsSign(eqSymbol);
         matchEquals(each, name, path, eqSymbol, expected);
     }
 
@@ -513,18 +521,16 @@ public class StepDefs {
         matchContains(each, name, path, not, only, expected);
     }   
 
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?) (.+)")
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=) (.+)")
     public void matchEquals(String each, String name, String path, String eqSymbol, String expected) {
-        if (!eqSymbol.equals("==")) {
-            throw new RuntimeException("use '==' for match (not '=')");
-        }        
-        MatchType mt = toMatchType(each, null, null, false);
+        validateEqualsSign(eqSymbol);        
+        MatchType mt = toMatchType(eqSymbol, each, null, null, false);
         matchNamed(mt, name, path, expected);
     }
 
     @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?(.+)")
     public void matchContains(String each, String name, String path, String not, String only, String expected) {
-        MatchType mt = toMatchType(each, not, only, true);
+        MatchType mt = toMatchType("==", each, not, only, true);
         matchNamed(mt, name, path, expected);
     }   
 

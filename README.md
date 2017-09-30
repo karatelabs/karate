@@ -38,7 +38,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart file`](#multipart-file) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
+**Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) / [`!=`](#match-not-equals) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
@@ -1482,6 +1482,14 @@ In case you were wondering, variables (and even expressions) are supported on th
 
 If you are wondering about the finer details of the `match` syntax, the left-hand-side has to be either a variable name, or a 'named' Json-Path or XPath expression. And the right-hand-side can be any valid [Karate expression](#karate-expressions).
 
+### `match !=` (not equals)
+The 'not equals' operator `!=` works as you would expect:
+
+```cucumber
+* def test = { foo: 'bar' }
+* match test != { foo: 'baz' }
+```
+
 ### `set` multiple
 Karate has an elegant way to set multiple keys (via path expressions) in one step. For convenience, non-existent keys (or array elements) will be created automatically. You can find more JSON examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 
@@ -1643,6 +1651,7 @@ Then match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }
 ```cucumber
 # when the response is plain-text
 Then match response == 'Health Check OK'
+And match response != 'Error'
 
 # when the response is a file (stream)
 Then match response == read('test.pdf')
@@ -2266,8 +2275,15 @@ Operation | Description
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 `karate.eval(expression)` | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
 
-### Rules for Passing Data to the JavaScript Function
-Only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
+### JS function argument rules for `call`
+When using `call` (or [`callonce`](#callonce)), only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
+
+Instead of using `call` (or `callonce`) you are always free to call JavaScript functions 'normally' and then you can use more than one argument.
+
+```cucumber
+* def adder = function(a, b) { return a + b }
+* assert adder(1, 2) == 3
+```
 
 ### Return types
 Naturally, only one value can be returned.  But again, you can return a JSON object. There are two things that can happen to the returned value.

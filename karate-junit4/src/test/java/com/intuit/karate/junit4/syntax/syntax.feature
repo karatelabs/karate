@@ -363,6 +363,9 @@ Given def text = read('demo-text.txt')
 Then match text == 'Hello World!'
 Then assert text == 'Hello World!'
 
+# not equals
+Then match text != 'blah'
+
 # contains for strings
 Then match text contains 'World'
 And match text !contains 'blah'
