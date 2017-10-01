@@ -277,10 +277,18 @@ public class StepDefs {
         context.vars.put(name.trim(), doc);
     }
     
+    private String getVarAsString(String name) {
+        ScriptValue sv = context.vars.get(name);
+        if (sv == null) {
+            throw new RuntimeException("no variable found with name: " + name);
+        }
+        return sv.getAsString();
+    }
+    
     @When("^replace (\\w+)$")
     public void replace(String name, DataTable table) {
         name = name.trim();
-        String text = context.vars.get(name).getAsString();
+        String text = getVarAsString(name);
         List<Map<String, String>> list = table.asMaps(String.class, String.class);
         String replaced = Script.replacePlaceholders(text, list, context);
         context.vars.put(name, replaced);
@@ -289,7 +297,7 @@ public class StepDefs {
     @When("^replace (\\w+).([^\\s]+) = (.+)")
     public void replace(String name, String token, String value) {
         name = name.trim();
-        String text = context.vars.get(name).getAsString();
+        String text = getVarAsString(name);
         String replaced = Script.replacePlaceholderText(text, token, value, context);
         context.vars.put(name, replaced);
     }   

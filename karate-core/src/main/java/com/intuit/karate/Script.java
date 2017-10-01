@@ -314,13 +314,17 @@ public class Script {
             return evalInNashorn(text, context);
         }
     }
-
-    public static ScriptValue evalXmlPathOnVarByName(String name, String path, ScriptContext context) {
+    
+    private static ScriptValue getValuebyName(String name, ScriptContext context) {
         ScriptValue value = context.vars.get(name);
         if (value == null) {
-            context.logger.warn("no var found with name: {}", name);
-            return ScriptValue.NULL;
+            throw new RuntimeException("no variable found with name: " + name);
         }
+        return value;        
+    }
+
+    public static ScriptValue evalXmlPathOnVarByName(String name, String path, ScriptContext context) {
+        ScriptValue value = getValuebyName(name, context);
         switch (value.getType()) {
             case XML:
                 Node doc = value.getValue(Node.class);
@@ -369,11 +373,7 @@ public class Script {
     }
 
     public static ScriptValue evalJsonPathOnVarByName(String name, String exp, ScriptContext context) {
-        ScriptValue value = context.vars.get(name);
-        if (value == null) {
-            context.logger.warn("no var found with name: {}", name);
-            return ScriptValue.NULL;
-        }
+        ScriptValue value = getValuebyName(name, context);
         if (value.isJsonLike()) {
             DocumentContext jsonDoc = value.getAsJsonDocument();
             return new ScriptValue(jsonDoc.read(exp));
@@ -459,7 +459,7 @@ public class Script {
         }
         if (o instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) o;
-            // cache keys here, since they could be removed by the 'remove if null' ##(macro)
+            // collect keys first, since they could be removed by the 'remove if null' ##(macro)
             // else we get a java.util.ConcurrentModificationException
             Collection<String> keys = new ArrayList(map.keySet());
             for (String key : keys) {
@@ -603,9 +603,8 @@ public class Script {
     public static void assignXmlString(String name, String exp, ScriptContext context) {
         assign(AssignType.XML_STRING, name, exp, context);
     }
-
-    private static void assign(AssignType assignType, String name, String exp, ScriptContext context) {
-        name = StringUtils.trimToEmpty(name);
+    
+    private static void validateVariableName(String name) {        
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
@@ -613,8 +612,13 @@ public class Script {
             throw new RuntimeException("'karate' is a reserved name");
         }
         if ("request".equals(name) || "url".equals(name)) {
-            throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " " + exp + "' instead");
-        }
+            throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " <expression>' instead");
+        }      
+    }
+
+    private static void assign(AssignType assignType, String name, String exp, ScriptContext context) {
+        name = StringUtils.trimToEmpty(name);
+        validateVariableName(name);
         ScriptValue sv;
         switch (assignType) {
             case TEXT:
@@ -1414,11 +1418,7 @@ public class Script {
             name = nameAndPath.left;
             path = nameAndPath.right;
         }
-        if ("request".equals(name) || "url".equals(name)) {
-            throw new RuntimeException("'" + name + "' is not a variable,"
-                    + " use the form '* " + name + " <expression>' to initialize the "
-                    + name + ", and <expression> can be a variable");
-        }
+        validateVariableName(name);
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
             if (target == null || target.isNull()) {
