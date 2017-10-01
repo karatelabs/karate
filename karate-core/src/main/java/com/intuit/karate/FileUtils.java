@@ -158,6 +158,14 @@ public class FileUtils {
         }
         return new URLClassLoader(urls.toArray(new URL[]{}));       
     }
+    
+    public static String toPackageQualifiedName(String path) {
+        String packagePath = path.replace(File.separator, ".");
+        if (packagePath.endsWith(".feature")) {
+            packagePath = packagePath.substring(0, packagePath.length() - 8);
+        }
+        return packagePath;
+    }
 
     public static String getFeaturePath(String commandLine, String cwd) {
         cwd = cwd.replace('\\', '/'); // fix for windows

@@ -26,18 +26,12 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import cucumber.runtime.CucumberException;
-import cucumber.runtime.formatter.StrictAware;
 import cucumber.runtime.io.URLOutputStream;
 import cucumber.runtime.io.UTF8OutputStreamWriter;
-import gherkin.formatter.Formatter;
-import gherkin.formatter.Reporter;
-import gherkin.formatter.model.Background;
 import gherkin.formatter.model.Examples;
 import gherkin.formatter.model.Feature;
-import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Scenario;
-import gherkin.formatter.model.ScenarioOutline;
 import gherkin.formatter.model.Step;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -71,7 +65,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
+public class KarateJunitFormatter extends KarateBaseReporter {
 
     private static final Logger logger = LoggerFactory.getLogger(KarateJunitFormatter.class);
 
@@ -80,13 +74,13 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
     private final Element rootElement;
 
     private TestCase testCase;
-    private Element root;
-    private boolean strict;
+    private Element currentElement;
 
     private final String featurePath;
     private final String reportPath;
 
     private int currentScenario;
+    private int exampleNumber;
 
     private int testCount;
     private int failCount;
@@ -117,10 +111,6 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         return featurePath;
     }
 
-    private static boolean isScenarioOutline(Scenario scenario) {
-        return scenario.getKeyword().equals("Scenario Outline");
-    }
-
     public KarateJunitFormatter(String featurePath, String reportPath) throws IOException {
         this.featurePath = featurePath;
         this.reportPath = reportPath;
@@ -138,30 +128,12 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
 
     @Override
     public void feature(Feature feature) {
-        logger.trace("feature: {}", feature);
         testCase = new TestCase();
-        testCase.treatSkippedAsFailure = strict;
         testCase.feature = feature;
     }
 
     @Override
-    public void background(Background background) {
-        logger.trace("background: {}", background);
-    }
-
-    @Override
-    public void scenario(Scenario scenario) {
-        logger.trace("scenario: {}", scenario);
-    }
-
-    @Override
-    public void scenarioOutline(ScenarioOutline scenarioOutline) {
-        logger.trace("scenarioOutline: {}", scenarioOutline);
-    }
-
-    @Override
     public void step(Step step) {
-        logger.trace("step: {}", step);
         testCase.steps.add(step);
     }
 
@@ -206,22 +178,25 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
 
     @Override
     public void startOfScenarioLifeCycle(Scenario scenario) {
-        logger.trace("startOfScenarioLifeCycle: {}", scenario);
         testCase.steps.clear();
         testCase.results.clear();
         currentScenario++;
         testCase.scenario = scenario;
-        root = testCase.createTestCaseElement(doc);
-        testCase.writeElement(doc, root);
-        rootElement.appendChild(root);
+        currentElement = testCase.createTestCaseElement(doc);
+        testCase.writeElement(currentElement);
+        rootElement.appendChild(currentElement);
         increaseAttributeValue(rootElement, "tests");
     }
 
     @Override
+    public void examples(Examples examples) {
+        exampleNumber = 0;
+    }        
+
+    @Override
     public void endOfScenarioLifeCycle(Scenario scenario) {
-        logger.trace("endOfScenarioLifeCycle: {}", scenario);
         if (testCase.steps.isEmpty()) {
-            testCase.handleEmptyTestCase(doc, root);
+            testCase.handleEmptyTestCase(doc, currentElement);
         }
     }
 
@@ -237,26 +212,8 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
 
     @Override
     public void result(Result result) {
-        logger.trace("result: {}", result);
         testCase.results.add(result);
-        testCase.updateElement(doc, root);
-    }
-
-    @Override
-    public void before(Match match, Result result) {
-        logger.trace("before: {} {}", match, result);
-        handleHook(result);
-    }
-
-    @Override
-    public void after(Match match, Result result) {
-        logger.debug("after: {} {}", match, result);
-        handleHook(result);
-    }
-
-    private void handleHook(Result result) {
-        testCase.hookResults.add(result);
-        testCase.updateElement(doc, root);
+        testCase.updateElement(currentElement);
     }
 
     private double sumTimes(NodeList testCaseNodes) {
@@ -289,46 +246,6 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         element.setAttribute(attribute, String.valueOf(++value));
     }
 
-    @Override
-    public void examples(Examples examples) {
-    }
-
-    @Override
-    public void match(Match match) {
-    }
-
-    @Override
-    public void embedding(String mimeType, byte[] data) {
-    }
-
-    @Override
-    public void write(String text) {
-    }
-
-    @Override
-    public void uri(String uri) {
-    }
-
-    @Override
-    public void close() {
-    }
-
-    @Override
-    public void eof() {
-    }
-
-    @Override
-    public void syntaxError(String state, String event, List<String> legalEvents, String uri, Integer line) {
-    }
-
-    @Override
-    public void setStrict(boolean strict) {
-        this.strict = strict;
-        if (testCase != null) {
-            testCase.treatSkippedAsFailure = strict;
-        }
-    }
-
     private class TestCase {
 
         private final DecimalFormat NUMBER_FORMAT = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
@@ -343,18 +260,15 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
         }
 
         Scenario scenario;
-        private Feature feature;
-        private int exampleNumber;
-        private boolean treatSkippedAsFailure = false;
+        private Feature feature;        
         final List<Step> steps = new ArrayList<>();
         final List<Result> results = new ArrayList<>();
-        final List<Result> hookResults = new ArrayList<>();
 
         private Element createTestCaseElement(Document doc) {
             return doc.createElement("testcase");
         }
 
-        private void writeElement(Document doc, Element tc) {
+        private void writeElement(Element tc) {
             tc.setAttribute("classname", featurePath);
             tc.setAttribute("name", calculateElementName(scenario));
         }
@@ -364,14 +278,14 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
             if (scenarioName == null) {
                 scenarioName = currentScenario + "";
             }
-            if (isScenarioOutline(scenario)) {
+            if (scenario.getKeyword().equals("Scenario Outline")) {
                 return scenarioName + " (" + (++exampleNumber) + ")";
             } else {
                 return scenarioName;
             }
         }
 
-        public void updateElement(Document doc, Element tc) {
+        public void updateElement(Element tc) {
             tc.setAttribute("time", calculateTotalDurationString());
             StringBuilder sb = new StringBuilder();
             addStepAndResultListing(sb);
@@ -384,24 +298,12 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
                     skipped = result;
                 }
             }
-            for (Result result : hookResults) {
-                if (failed == null && "failed".equals(result.getStatus())) {
-                    failed = result;
-                }
-                if (skipped == null && "pending".equals(result.getStatus())) {
-                    skipped = result;
-                }
-            }
             Element child;
             if (failed != null) {
                 addStackTrace(sb, failed);
                 child = createElementWithMessage(doc, sb, "failure", failed.getErrorMessage());
             } else if (skipped != null) {
-                if (treatSkippedAsFailure) {
-                    child = createElementWithMessage(doc, sb, "failure", "The scenario has pending or undefined step(s)");
-                } else {
-                    child = createElement(doc, sb, "skipped");
-                }
+                child = createElement(doc, sb, "skipped");
             } else {
                 child = createElement(doc, sb, "system-out");
             }
@@ -415,17 +317,13 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
 
         public void handleEmptyTestCase(Document doc, Element tc) {
             tc.setAttribute("time", calculateTotalDurationString());
-            String resultType = treatSkippedAsFailure ? "failure" : "skipped";
-            Element child = createElementWithMessage(doc, new StringBuilder(), resultType, "The scenario has no steps");
+            Element child = createElementWithMessage(doc, new StringBuilder(), "skipped", "The scenario has no steps");
             tc.appendChild(child);
         }
 
         private String calculateTotalDurationString() {
             long totalDurationNanos = 0;
             for (Result r : results) {
-                totalDurationNanos += r.getDuration() == null ? 0 : r.getDuration();
-            }
-            for (Result r : hookResults) {
                 totalDurationNanos += r.getDuration() == null ? 0 : r.getDuration();
             }
             double totalDurationSeconds = ((double) totalDurationNanos) / 1000000000;
@@ -468,6 +366,6 @@ public class KarateJunitFormatter implements Formatter, Reporter, StrictAware {
             return child;
         }
 
-    }
+    }    
 
 }

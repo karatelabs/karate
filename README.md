@@ -1490,6 +1490,8 @@ The 'not equals' operator `!=` works as you would expect:
 * match test != { foo: 'baz' }
 ```
 
+> You typically will *never* need to use the `!=` (not-equals) operator ! Use it sparingly, and only for simple string or payload comparisons.
+
 ### `set` multiple
 Karate has an elegant way to set multiple keys (via path expressions) in one step. For convenience, non-existent keys (or array elements) will be created automatically. You can find more JSON examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 
@@ -1804,11 +1806,11 @@ Then match each json.hotels contains { totalPrice: '#(_$.roomInformation[0].room
 
 While `$` always refers to the JSON 'root', note the use of `_$` above to represent the 'current' node of a `match each` iteration. Here is a recap of symbols that can be used in expressions:
 
-Symbol  | Means
+Symbol  | Evaluates To
 ------- | ------                               
 | `$`   | The 'root' of the JSON document in scope          
 | `_`   | The value of 'self'
-| `_$`  | The 'parent scope' of 'self', relevant when using [`match each`](#match-each)
+| `_$`  | The 'parent' of 'self' or 'current' item in the list, relevant when using [`match each`](#match-each)
 
 There is a shortcut for `match each` explained in the next section that can be quite useful, especially for 'in-line' schema-like validations.
 

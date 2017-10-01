@@ -80,11 +80,7 @@ public class KarateFeature {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        String featurePath = feature.getPath();
-        String featurePackagePath = featurePath.replace(File.separator, ".");
-        if (featurePackagePath.endsWith(".feature")) {
-            featurePackagePath = featurePackagePath.substring(0, featurePackagePath.length() - 8);
-        }
+        String featurePackagePath = FileUtils.toPackageQualifiedName(feature.getPath());
         try {
             reportDirPath = reportDir.getPath() + File.separator;
             String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";

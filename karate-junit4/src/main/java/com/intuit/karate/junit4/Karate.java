@@ -1,6 +1,7 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.cucumber.KarateFeature;
+import com.intuit.karate.cucumber.KarateHtmlReporter;
 import com.intuit.karate.cucumber.KarateRuntimeOptions;
 import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeOptions;
@@ -28,6 +29,7 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
     
     private final JUnitReporter reporter;
     private final List<KarateFeatureRunner> children;
+    private final KarateHtmlReporter htmlReporter;
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
@@ -35,13 +37,14 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
         RuntimeOptions ro = kro.getRuntimeOptions();
         ClassLoader cl = kro.getClassLoader();
         JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
-        reporter = new JUnitReporter(ro.reporter(cl), ro.formatter(cl), ro.isStrict(), junitOptions);
+        htmlReporter = new KarateHtmlReporter(ro.reporter(cl), ro.formatter(cl));
+        reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions);
         List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
         children = new ArrayList(karateFeatures.size());
         for (KarateFeature kf : karateFeatures) {
             Runtime runtime = kf.getRuntime(null);
             FeatureRunner runner = new FeatureRunner(kf.getFeature(), runtime, reporter);
-            children.add(new KarateFeatureRunner(runner, runtime));
+            children.add(new KarateFeatureRunner(kf.getFeature(), runner, runtime));
         }
     }
     
@@ -57,8 +60,10 @@ public class Karate extends ParentRunner<KarateFeatureRunner> {
 
     @Override
     protected void runChild(KarateFeatureRunner child, RunNotifier notifier) {
+        htmlReporter.startKarateFeature(child.feature);
         child.runner.run(notifier);
         child.runtime.printSummary();
+        htmlReporter.endKarateFeature();
     }
 
     @Override

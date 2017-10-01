@@ -175,7 +175,7 @@ public class KarateReporter implements Formatter, Reporter {
         // normally the cucumber formatter iterates over all steps before execution begins
         // we don't, and this actually speeds up things considerably, see also CucumberUtils.runStep()
         // now we can 'in-line' called feature steps in the final report, plus time stats - see StepWrapper.run()
-        // the downside is that on failure, we don't show skipped steps
+        // the downside is that on failure, we don't show skipped steps (only in called features)
         // but really, this should not be a big concern for karate users
     }
 
