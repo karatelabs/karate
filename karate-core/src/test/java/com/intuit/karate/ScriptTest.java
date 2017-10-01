@@ -31,7 +31,7 @@ public class ScriptTest {
     }
 
     private AssertionResult matchJsonObject(Object act, Object exp, ScriptContext context) {
-        return Script.matchNestedObject('.', "$", MatchType.EQUALS, null, act, exp, context);
+        return Script.matchNestedObject('.', "$", MatchType.EQUALS, null, null, act, exp, context);
     }
 
     @Test
@@ -353,6 +353,25 @@ public class ScriptTest {
         ScriptValue list = ctx.vars.get("list");
         assertTrue(Script.matchJsonOrObject(MatchType.EQUALS, list, "$[0]", "{ bar: 1}", ctx).pass);
         assertTrue(Script.matchJsonOrObject(MatchType.EQUALS, list, "$[0].bar", "1", ctx).pass);
+    }
+    
+    @Test
+    public void testMatchJsonPathOnLeftHandSide() {
+        ScriptContext ctx = getContext();
+        String json = "[\n" +
+            "    {\n" +
+            "        \"a\": \"a\",\n" +
+            "        \"b\": \"a\",\n" +
+            "        \"c\": \"a\",\n" +
+            "    },\n" +
+            "    {\n" +
+            "        \"a\": \"ab\",\n" +
+            "        \"b\": \"ab\",\n" +
+            "        \"c\": \"ab\",\n" +
+            "    }\n" +
+            "]";
+        Script.assign("response", json, ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "response[?(@.b=='ab')]", null, "'#[1]'", ctx).pass);
     }
 
     @Test

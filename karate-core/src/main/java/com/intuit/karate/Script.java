@@ -73,7 +73,8 @@ import org.w3c.dom.NodeList;
 public class Script {
 
     public static final String VAR_SELF = "_";
-    public static final String VAR_DOLLAR = "$";
+    public static final String VAR_ROOT = "$";
+    public static final String VAR_PARENT = "_$";
     public static final String VAR_LOOP = "__loop";
 
     private Script() {
@@ -389,10 +390,10 @@ public class Script {
     }
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context) {
-        return evalInNashorn(exp, context, null, null);
+        return evalInNashorn(exp, context, null, null, null);
     }
 
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, ScriptValue parentValue) {
+    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
         ScriptEngine nashorn = new ScriptEngineManager(null).getEngineByName("nashorn");
         Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
         if (context != null) {
@@ -405,8 +406,13 @@ public class Script {
         if (selfValue != null) {
             bindings.put(VAR_SELF, selfValue.getValue());
         }
-        if (parentValue != null) {
-            bindings.put(VAR_DOLLAR, parentValue.getAfterConvertingFromJsonOrXmlIfNeeded());
+        if (root != null) {
+            ScriptValue rootValue = new ScriptValue(root);
+            bindings.put(VAR_ROOT, rootValue.getAfterConvertingFromJsonOrXmlIfNeeded());
+        }
+        if (parent != null) {
+            ScriptValue parentValue = new ScriptValue(parent);
+            bindings.put(VAR_PARENT, parentValue.getAfterConvertingFromJsonOrXmlIfNeeded());
         }
         try {
             Object o = nashorn.eval(exp);
@@ -739,7 +745,7 @@ public class Script {
     public static AssertionResult matchString(MatchType matchType, ScriptValue actual, String expected, String path, ScriptContext context) {
         ScriptValue expectedValue = eval(expected, context);
         expected = expectedValue.getAsString();
-        return matchStringOrPattern('*', path, matchType, null, actual, expected, context);
+        return matchStringOrPattern('*', path, matchType, null, null, actual, expected, context);
     }
 
     public static boolean isMacro(String text) {
@@ -754,8 +760,8 @@ public class Script {
         return StringUtils.trimToEmpty(s.substring(1, s.length() - 1));
     }
 
-    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType stringMatchType, Object actRoot,
-            ScriptValue actValue, String expected, ScriptContext context) {
+    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType stringMatchType, 
+            Object actRoot, Object actParent, ScriptValue actValue, String expected, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
                 if (stringMatchType == MatchType.NOT_EQUALS) {
@@ -792,12 +798,11 @@ public class Script {
                 } else {
                     isContains = false;
                 }
-                ScriptValue parentValue = getValueOfParentNode(actRoot, path);
-                ScriptValue expValue = evalInNashorn(macroExpression, context, actValue, parentValue);
+                ScriptValue expValue = evalInNashorn(macroExpression, context, actValue, actRoot, actParent);
                 if (isContains && actValue.isListLike() && !expValue.isListLike()) { // if RHS is not list, make it so for contains                    
                     expValue = new ScriptValue(Collections.singletonList(expValue.getValue()));
                 }
-                AssertionResult ar = matchNestedObject(delimiter, path, matchType, actRoot, actValue.getValue(), expValue.getValue(), context);
+                AssertionResult ar = matchNestedObject(delimiter, path, matchType, actRoot, actParent, actValue.getValue(), expValue.getValue(), context);
                 if (!ar.pass && stringMatchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 } else {
@@ -829,14 +834,13 @@ public class Script {
                 if (endBracketPos > 1) {
                     int arrayLength = actValueList.size();
                     String bracketContents = macroExpression.substring(1, endBracketPos);
-                    ScriptValue parentValue = getValueOfParentNode(actRoot, path);
                     String expression;
                     if (bracketContents.indexOf('_') != -1) { // #[_ < 5]  
                         expression = bracketContents;
                     } else { // #[5] | #[$.foo] 
                         expression = bracketContents + " == " + arrayLength;
                     }
-                    ScriptValue result = Script.evalInNashorn(expression, context, new ScriptValue(arrayLength), parentValue);
+                    ScriptValue result = Script.evalInNashorn(expression, context, new ScriptValue(arrayLength), actRoot, actParent);
                     if (!result.isBooleanTrue()) {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
@@ -902,8 +906,7 @@ public class Script {
                 }
                 if (questionPos != -1) {
                     macroExpression = macroExpression.substring(questionPos + 1);
-                    ScriptValue parentValue = getValueOfParentNode(actRoot, path);
-                    ScriptValue result = Script.evalInNashorn(macroExpression, context, actValue, parentValue);
+                    ScriptValue result = Script.evalInNashorn(macroExpression, context, actValue, actRoot, actParent);
                     if (!result.isBooleanTrue()) {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
@@ -956,22 +959,6 @@ public class Script {
         return AssertionResult.PASS;
     }
 
-    private static ScriptValue getValueOfParentNode(Object actRoot, String path) {
-        if (actRoot instanceof DocumentContext) {
-            StringUtils.Pair parentAndLeaf = JsonUtils.getParentAndLeafPath(path);
-            DocumentContext actDoc = (DocumentContext) actRoot;
-            Object thisObject;
-            if ("".equals(parentAndLeaf.left)) { // edge case, this IS the root
-                thisObject = actDoc;
-            } else {
-                thisObject = actDoc.read(parentAndLeaf.left);
-            }
-            return new ScriptValue(thisObject);
-        } else {
-            return null;
-        }
-    }
-
     public static AssertionResult matchXml(MatchType matchType, ScriptValue actual, String path, String expression, ScriptContext context) {
         Node node = actual.getValue(Node.class);
         actual = evalXmlPathOnXmlNode(node, path);
@@ -1003,7 +990,7 @@ public class Script {
         if ("/".equals(path)) {
             path = ""; // else error x-paths reported would start with "//"
         }
-        return matchNestedObject('/', path, matchType, node, actObject, expObject, context);
+        return matchNestedObject('/', path, matchType, node, node.getParentNode(), actObject, expObject, context);
     }
 
     private static MatchType getInnerMatchType(MatchType outerMatchType) {
@@ -1044,7 +1031,7 @@ public class Script {
                     return matchFailed(path, actualString, expectedString.getValue(),
                             "type of actual value is 'string' but that of expected is " + expectedString.getType());
                 } else {
-                    return matchStringOrPattern('.', path, matchType, null, actual, expectedString.getValue(String.class), context);
+                    return matchStringOrPattern('.', path, matchType, null, null, actual, expectedString.getValue(String.class), context);
                 }
             case PRIMITIVE:
                 return matchPrimitive(matchType, path, actual.getValue(), eval(expression, context).getValue());
@@ -1061,7 +1048,7 @@ public class Script {
                     }
                     return matchFailed(path, null, expectedNull.getValue(), "actual value is null but expected is " + expectedNull);
                 } else {
-                    return matchStringOrPattern('.', path, matchType, null, actual, expectedNull.getValue(String.class), context);
+                    return matchStringOrPattern('.', path, matchType, null, null, actual, expectedNull.getValue(String.class), context);
                 }
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
@@ -1089,7 +1076,7 @@ public class Script {
                 }
             case NOT_EQUALS:
             case EQUALS:
-                return matchNestedObject('.', path, matchType, actualDoc, actObject, expObject, context);
+                return matchNestedObject('.', path, matchType, actualDoc, null, actObject, expObject, context);
             case EACH_CONTAINS:
             case EACH_NOT_CONTAINS:
             case EACH_CONTAINS_ONLY:
@@ -1102,7 +1089,7 @@ public class Script {
                     for (int i = 0; i < actSize; i++) {
                         Object actListObject = actList.get(i);
                         String listPath = path + "[" + i + "]";
-                        AssertionResult ar = matchNestedObject('.', listPath, listMatchType, actualDoc, actListObject, expObject, context);
+                        AssertionResult ar = matchNestedObject('.', listPath, listMatchType, actObject, actListObject, actListObject, expObject, context);
                         if (!ar.pass) {
                             if (matchType == MatchType.EACH_NOT_EQUALS) {
                                 return AssertionResult.PASS; // exit early
@@ -1168,7 +1155,7 @@ public class Script {
     }
 
     public static AssertionResult matchNestedObject(char delimiter, String path, MatchType matchType,
-            Object actRoot, Object actObject, Object expObject, ScriptContext context) {
+            Object actRoot, Object actParent, Object actObject, Object expObject, ScriptContext context) {
         if (expObject == null) {
             if (actObject != null) {
                 if (matchType == MatchType.NOT_EQUALS) {
@@ -1185,7 +1172,7 @@ public class Script {
             }
         } else if (expObject instanceof String) {
             ScriptValue actValue = new ScriptValue(actObject);
-            return matchStringOrPattern(delimiter, path, matchType, actRoot, actValue, expObject.toString(), context);
+            return matchStringOrPattern(delimiter, path, matchType, actRoot, actParent, actValue, expObject.toString(), context);
         } else if (actObject == null) {
             if (matchType == MatchType.NOT_EQUALS) {
                 return AssertionResult.PASS;
@@ -1219,7 +1206,7 @@ public class Script {
                 String childPath = delimiter == '.' ? JsonUtils.buildPath(path, key) : path + delimiter + key;
                 Object childAct = actMap.get(key);
                 Object childExp = expEntry.getValue();
-                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, childAct, childExp, context);
+                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match
                     if (matchType == MatchType.NOT_CONTAINS) {
                         return matchFailed(childPath, childAct, childExp, "actual value contains expected");
@@ -1265,7 +1252,7 @@ public class Script {
                     for (int i = 0; i < actCount; i++) {
                         Object actListObject = actList.get(i);
                         String listPath = buildListPath(delimiter, path, i);
-                        AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
+                        AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, actListObject, expListObject, context);
                         if (ar.pass) { // exact match, we found it
                             found = true;
                             break;
@@ -1284,7 +1271,7 @@ public class Script {
                     Object expListObject = expList.get(i);
                     Object actListObject = actList.get(i);
                     String listPath = buildListPath(delimiter, path, i);
-                    AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, expListObject, context);
+                    AssertionResult ar = matchNestedObject(delimiter, listPath, MatchType.EQUALS, actRoot, actListObject, actListObject, expListObject, context);
                     if (!ar.pass) {
                         if (matchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS; // exit early

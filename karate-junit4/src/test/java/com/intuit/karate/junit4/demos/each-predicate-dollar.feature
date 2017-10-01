@@ -16,6 +16,6 @@ Given def json =
   ]
 }
 """
-Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0].roomPrice' }
+Then match each json.hotels contains { totalPrice: '#? _ == _$.roomInformation[0].roomPrice' }
 # using embedded expressions
-Then match each json.hotels == { roomInformation: '#array', totalPrice: '#($.roomInformation[0].roomPrice)' }
+Then match each json.hotels == { roomInformation: '#array', totalPrice: '#(_$.roomInformation[0].roomPrice)' }

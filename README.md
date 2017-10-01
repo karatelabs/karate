@@ -343,7 +343,7 @@ And then the above command in gradle would look like:
 ```
 
 ## Test Suites
-> The recommended way to define and run test-suites and reporting in Karate is to use the [parallel runner](#parallel-execution), described in the next section. The approach in this section is more for troubleshooting in dev-mode, using your IDE.
+> The recommended way to define and run test-suites and reporting in Karate is to use the [parallel runner](#parallel-execution), described in the next section. The approach in this section is more suited for troubleshooting in dev-mode, using your IDE.
 
 One way to define 'test-suites' in Karate is to have a JUnit class with the `@RunWith(Karate.class)` annotation at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions):
 
@@ -392,7 +392,7 @@ test {
 }
 ```
 
-The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on emitting the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
+The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on generating the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
 
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
@@ -1797,10 +1797,18 @@ Given def json =
   ]
 }
 """
-Then match each json.hotels contains { totalPrice: '#? _ == $.roomInformation[0].roomPrice' }
+Then match each json.hotels contains { totalPrice: '#? _ == _$.roomInformation[0].roomPrice' }
 # when validation logic is an 'equality' check, an embedded expression works better
-Then match each json.hotels contains { totalPrice: '#($.roomInformation[0].roomPrice)' }
+Then match each json.hotels contains { totalPrice: '#(_$.roomInformation[0].roomPrice)' }
 ```
+
+While `$` always refers to the JSON 'root', note the use of `_$` above to represent the 'current' node of a `match each` iteration. Here is a recap of symbols that can be used in expressions:
+
+Symbol  | Means
+------- | ------                               
+| `$`   | The 'root' of the JSON document in scope          
+| `_`   | The value of 'self'
+| `_$`  | The 'parent scope' of 'self', relevant when using [`match each`](#match-each)
 
 There is a shortcut for `match each` explained in the next section that can be quite useful, especially for 'in-line' schema-like validations.
 

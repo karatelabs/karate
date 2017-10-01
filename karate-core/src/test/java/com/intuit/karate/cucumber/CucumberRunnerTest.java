@@ -28,6 +28,7 @@ import com.intuit.karate.JsonUtils;
 import cucumber.api.CucumberOptions;
 import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
@@ -115,6 +116,9 @@ public class CucumberRunnerTest {
         Map<String, Object> response = (Map) result.get("response");
         assertEquals("12345", response.get("id"));
         assertEquals("Billie", response.get("name"));
+        List<Map<String, Object>> cats = (List) result.get("cats");
+        assertEquals(1, cats.size());
+        assertEquals(response, cats.get(0));
     }    
     
 }

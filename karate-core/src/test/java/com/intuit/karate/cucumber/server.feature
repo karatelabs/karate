@@ -5,5 +5,5 @@ Scenario:
 * def cats = []
 * def cat = request
 * set cat.id = '12345'
-* set cats[0] = cat
+* set cats[] = cat
 * def response = cat

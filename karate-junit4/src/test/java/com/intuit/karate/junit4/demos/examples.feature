@@ -54,3 +54,40 @@ And def lang = 'en'
 * def testRequest = { createDateTime: '#(createDate)', expiryDate: '#(expiryDate)' }
 * print karate.pretty(testRequest)
 
+# contains and arrays
+* def response =
+"""
+[
+    {
+        "a": "a",
+        "b": "a",
+        "c": "a",
+    },
+    {
+        "a": "ab",
+        "b": "ab",
+        "c": "ab",
+    }
+]
+"""
+* match response[1] contains { b: 'ab' }
+* match response contains { a: 'ab', b: 'ab', c: 'ab' }
+* match response contains { a: '#ignore', b: 'ab', c: '#notnull' }
+
+# in-line macro
+* def expected = { b: 'ab' }
+* match response contains '#(^expected)'
+
+# json path, probably the best option
+* match response[*].b contains 'ab'
+
+# json path
+* def temp = get response $[?(@.b=='ab')]
+* assert temp.length == 1
+* match temp == '#[1]'
+
+# json path one liner
+* match response $[?(@.b=='ab')] == '#[1]'
+* match response[?(@.b=='ab')] == '#[1]'
+* match $[?(@.b=='ab')] == '#[1]'
+
