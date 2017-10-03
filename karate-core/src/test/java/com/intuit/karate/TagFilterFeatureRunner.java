@@ -21,6 +21,7 @@ public class TagFilterFeatureRunner {
         KarateStats stats = CucumberRunner.parallel(getClass(), 5, karateOutputPath);
 
         if(stats!=null) {
+            Assert.assertEquals(0, stats.getFeatureCount());
             Assert.assertNotNull(stats.getFailureReason());
             Assert.assertTrue(stats.getFailureReason() instanceof TagFilterException);
             Assert.assertEquals("Feature: tag-filter.feature failed due to tag filtering",
