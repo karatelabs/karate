@@ -65,11 +65,11 @@ public class CucumberRunner {
             KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
             List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
             int count = karateFeatures.size();
-            stats.setFeatureCount(count);
+            int filteredCount = 0;
             List<Callable<KarateReporter>> callables = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 KarateFeature karateFeature = karateFeatures.get(i);
-                int index = i + 1;                
+                int index = i + 1;
                 CucumberFeature feature = karateFeature.getFeature();
 
                 filterOnTags(feature);
@@ -91,8 +91,12 @@ public class CucumberRunner {
                         }
                         return reporter;
                     });
+                } else {
+                    filteredCount++;
                 }
-            }            
+            }
+            stats.setFeatureCount(count-filteredCount);
+
             List<Future<KarateReporter>> futures = executor.invokeAll(callables);
             stats.stopTimer();            
             for (Future<KarateReporter> future : futures) {

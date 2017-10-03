@@ -7,6 +7,10 @@ import cucumber.runtime.model.CucumberTagStatement;
  * Interface that should be implemented to plug in
  * any filtering based on cucumber tags
  *
+ * To add a new filter, implement this interface
+ * and add the fully qualified name of the implementing class
+ * in resources/META-INF/services/com.intuit.karate.filter.TagFilter
+ *
  * @author ssishtla
  */
 
