@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import static org.springframework.web.bind.annotation.RequestMethod.*;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -53,7 +54,7 @@ public class SearchController {
         return request;
     }
 
-    @GetMapping("/headers")
+    @RequestMapping(value ="/headers", method = {GET, POST})
     public Map<String, Object> echoHeaders(HttpServletRequest request) {
         Map<String, Object> map = new LinkedHashMap<>();
         Enumeration<String> headerNames = request.getHeaderNames();
@@ -65,7 +66,7 @@ public class SearchController {
                 String headerValue = headerValues.nextElement();
                 list.add(headerValue);
             }
-            map.put(headerName, list);
+            map.put(headerName.toLowerCase(), list);
         }
         return map;
     }    

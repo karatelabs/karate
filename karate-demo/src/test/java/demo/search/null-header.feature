@@ -1,4 +1,3 @@
-@ignore
 Feature: test sending a null with the headers keyword
 
 Scenario:

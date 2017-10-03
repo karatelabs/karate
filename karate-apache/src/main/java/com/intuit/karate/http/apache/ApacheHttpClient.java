@@ -199,7 +199,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         }
         cookieStore.addCookie(cookie);
     }
-
+    
     @Override
     protected HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
         return ApacheHttpUtils.getEntity(items, mediaType);
@@ -212,12 +212,12 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
 
     @Override
     protected HttpEntity getEntity(String value, String mediaType) {
-        return new StringEntity(value, ContentType.create(mediaType));
+        return new StringEntity(value, ApacheHttpUtils.createContentType(mediaType));
     }
 
     @Override
     protected HttpEntity getEntity(InputStream value, String mediaType) {
-        return new InputStreamEntity(value, ContentType.create(mediaType));
+        return new InputStreamEntity(value, ApacheHttpUtils.createContentType(mediaType));
     }
 
     @Override

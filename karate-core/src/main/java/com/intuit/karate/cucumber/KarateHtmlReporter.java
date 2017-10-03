@@ -67,7 +67,7 @@ public class KarateHtmlReporter implements Reporter, Formatter {
         currentScenario = 0;       
         this.feature = feature;
         doc = XmlUtils.toXmlDoc("<html/>");
-        XmlUtils.setByPath(doc, "/html/head/title", feature.getPath());        
+        XmlUtils.setByPath(doc, "/html/head/title", feature.getPath());
     }    
 
     public void endKarateFeature() {        
@@ -119,6 +119,10 @@ public class KarateHtmlReporter implements Reporter, Formatter {
 
     @Override
     public void step(Step step) {
+        if (steps == null) {
+            steps = new ArrayList();
+            results = new ArrayList();            
+        }
         steps.add(step);
         formatter.step(step);
     }

@@ -168,7 +168,10 @@ public abstract class HttpClient<T> {
                 }
                 return getEntity(request.getMultiPartItems(), mediaType);
             } else if (request.getFormFields() != null) {
-                return getEntity(request.getFormFields(), APPLICATION_FORM_URLENCODED);
+                if (mediaType == null) {
+                    mediaType = APPLICATION_FORM_URLENCODED;
+                }
+                return getEntity(request.getFormFields(), mediaType);
             } else {               
                 ScriptValue body = request.getBody();
                 if ((body == null || body.isNull())) {

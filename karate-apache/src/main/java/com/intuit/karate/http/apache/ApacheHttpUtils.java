@@ -95,6 +95,15 @@ public class ApacheHttpUtils {
             throw new RuntimeException(e);
         }
     }
+    
+    public static ContentType createContentType(String mediaType) {
+        StringUtils.Pair pair = HttpUtils.splitCharsetIfPresent(mediaType);
+        ContentType ct = ContentType.create(pair.left);
+        if (pair.right != null) {
+            ct = ct.withCharset(pair.right);
+        }
+        return ct;
+    }
 
     public static HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
         boolean hasNullName = false;
@@ -107,10 +116,10 @@ public class ApacheHttpUtils {
         if (hasNullName) { // multipart/related
             String boundary = HttpUtils.generateMimeBoundaryMarker();
             String text = HttpUtils.multiPartToString(items, boundary);
-            ContentType ct = ContentType.create(mediaType).withParameters(new BasicNameValuePair("boundary", boundary));
+            ContentType ct = createContentType(mediaType).withParameters(new BasicNameValuePair("boundary", boundary));
             return new StringEntity(text, ct);
         } else {
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create().setContentType(ContentType.create(mediaType));
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create().setContentType(createContentType(mediaType));
             for (MultiPartItem item : items) {
                 if (item.getValue() == null || item.getValue().isNull()) {
                     continue;
