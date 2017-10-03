@@ -27,16 +27,22 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.filter.TagFilter;
+import com.intuit.karate.filter.TagFilterException;
 import cucumber.runtime.model.CucumberFeature;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import cucumber.runtime.model.CucumberTagStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,23 +70,28 @@ public class CucumberRunner {
             for (int i = 0; i < count; i++) {
                 KarateFeature karateFeature = karateFeatures.get(i);
                 int index = i + 1;                
-                CucumberFeature feature = karateFeature.getFeature();                
-                callables.add(() -> {
-                    // we are now within a separate thread. the reporter filters logs by self thread
-                    String threadName = Thread.currentThread().getName();
-                    KarateReporter reporter = karateFeature.getReporter(reportDir);
-                    KarateRuntime runtime = karateFeature.getRuntime(reporter);
-                    try {                        
-                        feature.run(reporter, reporter, runtime);
-                        logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, feature.getPath());
-                    } catch (Exception e) {
-                        logger.error("karate xml/json generation failed for: {}", feature.getPath());
-                        reporter.setFailureReason(e);
-                    } finally { // try our best to close the report file gracefully so that report generation is not broken
-                        reporter.done();
-                    }
-                    return reporter;
-                });
+                CucumberFeature feature = karateFeature.getFeature();
+
+                filterOnTags(feature);
+
+                if(!feature.getFeatureElements().isEmpty()) {
+                    callables.add(() -> {
+                        // we are now within a separate thread. the reporter filters logs by self thread
+                        String threadName = Thread.currentThread().getName();
+                        KarateReporter reporter = karateFeature.getReporter(reportDir);
+                        KarateRuntime runtime = karateFeature.getRuntime(reporter);
+                        try {
+                            feature.run(reporter, reporter, runtime);
+                            logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, feature.getPath());
+                        } catch (Exception e) {
+                            logger.error("karate xml/json generation failed for: {}", feature.getPath());
+                            reporter.setFailureReason(e);
+                        } finally { // try our best to close the report file gracefully so that report generation is not broken
+                            reporter.done();
+                        }
+                        return reporter;
+                    });
+                }
             }            
             List<Future<KarateReporter>> futures = executor.invokeAll(callables);
             stats.stopTimer();            
@@ -107,6 +118,28 @@ public class CucumberRunner {
         }
         stats.printStats(threadCount);
         return stats;
+    }
+
+    private static void filterOnTags(CucumberFeature feature) throws TagFilterException {
+
+        final List<CucumberTagStatement> featureElements = feature.getFeatureElements();
+
+        ServiceLoader<TagFilter> loader = ServiceLoader.load(TagFilter.class);
+
+        for (Iterator<CucumberTagStatement> iterator = featureElements.iterator(); iterator.hasNext();) {
+            CucumberTagStatement cucumberTagStatement = iterator.next();
+            for (TagFilter implClass : loader) {
+                logger.info("Tag filter found: {}",implClass.getClass().getSimpleName());
+                final boolean isFiltered = implClass.filter(feature, cucumberTagStatement);
+                if(isFiltered) {
+                    logger.info(">>>> Skipping feature element {} of feature {} due to FeatureTagFilter {} ",
+                            cucumberTagStatement.getVisualName(),
+                            feature.getPath(), implClass.getClass().getSimpleName());
+                    iterator.remove();
+                    break;
+                }
+            }
+        }
     }
 
     private static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
