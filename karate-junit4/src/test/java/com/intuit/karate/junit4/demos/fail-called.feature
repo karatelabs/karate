@@ -2,6 +2,6 @@
 Feature:
 
 Scenario:
-* def x = 1
+* def x = a
 * def y = 2
 * match x == y

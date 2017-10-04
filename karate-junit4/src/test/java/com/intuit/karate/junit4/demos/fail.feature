@@ -7,4 +7,8 @@ Scenario: test failure
 * match a == b
 
 Scenario: called failure
-* call read('fail-called.feature')
+* call read('fail-called.feature') { a: 2}
+
+Scenario: called failure loop
+* def list = [{a: 1}, {a: 2}, {a: 3}]
+* call read('fail-called.feature') list

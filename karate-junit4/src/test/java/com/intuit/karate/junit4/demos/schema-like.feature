@@ -64,15 +64,15 @@ Then match response ==
 * match foo == '##[] #string'
 
 # contains
-* def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
+* def foo = [{ a: 1, b: 'x' }, { a: 2, b: 'y' }]
 
-* def exact = { a: '#number', b: '#number' }
+* def exact = { a: '#number', b: '#string' }
 * def partial = { a: '#number' }
-* def nope = { c: '#number' }
+* def nope = { c: '#boolean' }
 
-* def reversed = [{ a: 3, b: 4 }, { a: 1, b: 2 }]
-* def first = { a: 1, b: 2 }
-* def others = [{ a: 6, b: 7 }, { a: 8, b: 9 }]
+* def reversed = [{ a: 2, b: 'y' }, { b: 'x', a: 1 }]
+* def first = { a: 1, b: 'x' }
+* def others = [{ a: 3, b: 'u' }, { a: 4, b: 'v' }]
 
 * match foo[0] == exact
 * match foo[0] == '#(exact)'

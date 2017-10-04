@@ -1550,18 +1550,18 @@ public class Script {
                         ScriptValue rowResult = evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "index: " + i + ", arg: " + rowArg + ", " + ke.getCause().getMessage();
+                        String message = "feature call (loop) failed at index: " + i + ", " + ke.getMessage() + ", " + ke.getCause().getMessage() + ", arg: " + rowArg;
                         errors.add(message);
                         // log but don't stop (yet)
-                        context.logger.error(message, ke);
+                        context.logger.error("{}", message);
                     }
                 } else {
                     throw new RuntimeException("argument not json or map for feature call loop array position: " + i + ", " + rowArg);
                 }
             }
             if (!errors.isEmpty()) {
-                String message = "loop feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", items: " + items;
-                throw new KarateException(message + " " + errors);
+                String message = "feature call (loop) failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", items: " + items;
+                throw new KarateException(message + ", " + errors);
             }
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
@@ -1572,8 +1572,8 @@ public class Script {
             try {
                 return evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
             } catch (KarateException ke) {
-                String message = "feature call failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", arg: " + callArg;
-                context.logger.error(message, ke);
+                String message = "feature call failed: " + ke.getMessage() + ", arg: " + callArg;
+                context.logger.error("{}", message);
                 throw new KarateException(message, ke);
             }
         } else {

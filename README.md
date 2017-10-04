@@ -399,7 +399,7 @@ And most importantly - you can run tests in parallel without having to depend on
 ## Parallel Execution
 Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven.
 
-> Important: **do not** use the `@RunWith(Karate.class)` annotation, note that the example below is a *normal* JUnit class.
+> Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit test class !
 
 ```java
 import com.intuit.karate.cucumber.CucumberRunner;
@@ -1899,15 +1899,15 @@ Symbol  | Means
 So given the following data:
 
 ```cucumber
-* def foo = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
+* def foo = [{ a: 1, b: 'x' }, { a: 2, b: 'y' }]
 
-* def exact = { a: '#number', b: '#number' }
+* def exact = { a: '#number', b: '#string' }
 * def partial = { a: '#number' }
-* def nope = { c: '#number' }
+* def nope = { c: '#boolean' }
 
-* def reversed = [{ a: 3, b: 4 }, { a: 1, b: 2 }]
-* def first = { a: 1, b: 2 }
-* def others = [{ a: 6, b: 7 }, { a: 8, b: 9 }]
+* def reversed = [{ a: 2, b: 'y' }, { b: 'x', a: 1 }]
+* def first = { a: 1, b: 'x' }
+* def others = [{ a: 3, b: 'u' }, { a: 4, b: 'v' }]
 ```       
 
 Here are the alternative forms compared with the 'normal' form. Note that the short-cut forms on the right all resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ payload `match`, using [embedded expressions](#embedded-expressions).
@@ -2284,6 +2284,8 @@ Operation | Description
 `karate.toBean(json, className)` | converts a JSON string or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 `karate.eval(expression)` | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
+`karate.tags` | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
+`karate.tagValues` | for even more advanced users - karate natively supports tags in a `@name=val1,val2` format, and `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 
 ### JS function argument rules for `call`
 When using `call` (or [`callonce`](#callonce)), only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
