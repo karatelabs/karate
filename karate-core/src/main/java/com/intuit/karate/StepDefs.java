@@ -334,8 +334,12 @@ public class StepDefs {
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {
-        AssertionResult ar = Script.assertBoolean(expression, context);
-        handleFailure(ar);
+        try {
+            AssertionResult ar = Script.assertBoolean(expression, context);
+            handleFailure(ar);
+        } catch (Exception e) {
+            throw new KarateException(e.getMessage());
+        }
     }
 
     @When("^method (\\w+)")
@@ -543,8 +547,12 @@ public class StepDefs {
     }   
 
     public void matchNamed(MatchType matchType, String name, String path, String expected) {
-        AssertionResult ar = Script.matchNamed(matchType, name, path, expected, context);
-        handleFailure(ar);
+        try {
+            AssertionResult ar = Script.matchNamed(matchType, name, path, expected, context);
+            handleFailure(ar);
+        } catch (Exception e) {
+            throw new KarateException(e.getMessage());
+        }        
     }
 
     @When("^set ([^\\s]+)( .+)? =$")

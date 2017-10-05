@@ -1490,7 +1490,7 @@ The 'not equals' operator `!=` works as you would expect:
 * match test != { foo: 'baz' }
 ```
 
-> You typically will *never* need to use the `!=` (not-equals) operator ! Use it sparingly, and only for simple string or payload comparisons.
+> You typically will *never* need to use the `!=` (not-equals) operator ! Use it sparingly, and only for string, number or simple payload comparisons.
 
 ### `set` multiple
 Karate has an elegant way to set multiple keys (via path expressions) in one step. For convenience, non-existent keys (or array elements) will be created automatically. You can find more JSON examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
@@ -1975,7 +1975,7 @@ The 'short cut' `$variableName` form is also supported. So the above could be re
 ```
 
 ### `get` plus index
-A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` in JsonPath, you get a list back even though you typically might be only interested in the first item.
+A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` (or search filter) in JsonPath, you get a list back even though you typically may be only interested in the first item.
 
 ```cucumber
 * def actual = 23
@@ -2456,6 +2456,8 @@ able to selectively execute a sub-set of tests.
 The documentation on how to run tests via the [command line](#command-line) has an example of how to use tags
 to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
 has more information on tags.
+
+> For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to the `karate.tags` and `karate.tagValues` methods on [the Karate JS object](#the-karate-object).
 
 ## Dynamic Port Numbers
 In situations where you start an (embedded) application server as part of the test set-up phase, a typical
