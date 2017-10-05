@@ -160,7 +160,7 @@ public class FileUtils {
     }
     
     public static String toPackageQualifiedName(String path) {
-        String packagePath = path.replace(File.separator, ".");
+        String packagePath = path.replace("/", "."); // assumed to be already in non-windows form
         if (packagePath.endsWith(".feature")) {
             packagePath = packagePath.substring(0, packagePath.length() - 8);
         }

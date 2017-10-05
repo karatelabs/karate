@@ -47,4 +47,11 @@ public class FileUtilsTest {
         logger.debug("search: {}", Arrays.toString(ffp.searchPaths));
     }
     
+    @Test
+    public void testWindowsFileNames() {
+    	String path = "com/intuit/karate/cucumber/scenario.feature";
+    	String fixed = FileUtils.toPackageQualifiedName(path);
+    	assertEquals("com.intuit.karate.cucumber.scenario", fixed);
+    }
+    
 }

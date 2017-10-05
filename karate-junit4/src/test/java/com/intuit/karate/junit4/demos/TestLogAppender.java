@@ -37,7 +37,7 @@ public class TestLogAppender extends AppenderBase<ILoggingEvent> {
     public String collect() {
         String temp = sb.toString();
         sb = new StringBuilder();
-        return temp;
+        return temp.replace("\r\n", "\n"); // fix for windows
     }
 
     @Override
