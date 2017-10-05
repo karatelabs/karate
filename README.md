@@ -2247,11 +2247,19 @@ When method post
 Then status 200
 ```
 
-> A built-in variable called `__loop` will be available within the feature file called in a loop. It will hold the value of the current loop index. So you can do things like this `* def name = name + __loop` or you can use the loop index value for looking up other values that may be in scope - in a data-driven style.
-
 If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you could go about dynamic data-driven testing.
 
 Although it is just a few lines of code, take time to study the above example carefully. It is a great example of how to effectively use the unique combination of Cucumber and JsonPath that Karate provides. Also look at the [demo examples](karate-demo).
+
+### Built-in variables for `call`
+Although all properties in the passed JSON-like argument are 'unpacked' into the current scope as separate 'named' variables, it sometimes makes sense to access the whole argument and this can be done via `__arg`. And if being called in a loop, a built-in variable called `__loop` will be available that will hold the value of the current loop index. So you can do things like this `* def name = name + __loop` or you can use the loop index value for looking up other values that may be in scope - in a data-driven style.
+
+Symbol  | Means
+------- | ------                               
+| `__arg`   | reference to the single `call` (or [`callonce`](#callonce)) argument, will be `null` if there was none         
+| `__loop`  | value of the current iteration index (if being called in a loop)
+
+Refer to this [demo feature](karate-demo) for an example: [`kitten-create.feature`](karate-demo/src/test/java/demo/calltable/kitten-create.feature)
 
 ## Calling JavaScript Functions
 

@@ -119,6 +119,15 @@ public class CucumberRunnerTest {
         List<Map<String, Object>> cats = (List) result.get("cats");
         assertEquals(1, cats.size());
         assertEquals(response, cats.get(0));
+    }
+
+    @Test 
+    public void testCallerArg() throws Exception {
+        String reportPath = "target/caller-arg.xml";
+        File file = new File("src/test/java/com/intuit/karate/cucumber/caller-arg.feature");
+        run(file, reportPath);
+        assertFalse(contains(reportPath, "failed"));
+        assertTrue(contains(reportPath, "* def result = call read('called-arg-null.feature')"));
     }    
     
 }

@@ -76,6 +76,7 @@ public class Script {
     public static final String VAR_ROOT = "$";
     public static final String VAR_PARENT = "_$";
     public static final String VAR_LOOP = "__loop";
+    public static final String VAR_ARG = "__arg";
 
     private Script() {
         // only static methods
@@ -1543,6 +1544,7 @@ public class Script {
                     // clone so as to not clobber calling context
                     Map<String, Object> argAsMap = new LinkedHashMap((Map) rowArg);
                     argAsMap.put(VAR_LOOP, i);
+                    argAsMap.put(VAR_ARG, rowArg);
                     if (env.reporter != null) {
                         env.reporter.call(feature, i, argAsMap);
                     }
@@ -1565,7 +1567,13 @@ public class Script {
             }
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
-            Map<String, Object> argAsMap = (Map) callArg;
+            Map<String, Object> argAsMap;
+            if (callArg == null) {
+                argAsMap = Collections.singletonMap(VAR_ARG, null);
+            } else {
+                argAsMap = new LinkedHashMap((Map) callArg);
+                argAsMap.put(VAR_ARG, callArg);
+            }
             if (env.reporter != null) {
                 env.reporter.call(feature, -1, argAsMap);
             }

@@ -11,7 +11,7 @@ Background:
     | 'Nyan' | 3   |
 
 # note the use of 'callonce' instead of 'call'
-* def result = callonce read('../calltable/kitten-create.feature') kittens
+* def result = callonce read('../callarray/kitten-create.feature') kittens
 
 Scenario Outline: various tests on the cats created
 

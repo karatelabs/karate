@@ -3,6 +3,9 @@ Feature: re-usable feature to create a single cat
 
 Scenario:
 
+# just to demo that we have two special variables __loop and __arg
+* match __arg == karate.get('kittens[' + __loop + ']')
+
 Given url demoBaseUrl
 And path 'cats'
 And request { name: '#(name)' }
