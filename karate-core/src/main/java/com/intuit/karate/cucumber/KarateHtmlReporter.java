@@ -74,8 +74,13 @@ public class KarateHtmlReporter implements Reporter, Formatter {
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc);
         String packageName = FileUtils.toPackageQualifiedName(feature.getPath());
         File file = new File("target/surefire-reports/TEST-" + packageName + ".html");
-        FileUtils.writeToFile(file, xml);
-        System.out.println("html report:\n" + file.toURI());
+        try {
+            file.mkdirs();
+            FileUtils.writeToFile(file, xml);
+            System.out.println("html report:\n" + file.toURI());
+        } catch (Exception e) {
+            System.out.println("html report output failed: " + e.getMessage());
+        }
     }   
     
     private String getScenarioName(Scenario scenario) {
