@@ -2254,12 +2254,12 @@ If you replace the `table` with perhaps a JavaScript function call that gets som
 Although it is just a few lines of code, take time to study the above example carefully. It is a great example of how to effectively use the unique combination of Cucumber and JsonPath that Karate provides. Also look at the [demo examples](karate-demo).
 
 ### Built-in variables for `call`
-Although all properties in the passed JSON-like argument are 'unpacked' into the current scope as separate 'named' variables, it sometimes makes sense to access the whole argument and this can be done via `__arg`. And if being called in a loop, a built-in variable called `__loop` will also be available that will hold the value of the current loop index. So you can do things like this `* def name = name + __loop` or you can use the loop index value for looking up other values that may be in scope - in a data-driven style.
+Although all properties in the passed JSON-like argument are 'unpacked' into the current scope as separate 'named' variables, it sometimes makes sense to access the whole argument and this can be done via `__arg`. And if being called in a loop, a built-in variable called `__loop` will also be available that will hold the value of the current loop index. So you can do things like this: `* def name = name + __loop` - or you can use the loop index value for looking up other values that may be in scope - in a data-driven style.
 
 Variable  | Refers To
 --------- | ------                               
 | `__arg`   | the single `call` (or [`callonce`](#callonce)) argument, will be `null` if there was none         
-| `__loop`  | the current iteration index (if being called in a loop)
+| `__loop`  | the current iteration index if being called in a loop, will be `-1` if not
 
 Refer to this [demo feature](karate-demo) for an example: [`kitten-create.feature`](karate-demo/src/test/java/demo/calltable/kitten-create.feature)
 

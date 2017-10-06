@@ -75,7 +75,7 @@ public class KarateService {
     }
     
     private KarateSession initSessionBackend(FeatureWrapper feature, WebSocketLogAppender appender) {
-        CallContext callContext = new CallContext(null, null, false, true);
+        CallContext callContext = new CallContext(null, null, -1, false, true);
         KarateBackend backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);        
         KarateSession session = new KarateSession(appender.getSessionId(), feature, backend, appender);
         sessions.put(session.getId(), session);

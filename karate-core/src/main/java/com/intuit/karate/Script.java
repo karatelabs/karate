@@ -1541,18 +1541,15 @@ public class Script {
             for (int i = 0; i < array.length; i++) {
                 Object rowArg = array[i];
                 if (rowArg instanceof Map) {
-                    // clone so as to not clobber calling context
-                    Map<String, Object> argAsMap = new LinkedHashMap((Map) rowArg);
-                    argAsMap.put(VAR_LOOP, i);
-                    argAsMap.put(VAR_ARG, rowArg);
+                    Map rowArgMap = (Map) rowArg;
                     if (env.reporter != null) {
-                        env.reporter.call(feature, i, argAsMap);
+                        env.reporter.call(feature, i, rowArgMap);
                     }
                     try {
-                        ScriptValue rowResult = evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
+                        ScriptValue rowResult = evalFeatureCall(feature, context, rowArgMap, i, reuseParentConfig);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "feature call (loop) failed at index: " + i + ", " + ke.getMessage() + ", " + ke.getCause().getMessage() + ", arg: " + rowArg;
+                        String message = "feature call (loop) failed at index: " + i + "\n" + ke.getMessage() + "\narg: " + rowArg;
                         errors.add(message);
                         // log but don't stop (yet)
                         context.logger.error("{}", message);
@@ -1567,18 +1564,12 @@ public class Script {
             }
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
-            Map<String, Object> argAsMap;
-            if (callArg == null) {
-                argAsMap = Collections.singletonMap(VAR_ARG, null);
-            } else {
-                argAsMap = new LinkedHashMap((Map) callArg);
-                argAsMap.put(VAR_ARG, callArg);
-            }
+            Map<String, Object> argAsMap = (Map) callArg;
             if (env.reporter != null) {
                 env.reporter.call(feature, -1, argAsMap);
             }
             try {
-                return evalFeatureCall(feature, context, argAsMap, reuseParentConfig);
+                return evalFeatureCall(feature, context, argAsMap, -1, reuseParentConfig);
             } catch (KarateException ke) {
                 String message = "feature call failed: " + ke.getMessage() + ", arg: " + callArg;
                 context.logger.error("{}", message);
@@ -1590,8 +1581,8 @@ public class Script {
     }
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
-            Map<String, Object> callArg, boolean reuseParentConfig) {
-        CallContext callContext = new CallContext(context, callArg, reuseParentConfig, false);
+            Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
+        CallContext callContext = new CallContext(context, callArg, loopIndex, reuseParentConfig, false);
         ScriptValueMap svm = CucumberUtils.call(feature, callContext);
         Map<String, Object> map = simplify(svm);
         return new ScriptValue(map);

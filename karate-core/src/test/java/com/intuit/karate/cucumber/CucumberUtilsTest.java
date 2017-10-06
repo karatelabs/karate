@@ -50,7 +50,7 @@ public class CucumberUtilsTest {
         String stepText = step.getPriorText();
         assertEquals("Feature: simple feature file\n\n# some comment\n\nBackground:", stepText);
         assertEquals(5, step.getStartLine());
-        CallContext callContext = new CallContext(null, null, false, true);
+        CallContext callContext = new CallContext(null, null, -1, false, true);
         KarateBackend backend = CucumberUtils.getBackendWithGlue(env, callContext);
         assertTrue(CucumberUtils.runStep(step, backend).isPass());
         

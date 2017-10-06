@@ -128,6 +128,11 @@ public class ScriptContext {
             for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
                 vars.put(entry.getKey(), entry.getValue());
             }
+            vars.put(Script.VAR_ARG, call.callArg);
+            vars.put(Script.VAR_LOOP, call.loopIndex);
+        } else if (call.parentContext != null) {
+            vars.put(Script.VAR_ARG, ScriptValue.NULL);
+            vars.put(Script.VAR_LOOP, -1);            
         }
         logger.trace("karate context init - initial properties: {}", vars);
     }

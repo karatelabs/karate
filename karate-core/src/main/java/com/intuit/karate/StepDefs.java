@@ -50,7 +50,7 @@ public class StepDefs {
     private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
-        this(getFeatureEnv(), new CallContext(null, null, false, true));
+        this(getFeatureEnv(), new CallContext(null, null, -1, false, true));
     }
 
     private static ScriptEnv getFeatureEnv() {

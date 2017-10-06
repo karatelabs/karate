@@ -96,7 +96,7 @@ public class AppSession {
         FeatureFilePath ffp = FileUtils.parseFeaturePath(featureFile);
         ScriptEnv env = ScriptEnv.init(envString, ffp.file, ffp.searchPaths, logger);
         feature = FeatureWrapper.fromFile(ffp.file, env);
-        CallContext callContext = new CallContext(null, null, false, true);
+        CallContext callContext = new CallContext(null, null, -1, false, true);
         backend = CucumberUtils.getBackendWithGlue(env, callContext);
         if (!test) {
             headerPanel = new HeaderPanel(this);
