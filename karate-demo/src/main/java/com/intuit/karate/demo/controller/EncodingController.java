@@ -36,8 +36,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class EncodingController {
 
     @RequestMapping("/{token:.+}")
-    public String greeting(@PathVariable String token) {
+    public String echoPath(@PathVariable String token) {
         return token;
     }
+    
+    @RequestMapping("/index.php?/api/v2/{token:.+}")
+    public String echoPathWithQuestion(@PathVariable String token) {
+        return token;
+    }    
 
 }
