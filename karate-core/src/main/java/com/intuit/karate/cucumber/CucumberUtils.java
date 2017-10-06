@@ -95,8 +95,7 @@ public class CucumberUtils {
             StepResult result = runStep(step, backend);
             if (!result.isPass()) {
                 FeatureWrapper feature = scenario.getFeature();
-                String caller = backend.getCallingFeature();
-                String message = feature.getPath() + ", line: " + step.getStep().getLine() + " (caller: " + caller + ")";
+                String message = "called: " + feature.getPath() + ", line: " + step.getStep().getLine();
                 throw new KarateException(message, result.getError());
             }
         }

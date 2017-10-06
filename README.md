@@ -51,7 +51,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Scripts are plain-text files, require no compilation step or IDE, and teams can collaborate using standard version-control / Git
 * Based on the popular Cucumber / Gherkin standard, and [IDE support](#running-in-eclipse-or-intellij) and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
-* Eliminate the need for 'POJOs or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
+* Eliminate the need for 'POJOs' or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml), Cucumber [Scenario](#the-cucumber-way) Outline [tables](#table), or a [payload builder](#set-multiple) approach [unique to Karate](https://gist.github.com/ptrthomas/d6beb17e92a43220d254af942e3ed3d9)
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
@@ -1050,15 +1050,21 @@ Since it is internally implemented as a JavaScript function, you can mix calls t
 * def someBigString = read('first.txt') + read('second.txt')
 ```
 
-> Tip: you can even use JS expressions effectively for environment switching: `* def someConfig = read('my-config-' + karate.env + '.json')`.
+> Tip: you can even use JS expressions to dynamically choose a file based on the environment: `* def someConfig = read('my-config-' + karate.env + '.json')`.
 
-And a very common need would be to use a file as the [`request`](#request) body.
+And a very common need would be to use a file as the [`request`](#request) body:
 
 ```cucumber
 Given request read('some-big-payload.json')
 ```
 
-Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for matching HTTP responses.
+Or in a [`match`](#match):
+
+```cucumber
+And match response == read('expected-response-payload.json')
+```
+
+Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for validating HTTP responses, like this one: [`read-files.feature`](karate-demo/src/test/java/demo/read/read-files.feature).
 
 ## Type Conversion
 Internally, Karate will auto-convert JSON (and even XML) to Java `Map` objects. And JSON arrays would become Java `List`-s. But you will never need to worry about this internal data-representation most of the time.

@@ -1549,7 +1549,8 @@ public class Script {
                         ScriptValue rowResult = evalFeatureCall(feature, context, rowArgMap, i, reuseParentConfig);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "feature call (loop) failed at index: " + i + "\n" + ke.getMessage() + "\narg: " + rowArg;
+                        String message = "feature call (loop) failed at index: " + i + "\ncaller: " 
+                                + feature.getEnv().featureName + "\narg: " + rowArg + "\n" + ke.getMessage();
                         errors.add(message);
                         // log but don't stop (yet)
                         context.logger.error("{}", message);
@@ -1559,8 +1560,9 @@ public class Script {
                 }
             }
             if (!errors.isEmpty()) {
-                String message = "feature call (loop) failed: " + feature.getPath() + ", caller: " + feature.getEnv().featureName + ", items: " + items;
-                throw new KarateException(message + ", " + errors);
+                String message = "feature call (loop) failed: " + feature.getPath() 
+                        + "\ncaller: " + feature.getEnv().featureName + "\nitems: " + items;
+                throw new KarateException(message + "\nerrors: " + errors);
             }
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
@@ -1571,7 +1573,8 @@ public class Script {
             try {
                 return evalFeatureCall(feature, context, argAsMap, -1, reuseParentConfig);
             } catch (KarateException ke) {
-                String message = "feature call failed: " + ke.getMessage() + ", arg: " + callArg;
+                String message = "feature call failed: " + feature.getPath()
+                        + "\narg: " + callArg + ke.getMessage();
                 context.logger.error("{}", message);
                 throw new KarateException(message, ke);
             }
