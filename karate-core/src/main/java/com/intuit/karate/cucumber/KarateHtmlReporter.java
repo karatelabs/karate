@@ -75,7 +75,6 @@ public class KarateHtmlReporter implements Reporter, Formatter {
         String packageName = FileUtils.toPackageQualifiedName(feature.getPath());
         File file = new File("target/surefire-reports/TEST-" + packageName + ".html");
         try {
-            file.getParentFile().mkdirs();
             FileUtils.writeToFile(file, xml);
             System.out.println("html report:\n" + file.toURI());
         } catch (Exception e) {

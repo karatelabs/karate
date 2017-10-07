@@ -75,13 +75,9 @@ public class KarateFeature {
     
     public KarateReporter getReporter(String reportDirPath) {
         File reportDir = new File(reportDirPath);
-        try {
-            reportDir.mkdirs();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
         String featurePackagePath = FileUtils.toPackageQualifiedName(feature.getPath());
         try {
+            reportDir.mkdirs();
             reportDirPath = reportDir.getPath() + File.separator;
             String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";
             return new KarateReporter(featurePackagePath, reportPath);

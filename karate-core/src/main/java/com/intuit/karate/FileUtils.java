@@ -260,10 +260,11 @@ public class FileUtils {
             return null;
         }
         return string.getBytes(UTF8);
-    }
+    }    
     
-    public static void writeToFile(File file, String data) {
+    public static void writeToFile(File file, String data) {        
         try {
+            file.getParentFile().mkdirs();
             FileOutputStream fos = new FileOutputStream(file);
             fos.write(data.getBytes(UTF8));
             fos.close();
