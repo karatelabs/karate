@@ -19,7 +19,7 @@ import static org.junit.Assert.*;
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = {"~@ignore"})
+@CucumberOptions(tags = {"~@ignore"}) // important: do not use @RunWith(Karate.class) !
 public class DemoTestParallel {
     
     @BeforeClass
