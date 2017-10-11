@@ -525,7 +525,9 @@ function() {
 ```
 The function is expected to return a JSON object and all keys and values in that JSON object will be made available as script variables.  And that's all there is to Karate configuration.
 
-> The [`karate`](#the-karate-object) object has a few helper methods described in detail later in this document where the [`call`](#calling-javascript-functions) keyword is explained.  Here above, you see `karate.log()`, `karate.env` and `karate.configure()` being used.
+A common requirement is how to pass dynamic values via the command line, and that is what `karate.properties['some.name']` is for. Refer to the section on [dynamic port numbers](#dynamic-port-numbers).
+
+> The [`karate`](#the-karate-object) object has a few helper methods described in detail later in this document where the [`call`](#calling-javascript-functions) keyword is explained.  Here above, you see `karate.log()`, `karate.env`, `karate.configure()` and `karate.properties['some.name']` being used.
 
 This decision to use JavaScript for config is influenced by years of experience with the set-up of complicated test-suites and fighting with [Maven profiles](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), [Maven resource-filtering](https://maven.apache.org/plugins/maven-resources-plugin/examples/filter.html) and the XML-soup that somehow gets summoned by the [Maven AntRun plugin](http://maven.apache.org/plugins/maven-antrun-plugin/usage.html).
 
@@ -1852,7 +1854,7 @@ But first, a special short-cut for array validation needs to be introduced:
 * match foo == '##[] #string'
 ```
 
-This 'in-line' short-cut for validating JSON arrays is similar to how [`match each`](#match-each) works. So now, complex payloads (that include arrays) can easily be by validated in one step by combining [validation markers](#ignore-or-validate) like so:
+This 'in-line' short-cut for validating JSON arrays is similar to how [`match each`](#match-each) works. So now, complex payloads (that include arrays) can easily be validated in one step by combining [validation markers](#ignore-or-validate) like so:
 
 ```cucumber
 * def oddSchema = { price: '#string', status: '#? _ < 3', ck: '##number', name: '#regex[0-9X]' }
@@ -2295,8 +2297,8 @@ Operation | Description
 `karate.jsonPath(json, expression)` | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 `karate.read(filename)` | read from a file, behaves exactly like [`read`](#reading-files)
 `karate.log(... args)` | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
-`karate.pretty(value)` | return a 'pretty-printed', nicely indented string representation of the JSON value, ideal for using in [`print`](#print) statements
-`karate.prettyXml(value)` | return a 'pretty-printed', nicely indented string representation of the XML value, ideal for using in [`print`](#print) statements
+`karate.pretty(value)` | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
+`karate.prettyXml(value)` | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
 `karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 `karate.properties[key]` | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
@@ -2502,7 +2504,7 @@ A common use case is to mix API-calls into a larger test-suite, for example a Se
 
 There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`runFeature()` and `runClasspathFeature()`) which are best explained in this demo unit-test: [`JavaApiTest.java`](karate-demo/src/test/java/demo/java/JavaApiTest.java). 
 
-You can optionally pass in variable values or over-ride config via a `HashMap` or leave the second-last argument as `null`. The variable state after feature execution would be returned as a `Map`. The last `boolean` argument is whether the [`karate-config.js`](#configuration) should be processed or not.
+You can optionally pass in variable values or over-ride config via a `HashMap` or leave the second-last argument as `null`. The variable state after feature execution would be returned as a `Map<String, Object>`. The last `boolean` argument is whether the [`karate-config.js`](#configuration) should be processed or not.
 
 ## Data Driven Tests
 ### The Cucumber Way
