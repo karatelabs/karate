@@ -42,9 +42,9 @@ public class MockSpringMvcServletTest {
     public void testSpringBootDemo() throws Exception {        
         File srcDir = new File("../karate-demo/src/test/java");
         File destDir = new File("target/test-classes");
-        // don't over-write karate-config.js, and the csrf TODO support filters
         FileUtils.copyDirectory(srcDir, destDir, 
-                f -> !f.getName().equals("karate-config.js") && !f.getName().equals("sign-in.feature"), false);
+                f -> !f.getName().equals("karate-config.js") // don't over-write karate-config.js
+                        && !f.getName().equals("sign-in.feature"), false); // TODO support servlet filters
         System.setProperty("karate.env", "dev-mock-springmvc");
         KarateStats stats = CucumberRunner.parallel(getClass(), 5);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
