@@ -676,6 +676,8 @@ You can use `print` to log variables to the console in the middle of a script. F
 * print 'the value of a is:', a
 ```
 
+Similar to [`assert`](#assert), the expressions on the right-hand-side of a `print` have to be valid JavaScript. JsonPath and [Karate expressions](#karate-expressions) are not supported.
+
 If you use commas (instead of concatenating strings using `+`), Karate will 'pretty-print' variables, which is what you typically want when dealing with JSON or XML.
 
 ```cucumber
@@ -2286,7 +2288,7 @@ In real-life scripts, you would typically also use this capability of Karate to 
 And it is worth mentioning that the Karate [configuration 'bootstrap'](#configuration) routine is itself a JavaScript function.
 
 ### The `karate` object
-A JavaScript function at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
+A JavaScript function or expression at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
 Operation | Description
 --------- | -----------

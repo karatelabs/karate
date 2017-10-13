@@ -27,6 +27,7 @@ import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,16 +37,25 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/redirect")
-public class RedirectController {
+public class RedirectController {    
     
     @GetMapping
-    public void from(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public void fromGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String url = request.getRequestURL().toString();
         String uri = url.replace("/redirect", "");
         if ("".equals(uri)) {
             uri = "http://localhost:8080"; // hard code for karate-mock-servlet
         }
-        response.sendRedirect(uri + "/search");
-    }    
+        String append = "";
+        if (request.getParameter("foo") != null) {
+            append = "?foo=" + request.getParameter("foo");
+        }
+        response.sendRedirect(uri + "/search" + append);
+    } 
+    
+    @PostMapping
+    public void fromPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        fromGet(request, response);
+    }
     
 }

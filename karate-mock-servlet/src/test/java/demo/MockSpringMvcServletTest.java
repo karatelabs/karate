@@ -44,6 +44,7 @@ public class MockSpringMvcServletTest {
         File destDir = new File("target/test-classes");
         FileUtils.copyDirectory(srcDir, destDir, 
                 f -> !f.getName().equals("karate-config.js") // don't over-write karate-config.js
+                        && !f.getName().equals("redirect.feature") // too much work to support redirects in mock servlet
                         && !f.getName().equals("sign-in.feature"), false); // TODO support servlet filters
         System.setProperty("karate.env", "dev-mock-springmvc");
         KarateStats stats = CucumberRunner.parallel(getClass(), 5);

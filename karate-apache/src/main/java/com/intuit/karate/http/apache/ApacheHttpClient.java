@@ -67,6 +67,7 @@ import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.BasicHttpContext;
 
@@ -97,6 +98,8 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         clientBuilder = HttpClientBuilder.create();
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
+        } else { // support redirect on POST by default
+            clientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
         }
         clientBuilder.useSystemProperties();
         cookieStore = new BasicCookieStore();

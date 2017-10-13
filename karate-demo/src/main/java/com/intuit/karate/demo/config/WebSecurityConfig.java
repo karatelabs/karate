@@ -36,7 +36,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().ignoringAntMatchers("/cats/**", "/dogs/**", "/files/**", "/search/**");
+        http.csrf().ignoringAntMatchers("/cats/**", "/dogs/**", "/files/**", "/search/**", "/redirect/**");
     }
     
 }
