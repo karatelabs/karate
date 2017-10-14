@@ -118,6 +118,18 @@
             <build>
                 <plugins>
                     <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.version}</version>
+                        <configuration>
+                            <includes>
+                                <include>demo/DemoTestParallel.java</include>
+                            </includes>
+                            <!-- needed for jacoco to integrate properly -->
+                            <argLine>${argLine}</argLine>
+                        </configuration>
+                    </plugin>                     
+                    <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
                         <version>${jacoco.plugin.version}</version>
