@@ -41,7 +41,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Get, Set, Remove, Match** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) / [`!=`](#match--not-equals) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
- **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [GraphQL RegEx Example](#graphql--regex-replacement-example) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
+ **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [Polling / Conditional](#polling) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
 .... | [Mock HTTP Servlet](karate-mock-servlet) | [Code Coverage](karate-demo#code-coverage-using-jacoco) | [Postman Import](https://github.com/intuit/karate/wiki/Karate-UI#postman-import) | [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
@@ -1116,6 +1116,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 They are `url`, `path`, `request`, `method` and `status`.
 
 These are essential HTTP operations, they focus on setting one (un-named or 'key-less') value at a time and therefore don't need an `=` sign in the syntax.
+
 ## `url`
 ```cucumber
 Given url 'https://myhost.com/v1/cats'
@@ -1126,6 +1127,8 @@ A URL can take expressions, so the approach below is legal.  And yes, variables 
 ```cucumber
 Given url 'https://' + e2eHostName + '/v1/api'
 ```
+
+If you are trying to build dynamic URLs including query-string parameters in the form: `http://myhost/some/path?foo=bar&search=true` - please refer to the [`param`](#param) keyword.
 
 ## `path`
 REST-style path parameters.  Can be expressions that will be evaluated.  Comma delimited values are supported which can be more convenient, and takes care of URL-encoding and appending '/' where needed.
@@ -1205,8 +1208,12 @@ Setting query-string parameters:
 ```cucumber
 Given param someKey = 'hello'
 And param anotherKey = someVariable
+```
 
-# multi-value params are also supported
+The above would result in a URL like: `http://myhost/mypath?someKey=hello&anotherKey=foo`. Note that the `?` and `&` will be automatically inserted.
+
+Multi-value params are also supported:
+```cucumber
 * param myParam = 'foo', 'bar'
 ```
 
@@ -2375,7 +2382,7 @@ And here's how it works in a test-script using the [`header`](#header) keyword.
 You can set this up for all subsequent requests or dynamically generate headers for each HTTP request if you [`configure headers`](#configure-headers).
 
 ### Calling Java
-There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo).
+There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo). Also look at the section on [commonly needed utilities](#commonly-needed-utilities) for more ideas.
 
 Calling any Java code is that easy.  Given this custom, user-defined Java class:
 ```java
@@ -2430,6 +2437,52 @@ This does require you to move 'set-up' into a separate `*.feature` (or JavaScrip
 So you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find an example in the [karate-demo](karate-demo).
 
 # Advanced / Tricks
+
+## Polling
+Waiting or performing a 'sleep' until a certain condition is met is a common need, and this demo example should get you up and running: [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature).
+
+## Conditional Logic
+The keywords [`Given` `When` `Then`](#given-when-then) are only for decoration and should not be thought of as similar to an `if - then - else` statement. And as a testing framework, Karate discourages tests that give different results on every run.
+
+That said, if you really need to implement 'conditional' checks, this can be one pattern:
+
+```cucumber
+* def filename = (zone == 'zone1' ? 'test1.feature' : 'test2.feature')
+* def result = call read(filename)
+```
+
+Also refer to [polling](#polling) for more ideas.
+
+## Commonly Needed Utilities
+Since it is so easy to dive into [Java-interop](#calling-java), Karate does not include any random-number functions, uuid generator or date/time utilities out of the box. You simply roll your own. 
+
+Here is an example of how to get the current date, and formatted the way you want:
+
+```cucumber
+* def getDate =
+"""
+function() {
+  var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
+  var sdf = new SimpleDateFormat("yyyy/MM/dd");
+  var date = new java.util.Date();
+  return sdf.format(date);
+} 
+"""
+
+* def temp = getDate()
+* print temp
+```
+
+And the above will result in something like this being logged: `[print] 2017/10/16`. 
+
+Here below are a few more common examples:
+
+Utility | Recipe
+------- | ------                               
+| System Time | `function(){ return java.lang.System.currentTimeMillis() + '' }`         
+| UUID  | `function(){ return java.util.UUID.randomUUID() + '' }` 
+
+The above are good enough for the purposes of random string generation for most situations.
 
 ## GraphQL / RegEx replacement example
 As a demonstration of Karate's power and flexibility, here is an example that reads a 
