@@ -25,6 +25,14 @@ Then match each cat.kittens contains { id: '#? isLessThanFifty(_)' }
 * def expected = [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 * match cat == { name: 'Billie', kittens: '#(^^expected)' }
 
+# find single kitten where id == 23
+* def bob =  get[0] cat.kittens[?(@.id==23)]
+* match bob.name == 'Bob'
+
+# using the karate object if the expression is dynamic
+* def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")
+* match temp[0] == bob
+
 Given def foo = 42
 And def bar = { hello: 'world' }
 And def temp = { id: '#(foo)', value: '#(bar.hello)' }

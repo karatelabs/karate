@@ -1054,7 +1054,7 @@ Since it is internally implemented as a JavaScript function, you can mix calls t
 * def someBigString = read('first.txt') + read('second.txt')
 ```
 
-> Tip: you can even use JS expressions to dynamically choose a file based on the environment: `* def someConfig = read('my-config-' + karate.env + '.json')`
+> Tip: you can even use JS expressions to dynamically choose a file based on some condition: `* def someConfig = read('my-config-' + someVariable + '.json')`
 
 And a very common need would be to use a file as the [`request`](#request) body:
 
@@ -2010,7 +2010,32 @@ A convenience that the `get` syntax supports (not the `$` short-cut form) is to 
 * match actual == get[0] cat.kittens[*].id
 ```
 
-### XPath Functions
+### JsonPath filters
+JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-operators) are very useful for extracting elements that meet some filter criteria out of arrays.
+
+```cucumber
+* def cat = 
+"""
+{
+  name: 'Billie',
+  kittens: [
+    { id: 23, name: 'Bob' },
+    { id: 42, name: 'Wild' }
+  ]
+}
+"""
+# find single kitten where id == 23
+* def bob =  get[0] cat.kittens[?(@.id==23)]
+* match bob.name == 'Bob'
+
+# using the karate object if the expression is dynamic
+* def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")
+* match temp[0] == bob
+```
+
+You usually won't need this, but the second-last line above shows how the [`karate` object](#the-karate-object) can be used to evaluate a JsonPath if the filter expression depends on a variable.
+
+## XPath Functions
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. Any valid XPath expression is allowed on the left-hand-side of a [`match`](#match) statement.
 
 ```cucumber
