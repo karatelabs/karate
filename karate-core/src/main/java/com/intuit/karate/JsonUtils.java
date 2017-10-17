@@ -128,7 +128,7 @@ public class JsonUtils {
     }
     
     private static void ref(StringBuilder sb, Object o) {
-        sb.append("\"#ref:").append(o.getClass().getName()).append("\"\n");
+        sb.append("\"#ref:").append(o.getClass().getName()).append('"');
     }
 
     private static void recursePretty(Object o, StringBuilder sb, int depth, Set<Object> seen) {
