@@ -15,5 +15,6 @@ function() {
   } else if (env == 'e2e') {
     // customize
   }
+  config.myObject = karate.read('classpath:test.json');
   return config;
 }

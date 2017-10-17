@@ -11,6 +11,9 @@ Scenario: syntax examples
 * assert testConfig == 'bar'
 * print 'hello world'
 
+# complex 'global' json loaded in karate-config.js
+* match myObject == { error: [{id: 1},{id: 2}] }
+
 * def a = 1
 * def b = 2
 * def c = a + b

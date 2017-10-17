@@ -2504,7 +2504,7 @@ Here below are a few more common examples:
 
 Utility | Recipe
 ------- | ------                               
-| System Time | `function(){ return java.lang.System.currentTimeMillis() + '' }`         
+| System Time | `function(){ return java.lang.System.currentTimeMillis() }`         
 | UUID  | `function(){ return java.util.UUID.randomUUID() + '' }` 
 
 The above are good enough for the purposes of random string generation for most situations.
