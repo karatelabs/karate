@@ -29,10 +29,13 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import net.minidev.json.JSONObject;
 import net.minidev.json.JSONStyle;
@@ -111,7 +114,9 @@ public class JsonUtils {
     public static String toPrettyJsonString(DocumentContext doc) {
         Object o = doc.read("$");
         StringBuilder sb = new StringBuilder();
-        recursePretty(o, sb, 0);
+        // anti recursion / back-references
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        recursePretty(o, sb, 0, seen);
         sb.append('\n');
         return sb.toString();
     }
@@ -121,43 +126,55 @@ public class JsonUtils {
             sb.append(' ').append(' ');
         }
     }
+    
+    private static void ref(StringBuilder sb, Object o) {
+        sb.append("\"#ref:").append(o.getClass().getName()).append("\"\n");
+    }
 
-    private static void recursePretty(Object o, StringBuilder sb, int depth) {
+    private static void recursePretty(Object o, StringBuilder sb, int depth, Set<Object> seen) {
         if (o == null) {
             sb.append("null");
-        } else if (o instanceof Map) {
-            sb.append('{').append('\n');
-            Map<String, Object> map = (Map<String, Object>) o;
-            Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
-            while(iterator.hasNext()) {
-                Map.Entry<String, Object> entry = iterator.next();
-                String key = entry.getKey();
-                pad(sb, depth + 1);
-                sb.append('"').append(JSONObject.escape(key)).append('"');
-                sb.append(':').append(' ');
-                recursePretty(entry.getValue(), sb, depth + 1);
-                if (iterator.hasNext()) {
-                    sb.append(',');
-                }
-                sb.append('\n');
+        } else if (o instanceof Map) {            
+            if (seen.add(o)) {
+                sb.append('{').append('\n');
+                Map<String, Object> map = (Map<String, Object>) o;
+                Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
+                while(iterator.hasNext()) {
+                    Map.Entry<String, Object> entry = iterator.next();
+                    String key = entry.getKey();
+                    pad(sb, depth + 1);
+                    sb.append('"').append(JSONObject.escape(key)).append('"');
+                    sb.append(':').append(' ');
+                    recursePretty(entry.getValue(), sb, depth + 1, seen);
+                    if (iterator.hasNext()) {
+                        sb.append(',');
+                    }
+                    sb.append('\n');
+                }      
+                pad(sb, depth);
+                sb.append('}');                
+            } else {
+                ref(sb, o);
             }
-            pad(sb, depth);
-            sb.append('}');
         } else if (o instanceof List) {
             List list = (List) o;
-            Iterator iterator = list.iterator();
-            sb.append('[').append('\n');
-            while (iterator.hasNext()) {
-                Object child = iterator.next();
-                pad(sb, depth + 1);
-                recursePretty(child, sb, depth + 1);
-                if (iterator.hasNext()) {
-                    sb.append(',');
+            Iterator iterator = list.iterator();            
+            if (seen.add(o)) {
+                sb.append('[').append('\n');
+                while (iterator.hasNext()) {
+                    Object child = iterator.next();
+                    pad(sb, depth + 1);
+                    recursePretty(child, sb, depth + 1, seen);
+                    if (iterator.hasNext()) {
+                        sb.append(',');
+                    }
+                    sb.append('\n');
                 }
-                sb.append('\n');
+                pad(sb, depth);
+                sb.append(']');                
+            } else {
+                ref(sb, o);
             }
-            pad(sb, depth);
-            sb.append(']');
         } else if (o instanceof String) {
             String value = (String) o;
             sb.append('"').append(JSONObject.escape(value)).append('"');
