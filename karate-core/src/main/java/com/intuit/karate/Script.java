@@ -659,7 +659,9 @@ public class Script {
     }
 
     public static DocumentContext toJsonDoc(ScriptValue sv, ScriptContext context) {
-        if (sv.isListLike()) {
+        if (sv.getType() == JSON) { // optimize
+            return (DocumentContext) sv.getValue();
+        } else if (sv.isListLike()) {
             return JsonPath.parse(sv.getAsList());
         } else if (sv.isMapLike()) {
             return JsonPath.parse(sv.getAsMap());

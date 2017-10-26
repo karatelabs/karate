@@ -7,7 +7,7 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-public class CatsUiRunner {
+public class CatsJavaUiRunner {
     
     @Test
     public void testApp() {

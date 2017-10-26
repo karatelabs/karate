@@ -1282,6 +1282,9 @@ public class ScriptTest {
         Script.assign("fun", "function(){ var foo = [{v:1},{v:2}]; return karate.jsonPath(foo, '$[*].v') }", ctx);
         Script.assign("res", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "[1, 2]", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "karate.jsonPath([{v:1},{v:2}], '$[*].v')", ctx).pass);
+        Script.assign("foo", "[{v:1},{v:2}]", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "karate.jsonPath(foo, '$[*].v')", ctx).pass);
     }    
 
     @Test
@@ -1513,6 +1516,15 @@ public class ScriptTest {
         assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ b: '5' }", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ c: 'true' }", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.CONTAINS, "foo", null, "{ d: true }", ctx).pass);
+    }
+    
+    @Test
+    public void testTypeConversion() {
+        ScriptContext ctx = getContext();
+        Script.assignJson("foo", "[]", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "[]", ctx).pass);
+        Script.assignJson("foo", "{}", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{}", ctx).pass);
     }
     
 }

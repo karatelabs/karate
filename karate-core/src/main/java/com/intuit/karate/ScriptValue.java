@@ -129,6 +129,9 @@ public class ScriptValue {
             case JS_ARRAY:
             case LIST:
                 return true;
+            case JSON:
+                DocumentContext doc = (DocumentContext) value;
+                return doc.json() instanceof List;
             default:
                 return false;
         }
@@ -137,10 +140,13 @@ public class ScriptValue {
     public List getAsList() {
         switch (type) {
             case JS_ARRAY:
-                Collection coll = getValue(ScriptObjectMirror.class).values();
-                return new ArrayList(coll);
+                ScriptObjectMirror som = (ScriptObjectMirror) value;
+                return new ArrayList(som.values());
             case LIST:
                 return getValue(List.class);
+            case JSON:
+                DocumentContext doc = (DocumentContext) value;
+                return doc.json();
             default:
                 throw new RuntimeException("cannot convert to list: " + this);
         }
