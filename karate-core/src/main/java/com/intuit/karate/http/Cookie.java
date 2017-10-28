@@ -65,7 +65,7 @@ public class Cookie extends LinkedHashMap<String, String> {
     
     public Cookie(Map<String, String> map) {
         super(map);
-    }            
+    }
     
     public Cookie(String name, String value) {
         put(NAME, name);

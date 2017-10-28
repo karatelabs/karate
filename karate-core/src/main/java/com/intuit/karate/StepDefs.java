@@ -79,7 +79,7 @@ public class StepDefs {
             }
         } else {
             context = new ScriptContext(scriptEnv, call);
-        }        
+        }
         request = new HttpRequest();
     }
 
@@ -178,8 +178,15 @@ public class StepDefs {
 
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
-        String temp = Script.eval(value, context).getAsString();
-        request.setCookie(new Cookie(name, temp));
+        ScriptValue sv = Script.eval(value, context);
+        Cookie cookie;
+        if (sv.isMapLike()) {
+            cookie = new Cookie((Map) sv.getAsMap());
+            cookie.put(Cookie.NAME, name);
+        } else {
+            cookie = new Cookie(name, sv.getAsString());            
+        }
+        request.setCookie(cookie);
     }
 
     @When("^cookies (.+)")
@@ -263,7 +270,7 @@ public class StepDefs {
     @When("^def (\\w+) = (.+)")
     public void def(String name, String expression) {
         Script.assign(name, expression, context);
-    }       
+    }
 
     @When("^table (.+)")
     public void table(String name, DataTable table) {
@@ -276,7 +283,7 @@ public class StepDefs {
         DocumentContext doc = JsonPath.parse(list);
         context.vars.put(name.trim(), doc);
     }
-    
+
     private String getVarAsString(String name) {
         ScriptValue sv = context.vars.get(name);
         if (sv == null) {
@@ -284,7 +291,7 @@ public class StepDefs {
         }
         return sv.getAsString();
     }
-    
+
     @When("^replace (\\w+)$")
     public void replace(String name, DataTable table) {
         name = name.trim();
@@ -300,7 +307,7 @@ public class StepDefs {
         String text = getVarAsString(name);
         String replaced = Script.replacePlaceholderText(text, token, value, context);
         context.vars.put(name, replaced);
-    }   
+    }
 
     @When("^text (.+) =$")
     public void textDocString(String name, String expression) {
@@ -311,26 +318,26 @@ public class StepDefs {
     public void yamlDocString(String name, String expression) {
         Script.assignYaml(name, expression, context);
     }
-    
+
     @When("^json (.+) = (.+)")
     public void castToJson(String name, String expression) {
         Script.assignJson(name, expression, context);
-    }    
-    
+    }
+
     @When("^string (.+) = (.+)")
     public void castToString(String name, String expression) {
         Script.assignString(name, expression, context);
     }
-    
+
     @When("^xml (.+) = (.+)")
     public void castToXml(String name, String expression) {
         Script.assignXml(name, expression, context);
-    }  
+    }
 
     @When("^xmlstring (.+) = (.+)")
     public void castToXmlString(String name, String expression) {
         Script.assignXmlString(name, expression, context);
-    }     
+    }
 
     @When("^assert (.+)")
     public void asssertBoolean(String expression) {
@@ -415,12 +422,12 @@ public class StepDefs {
     public void multiPartFormField(String name, String value) {
         multiPart(name, value);
     }
-    
+
     private static String asString(Map<String, Object> map, String key) {
         Object o = map.get(key);
         return o == null ? null : o.toString();
-    }    
-    
+    }
+
     @When("^multipart file (.+) = (.+)")
     public void multiPartFile(String name, String value) {
         name = name.trim();
@@ -433,7 +440,7 @@ public class StepDefs {
         if (read == null) {
             throw new RuntimeException("mutipart file json should have a value for 'read'");
         }
-        ScriptValue fileValue = FileUtils.readFile(read, context);        
+        ScriptValue fileValue = FileUtils.readFile(read, context);
         MultiPartItem item = new MultiPartItem(name, fileValue);
         String filename = asString(map, "filename");
         if (filename == null) {
@@ -445,8 +452,8 @@ public class StepDefs {
             item.setContentType(contentType);
         }
         request.addMultiPartItem(item);
-    }     
-    
+    }
+
     public void multiPart(String name, String value) {
         ScriptValue sv = Script.eval(value, context);
         request.addMultiPartItem(name, sv);
@@ -515,7 +522,7 @@ public class StepDefs {
             return contains ? MatchType.EACH_CONTAINS : notEquals ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
         }
     }
-    
+
     private static void validateEqualsSign(String eqSymbol) {
         if (eqSymbol.equals("=")) {
             throw new RuntimeException("use '==' for match (not '=')");
@@ -531,11 +538,11 @@ public class StepDefs {
     @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only)?$")
     public void matchContainsDocString(String each, String name, String path, String not, String only, String expected) {
         matchContains(each, name, path, not, only, expected);
-    }   
+    }
 
     @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=) (.+)")
     public void matchEquals(String each, String name, String path, String eqSymbol, String expected) {
-        validateEqualsSign(eqSymbol);        
+        validateEqualsSign(eqSymbol);
         MatchType mt = toMatchType(eqSymbol, each, null, null, false);
         matchNamed(mt, name, path, expected);
     }
@@ -544,7 +551,7 @@ public class StepDefs {
     public void matchContains(String each, String name, String path, String not, String only, String expected) {
         MatchType mt = toMatchType("==", each, not, only, true);
         matchNamed(mt, name, path, expected);
-    }   
+    }
 
     public void matchNamed(MatchType matchType, String name, String path, String expected) {
         try {
@@ -552,7 +559,7 @@ public class StepDefs {
             handleFailure(ar);
         } catch (Exception e) {
             throw new KarateException(e.getMessage());
-        }        
+        }
     }
 
     @When("^set ([^\\s]+)( .+)? =$")
@@ -564,31 +571,31 @@ public class StepDefs {
     public void setByPath(String name, String path, String value) {
         setNamedByPath(name, path, value);
     }
-    
+
     @When("^set ([^\\s]+)( [^=]+)?$")
     public void setByPathTable(String name, String path, DataTable table) {
         List<Map<String, String>> list = table.asMaps(String.class, String.class);
         Script.setByPathTable(name, path, list, context);
-    }    
+    }
 
     public void setNamedByPath(String name, String path, String value) {
         Script.setValueByPath(name, path, value, context);
     }
-    
+
     @When("^remove ([^\\s]+)( .+)?")
     public void removeByPath(String name, String path) {
         Script.removeValueByPath(name, path, context);
-    }    
+    }
 
     @When("^call ([^\\s]+)( .*)?")
     public final void callAndUpdateConfigAndVars(String name, String arg) {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, name, arg, context);
     }
-    
+
     @When("^callonce ([^\\s]+)( .*)?")
     public final void callOnceAndUpdateConfigAndVars(String name, String arg) {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(true, name, arg, context);
-    }    
+    }
 
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {

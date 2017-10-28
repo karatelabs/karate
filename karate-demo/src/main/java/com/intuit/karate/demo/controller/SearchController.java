@@ -81,7 +81,11 @@ public class SearchController {
         if (cookies == null) {
             return Collections.emptyList();
         } else {
+            String domain = request.getParameter("domain");
             for (Cookie cookie: cookies) {
+                if (domain != null) {
+                    cookie.setDomain(domain);
+                }
                 response.addCookie(cookie);
             }
             return Arrays.asList(cookies);

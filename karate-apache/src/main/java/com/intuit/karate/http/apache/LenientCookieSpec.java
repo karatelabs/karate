@@ -28,6 +28,7 @@ import org.apache.http.config.RegistryBuilder;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.cookie.CookieOrigin;
 import org.apache.http.cookie.CookieSpecProvider;
+import org.apache.http.cookie.MalformedCookieException;
 import org.apache.http.impl.cookie.DefaultCookieSpec;
 import org.apache.http.protocol.HttpContext;
 
@@ -43,6 +44,11 @@ public class LenientCookieSpec extends DefaultCookieSpec {
     public boolean match(Cookie cookie, CookieOrigin origin) {
         return true;
     }
+
+    @Override
+    public void validate(Cookie cookie, CookieOrigin origin) throws MalformedCookieException {
+        // do nothing
+    }        
 
     public static Registry<CookieSpecProvider> registry() {
         CookieSpecProvider specProvider = (HttpContext hc) -> new LenientCookieSpec();

@@ -39,7 +39,19 @@ Scenario: one cookie, and it is sent automatically in the next request
     And request {}
     When method post
     And match response == '#[1]'
-    And match response[0] contains { name: 'foo', value: 'blah' }      
+    And match response[0] contains { name: 'foo', value: 'blah' }
 
+Scenario: cookie as json
+    Given path 'search', 'cookies'
+    And cookie foo = { value: 'bar' } 
+    When method get
+    Then status 200
+    And match response[0] contains { name: 'foo', value: 'bar' }
 
-    
+Scenario: cookie returned has dots in the domain which violates RFC 2109
+    Given path 'search', 'cookies'
+    And cookie foo = { value: 'bar' } 
+    And param domain = '.abc.com'
+    When method get
+    Then status 200
+    And match response[0] contains { name: 'foo', value: 'bar', domain: '.abc.com' }

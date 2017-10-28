@@ -11,9 +11,4 @@ import org.junit.runner.RunWith;
 @RunWith(Karate.class)
 public class GreetingStandaloneRunner {
     
-    @Test
-    public void testOnPort8080() {
-        
-    }
-    
 }
