@@ -72,10 +72,14 @@ public class StepDefs {
     public StepDefs(ScriptEnv scriptEnv, CallContext call) {
         if (call.reuseParentContext) {
             context = call.parentContext; // re-use parent context
-            if (call.callArg != null) { // but over-ride any variables (TODO - this clobbers self)
+            if (call.callArg != null) { // but over-ride any variables
+                // TODO - this clobbers self, also the below logic should be in the 
+                // constructor of ScriptContext, just like the else block
                 for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
                     context.vars.put(entry.getKey(), entry.getValue());
                 }
+                context.vars.put(Script.VAR_ARG, call.callArg);
+                context.vars.put(Script.VAR_LOOP, call.loopIndex);
             }
         } else {
             context = new ScriptContext(scriptEnv, call);
