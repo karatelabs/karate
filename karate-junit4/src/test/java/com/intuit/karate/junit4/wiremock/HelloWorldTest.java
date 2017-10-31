@@ -86,6 +86,14 @@ public class HelloWorldTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("{ \"success\": true }")));
+        stubFor(get(urlEqualTo("/v1/linefeed"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("\n{ \"success\": true }")));
+        stubFor(get(urlEqualTo("/v1/spaces"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "text/plain")
+                        .withBody("\n    \n")));        
     }
 
 }

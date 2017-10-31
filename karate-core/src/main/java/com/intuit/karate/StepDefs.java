@@ -363,7 +363,7 @@ public class StepDefs {
         context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
         Object responseBody = convertResponseBody(response.getBody());
         if (responseBody instanceof String) {
-            String responseString = (String) responseBody;
+            String responseString = StringUtils.trimToEmpty((String) responseBody);
             if (Script.isJson(responseString)) {
                 DocumentContext doc = JsonUtils.toJsonDoc(responseString);
                 responseBody = doc;
