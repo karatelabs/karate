@@ -42,7 +42,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [Polling / Conditional](#polling) | [XML and XPath](#xpath-functions) | [Cucumber Tags](#cucumber-tags)
-.... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Ignore / Validate](#ignore-or-validate) | [Examples and Demos](karate-demo)
+.... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Fuzzy Matching](#fuzzy-matching) | [Examples and Demos](karate-demo)
 .... | [Mock HTTP Servlet](karate-mock-servlet) | [Code Coverage](karate-demo#code-coverage-using-jacoco) | [Postman Import](https://github.com/intuit/karate/wiki/Karate-UI#postman-import) | [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
@@ -1515,7 +1515,7 @@ The 'not equals' operator `!=` works as you would expect:
 > You typically will *never* need to use the `!=` (not-equals) operator ! Use it sparingly, and only for string, number or simple payload comparisons.
 
 ### `set` multiple
-Karate has an elegant way to set multiple keys (via path expressions) in one step. For convenience, non-existent keys (or array elements) will be created automatically. You can find more JSON examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+Karate has an elegant way to set multiple keys (via path expressions) in one step. For convenience, non-existent keys (or array elements) will be created automatically. You can find more JSON examples here: [`js-arrays.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 
 ```cucumber
 * def cat = { name: '' }
@@ -1538,7 +1538,7 @@ One extra convenience for JSON is that if the variable does not exist, it will b
 * match foo == [{ bar: 'baz' }, { bar: 'ban' }]
 ```
 
-The same concept applies to XML and you can build complicated payloads from scratch in just a few, extremely readable lines. The `value` column can take expressions, *even* XML chunks. You can find more examples [here](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
+The same concept applies to XML and you can build complicated payloads from scratch in just a few, extremely readable lines. The `value` column can take expressions, *even* XML chunks. You can find more examples here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 ```cucumber
 * set search /acc:getAccountByPhoneNumber
@@ -1581,7 +1581,8 @@ This is like the opposite of [`set`](#set) if you need to remove keys or data el
 
 Also take a look at how a special case of [embedded-expressions](#embedded-expressions) can remove key-value pairs from a JSON (or XML) payload: [Remove if Null](#remove-if-null).
 
-## Ignore or Validate
+## Fuzzy Matching
+### Ignore or Validate
 When expressing expected results (in JSON or XML) you can mark some fields to be ignored when the match (comparison) is performed.  You can even use a regular-expression so that instead of checking for equality, Karate will just validate that the actual value conforms to the expected pattern.
 
 This means that even when you have dynamic server-side generated values such as UUID-s and time-stamps appearing in the response, you can still assert that the full-payload matched in one step.
@@ -1661,7 +1662,9 @@ Especially since strings can be easily coerced to numbers (and vice-versa) in Ja
 
 ```
 
-You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional validations ! This example uses [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' syntax - and situations where this comes in useful will be apparent when we discuss [`match each`](#match-each).
+#### Referring to the JSON root
+
+You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional validations ! This example uses [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' syntax, and situations where this comes in useful will be apparent when we discuss [`match each`](#match-each).
 
 ```cucumber
 Given def temperature = { celsius: 100, fahrenheit: 212 }
@@ -1826,12 +1829,14 @@ Then match each json.hotels contains { totalPrice: '#? _ == _$.roomInformation[0
 Then match each json.hotels contains { totalPrice: '#(_$.roomInformation[0].roomPrice)' }
 ```
 
-While `$` always refers to the JSON 'root', note the use of `_$` above to represent the 'current' node of a `match each` iteration. Here is a recap of symbols that can be used in expressions:
+#### Referring to self
+
+While [`$`](#referring-to-the-json-root) always refers to the [JSON 'root'](#referring-to-the-json-root), note the use of `_$` above to represent the 'current' node of a `match each` iteration. Here is a recap of symbols that can be used in JSON [embedded expressions](#embedded-expressions):
 
 Symbol  | Evaluates To
 ------- | ------                               
-| `$`   | The 'root' of the JSON document in scope          
-| `_`   | The value of 'self'
+| `$`   | The ['root'](#referring-to-the-json-root) of the JSON document in scope          
+| `_`   | The value of ['self'](#self-validation-expressions)
 | `_$`  | The 'parent' of 'self' or 'current' item in the list, relevant when using [`match each`](#match-each)
 
 There is a shortcut for `match each` explained in the next section that can be quite useful, especially for 'in-line' schema-like validations.
@@ -2348,7 +2353,7 @@ When using `call` (or [`callonce`](#callonce)), only one argument is allowed. Bu
 Instead of using `call` (or `callonce`) you are always free to call JavaScript functions 'normally' and then you can use more than one argument.
 
 ```cucumber
-* def adder = function(a, b) { return a + b }
+* def adder = function(a, b){ return a + b }
 * assert adder(1, 2) == 3
 ```
 
@@ -2393,7 +2398,7 @@ First the JavaScript file, `basic-auth.js`:
 ```javascript
 function(creds) {
   var temp = creds.username + ':' + creds.password;
-  var Base64 = Java.type("java.util.Base64");
+  var Base64 = Java.type('java.util.Base64');
   var encoded = Base64.getEncoder().encodeToString(temp.bytes);
   return 'Basic ' + encoded;
 }
@@ -2476,6 +2481,13 @@ That said, if you really need to implement 'conditional' checks, this can be one
 * def result = call read(filename)
 ```
 
+And this could give you more ideas:
+
+```cucumber
+* def expected = (zone == 'zone1' ? { foo: '#string' } : { bar: '#number' })
+* match response == expected
+```
+
 Also refer to [polling](#polling) for more ideas.
 
 ## Commonly Needed Utilities
@@ -2488,7 +2500,7 @@ Here is an example of how to get the current date, and formatted the way you wan
 """
 function() {
   var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
-  var sdf = new SimpleDateFormat("yyyy/MM/dd");
+  var sdf = new SimpleDateFormat('yyyy/MM/dd');
   var date = new java.util.Date();
   return sdf.format(date);
 } 
