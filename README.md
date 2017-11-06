@@ -85,7 +85,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 A set of real-life examples can be found here: [Karate Demos](karate-demo)
 
 ## Comparison with REST-assured
-For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](https://github.com/intuit/karate/blob/master/karate-core/src/test/java/karate-vs-rest-assured.pdf)
+For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](http://tinyurl.com/karatera)
 
 ## References
 * [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
