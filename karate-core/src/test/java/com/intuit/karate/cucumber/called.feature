@@ -1,5 +1,5 @@
 @ignore
-Feature:
+Feature: called feature
 
-Scenario:
+Scenario: called scenario
 * assert input != 4

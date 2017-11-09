@@ -744,6 +744,8 @@ So the rule is - if a string value within a JSON (or XML) object declaration is 
 
 This comes in useful in some cases - and avoids needing to use the [`set`](#set) keyword or [JavaScript functions](#javascript-functions) to manipulate JSON. So you get the best of both worlds: the elegance of JSON to express complex nested data - while at the same time being able to dynamically plug values (that could even be other JSON object-trees) into a JSON 'template'.
 
+A few special built-in variables such as `$` (which is a [reference to the JSON root](#referring-to-self)) - can be mixed into JSON embedded expressions.
+
 A [special case](#remove-if-null) of embedded expressions can remove a JSON key (or XML element / attribute) if the expression evaluates to `null`.
 
 ### Enclosed JavaScript
@@ -1054,7 +1056,7 @@ Since it is internally implemented as a JavaScript function, you can mix calls t
 * def someBigString = read('first.txt') + read('second.txt')
 ```
 
-> Tip: you can even use JS expressions to dynamically choose a file based on some condition: `* def someConfig = read('my-config-' + someVariable + '.json')`
+> Tip: you can even use JS expressions to dynamically choose a file based on some condition: `* def someConfig = read('my-config-' + someVariable + '.json')`. Refer to [conditional logic](#conditional-logic) for more ideas.
 
 And a very common need would be to use a file as the [`request`](#request) body:
 
@@ -1895,7 +1897,7 @@ Then match response ==
 
 Especially note the re-use of the `oddSchema` both as an [embedded-expression](#embedded-expressions) and as an array validation (on the last line).
 
-And you can perform conditional / cross-field validations and even business-logic validations at the same time.
+And you can perform conditional / [cross-field validations](#referring-to-the-json-root) and even business-logic validations at the same time.
 
 ```cucumber
 # optional (can be null) and if present should be an array of size greater than zero
@@ -2481,7 +2483,7 @@ That said, if you really need to implement 'conditional' checks, this can be one
 * def result = call read(filename)
 ```
 
-And this could give you more ideas:
+And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) for more complex logic.
 
 ```cucumber
 * def expected = (zone == 'zone1' ? { foo: '#string' } : { bar: '#number' })

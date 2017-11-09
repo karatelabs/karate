@@ -28,6 +28,7 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.StringUtils;
 import cucumber.runtime.AmbiguousStepDefinitionsException;
 import cucumber.runtime.FeatureBuilder;
 import cucumber.runtime.RuntimeGlue;
@@ -95,7 +96,12 @@ public class CucumberUtils {
             StepResult result = runStep(step, backend);
             if (!result.isPass()) {
                 FeatureWrapper feature = scenario.getFeature();
-                String message = "called: " + feature.getPath() + ", line: " + step.getStep().getLine();
+                String scenarioName = StringUtils.trimToNull(scenario.getScenario().getGherkinModel().getName());
+                String message = "called: " + feature.getPath();
+                if (scenarioName != null) {
+                    message = message + ", scenario: " + scenarioName;
+                }
+                message = message + ", line: " + step.getStep().getLine();
                 throw new KarateException(message, result.getError());
             }
         }
