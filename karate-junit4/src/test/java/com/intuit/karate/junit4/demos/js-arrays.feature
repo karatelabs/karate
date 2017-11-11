@@ -28,6 +28,15 @@ Scenario: table to json with expressions evaluated
         | two.baz | 2   |
     * match json == [{ foo: 'hello', bar: 1 }, { foo: 'world', bar: 2 }]
 
+Scenario: table to json with expressions and empty / nulls
+    * def one = { baz: null }
+    * table json
+        | foo     | bar    |
+        | 'hello' |        |
+        | one.baz | (null) |
+        | 'world' | null   |
+    * match json == [{ foo: 'hello' }, { bar: null }, { foo: 'world' }]
+
 Scenario: table to json with nested json
     * def one = 'hello'
     * def two = { baz: 'world' }

@@ -836,6 +836,18 @@ Notice that in the above example, string values within the table need to be encl
 ```
 Yes, you can even nest chunks of JSON in tables, and things work as you would expect.
 
+Empty cells or expressions that evaluate to `null` will result in the key being omitted from the JSON. To force a `null` value, wrap it in parentheses:
+```cucumber
+* def one = { baz: null }
+* table json
+    | foo     | bar    |
+    | 'hello' |        |
+    | one.baz | (null) |
+    | 'world' | null   |
+* match json == [{ foo: 'hello' }, { bar: null }, { foo: 'world' }]
+```
+
+
 An alternate way to create data is using the [`set` multiple](#set-multiple) syntax. It is actually a 'transpose' of the `table` approach, and can be very convenient when there are a large number of keys per row or if the nesting is complex. Here is an example of what is possible:
 
 ```cucumber

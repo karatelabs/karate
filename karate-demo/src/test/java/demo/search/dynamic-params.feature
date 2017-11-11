@@ -3,7 +3,9 @@ Feature: dynamic params using scenario-outline, examples and json
 Background:
     * url demoBaseUrl
 
-Scenario Outline: using a function to pre-process the search parameters
+Scenario Outline: using a javascript function to pre-process the search parameters
+    this particular example has been deliberately over-complicated, the next scenario-outline below is simpler
+
     * def query = { name: '<name>', country: '<country>', active: '<active>', limit: '<limit>' }
     * def nullify = 
     """
@@ -14,6 +16,7 @@ Scenario Outline: using a function to pre-process the search parameters
       return o;
     }
     """
+    # here we load a java-script function from a re-usable file
     * def getResponseParam = read('get-response-param.js')
     * def query = nullify(query)
     * print query
@@ -41,7 +44,7 @@ Scenario Outline: using a function to pre-process the search parameters
     |      |         | false  |       | limit   |
 
 Scenario Outline: here the parameters are set to null in the data table itself
-    # look at how this is different from the above, the quotes come from the Examples
+    # notice how this is different from the above, the quotes come from the 'Examples' section
     * def query = { name: <name>, country: <country>, active: <active>, limit: <limit> }
     * print query
 
@@ -49,19 +52,22 @@ Scenario Outline: here the parameters are set to null in the data table itself
     And params query
     When method get
     Then status 200
-    And match response !contains { <missing>: '#notnull' }
+    # response should NOT contain a key expected to be missing
+    And match response !contains <missing>
 
-    # note how strings are enclosed in quotes, and we set null-s here
+    # observe how strings are enclosed in quotes, and we set null-s here below
+    # and you can get creative by stuffing json into table cells !
     Examples:
-    | name   | country   | active | limit | missing |
-    | 'foo'  | 'IN'      | true   |     1 | dummy   |
-    | 'bar'  | null      | null   |     5 | country |
-    | 'bar'  | 'JP'      | null   |  null | active  |
-    | null   | 'US'      | null   |     3 | name    |
-    | null   | null      | false  |  null | limit   |
-
+    | name   | country   | active | limit | missing                                                      |
+    | 'foo'  | 'IN'      | true   |     1 | {}                                                           |
+    | 'bar'  | null      | null   |     5 | { country: '#notnull', active: '#notnull' }                  |
+    | 'bar'  | 'JP'      | null   |  null | { active: '#notnull', limit: '#notnull' }                    |
+    | null   | 'US'      | null   |     3 | { name: '#notnull', active: '#notnull' }                     |
+    | null   | null      | false  |  null | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
 
 Scenario: using a data-driven called feature instead of a scenario outline
+    this and the above example are the two fundamental ways of 'looping' in Karate
+
     * table data
     | name   | country   | active | limit | missing                      |
     | 'foo'  | 'IN'      | true   |     1 | []                           |
@@ -70,20 +76,11 @@ Scenario: using a data-driven called feature instead of a scenario outline
     |        | 'US'      |        |     3 | ['name', 'active']           |
     |        |           | false  |       | ['name', 'country', 'limit'] |
     
-    * def result = call read('search-complex.feature') data    
-
-Scenario: params json with embedded expressions
-    * def data = { one: 'one', two: 'two' }
-
-    Given path 'search'
-    # using enclosed javascript instead of an embedded expression for convenience
-    And params ({ name: data.one, country: data.two })
-    When method get
-    Then status 200
-    And match response == { name: ['one'], country: ['two'] }
+    * def result = call read('search-complex.feature') data
 
 Scenario: using the set keyword to build json and nulls are skipped by default
     this is possibly the simplest form of all the above, avoiding any javascript
+    but still needing a second feature file to 'call'
 
     * set data
     | path    | 0       | 1       | 2       | 3       | 4       |
@@ -101,6 +98,16 @@ Scenario: using the set keyword to build json and nulls are skipped by default
     | data[4] | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
 
     * def result = call read('search-simple.feature') search
+
+Scenario: params json with embedded expressions
+    * def data = { one: 'one', two: 'two' }
+
+    Given path 'search'
+    # using enclosed javascript instead of an embedded expression for convenience
+    And params ({ name: data.one, country: data.two })
+    When method get
+    Then status 200
+    And match response == { name: ['one'], country: ['two'] }
 
 Scenario: test that multi-params work as expected
     

@@ -1693,16 +1693,25 @@ public class Script {
         List<Map<String, Object>> result = new ArrayList<>(list.size());
         for (Map<String, Object> map : list) {
             Map<String, Object> row = new LinkedHashMap<>(map);
+            List<String> toRemove = new ArrayList(map.size());
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 Object o = entry.getValue();
                 if (o instanceof String) { // else will be number or boolean primitives
-                    ScriptValue sv = eval((String) o, context);
-                    if (sv.isJsonLike()) {
-                        entry.setValue(sv.getAsJsonDocument().read("$")); // will be Map or List
+                    String exp = (String) o;
+                    ScriptValue sv = eval(exp, context);
+                    if (sv.isNull() && !isWithinParentheses(exp)) { // by default empty / null will be stripped, force null like this: '(null)'
+                        toRemove.add(entry.getKey());
                     } else {
-                        entry.setValue(sv.getValue());
+                        if (sv.isJsonLike()) {
+                            entry.setValue(sv.getAsJsonDocument().read("$")); // will be Map or List
+                        } else {
+                            entry.setValue(sv.getValue());
+                        }
                     }
                 }
+            }
+            for (String keyToRemove : toRemove) {
+                row.remove(keyToRemove);
             }
             result.add(row);
         }
