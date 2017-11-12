@@ -76,12 +76,15 @@ Scenario: using a data-driven called feature instead of a scenario outline
     |        | 'US'      |        |     3 | ['name', 'active']           |
     |        |           | false  |       | ['name', 'country', 'limit'] |
     
+    # the assertions in the called feature use some js for the sake of demo
+    # but the next scenario below is far simpler and does not use js at all
     * def result = call read('search-complex.feature') data
 
 Scenario: using the set keyword to build json and nulls are skipped by default
     this is possibly the simplest form of all the above, avoiding any javascript
-    but still needing a second feature file to 'call'
+    but still needing a 'call' to a second feature file
 
+    # table would have been sufficient below, but just to demo how 'set' is simply a 'transpose' of table
     * set data
     | path    | 0       | 1       | 2       | 3       | 4       |
     | name    | 'foo'   | 'bar'   | 'bar'   |         |         |
@@ -89,13 +92,14 @@ Scenario: using the set keyword to build json and nulls are skipped by default
     | active  | true    |         |         |         | false   |
     | limit   | 1       | 5       |         | 3       |         |
     
+    # note how you can 'compose' complex JSON by referring to existing JSON chunks, e.g: 'data[0]'
     * table search
-    | params  | missing                                                      |
-    | data[0] | {}                                                           |
-    | data[1] | { country: '#notnull', active: '#notnull' }                  |
-    | data[2] | { active: '#notnull', limit: '#notnull' }                    |
-    | data[3] | { name: '#notnull', active: '#notnull' }                     |
-    | data[4] | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
+    | params  | expected                                                         | missing                                                      |
+    | data[0] | { name: '#[1]', country: '#[1]', active: '#[1]', limit: '#[1]' } | {}                                                           |
+    | data[1] | { name: '#[1]', limit: '#[1]' }                                  | { country: '#notnull', active: '#notnull' }                  |
+    | data[2] | { name: '#[1]', country: '#[1]' }                                | { active: '#notnull', limit: '#notnull' }                    |
+    | data[3] | { country: '#[1]', limit: '#[1]' }                               | { name: '#notnull', active: '#notnull' }                     |
+    | data[4] | { active: '#[1]' }                                               | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
 
     * def result = call read('search-simple.feature') search
 
