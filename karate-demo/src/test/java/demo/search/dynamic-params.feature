@@ -7,6 +7,7 @@ Scenario Outline: using a javascript function to pre-process the search paramete
     this particular example has been deliberately over-complicated, the next scenario-outline below is simpler
 
     * def query = { name: '<name>', country: '<country>', active: '<active>', limit: '<limit>' }
+    # all this function does is to set any empty string value to null, because that is what empty cells in 'Examples' become
     * def nullify = 
     """
     function(o) {
@@ -39,11 +40,11 @@ Scenario Outline: using a javascript function to pre-process the search paramete
     | name | country | active | limit | missing |
     | foo  | IN      | true   |     1 |         |
     | bar  |         |        |     5 | country |
-    | bar  | JP      |        |       | active  |
+    | baz  | JP      |        |       | active  |
     |      | US      |        |     3 | name    |
     |      |         | false  |       | limit   |
 
-Scenario Outline: here the parameters are set to null in the data table itself
+Scenario Outline: here the parameters are set to null within the 'Examples' table itself
     # notice how this is different from the above, the quotes come from the 'Examples' section
     * def query = { name: <name>, country: <country>, active: <active>, limit: <limit> }
     * print query
@@ -61,18 +62,19 @@ Scenario Outline: here the parameters are set to null in the data table itself
     | name   | country   | active | limit | missing                                                      |
     | 'foo'  | 'IN'      | true   |     1 | {}                                                           |
     | 'bar'  | null      | null   |     5 | { country: '#notnull', active: '#notnull' }                  |
-    | 'bar'  | 'JP'      | null   |  null | { active: '#notnull', limit: '#notnull' }                    |
+    | 'baz'  | 'JP'      | null   |  null | { active: '#notnull', limit: '#notnull' }                    |
     | null   | 'US'      | null   |     3 | { name: '#notnull', active: '#notnull' }                     |
     | null   | null      | false  |  null | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
 
 Scenario: using a data-driven called feature instead of a scenario outline
-    this and the above example are the two fundamental ways of 'looping' in Karate
+    this and the above example are the two fundamentally different ways of 
+    data-driven test 'looping' in Karate
 
     * table data
     | name   | country   | active | limit | missing                      |
     | 'foo'  | 'IN'      | true   |     1 | []                           |
     | 'bar'  |           |        |     5 | ['country', 'active']        |
-    | 'bar'  | 'JP'      |        |       | ['active', 'limit']          |
+    | 'baz'  | 'JP'      |        |       | ['active', 'limit']          |
     |        | 'US'      |        |     3 | ['name', 'active']           |
     |        |           | false  |       | ['name', 'country', 'limit'] |
     
@@ -84,10 +86,10 @@ Scenario: using the set keyword to build json and nulls are skipped by default
     this is possibly the simplest form of all the above, avoiding any javascript
     but still needing a 'call' to a second feature file
 
-    # table would have been sufficient below, but just to demo how 'set' is simply a 'transpose' of table
+    # table would have been sufficient below, but here we demo how 'set' is simply a 'transpose' of table
     * set data
     | path    | 0       | 1       | 2       | 3       | 4       |
-    | name    | 'foo'   | 'bar'   | 'bar'   |         |         |
+    | name    | 'foo'   | 'bar'   | 'baz'   |         |         |
     | country | 'IN'    |         | 'JP'    | 'US'    |         |
     | active  | true    |         |         |         | false   |
     | limit   | 1       | 5       |         | 3       |         |
@@ -96,8 +98,8 @@ Scenario: using the set keyword to build json and nulls are skipped by default
     * table search
     | params  | expected                                                         | missing                                                      |
     | data[0] | { name: '#[1]', country: '#[1]', active: '#[1]', limit: '#[1]' } | {}                                                           |
-    | data[1] | { name: '#[1]', limit: '#[1]' }                                  | { country: '#notnull', active: '#notnull' }                  |
-    | data[2] | { name: '#[1]', country: '#[1]' }                                | { active: '#notnull', limit: '#notnull' }                    |
+    | data[1] | { name: ['bar'], limit: ['5'] }                                  | { country: '#notnull', active: '#notnull' }                  |
+    | data[2] | { name: ['#(data[2].name)'], country: ['#(data[2].country)'] }   | { active: '#notnull', limit: '#notnull' }                    |
     | data[3] | { country: '#[1]', limit: '#[1]' }                               | { name: '#notnull', active: '#notnull' }                     |
     | data[4] | { active: '#[1]' }                                               | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
 
