@@ -507,7 +507,7 @@ public class Script {
             node = node.getFirstChild();
         }
         NamedNodeMap attribs = node.getAttributes();
-        int attribCount = attribs.getLength();
+        int attribCount = attribs == null ? 0 : attribs.getLength();
         Set<Attr> attributesToRemove = new HashSet(attribCount);
         for (int i = 0; i < attribCount; i++) {
             Attr attrib = (Attr) attribs.item(i);

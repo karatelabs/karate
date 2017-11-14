@@ -198,6 +198,10 @@ Scenario: a cleaner way to achieve the above by using tables and the 'set' keywo
     * match search/queries/query[1] == <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query>
     * match search/queries/query[2] == <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>
     * match search/queries/query[3] == <query><name><lastName>Waldo</lastName></name></query>
+
+Scenario: xml containing DTD reference
+    * def xml = <!DOCTYPE USER SYSTEM "http://127.0.0.1:5000/login/dtd"><foo/>
+    * match xml == <foo></foo>
     
 
 
