@@ -2283,7 +2283,7 @@ If the argument passed to the [call of a `*.feature` file](#calling-other-featur
 
 But this time, the return value from the `call` step will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
 
-Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) shortcut is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
+Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) [shortcut](#get-short-cut) is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
 
 ```cucumber
 * table kittens 

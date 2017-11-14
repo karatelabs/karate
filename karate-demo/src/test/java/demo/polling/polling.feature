@@ -1,6 +1,8 @@
 Feature: demo of how to poll until a certain condition is met
+    using a javascript function
 
 Background:
+# you may prefer to read the javascript from a file instead of having it in-line
 * def waitUntil = 
 """
 function(x) {
