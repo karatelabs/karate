@@ -1101,6 +1101,36 @@ These are best explained in this example file: [`type-conv.feature`](karate-juni
 
 If you want to 'pretty print' a JSON or XML value with indenting, refer to the documentation of the [`print`](#print) keyword.
 
+### Floats and Integers
+In some rare cases, you may need to convert a string to a number. You can do this by multiplying by `1` or using the built-in JavaScript `parseInt()` function:
+
+```cucumber
+* def foo = '10'
+* string json = { bar: '#(1 * foo)' }
+* match json == '{"bar":10.0}'
+
+* def foo = '10'
+* string json = { bar: '#(parseInt(foo))' }
+* match json == '{"bar":10.0}'
+```
+
+As per the JSON spec, all numeric values are treated as doubles, so for integers - it really doesn't matter if there is a decimal point or not. In fact it may be a good idea to slip doubles instead of integers into some of your tests ! Anyway, there are times you may want to force integers (perhaps for cosmetic reasons) and you can easily do so using the [`~~` short-cut](http://rocha.la/JavaScript-bitwise-operators-in-practice):
+
+```cucumber
+* def foo = '10'
+* string json = { bar: '#(~~foo)' }
+* match json == '{"bar":10}'
+
+# unfortunately JS math always results in a double
+* def foo = 10
+* string json = { bar: '#(1 * foo)' }
+* match json == '{"bar":10.0}'
+
+# but you can easily coerce to an integer if needed
+* string json = { bar: '#(~~(1 * foo))' }
+* match json == '{"bar":10}'
+```
+
 # Karate Expressions
 Before we get to the HTTP keywords, it is worth doing a recap of the various 'shapes' that the right-hand-side of an assignment statement can take:
 
@@ -2315,7 +2345,9 @@ Then status 200
 
 If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you could go about dynamic data-driven testing.
 
-Although it is just a few lines of code, take time to study the above example carefully. It is a great example of how to effectively use the unique combination of Cucumber and JsonPath that Karate provides. Also look at the [demo examples](karate-demo).
+Although it is just a few lines of code, take time to study the above example carefully. It is a great example of how to effectively use the unique combination of Cucumber and JsonPath that Karate provides.
+
+Also look at the [demo examples](karate-demo), especially [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature) - to compare the above approach with how the Cucumber [`Scenario Outline:`](#the-cucumber-way) can be alternatively used for data-driven tests.
 
 ### Built-in variables for `call`
 Although all properties in the passed JSON-like argument are 'unpacked' into the current scope as separate 'named' variables, it sometimes makes sense to access the whole argument and this can be done via `__arg`. And if being called in a loop, a built-in variable called `__loop` will also be available that will hold the value of the current loop index. So you can do things like this: `* def name = name + __loop` - or you can use the loop index value for looking up other values that may be in scope - in a data-driven style.

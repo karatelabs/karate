@@ -144,3 +144,29 @@ Scenario: json manipulation using string-replace
 # don't forget to cast back to json though
 * json data = data
 * match data == { foo: 'bar', bar: { hello: 'baz' } }
+
+Scenario: js and numbers - float vs int
+* def foo = '10'
+* string json = { bar: '#(1 * foo)' }
+* match json == '{"bar":10.0}'
+
+* def foo = '10'
+* string json = { bar: '#(parseInt(foo))' }
+* match json == '{"bar":10.0}'
+
+* def foo = 10
+* string json = { bar: '#(foo)' }
+* match json == '{"bar":10}'
+
+* def foo = '10'
+* string json = { bar: '#(~~foo)' }
+* match json == '{"bar":10}'
+
+# unfortunately JS math always results in a double
+* def foo = 10
+* string json = { bar: '#(1 * foo)' }
+* match json == '{"bar":10.0}'
+
+# but you can easily coerce to an integer if needed
+* string json = { bar: '#(~~(1 * foo))' }
+* match json == '{"bar":10}'

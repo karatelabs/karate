@@ -102,13 +102,6 @@ Scenario: js eval
     * string expression = 'temperature.celsius * 1.8 + 32'
     * match temperature.fahrenheit == karate.eval(expression)
 
-Scenario: js and numbers - float vs int
-    * def foo = parseInt('10')
-    * string json = { bar: '#(foo)' }
-    * match json == '{"bar":10.0}'
-    * string json = { bar: '#(~~foo)' }
-    * match json == '{"bar":10}'
-
 Scenario: js match is strict for data types
     * def foo = { a: '5', b: 5, c: true, d: 'true' }
     * match foo !contains { a: 5 }
