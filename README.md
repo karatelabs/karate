@@ -864,7 +864,7 @@ An alternate way to create data is using the [`set` multiple](#set-multiple) syn
 
 ## `text`
 ### Don't parse, treat as raw text
-Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving place-holder substitutions in strings.
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving Cucumber-style place-holder substitutions in strings.
 
 ```cucumber
 Scenario Outline:
@@ -896,7 +896,7 @@ For placeholder-substitution, the [`replace`](#replace) keyword can be used inst
 
 ## `replace`
 ### Text Placeholder Replacement
-> JSON and XML are __natively__ supported by Karate via the [`set`](#set) keyword and `replace` is primarily intended for dealing with raw strings. But when you deal with complex, nested JSON (or XML) - it may be easier in some cases to use `replace`, especially when you want to substitute multiple placeholders with one value, and when you don't need array manipulation. Since `replace` auto-converts the result to a string, make sure you perform [type conversion](#type-conversion) back to JSON (or XML) if applicable.
+> Modifying existing JSON and XML is __natively__ supported by Karate via the [`set`](#set) keyword, and `replace` is primarily intended for dealing with raw strings. But when you deal with complex, nested JSON (or XML) - it may be easier in some cases to use `replace`, especially when you want to substitute multiple placeholders with one value, and when you don't need array manipulation. Since `replace` auto-converts the result to a string, make sure you perform [type conversion](#type-conversion) back to JSON (or XML) if applicable.
 
 Karate provides an elegant 'native-like' experience for placeholder substitution within strings or text content. This is useful in any situation where you need to concatenate dynamic string fragments to form content such as GraphQL or SQL.
 
@@ -1109,12 +1109,11 @@ In some rare cases, you may need to convert a string to a number. You can do thi
 * string json = { bar: '#(1 * foo)' }
 * match json == '{"bar":10.0}'
 
-* def foo = '10'
 * string json = { bar: '#(parseInt(foo))' }
 * match json == '{"bar":10.0}'
 ```
 
-As per the JSON spec, all numeric values are treated as doubles, so for integers - it really doesn't matter if there is a decimal point or not. In fact it may be a good idea to slip doubles instead of integers into some of your tests ! Anyway, there are times you may want to force integers (perhaps for cosmetic reasons) and you can easily do so using the [`~~` short-cut](http://rocha.la/JavaScript-bitwise-operators-in-practice):
+As per the JSON spec, all numeric values are treated as doubles, so for integers - it really doesn't matter if there is a decimal point or not. In fact it may be a good idea to slip doubles instead of integers into some of your tests ! Anyway, there are times when you may want to force integers (perhaps for cosmetic reasons) and you can easily do so using the 'double-tilde' [short-cut: '`~~`'](http://rocha.la/JavaScript-bitwise-operators-in-practice).
 
 ```cucumber
 * def foo = '10'
@@ -1580,6 +1579,18 @@ One extra convenience for JSON is that if the variable does not exist, it will b
 | bar  | 'baz' | 'ban' |
 
 * match foo == [{ bar: 'baz' }, { bar: 'ban' }]
+```
+
+If you have to set a bunch of deeply nested keys, you can move the parent path to the top, next to the `set` keyword and save a lot of typing !
+
+```cucumber
+* set foo.bar
+| path   | value |
+| one    | 1     |
+| two[0] | 2     |
+| two[1] | 3     |
+
+* match foo == { bar: { one: 1, two: [2, 3] } }
 ```
 
 The same concept applies to XML and you can build complicated payloads from scratch in just a few, extremely readable lines. The `value` column can take expressions, *even* XML chunks. You can find more examples here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).

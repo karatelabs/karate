@@ -217,11 +217,20 @@ Scenario: set via table, var does not exist, different nesting options
     | two  | { bar: 'ban' } |
     * match first == { one: { bar: 'baz' }, two: { bar: 'ban' } }
 
-* set second
+    * set second
     | path     | value |
     | one.bar  | 'baz' |
     | two.bar  | 'ban' |
     * match second == first
+
+Scenario: set via table, repeated paths at the top
+    * set foo.bar
+    | path   | value |
+    | one    | 1     |
+    | two[0] | 2     |
+    | two[1] | 3     |
+
+    * match foo == { bar: { one: 1, two: [2, 3] } }
 
 Scenario Outline: examples and optional json keys
     * def search = { name: { first: "##(<first>)", last: "##(<last>)" }, age: "##(<age>)" }

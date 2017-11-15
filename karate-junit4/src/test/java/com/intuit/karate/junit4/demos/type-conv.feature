@@ -150,7 +150,6 @@ Scenario: js and numbers - float vs int
 * string json = { bar: '#(1 * foo)' }
 * match json == '{"bar":10.0}'
 
-* def foo = '10'
 * string json = { bar: '#(parseInt(foo))' }
 * match json == '{"bar":10.0}'
 
