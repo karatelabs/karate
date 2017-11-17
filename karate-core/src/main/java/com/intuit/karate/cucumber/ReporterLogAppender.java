@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.cucumber;
 
-import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
@@ -46,7 +45,7 @@ public class ReporterLogAppender extends AppenderBase<ILoggingEvent> {
     public ReporterLogAppender() {
         sb = new StringBuilder();
         this.threadName = Thread.currentThread().getName();
-        logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
+        logger = (Logger) LoggerFactory.getLogger("com.intuit");
         setName("karate-reporter");
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         setContext(lc);
@@ -55,8 +54,7 @@ public class ReporterLogAppender extends AppenderBase<ILoggingEvent> {
         encoder.setContext(context);
         encoder.start();
         start();
-        logger.addAppender(this);
-        logger.setLevel(Level.DEBUG);        
+        logger.addAppender(this);     
     }
     
     public String collect() {
