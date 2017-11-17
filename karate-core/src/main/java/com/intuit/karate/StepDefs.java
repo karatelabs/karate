@@ -367,15 +367,15 @@ public class StepDefs {
             if (Script.isJson(responseString)) {
                 DocumentContext doc = JsonUtils.toJsonDoc(responseString);
                 responseBody = doc;
-                if (context.isLogPrettyResponse() && context.logger.isDebugEnabled()) {
-                    context.logger.debug("response:\n{}", JsonUtils.toPrettyJsonString(doc));
+                if (context.isLogPrettyResponse()) {
+                    context.logger.info("response:\n{}", JsonUtils.toPrettyJsonString(doc));
                 }
             } else if (Script.isXml(responseString)) {
                 try {
                     Document doc = XmlUtils.toXmlDoc(responseString);
                     responseBody = doc;
-                    if (context.isLogPrettyResponse() && context.logger.isDebugEnabled()) {
-                        context.logger.debug("response:\n{}", XmlUtils.toString(doc, true));
+                    if (context.isLogPrettyResponse()) {
+                        context.logger.info("response:\n{}", XmlUtils.toString(doc, true));
                     }
                 } catch (Exception e) {
                     context.logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
