@@ -104,6 +104,16 @@ Then match response ==
 * assert foo.length == 2
 * match foo == '#[2]'
 
+Scenario: re-usable json chunks as nodes, but optional
+* def dogSchema = { id: '#string', color: '#string' }
+* def schema = { id: '#string', name: '#string', dog: '##(dogSchema)' }
+
+* def response1 = { id: '123', name: 'foo' }
+* match response1 == schema
+
+* def response2 = { id: '123', name: 'foo', dog: { id: '456', color: 'brown' } }
+* match response2 == schema
+
 Scenario: pretty print json
 * def json = read('odds.json')
 * print 'pretty print:\n' + karate.pretty(json)

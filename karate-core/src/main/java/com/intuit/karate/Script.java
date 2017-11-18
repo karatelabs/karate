@@ -488,8 +488,14 @@ public class Script {
                 boolean optional = isOptionalMacro(value);
                 try {
                     ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
-                    if (optional && (forMatch || sv.isNull())) {
-                        root.delete(path);
+                    if (optional) {
+                        if (forMatch || sv.isNull()) {
+                            root.delete(path);
+                        } else if (!sv.isJsonLike()) {
+                            // only substitute primitives ! 
+                            // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
+                            root.set(path, sv.getValue());
+                        }
                     } else {
                         root.set(path, sv.getValue());
                     }
@@ -548,7 +554,7 @@ public class Script {
                     try {
                         ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
                         if (optional && (forMatch || sv.isNull())) {
-                            elementsToRemove.add(child);
+                                elementsToRemove.add(child);
                         } else {
                             if (sv.isMapLike()) {
                                 Node evalNode;
