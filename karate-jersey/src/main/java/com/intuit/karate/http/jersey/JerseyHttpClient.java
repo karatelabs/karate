@@ -76,7 +76,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         }
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(cc)
-                .register(new LoggingInterceptor(context.logger)) // must be first
+                .register(new LoggingInterceptor(context)) // must be first
                 .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
             String sslAlgorithm = config.getSslAlgorithm();

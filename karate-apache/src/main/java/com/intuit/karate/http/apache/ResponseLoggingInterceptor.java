@@ -24,6 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptContext;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.http.HttpEntity;
@@ -39,18 +40,17 @@ import org.slf4j.Logger;
  */
 public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
 
-    private final Logger logger;
-
+    private final ScriptContext context;
     private final AtomicInteger counter;
 
-    public ResponseLoggingInterceptor(AtomicInteger counter, Logger logger) {
+    public ResponseLoggingInterceptor(AtomicInteger counter, ScriptContext context) {
         this.counter = counter;
-        this.logger = logger;
+        this.context = context;
     }    
 
     @Override
-    public void process(HttpResponse response, HttpContext context) throws HttpException, IOException {
-        if (!logger.isDebugEnabled()) {
+    public void process(HttpResponse response, HttpContext httpContext) throws HttpException, IOException {
+        if (!context.logger.isDebugEnabled()) {
             return;
         }        
         int id = counter.get();
@@ -64,7 +64,7 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
             sb.append(buffer).append('\n');
             response.setEntity(wrapper);
         }
-        logger.debug(sb.toString());
+        context.logger.debug(sb.toString());
     }
 
 }

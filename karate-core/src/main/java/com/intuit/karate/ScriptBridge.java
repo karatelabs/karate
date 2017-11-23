@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.http.HttpRequestActual;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
@@ -131,6 +132,10 @@ public class ScriptBridge {
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
         }        
+    }
+    
+    public HttpRequestActual getLastRequest() {
+        return context.lastRequest;
     }
     
     public Object eval(String exp) {

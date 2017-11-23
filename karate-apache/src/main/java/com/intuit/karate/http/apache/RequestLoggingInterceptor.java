@@ -24,6 +24,8 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptContext;
+import com.intuit.karate.http.HttpRequestActual;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.http.HttpEntity;
@@ -40,36 +42,42 @@ import org.slf4j.Logger;
  */
 public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
-    private final Logger logger;
-
+    private final ScriptContext context;
     private final AtomicInteger counter;
     
-    public RequestLoggingInterceptor(AtomicInteger counter, Logger logger) {
+    public RequestLoggingInterceptor(AtomicInteger counter, ScriptContext context) {
+        this.context = context;
         this.counter = counter;
-        this.logger = logger;
     }      
 
     @Override
-    public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
-        if (!logger.isDebugEnabled()) {
-            return;
-        }        
+    public void process(HttpRequest request, HttpContext httpContext) throws HttpException, IOException {
+        HttpRequestActual actual = new HttpRequestActual();
         int id = counter.incrementAndGet();
-        String uri = (String) context.getAttribute(ApacheHttpClient.URI_CONTEXT_KEY);
+        String uri = (String) httpContext.getAttribute(ApacheHttpClient.URI_CONTEXT_KEY);
+        String method = request.getRequestLine().getMethod();
+        actual.setUri(uri);        
+        actual.setMethod(method);
         StringBuilder sb = new StringBuilder();
-        sb.append('\n').append(id).append(" > ").append(request.getRequestLine().getMethod()).append(' ').append(uri).append('\n');
-        LoggingUtils.logHeaders(sb, id, '>', request);
+        sb.append('\n').append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
+        LoggingUtils.logHeaders(sb, id, '>', request, actual);
         if (request instanceof HttpEntityEnclosingRequest) {
             HttpEntityEnclosingRequest entityRequest = (HttpEntityEnclosingRequest) request;
             HttpEntity entity = entityRequest.getEntity();
             if (LoggingUtils.isPrintable(entity)) {
-                LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity);
-                String buffer = FileUtils.toString(wrapper.getContent());
-                sb.append(buffer).append('\n');
+                LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
+                if (context.logger.isDebugEnabled()) {
+                    String buffer = FileUtils.toString(wrapper.getContent());
+                    sb.append(buffer).append('\n');
+                }
+                actual.setBody(wrapper.getBytes());
                 entityRequest.setEntity(wrapper);
             }
         }
-        logger.debug(sb.toString());
+        context.setLastRequest(actual);
+        if (context.logger.isDebugEnabled()) {
+            context.logger.debug(sb.toString());
+        }
     }
 
 }

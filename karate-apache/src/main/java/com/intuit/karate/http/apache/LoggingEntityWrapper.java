@@ -50,6 +50,10 @@ public class LoggingEntityWrapper extends HttpEntityWrapper {
         }
     }
 
+    public byte[] getBytes() {
+        return bytes;
+    }        
+
     @Override
     public boolean isRepeatable() {
         return true;

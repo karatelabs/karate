@@ -106,8 +106,8 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         clientBuilder.setDefaultCookieStore(cookieStore);
         clientBuilder.setDefaultCookieSpecRegistry(LenientCookieSpec.registry());
         AtomicInteger counter = new AtomicInteger();
-        clientBuilder.addInterceptorLast(new RequestLoggingInterceptor(counter, context.logger));
-        clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter, context.logger));
+        clientBuilder.addInterceptorLast(new RequestLoggingInterceptor(counter, context));
+        clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter, context));
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String sslAlgorithm = config.getSslAlgorithm();

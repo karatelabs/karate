@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http.apache;
 
+import com.intuit.karate.http.HttpRequestActual;
 import com.intuit.karate.http.HttpUtils;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -66,10 +67,13 @@ public class LoggingUtils {
         sb.append('\n');       
     }
     
-    public static void logHeaders(StringBuilder sb, int id, char prefix, HttpRequest request) {
+    public static void logHeaders(StringBuilder sb, int id, char prefix, HttpRequest request, HttpRequestActual actual) {
         for (String key : sortKeys(request.getAllHeaders())) {
             Header[] headers = request.getHeaders(key);
             logHeaderLine(sb, id, prefix, key, headers);
+            for (Header header : headers) {
+                actual.addHeader(header.getName(), header.getValue());
+            }
         }
     }
     

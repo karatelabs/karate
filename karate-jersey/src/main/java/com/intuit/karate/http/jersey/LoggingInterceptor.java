@@ -24,6 +24,8 @@
 package com.intuit.karate.http.jersey;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptContext;
+import com.intuit.karate.http.HttpRequestActual;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.LoggingFilterOutputStream;
 import java.io.BufferedInputStream;
@@ -33,27 +35,23 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.ClientResponseContext;
 import javax.ws.rs.client.ClientResponseFilter;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.ext.WriterInterceptor;
-import javax.ws.rs.ext.WriterInterceptorContext;
-import org.slf4j.Logger;
 
 /**
  *
  * @author pthomas3
  */
-public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFilter, WriterInterceptor {
+public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFilter {
 
-    private final Logger logger;
+    private final ScriptContext context;
     
-    public LoggingInterceptor(Logger logger) {
-        this.logger = logger;
+    public LoggingInterceptor(ScriptContext context) {
+        this.context = context;
     }    
 
     private final AtomicInteger counter = new AtomicInteger();
@@ -65,43 +63,56 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         return HttpUtils.isPrintable(mediaType.toString());
     }
 
-    private static void logHeaders(StringBuilder sb, int id, char prefix, MultivaluedMap<String, String> headers) {
+    private static void logHeaders(StringBuilder sb, int id, char prefix, MultivaluedMap<String, String> headers, HttpRequestActual actual) {
         Set<String> keys = new TreeSet(headers.keySet());
         for (String key : keys) {
             List<String> entries = headers.get(key);
             sb.append(id).append(' ').append(prefix).append(' ')
                     .append(key).append(": ").append(entries.size() == 1 ? entries.get(0) : entries).append('\n');
+            if (actual != null) {
+                actual.putHeader(key, entries);
+            }
         }
     }
 
     @Override
-    public void filter(ClientRequestContext request) throws IOException {
-        if (!logger.isDebugEnabled()) {
-            return;
-        }        
-        int id = counter.incrementAndGet();
-        StringBuilder sb = new StringBuilder();
-        sb.append('\n').append(id).append(" > ").append(request.getMethod()).append(' ')
-                .append(request.getUri().toASCIIString()).append('\n');
-        logHeaders(sb, id, '>', request.getStringHeaders());
+    public void filter(ClientRequestContext request) throws IOException {            
         if (request.hasEntity() && isPrintable(request.getMediaType())) {
-            LoggingFilterOutputStream out = new LoggingFilterOutputStream(request.getEntityStream(), sb);
+            LoggingFilterOutputStream out = new LoggingFilterOutputStream(request.getEntityStream());
             request.setEntityStream(out);
             request.setProperty(LoggingFilterOutputStream.KEY, out);
-        } else {
-            logger.debug(sb.toString());
         }
     }
 
     @Override
     public void filter(ClientRequestContext request, ClientResponseContext response) throws IOException {
-        if (!logger.isDebugEnabled()) {
-            return;
-        }        
-        int id = counter.get();
+        int id = counter.incrementAndGet();
+        HttpRequestActual actual = new HttpRequestActual();
+        String method = request.getMethod();
+        String uri = request.getUri().toASCIIString();
+        actual.setMethod(method);
+        actual.setUri(uri);
         StringBuilder sb = new StringBuilder();
+        sb.append('\n').append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
+        logHeaders(sb, id, '>', request.getStringHeaders(), actual);        
+        LoggingFilterOutputStream out = (LoggingFilterOutputStream) request.getProperty(LoggingFilterOutputStream.KEY);
+        if (out != null) {            
+            byte[] bytes = out.getBytes().toByteArray();
+            actual.setBody(bytes);
+            context.setLastRequest(actual);
+            if (context.logger.isDebugEnabled()) {
+                String body = FileUtils.toString(bytes);
+                sb.append(body).append('\n');                
+            }
+        }     
+        // response
+        if (!context.logger.isDebugEnabled()) {
+            return;
+        }
+        context.logger.debug(sb.toString()); // log request
+        sb = new StringBuilder();
         sb.append('\n').append(id).append(" < ").append(response.getStatus()).append('\n');
-        logHeaders(sb, id, '<', response.getHeaders());
+        logHeaders(sb, id, '<', response.getHeaders(), null);
         if (response.hasEntity() && isPrintable(response.getMediaType())) {
             InputStream is = response.getEntityStream();
             if (!is.markSupported()) {
@@ -113,19 +124,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
             is.reset();
             response.setEntityStream(is); // in case it was swapped
         }
-        logger.debug(sb.toString());
-    }
-
-    @Override
-    public void aroundWriteTo(WriterInterceptorContext context) throws IOException, WebApplicationException {
-        LoggingFilterOutputStream out = (LoggingFilterOutputStream) context.getProperty(LoggingFilterOutputStream.KEY);
-        context.proceed();
-        if (out != null && logger.isDebugEnabled()) {
-            StringBuilder sb = out.getBuffer();
-            String bytes = FileUtils.toString(out.getBytes().toByteArray());
-            sb.append(bytes).append('\n');
-            logger.debug(sb.toString());
-        }
+        context.logger.debug(sb.toString());
     }
 
 }

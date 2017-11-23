@@ -23,33 +23,58 @@
  */
 package com.intuit.karate.http;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FilterOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.util.List;
 
 /**
- *
+ * this is only for capturing what was actually sent on the wire, read-only
+ * 
  * @author pthomas3
  */
-public class LoggingFilterOutputStream extends FilterOutputStream {
+public class HttpRequestActual {
     
-    public static final String KEY = LoggingFilterOutputStream.class.getName();
-
-    private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-
-    public LoggingFilterOutputStream(OutputStream out) {
-        super(out);
+    private String method;
+    private String uri;
+    private MultiValuedMap headers = new MultiValuedMap();
+    private byte[] body;
+    
+    public void addHeader(String key, String value) {
+        headers.add(key, value);
+    }
+    
+    public void putHeader(String key, List<String> values) {
+        headers.put(key, values);
     }
 
-    @Override
-    public void write(int b) throws IOException {
-        super.write(b);
-        bytes.write(b);
+    public String getMethod() {
+        return method;
     }
 
-    public ByteArrayOutputStream getBytes() {
-        return bytes;
+    public void setMethod(String method) {
+        this.method = method;
     }
+
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
+    public MultiValuedMap getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(MultiValuedMap headers) {
+        this.headers = headers;
+    }
+
+    public byte[] getBody() {
+        return body;
+    }
+
+    public void setBody(byte[] body) {
+        this.body = body;
+    }        
     
 }
