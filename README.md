@@ -88,6 +88,7 @@ A set of real-life examples can be found here: [Karate Demos](karate-demo)
 For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](http://tinyurl.com/karatera)
 
 ## References
+* [REST API Testing with Karate](http://www.baeldung.com/karate-rest-api-testing) - tutorial by [Baeldung](http://www.baeldung.com/author/baeldung/)
 * [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
 * [Karate for Complex Web-Service API Testing](https://www.slideshare.net/intuit_india/karate-for-complex-webservice-api-testing-by-peter-thomas) - slide-deck by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - a detailed tutorial by [Micha Kops](https://twitter.com/hascode) - featured on the [Semaphore CI](https://twitter.com/semaphoreci) site
@@ -1360,6 +1361,8 @@ When 'multipart' content is involved, the `Content-Type` header of the HTTP requ
 You can over-ride it by using the [`header`](#header) keyword before the `method` step.  Look at
 [`multipart entity`](#multipart-entity) for an example.
 
+Also refer to this [demo example](karate-demo) for a working example of multipart file uploads: [`upload.feature`](karate-demo/src/test/java/demo/upload/upload.feature).
+
 ## `multipart entity`
 
 > This is technically not in the key-value form: `multipart field name = 'foo'`, but logically
@@ -1571,7 +1574,7 @@ Karate has an elegant way to set multiple keys (via path expressions) in one ste
 * match cat == { name: 'Bob', age: 5 }
 ```
 
-One extra convenience for JSON is that if the variable does not exist, it will be created automatically. You can even create (or modify existing) JSON arrays by using multiple columns.
+One extra convenience for JSON is that if the variable itself (which was `cat` in the above example) does not exist, it will be created automatically. You can even create (or modify existing) JSON arrays by using multiple columns.
 
 ```cucumber
 * set foo
@@ -2375,7 +2378,7 @@ Refer to this [demo feature](karate-demo) for an example: [`kitten-create.featur
 Examples of [defining and using JavaScript functions](#javascript-functions) appear in earlier sections of this document. Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
 * call and interoperate with Java code if needed
-* share and re-use test utilities or 'helper' functionality across your organization
+* share and re-use test [utilities](#commonly-needed-utilities) or 'helper' functionality across your organization
 
 In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the variables that result from a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests.
 
@@ -2548,7 +2551,7 @@ And this may give you more ideas. You can always use a [JavaScript function](#ja
 Also refer to [polling](#polling) for more ideas.
 
 ## Commonly Needed Utilities
-Since it is so easy to dive into [Java-interop](#calling-java), Karate does not include any random-number functions, uuid generator or date/time utilities out of the box. You simply roll your own. 
+Since it is so easy to dive into [Java-interop](#calling-java), Karate does not include any random-number functions, uuid generator or date / time utilities out of the box. You simply roll your own. 
 
 Here is an example of how to get the current date, and formatted the way you want:
 

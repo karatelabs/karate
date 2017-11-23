@@ -110,6 +110,13 @@ Scenario: xml with namespaces
 * match jsonVar $..ns2:foo.@ contains only { fizz: 'buzz', ping: 'pong' }
 * match each jsonVar $..ns2:foo.@ contains { ping: 'pong' }
 
+Scenario: json to java map - useful in some situations
+    here we want to get the "first key" out of a given json
+* def response = { "key1": { "a" : 1 }, "key2" : { "b": 1 } }
+* def map = karate.toBean(response, 'java.util.LinkedHashMap')
+* def first = map.keySet().iterator().next()
+* match first == 'key1'
+
 Scenario: java pojo to json
 * def className = 'com.intuit.karate.junit4.demos.SimplePojo'
 * def Pojo = Java.type(className)

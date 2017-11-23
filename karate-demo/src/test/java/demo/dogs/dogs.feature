@@ -31,6 +31,8 @@ And match response contains { id: '#(id)', name: 'Scooby' }
 * def DbUtils = Java.type('com.intuit.karate.demo.util.DbUtils')
 * def db = new DbUtils(config)
 
+# since the DbUtils returns a Java Map, it becomes normal JSON here !
+# which means that you can use the full power of Karate's 'match' syntax
 * def dogs = db.readRows('SELECT * FROM DOGS')
 * match dogs contains { ID: '#(id)', NAME: 'Scooby' }
 
