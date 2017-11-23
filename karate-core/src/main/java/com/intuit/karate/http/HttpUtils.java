@@ -9,7 +9,10 @@ import java.io.InputStream;
 import java.security.SecureRandom;
 import javax.net.ssl.TrustManager;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 
 /**
@@ -19,6 +22,9 @@ import javax.net.ssl.SSLContext;
 public class HttpUtils {
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
+    public static final Set<String> HTTP_METHODS
+            = Stream.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE")
+                    .collect(Collectors.toSet());
 
     private HttpUtils() {
         // only static methods
@@ -63,7 +69,7 @@ public class HttpUtils {
             return TEXT_PLAIN;
         }
     }
-    
+
     public static StringUtils.Pair splitCharsetIfPresent(String mediaType) {
         int pos = mediaType.indexOf(';');
         if (pos == -1) {
@@ -74,7 +80,7 @@ public class HttpUtils {
             mediaType = mediaType.substring(0, pos);
             return StringUtils.pair(mediaType, charset);
         }
-    }    
+    }
 
     private static final AtomicInteger BOUNDARY_COUNTER = new AtomicInteger();
 

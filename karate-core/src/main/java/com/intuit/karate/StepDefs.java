@@ -27,6 +27,7 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
+import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -355,6 +356,9 @@ public class StepDefs {
 
     @When("^method (\\w+)")
     public void method(String method) {
+        if (!HttpUtils.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
+            method = Script.eval(method, context).getAsString();
+        }
         request.setMethod(method);
         response = context.client.invoke(request, context);
         context.vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
@@ -493,7 +497,7 @@ public class StepDefs {
             context.logger.info("{}", sb);
         }
     }
-
+    
     @When("^status (\\d+)")
     public void status(int status) {
         if (status != response.getStatus()) {
