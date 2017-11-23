@@ -23,9 +23,9 @@ Then status 200
 ```
 It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can express payload and expected data without having to use double-quotes and without having to enclose JSON field names in quotes.  There is no need to 'escape' characters like you would have had to in Java or other programming languages.
 
-And you don't need to create Java objects (or POJO-s) for any of the payloads that you need to work with.
+And you don't need to create Java objects (or POJOs) for any of the payloads that you need to work with.
 
-# Index 
+# Index
 
 :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square:  
 ----- | ---- | ---- | --- | ---
@@ -34,7 +34,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
 **Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
-**Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
+**Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method)
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart file`](#multipart-file) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
@@ -48,7 +48,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
 # Features
 * Java knowledge is not required and even non-programmers can write tests
-* Scripts are plain-text files, require no compilation step or IDE, and teams can collaborate using standard version-control / Git
+* Scripts are plain-text files, requires no compilation step or IDE, and teams can collaborate using standard version-control / Git
 * Based on the popular Cucumber / Gherkin standard, and [IDE support](#running-in-eclipse-or-intellij) and syntax-coloring options exist
 * Syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
 * Eliminate the need for 'POJOs' or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
@@ -183,7 +183,7 @@ This can be easily achieved with the following tweak to your maven `<build>` sec
 This is very common in the world of Maven users and keep in mind that these are tests and not production code.  
 
 Alternatively, if using gradle then add the following `sourceSets` definition
-         
+
 ```yml
 sourceSets {
     test {
@@ -195,14 +195,14 @@ sourceSets {
 }
 ```
 
-With the above in place, you don't have to keep switching between your `src/test/java` and `src/test/resources` folders, you can have all your test-code and artifacts under 
+With the above in place, you don't have to keep switching between your `src/test/java` and `src/test/resources` folders, you can have all your test-code and artifacts under
 `src/test/java` and everything will work as expected.
 
-Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all !
+Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all!
 
 ## Naming Conventions
 
-Since these are tests and not production Java code, you don't need to be bound by the `com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. 
+Since these are tests and not production Java code, you don't need to be bound by the `com.mycompany.foo.bar` convention and the unnecessary explosion of sub-folders that ensues.
 We suggest that you have a folder hierarchy only one or two levels deep - where the folder names clearly identify which 'resource', 'entity' or API is the web-service under test.
 
 For example:
@@ -238,8 +238,7 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 * `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder hierarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
 * `some-classpath-function.js` and `some-classpath-payload.js` are in the 'root' of the Java 'classpath' which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
 
-For details on what actually goes into a script or `*.feature` file, refer to the
-[syntax guide](#syntax-guide).
+For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
 ## IDE Support
 Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
@@ -266,17 +265,15 @@ import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
 public class CatsRunner {
-	
+
 }
 ```
-Refer to your IDE documentation for how to run a JUnit class.  Typically right-clicking on the file in the
-project browser or even within the editor view would bring up the "Run as JUnit Test" menu option.
+Refer to your IDE documentation for how to run a JUnit class.  Typically right-clicking on the file in the project browser or even within the editor view would bring up the "Run as JUnit Test" menu option.
 
 > Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be run. This is one reason why you may want to prefer a 'flat' directory structure as [explained above](#naming-conventions).
 
 ## Running With TestNG
-You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior
-is the same as if using JUnit.
+You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior is the same as if using JUnit.
 
 ```java
 package animals.cats;
@@ -284,7 +281,7 @@ package animals.cats;
 import com.intuit.karate.testng.KarateRunner;
 
 public class CatsRunner extends KarateRunner {
-    
+
 }
 ```
 
@@ -301,7 +298,7 @@ import org.junit.runner.RunWith;
 @RunWith(Karate.class)
 @CucumberOptions(features = "classpath:animals/cats/cats-post.feature")
 public class CatsPostRunner {
-	
+
 }
 ```
 The `features` parameter in the annotation can take an array, so if you wanted to associate
@@ -323,7 +320,7 @@ Note that the `mvn test` command only runs test classes that follow the `*Test.j
 mvn test -Dtest=CatsRunner
 ```
 
-For gradle you must extend the test task to allow the cucumuber.options to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
+For gradle you must extend the test task to allow the `cucumuber.options` to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
 
 ```yml
 test {
@@ -373,7 +370,7 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
             <cucumber.options>--tags ~@ignore</cucumber.options>
         </systemProperties>            
     </configuration>
-</plugin> 
+</plugin>
 ```
 
 Note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`).
@@ -410,13 +407,13 @@ import org.junit.Test;
 
 @CucumberOptions(tags = {"~@ignore"})
 public class TestParallel {
-    
+
     @Test
     public void testParallel() {
         KarateStats stats = CucumberRunner.parallel(getClass(), 5, "target/surefire-reports");
         assertTrue("scenarios failed", stats.getFailCount() == 0);
     }
-    
+
 }
 ```
 Things to note:
@@ -459,35 +456,35 @@ The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-us
 > This is optional, and Karate will work without the logging config in place, but the default
 console logging may be too verbose for your needs.
 
-Karate uses [LOGBack](http://logback.qos.ch) which looks for a file called logback-test.xml 
-on the classpath.  If you use the Maven `<test-resources>` tweak [described earlier](#folder-structure) (recommended), 
+Karate uses [LOGBack](http://logback.qos.ch) which looks for a file called logback-test.xml
+on the classpath.  If you use the Maven `<test-resources>` tweak [described earlier](#folder-structure) (recommended),
 keep this file in `src/test/java`, or else it should go into `src/test/resources`.  
 
 Here is a sample `logback-test.xml` for you to get started.
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
- 
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-  
+
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <file>target/karate.log</file>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>    
-   
+
     <logger name="com.intuit" level="DEBUG"/>
-   
+
     <root level="info">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
-  
+
 </configuration>
 ```
 You can change the `com.intuit` logger level to `INFO` to reduce the amount of logging. When the level is `DEBUG` the entire request and response payloads are logged.
@@ -575,7 +572,7 @@ import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
 public class CatsRunner {   
-    
+
     @BeforeClass
     public static void before() {
         System.setProperty("karate.env", "pre-prod");
@@ -586,7 +583,7 @@ public class CatsRunner {
 
 # Syntax Guide
 ## Script Structure
-Karate scripts are technically in '[Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin)' format - but all you need to grok as someone who needs to test web-services are the three sections: `Feature`, `Background` and `Scenario`. There can be multiple Scenario-s in a `*.feature` file.  
+Karate scripts are technically in '[Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin)' format - but all you need to grok as someone who needs to test web-services are the three sections: `Feature`, `Background` and `Scenario`. There can be multiple Scenarios in a `*.feature` file.  
 
 Lines that start with a `#` are comments.
 ```cucumber
@@ -628,7 +625,7 @@ One nice thing about the design of the underlying Cucumber framework is that scr
 
 In fact Cucumber supports the [catch-all symbol '`*`'](https://www.relishapp.com/cucumber/cucumber/docs/gherkin/using-star-notation-instead-of-given-when-then) - instead of forcing you to use `Given`, `When` or `Then`. This is perfect for those cases where it really doesn't make sense - for example the [`Background`](#script-structure) section or when you use the [`def`](#def) or [`set`](#set) syntax. When eyeballing a test-script, think of the `*` as a 'bullet-point'.
 
-You can read more about the Given-When-Then convention at the [Cucumber reference documentation](https://cucumber.io/docs/reference).
+You can read more about the `Given-When-Then` convention at the [Cucumber reference documentation](https://cucumber.io/docs/reference).
 
 Since Karate is based on Cucumber, you can also employ [data-driven](#data-driven-tests) techniques such as expressing data-tables in test scripts.
 
@@ -769,7 +766,7 @@ The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#re
 * def cat = <cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>
 
 # this is more readable:
-* def cat = 
+* def cat =
 """
 <cat>
     <name>Billie</name>
@@ -780,8 +777,8 @@ The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#re
 </cat>
 """
 # example of a request payload in-line
-Given request 
-""" 
+Given request
+"""
 <?xml version='1.0' encoding='UTF-8'?>
 <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
 <S:Body>
@@ -798,7 +795,7 @@ Given request
 Then match response ==
 """
 { id: { domain: "DOM", type: "entityId", value: "#ignore" },
-  created: { on: "#ignore" }, 
+  created: { on: "#ignore" },
   lastUpdated: { on: "#ignore" },
   entityState: "ACTIVE"
 }
@@ -873,7 +870,7 @@ Then status 200
 Examples:
 | name  |
 | John  |
-| Smith | 
+| Smith |
 ```
 
 Note that if you did not need to inject [`Examples:`](#data-driven-tests) into 'placeholders' enclosed within `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
@@ -934,7 +931,7 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 name: John
 input:
   id: 1
-  subType: 
+  subType:
     name: Smith
     deleted: false
 """
@@ -943,7 +940,7 @@ input:
 """
 {
   name: 'John',
-  input: { 
+  input: {
     id: 1,
     subType: { name: 'Smith', deleted: false }    
   }
@@ -958,7 +955,7 @@ input:
 JavaScript Functions are also 'native'. And yes, functions can take arguments.  
 Standard JavaScript syntax rules apply.
 
-> [ES6 arrow functions](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/Arrow_functions) 
+> [ES6 arrow functions](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/Arrow_functions)
 are **not** supported.
 
 ```cucumber
@@ -978,7 +975,7 @@ function(s) {
   var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
   var sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
   return sdf.parse(s).time; // '.getTime()' would also have worked instead of '.time'
-} 
+}
 """
 * assert dateStringToLong("2016-12-24T03:39:21.081+0000") == 1482550761081
 ```
@@ -1121,7 +1118,7 @@ These are essential HTTP operations, they focus on setting one (un-named or 'key
 ```cucumber
 Given url 'https://myhost.com/v1/cats'
 ```
-A URL remains constant until you use the `url` keyword again, so this is a good place to set-up the 'non-changing' parts of your REST URL-s.
+A URL remains constant until you use the `url` keyword again, so this is a good place to set-up the 'non-changing' parts of your REST URLs.
 
 A URL can take expressions, so the approach below is legal.  And yes, variables can come from global [config](#configuration).
 ```cucumber
@@ -1156,8 +1153,7 @@ In-line XML:
 ```cucumber
 And request <cat><name>Billie</name><type>Ceiling</type></cat>
 ```
-From a [file](#reading-files) in the same package.  Use the `classpath:` prefix to load from the 
-classpath instead.
+From a [file](#reading-files) in the same package.  Use the `classpath:` prefix to load from the classpath instead.
 ```cucumber
 Given request read('my-json.json')
 ```
@@ -1197,13 +1193,13 @@ And this assertion will cause the test to fail if the HTTP response code is some
 See also [`responseStatus`](#responsestatus).
 
 # Keywords that set key-value pairs
-They are `param`, `header`, `cookie`, `form field` and `multipart field`. 
+They are `param`, `header`, `cookie`, `form field` and `multipart field`.
 
 The syntax will include a '=' sign between the key and the value.  The key should not be within quotes.
 
 > To make dynamic data-driven testing easier, the following keywords also exist: [`params`](#params), [`headers`](#headers), [`cookies`](#cookies-json) and [`form fields`](#form-fields). They use JSON to build the relevant parts of the HTTP request.
 
-## `param` 
+## `param`
 Setting query-string parameters:
 ```cucumber
 Given param someKey = 'hello'
@@ -1229,8 +1225,8 @@ And header transaction-id = 'test-' + myIdString
 
 It is worth repeating that in most cases you won't need to set the `Content-Type` header as Karate will automatically do the right thing depending on the data-type of the [`request`](#request).
 
-Because of how easy it is to set HTTP headers, Karate does not provide any special keywords for things like 
-the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header. You simply do 
+Because of how easy it is to set HTTP headers, Karate does not provide any special keywords for things like
+the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header. You simply do
 something like this:
 
 ```cucumber
@@ -1274,7 +1270,7 @@ Note that any cookies returned in the HTTP response would be automatically set f
 
 Also refer to the built-in variable [`responseCookies`](#responsecookies) for how you can access and perform assertions on cookie data values.
 
-## `form field` 
+## `form field`
 HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response). For example:
 
 ```cucumber
@@ -1314,23 +1310,21 @@ Note that `multipart file` takes a JSON argument so that you can easily set the 
 * `contentType`: optional, will default to `application/octet-stream`
 
 When 'multipart' content is involved, the `Content-Type` header of the HTTP request defaults to `multipart/form-data`.
-You can over-ride it by using the [`header`](#header) keyword before the `method` step.  Look at
-[`multipart entity`](#multipart-entity) for an example.
+You can over-ride it by using the [`header`](#header) keyword before the `method` step.  Look at [`multipart entity`](#multipart-entity) for an example.
 
 ## `multipart entity`
 
 > This is technically not in the key-value form: `multipart field name = 'foo'`, but logically
 belongs here in the documentation.
 
-Use this for multipart content items that don't have field-names.  Here below is an example that 
-also demonstrates using the [`multipart/related`](https://tools.ietf.org/html/rfc2387) content-type.
+Use this for multipart content items that don't have field-names. Below is an example that also demonstrates using the [`multipart/related`](https://tools.ietf.org/html/rfc2387) content-type.
 
 ```cucumber
 Given path '/v2/documents'
 And multipart entity read('foo.json')
 And multipart field image = read('bar.jpg')
 And header Content-Type = 'multipart/related'
-When method post 
+When method post
 Then status 201
 ```
 
@@ -1369,12 +1363,10 @@ See also [`cookie`](#cookie).
 See also [`form field`](#form-field).
 
 # SOAP
-Since a SOAP request needs special handling, this is the only case where the
-[`method`](#method) step is not used to actually fire the request to the server.
+Since a SOAP request needs special handling, this is the only case where the [`method`](#method) step is not used to actually fire the request to the server.
 
 ## `soap action`
-The name of the SOAP action specified is used as the 'SOAPAction' header.  Here is an example
-which also demonstrates how you could assert for expected values in the response XML.
+The name of the SOAP action specified is used as the 'SOAPAction' header.  Here is an example which also demonstrates how you could assert for expected values in the response XML.
 ```cucumber
 Given request read('soap-request.xml')
 When soap action 'QueryUsageBalance'
@@ -1585,13 +1577,13 @@ Also take a look at how a special case of [embedded-expressions](#embedded-expre
 ### Ignore or Validate
 When expressing expected results (in JSON or XML) you can mark some fields to be ignored when the match (comparison) is performed.  You can even use a regular-expression so that instead of checking for equality, Karate will just validate that the actual value conforms to the expected pattern.
 
-This means that even when you have dynamic server-side generated values such as UUID-s and time-stamps appearing in the response, you can still assert that the full-payload matched in one step.
+This means that even when you have dynamic server-side generated values such as UUIDs and time-stamps appearing in the response, you can still assert that the full-payload matched in one step.
 
 ```cucumber
 * def cat = { name: 'Billie', type: 'LOL', id: 'a9f7a56b-8d5c-455c-9d13-808461d17b91' }
 * match cat == { name: '#ignore', type: '#regex [A-Z]{3}', id: '#uuid' }
 # this will fail
-# * match cat == { name: '#ignore', type: '#regex .{2}', id: '#uuid' }	
+# * match cat == { name: '#ignore', type: '#regex .{2}', id: '#uuid' }
 ```
 The supported markers are the following:
 
@@ -1746,7 +1738,7 @@ This is a good time to deep-dive into JsonPath, which is perfect for slicing and
 Here are some example assertions performed while scraping a list of child elements out of the JSON below. Observe how you can `match` the result of a JsonPath expression with your expected data.
 
 ```cucumber
-Given def cat = 
+Given def cat =
 """
 {
   name: 'Billie',
@@ -1810,7 +1802,7 @@ The `match` keyword can be made to iterate over all elements in a JSON array usi
 * match each data.foo contains { baz: "#? _ != 'z'" }
 * def isAbc = function(x) { return x == 'a' || x == 'b' || x == 'c' }
 * match each data.foo contains { baz: '#? isAbc(_)' }
-``` 
+```
 
 Here is a contrived example that uses `match each`, [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' marker to validate that the value of `totalPrice` is always equal to the `roomPrice` of the first item in the `roomInformation` array.
 
@@ -1876,15 +1868,15 @@ This 'in-line' short-cut for validating JSON arrays is similar to how [`match ea
 When method get
 Then match response ==
 """
-{ 
+{
   id: '#regex[0-9]+',
   count: '#number',
   odd: '#(oddSchema)',
-  data: { 
-    countryId: '#number', 
-    countryName: '#string', 
-    leagueName: '##string', 
-    status: '#number? _ >= 0', 
+  data: {
+    countryId: '#number',
+    countryName: '#string',
+    leagueName: '##string',
+    status: '#number? _ >= 0',
     sportName: '#string',
     time: '#? isValidTime(_)'
   },
@@ -1920,7 +1912,7 @@ Especially when payloads are complex (or highly dynamic), it may be more practic
 Symbol  | Means
 ------- | ------                               
 | `^`   | [`contains`](#match-contains)           
-| `^^`  | [`contains only`](#match-contains-only) 
+| `^^`  | [`contains only`](#match-contains-only)
 | `!^`  | [`not contains`](#not-contains)
 
 So given the following data:
@@ -1957,7 +1949,7 @@ Normal Form | In-Line Form
 In real-life tests, these are very useful when the order of items in arrays returned from the server are not guaranteed. You can easily assert that all expected elements are present, _even_ in nested parts of your JSON - while doing a [`match`](#match) on the _full_ payload.
 
 ```cucumber
-* def cat = 
+* def cat =
 """
 {
   name: 'Billie',
@@ -1975,7 +1967,7 @@ In real-life tests, these are very useful when the order of items in arrays retu
 By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#path-examples)) can be very useful for extracting JSON 'trees' out of a given object. The `get` keyword allows you to save the results of a JsonPath expression for later use - which is especially useful for dynamic [data-driven testing](#data-driven-features).
 
 ```cucumber
-* def cat = 
+* def cat =
 """
 {
   name: 'Billie',
@@ -2019,7 +2011,7 @@ A convenience that the `get` syntax supports (not the `$` short-cut form) is to 
 JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-operators) are very useful for extracting elements that meet some filter criteria out of arrays.
 
 ```cucumber
-* def cat = 
+* def cat =
 """
 {
   name: 'Billie',
@@ -2063,7 +2055,7 @@ When handling XML, you sometimes need to call [XPath functions](https://docs.ora
 Some XPath expressions return a list of nodes (instead of a single node). But since you can express a list of data-elements as a JSON array - even these XPath expressions can be used in `match` statements.
 
 ```cucumber
-* def teachers = 
+* def teachers =
 """
 <teachers>
   <teacher department="science">
@@ -2110,7 +2102,7 @@ And similarly for XML and XPath, '/' represents the `response`
 Then match response / == <cat><name>Billie</name></cat>
 Then match response/ == <cat><name>Billie</name></cat>
 Then match response == <cat><name>Billie</name></cat>
-Then match / == <cat><name>Billie</name></cat> 
+Then match / == <cat><name>Billie</name></cat>
 
 # the three lines below are equivalent
 Then match response /cat/name == 'Billie'
@@ -2172,7 +2164,7 @@ Custom header manipulation for every HTTP request is something that Karate makes
   * all the key-value pairs are added to the HTTP headers.
 
 This makes setting up of complex authentication schemes for your test-flows really easy. It typically ends up being a one-liner that appears in the `Background` section at the start of your test-scripts.  You can re-use the function you create across your whole project.
- 
+
 Here is an example JavaScript function that uses some variables in the context (which have been possibly set as the result of a sign-in) to build the `Authorization` header.
 
 > In the example below, note the use of the [`karate`](#the-karate-object) object for getting the value of a dynamic variable. This is preferred because it takes care of situations such as if the value is 'undefined' in JavaScript.
@@ -2186,7 +2178,7 @@ function() {
   };
   var authString = '';
   var authToken = karate.get('authToken'); // use the 'karate' helper to do a 'safe' get of a 'dynamic' variable
-  if (authToken) { // and if 'authToken' is not null ... 
+  if (authToken) { // and if 'authToken' is not null ...
     authString = ',auth_type=MyAuthScheme'
         + ',auth_key=' + authToken.key
         + ',auth_user=' + authToken.userId
@@ -2203,7 +2195,7 @@ Notice how once the `authToken` variable is initialized, it is used by the above
 
 If a few steps in your flow need to temporarily change (or completely bypass) the currently-set header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the middle of a script.
 
-The [karate-demo](karate-demo) has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature) 
+The [karate-demo](karate-demo) has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature)
 
 # Code Reuse / Common Routines
 
@@ -2272,7 +2264,7 @@ But this time, the return value from the `call` step will be a JSON array of the
 Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) shortcut is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
 
 ```cucumber
-* table kittens 
+* table kittens
     | name   | age |
     | 'Bob'  |   2 |
     | 'Wild' |   1 |
@@ -2422,7 +2414,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class JavaDemo {    
-    
+
     public Map<String, Object> doWork(String fromJs) {
         Map<String, Object> map = new HashMap<>();
         map.put("someKey", "hello " + fromJs);
@@ -2458,9 +2450,9 @@ function(arg) {
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
 ## `callonce`
-Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
+Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515).
 
-Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guaranteed to execute only once. The results of the first call are cached, and any future calls will simply return the cached result instead of executing the JavaScript function (or feature) again and again. 
+Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guaranteed to execute only once. The results of the first call are cached, and any future calls will simply return the cached result instead of executing the JavaScript function (or feature) again and again.
 
 This does require you to move 'set-up' into a separate `*.feature` (or JavaScript) file. But this totally makes sense for things not part of the 'main' test flow and which typically need to be re-usable anyway.
 
@@ -2491,7 +2483,7 @@ And this could give you more ideas:
 Also refer to [polling](#polling) for more ideas.
 
 ## Commonly Needed Utilities
-Since it is so easy to dive into [Java-interop](#calling-java), Karate does not include any random-number functions, uuid generator or date/time utilities out of the box. You simply roll your own. 
+Since it is so easy to dive into [Java-interop](#calling-java), Karate does not include any random-number functions, uuid generator or date/time utilities out of the box. You simply roll your own.
 
 Here is an example of how to get the current date, and formatted the way you want:
 
@@ -2503,42 +2495,38 @@ function() {
   var sdf = new SimpleDateFormat('yyyy/MM/dd');
   var date = new java.util.Date();
   return sdf.format(date);
-} 
+}
 """
 
 * def temp = getDate()
 * print temp
 ```
 
-And the above will result in something like this being logged: `[print] 2017/10/16`. 
+And the above will result in something like this being logged: `[print] 2017/10/16`.
 
 Here below are a few more common examples:
 
 Utility | Recipe
 ------- | ------                               
 | System Time | `function(){ return java.lang.System.currentTimeMillis() }`         
-| UUID  | `function(){ return java.util.UUID.randomUUID() + '' }` 
+| UUID  | `function(){ return java.util.UUID.randomUUID() + '' }`
 
 The above are good enough for the purposes of random string generation for most situations.
 
 ## GraphQL / RegEx replacement example
-As a demonstration of Karate's power and flexibility, here is an example that reads a 
-GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries 
-and filter criteria.
+As a demonstration of Karate's power and flexibility, here is an example that reads a GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries and filter criteria.
 
-Here we have this JavaScript utlity function `replacer.js` that uses a regular-expression to 
-replace-inject a criteria expression into the right place, given a GraphQL query.
+Here we have this JavaScript utlity function `replacer.js` that uses a regular-expression to replace-inject a criteria expression into the right place, given a GraphQL query.
 
 ```javascript
 function(args) {
   var query = args.query;  
   var regex = new RegExp('\\s' + args.field + '\\s*{'); // the RegExp object is standard JavaScript
   return query.replace(regex, ' ' + args.field + '(' + args.criteria + ') {');
-} 
+}
 ```
 
-Once the function is declared, observe how calling it and performing the replacement 
-is an elegant one-liner.
+Once the function is declared, observe how calling it and performing the replacement is an elegant one-liner.
 ```cucumber
 * def replacer = read('replacer.js')
 
@@ -2561,26 +2549,16 @@ Then status 200
 ```
 
 ## Cucumber Tags
-Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some
-interesting options when running tests in bulk.  The most common use-case would be to
-partition your tests into 'smoke', 'regression' and the like - which enables being 
-able to selectively execute a sub-set of tests.
+Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk. The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.
 
-The documentation on how to run tests via the [command line](#command-line) has an example of how to use tags
-to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
-has more information on tags.
+The documentation on how to run tests via the [command line](#command-line) has an example of how to use tags to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) has more information on tags.
 
 > For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to the `karate.tags` and `karate.tagValues` methods on [the Karate JS object](#the-karate-object).
 
 ## Dynamic Port Numbers
-In situations where you start an (embedded) application server as part of the test set-up phase, a typical
-challenge is that the HTTP port may be determined at run-time. So how can you get this value injected
-into the Karate configuration ?
+In situations where you start an (embedded) application server as part of the test set-up phase, a typical challenge is that the HTTP port may be determined at run-time. So how can you get this value injected into the Karate configuration?
 
-It so happens that the [`karate`](#the-karate-object) object has a field called `properties` 
-which can read a Java system-property by name like this: `karate.properties['myName']`. Since the `karate` object is injected
-within [`karate-config.js`](#configuration) on start-up, it is a simple and effective way for other 
-processes within the same JVM to pass configuration values into Karate at run-time.
+It so happens that the [`karate`](#the-karate-object) object has a field called `properties` which can read a Java system-property by name like this: `karate.properties['myName']`. Since the `karate` object is injected within [`karate-config.js`](#configuration) on start-up, it is a simple and effective way for other processes within the same JVM to pass configuration values into Karate at run-time.
 
 You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
 * [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java#L30) - see line #30
@@ -2594,7 +2572,7 @@ It should be clear now that Karate provides a super-simple way to make HTTP requ
 
 A common use case is to mix API-calls into a larger test-suite, for example a Selenium or WebDriver UI test. So you can use Karate to set-up data via API calls, then run the UI test-automation, and finally again use Karate to assert that the system-state is as expected.
 
-There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`runFeature()` and `runClasspathFeature()`) which are best explained in this demo unit-test: [`JavaApiTest.java`](karate-demo/src/test/java/demo/java/JavaApiTest.java). 
+There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`runFeature()` and `runClasspathFeature()`) which are best explained in this demo unit-test: [`JavaApiTest.java`](karate-demo/src/test/java/demo/java/JavaApiTest.java).
 
 You can optionally pass in variable values or over-ride config via a `HashMap` or leave the second-last argument as `null`. The variable state after feature execution would be returned as a `Map<String, Object>`. The last `boolean` argument is whether the [`karate-config.js`](#configuration) should be processed or not.
 
@@ -2636,8 +2614,7 @@ Examples:
 | 4    | 2     |
 ```
 This is great for testing boundary conditions against a single end-point, with the added bonus that
-your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
-who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
+your test becomes even more readable. This approach can certainly enable product-owners or domain-experts who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
 ### The Karate Way
 The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it.
