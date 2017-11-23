@@ -39,8 +39,10 @@ import gherkin.formatter.model.ScenarioOutline;
 import gherkin.formatter.model.Step;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.w3c.dom.Document;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -63,11 +65,41 @@ public class KarateHtmlReporter implements Reporter, Formatter {
         this.formatter = formatter;
     }        
 
+    private void set(String path, String value) {
+        XmlUtils.setByPath(doc, path, value);
+    }
+    
+    private void set(String path, Node node) {
+        XmlUtils.setByPath(doc, path, node);
+    }    
+    
+    private Node node(String name, String clazz) {
+        return XmlUtils.createElement(doc, name, null, clazz == null ? null : Collections.singletonMap("class", clazz));
+    }
+    
+    private Node node(String name, String clazz, String value) {
+        return XmlUtils.createElement(doc, name, value, clazz == null ? null : Collections.singletonMap("class", clazz));
+    }
+    
+    private Node node(String name, String clazz, Node ... childNodes) {
+        Node parent = node(name, clazz);
+        for (Node child : childNodes) {
+            parent.appendChild(child);
+        }
+        return parent;
+    }    
+    
     public void startKarateFeature(CucumberFeature feature) {
         currentScenario = 0;       
         this.feature = feature;
-        doc = XmlUtils.toXmlDoc("<html/>");
-        XmlUtils.setByPath(doc, "/html/head/title", feature.getPath());
+        doc = XmlUtils.toXmlDoc("<html/>");        
+        set("/html/head/title", feature.getPath());
+        String css = "body { font-family: monospace, monospace; }"
+                + " .scenario-row { font-weight: bold; }" 
+                + " .step-row { display: inline-block; }"
+                + " .step-cell { background-color: green; display: inline-block; }"
+                + " .status-cell { background-color: orange; display: inline-block; }";
+        set("/html/head/style", css);
     }    
 
     public void endKarateFeature() {        
@@ -99,7 +131,9 @@ public class KarateHtmlReporter implements Reporter, Formatter {
         steps = new ArrayList();
         results = new ArrayList();
         currentScenario++;
-        XmlUtils.setByPath(doc, "/html/body/div[" + currentScenario + "]/div[1]", getScenarioName(scenario));
+        String path = "/html/body/div[" + currentScenario + "]/div[1]";
+        set(path, getScenarioName(scenario));
+        set(path + "/@class", "scenario-row");
         formatter.startOfScenarioLifeCycle(scenario);
     }
     
@@ -112,12 +146,16 @@ public class KarateHtmlReporter implements Reporter, Formatter {
     @Override
     public void endOfScenarioLifeCycle(Scenario scenario) {
         int count = steps.size();
+        String path = "/html/body/div[" + currentScenario + "]/div[2]";
         for (int i = 0; i < count; i++) {
             Step step = steps.get(i);
-            Result result = results.get(i);
-            String text = step.getName() + " " + result.getStatus();
-            XmlUtils.setByPath(doc, "/html/body/div[" + currentScenario + "]/div[2]/div[" + i + 1 + "]", text);
+            Result result = results.get(i);     
+            Node stepCell = node("div", "step-cell", step.getName());
+            Node statusCell = node("div", "status-cell", result.getStatus());
+            Node stepRow = node("div", "step-row", stepCell, statusCell);
+            set(path + "/div[" + i + 1 + "]", stepRow);
         }
+        set(path + "/div[" + count + 1 + "]", node("br", null));
         formatter.endOfScenarioLifeCycle(scenario);
     }    
 

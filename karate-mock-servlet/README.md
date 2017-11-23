@@ -1,7 +1,7 @@
 # Karate Mock Servlet
 
 ## Test any Java Servlet without a Container
-That's right, you can test Spring MVC or Spring Boot controllers and even Jersey JAX-RS resource end-points without having to start Tomcat, Jetty, Grizzly or the like.
+That's right, you can test Spring MVC or Spring Boot controllers and even Jersey JAX-RS resource end-points without having to start Tomcat, JBoss, WebSphere, Glassfish or the like.
 
 And you can re-use your traditional HTTP integration tests without changes - just switch your environment, and Karate can run tests and bypass HTTP on the wire.
 
