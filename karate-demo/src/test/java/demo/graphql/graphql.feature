@@ -34,12 +34,13 @@ Scenario: simple graphql request
     # json-path makes it easy to focus only on the parts you are interested in
     # which is especially useful for graph-ql as responses tend to be heavily nested
     * match $.data.pokemon.number == '025'
-    * def attacks = get[0] response..attacks.special
+    # the '..' wildcard is useful for traversing deeply nested parts of the json
+    * def attacks = get[0] response..special
     * match attacks contains { name: 'Thunderbolt', type: 'Electric', damage: 55 }
 
 Scenario: graphql from a file and variables
     # here the query is read from a file
-    # note that the 'replace' keyword can be very useful for dynamically forming graph-ql snippets
+    # note that the 'replace' keyword (not used here) can also be very useful for dynamic query building
     Given def query = read('by-name.graphql')
     And def variables = { name: 'Charmander' }
     And request { query: '#(query)', variables: '#(variables)' }
