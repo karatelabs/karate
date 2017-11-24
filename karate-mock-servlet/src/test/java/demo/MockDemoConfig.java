@@ -26,6 +26,7 @@ package demo;
 import com.intuit.karate.demo.controller.CatsController;
 import com.intuit.karate.demo.controller.DogsController;
 import com.intuit.karate.demo.controller.EncodingController;
+import com.intuit.karate.demo.controller.GraphqlController;
 import com.intuit.karate.demo.controller.GreetingController;
 import com.intuit.karate.demo.controller.HeadersController;
 import com.intuit.karate.demo.controller.RedirectController;
@@ -93,6 +94,11 @@ public class MockDemoConfig {
     @Bean
     public RedirectController redirectController() {
         return new RedirectController();
+    } 
+    
+    @Bean
+    public GraphqlController graphqlController() {
+        return new GraphqlController();
     }    
     
 }

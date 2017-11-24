@@ -21,6 +21,9 @@ Given path response.id
 When method get
 Then status 200
 ```
+
+If you are familar with Cucumber, the [big difference](#cucumber-vs-karate) is this: you **don't** need to write extra "glue" code or "step definitions".
+
 It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can express payload and expected data without having to use double-quotes and without having to enclose JSON field names in quotes.  There is no need to 'escape' characters like you would have had to in Java or other programming languages.
 
 And you don't need to create Java objects (or POJO-s) for any of the payloads that you need to work with.
@@ -50,8 +53,9 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Java knowledge is not required and even non-programmers can write tests
 * Scripts are plain-text files, require no compilation step or IDE, and teams can collaborate using standard version-control / Git
 * Based on the popular Cucumber / Gherkin standard, and [IDE support](#running-in-eclipse-or-intellij) and syntax-coloring options exist
-* Syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
+* Elegant [DSL](https://en.wikipedia.org/wiki/Domain-specific_language) syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
 * Eliminate the need for 'POJOs' or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
+* Ideal for testing the highly dynamic responses from [GraphQL](http://graphql.org) API-s because of Karate's built-in [text-manipulation](#text) and [JsonPath](https://github.com/json-path/JsonPath#path-examples) capabilities
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml), Cucumber [Scenario](#the-cucumber-way) Outline [tables](#table), or a [payload builder](#set-multiple) approach [unique to Karate](https://gist.github.com/ptrthomas/d6beb17e92a43220d254af942e3ed3d9)
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
@@ -398,7 +402,7 @@ The big drawback of the 'Cucumber-native' approach is that you cannot run tests 
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
 ## Parallel Execution
-Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven.
+Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven / Gradle.
 
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit test class !
 
@@ -848,7 +852,6 @@ Empty cells or expressions that evaluate to `null` will result in the key being 
 * match json == [{ foo: 'hello' }, { bar: null }, { foo: 'world' }]
 ```
 
-
 An alternate way to create data is using the [`set` multiple](#set-multiple) syntax. It is actually a 'transpose' of the `table` approach, and can be very convenient when there are a large number of keys per row or if the nesting is complex. Here is an example of what is possible:
 
 ```cucumber
@@ -894,6 +897,8 @@ Examples:
 Note that if you did not need to inject [`Examples:`](#data-driven-tests) into 'placeholders' enclosed within `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
 
 For placeholder-substitution, the [`replace`](#replace) keyword can be used instead, but with the advantage that the text can be read from a file or dynamically created.
+
+Karate is a great fit for testing GraphQL because of how easy it is to deal with dynamic and deeply nested JSON responses. Refer to this example for more details: [`graphql.feature`](karate-demo/src/test/java/demo/graphql/graphql.feature).
 
 ## `replace`
 ### Text Placeholder Replacement
@@ -2591,12 +2596,9 @@ Utility | Recipe
 The above are good enough for the purposes of random string generation for most situations.
 
 ## GraphQL / RegEx replacement example
-As a demonstration of Karate's power and flexibility, here is an example that reads a 
-GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries 
-and filter criteria.
+As a demonstration of Karate's power and flexibility, here is an example that reads a GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries and filter criteria.
 
-Here we have this JavaScript utlity function `replacer.js` that uses a regular-expression to 
-replace-inject a criteria expression into the right place, given a GraphQL query.
+Here we have this JavaScript utlity function `replacer.js` that uses a regular-expression to replace-inject a criteria expression into the right place, given a GraphQL query.
 
 ```javascript
 function(args) {
@@ -2606,8 +2608,8 @@ function(args) {
 } 
 ```
 
-Once the function is declared, observe how calling it and performing the replacement 
-is an elegant one-liner.
+Once the function is declared, observe how calling it and performing the replacement is an elegant one-liner.
+
 ```cucumber
 * def replacer = read('replacer.js')
 
@@ -2629,14 +2631,12 @@ Then status 200
 * match agencies[0].node == { id: '#uuid', name: 'John Smith' }
 ```
 
-## Cucumber Tags
-Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some
-interesting options when running tests in bulk.  The most common use-case would be to
-partition your tests into 'smoke', 'regression' and the like - which enables being 
-able to selectively execute a sub-set of tests.
+The example above is more for demonstration purposes and it is better practice to use [GraphQL variables](http://graphql.org/learn/queries/#variables) for dynamic queries. This example is a good reference: [`graphql.feature`](karate-demo/src/test/java/demo/graphql/graphql.feature).
 
-The documentation on how to run tests via the [command line](#command-line) has an example of how to use tags
-to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
+## Cucumber Tags
+Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.
+
+The documentation on how to run tests via the [command line](#command-line) has an example of how to use tags to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
 has more information on tags.
 
 > For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to the `karate.tags` and `karate.tagValues` methods on [the Karate JS object](#the-karate-object).
