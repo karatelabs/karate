@@ -74,7 +74,7 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
                 entityRequest.setEntity(wrapper);
             }
         }
-        context.setLastRequest(actual);
+        context.setPrevRequest(actual);
         if (context.logger.isDebugEnabled()) {
             context.logger.debug(sb.toString());
         }

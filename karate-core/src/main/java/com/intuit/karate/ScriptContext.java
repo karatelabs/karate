@@ -57,10 +57,10 @@ public class ScriptContext {
     protected HttpConfig config;
     
     // the actual http request last sent on the wire
-    protected HttpRequestActual lastRequest;
+    protected HttpRequestActual prevRequest;
 
-    public void setLastRequest(HttpRequestActual lastRequest) {
-        this.lastRequest = lastRequest;
+    public void setPrevRequest(HttpRequestActual prevRequest) {
+        this.prevRequest = prevRequest;
     }   
     
     public ScriptEnv getEnv() {

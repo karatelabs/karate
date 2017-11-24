@@ -99,7 +99,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         if (out != null) {            
             byte[] bytes = out.getBytes().toByteArray();
             actual.setBody(bytes);
-            context.setLastRequest(actual);
+            context.setPrevRequest(actual);
             if (context.logger.isDebugEnabled()) {
                 String body = FileUtils.toString(bytes);
                 sb.append(body).append('\n');                

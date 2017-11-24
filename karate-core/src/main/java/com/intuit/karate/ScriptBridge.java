@@ -134,8 +134,8 @@ public class ScriptBridge {
         }        
     }
     
-    public HttpRequestActual getLastRequest() {
-        return context.lastRequest;
+    public HttpRequestActual getPrevRequest() {
+        return context.prevRequest;
     }
     
     public Object eval(String exp) {

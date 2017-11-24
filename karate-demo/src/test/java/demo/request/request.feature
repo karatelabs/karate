@@ -10,7 +10,7 @@ Scenario: create cat
     Then status 200
     And match response == { id: '#number', name: 'Billie' }
 
-    * def temp = (karate.lastRequest)
+    * def temp = (karate.prevRequest)
     * def requestMethod = (temp.method)
     * match requestMethod == 'POST'
     * def requestHeaders = (temp.headers)
