@@ -29,15 +29,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class KarateFeature {
-    
-    private static final Logger logger = LoggerFactory.getLogger(KarateFeature.class);
     
     private final KarateRuntimeOptions runtimeOptions;
     private final File file;    

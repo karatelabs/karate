@@ -8,62 +8,82 @@ import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.junit.FeatureRunner;
 import cucumber.runtime.junit.JUnitOptions;
 import cucumber.runtime.junit.JUnitReporter;
+import gherkin.formatter.model.Feature;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 import org.junit.runners.model.InitializationError;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * implementation adapted from cucumber.api.junit.Cucumber
  * 
  * @author pthomas3
  */
-public class Karate extends ParentRunner<KarateFeatureRunner> {
-
-    private static final Logger logger = LoggerFactory.getLogger(Karate.class);
+public class Karate extends ParentRunner<KarateFeature> {
     
-    private final JUnitReporter reporter;
-    private final List<KarateFeatureRunner> children;
-    private final KarateHtmlReporter htmlReporter;
+    private final List<KarateFeature> children;
+    private final Map<String, Description> descriptions;
+    
+    private JUnitReporter reporter;
+    private KarateHtmlReporter htmlReporter;    
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
+        // we have to repeat this step again later, for the sake of lazy init of the logger
         KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
+        children = KarateFeature.loadFeatures(kro);
+        descriptions = new HashMap(children.size());
+    }
+    
+    @Override
+    public List<KarateFeature> getChildren() {
+        // this seems to be called early in the life-cycle, which is why this is readied by the constructor
+        return children;
+    }        
+    
+    @Override
+    protected Description describeChild(KarateFeature child) {
+        Description description = descriptions.get(child.getFeature().getPath());
+        if (description != null) {
+            return description;
+        }
+        Feature feature = child.getFeature().getGherkinFeature();
+        String name = feature.getKeyword() + ": " + feature.getName();
+        return Description.createSuiteDescription(name, feature);
+    }
+    
+    private void initReporters() {
+        // we re-do the karate runtime, just so that the logger is fresh, else custom log appender collection fails
+        KarateRuntimeOptions kro = new KarateRuntimeOptions(getTestClass().getJavaClass());
         RuntimeOptions ro = kro.getRuntimeOptions();
         ClassLoader cl = kro.getClassLoader();
         JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
         htmlReporter = new KarateHtmlReporter(ro.reporter(cl), ro.formatter(cl));
-        reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions);
-        List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
-        children = new ArrayList(karateFeatures.size());
-        for (KarateFeature kf : karateFeatures) {
-            Runtime runtime = kf.getRuntime(null);
-            FeatureRunner runner = new FeatureRunner(kf.getFeature(), runtime, reporter);
-            children.add(new KarateFeatureRunner(kf.getFeature(), runner, runtime));
+        reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions);        
+    }
+
+    @Override
+    protected void runChild(KarateFeature child, RunNotifier notifier) {
+        if (reporter == null) {
+            initReporters(); // deliberate lazy-init of html reporter and others
         }
-    }
-    
-    @Override
-    public List<KarateFeatureRunner> getChildren() {
-        return children;
-    }
-
-    @Override
-    protected Description describeChild(KarateFeatureRunner child) {
-        return child.runner.getDescription();
-    }
-
-    @Override
-    protected void runChild(KarateFeatureRunner child, RunNotifier notifier) {
-        htmlReporter.startKarateFeature(child.feature);
-        child.runner.run(notifier);
-        child.runtime.printSummary();
+        Runtime runtime = child.getRuntime(null);
+        FeatureRunner runner;
+        try {
+            runner = new FeatureRunner(child.getFeature(), runtime, reporter);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        htmlReporter.startKarateFeature(child.getFeature());
+        runner.run(notifier);
+        runtime.printSummary();
         htmlReporter.endKarateFeature();
+        // not sure if this is needed, but possibly to make sure junit description is updated for failures etc
+        descriptions.put(child.getFeature().getPath(), runner.getDescription());
     }
 
     @Override

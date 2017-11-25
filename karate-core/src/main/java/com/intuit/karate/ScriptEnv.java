@@ -55,8 +55,7 @@ public class ScriptEnv {
         this.debug = debug;
     }
     
-    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, 
-            KarateReporter reporter) {
+    public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, KarateReporter reporter) {
         this(env, featureDir, featureName, fileClassLoader, new CallCache(), 
                 LoggerFactory.getLogger("com.intuit.karate"), reporter, new Debug());
     }

@@ -249,7 +249,7 @@ For details on what actually goes into a script or `*.feature` file, refer to th
 ## IDE Support
 Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
 
-> A [debug helper](karate-core/src/main/java/com/intuit/karate/Debug.java) was introduced in version 0.6.0 - which helps you [set conditional break-points](https://twitter.com/KarateDSL/status/902387883478097924) while running tests.
+> A [debug helper](karate-core/src/main/java/com/intuit/karate/Debug.java) was introduced in version 0.6.0 - which helps you [set conditional break-points](https://twitter.com/KarateDSL/status/902387883478097924) while running tests. Also refer to the [JUnit HTML report](#junit-html-report).
 
 ### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
@@ -274,10 +274,21 @@ public class CatsRunner {
 	
 }
 ```
-Refer to your IDE documentation for how to run a JUnit class.  Typically right-clicking on the file in the
-project browser or even within the editor view would bring up the "Run as JUnit Test" menu option.
+Refer to your IDE documentation for how to run a JUnit class.  Typically right-clicking on the file in the project browser or even within the editor view would bring up the "Run as JUnit Test" menu option.
 
 > Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be run. This is one reason why you may want to prefer a 'flat' directory structure as [explained above](#naming-conventions).
+
+### JUnit HTML report
+
+When you use `@RunWith(Karate.class)` after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console.
+
+```
+html report: (paste into browser to view)
+-----------------------------------------
+file:/projects/myproject/target/surefire-reports/TEST-mypackage.myfeature.html
+```
+
+You can easily cut and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just keep re-freshing your browser as you re-run the test.
 
 ## Running With TestNG
 You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior
@@ -486,7 +497,7 @@ Here is a sample `logback-test.xml` for you to get started.
         </encoder>
     </appender>    
    
-    <logger name="com.intuit" level="DEBUG"/>
+    <logger name="com.intuit.karate" level="DEBUG"/>
    
     <root level="info">
         <appender-ref ref="STDOUT" />
@@ -495,7 +506,7 @@ Here is a sample `logback-test.xml` for you to get started.
   
 </configuration>
 ```
-You can change the `com.intuit` logger level to `INFO` to reduce the amount of logging. When the level is `DEBUG` the entire request and response payloads are logged.
+You can change the `com.intuit.karate` logger level to `INFO` to reduce the amount of logging. When the level is `DEBUG` the entire request and response payloads are logged.
 
 # Configuration
 > You can skip this section and jump straight to the [Syntax Guide](#syntax-guide) if you are in a hurry to get started with Karate. Things will work even if the `karate-config.js` file is not present.
@@ -591,7 +602,9 @@ public class CatsRunner {
 
 # Syntax Guide
 ## Script Structure
-Karate scripts are technically in '[Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin)' format - but all you need to grok as someone who needs to test web-services are the three sections: `Feature`, `Background` and `Scenario`. There can be multiple Scenario-s in a `*.feature` file.  
+Karate scripts are technically in '[Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin)' format - but all you need to grok as someone who needs to test web-services are the three sections: `Feature`, `Background` and `Scenario`. There can be multiple Scenario-s in a `*.feature` file, and at least one should be present. The `Background` is optional. 
+
+> If you are looking for a way to do something only **once** per `Feature`, take a look at [`callonce`](#callonce).
 
 Lines that start with a `#` are comments.
 ```cucumber
@@ -599,6 +612,7 @@ Feature: brief description of what is being tested
     more lines of description if needed.
 
 Background:
+# this section is optional !
 # steps here are executed before each Scenario in this file
 
 Scenario: brief description of this scenario
@@ -607,6 +621,7 @@ Scenario: brief description of this scenario
 Scenario: a different scenario
 # steps for this other scenario
 ```
+
 ### Given-When-Then
 The business of web-services testing requires access to low-level aspects such as HTTP headers, URL-paths, query-parameters, complex JSON or XML payloads and response-codes. And Karate gives you control over these aspects with the small set of keywords focused on HTTP such as [`url`](#url), [`path`](#path), [`param`](#param), etc.
 

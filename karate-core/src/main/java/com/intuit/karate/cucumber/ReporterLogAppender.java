@@ -45,17 +45,17 @@ public class ReporterLogAppender extends AppenderBase<ILoggingEvent> {
     public ReporterLogAppender() {
         sb = new StringBuilder();
         this.threadName = Thread.currentThread().getName();
-        logger = (Logger) LoggerFactory.getLogger("com.intuit");
+        this.logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
         setName("karate-reporter");
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        setContext(lc);
+        setContext(lc);        
         encoder = new PatternLayoutEncoder();
         encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
         encoder.setContext(context);
         encoder.start();
         start();
         logger.addAppender(this);     
-    }
+    }       
     
     public String collect() {
         String temp = sb.toString();
