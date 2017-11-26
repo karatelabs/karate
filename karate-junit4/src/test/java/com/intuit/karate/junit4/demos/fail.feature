@@ -2,6 +2,7 @@
 Feature: deliberate failure to test log / stack trace
 
 Scenario: test failure
+* print 'foo'
 * def a = 1
 * def b = 2
 * match a == b

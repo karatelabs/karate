@@ -28,7 +28,6 @@ import cucumber.runtime.model.CucumberFeature;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import org.slf4j.Logger;
 
 /**
  *
@@ -70,14 +69,14 @@ public class KarateFeature {
         return runtimeOptions.getRuntime(file, reporter);
     }
     
-    public KarateReporter getReporter(String reportDirPath) {
+    public KarateJunitAndJsonReporter getReporter(String reportDirPath) {
         File reportDir = new File(reportDirPath);
         String featurePackagePath = FileUtils.toPackageQualifiedName(feature.getPath());
         try {
             reportDir.mkdirs();
             reportDirPath = reportDir.getPath() + File.separator;
             String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";
-            return new KarateReporter(featurePackagePath, reportPath);
+            return new KarateJunitAndJsonReporter(featurePackagePath, reportPath);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }        

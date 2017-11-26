@@ -28,10 +28,15 @@ import com.intuit.karate.StringUtils;
 import cucumber.runtime.CucumberException;
 import cucumber.runtime.io.URLOutputStream;
 import cucumber.runtime.io.UTF8OutputStreamWriter;
+import gherkin.formatter.Formatter;
+import gherkin.formatter.Reporter;
+import gherkin.formatter.model.Background;
 import gherkin.formatter.model.Examples;
 import gherkin.formatter.model.Feature;
+import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Scenario;
+import gherkin.formatter.model.ScenarioOutline;
 import gherkin.formatter.model.Step;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -65,7 +70,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class KarateJunitFormatter extends KarateBaseReporter {
+public class KarateJunitFormatter implements Formatter, Reporter {
 
     private static final Logger logger = LoggerFactory.getLogger(KarateJunitFormatter.class);
 
@@ -114,7 +119,7 @@ public class KarateJunitFormatter extends KarateBaseReporter {
     public KarateJunitFormatter(String featurePath, String reportPath) throws IOException {
         this.featurePath = featurePath;
         this.reportPath = reportPath;
-        logger.debug(">> {}", reportPath);
+        logger.trace(">> {}", reportPath);
         URL url = FileUtils.toFileUrl(reportPath);
         this.out = new UTF8OutputStreamWriter(new URLOutputStream(url));
         try {
@@ -365,6 +370,68 @@ public class KarateJunitFormatter extends KarateBaseReporter {
             child.appendChild(doc.createCDATASection(sb.toString()));
             return child;
         }
+
+    }
+
+    //==========================================================================
+    
+    @Override
+    public void syntaxError(String state, String event, List<String> legalEvents, String uri, Integer line) {
+
+    }
+
+    @Override
+    public void uri(String uri) {
+
+    }
+
+    @Override
+    public void scenarioOutline(ScenarioOutline scenarioOutline) {
+
+    }
+
+    @Override
+    public void background(Background background) {
+
+    }
+
+    @Override
+    public void scenario(Scenario scenario) {
+
+    }
+
+    @Override
+    public void close() {
+
+    }
+
+    @Override
+    public void eof() {
+
+    }
+
+    @Override
+    public void before(Match match, Result result) {
+
+    }
+
+    @Override
+    public void after(Match match, Result result) {
+
+    }
+
+    @Override
+    public void match(Match match) {
+
+    }
+
+    @Override
+    public void embedding(String mimeType, byte[] data) {
+
+    }
+
+    @Override
+    public void write(String text) {
 
     }    
 

@@ -67,12 +67,14 @@ public class KarateRuntime extends Runtime {
     @Override
     public void runStep(String featurePath, Step step, Reporter reporter, I18n i18n) {
         if (failed) {
+            Match match = Match.UNDEFINED;
+            Result result = Result.SKIPPED;
             if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
-                ((KarateReporter) reporter).karateStep(step);
+                ((KarateReporter) reporter).karateStep(step, false, match, result);
             }
-            reporter.match(Match.UNDEFINED);
-            addStepToCounterAndResult(Result.SKIPPED);
-            reporter.result(Result.SKIPPED);
+            reporter.match(match);            
+            addStepToCounterAndResult(result);
+            reporter.result(result);
             return;
         }
         StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend, false);

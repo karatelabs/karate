@@ -26,7 +26,6 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
 import cucumber.runtime.AmbiguousStepDefinitionsException;
@@ -44,8 +43,6 @@ import gherkin.formatter.model.Step;
 import gherkin.parser.Parser;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import org.slf4j.Logger;
 
 /**
  *
@@ -127,7 +124,7 @@ public class CucumberUtils {
             match = backend.getGlue().stepDefinitionMatch(featurePath, step, i18n);
         } catch (AmbiguousStepDefinitionsException e) {
             match = e.getMatches().get(0);
-            Result result = new Result(Result.FAILED, 0L, e, KarateReporter.DUMMY_OBJECT);
+            Result result = new Result(Result.FAILED, 0L, e, KarateReporterBase.DUMMY_OBJECT);
             return afterStep(reporter, step, match, result, e, featurePath, backend, called);
         }
         if (match == null) {
@@ -145,7 +142,7 @@ public class CucumberUtils {
             status = Result.FAILED;
         } finally {
             long duration = called ? 0 : System.nanoTime() - startTime;
-            Result result = new Result(status, duration, error, KarateReporter.DUMMY_OBJECT);
+            Result result = new Result(status, duration, error, KarateReporterBase.DUMMY_OBJECT);
             return afterStep(reporter, step, match, result, error, featurePath, backend, called);
         }        
     }
@@ -153,22 +150,12 @@ public class CucumberUtils {
     private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, 
             Throwable error, String feature, KarateBackend backend, boolean called) {
         boolean isKarateReporter = reporter instanceof KarateReporter;
-        if (isKarateReporter) {
-            if (error != null && backend.getVars() != null) { // dump variable state to log for convenience                  
-                Logger logger = backend.getEnv().logger;
-                if (logger.isTraceEnabled()) {
-                    logger.error("{}:{} - variable state:", feature, step.getLine());
-                    for (Map.Entry<String, ScriptValue> entry : backend.getVars().entrySet()) {
-                        logger.debug("{}", entry.getValue().toPrettyString(entry.getKey()));
-                    }   
-                } else {
-                    logger.error("{}:{} - to dump variable state, set log level to TRACE", feature, step.getLine());
-                }
-            }            
+        if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
-            karateReporter.karateStep(step); // this would also collect log output into a 'docstring'
-        }
-        if (!called || isKarateReporter) { // don't confuse cucumber native reporters with called steps
+            karateReporter.karateStep(step, called, match, result);
+        } else if (called) {
+            
+        } else { // cucumber native reporter, steps would have been set upfront, preserve normal life-cycle
             reporter.match(match);
             reporter.result(result);            
         }

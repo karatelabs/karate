@@ -8,8 +8,14 @@ import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.junit.FeatureRunner;
 import cucumber.runtime.junit.JUnitOptions;
 import cucumber.runtime.junit.JUnitReporter;
+import cucumber.runtime.model.CucumberFeature;
 import gherkin.formatter.model.Feature;
+import gherkin.formatter.model.Match;
+import gherkin.formatter.model.Result;
+import gherkin.formatter.model.Scenario;
+import gherkin.formatter.model.Step;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +69,34 @@ public class Karate extends ParentRunner<KarateFeature> {
         ClassLoader cl = kro.getClassLoader();
         JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
         htmlReporter = new KarateHtmlReporter(ro.reporter(cl), ro.formatter(cl));
-        reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions);        
+        reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions) {
+            private List<Step> steps;
+            private List<Match> matches;
+            @Override
+            public void startOfScenarioLifeCycle(Scenario scenario) {
+                steps = new ArrayList();
+                matches = new ArrayList();
+                super.startOfScenarioLifeCycle(scenario);
+            }                       
+            @Override
+            public void step(Step step) {
+                steps.add(step);
+                super.step(step);
+            }
+            @Override
+            public void match(Match match) {
+                matches.add(match);
+                super.match(match);
+            }            
+            @Override
+            public void result(Result result) {
+                Step step = steps.remove(0);
+                Match match = matches.remove(0);
+                // all the above complexity was just to be able to do this
+                htmlReporter.karateStep(step, false, match, result);
+                super.result(result);
+            }            
+        };        
     }
 
     @Override
@@ -71,19 +104,20 @@ public class Karate extends ParentRunner<KarateFeature> {
         if (reporter == null) {
             initReporters(); // deliberate lazy-init of html reporter and others
         }
-        Runtime runtime = child.getRuntime(null);
+        Runtime runtime = child.getRuntime(htmlReporter);
+        CucumberFeature feature = child.getFeature();
         FeatureRunner runner;
         try {
-            runner = new FeatureRunner(child.getFeature(), runtime, reporter);
+            runner = new FeatureRunner(feature, runtime, reporter);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        htmlReporter.startKarateFeature(child.getFeature());
+        htmlReporter.startKarateFeature(feature);
         runner.run(notifier);
         runtime.printSummary();
         htmlReporter.endKarateFeature();
         // not sure if this is needed, but possibly to make sure junit description is updated for failures etc
-        descriptions.put(child.getFeature().getPath(), runner.getDescription());
+        descriptions.put(feature.getPath(), runner.getDescription());
     }
 
     @Override

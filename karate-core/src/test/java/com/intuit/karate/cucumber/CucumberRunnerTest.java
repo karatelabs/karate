@@ -50,9 +50,9 @@ public class CucumberRunnerTest {
         return contents.contains(textToFind);
     }
     
-    public static KarateReporter run(File file, String reportPath) throws Exception {
+    public static KarateJunitAndJsonReporter run(File file, String reportPath) throws Exception {
         KarateFeature kf = new KarateFeature(file);     
-        KarateReporter reporter = new KarateReporter(file.getPath(), reportPath);
+        KarateJunitAndJsonReporter reporter = new KarateJunitAndJsonReporter(file.getPath(), reportPath);
         KarateRuntime runtime = kf.getRuntime(reporter);
         kf.getFeature().run(reporter, reporter, runtime);
         reporter.done();

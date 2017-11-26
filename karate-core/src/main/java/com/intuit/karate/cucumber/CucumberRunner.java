@@ -66,7 +66,7 @@ public class CucumberRunner {
             List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
             int count = karateFeatures.size();
             int filteredCount = 0;
-            List<Callable<KarateReporter>> callables = new ArrayList<>(count);
+            List<Callable<KarateJunitAndJsonReporter>> callables = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 KarateFeature karateFeature = karateFeatures.get(i);
                 int index = i + 1;
@@ -78,7 +78,7 @@ public class CucumberRunner {
                     callables.add(() -> {
                         // we are now within a separate thread. the reporter filters logs by self thread
                         String threadName = Thread.currentThread().getName();
-                        KarateReporter reporter = karateFeature.getReporter(reportDir);
+                        KarateJunitAndJsonReporter reporter = karateFeature.getReporter(reportDir);
                         KarateRuntime runtime = karateFeature.getRuntime(reporter);
                         try {
                             feature.run(reporter, reporter, runtime);
@@ -97,10 +97,10 @@ public class CucumberRunner {
             }
             stats.setFeatureCount(count-filteredCount);
 
-            List<Future<KarateReporter>> futures = executor.invokeAll(callables);
+            List<Future<KarateJunitAndJsonReporter>> futures = executor.invokeAll(callables);
             stats.stopTimer();            
-            for (Future<KarateReporter> future : futures) {
-                KarateReporter reporter = future.get(); // guaranteed to be not-null
+            for (Future<KarateJunitAndJsonReporter> future : futures) {
+                KarateJunitAndJsonReporter reporter = future.get(); // guaranteed to be not-null
                 KarateJunitFormatter formatter = reporter.getJunitFormatter();
                 if (reporter.getFailureReason() != null) {
                     logger.error("karate xml/json generation failed: {}", formatter.getFeaturePath());

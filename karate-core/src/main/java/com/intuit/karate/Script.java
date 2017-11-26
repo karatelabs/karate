@@ -1569,8 +1569,11 @@ public class Script {
             }
             if (!errors.isEmpty()) {
                 String message = "feature call (loop) failed: " + feature.getPath() 
-                        + "\ncaller: " + feature.getEnv().featureName + "\nitems: " + items;
-                throw new KarateException(message + "\nerrors: " + errors);
+                        + "\ncaller: " + feature.getEnv().featureName + "\nitems: " + items + "\nerrors:";
+                for (String s : errors) {
+                    message = message + "\n-------\n" + s;
+                }
+                throw new KarateException(message);
             }
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
@@ -1582,7 +1585,7 @@ public class Script {
                 return evalFeatureCall(feature, context, argAsMap, -1, reuseParentConfig);
             } catch (KarateException ke) {
                 String message = "feature call failed: " + feature.getPath()
-                        + "\narg: " + callArg + ke.getMessage();
+                        + "\narg: " + callArg + "\n" + ke.getMessage();
                 context.logger.error("{}", message);
                 throw new KarateException(message, ke);
             }

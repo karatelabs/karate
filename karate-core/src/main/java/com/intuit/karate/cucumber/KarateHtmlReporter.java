@@ -46,7 +46,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import org.slf4j.Logger;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -54,7 +53,7 @@ import org.w3c.dom.Node;
  *
  * @author pthomas3
  */
-public class KarateHtmlReporter implements Reporter, Formatter {
+public class KarateHtmlReporter extends KarateReporterBase {
 
     private final Reporter reporter;
     private final Formatter formatter;
@@ -67,16 +66,13 @@ public class KarateHtmlReporter implements Reporter, Formatter {
     private int currentScenario;
     private int exampleNumber;
 
-    private final ReporterLogAppender logAppender;
-
     private final DecimalFormat NUMBER_FORMAT = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
 
     public KarateHtmlReporter(Reporter reporter, Formatter formatter) {
         this.reporter = reporter;
         this.formatter = formatter;
         NUMBER_FORMAT.applyPattern("0.######");
-        logAppender = new ReporterLogAppender();
-    } 
+    }       
 
     private void append(String path, Node node) {
         Node temp = XmlUtils.getNodeByPath(doc, path, true);
@@ -86,15 +82,21 @@ public class KarateHtmlReporter implements Reporter, Formatter {
     private void set(String path, String value) {
         XmlUtils.setByPath(doc, path, value);
     }
-
+    
+    private Node get(String path) {
+        return XmlUtils.getNodeByPath(doc, path, false);
+    }    
+    
+    private Node node(String name, String clazz, String text) {
+        return XmlUtils.createElement(doc, name, text, clazz == null ? null : Collections.singletonMap("class", clazz));
+    }    
+    
     private Node node(String name, String clazz) {
-        return XmlUtils.createElement(doc, name, null, clazz == null ? null : Collections.singletonMap("class", clazz));
-    }
+        return node(name, clazz, null);
+    }    
 
     private Node div(String clazz, String value) {
-        Node node = node("div", clazz);
-        node.setTextContent(value);
-        return node;
+        return node("div", clazz, value);
     }
 
     private Node div(String clazz, Node... childNodes) {
@@ -105,18 +107,18 @@ public class KarateHtmlReporter implements Reporter, Formatter {
         return parent;
     }
 
-    public void startKarateFeature(CucumberFeature feature) {
+    public void startKarateFeature(CucumberFeature feature) {       
         currentScenario = 0;
         this.feature = feature;
         doc = XmlUtils.toXmlDoc("<html/>");
         set("/html/head/title", feature.getPath());
         String css = "body { font-family: monospace, monospace; font-size: small; }"
-                + " table { border-collapse: collapse; border: 1px solid black; }"
-                + " table td { border: 1px solid black; padding: 0.1em 0.2em; }"
-                + " .scenario-div { }"
+                + " table { border-collapse: collapse; }"
+                + " table td { border: 1px solid gray; padding: 0.1em 0.2em; }"
+                + " .scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border: 1px solid gray; }"
                 + " .scenario-name { font-weight: bold; }"
                 + " .step-row { margin: 0.2em 0; }"
-                + " .step-cell { background-color: #92DD96; display: inline-block; width: 70%; padding: 0.2em 0.5em; }"
+                + " .step-cell { background-color: #92DD96; display: inline-block; width: 85%; padding: 0.2em 0.5em; }"
                 + " .time-cell { background-color: #92DD96; display: inline-block; width: 10%; padding: 0.2em 0.5em; }"
                 + " .failed { background-color: #F2928C; }"
                 + " .skipped { background-color: #8AF; }";
@@ -155,15 +157,50 @@ public class KarateHtmlReporter implements Reporter, Formatter {
         }
         double duration = ((double) result.getDuration()) / 1000000000;
         return NUMBER_FORMAT.format(duration);
+    }        
+    
+    private void appendLog(Node parent, String log) {
+        if (!log.isEmpty()) {
+            Node pre = node("pre", null);
+            pre.setTextContent(log);
+            parent.appendChild(pre);
+        }        
     }
 
     //==========================================================================
+    
+    @Override
+    public void karateStepDelegate(Step step, boolean called, Match match, Result result) { 
+        // step should be first
+        steps.add(step);
+        formatter.step(step);
+        // match
+        match(match);
+        // result
+        results.add(result);
+        logs.add(logAppender.collect());
+        // result downstream
+        reporter.result(result);
+    } 
+    
+    @Override
+    public void result(Result result) {
+        // only downstream
+        reporter.result(result);
+    }    
+    
     @Override
     public void startOfScenarioLifeCycle(Scenario scenario) {
+        currentScenario++;
         steps = new ArrayList();
         results = new ArrayList();
-        logs = new ArrayList();
-        currentScenario++;
+        logs = new ArrayList();        
+        Node scenarioDiv = node("div", "scenario-div");
+        append("/html/body/div", scenarioDiv);
+        Node scenarioHeadingDiv = div("scenario-heading", 
+                node("span", "scenario-keyword", scenario.getKeyword() + ": "),
+                node("span", "scenario-name", getScenarioName(scenario)));
+        scenarioDiv.appendChild(scenarioHeadingDiv);        
         formatter.startOfScenarioLifeCycle(scenario);
     }
 
@@ -175,10 +212,7 @@ public class KarateHtmlReporter implements Reporter, Formatter {
 
     @Override
     public void endOfScenarioLifeCycle(Scenario scenario) {
-        Node scenarioDiv = node("div", "scenario-div");
-        append("/html/body/div", scenarioDiv);
-        Node scenarioNameDiv = div("scenario-name", getScenarioName(scenario));
-        scenarioDiv.appendChild(scenarioNameDiv);
+        Node scenarioDiv = get("/html/body/div/div[" + currentScenario + "]");
         int count = steps.size();
         for (int i = 0; i < count; i++) {
             Step step = steps.get(i);
@@ -195,9 +229,7 @@ public class KarateHtmlReporter implements Reporter, Formatter {
             scenarioDiv.appendChild(stepRow);
             if (step.getDocString() != null) {
                 DocString docString = step.getDocString();
-                Node pre = node("pre", null);
-                pre.setTextContent(docString.getValue());
-                scenarioDiv.appendChild(pre);
+                scenarioDiv.appendChild(node("pre", null, docString.getValue()));
             }
             if (step.getRows() != null) {
                 Node table = node("table", null);
@@ -206,39 +238,15 @@ public class KarateHtmlReporter implements Reporter, Formatter {
                     Node tr = node("tr", null);
                     table.appendChild(tr);
                     for (String cell : row.getCells()) {
-                        Node td = node("td", null);
-                        tr.appendChild(td);
-                        td.setTextContent(cell);
+                        tr.appendChild(node("td", null, cell));
                     }
                 }
             }
-            String log = logs.get(i);
-            if (!log.isEmpty()) {
-                Node pre = node("pre", null);
-                pre.setTextContent(log);
-                scenarioDiv.appendChild(pre);
-            }
+            appendLog(scenarioDiv, logs.get(i));
         }
-        scenarioDiv.appendChild(node("br", null));
-        formatter.endOfScenarioLifeCycle(scenario);
+        scenarioDiv.appendChild(node("br", null));        
+        formatter.endOfScenarioLifeCycle(scenario);       
     }
-
-    @Override
-    public void step(Step step) {
-        if (steps == null) {
-            steps = new ArrayList();
-            results = new ArrayList();
-        }
-        steps.add(step);
-        formatter.step(step);
-    }
-
-    @Override
-    public void result(Result result) {
-        results.add(result);
-        logs.add(logAppender.collect());
-        reporter.result(result);
-    } 
     
     // as-is ===================================================================
     @Override
