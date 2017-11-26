@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
@@ -46,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Stack;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -60,9 +62,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
 
     private CucumberFeature feature;
     private Document doc;
-    private List<Step> steps;
-    private List<Result> results;
-    private List<String> logs;
+    private List<ReportStep> steps;
     private int currentScenario;
     private int exampleNumber;
 
@@ -72,7 +72,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
         this.reporter = reporter;
         this.formatter = formatter;
         NUMBER_FORMAT.applyPattern("0.######");
-    }       
+    }
 
     private void append(String path, Node node) {
         Node temp = XmlUtils.getNodeByPath(doc, path, true);
@@ -82,18 +82,14 @@ public class KarateHtmlReporter extends KarateReporterBase {
     private void set(String path, String value) {
         XmlUtils.setByPath(doc, path, value);
     }
-    
-    private Node get(String path) {
-        return XmlUtils.getNodeByPath(doc, path, false);
-    }    
-    
+
     private Node node(String name, String clazz, String text) {
         return XmlUtils.createElement(doc, name, text, clazz == null ? null : Collections.singletonMap("class", clazz));
-    }    
-    
+    }
+
     private Node node(String name, String clazz) {
         return node(name, clazz, null);
-    }    
+    }
 
     private Node div(String clazz, String value) {
         return node("div", clazz, value);
@@ -107,7 +103,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
         return parent;
     }
 
-    public void startKarateFeature(CucumberFeature feature) {       
+    public void startKarateFeature(CucumberFeature feature) {
         currentScenario = 0;
         this.feature = feature;
         doc = XmlUtils.toXmlDoc("<html/>");
@@ -115,13 +111,17 @@ public class KarateHtmlReporter extends KarateReporterBase {
         String css = "body { font-family: monospace, monospace; font-size: small; }"
                 + " table { border-collapse: collapse; }"
                 + " table td { border: 1px solid gray; padding: 0.1em 0.2em; }"
-                + " .scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border: 1px solid gray; }"
+                + " .scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border-bottom: 1px solid gray; }"
                 + " .scenario-name { font-weight: bold; }"
+                + " .scenario { border: 1px solid gray; margin-bottom: 1em; }"
+                + " .scenario-steps { padding-left: 0.2em; }"
+                + " .scenario-steps-nested { padding-left: 2em; }"
                 + " .step-row { margin: 0.2em 0; }"
                 + " .step-cell { background-color: #92DD96; display: inline-block; width: 85%; padding: 0.2em 0.5em; }"
                 + " .time-cell { background-color: #92DD96; display: inline-block; width: 10%; padding: 0.2em 0.5em; }"
                 + " .failed { background-color: #F2928C; }"
                 + " .skipped { background-color: #8AF; }";
+        
         set("/html/head/style", css);
     }
 
@@ -157,50 +157,67 @@ public class KarateHtmlReporter extends KarateReporterBase {
         }
         double duration = ((double) result.getDuration()) / 1000000000;
         return NUMBER_FORMAT.format(duration);
-    }        
-    
+    }
+
     private void appendLog(Node parent, String log) {
         if (!log.isEmpty()) {
             Node pre = node("pre", null);
             pre.setTextContent(log);
             parent.appendChild(pre);
-        }        
+        }
     }
 
     //==========================================================================
-    
+    private ReportStep prevStep;
+    private Stack<List<ReportStep>> callStack;
+
     @Override
-    public void karateStepDelegate(Step step, boolean called, Match match, Result result) { 
-        // step should be first
-        steps.add(step);
+    public void karateStepProceed(Step step, Match match, Result result, CallContext callContext) {
+        String log = logAppender.collect();
+        // step should be first        
+        int prevDepth = prevStep == null ? 0 : prevStep.getCallContext().callDepth;
+        int currDepth = callContext.callDepth;
+        prevStep = new ReportStep(step, match, result, log, callContext);
+        if (currDepth > prevDepth) { // called            
+            List<ReportStep> temp = new ArrayList();
+            temp.add(prevStep);
+            callStack.push(temp);
+        } else {
+            if (currDepth < prevDepth) { // callBegin return                
+                for (ReportStep s : callStack.pop()) {
+                    prevStep.addCalled(s);
+                }
+            }
+            if (callStack.isEmpty()) {
+                steps.add(prevStep);
+            } else {
+                callStack.peek().add(prevStep);
+            }
+        }
+        // just pass on to downstream
         formatter.step(step);
-        // match
-        match(match);
-        // result
-        results.add(result);
-        logs.add(logAppender.collect());
-        // result downstream
+        reporter.match(match);
         reporter.result(result);
-    } 
-    
+    }
+
     @Override
     public void result(Result result) {
         // only downstream
         reporter.result(result);
-    }    
-    
+    }
+
     @Override
     public void startOfScenarioLifeCycle(Scenario scenario) {
         currentScenario++;
         steps = new ArrayList();
-        results = new ArrayList();
-        logs = new ArrayList();        
-        Node scenarioDiv = node("div", "scenario-div");
+        prevStep = null;
+        callStack = new Stack();
+        Node scenarioDiv = div("scenario");
         append("/html/body/div", scenarioDiv);
-        Node scenarioHeadingDiv = div("scenario-heading", 
+        Node scenarioHeadingDiv = div("scenario-heading",
                 node("span", "scenario-keyword", scenario.getKeyword() + ": "),
                 node("span", "scenario-name", getScenarioName(scenario)));
-        scenarioDiv.appendChild(scenarioHeadingDiv);        
+        scenarioDiv.appendChild(scenarioHeadingDiv);
         formatter.startOfScenarioLifeCycle(scenario);
     }
 
@@ -209,45 +226,56 @@ public class KarateHtmlReporter extends KarateReporterBase {
         exampleNumber = 0;
         formatter.examples(examples);
     }
+    
+    private void stepHtml(ReportStep reportStep, Node parent) {
+        Step step = reportStep.getStep();
+        Result result = reportStep.getResult();
+        String extraClass = "";
+        if ("failed".equals(result.getStatus())) {
+            extraClass = " failed";
+        } else if ("skipped".equals(result.getStatus())) {
+            extraClass = " skipped";
+        }
+        Node stepRow = div("step-row",
+                div("step-cell" + extraClass, step.getKeyword() + step.getName()),
+                div("time-cell" + extraClass, getDuration(result)));
+        parent.appendChild(stepRow);
+        if (step.getRows() != null) {
+            Node table = node("table", null);
+            parent.appendChild(table);
+            for (DataTableRow row : step.getRows()) {
+                Node tr = node("tr", null);
+                table.appendChild(tr);
+                for (String cell : row.getCells()) {
+                    tr.appendChild(node("td", null, cell));
+                }
+            }
+        }               
+        if (reportStep.getCalled() != null) { // this is a 'call'
+            for (ReportStep rs : reportStep.getCalled()) {
+                Node calledStepsDiv = div("scenario-steps-nested");
+                parent.appendChild(calledStepsDiv); 
+                stepHtml(rs, calledStepsDiv);
+            }            
+        } else if (step.getDocString() != null) { // only for non-call, else un-synced stack traces may creep in
+            DocString docString = step.getDocString();
+            parent.appendChild(node("pre", null, docString.getValue()));            
+        }
+        appendLog(parent, reportStep.getLog());
+    }
 
     @Override
     public void endOfScenarioLifeCycle(Scenario scenario) {
-        Node scenarioDiv = get("/html/body/div/div[" + currentScenario + "]");
+        Node scenarioStepsDiv = div("scenario-steps");
+        append("/html/body/div/div[" + currentScenario + "]", scenarioStepsDiv);
         int count = steps.size();
         for (int i = 0; i < count; i++) {
-            Step step = steps.get(i);
-            Result result = results.get(i);
-            String extraClass = "";
-            if ("failed".equals(result.getStatus())) {
-                extraClass = " failed";
-            } else if ("skipped".equals(result.getStatus())) {
-                extraClass = " skipped";
-            }
-            Node stepRow = div("step-row",
-                    div("step-cell" + extraClass, step.getKeyword() + step.getName()),
-                    div("time-cell" + extraClass, getDuration(result)));
-            scenarioDiv.appendChild(stepRow);
-            if (step.getDocString() != null) {
-                DocString docString = step.getDocString();
-                scenarioDiv.appendChild(node("pre", null, docString.getValue()));
-            }
-            if (step.getRows() != null) {
-                Node table = node("table", null);
-                scenarioDiv.appendChild(table);
-                for (DataTableRow row : step.getRows()) {
-                    Node tr = node("tr", null);
-                    table.appendChild(tr);
-                    for (String cell : row.getCells()) {
-                        tr.appendChild(node("td", null, cell));
-                    }
-                }
-            }
-            appendLog(scenarioDiv, logs.get(i));
+            ReportStep reportStep = steps.get(i);
+            stepHtml(reportStep, scenarioStepsDiv);
         }
-        scenarioDiv.appendChild(node("br", null));        
-        formatter.endOfScenarioLifeCycle(scenario);       
+        formatter.endOfScenarioLifeCycle(scenario);
     }
-    
+
     // as-is ===================================================================
     @Override
     public void feature(Feature f) {
@@ -297,8 +325,8 @@ public class KarateHtmlReporter extends KarateReporterBase {
     @Override
     public void close() {
         formatter.close();
-    }  
-    
+    }
+
     @Override
     public void eof() {
         formatter.eof();

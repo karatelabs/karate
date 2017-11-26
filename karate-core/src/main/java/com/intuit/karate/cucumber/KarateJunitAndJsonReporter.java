@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.StringUtils;
 import cucumber.runtime.formatter.CucumberJSONFormatter;
 import gherkin.formatter.model.Background;
@@ -68,7 +69,7 @@ public class KarateJunitAndJsonReporter extends KarateReporterBase {
     }        
 
     @Override
-    public void karateStepDelegate(Step step, boolean called, Match match, Result result) {
+    public void karateStepProceed(Step step, Match match, Result result, CallContext callContext) {
         junit.step(step);
         json.step(step);
         // step has to happen first !

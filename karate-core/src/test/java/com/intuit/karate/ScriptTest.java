@@ -26,7 +26,7 @@ public class ScriptTest {
     private ScriptContext getContext() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        CallContext callContext = new CallContext(null, null, -1, false, true);
+        CallContext callContext = new CallContext(null, 0, null, -1, false, true);
         return new ScriptContext(env, callContext);
     }
 
@@ -1087,7 +1087,7 @@ public class ScriptTest {
     public void testKarateEnvAccessFromScript() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("baz", new File(featureDir));
-        CallContext callContext = new CallContext(null, null, -1, false, true);
+        CallContext callContext = new CallContext(null, 0, null, -1, false, true);
         ScriptContext ctx = new ScriptContext(env, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);

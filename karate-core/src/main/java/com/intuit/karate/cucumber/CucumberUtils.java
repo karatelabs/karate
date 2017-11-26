@@ -90,7 +90,7 @@ public class CucumberUtils {
 
     public static void call(ScenarioWrapper scenario, KarateBackend backend) {
         for (StepWrapper step : scenario.getSteps()) {
-            StepResult result = runStep(step, backend);
+            StepResult result = runCalledStep(step, backend);
             if (!result.isPass()) {
                 FeatureWrapper feature = scenario.getFeature();
                 String scenarioName = StringUtils.trimToNull(scenario.getScenario().getGherkinModel().getName());
@@ -104,17 +104,17 @@ public class CucumberUtils {
         }
     }
     
-    public static StepResult runStep(StepWrapper step, KarateBackend backend) {
+    public static StepResult runCalledStep(StepWrapper step, KarateBackend backend) {
         FeatureWrapper wrapper = step.getScenario().getFeature();
         CucumberFeature feature = wrapper.getFeature();
-        return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend, true);
+        return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend);
     }    
     
     private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
     
-    // adapted from cucumber.runtime.Runtime.runStep
+    // adapted from cucumber.runtime.Runtime.runCalledStep
     public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, 
-            KarateBackend backend, boolean called) {
+            KarateBackend backend) {
         backend.beforeStep(featurePath, step);
         if (reporter == null) {
             reporter = DUMMY_REPORTER;
@@ -125,12 +125,12 @@ public class CucumberUtils {
         } catch (AmbiguousStepDefinitionsException e) {
             match = e.getMatches().get(0);
             Result result = new Result(Result.FAILED, 0L, e, KarateReporterBase.DUMMY_OBJECT);
-            return afterStep(reporter, step, match, result, e, featurePath, backend, called);
+            return afterStep(reporter, step, match, result, e, featurePath, backend);
         }
         if (match == null) {
             return afterStep(reporter, step, Match.UNDEFINED, Result.UNDEFINED, 
                     new KarateException("syntax error: " + step.getName()),
-                    featurePath, backend, called);
+                    featurePath, backend);
         }
         String status = Result.PASSED;
         Throwable error = null;
@@ -141,19 +141,20 @@ public class CucumberUtils {
             error = t;
             status = Result.FAILED;
         } finally {
-            long duration = called ? 0 : System.nanoTime() - startTime;
+            long duration = backend.isCalled() ? 0 : System.nanoTime() - startTime;
             Result result = new Result(status, duration, error, KarateReporterBase.DUMMY_OBJECT);
-            return afterStep(reporter, step, match, result, error, featurePath, backend, called);
+            return afterStep(reporter, step, match, result, error, featurePath, backend);
         }        
     }
     
     private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, 
-            Throwable error, String feature, KarateBackend backend, boolean called) {
+            Throwable error, String feature, KarateBackend backend) {
         boolean isKarateReporter = reporter instanceof KarateReporter;
+        CallContext callContext = backend.getCallContext();
         if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
-            karateReporter.karateStep(step, called, match, result);
-        } else if (called) {
+            karateReporter.karateStep(step, match, result, callContext);
+        } else if (backend.isCalled()) {
             
         } else { // cucumber native reporter, steps would have been set upfront, preserve normal life-cycle
             reporter.match(match);

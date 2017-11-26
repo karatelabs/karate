@@ -75,7 +75,7 @@ public class FeatureSectionPanel extends Panel {
                 FeaturePage featurePage = (FeaturePage) getPage();                
                 for (ListItem<StepWrapper> li : listItems) {
                     StepWrapper step = li.getModelObject();
-                    StepResult result = CucumberUtils.runStep(step, backend);
+                    StepResult result = CucumberUtils.runCalledStep(step, backend);
                     StepPanel stepPanel = (StepPanel) li.get("step");
                     stepPanel.setPass(result.isPass());
                     String json = JsonUtils.toStrictJsonString(

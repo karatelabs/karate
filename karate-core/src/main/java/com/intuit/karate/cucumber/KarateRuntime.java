@@ -70,14 +70,14 @@ public class KarateRuntime extends Runtime {
             Match match = Match.UNDEFINED;
             Result result = Result.SKIPPED;
             if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
-                ((KarateReporter) reporter).karateStep(step, false, match, result);
+                ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext());
             }
             reporter.match(match);            
             addStepToCounterAndResult(result);
             reporter.result(result);
             return;
         }
-        StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend, false);
+        StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend);
         if (!result.isPass()) {
             addError(result.getError());
             failed = true; // skip remaining steps    

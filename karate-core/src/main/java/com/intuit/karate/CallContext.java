@@ -33,6 +33,7 @@ import java.util.Map;
 public class CallContext {
     
     public final ScriptContext parentContext;
+    public final int callDepth;
     public final Map<String, Object> callArg;
     public final boolean reuseParentContext;
     public final boolean evalKarateConfig;
@@ -57,9 +58,14 @@ public class CallContext {
         return tagValues;
     }        
     
-    public CallContext(ScriptContext parentContext, Map<String, Object> callArg, int loopIndex,
+    public boolean isCalled() {
+        return callDepth > 0;
+    }
+    
+    public CallContext(ScriptContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
         boolean reuseParentContext, boolean evalKarateConfig) {
         this.parentContext = parentContext;
+        this.callDepth = callDepth;
         this.callArg = callArg;
         this.loopIndex = loopIndex;
         this.reuseParentContext = reuseParentContext;

@@ -1,5 +1,6 @@
 package com.intuit.karate.junit4;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.cucumber.KarateFeature;
 import com.intuit.karate.cucumber.KarateHtmlReporter;
 import com.intuit.karate.cucumber.KarateRuntimeOptions;
@@ -92,8 +93,9 @@ public class Karate extends ParentRunner<KarateFeature> {
             public void result(Result result) {
                 Step step = steps.remove(0);
                 Match match = matches.remove(0);
+                CallContext callContext = new CallContext(null, 0, null, -1, false, false);
                 // all the above complexity was just to be able to do this
-                htmlReporter.karateStep(step, false, match, result);
+                htmlReporter.karateStep(step, match, result, callContext);
                 super.result(result);
             }            
         };        

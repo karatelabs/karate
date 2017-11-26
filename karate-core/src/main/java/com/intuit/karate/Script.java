@@ -232,7 +232,7 @@ public class Script {
             return varValue;
         }
         boolean callOnce = isCallOnceSyntax(text);
-        if (callOnce || isCallSyntax(text)) { // special case in form "call foo arg"
+        if (callOnce || isCallSyntax(text)) { // special case in form "callBegin foo arg"
             if (callOnce) {
                 text = text.substring(9);
             } else {
@@ -1539,8 +1539,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {
-        ScriptEnv env = context.getEnv();
+    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {        
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1550,9 +1549,6 @@ public class Script {
                 Object rowArg = array[i];
                 if (rowArg instanceof Map) {
                     Map rowArgMap = (Map) rowArg;
-                    if (env.reporter != null) {
-                        env.reporter.call(feature, i, rowArgMap);
-                    }
                     try {
                         ScriptValue rowResult = evalFeatureCall(feature, context, rowArgMap, i, reuseParentConfig);
                         result.add(rowResult.getValue());
@@ -1578,9 +1574,6 @@ public class Script {
             return new ScriptValue(result);
         } else if (callArg == null || callArg instanceof Map) {
             Map<String, Object> argAsMap = (Map) callArg;
-            if (env.reporter != null) {
-                env.reporter.call(feature, -1, argAsMap);
-            }
             try {
                 return evalFeatureCall(feature, context, argAsMap, -1, reuseParentConfig);
             } catch (KarateException ke) {
@@ -1596,7 +1589,10 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        CallContext callContext = new CallContext(context, callArg, loopIndex, reuseParentConfig, false);
+        CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false);
+        if (context.env.reporter != null) {
+            context.env.reporter.callBegin(feature, callContext);
+        }
         ScriptValueMap svm = CucumberUtils.call(feature, callContext);
         Map<String, Object> map = simplify(svm);
         return new ScriptValue(map);

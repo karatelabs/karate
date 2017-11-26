@@ -45,6 +45,7 @@ public class ScriptContext {
     public static final String KARATE_NAME = "karate";
     private static final String VAR_READ = "read";
 
+    protected final int callDepth;
     protected final List<String> tags;
     protected final Map<String, List<String>> tagValues;
     protected final ScriptValueMap vars;
@@ -107,6 +108,7 @@ public class ScriptContext {
     public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
         logger = env.logger;
+        callDepth = call.callDepth;
         tags = call.getTags();
         tagValues = call.getTagValues();
         if (call.parentContext != null) {

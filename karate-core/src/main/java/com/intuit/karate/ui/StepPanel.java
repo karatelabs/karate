@@ -86,7 +86,7 @@ public class StepPanel extends AnchorPane {
     
     private void run() {
         rebuildFeatureIfTextChanged();
-        StepResult result = CucumberUtils.runStep(step, session.backend);
+        StepResult result = CucumberUtils.runCalledStep(step, session.backend);
         pass = result.isPass();
         initStyleColor();
         session.refreshVarsTable();

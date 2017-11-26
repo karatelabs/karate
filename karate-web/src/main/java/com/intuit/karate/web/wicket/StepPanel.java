@@ -170,7 +170,7 @@ public class StepPanel extends Panel {
                 KarateSession session = service.getSession(model.getSessionId());
                 StepWrapper step = model.getObject();
                 KarateBackend backend = session.getBackend();
-                StepResult result = CucumberUtils.runStep(step, backend);
+                StepResult result = CucumberUtils.runCalledStep(step, backend);
                 pass = result.isPass();
                 target.add(this);
             }

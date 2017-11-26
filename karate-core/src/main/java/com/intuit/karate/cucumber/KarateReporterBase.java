@@ -23,13 +23,13 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.JsonUtils;
 import static com.intuit.karate.cucumber.KarateJunitAndJsonReporter.passed;
 import gherkin.formatter.model.DocString;
 import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Step;
-import java.util.Map;
 
 /**
  *
@@ -50,25 +50,26 @@ public abstract class KarateReporterBase implements KarateReporter {
     }
 
     @Override // this is a hack to bring called feature steps into cucumber reports
-    public void call(FeatureWrapper feature, int index, Map<String, Object> arg) {
+    public void callBegin(FeatureWrapper feature, CallContext callContext) {
+        logAppender.collect(); // clear log to suppress misleading stack trace from previous call if any
         DocString docString = null;
-        if (arg != null) {
-            String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(arg));
+        if (callContext.callArg != null) {
+            String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(callContext.callArg));
             docString = new DocString("", json, 0);
         }
-        String suffix = index == -1 ? " " : "[" + index + "] ";
+        String suffix = callContext.loopIndex == -1 ? " " : "[" + callContext.loopIndex + "] ";
         Step step = new Step(null, "* ", "call" + suffix + feature.getPath(), 0, null, docString);
-        karateStep(step, true, Match.UNDEFINED, passed(0L));
-    }
+        karateStep(step, Match.UNDEFINED, passed(0L), callContext);
+    }    
 
     @Override // see the step() method for an explanation of this hack
-    public void karateStep(Step step, boolean called, Match match, Result result) {
+    public void karateStep(Step step, Match match, Result result, CallContext callContext) {
         if (step.getDocString() == null) {
             String log = logAppender.collect();
             DocString docString = log.isEmpty() ? null : new DocString("", log, step.getLine());
             step = new Step(step.getComments(), step.getKeyword(), step.getName(), step.getLine(), step.getRows(), docString);
         }
-        karateStepDelegate(step, called, match, result);
+        karateStepProceed(step, match, result, callContext);
     }
     
     @Override

@@ -56,6 +56,14 @@ public class KarateBackend implements Backend {
     public void setTagValues(Map<String, List<String>> tagValues) {
         callContext.setTagValues(tagValues);
     }    
+
+    public boolean isCalled() {
+        return callContext.isCalled();
+    }
+    
+    public CallContext getCallContext() {
+        return callContext;
+    }        
     
     public ScriptEnv getEnv() {
         return objectFactory.getEnv();

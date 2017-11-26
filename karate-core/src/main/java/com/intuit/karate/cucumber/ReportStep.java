@@ -24,22 +24,67 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
-import gherkin.formatter.Formatter;
-import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Step;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public interface KarateReporter extends Formatter, Reporter {
+public class ReportStep {
     
-    public void callBegin(FeatureWrapper feature, CallContext callContext);
+    private final Step step;  
+    private final Match match;
+    private final Result result;
+    private final String log;
+    private final CallContext callContext;
+    private List<ReportStep> called;
+        
+    public ReportStep(Step step, Match match, Result result, String log, CallContext callContext) {
+        this.step = step;
+        this.match = match;
+        this.result = result;
+        this.log = log;
+        this.callContext = callContext;
+    }      
     
-    public void karateStep(Step step, Match match, Result result, CallContext call);
+    public ReportStep addCalled(ReportStep step) {
+        if (called == null) {
+            called = new ArrayList();
+        }
+        called.add(step);
+        return step;        
+    }  
     
-    public void karateStepProceed(Step step, Match match, Result result, CallContext call);
+    public ReportStep addCalled(Step step, Match match, Result result, String log, CallContext callContext) {
+        return addCalled(new ReportStep(step, match, result, log, callContext));
+    }
+
+    public List<ReportStep> getCalled() {
+        return called;
+    }
+
+    public Match getMatch() {
+        return match;
+    }
+
+    public Result getResult() {
+        return result;
+    }       
+
+    public Step getStep() {
+        return step;
+    } 
+
+    public String getLog() {
+        return log;
+    }
+
+    public CallContext getCallContext() {
+        return callContext;
+    }     
     
 }
