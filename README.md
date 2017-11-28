@@ -2548,8 +2548,6 @@ Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-ov
 
 ## `callonce`
 
-> This will [not work](https://github.com/intuit/karate/issues/136) across multiple `Scenario`-s if you use the Cucumber [IDE support](#running-in-eclipse-or-intellij) (i.e. right-click and 'run as'). Please use the [JUnit](#running-with-junit) or [parallel](#parallel-execution) runner. Note that this will be an issue only in dev-mode.
-
 Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
 
 Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guaranteed to execute only once. The results of the first call are cached, and any future calls will simply return the cached result instead of executing the JavaScript function (or feature) again and again. 

@@ -48,26 +48,33 @@ import org.w3c.dom.Document;
 
 public class StepDefs {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);    
 
     public StepDefs() { // zero-arg constructor for IDE support
         this(getFeatureEnv(), new CallContext(null, 0, null, -1, false, true));
     }
-
+    
+    private static ScriptEnv ideScriptEnv;
+    
     private static ScriptEnv getFeatureEnv() {
-        String cwd = new File("").getAbsoluteFile().getPath();
-        String javaCommand = System.getProperty("sun.java.command");
-        String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        if (featurePath == null) {
-            File file = new File("");
-            LOGGER.warn("unable to derive feature file path, using: {}", file.getAbsolutePath());
-            return ScriptEnv.init(file, null, classLoader);
+        if (ideScriptEnv == null) {
+            String cwd = new File("").getAbsoluteFile().getPath();
+            String javaCommand = System.getProperty("sun.java.command");
+            String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            if (featurePath == null) {
+                File file = new File("");
+                LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", file.getAbsolutePath());
+                ideScriptEnv = ScriptEnv.init(file, null, classLoader);
+            } else {
+                File file = new File(featurePath);
+                LOGGER.info("IDE runner - init karate env: {}", file);
+                ideScriptEnv = ScriptEnv.init(file.getParentFile(), file.getName(), classLoader);
+            }
         } else {
-            File file = new File(featurePath);
-            LOGGER.info("ide running: {}", file);
-            return ScriptEnv.init(file.getParentFile(), file.getName(), classLoader);
+            LOGGER.info("IDE runner - reusing karate env: {}", ideScriptEnv);
         }
+        return ideScriptEnv;
     }
 
     public StepDefs(ScriptEnv scriptEnv, CallContext call) {
