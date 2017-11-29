@@ -19,3 +19,12 @@ Scenario: question mark in the url
     When method get
     Then status 200
     And match response == 'hello'
+
+Scenario: manually decode before passing to karate
+    * def encoded = 'zxc1J%2BV%2FMnb'
+    * def decoded = java.net.URLDecoder.decode(encoded, 'UTF-8')
+    Given url demoBaseUrl
+    And path 'encoding', encoded
+    When method get
+    Then status 200
+    And match response == encoded
