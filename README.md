@@ -1122,7 +1122,7 @@ These are best explained in this example file: [`type-conv.feature`](karate-juni
 If you want to 'pretty print' a JSON or XML value with indenting, refer to the documentation of the [`print`](#print) keyword.
 
 ### Floats and Integers
-Converting a number to a string is easily achieved by concatenating an empty string, in some rare cases, you may need to convert a string to a number. You can do this by multiplying by `1` or using the built-in JavaScript `parseInt()` function:
+While converting a number to a string is easy (just concatenate an empty string e.g. `myInt + ''`), in some rare cases, you may need to convert a string to a number. You can do this by multiplying by `1` or using the built-in JavaScript `parseInt()` function:
 
 ```cucumber
 * def foo = '10'
