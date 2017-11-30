@@ -22,7 +22,7 @@ When method get
 Then status 200
 ```
 
-If you are familar with Cucumber, the [big difference](#cucumber-vs-karate) is this: you **don't** need to write extra "glue" code or "step definitions".
+> If you're familar with Cucumber, the [big difference](#cucumber-vs-karate) here is that you **don't** need to write extra "glue" code or Java step definitions" !
 
 It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can express payload and expected data without having to use double-quotes and without having to enclose JSON field names in quotes.  There is no need to 'escape' characters like you would have had to in Java or other programming languages.
 
@@ -94,10 +94,9 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 ## References
 * [REST API Testing with Karate](http://www.baeldung.com/karate-rest-api-testing) - tutorial by [Baeldung](http://www.baeldung.com/author/baeldung/)
 * [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
-* [Karate for Complex Web-Service API Testing](https://www.slideshare.net/intuit_india/karate-for-complex-webservice-api-testing-by-peter-thomas) - slide-deck by [Peter Thomas](https://twitter.com/ptrthomas)
+* [Karate at the Ministry of Testing - Dallas](https://www.slideshare.net/ptrthomas/karate-mot-dallas-26oct2017) - [presentation](https://www.meetup.com/Ministry-Of-Testing-Dallas/events/242414866/) by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - a detailed tutorial by [Micha Kops](https://twitter.com/hascode) - featured on the [Semaphore CI](https://twitter.com/semaphoreci) site
 * [5 top open-source API testing tools: How to choose](https://techbeacon.com/5-top-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
-* [Nailing Down API Testing With Karate Framework](https://blog.testproject.io/2017/08/21/api-testing-karate-framework/) - a tutorial quick-start by [Neill Lima](https://twitter.com/neillfontes) featured at [TestProject.io](https://twitter.com/TestProject_io)
 
 You can find more links at the [community wiki](https://github.com/intuit/karate/wiki/Community-News).
 
@@ -280,7 +279,7 @@ Refer to your IDE documentation for how to run a JUnit class.  Typically right-c
 
 ### JUnit HTML report
 
-When you use `@RunWith(Karate.class)` after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console.
+When you use the `@RunWith(Karate.class)` - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console.
 
 ```
 html report: (paste into browser to view)
@@ -288,7 +287,7 @@ html report: (paste into browser to view)
 file:/projects/myproject/target/surefire-reports/TEST-mypackage.myfeature.html
 ```
 
-You can easily cut and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just keep re-freshing your browser as you re-run the test.
+You can easily select (double-click), copy and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just re-fresh your browser window if you re-run the test.
 
 ## Running With TestNG
 You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior
@@ -1123,7 +1122,7 @@ These are best explained in this example file: [`type-conv.feature`](karate-juni
 If you want to 'pretty print' a JSON or XML value with indenting, refer to the documentation of the [`print`](#print) keyword.
 
 ### Floats and Integers
-In some rare cases, you may need to convert a string to a number. You can do this by multiplying by `1` or using the built-in JavaScript `parseInt()` function:
+Converting a number to a string is easily achieved by concatenating an empty string, in some rare cases, you may need to convert a string to a number. You can do this by multiplying by `1` or using the built-in JavaScript `parseInt()` function:
 
 ```cucumber
 * def foo = '10'
