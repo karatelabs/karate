@@ -697,7 +697,7 @@ You can use `print` to log variables to the console in the middle of a script. F
 
 Similar to [`assert`](#assert), the expressions on the right-hand-side of a `print` have to be valid JavaScript. JsonPath and [Karate expressions](#karate-expressions) are not supported.
 
-If you use commas (instead of concatenating strings using `+`), Karate will 'pretty-print' variables, which is what you typically want when dealing with JSON or XML.
+If you use commas (instead of concatenating strings using `+`), Karate will 'pretty-print' variables, which is what you typically want when dealing with [JSON or XML](#native-data-types).
 
 ```cucumber
 * def myJson = { foo: 'bar', baz: [1, 2, 3] }
@@ -715,7 +715,11 @@ Which results in the following output:
 }
 ```
 
-> The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` (and even `assert`) statements, and it has a helpful `pretty` method, that takes a JSON argument and a `prettyXml` method that deals with XML. So you could have also done: `* print 'the value of myJson is:\n' + karate.pretty(myJson)`
+The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` (and even `assert`) statements, and it has a helpful `pretty` method, that takes a JSON argument and a `prettyXml` method that deals with XML. So you could have also done something like:
+
+```cucumber
+* print 'the value of myJson is:\n' + karate.pretty(myJson)
+```
 
 Also refer to the [`configure`](#configure) keyword on how to switch on pretty-printing of all HTTP requests and responses.
 
@@ -882,7 +886,7 @@ An alternate way to create data is using the [`set` multiple](#set-multiple) syn
 
 ## `text`
 ### Don't parse, treat as raw text
-Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line expressions](#multi-line-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving Cucumber-style place-holder substitutions in strings.
+Not something you would commonly use, but in some cases you need to disable Karate's default behavior of attempting to parse anything that looks like JSON (or XML) when using [multi-line](#multi-line-expressions) / string [expressions](#karate-expressions). This is especially relevant when manipulating [GraphQL](http://graphql.org) queries - because although they look suspiciously like JSON, they are not, and tend to confuse Karate's internals. And as shown in the example below, having text 'in-line' is useful especially when you use the `Scenario Outline:` and `Examples:` for [data-driven tests](#data-driven-tests) involving Cucumber-style place-holder substitutions in strings.
 
 ```cucumber
 Scenario Outline:
