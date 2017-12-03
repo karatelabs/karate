@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GraphqlController {
     
     @PostMapping
-    public String create(@RequestBody Map<String, Object> request) throws Exception {
+    public String handle(@RequestBody Map<String, Object> request) throws Exception {
         Object variables = request.get("variables");
         String filename = variables == null ? "graphql-1.json" : "graphql-2.json";
         InputStream is = getClass().getClassLoader().getResourceAsStream(filename);

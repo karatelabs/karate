@@ -32,9 +32,8 @@ import com.intuit.karate.demo.controller.HeadersController;
 import com.intuit.karate.demo.controller.RedirectController;
 import com.intuit.karate.demo.controller.SearchController;
 import com.intuit.karate.demo.controller.SignInController;
+import com.intuit.karate.demo.controller.SoapController;
 import com.intuit.karate.demo.controller.UploadController;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -48,8 +47,6 @@ import org.springframework.context.annotation.PropertySource;
 @EnableAutoConfiguration
 @PropertySource("classpath:application.properties")
 public class MockDemoConfig {
-    
-    private static final Logger logger = LoggerFactory.getLogger(MockDemoConfig.class);
     
     @Bean
     public CatsController catsController() {
@@ -99,6 +96,11 @@ public class MockDemoConfig {
     @Bean
     public GraphqlController graphqlController() {
         return new GraphqlController();
-    }    
+    } 
+    
+    @Bean
+    public SoapController soapController() {
+        return new SoapController();
+    }
     
 }

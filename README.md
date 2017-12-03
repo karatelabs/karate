@@ -1460,9 +1460,9 @@ And match response /Envelope/Body/QueryUsageBalanceResponse/Result/Error/Code ==
 And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-response.xml')
 ```
 
-Here is a working example of calling a SOAP service from the Karate project test-suite: [`soap.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/soap.feature)
+Here is a working example of calling a SOAP service from the Karate project test-suite: [`soap.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/soap.feature). See also the [demos](karate-demo) for an example: [`soap.feature`](karate-demo/src/test/java/demo/soap/soap.feature).
 
-There's also a few examples that show various ways of parameter-izing and dynamically manipulating SOAP requests. Karate is quite flexible, and allows you to choose options and evolve a pattern for tests - that fits your environment: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature)
+There are more examples that show various ways of parameter-izing and dynamically manipulating SOAP requests. Karate is quite flexible, and allows you to choose options and evolve a pattern for tests - that fits your environment: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature)
 
 # Managing Headers, SSL, Timeouts and HTTP Proxy
 ## `configure`
