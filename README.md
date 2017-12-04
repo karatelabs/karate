@@ -22,7 +22,7 @@ When method get
 Then status 200
 ```
 
-> If you're familar with Cucumber, the [big difference](#cucumber-vs-karate) here is that you **don't** need to write extra "glue" code or Java step definitions" !
+> If you are familar with Cucumber, the [*big difference*](#cucumber-vs-karate) here is that you **don't** need to write extra "glue" code or Java "step definitions" !
 
 It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can express payload and expected data without having to use double-quotes and without having to enclose JSON field names in quotes.  There is no need to 'escape' characters like you would have had to in Java or other programming languages.
 
@@ -94,7 +94,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 ## References
 * [REST API Testing with Karate](http://www.baeldung.com/karate-rest-api-testing) - tutorial by [Baeldung](http://www.baeldung.com/author/baeldung/)
 * [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
-* [Karate at the Ministry of Testing - Dallas](https://www.slideshare.net/ptrthomas/karate-mot-dallas-26oct2017) - [presentation](https://www.meetup.com/Ministry-Of-Testing-Dallas/events/242414866/) by [Peter Thomas](https://twitter.com/ptrthomas)
+* [Karate at the Ministry of Testing (Dallas)](https://www.slideshare.net/ptrthomas/karate-mot-dallas-26oct2017) - [presentation](https://www.meetup.com/Ministry-Of-Testing-Dallas/events/242414866/) by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - a detailed tutorial by [Micha Kops](https://twitter.com/hascode) - featured on the [Semaphore CI](https://twitter.com/semaphoreci) site
 * [5 top open-source API testing tools: How to choose](https://techbeacon.com/5-top-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
 
@@ -1460,9 +1460,9 @@ And match response /Envelope/Body/QueryUsageBalanceResponse/Result/Error/Code ==
 And match response /Envelope/Body/QueryUsageBalanceResponse == read('expected-response.xml')
 ```
 
-Here is a working example of calling a SOAP service from the Karate project test-suite: [`soap.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/soap.feature). See also the [demos](karate-demo) for an example: [`soap.feature`](karate-demo/src/test/java/demo/soap/soap.feature).
+A [working example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/soap.feature) of calling a SOAP service can be found within the Karate project test-suite. Refer to the [demos](karate-demo) for another example: [`soap.feature`](karate-demo/src/test/java/demo/soap/soap.feature).
 
-There are more examples that show various ways of parameter-izing and dynamically manipulating SOAP requests. Karate is quite flexible, and allows you to choose options and evolve a pattern for tests - that fits your environment: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature)
+More examples are available that showcase various ways of parameter-izing and dynamically manipulating SOAP requests in a data-driven fashion. Karate is quite flexible, and provides multiple options for you to evolve patterns that fit your environment, as you can see here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 # Managing Headers, SSL, Timeouts and HTTP Proxy
 ## `configure`
@@ -2557,7 +2557,7 @@ Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guarante
 
 This does require you to move 'set-up' into a separate `*.feature` (or JavaScript) file. But this totally makes sense for things not part of the 'main' test flow and which typically need to be re-usable anyway.
 
-So you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find an example in the [karate-demo](karate-demo).
+So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
 
 # Advanced / Tricks
 
