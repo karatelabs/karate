@@ -48,14 +48,14 @@ import org.w3c.dom.Document;
 
 public class StepDefs {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);    
+    private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
         this(getFeatureEnv(), new CallContext(null, 0, null, -1, false, true));
     }
-    
+
     private static ScriptEnv ideScriptEnv;
-    
+
     private static ScriptEnv getFeatureEnv() {
         if (ideScriptEnv == null) {
             String cwd = new File("").getAbsoluteFile().getPath();
@@ -78,20 +78,7 @@ public class StepDefs {
     }
 
     public StepDefs(ScriptEnv scriptEnv, CallContext call) {
-        if (call.reuseParentContext) {
-            context = call.parentContext; // re-use parent context
-            if (call.callArg != null) { // but over-ride any variables
-                // TODO - this clobbers self, also the below logic should be in the 
-                // constructor of ScriptContext, just like the else block
-                for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
-                    context.vars.put(entry.getKey(), entry.getValue());
-                }
-                context.vars.put(Script.VAR_ARG, call.callArg);
-                context.vars.put(Script.VAR_LOOP, call.loopIndex);
-            }
-        } else {
-            context = new ScriptContext(scriptEnv, call);
-        }
+        context = new ScriptContext(scriptEnv, call);
         request = new HttpRequest();
     }
 
@@ -196,7 +183,7 @@ public class StepDefs {
             cookie = new Cookie((Map) sv.getAsMap());
             cookie.put(Cookie.NAME, name);
         } else {
-            cookie = new Cookie(name, sv.getAsString());            
+            cookie = new Cookie(name, sv.getAsString());
         }
         request.setCookie(cookie);
     }
@@ -504,7 +491,7 @@ public class StepDefs {
             context.logger.info("{}", sb);
         }
     }
-    
+
     @When("^status (\\d+)")
     public void status(int status) {
         if (status != response.getStatus()) {

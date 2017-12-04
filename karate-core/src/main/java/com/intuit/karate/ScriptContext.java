@@ -107,11 +107,15 @@ public class ScriptContext {
 
     public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
-        logger = env.logger;
+        logger = env.logger;        
         callDepth = call.callDepth;
         tags = call.getTags();
         tagValues = call.getTagValues();
-        if (call.parentContext != null) {
+        if (call.reuseParentContext) {
+            vars = call.parentContext.vars; // shared context !
+            validators = call.parentContext.validators;
+            config = call.parentContext.config;
+        } else if (call.parentContext != null) {
             vars = Script.clone(call.parentContext.vars);
             validators = call.parentContext.validators;
             config = new HttpConfig(call.parentContext.config);
@@ -134,7 +138,7 @@ public class ScriptContext {
                 }
             }
         }
-        if (call.callArg != null) {
+        if (call.callArg != null) { // if call.reuseParentContext is true, arg will clobber parent context
             for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
                 vars.put(entry.getKey(), entry.getValue());
             }
