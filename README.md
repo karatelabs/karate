@@ -113,13 +113,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.6.1</version>
+    <version>0.6.2</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.6.1</version>
+    <version>0.6.2</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -131,8 +131,8 @@ And if you run into class-loading conflicts, for example if an older version of 
 Alternatively for Gradle you need two `dependencies`:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit4:0.6.1'
-    testCompile 'com.intuit.karate:karate-apache:0.6.1'
+    testCompile 'com.intuit.karate:karate-junit4:0.6.2'
+    testCompile 'com.intuit.karate:karate-apache:0.6.2'
 ```
 
 ### TestNG instead of JUnit
@@ -151,7 +151,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.6.1 \
+-DarchetypeVersion=0.6.2 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
