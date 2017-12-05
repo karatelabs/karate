@@ -202,6 +202,19 @@ Scenario: a cleaner way to achieve the above by using tables and the 'set' keywo
 Scenario: xml containing DTD reference
     * def xml = <!DOCTYPE USER SYSTEM "http://127.0.0.1:5000/login/dtd"><foo/>
     * match xml == <foo></foo>
-    
+
+Scenario: xml containing DTD complex
+    * def xml = 
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE USER SYSTEM "http://172.20.17.74:5000/login/dtd">
+    <gpOBJECT>
+      <gpPARAM name="coconuts">666</gpPARAM>
+    </gpOBJECT>
+    """
+    # unfortunate bug with XML that uses a DTD
+    * string xml = xml
+    * xml xml = xml
+    * match xml == <gpOBJECT><gpPARAM name="coconuts">666</gpPARAM></gpOBJECT>
 
 
