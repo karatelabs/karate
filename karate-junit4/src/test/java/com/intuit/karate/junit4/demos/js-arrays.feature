@@ -19,6 +19,14 @@ Scenario: json-path can be performed in js
     * def res = call fun json
     * match res == [1, 2]
 
+Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/karate/issues/225
+    adding this test to detect if ever the JDK behavior changes
+    * def actual = ({ a: [1, 2, 3]})
+    * match actual == { a: { '0': 1, '1': 2, '2': 3 }}
+    * def temp = [1, 2, 3]
+    * def actual = ({ a: temp })
+    * match actual == { a: [1, 2, 3] }
+
 Scenario: table to json with expressions evaluated
     * def one = 'hello'
     * def two = { baz: 'world' }
