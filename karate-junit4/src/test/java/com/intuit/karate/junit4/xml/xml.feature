@@ -3,7 +3,7 @@ Feature: xml samples and tests
 Scenario: pretty print xml
     * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
     * def xml = read('soap1.xml')
-    * print 'pretty print:\n' + karate.prettyXml(xml)
+    * print 'pretty print:', xml
 
 Scenario: test removing elements using keyword
     * def base = <query><name>foo</name></query>
