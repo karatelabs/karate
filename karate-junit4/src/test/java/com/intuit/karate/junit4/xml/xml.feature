@@ -217,4 +217,20 @@ Scenario: xml containing DTD complex
     * xml xml = xml
     * match xml == <gpOBJECT><gpPARAM name="coconuts">666</gpPARAM></gpOBJECT>
 
+Scenario: xml containing a CDATA section
+    * def xml =
+      """
+    <ResponseSet vers="1.0" svcid="com.iplanet.am.naming" reqid="0">
+        <Response><![CDATA[<NamingResponse vers="1.0" reqid="0">
+                <GetNamingProfile>
+                    <Attribute name="url" value="localhost"></Attribute>
+                 </GetNamingProfile>
+            </NamingResponse>]]>
+        </Response>
+    </ResponseSet>
+    """
+    * xml naming = $xml /ResponseSet/Response
+    * match naming //Attribute[@name='url']/@value == 'localhost'
+
+
 
