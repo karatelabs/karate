@@ -97,12 +97,7 @@ public class ApacheHttpUtils {
     }
     
     public static ContentType createContentType(String mediaType) {
-        StringUtils.Pair pair = HttpUtils.splitCharsetIfPresent(mediaType);
-        ContentType ct = ContentType.create(pair.left);
-        if (pair.right != null) {
-            ct = ct.withCharset(pair.right);
-        }
-        return ct;
+        return ContentType.parse(mediaType);
     }
 
     public static HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {

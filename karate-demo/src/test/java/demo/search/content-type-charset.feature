@@ -22,3 +22,14 @@ Scenario: form post
     * def temp = response['content-type'][0].toLowerCase()
     * assert temp.contains('application/x-www-form-urlencoded;')
     * assert temp.contains('charset=utf-8')
+
+Scenario: json post with version
+    Given path 'search', 'headers'
+    And header Content-Type = 'application/json; charset=utf-8; version=1.2.3'
+    And request { foo: 'bar' }
+    When method post
+    Then status 200
+    * def temp = response['content-type'][0].toLowerCase()
+    * assert temp.contains('application/json;')
+    * assert temp.contains('charset=utf-8')
+    * assert temp.contains('version=1.2.3')

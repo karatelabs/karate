@@ -3,7 +3,6 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
-import com.intuit.karate.StringUtils;
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;
 import java.security.SecureRandom;
@@ -21,7 +20,9 @@ import javax.net.ssl.SSLContext;
  */
 public class HttpUtils {
 
+    public static final String CONTENT_TYPE = "Content-Type";
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
+    
     public static final Set<String> HTTP_METHODS
             = Stream.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE")
                     .collect(Collectors.toSet());
@@ -67,18 +68,6 @@ public class HttpUtils {
             return APPLICATION_JSON;
         } else {
             return TEXT_PLAIN;
-        }
-    }
-
-    public static StringUtils.Pair splitCharsetIfPresent(String mediaType) {
-        int pos = mediaType.indexOf(';');
-        if (pos == -1) {
-            return StringUtils.pair(mediaType, null);
-        } else {
-            int equalPos = mediaType.lastIndexOf('=');
-            String charset = equalPos == -1 ? null : mediaType.substring(equalPos + 1);
-            mediaType = mediaType.substring(0, pos);
-            return StringUtils.pair(mediaType, charset);
         }
     }
 
