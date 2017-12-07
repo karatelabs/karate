@@ -3,8 +3,8 @@ package com.intuit.karate.junit4;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.cucumber.KarateFeature;
 import com.intuit.karate.cucumber.KarateHtmlReporter;
+import com.intuit.karate.cucumber.KarateRuntime;
 import com.intuit.karate.cucumber.KarateRuntimeOptions;
-import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.junit.FeatureRunner;
 import cucumber.runtime.junit.JUnitOptions;
@@ -106,7 +106,7 @@ public class Karate extends ParentRunner<KarateFeature> {
         if (reporter == null) {
             initReporters(); // deliberate lazy-init of html reporter and others
         }
-        Runtime runtime = child.getRuntime(htmlReporter);
+        KarateRuntime runtime = child.getRuntime(htmlReporter);
         CucumberFeature feature = child.getFeature();
         FeatureRunner runner;
         try {

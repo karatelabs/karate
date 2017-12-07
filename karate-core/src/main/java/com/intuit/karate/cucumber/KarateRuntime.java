@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.ScriptEnv;
 import cucumber.runtime.CucumberScenarioImpl;
 import cucumber.runtime.CucumberStats;
 import cucumber.runtime.Runtime;
@@ -80,6 +81,7 @@ public class KarateRuntime extends Runtime {
         StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend);
         if (!result.isPass()) {
             addError(result.getError());
+            backend.setScenarioError(result.getError());
             failed = true; // skip remaining steps    
         }
         addStepToCounterAndResult(result.getResult());       
@@ -126,10 +128,17 @@ public class KarateRuntime extends Runtime {
     }
     
     @Override
-    public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario gherkinScenario) {
+    public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario scenario) {
         backend.buildWorld();
         resolveTagValues(tags);
-        scenarioResult = new CucumberScenarioImpl(reporter, tags, gherkinScenario);
+        ScenarioInfo info = new ScenarioInfo();
+        ScriptEnv env = backend.getEnv();
+        info.setFeatureDir(env.featureDir.getPath());
+        info.setFeatureFileName(env.featureName);
+        info.setScenarioName(scenario.getName());
+        info.setScenarioDescription(scenario.getDescription());
+        backend.setScenarioInfo(info);
+        scenarioResult = new CucumberScenarioImpl(reporter, tags, scenario);
     }      
 
     @Override

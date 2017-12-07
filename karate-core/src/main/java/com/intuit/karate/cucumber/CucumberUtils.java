@@ -154,9 +154,8 @@ public class CucumberUtils {
         if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step, match, result, callContext);
-        } else if (backend.isCalled()) {
-            
-        } else { // cucumber native reporter, steps would have been set upfront, preserve normal life-cycle
+        } else if (!backend.isCalled()) { // cucumber native reporter, steps would have been set upfront
+            // preserve normal life-cycle
             reporter.match(match);
             reporter.result(result);            
         }

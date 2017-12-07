@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
@@ -52,6 +53,8 @@ public class ScriptContext {
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;    
     private final ScriptValue readFunction;
+    
+    protected final ScenarioInfo scenarioInfo;
 
     // these can get re-built or swapped, so cannot be final
     protected HttpClient client;
@@ -108,9 +111,10 @@ public class ScriptContext {
     public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
         logger = env.logger;        
-        callDepth = call.callDepth;
+        callDepth = call.callDepth;        
         tags = call.getTags();
         tagValues = call.getTagValues();
+        scenarioInfo = call.getScenarioInfo();
         if (call.reuseParentContext) {
             vars = call.parentContext.vars; // shared context !
             validators = call.parentContext.validators;

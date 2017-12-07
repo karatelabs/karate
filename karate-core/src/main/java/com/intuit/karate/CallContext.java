@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.List;
 import java.util.Map;
 
@@ -40,7 +41,8 @@ public class CallContext {
     public final int loopIndex;
     
     private List<String> tags;
-    private Map<String, List<String>> tagValues;
+    private Map<String, List<String>> tagValues;    
+    private ScenarioInfo scenarioInfo;
 
     public List<String> getTags() {
         return tags;
@@ -57,6 +59,14 @@ public class CallContext {
     public Map<String, List<String>> getTagValues() {
         return tagValues;
     }        
+
+    public void setScenarioInfo(ScenarioInfo scenarioInfo) {
+        this.scenarioInfo = scenarioInfo;
+    }
+
+    public ScenarioInfo getScenarioInfo() {
+        return scenarioInfo;
+    }    
     
     public boolean isCalled() {
         return callDepth > 0;
