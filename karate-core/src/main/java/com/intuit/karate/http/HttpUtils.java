@@ -20,7 +20,6 @@ import javax.net.ssl.SSLContext;
  */
 public class HttpUtils {
 
-    public static final String CONTENT_TYPE = "Content-Type";
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
     
     public static final Set<String> HTTP_METHODS
