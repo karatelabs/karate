@@ -23,11 +23,10 @@
  */
 package com.intuit.karate.cucumber;
 
-import cucumber.runtime.model.CucumberExamples;
-import cucumber.runtime.model.CucumberScenario;
 import cucumber.runtime.model.CucumberScenarioOutline;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -44,15 +43,12 @@ public class ScenarioOutlineWrapper {
         this.feature = feature;
         this.scenarioOutline = scenarioOutline;
         this.scenarios = new ArrayList<>();
-        for (CucumberExamples examples : scenarioOutline.getCucumberExamplesList()) { // TODO can this be more than 1
-            List<CucumberScenario> exampleScenarios = examples.createExampleScenarios();
-            int count = exampleScenarios.size();
-            for (int i = 0; i < count; i++) {
-                CucumberScenario scenario = exampleScenarios.get(i);
-                ScenarioWrapper sw = new ScenarioWrapper(feature, i, scenario, this);
-                scenarios.add(sw);
-            }
-        }         
+        AtomicInteger index = new AtomicInteger(0);
+        scenarioOutline.getCucumberExamplesList().forEach(cucumberExamples -> {
+            cucumberExamples.createExampleScenarios().forEach(cucumberScenario -> {
+                scenarios.add(new ScenarioWrapper(feature, index.getAndIncrement(), cucumberScenario, this));
+            });
+        });
     }
 
     public FeatureSection getSection() {
