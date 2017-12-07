@@ -282,6 +282,19 @@ Then match cat == { name: '#string', type: '#string', id: '#string'}
 * def cat = { foo: { bar: 'baz' } }
 * match cat == { foo: '#object' }
 
+# non-json fuzzy matches
+* def foo = 1
+* match foo == '#number'
+* match foo != '#string'
+
+* def foo = 'bar'
+* match foo == '#string'
+* match foo != '#null'
+
+* def foo = null
+* match foo == '#null'
+* match foo != '#notnull'
+
 # schema validation
 * def date = { month: 3 }
 * match date == { month: '#? _ > 0 && _ < 13' }

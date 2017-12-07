@@ -1042,8 +1042,13 @@ public class Script {
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, null, actual, expectedString.getValue(String.class), context);
                 }
-            case PRIMITIVE:
-                return matchPrimitive(matchType, path, actual.getValue(), eval(expression, context).getValue());
+            case PRIMITIVE: // an edge case when the variable is non-string, not-json (number / boolean)
+                ScriptValue expected = eval(expression, context);
+                if (expected.isString()) { // fuzzy match macro
+                    return matchStringOrPattern('.', path, matchType, null, null, actual, expected.getAsString(), context);
+                } else {
+                    return matchPrimitive(matchType, path, actual.getValue(), expected.getValue());
+                }
             case NULL: // edge case, assume that this is the root variable that is null and the match is for an optional e.g. '##string'
                 ScriptValue expectedNull = eval(expression, context);
                 if (expectedNull.isNull()) {
