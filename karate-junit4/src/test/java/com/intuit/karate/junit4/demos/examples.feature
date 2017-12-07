@@ -48,6 +48,16 @@ And def lang = 'en'
 * def enclosed = ({ name: user.name, locale: lang, sessionUser: user  })
 * match embedded == enclosed
 
+Given def user = { name: 'john', age: 21 }
+And def lang = 'en'
+When def session = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(user)'  }
+Then match session == { name: 'john', locale: 'en', sessionUser: { name: 'john', age: 21 } }
+
+Given def user = <user><name>john</name></user>
+And def lang = 'en'
+When def session = <session><locale>#(lang)</locale><sessionUser>#(user)</sessionUser></session>
+Then match session == <session><locale>en</locale><sessionUser><user><name>john</name></user></sessionUser></session>
+
 * def actual = 23
 # so instead of this
 * def kitnums = get cat.kittens[*].id

@@ -756,16 +756,22 @@ Then match cat.cat.scores.score[1] == 5
 ```
 
 ### Embedded Expressions
-Karate has a very useful JSON 'templating' approach. Variables can be referred to within JSON, for example:
+Karate has a very useful payload 'templating' approach. Variables can be referred to within JSON, for example:
 
 ```cucumber
-When def user = { name: 'john', age: 21 }
+Given def user = { name: 'john', age: 21 }
 And def lang = 'en'
-Then def session = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(user)'  }
+When def session = { name: '#(user.name)', locale: '#(lang)', sessionUser: '#(user)'  }
 ```
-So the rule is - if a string value within a JSON (or XML) object declaration is enclosed between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are alive in the context can be used in this expression.
+So the rule is - if a string value within a JSON (or XML) object declaration is enclosed between `#(` and `)` - it will be evaluated as a JavaScript expression. And any variables which are alive in the context can be used in this expression. Here's how it works for XML:
 
-This comes in useful in some cases - and avoids needing to use the [`set`](#set) keyword or [JavaScript functions](#javascript-functions) to manipulate JSON. So you get the best of both worlds: the elegance of JSON to express complex nested data - while at the same time being able to dynamically plug values (that could even be other JSON object-trees) into a JSON 'template'.
+```cucumber
+Given def user = <user><name>john</name></user>
+And def lang = 'en'
+When def session = <session><locale>#(lang)</locale><sessionUser>#(user)</sessionUser></session>
+```
+
+This comes in useful in some cases - and avoids needing to use the [`set`](#set) keyword or [JavaScript functions](#javascript-functions) to manipulate JSON. So you get the best of both worlds: the elegance of JSON to express complex nested data - while at the same time being able to dynamically plug values (that could even be other JSON or XML 'trees') into a 'template'.
 
 A few special built-in variables such as `$` (which is a [reference to the JSON root](#referring-to-self)) - can be mixed into JSON embedded expressions.
 
