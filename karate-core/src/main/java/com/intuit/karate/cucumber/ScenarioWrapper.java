@@ -25,9 +25,11 @@ package com.intuit.karate.cucumber;
 
 import cucumber.runtime.model.CucumberBackground;
 import cucumber.runtime.model.CucumberScenario;
-import gherkin.formatter.model.Step;
+
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
+import java.util.Optional;
 
 /**
  *
@@ -48,23 +50,23 @@ public class ScenarioWrapper {
         this.scenario = scenario;
         this.parent = parent;
         this.steps = new ArrayList<>();
-        CucumberBackground cucumberBackground = scenario.getCucumberBackground();
-        int counter = 0;
-        int currentLine = 0;
-        if (cucumberBackground != null) {
-            for (Step step : cucumberBackground.getSteps()) {
+        Optional<CucumberBackground> cucumberBackground = Optional.ofNullable(scenario.getCucumberBackground());
+        AtomicInteger counter = new AtomicInteger(0);
+        AtomicInteger currentLine = new AtomicInteger(0);
+        if (cucumberBackground.isPresent()) {
+            cucumberBackground.get().getSteps().forEach(step -> {
                 int firstLine = step.getLine();
-                String priorText = feature.joinLines(currentLine, firstLine - 1);
-                steps.add(new StepWrapper(this, counter++, priorText, step, true));
-                currentLine = step.getLineRange().getLast();
-            }
+                String priorText = feature.joinLines(currentLine.get(), firstLine - 1);
+                steps.add(new StepWrapper(this, counter.getAndIncrement(), priorText, step, true));
+                currentLine.set(step.getLineRange().getLast());
+            });
         }
-        for (Step step : scenario.getSteps()) {
+        scenario.getSteps().forEach(step -> {
             int firstLine = step.getLine();
-            String priorText = feature.joinLines(currentLine, firstLine - 1);
-            steps.add(new StepWrapper(this, counter++, priorText, step, false));
-            currentLine = step.getLineRange().getLast();
-        }
+            String priorText = feature.joinLines(currentLine.get(), firstLine - 1);
+            steps.add(new StepWrapper(this, counter.getAndIncrement(), priorText, step, false));
+            currentLine.set(step.getLineRange().getLast());
+        });
     }
 
     public void setSection(FeatureSection section) {
@@ -72,11 +74,7 @@ public class ScenarioWrapper {
     }
 
     public FeatureSection getSection() {
-        if (section == null) {
-            return parent.getSection();
-        } else {
-            return section;
-        }
+        return Optional.ofNullable(section).orElse(parent.getSection());
     }
 
     public int getIndex() {
@@ -100,7 +98,7 @@ public class ScenarioWrapper {
     }
 
     public boolean isChild() {
-        return parent != null;
+        return Optional.ofNullable(parent).isPresent();
     }
 
     public int getLine() {
