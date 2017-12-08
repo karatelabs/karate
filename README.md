@@ -1476,12 +1476,14 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 
  Key | Type | Description
 ------ | ---- | ---------
-`headers` | JavaScript Function | See [`configure headers`](#configure-headers)
+`headers` | JS function | See [`configure headers`](#configure-headers)
 `headers` | JSON | See [`configure headers`](#configure-headers)
 `cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. However, if you need to clear any cookies, just do `configure cookies = null` at any time.
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
 `logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting (default `false`)
 `printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' (default `true`)
+`afterScenario` | JS function | Will be called after every `Scenario` or `Example` within a `Scenario Outline`, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
+`afterFeature` | JS function | Will be called after every `Feature`, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
@@ -2446,6 +2448,7 @@ Operation | Description
 `karate.tags` | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 `karate.tagValues` | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 `karate.prevRequest` | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)
+`karate.info` | within a test (or within the [`afterScenario`](#configure) function if configured) you can access metadata such as the `Scenario` name, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 
 ### JS function argument rules for `call`
 When using `call` (or [`callonce`](#callonce)), only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.

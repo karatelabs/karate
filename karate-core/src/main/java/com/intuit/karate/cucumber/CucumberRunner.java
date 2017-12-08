@@ -71,9 +71,7 @@ public class CucumberRunner {
                 KarateFeature karateFeature = karateFeatures.get(i);
                 int index = i + 1;
                 CucumberFeature feature = karateFeature.getFeature();
-
                 filterOnTags(feature);
-
                 if(!feature.getFeatureElements().isEmpty()) {
                     callables.add(() -> {
                         // we are now within a separate thread. the reporter filters logs by self thread
@@ -82,6 +80,7 @@ public class CucumberRunner {
                         KarateRuntime runtime = karateFeature.getRuntime(reporter);
                         try {
                             feature.run(reporter, reporter, runtime);
+                            runtime.afterFeature();
                             logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, feature.getPath());
                         } catch (Exception e) {
                             logger.error("karate xml/json generation failed for: {}", feature.getPath());
@@ -125,18 +124,15 @@ public class CucumberRunner {
     }
 
     private static void filterOnTags(CucumberFeature feature) throws TagFilterException {
-
         final List<CucumberTagStatement> featureElements = feature.getFeatureElements();
-
         ServiceLoader<TagFilter> loader = ServiceLoader.load(TagFilter.class);
-
         for (Iterator<CucumberTagStatement> iterator = featureElements.iterator(); iterator.hasNext();) {
             CucumberTagStatement cucumberTagStatement = iterator.next();
             for (TagFilter implClass : loader) {
                 logger.info("Tag filter found: {}",implClass.getClass().getSimpleName());
                 final boolean isFiltered = implClass.filter(feature, cucumberTagStatement);
                 if(isFiltered) {
-                    logger.info(">>>> Skipping feature element {} of feature {} due to FeatureTagFilter {} ",
+                    logger.info("skipping feature element {} of feature {} due to feature-tag-filter {} ",
                             cucumberTagStatement.getVisualName(),
                             feature.getPath(), implClass.getClass().getSimpleName());
                     iterator.remove();

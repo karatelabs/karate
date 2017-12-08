@@ -82,6 +82,14 @@ public class ScriptContext {
     public ScriptValue getConfigCookies() {
         return config.getCookies();
     }
+    
+    public ScriptValue getAfterScenario() {
+        return config.getAfterScenario();
+    }  
+    
+    public ScriptValue getAfterFeature() {
+        return config.getAfterFeature();
+    }     
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
@@ -191,6 +199,14 @@ public class ScriptContext {
         }
         if (key.equals("printEnabled")) {
             config.setPrintEnabled(value.isBooleanTrue());
+            return;
+        }        
+        if (key.equals("afterScenario")) {
+            config.setAfterScenario(value);
+            return;
+        }
+        if (key.equals("afterFeature")) {
+            config.setAfterFeature(value);
             return;
         }        
         if (key.equals("httpClientClass")) {

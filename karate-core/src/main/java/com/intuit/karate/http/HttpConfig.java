@@ -48,6 +48,8 @@ public class HttpConfig {
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
+    private ScriptValue afterScenario = ScriptValue.NULL;
+    private ScriptValue afterFeature = ScriptValue.NULL;
     
     public HttpConfig() {
         // zero arg constructor
@@ -70,6 +72,8 @@ public class HttpConfig {
         clientClass = parent.clientClass;
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
+        afterScenario = parent.afterScenario;
+        afterFeature = parent.afterFeature;
     }
     
     public boolean isSslEnabled() {
@@ -198,6 +202,22 @@ public class HttpConfig {
 
     public void setClientInstance(HttpClient clientInstance) {
         this.clientInstance = clientInstance;
-    }        
+    }    
+
+    public ScriptValue getAfterScenario() {
+        return afterScenario;
+    }
+
+    public void setAfterScenario(ScriptValue afterScenario) {
+        this.afterScenario = afterScenario;
+    }
+
+    public ScriptValue getAfterFeature() {
+        return afterFeature;
+    }
+
+    public void setAfterFeature(ScriptValue afterFeature) {
+        this.afterFeature = afterFeature;
+    }    
     
 }

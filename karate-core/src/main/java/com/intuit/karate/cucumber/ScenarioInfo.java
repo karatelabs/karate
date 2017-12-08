@@ -32,6 +32,7 @@ public class ScenarioInfo {
     private String featureDir;
     private String featureFileName;
     private String scenarioName;
+    private String scenarioType;
     private String scenarioDescription;
     private String errorMessage;
 
@@ -67,6 +68,14 @@ public class ScenarioInfo {
         this.errorMessage = errorMessage;
     }
 
+    public String getScenarioType() {
+        return scenarioType;
+    }
+
+    public void setScenarioType(String scenarioType) {
+        this.scenarioType = scenarioType;
+    }
+    
     public String getScenarioDescription() {
         return scenarioDescription;
     }

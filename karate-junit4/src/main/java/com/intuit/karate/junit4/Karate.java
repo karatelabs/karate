@@ -116,6 +116,7 @@ public class Karate extends ParentRunner<KarateFeature> {
         }
         htmlReporter.startKarateFeature(feature);
         runner.run(notifier);
+        runtime.afterFeature();
         runtime.printSummary();
         htmlReporter.endKarateFeature();
         // not sure if this is needed, but possibly to make sure junit description is updated for failures etc

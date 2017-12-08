@@ -1,5 +1,15 @@
 Feature:
 
+Background:
+* configure afterScenario = function() { karate.log('after scenario') }
+* configure afterFeature = function() { karate.log('after feature') }
+
+Scenario: one
+* print 'foo'
+
+Scenario: two
+* print 'bar'
+
 Scenario:
 
 * assert someConfig == 'someValue'

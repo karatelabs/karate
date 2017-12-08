@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.ScriptValue;
 import cucumber.runtime.CucumberScenarioImpl;
 import cucumber.runtime.CucumberStats;
 import cucumber.runtime.Runtime;
@@ -42,27 +44,29 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateRuntime extends Runtime {  
-    
+public class KarateRuntime extends Runtime {
+
     private final KarateBackend backend;
     private final CucumberStats stats;
     private CucumberScenarioImpl scenarioResult;
     private boolean failed;
-    
+    private ScriptContext prevContext;
+
     public KarateRuntime(KarateRuntimeOptions kro, KarateBackend backend, RuntimeGlue glue) {
         super(kro.getResourceLoader(), kro.getClassLoader(), Collections.singletonList(backend), kro.getRuntimeOptions(), glue);
         this.backend = backend;
         this.stats = new CucumberStats(kro.getRuntimeOptions().isMonochrome());
     }
-    
+
     private void addStepToCounterAndResult(Result result) {
         scenarioResult.add(result);
-        stats.addStep(result);         
+        stats.addStep(result);
     }
 
     @Override
@@ -73,7 +77,7 @@ public class KarateRuntime extends Runtime {
             if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
                 ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext());
             }
-            reporter.match(match);            
+            reporter.match(match);
             addStepToCounterAndResult(result);
             reporter.result(result);
             return;
@@ -82,11 +86,12 @@ public class KarateRuntime extends Runtime {
         if (!result.isPass()) {
             addError(result.getError());
             backend.setScenarioError(result.getError());
+            prevContext = backend.getStepDefs().getContext();
             failed = true; // skip remaining steps    
         }
-        addStepToCounterAndResult(result.getResult());       
-    } 
-    
+        addStepToCounterAndResult(result.getResult());
+    }
+
     private void resolveTagValues(Set<Tag> tags) {
         if (tags.isEmpty()) {
             backend.setTagValues(Collections.emptyMap());
@@ -126,7 +131,7 @@ public class KarateRuntime extends Runtime {
         backend.setTagValues(tagValues);
         backend.setTags(rawTags);
     }
-    
+
     @Override
     public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario scenario) {
         backend.buildWorld();
@@ -134,23 +139,36 @@ public class KarateRuntime extends Runtime {
         ScenarioInfo info = new ScenarioInfo();
         ScriptEnv env = backend.getEnv();
         info.setFeatureDir(env.featureDir.getPath());
-        info.setFeatureFileName(env.featureName);
+        info.setFeatureFileName(env.featureName);   
         info.setScenarioName(scenario.getName());
+        info.setScenarioType(scenario.getKeyword()); // Scenario | Scenario Outline
         info.setScenarioDescription(scenario.getDescription());
         backend.setScenarioInfo(info);
         scenarioResult = new CucumberScenarioImpl(reporter, tags, scenario);
-    }      
+    }
 
     @Override
     public void disposeBackendWorlds(String scenarioDesignation) {
         stats.addScenario(scenarioResult.getStatus(), scenarioDesignation);
-        backend.disposeWorld();
+        prevContext = backend.getStepDefs().getContext();
+        ScriptValue sv = prevContext.getAfterScenario();
+        if (sv.isFunction()) {
+            sv.invokeFunction(prevContext);            
+        }
+        backend.disposeWorld();        
         failed = false; // else a failed scenario results in all remaining ones in the feature being skipped !
     }
 
     @Override
-    public void printSummary() {
+    public void printSummary() {   
         stats.printStats(System.out, false);
-    }        
+    }
     
+    public void afterFeature() {
+        ScriptValue sv = prevContext.getAfterFeature();
+        if (sv.isFunction()) {
+            sv.invokeFunction(prevContext);            
+        }        
+    }
+
 }
