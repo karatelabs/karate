@@ -363,10 +363,14 @@ public class StepDefs {
         if (responseBody instanceof String) {
             String responseString = StringUtils.trimToEmpty((String) responseBody);
             if (Script.isJson(responseString)) {
-                DocumentContext doc = JsonUtils.toJsonDoc(responseString);
-                responseBody = doc;
-                if (context.isLogPrettyResponse()) {
-                    context.logger.info("response:\n{}", JsonUtils.toPrettyJsonString(doc));
+                try {
+                    DocumentContext doc = JsonUtils.toJsonDoc(responseString);
+                    responseBody = doc;
+                    if (context.isLogPrettyResponse()) {
+                        context.logger.info("response:\n{}", JsonUtils.toPrettyJsonString(doc));
+                    }
+                } catch (Exception e) {
+                    context.logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
                 }
             } else if (Script.isXml(responseString)) {
                 try {

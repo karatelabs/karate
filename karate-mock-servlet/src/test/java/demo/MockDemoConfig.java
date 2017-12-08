@@ -25,6 +25,7 @@ package demo;
 
 import com.intuit.karate.demo.controller.CatsController;
 import com.intuit.karate.demo.controller.DogsController;
+import com.intuit.karate.demo.controller.EchoController;
 import com.intuit.karate.demo.controller.EncodingController;
 import com.intuit.karate.demo.controller.GraphqlController;
 import com.intuit.karate.demo.controller.GreetingController;
@@ -102,5 +103,10 @@ public class MockDemoConfig {
     public SoapController soapController() {
         return new SoapController();
     }
+    
+    @Bean
+    public EchoController echoController() {
+        return new EchoController();
+    }    
     
 }
