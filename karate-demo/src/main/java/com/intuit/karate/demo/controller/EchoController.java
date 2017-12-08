@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class EchoController {
         
     @PostMapping
-    public String badJson(@RequestBody String request) {
+    public String echo(@RequestBody String request) {
         return request;
     }   
     
