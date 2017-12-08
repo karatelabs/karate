@@ -54,10 +54,10 @@ public abstract class KarateRunner {
         resultListener.startFeature();
         RuntimeOptions ro = runtimeOptions.getRuntimeOptions();
         feature.run(ro.formatter(runtimeOptions.getClassLoader()), resultListener, runtime);
+        runtime.afterFeature();
         if (!resultListener.isPassed()) {
             throw new CucumberException(resultListener.getFirstError());
         }
-        runtime.afterFeature();
         runtime.printSummary();        
     }
 
