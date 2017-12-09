@@ -44,7 +44,9 @@ public class ScriptContext {
 
     private static final String KARATE_DOT_CONTEXT = "karate.context";
     public static final String KARATE_NAME = "karate";
-    private static final String VAR_READ = "read";
+    public static final String VAR_READ = "read";
+    
+    protected final ScriptBindings bindings;
 
     protected final int callDepth;
     protected final List<String> tags;
@@ -52,7 +54,7 @@ public class ScriptContext {
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;    
-    private final ScriptValue readFunction;
+    protected final ScriptValue readFunction;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -141,6 +143,7 @@ public class ScriptContext {
             config = new HttpConfig();
         }
         client = HttpClient.construct(config, this);
+        bindings = new ScriptBindings(this);
         readFunction = Script.eval(getFileReaderFunction(), this);
         if (call.parentContext == null && call.evalKarateConfig) {
             try {
@@ -163,7 +166,7 @@ public class ScriptContext {
         } else if (call.parentContext != null) {
             vars.put(Script.VAR_ARG, ScriptValue.NULL);
             vars.put(Script.VAR_LOOP, -1);            
-        }
+        }        
         logger.trace("karate context init - initial properties: {}", vars);
     }
 
@@ -254,14 +257,6 @@ public class ScriptContext {
             throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
         client.configure(config, this);
-    }
-
-    public Map<String, Object> getVariableBindings() {
-        Map<String, Object> map = Script.simplify(vars);
-        if (readFunction != null) {
-            map.put(VAR_READ, readFunction.getValue());
-        }
-        return map;
     }
 
 }

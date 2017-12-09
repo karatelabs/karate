@@ -55,9 +55,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.script.Bindings;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Attr;
@@ -316,13 +313,13 @@ public class Script {
             return evalInNashorn(text, context);
         }
     }
-    
+
     private static ScriptValue getValuebyName(String name, ScriptContext context) {
         ScriptValue value = context.vars.get(name);
         if (value == null) {
             throw new RuntimeException("no variable found with name: " + name);
         }
-        return value;        
+        return value;
     }
 
     public static ScriptValue evalXmlPathOnVarByName(String name, String path, ScriptContext context) {
@@ -395,33 +392,7 @@ public class Script {
     }
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
-        ScriptEngine nashorn = new ScriptEngineManager(null).getEngineByName("nashorn");
-        Bindings bindings = nashorn.getBindings(javax.script.ScriptContext.ENGINE_SCOPE);
-        if (context != null) {
-            Map<String, Object> map = context.getVariableBindings();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                bindings.put(entry.getKey(), entry.getValue());
-            }
-            bindings.put(ScriptContext.KARATE_NAME, new ScriptBridge(context));
-        }
-        if (selfValue != null) {
-            bindings.put(VAR_SELF, selfValue.getValue());
-        }
-        if (root != null) {
-            ScriptValue rootValue = new ScriptValue(root);
-            bindings.put(VAR_ROOT, rootValue.getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        if (parent != null) {
-            ScriptValue parentValue = new ScriptValue(parent);
-            bindings.put(VAR_PARENT, parentValue.getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        try {
-            Object o = nashorn.eval(exp);
-            ScriptValue result = new ScriptValue(o);
-            return result;
-        } catch (Exception e) {
-            throw new RuntimeException("javascript evaluation failed: " + exp, e);
-        }
+        return ScriptBindings.evalInNashorn(exp, context, selfValue, root, parent);
     }
 
     public static ScriptValueMap clone(ScriptValueMap vars) {
@@ -434,8 +405,9 @@ public class Script {
         return temp;
     }
 
+    // convert json & xml to primitive maps (or lists)
     public static Map<String, Object> simplify(ScriptValueMap vars) {
-        Map<String, Object> map = new HashMap<>(vars.size() + 1); // 1 extra for the read function
+        Map<String, Object> map = new HashMap<>(vars.size());
         for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
             String key = entry.getKey();
             ScriptValue sv = entry.getValue();
@@ -501,7 +473,7 @@ public class Script {
                     }
                 } catch (Exception e) {
                     if (context.logger.isTraceEnabled()) {
-                        context.logger.trace("embedded json eval failed, removing path {}: {}", path, e.getMessage());
+                        context.logger.trace("embedded json eval failed, path: {}, reason: {}", path, e.getMessage());
                     }
                 }
             }
@@ -530,7 +502,7 @@ public class Script {
                     }
                 } catch (Exception e) {
                     if (context.logger.isTraceEnabled()) {
-                        context.logger.trace("embedded xml-attribute eval failed, removing {}: {}", attrib.getName(), e.getMessage());
+                        context.logger.trace("embedded xml-attribute eval failed, path: {}, reason: {}", attrib.getName(), e.getMessage());
                     }
                 }
             }
@@ -554,7 +526,7 @@ public class Script {
                     try {
                         ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
                         if (optional && (forMatch || sv.isNull())) {
-                                elementsToRemove.add(child);
+                            elementsToRemove.add(child);
                         } else {
                             if (sv.isMapLike()) {
                                 Node evalNode;
@@ -574,7 +546,7 @@ public class Script {
                         }
                     } catch (Exception e) {
                         if (context.logger.isTraceEnabled()) {
-                            context.logger.trace("embedded xml-text eval failed, removing {}: {}", child.getNodeName(), e.getMessage());
+                            context.logger.trace("embedded xml-text eval failed, path: {}, reason: {}", child.getNodeName(), e.getMessage());
                         }
                     }
                 }
@@ -616,8 +588,8 @@ public class Script {
     public static void assignXmlString(String name, String exp, ScriptContext context) {
         assign(AssignType.XML_STRING, name, exp, context);
     }
-    
-    private static void validateVariableName(String name) {        
+
+    private static void validateVariableName(String name) {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
@@ -626,7 +598,7 @@ public class Script {
         }
         if ("request".equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " <expression>' instead");
-        }      
+        }
     }
 
     private static void assign(AssignType assignType, String name, String exp, ScriptContext context) {
@@ -769,7 +741,7 @@ public class Script {
         return StringUtils.trimToEmpty(s.substring(1, s.length() - 1));
     }
 
-    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType stringMatchType, 
+    public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType stringMatchType,
             Object actRoot, Object actParent, ScriptValue actValue, String expected, ScriptContext context) {
         if (expected == null) {
             if (!actValue.isNull()) {
@@ -944,8 +916,8 @@ public class Script {
                     }
                     // edge case, we have to exit here !
                     // the check for a NOT_EQUALS at the end of this routine will flip to failure otherwise
-                    return AssertionResult.PASS; 
-                    // break;
+                    return AssertionResult.PASS;
+                // break;
                 case EQUALS:
                     if (!expected.equals(actual)) {
                         return matchFailed(path, actual, expected, "not equal");
@@ -1544,7 +1516,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {        
+    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1558,7 +1530,7 @@ public class Script {
                         ScriptValue rowResult = evalFeatureCall(feature, context, rowArgMap, i, reuseParentConfig);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
-                        String message = "feature call (loop) failed at index: " + i + "\ncaller: " 
+                        String message = "feature call (loop) failed at index: " + i + "\ncaller: "
                                 + feature.getEnv().featureName + "\narg: " + rowArg + "\n" + ke.getMessage();
                         errors.add(message);
                         // log but don't stop (yet)
@@ -1569,7 +1541,7 @@ public class Script {
                 }
             }
             if (!errors.isEmpty()) {
-                String message = "feature call (loop) failed: " + feature.getPath() 
+                String message = "feature call (loop) failed: " + feature.getPath()
                         + "\ncaller: " + feature.getEnv().featureName + "\nitems: " + items + "\nerrors:";
                 for (String s : errors) {
                     message = message + "\n-------\n" + s;
