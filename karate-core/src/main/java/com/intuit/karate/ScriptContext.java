@@ -53,7 +53,7 @@ public class ScriptContext {
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;    
     private final ScriptValue readFunction;
-    
+
     protected final ScenarioInfo scenarioInfo;
 
     // these can get re-built or swapped, so cannot be final
@@ -62,10 +62,14 @@ public class ScriptContext {
     
     // the actual http request last sent on the wire
     protected HttpRequestActual prevRequest;
-
+    
+    public void setScenarioError(Throwable error) {
+        scenarioInfo.setErrorMessage(error.getMessage());
+    }
+    
     public void setPrevRequest(HttpRequestActual prevRequest) {
         this.prevRequest = prevRequest;
-    }   
+    }       
     
     public ScriptEnv getEnv() {
         return env;

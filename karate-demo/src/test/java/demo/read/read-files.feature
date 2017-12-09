@@ -2,8 +2,8 @@ Feature: demo reading files and using in a test
 
 Background:
 * url demoBaseUrl
-# a POST to /search will simply echo the request payload
-* path 'search'
+# a POST to /echo will simply echo the request payload
+* path 'echo'
 
 Scenario: using json from a file
     * table employees

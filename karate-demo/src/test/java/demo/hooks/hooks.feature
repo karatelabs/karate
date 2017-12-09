@@ -7,16 +7,15 @@ Background:
 * def foo = 'hello'
 
 # for custom code to run after every scenario / feature: https://github.com/intuit/karate#configure
-# note that these can be complex JS functions that you can read from separate files
-# IMPORTANT: this will only work with the Karate "runners" so IDE "right-click-and run" will not work
-# the JSON returned from 'karate.info' has the following properties:
+# note that these can be complex JS functions that you can read from separate files and re-use in multiple features
 
-# - featureDir
-# - featureFileName
-# - scenarioName
-# - scenarioType (either 'Scenario' or 'Scenario Outline')
-# - scenarioDescription
-# - errorMessage (will be not-null if there is an error)
+# the JSON returned from 'karate.info' has the following properties:
+#   - featureDir
+#   - featureFileName
+#   - scenarioName
+#   - scenarioType (either 'Scenario' or 'Scenario Outline')
+#   - scenarioDescription
+#   - errorMessage (will be not-null if the Scenario failed)
 
 * configure afterScenario = 
 """
@@ -25,20 +24,27 @@ function(){
   karate.log('after', info.scenarioType + ':', info.scenarioName);
 }
 """
-* configure afterFeature = function(){ karate.log('end feature') }
 
 # for an explanation of 'karate.info' above: https://github.com/intuit/karate#the-karate-object
 
+# IMPORTANT: 'afterFeature' will only work with the Karate "runners" (JUnit, TestNG, CucumberRunner.parallel)
+# i.e. Cucumber IDE "right-click-and-run" will not work
+* configure afterFeature = function(){ karate.log('end feature') }
+
 Scenario: first
-* print foo
+    * print foo
 
 Scenario: second
-* print foo
+    * print foo
 
 Scenario Outline:
-* print <bar>
+    * print <bar>
 
-Examples:
-| bar     |
-| foo + 1 |
-| foo + 2 |
+    Examples:
+    | bar     |
+    | foo + 1 |
+    | foo + 2 |
+
+Scenario: 'after' hooks do not apply to called features
+    # 'afterScenario' and 'afterFeature' are NOT supported in 'called' features
+    * def result = call read('called.feature')

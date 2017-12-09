@@ -25,10 +25,12 @@ Scenario: soap 1.1
 
 Scenario: soap 1.2
     Given request read('request.xml')
+    # soap is just an HTTP POST, so here we set the required header manually ..
     And header Content-Type = 'application/soap+xml; charset=utf-8'
-    # soap is just a POST so here we set the headers manually and use the 'method keyword'
+    # .. and then we use the 'method keyword' instead of 'soap action'
     When method post
     Then status 200
+    # note how we focus only on the relevant part of the payload and read expected XML from a file
     And match /Envelope/Body/AddResponse == read('expected.xml')
 
 

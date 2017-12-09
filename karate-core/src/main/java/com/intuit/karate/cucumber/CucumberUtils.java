@@ -131,6 +131,7 @@ public class CucumberUtils {
                 call(section.getScenario(), backend);
             }
         }
+        
         return backend.getStepDefs().getContext().getVars();
     }
 

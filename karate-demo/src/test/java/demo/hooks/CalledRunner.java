@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:demo/hooks/hooks.feature")
-public class HooksRunner {
+@CucumberOptions(features = "classpath:demo/hooks/called.feature")
+public class CalledRunner {
     
 }

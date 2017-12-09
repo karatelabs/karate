@@ -33,7 +33,9 @@ Scenario: simple graphql request
 
     # json-path makes it easy to focus only on the parts you are interested in
     # which is especially useful for graph-ql as responses tend to be heavily nested
+    # '$' happens to be a JsonPath-friendly short-cut for the 'response' variable
     * match $.data.pokemon.number == '025'
+
     # the '..' wildcard is useful for traversing deeply nested parts of the json
     * def attacks = get[0] response..special
     * match attacks contains { name: 'Thunderbolt', type: 'Electric', damage: 55 }
@@ -47,7 +49,6 @@ Scenario: graphql from a file and variables
     When method post
     Then status 200
     
-    * print 'response:', response
     * def expected = [{ name: 'Flamethrower', type: 'Fire', damage: 55 }, { name: 'Flame Charge', type: 'Fire', damage: 25 }]
-    # this one liner does quite a lot, note how the order of elements in the above array does not matter
+    # this one liner does quite a lot ! note how the order of elements in the above array does not matter
     * match $.data.pokemon contains { number: '004', name: 'Charmander', attacks: { special: '#(^expected)' } }

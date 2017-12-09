@@ -95,7 +95,7 @@ public class KarateRuntime extends Runtime {
         info.setFeatureDir(env.featureDir.getPath());
         info.setFeatureFileName(env.featureName);
         info.setScenarioName(scenario.getName());
-        info.setScenarioType(scenario.getKeyword()); // Scenario | Scenario Outline
+        info.setScenarioType(scenario.getKeyword()); // 'Scenario' | 'Scenario Outline'
         info.setScenarioDescription(scenario.getDescription());
         backend.setScenarioInfo(info);
         scenarioResult = new CucumberScenarioImpl(reporter, tags, scenario);

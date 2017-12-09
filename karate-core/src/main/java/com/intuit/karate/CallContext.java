@@ -38,7 +38,7 @@ public class CallContext {
     public final Map<String, Object> callArg;
     public final boolean reuseParentContext;
     public final boolean evalKarateConfig;
-    public final int loopIndex;
+    public final int loopIndex;   
     
     private List<String> tags;
     private Map<String, List<String>> tagValues;    

@@ -35,7 +35,7 @@ public class ScenarioInfo {
     private String scenarioType;
     private String scenarioDescription;
     private String errorMessage;
-
+    
     public String getFeatureDir() {
         return featureDir;
     }

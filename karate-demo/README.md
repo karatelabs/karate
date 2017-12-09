@@ -12,7 +12,7 @@ as well as demonstrate various Karate features and best-practices.
 [`read-files.feature`](src/test/java/demo/read/read-files.feature) | The above example reads a file with [embedded expressions](https://github.com/intuit/karate#embedded-expressions) and this one reads normal JSON and XML for use in a [`match`](https://github.com/intuit/karate#match). Also a good example of using the [`set`](https://github.com/intuit/karate#set) and [`table`](https://github.com/intuit/karate#table) keywords to build JSON (or XML) payloads from scratch.
 [`graphql.feature`](src/test/java/demo/graphql/graphql.feature) | GraphQL example showing how easy it is to prepare queries and deal with the highly dynamic and deeply nested JSON responses - by focusing only on the parts you are interested in
 [`upload.feature`](src/test/java/demo/upload/upload.feature) | [Multi-part](https://github.com/intuit/karate#multipart-field) file-upload example, as well as comparing the binary content of a download. Also shows how to assert for expected response [headers](https://github.com/intuit/karate#match-header). Plus an example of how to call [custom Java code](https://github.com/intuit/karate#calling-java) from Karate.
-[`dogs.feature`](src/test/java/demo/dogs/dogs.feature) | How to easily use [Java interop](https://github.com/intuit/karate#calling-java) to make a JDBC / database call from a Karate test. Here is the utility-class code - which depends on [Spring JDBC](https://docs.spring.io/spring/docs/current/spring-framework-reference/html/jdbc.html#jdbc-JdbcTemplate): [`DbUtils.java`](src/main/java/com/intuit/karate/demo/util/DbUtils.java).
+[`dogs.feature`](src/test/java/demo/dogs/dogs.feature) | How to easily use [Java interop](https://github.com/intuit/karate#calling-java) to make a JDBC / database call from a Karate test. Here is the utility-class code - which depends on [Spring JDBC](https://docs.spring.io/spring/docs/current/spring-framework-reference/html/jdbc.html#jdbc-JdbcTemplate): [`DbUtils.java`](src/main/java/com/intuit/karate/demo/util/DbUtils.java). The same approach can be used to mix things like Selenium or WebDriver into Karate.
 [`cats-java.feature`](src/test/java/demo/java/cats-java.feature) | Another example of how to call [Java code](https://github.com/intuit/karate#calling-java) showing how you can pass JSON data around.
 [`schema.feature`](src/test/java/demo/schema/schema.feature) | Karate's [simpler approach](https://github.com/intuit/karate#schema-validation) to schema-validation [compared with](https://twitter.com/KarateDSL/status/878984854012022784) an actual JSON-schema example taken from [json-schema.org](http://json-schema.org/example1.html). If you really want to perform JSON-schema validation, this example shows you how you can easily do so using [Java interop](https://github.com/intuit/karate#calling-java) and the [json-schema-validator](https://github.com/java-json-tools/json-schema-validator), but should you really ?
 [`soap.feature`](src/test/java/demo/soap/soap.feature) | Examples for both [SOAP](https://github.com/intuit/karate#soap) 1.1 and 1.2, also showing how you can [read](https://github.com/intuit/karate#reading-files) request payloads and even expected response XML from files.
@@ -53,7 +53,7 @@ After that use the gradle wrapper to run the tests:
 
 ## Example Report
 
-> This is optional and if you use the parallel runner as described above, the JUnit XML emitted is sufficient for most CI tools (e.g. Jenkins) to generate test reports and determine whether the build passed or failed.
+> This is optional and if you use the parallel runner as described above, the JUnit XML emitted is sufficient for most CI tools (e.g. Jenkins) to generate test reports and determine whether the build passed or failed. But the advantage of the approach below is that it includes HTTP request and response logs in-line with the report.
 
 Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
 
@@ -69,7 +69,7 @@ Add the `net.masterthought:cucumber-reporting` jar as a dependency in `test` sco
 ```
 
 ### Log4j Config File
-If you don't already have log4j (v2) in the mix, place this minimal config on the classpath as `log4j2.properties` (alongside `karate-config.js`).
+If you don't already have log4j (v2) in the mix, place this minimal config on the classpath as `log4j2.properties` (in the same folder as `karate-config.js`).
 ```
 log4j.rootLogger = INFO, CONSOLE
 log4j.appender.CONSOLE = org.apache.log4j.ConsoleAppender
