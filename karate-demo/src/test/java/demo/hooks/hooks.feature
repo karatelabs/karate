@@ -1,4 +1,6 @@
 Feature: demo karate's equivalent of before and after hooks
+    note that 'afterScenario' / 'afterFeature' if set up using 'configure'
+    is not supported within features invoked using the 'call' or 'callonce' keywords 
 
 Background:
 # anything here is run before every scenario (and every Example row for Scenario Outline-s)
@@ -8,6 +10,7 @@ Background:
 
 # for custom code to run after every scenario / feature: https://github.com/intuit/karate#configure
 # note that these can be complex JS functions that you can read from separate files and re-use in multiple features
+# and you can give control to a feature via 'karate.call' if needed
 
 # the JSON returned from 'karate.info' has the following properties:
 #   - featureDir
@@ -22,13 +25,15 @@ Background:
 function(){
   var info = karate.info; 
   karate.log('after', info.scenarioType + ':', info.scenarioName);
+  karate.call('after.feature', { caller: info.featureFileName });
 }
 """
 
 # for an explanation of 'karate.info' above: https://github.com/intuit/karate#the-karate-object
+# note that 'karate.info' will not work within features invoked using the 'call' or 'callonce' keywords
 
-# IMPORTANT: 'afterFeature' will only work with the Karate "runners" (JUnit, TestNG, CucumberRunner.parallel)
-# i.e. Cucumber IDE "right-click-and-run" will not work
+# IMPORTANT: 'afterFeature' works only with the Karate "runners" (JUnit, TestNG, CucumberRunner.parallel)
+# which simply means that Cucumber IDE "right-click-and-run" will not work
 * configure afterFeature = function(){ karate.log('end feature') }
 
 Scenario: first

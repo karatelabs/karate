@@ -39,6 +39,7 @@ import gherkin.I18n;
 import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
+import gherkin.formatter.model.Scenario;
 import gherkin.formatter.model.Step;
 import gherkin.formatter.model.Tag;
 import gherkin.parser.Parser;
@@ -98,6 +99,17 @@ public class CucumberUtils {
         }
         backend.setTagValues(tagValues);
         backend.setTags(rawTags);        
+    }
+    
+    public static void initScenarioInfo(Scenario scenario, KarateBackend backend) {
+        ScenarioInfo info = new ScenarioInfo();
+        ScriptEnv env = backend.getEnv();
+        info.setFeatureDir(env.featureDir.getPath());
+        info.setFeatureFileName(env.featureName);
+        info.setScenarioName(scenario.getName());
+        info.setScenarioType(scenario.getKeyword()); // 'Scenario' | 'Scenario Outline'
+        info.setScenarioDescription(scenario.getDescription());
+        backend.setScenarioInfo(info);        
     }
 
     public static KarateBackend getBackendWithGlue(ScriptEnv env, CallContext callContext) {

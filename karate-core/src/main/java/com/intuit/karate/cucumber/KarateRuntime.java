@@ -24,7 +24,6 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
 import cucumber.runtime.CucumberScenarioImpl;
 import cucumber.runtime.CucumberStats;
@@ -89,15 +88,10 @@ public class KarateRuntime extends Runtime {
     @Override
     public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario scenario) {
         backend.buildWorld();
+        // tags only work at top-level, this does not apply to 'called' features
         CucumberUtils.resolveTagsAndTagValues(backend, tags);
-        ScenarioInfo info = new ScenarioInfo();
-        ScriptEnv env = backend.getEnv();
-        info.setFeatureDir(env.featureDir.getPath());
-        info.setFeatureFileName(env.featureName);
-        info.setScenarioName(scenario.getName());
-        info.setScenarioType(scenario.getKeyword()); // 'Scenario' | 'Scenario Outline'
-        info.setScenarioDescription(scenario.getDescription());
-        backend.setScenarioInfo(info);
+        // 'karate.info' also does not apply to 'called' features
+        CucumberUtils.initScenarioInfo(scenario, backend);
         scenarioResult = new CucumberScenarioImpl(reporter, tags, scenario);
     }
 

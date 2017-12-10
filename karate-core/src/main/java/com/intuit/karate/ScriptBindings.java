@@ -34,7 +34,7 @@ import javax.script.ScriptEngineManager;
 import org.slf4j.Logger;
 
 /**
- * this class exists as a performance optimization - to init nashorn only once
+ * this class exists as a performance optimization - we init Nashorn only once
  * and set up the Bindings to Karate variables only once per scenario
  * 
  * we also avoid re-creating hash-maps as far as possible
