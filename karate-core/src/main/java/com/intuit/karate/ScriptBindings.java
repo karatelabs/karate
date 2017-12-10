@@ -24,7 +24,6 @@
 package com.intuit.karate;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,6 +35,9 @@ import org.slf4j.Logger;
 
 /**
  * this class exists as a performance optimization - to init nashorn only once
+ * and set up the Bindings to Karate variables only once per scenario
+ * 
+ * we also avoid re-creating hash-maps as far as possible
  * 
  * @author pthomas3
  */
@@ -87,12 +89,7 @@ public class ScriptBindings implements Bindings {
     }
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
-        ScriptEngine nashorn;
-        if (context == null) {
-            nashorn = NASHORN;
-        } else {
-            nashorn = context.bindings.getNashorn(selfValue, root, parent);
-        }
+        ScriptEngine nashorn = context == null ? NASHORN : context.bindings.getNashorn(selfValue, root, parent);
         try {
             Object o = nashorn.eval(exp);
             return new ScriptValue(o);

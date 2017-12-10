@@ -7,20 +7,8 @@ Karate enables you to script a sequence of calls to any kind of web-service and 
 Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But instead of Java - you write tests in a language designed to make dealing with HTTP, JSON or XML - **simple**.
 
 ## Hello World
-```cucumber
-Feature: karate 'hello world' example
-Scenario: create and retrieve a cat
 
-Given url 'http://myhost.com/v1/cats'
-And request { name: 'Billie' }
-When method post
-Then status 201
-And match response == { id: '#notnull', name: 'Billie' }
-
-Given path response.id
-When method get
-Then status 200
-```
+<a href="https://gist.github.com/ptrthomas/d5a2d9e15d0b07e4f1b46f692a599f93"><img src="karate-demo/src/test/resources/karate-hello-world.jpg" height="300" /></a>
 
 > If you are familar with Cucumber, the [*big difference*](#cucumber-vs-karate) here is that you **don't** need to write extra "glue" code or Java "step definitions" !
 
