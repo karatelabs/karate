@@ -1166,7 +1166,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 `* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
 `* def foo = bar.baz[0]` | var.JsonPath | JsonPath on the variable `bar`
 `* def foo = bar/baz/ban[1]` | var/XPath | XPath on the variable `bar`
-`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using filter-criteria). You can also use [`get[0]`](#get-plus-index) to get the first item if the JsonPath evaluates to an array.
+`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using [filter-criteria](#jsonpath-filters)). You can also use [`get[0]`](#get-plus-index) to get the first item if the JsonPath evaluates to an array.
 `* def foo = $bar..baz[?(@.ban)]` | $var.JsonPath | [convenience short-cut](#get-short-cut) for the above
 `* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
 `* def foo = karate.pretty(bar)` | JS | using the [built-in `karate` object](#the-karate-object) in JS expressions
@@ -2650,7 +2650,7 @@ Then status 200
 * match agencies[0].node == { id: '#uuid', name: 'John Smith' }
 ```
 
-The example above is more for demonstration purposes and it is better practice to use [GraphQL variables](http://graphql.org/learn/queries/#variables) for dynamic queries. This example is a good reference: [`graphql.feature`](karate-demo/src/test/java/demo/graphql/graphql.feature).
+The example above is more for demonstration purposes and it is better practice to use [GraphQL variables](http://graphql.org/learn/queries/#variables) for dynamic queries. This example is a good reference: [`graphql.feature`](karate-demo/src/test/java/demo/graphql/graphql.feature). Also the [`replace`](#replace) keyword may be all you need for simple text placeholder substitution.
 
 ## Cucumber Tags
 Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.
@@ -2685,6 +2685,19 @@ A common use case is to mix API-calls into a larger test-suite, for example a Se
 There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`runFeature()` and `runClasspathFeature()`) which are best explained in this demo unit-test: [`JavaApiTest.java`](karate-demo/src/test/java/demo/java/JavaApiTest.java). 
 
 You can optionally pass in variable values or over-ride config via a `HashMap` or leave the second-last argument as `null`. The variable state after feature execution would be returned as a `Map<String, Object>`. The last `boolean` argument is whether the [`karate-config.js`](#configuration) should be processed or not.
+
+## Hooks
+If you are looking for [Cucumber 'hooks'](http://toolsqa.com/cucumber/cucumber-hooks/) Karate does not support them, mainly because they depend on Java code, which goes against the Karate Way™. 
+
+Instead, Karate gives you all you need as part of the syntax. Here is a summary:
+
+To Run Some Code | How
+---------------- | ---
+Before every `Scenario` | Use the [`Background`](#script-structure)
+Once (or at the start of) every `Feature` | Use a [`callonce`](#callonce) in the [`Background`](#script-structure). The advantage is that you can set up variables (using [`def`](#def) if needed) which can be used in all `Scenario`-s
+After every `Scenario` | [`configure afterScenario`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
+At the end of the `Feature` | [`configure afterFeature`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
+
 
 ## Data Driven Tests
 ### The Cucumber Way
