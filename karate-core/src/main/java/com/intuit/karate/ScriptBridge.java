@@ -151,6 +151,11 @@ public class ScriptBridge {
         return context.tagValues;
     }    
     
+    public Map<String, Object> getInfo() {
+        DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
+        return doc.read("$");
+    }
+    
     public String getEnv() {
         return context.env.env;
     }

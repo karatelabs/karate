@@ -39,10 +39,17 @@ import gherkin.I18n;
 import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
+import gherkin.formatter.model.Scenario;
 import gherkin.formatter.model.Step;
+import gherkin.formatter.model.Tag;
 import gherkin.parser.Parser;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  *
@@ -53,6 +60,57 @@ public class CucumberUtils {
     private CucumberUtils() {
         // only static methods
     }   
+    
+    public static void resolveTagsAndTagValues(KarateBackend backend, Set<Tag> tags) {
+        if (tags.isEmpty()) {
+            backend.setTagValues(Collections.emptyMap());
+            backend.setTags(Collections.emptyList());
+            return;
+        }
+        Map<String, List<String>> tagValues = new LinkedHashMap(tags.size());
+        Map<String, Integer> tagKeyLines = new HashMap(tags.size());
+        List<String> rawTags = new ArrayList(tags.size());
+        for (Tag tag : tags) {
+            Integer line = tag.getLine();
+            String name = tag.getName();
+            List<String> values = new ArrayList();
+            if (name.startsWith("@")) {
+                name = name.substring(1);
+            }
+            rawTags.add(name);
+            Integer prevTagLine = tagKeyLines.get(name);
+            if (prevTagLine != null && prevTagLine > line) {
+                continue; // skip tag with same name but lower line number, 
+            }
+            tagKeyLines.put(name, line);
+            int pos = name.indexOf('=');
+            if (pos != -1) {
+                if (name.length() == pos + 1) { // edge case, @foo=
+                    values.add("");
+                } else {
+                    String temp = name.substring(pos + 1);
+                    for (String s : temp.split(",")) {
+                        values.add(s);
+                    }
+                }
+                name = name.substring(0, pos);
+            }
+            tagValues.put(name, values);
+        }
+        backend.setTagValues(tagValues);
+        backend.setTags(rawTags);        
+    }
+    
+    public static void initScenarioInfo(Scenario scenario, KarateBackend backend) {
+        ScenarioInfo info = new ScenarioInfo();
+        ScriptEnv env = backend.getEnv();
+        info.setFeatureDir(env.featureDir.getPath());
+        info.setFeatureFileName(env.featureName);
+        info.setScenarioName(scenario.getName());
+        info.setScenarioType(scenario.getKeyword()); // 'Scenario' | 'Scenario Outline'
+        info.setScenarioDescription(scenario.getDescription());
+        backend.setScenarioInfo(info);        
+    }
 
     public static KarateBackend getBackendWithGlue(ScriptEnv env, CallContext callContext) {
         KarateBackend backend = new KarateBackend(env, callContext);
@@ -85,6 +143,7 @@ public class CucumberUtils {
                 call(section.getScenario(), backend);
             }
         }
+        
         return backend.getStepDefs().getContext().getVars();
     }
 
@@ -154,9 +213,8 @@ public class CucumberUtils {
         if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step, match, result, callContext);
-        } else if (backend.isCalled()) {
-            
-        } else { // cucumber native reporter, steps would have been set upfront, preserve normal life-cycle
+        } else if (!backend.isCalled()) { // cucumber native reporter, steps would have been set upfront
+            // preserve normal life-cycle
             reporter.match(match);
             reporter.result(result);            
         }

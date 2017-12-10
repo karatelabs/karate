@@ -1,6 +1,7 @@
 package com.intuit.karate.testng;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.cucumber.KarateRuntime;
 import com.intuit.karate.cucumber.KarateRuntimeOptions;
 import cucumber.api.testng.CucumberExceptionWrapper;
 import cucumber.api.testng.CucumberFeatureWrapper;
@@ -8,7 +9,6 @@ import cucumber.api.testng.CucumberFeatureWrapperImpl;
 import cucumber.api.testng.FeatureResultListener;
 import cucumber.api.testng.TestNgReporter;
 import cucumber.runtime.CucumberException;
-import cucumber.runtime.Runtime;
 import cucumber.runtime.RuntimeOptions;
 import cucumber.runtime.model.CucumberFeature;
 import gherkin.formatter.Formatter;
@@ -50,10 +50,11 @@ public abstract class KarateRunner {
     public void feature(CucumberFeatureWrapper wrapper) {
         CucumberFeature feature = wrapper.getCucumberFeature();
         File file = FileUtils.resolveIfClassPath(feature.getPath());
-        Runtime runtime = runtimeOptions.getRuntime(file, null);
+        KarateRuntime runtime = runtimeOptions.getRuntime(file, null);
         resultListener.startFeature();
         RuntimeOptions ro = runtimeOptions.getRuntimeOptions();
         feature.run(ro.formatter(runtimeOptions.getClassLoader()), resultListener, runtime);
+        runtime.afterFeature();
         if (!resultListener.isPassed()) {
             throw new CucumberException(resultListener.getFirstError());
         }

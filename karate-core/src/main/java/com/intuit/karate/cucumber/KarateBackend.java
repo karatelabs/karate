@@ -55,7 +55,15 @@ public class KarateBackend implements Backend {
 
     public void setTagValues(Map<String, List<String>> tagValues) {
         callContext.setTagValues(tagValues);
-    }    
+    }      
+
+    public void setScenarioInfo(ScenarioInfo scenarioInfo) {
+        callContext.setScenarioInfo(scenarioInfo);
+    }     
+    
+    public void setScenarioError(Throwable error) {
+        objectFactory.getStepDefs().getContext().setScenarioError(error);
+    }
 
     public boolean isCalled() {
         return callContext.isCalled();

@@ -1,5 +1,7 @@
 @version=2.3
 Feature: test tags
+    note that karate.tags and karate.tagValues are not supported
+    within features when invoked using the call or callonce keywords 
 
 Scenario: test feature level tag
 * def tags = (karate.tags)

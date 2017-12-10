@@ -103,20 +103,34 @@ public class XmlUtils {
             trimWhiteSpace(child);
         }
     }
+    
+    private static class DtdEntityResolver implements EntityResolver {
+        
+        protected boolean dtdPresent;
+        
+        @Override
+        public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
+            dtdPresent = true;
+            return new InputSource(new StringReader(""));
+        }
+        
+    }
 
     public static Document toXmlDoc(String xml) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();        
         try {
             DocumentBuilder builder = factory.newDocumentBuilder();
-            builder.setEntityResolver(new EntityResolver() { // disable DTD loading
-                @Override
-                public InputSource resolveEntity(String publicId, String systemId)
-                        throws SAXException, IOException {
-                    return new InputSource(new StringReader(""));
-                }
-            });            
+            DtdEntityResolver dtdEntityResolver = new DtdEntityResolver();
+            builder.setEntityResolver(dtdEntityResolver);            
             InputStream is = FileUtils.toInputStream(xml);
-            return builder.parse(is);
+            Document doc = builder.parse(is);
+            if (dtdEntityResolver.dtdPresent) { // DOCTYPE present
+                // the XML was not parsed, but I think it hangs at the root as a text node
+                // so conversion to string and back has the effect of discarding the DOCTYPE !
+                return toXmlDoc(toString(doc, false));
+            } else {
+                return doc;
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

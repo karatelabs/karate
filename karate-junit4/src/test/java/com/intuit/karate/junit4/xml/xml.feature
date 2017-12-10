@@ -212,9 +212,6 @@ Scenario: xml containing DTD complex
       <gpPARAM name="coconuts">666</gpPARAM>
     </gpOBJECT>
     """
-    # unfortunate bug with XML that uses a DTD
-    * string xml = xml
-    * xml xml = xml
     * match xml == <gpOBJECT><gpPARAM name="coconuts">666</gpPARAM></gpOBJECT>
 
 Scenario: xml containing a CDATA section

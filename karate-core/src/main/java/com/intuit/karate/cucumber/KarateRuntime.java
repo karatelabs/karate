@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScriptValue;
 import cucumber.runtime.CucumberScenarioImpl;
 import cucumber.runtime.CucumberStats;
 import cucumber.runtime.Runtime;
@@ -34,34 +36,30 @@ import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Scenario;
 import gherkin.formatter.model.Step;
 import gherkin.formatter.model.Tag;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateRuntime extends Runtime {  
-    
+public class KarateRuntime extends Runtime {
+
     private final KarateBackend backend;
     private final CucumberStats stats;
     private CucumberScenarioImpl scenarioResult;
     private boolean failed;
-    
+    private ScriptContext prevContext;
+
     public KarateRuntime(KarateRuntimeOptions kro, KarateBackend backend, RuntimeGlue glue) {
         super(kro.getResourceLoader(), kro.getClassLoader(), Collections.singletonList(backend), kro.getRuntimeOptions(), glue);
         this.backend = backend;
         this.stats = new CucumberStats(kro.getRuntimeOptions().isMonochrome());
     }
-    
+
     private void addStepToCounterAndResult(Result result) {
         scenarioResult.add(result);
-        stats.addStep(result);         
+        stats.addStep(result);
     }
 
     @Override
@@ -72,7 +70,7 @@ public class KarateRuntime extends Runtime {
             if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
                 ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext());
             }
-            reporter.match(match);            
+            reporter.match(match);
             addStepToCounterAndResult(result);
             reporter.result(result);
             return;
@@ -80,61 +78,28 @@ public class KarateRuntime extends Runtime {
         StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend);
         if (!result.isPass()) {
             addError(result.getError());
+            backend.setScenarioError(result.getError());
+            prevContext = backend.getStepDefs().getContext();
             failed = true; // skip remaining steps    
         }
-        addStepToCounterAndResult(result.getResult());       
-    } 
-    
-    private void resolveTagValues(Set<Tag> tags) {
-        if (tags.isEmpty()) {
-            backend.setTagValues(Collections.emptyMap());
-            backend.setTags(Collections.emptyList());
-            return;
-        }
-        Map<String, List<String>> tagValues = new LinkedHashMap(tags.size());
-        Map<String, Integer> tagKeyLines = new HashMap(tags.size());
-        List<String> rawTags = new ArrayList(tags.size());
-        for (Tag tag : tags) {
-            Integer line = tag.getLine();
-            String name = tag.getName();
-            List<String> values = new ArrayList();
-            if (name.startsWith("@")) {
-                name = name.substring(1);
-            }
-            rawTags.add(name);
-            Integer prevTagLine = tagKeyLines.get(name);
-            if (prevTagLine != null && prevTagLine > line) {
-                continue; // skip tag with same name but lower line number, 
-            }
-            tagKeyLines.put(name, line);
-            int pos = name.indexOf('=');
-            if (pos != -1) {
-                if (name.length() == pos + 1) { // edge case, @foo=
-                    values.add("");
-                } else {
-                    String temp = name.substring(pos + 1);
-                    for (String s : temp.split(",")) {
-                        values.add(s);
-                    }
-                }
-                name = name.substring(0, pos);
-            }
-            tagValues.put(name, values);
-        }
-        backend.setTagValues(tagValues);
-        backend.setTags(rawTags);
+        addStepToCounterAndResult(result.getResult());
     }
-    
+
     @Override
-    public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario gherkinScenario) {
+    public void buildBackendWorlds(Reporter reporter, Set<Tag> tags, Scenario scenario) {
         backend.buildWorld();
-        resolveTagValues(tags);
-        scenarioResult = new CucumberScenarioImpl(reporter, tags, gherkinScenario);
-    }      
+        // tags only work at top-level, this does not apply to 'called' features
+        CucumberUtils.resolveTagsAndTagValues(backend, tags);
+        // 'karate.info' also does not apply to 'called' features
+        CucumberUtils.initScenarioInfo(scenario, backend);
+        scenarioResult = new CucumberScenarioImpl(reporter, tags, scenario);
+    }
 
     @Override
     public void disposeBackendWorlds(String scenarioDesignation) {
         stats.addScenario(scenarioResult.getStatus(), scenarioDesignation);
+        prevContext = backend.getStepDefs().getContext();
+        invokeIfFunction(false);
         backend.disposeWorld();
         failed = false; // else a failed scenario results in all remaining ones in the feature being skipped !
     }
@@ -142,6 +107,22 @@ public class KarateRuntime extends Runtime {
     @Override
     public void printSummary() {
         stats.printStats(System.out, false);
-    }        
+    }       
     
+    public void afterFeature() {
+        invokeIfFunction(true);
+    }
+    
+    private void invokeIfFunction(boolean afterFeature) {
+        ScriptValue sv = afterFeature ? prevContext.getAfterFeature() : prevContext.getAfterScenario();
+        if (sv.isFunction()) {
+            try {
+                sv.invokeFunction(prevContext);
+            } catch (Exception e) {
+                String prefix = afterFeature ? "afterFeature" : "afterScenario";
+                prevContext.logger.warn("{} hook failed: {}", prefix, e.getMessage());
+            }
+        }
+    }    
+
 }

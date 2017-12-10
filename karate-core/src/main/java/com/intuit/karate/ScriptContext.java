@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
@@ -43,7 +44,9 @@ public class ScriptContext {
 
     private static final String KARATE_DOT_CONTEXT = "karate.context";
     public static final String KARATE_NAME = "karate";
-    private static final String VAR_READ = "read";
+    public static final String VAR_READ = "read";
+    
+    protected final ScriptBindings bindings;
 
     protected final int callDepth;
     protected final List<String> tags;
@@ -51,7 +54,9 @@ public class ScriptContext {
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;    
-    private final ScriptValue readFunction;
+    protected final ScriptValue readFunction;
+
+    protected final ScenarioInfo scenarioInfo;
 
     // these can get re-built or swapped, so cannot be final
     protected HttpClient client;
@@ -59,10 +64,14 @@ public class ScriptContext {
     
     // the actual http request last sent on the wire
     protected HttpRequestActual prevRequest;
-
+    
+    public void setScenarioError(Throwable error) {
+        scenarioInfo.setErrorMessage(error.getMessage());
+    }
+    
     public void setPrevRequest(HttpRequestActual prevRequest) {
         this.prevRequest = prevRequest;
-    }   
+    }       
     
     public ScriptEnv getEnv() {
         return env;
@@ -79,6 +88,14 @@ public class ScriptContext {
     public ScriptValue getConfigCookies() {
         return config.getCookies();
     }
+    
+    public ScriptValue getAfterScenario() {
+        return config.getAfterScenario();
+    }  
+    
+    public ScriptValue getAfterFeature() {
+        return config.getAfterFeature();
+    }     
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
@@ -108,9 +125,10 @@ public class ScriptContext {
     public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
         logger = env.logger;        
-        callDepth = call.callDepth;
+        callDepth = call.callDepth;        
         tags = call.getTags();
         tagValues = call.getTagValues();
+        scenarioInfo = call.getScenarioInfo();
         if (call.reuseParentContext) {
             vars = call.parentContext.vars; // shared context !
             validators = call.parentContext.validators;
@@ -125,6 +143,7 @@ public class ScriptContext {
             config = new HttpConfig();
         }
         client = HttpClient.construct(config, this);
+        bindings = new ScriptBindings(this);
         readFunction = Script.eval(getFileReaderFunction(), this);
         if (call.parentContext == null && call.evalKarateConfig) {
             try {
@@ -147,7 +166,7 @@ public class ScriptContext {
         } else if (call.parentContext != null) {
             vars.put(Script.VAR_ARG, ScriptValue.NULL);
             vars.put(Script.VAR_LOOP, -1);            
-        }
+        }        
         logger.trace("karate context init - initial properties: {}", vars);
     }
 
@@ -187,6 +206,14 @@ public class ScriptContext {
         }
         if (key.equals("printEnabled")) {
             config.setPrintEnabled(value.isBooleanTrue());
+            return;
+        }        
+        if (key.equals("afterScenario")) {
+            config.setAfterScenario(value);
+            return;
+        }
+        if (key.equals("afterFeature")) {
+            config.setAfterFeature(value);
             return;
         }        
         if (key.equals("httpClientClass")) {
@@ -230,14 +257,6 @@ public class ScriptContext {
             throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
         }
         client.configure(config, this);
-    }
-
-    public Map<String, Object> getVariableBindings() {
-        Map<String, Object> map = Script.simplify(vars);
-        if (readFunction != null) {
-            map.put(VAR_READ, readFunction.getValue());
-        }
-        return map;
     }
 
 }
