@@ -2687,7 +2687,9 @@ There are two static methods in `com.intuit.karate.cucumber.CucumberRunner` (`ru
 You can optionally pass in variable values or over-ride config via a `HashMap` or leave the second-last argument as `null`. The variable state after feature execution would be returned as a `Map<String, Object>`. The last `boolean` argument is whether the [`karate-config.js`](#configuration) should be processed or not.
 
 ## Hooks
-If you are looking for [Cucumber 'hooks'](http://toolsqa.com/cucumber/cucumber-hooks/) Karate does not support them, mainly because they depend on Java code, which goes against the Karate Way™. Instead Karate gives you all you need as part of the syntax. Here is a summary:
+If you are looking for [Cucumber 'hooks'](http://toolsqa.com/cucumber/cucumber-hooks/) Karate does not support them, mainly because they depend on Java code, which goes against the Karate Way™. 
+
+Instead, Karate gives you all you need as part of the syntax. Here is a summary:
 
 To Run Some Code | How
 ---------------- | ---
