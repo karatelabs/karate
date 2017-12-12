@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -140,26 +142,25 @@ public class ScriptBindings implements Bindings {
     // these are never called by nashorn =======================================        
     @Override
     public Collection<Object> values() {
-        // this is wrong, but doesn't matter
-        return adds.values();
+        Stream<Object> temp = vars.values().stream().map(ScriptValue::getValue);
+        return Stream.concat(temp, adds.values().stream()).collect(Collectors.toList());
     }
 
     @Override
     public Set<Entry<String, Object>> entrySet() {
-        // this is wrong, but doesn't matter
-        return adds.entrySet();
-    }
-
-    @Override
-    public Object remove(Object key) {
-        // this is wrong, but doesn't matter
-        return adds.remove(key);
+        Map<String, Object> temp = new HashMap(size());        
+        for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
+            ScriptValue sv = entry.getValue(); // should never be null, but unit tests may do this
+            Object value = sv == null ? null : sv.getAfterConvertingFromJsonOrXmlIfNeeded();
+            temp.put(entry.getKey(), value);
+        }
+        temp.putAll(adds);
+        return temp.entrySet();
     }
 
     @Override
     public boolean containsValue(Object value) {
-        // this is wrong, but doesn't matter
-        return adds.containsValue(value);
+        return values().contains(value);
     }
 
     @Override
@@ -167,5 +168,11 @@ public class ScriptBindings implements Bindings {
         // this is wrong, but doesn't matter
         adds.clear();
     }
+    
+    @Override
+    public Object remove(Object key) {
+        // this is wrong, but doesn't matter
+        return adds.remove(key);
+    }    
 
 }
