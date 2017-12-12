@@ -43,10 +43,7 @@ import javax.script.ScriptEngineManager;
 public class ScriptBindings implements Bindings {
 
     // all threads will share this ! thread isolation is via Bindings (this class)
-    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");    
-    
-    protected static final String VAR_KARATE = "karate";
-    protected static final String VAR_READ = "read";    
+    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");      
 
     protected final ScriptBridge bridge;
     
@@ -57,16 +54,15 @@ public class ScriptBindings implements Bindings {
         this.vars = context.vars;
         this.adds = new HashMap(6); // read, karate, self, root, parent, nashorn.global
         bridge = new ScriptBridge(context);
-        adds.put(VAR_KARATE, bridge);
-        // the next line calls an eval with only the 'karate' bridge bound
-        adds.put(VAR_READ, eval(READ_FUNCTION, this).getValue());
-        // and only now do we have the 'read' function bound as well
+        adds.put("karate", bridge);
+        // the next line calls an eval with 'incomplete' bindings
+        // i.e. only the 'karate' bridge has been bound so far
+        ScriptValue readFunction = eval(READ_FUNCTION, this);
+        // and only now are the bindings complete - with the 'read' function
+        adds.put("read", readFunction.getValue());        
     }
 
-    private static final String READ_FUNCTION = "function(path) {\n"
-            + "  var FileUtils = Java.type('" + FileUtils.class.getCanonicalName() + "');\n"
-            + "  return FileUtils.readFile(path, karate.context).value;\n"
-            + "}";
+    private static final String READ_FUNCTION = "function(path){ return karate.read(path) }";
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
         if (context == null) {
