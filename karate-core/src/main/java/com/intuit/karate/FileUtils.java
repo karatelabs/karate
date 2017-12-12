@@ -98,12 +98,12 @@ public class FileUtils {
     }       
     
     public static String readFileAsString(String path, boolean classpath, ScriptContext context) {
-        InputStream is = getFileStream(path, classpath, context);
-        if (is == null) {
-            String message = String.format("file not found: %s, classpath: %s", path, classpath);
-            throw new KarateFileNotFoundException(message);
-        }
         try {
+            InputStream is = getFileStream(path, classpath, context);
+            if (is == null) {
+                String message = String.format("file not found: %s, classpath: %s", path, classpath);
+                throw new KarateFileNotFoundException(message);
+            }            
             return toString(is);
         } catch (Exception e) {            
             String message = String.format("could not read file: %s, classpath: %s", path, classpath);

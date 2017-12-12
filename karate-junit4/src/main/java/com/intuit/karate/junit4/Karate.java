@@ -126,8 +126,10 @@ public class Karate extends ParentRunner<KarateFeature> {
     @Override
     public void run(RunNotifier notifier) {
         super.run(notifier);
-        reporter.done();
-        reporter.close();
+        if (reporter != null) { // can happen for zero features found
+            reporter.done();
+            reporter.close();
+        }
     }   
 
 }
