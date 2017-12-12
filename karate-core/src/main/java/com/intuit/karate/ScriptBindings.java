@@ -43,14 +43,13 @@ import org.slf4j.Logger;
  */
 public class ScriptBindings implements Bindings {
     
-    // all threads will share this ! only for pure JS eval with ZERO bindings
-    private static final ScriptEngine NASHORN = getNashorn(null);
+    // all threads will share this ! thread isolation is via Bindings (this class)
+    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
 
     private final Logger logger;
     private final ScriptContext context;
     private final ScriptValueMap vars;
     private final ScriptBridge bridge;
-    private final ScriptEngine nashorn;
     private final Map<String, Object> adds;
 
     public ScriptBindings(ScriptContext context) {
@@ -59,18 +58,17 @@ public class ScriptBindings implements Bindings {
         this.vars = context.vars;
         this.adds = new HashMap(6); // read, karate, self, root, parent, nashorn.global
         this.bridge = new ScriptBridge(context);
-        this.nashorn = getNashorn(this);
     }
-
-    private static ScriptEngine getNashorn(Bindings bindings) {
-        ScriptEngine nashorn = new ScriptEngineManager(null).getEngineByName("nashorn");
-        if (bindings != null) {
-            nashorn.setBindings(bindings, javax.script.ScriptContext.ENGINE_SCOPE);
+    
+    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
+        if (context == null) {
+            return evalInNashorn(exp, null);
+        } else {
+            return context.bindings.evalInNashorn(exp, selfValue, root, parent);
         }
-        return nashorn;
     }
 
-    private ScriptEngine getNashorn(ScriptValue selfValue, Object root, Object parent) {
+    private ScriptValue evalInNashorn(String exp, ScriptValue selfValue, Object root, Object parent) {
         adds.clear();
         adds.put(ScriptContext.KARATE_NAME, bridge);
         if (context.readFunction != null) {
@@ -85,17 +83,16 @@ public class ScriptBindings implements Bindings {
         if (parent != null) {
             adds.put(Script.VAR_PARENT, new ScriptValue(parent).getAfterConvertingFromJsonOrXmlIfNeeded());
         }
-        return nashorn;
+        return evalInNashorn(exp, this);
     }
-
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
-        ScriptEngine nashorn = context == null ? NASHORN : context.bindings.getNashorn(selfValue, root, parent);
+    
+    private static ScriptValue evalInNashorn(String exp, Bindings bindings) {
         try {
-            Object o = nashorn.eval(exp);
+            Object o = bindings == null ? NASHORN.eval(exp) : NASHORN.eval(exp, bindings);
             return new ScriptValue(o);
         } catch (Exception e) {
             throw new RuntimeException("javascript evaluation failed: " + exp, e);
-        }
+        }        
     }
 
     @Override
@@ -126,10 +123,8 @@ public class ScriptBindings implements Bindings {
     @Override
     public int size() {
         return vars.size() + adds.size();
-    }    
+    }
     
-    // these are never called by nashorn =======================================    
-
     @Override
     public boolean isEmpty() {
         return false;
@@ -140,31 +135,38 @@ public class ScriptBindings implements Bindings {
         Set<String> keys = new HashSet(vars.keySet());
         keys.addAll(adds.keySet());
         return keys;
-    }
-
-    @Override
-    public Object remove(Object key) {
-        return adds.remove(key);
-    }
-
-    @Override
-    public boolean containsValue(Object value) {
-        return adds.containsValue(value);
-    }
-
-    @Override
-    public void clear() {
-        adds.clear();
-    }
-
+    }    
+    
+    // these are never called by nashorn =======================================        
+    
     @Override
     public Collection<Object> values() {
+        // this is wrong, but doesn't matter
         return adds.values();
     }
 
     @Override
     public Set<Entry<String, Object>> entrySet() {
+        // this is wrong, but doesn't matter
         return adds.entrySet();
+    }
+
+    @Override
+    public Object remove(Object key) {
+        // this is wrong, but doesn't matter
+        return adds.remove(key);
+    }
+
+    @Override
+    public boolean containsValue(Object value) {
+        // this is wrong, but doesn't matter
+        return adds.containsValue(value);
+    }
+
+    @Override
+    public void clear() {
+        // this is wrong, but doesn't matter
+        adds.clear();
     }
 
 }
