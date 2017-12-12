@@ -31,68 +31,72 @@ import java.util.Set;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import org.slf4j.Logger;
 
 /**
  * this class exists as a performance optimization - we init Nashorn only once
  * and set up the Bindings to Karate variables only once per scenario
- * 
+ *
  * we also avoid re-creating hash-maps as far as possible
- * 
+ *
  * @author pthomas3
  */
 public class ScriptBindings implements Bindings {
-    
-    // all threads will share this ! thread isolation is via Bindings (this class)
-    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
 
-    private final Logger logger;
-    private final ScriptContext context;
-    private final ScriptValueMap vars;
-    private final ScriptBridge bridge;
+    // all threads will share this ! thread isolation is via Bindings (this class)
+    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");    
+    
+    protected static final String VAR_KARATE = "karate";
+    protected static final String VAR_READ = "read";    
+
+    protected final ScriptBridge bridge;
+    
+    private final ScriptValueMap vars;    
     private final Map<String, Object> adds;
 
     public ScriptBindings(ScriptContext context) {
-        this.context = context;
-        this.logger = context.env.logger;
         this.vars = context.vars;
         this.adds = new HashMap(6); // read, karate, self, root, parent, nashorn.global
-        this.bridge = new ScriptBridge(context);
+        bridge = new ScriptBridge(context);
+        adds.put(VAR_KARATE, bridge);
+        // the next line calls an eval with only the 'karate' bridge bound
+        adds.put(VAR_READ, eval(READ_FUNCTION, this).getValue());
+        // and only now do we have the 'read' function bound as well
     }
-    
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
+
+    private static final String READ_FUNCTION = "function(path) {\n"
+            + "  var FileUtils = Java.type('" + FileUtils.class.getCanonicalName() + "');\n"
+            + "  return FileUtils.readFile(path, karate.context).value;\n"
+            + "}";
+
+    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
         if (context == null) {
-            return evalInNashorn(exp, null);
+            return eval(exp, null);
         } else {
-            return context.bindings.evalInNashorn(exp, selfValue, root, parent);
+            return context.bindings.updateBindingsAndEval(exp, evalContext);
         }
     }
 
-    private ScriptValue evalInNashorn(String exp, ScriptValue selfValue, Object root, Object parent) {
-        adds.clear();
-        adds.put(ScriptContext.KARATE_NAME, bridge);
-        if (context.readFunction != null) {
-            adds.put(ScriptContext.VAR_READ, context.readFunction.getValue());
+    private ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) {
+        if (ec == null) {
+            adds.remove(Script.VAR_SELF);
+            adds.remove(Script.VAR_ROOT);
+            adds.remove(Script.VAR_PARENT);
+        } else {
+            // ec.selfValue will never be null
+            adds.put(Script.VAR_SELF, ec.selfValue.getAfterConvertingFromJsonOrXmlIfNeeded());
+            adds.put(Script.VAR_ROOT, new ScriptValue(ec.root).getAfterConvertingFromJsonOrXmlIfNeeded());
+            adds.put(Script.VAR_PARENT, new ScriptValue(ec.parent).getAfterConvertingFromJsonOrXmlIfNeeded());
         }
-        if (selfValue != null) {
-            adds.put(Script.VAR_SELF, selfValue.getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        if (root != null) {
-            adds.put(Script.VAR_ROOT, new ScriptValue(root).getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        if (parent != null) {
-            adds.put(Script.VAR_PARENT, new ScriptValue(parent).getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        return evalInNashorn(exp, this);
+        return eval(exp, this);
     }
-    
-    private static ScriptValue evalInNashorn(String exp, Bindings bindings) {
+
+    private static ScriptValue eval(String exp, Bindings bindings) {
         try {
             Object o = bindings == null ? NASHORN.eval(exp) : NASHORN.eval(exp, bindings);
             return new ScriptValue(o);
         } catch (Exception e) {
             throw new RuntimeException("javascript evaluation failed: " + exp, e);
-        }        
+        }
     }
 
     @Override
@@ -118,13 +122,13 @@ public class ScriptBindings implements Bindings {
     public boolean containsKey(Object key) {
         // this has to be implemented correctly ! else nashorn won't return 'undefined'
         return vars.containsKey(key) || adds.containsKey(key);
-    }    
-    
+    }
+
     @Override
     public int size() {
         return vars.size() + adds.size();
     }
-    
+
     @Override
     public boolean isEmpty() {
         return false;
@@ -135,10 +139,9 @@ public class ScriptBindings implements Bindings {
         Set<String> keys = new HashSet(vars.keySet());
         keys.addAll(adds.keySet());
         return keys;
-    }    
-    
+    }
+
     // these are never called by nashorn =======================================        
-    
     @Override
     public Collection<Object> values() {
         // this is wrong, but doesn't matter

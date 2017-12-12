@@ -388,11 +388,11 @@ public class Script {
     }
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context) {
-        return evalInNashorn(exp, context, null, null, null);
+        return ScriptBindings.evalInNashorn(exp, context, null);
     }
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
-        return ScriptBindings.evalInNashorn(exp, context, selfValue, root, parent);
+        return ScriptBindings.evalInNashorn(exp, context, new ScriptEvalContext(selfValue, root, parent));
     }
 
     public static ScriptValueMap clone(ScriptValueMap vars) {
@@ -1496,11 +1496,10 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScriptContext context) {
-        // ensure that things like 'karate.get' operate on the latest variable state
-        som.setMember(ScriptContext.KARATE_NAME, new ScriptBridge(context));
-        // convenience for users, can use 'karate' instead of 'this.karate'
-        som.eval(String.format("var %s = this.%s", ScriptContext.KARATE_NAME, ScriptContext.KARATE_NAME));
+    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScriptContext context) {        
+        // injects the 'karate' variable into the js function body
+        // also ensure that things like 'karate.get' operate on the latest variable state
+        som.setMember(ScriptBindings.VAR_KARATE, context.bindings.bridge);
         Object result;
         try {
             if (callArg != null) {

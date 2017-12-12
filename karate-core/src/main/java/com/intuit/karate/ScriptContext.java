@@ -41,10 +41,6 @@ import org.slf4j.Logger;
 public class ScriptContext {
 
     public final Logger logger;
-
-    private static final String KARATE_DOT_CONTEXT = "karate.context";
-    public static final String KARATE_NAME = "karate";
-    public static final String VAR_READ = "read";
     
     protected final ScriptBindings bindings;
 
@@ -53,8 +49,7 @@ public class ScriptContext {
     protected final Map<String, List<String>> tagValues;
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
-    protected final ScriptEnv env;    
-    protected final ScriptValue readFunction;
+    protected final ScriptEnv env;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -144,7 +139,6 @@ public class ScriptContext {
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
-        readFunction = Script.eval(getFileReaderFunction(), this);
         if (call.parentContext == null && call.evalKarateConfig) {
             try {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
@@ -153,7 +147,10 @@ public class ScriptContext {
                 if (cause instanceof KarateFileNotFoundException) {
                     logger.warn("karate-config.js not found on the classpath, skipping bootstrap configuration");
                 } else {
-                    throw new RuntimeException("bootstrap configuration error, evaluation of karate-config.js failed:", cause);
+                    if (cause == null) {
+                        cause = e;
+                    }
+                    throw new RuntimeException("evaluation of karate-config.js failed:", cause);
                 }
             }
         }
@@ -168,13 +165,6 @@ public class ScriptContext {
             vars.put(Script.VAR_LOOP, -1);            
         }        
         logger.trace("karate context init - initial properties: {}", vars);
-    }
-
-    private static String getFileReaderFunction() {
-        return "function(path) {\n"
-                + "  var FileUtils = Java.type('" + FileUtils.class.getCanonicalName() + "');\n"
-                + "  return FileUtils.readFile(path, " + KARATE_DOT_CONTEXT + ").value;\n"
-                + "}";
     }
 
     public void configure(HttpConfig config) {
