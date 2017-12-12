@@ -129,10 +129,13 @@ public class CucumberUtils {
         cucumberFeature.setI18n(parser.getI18nLanguage());
         return cucumberFeature;
     }
-
+    
     public static ScriptValueMap call(FeatureWrapper feature, CallContext callContext) {
-        ScriptEnv env = feature.getEnv();
-        KarateBackend backend = getBackendWithGlue(env, callContext);
+        KarateBackend backend = getBackendWithGlue(feature.getEnv(), callContext);
+        return call(feature, backend);
+    }
+
+    public static ScriptValueMap call(FeatureWrapper feature, KarateBackend backend) {
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();
@@ -142,8 +145,7 @@ public class CucumberUtils {
             } else {
                 call(section.getScenario(), backend);
             }
-        }
-        
+        }        
         return backend.getStepDefs().getContext().getVars();
     }
 

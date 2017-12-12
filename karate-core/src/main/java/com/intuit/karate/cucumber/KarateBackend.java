@@ -77,6 +77,11 @@ public class KarateBackend implements Backend {
         return objectFactory.getEnv();
     }
     
+    public ScriptValueMap initAndGetVars() {
+        objectFactory.getInstance(null);
+        return getVars();
+    }
+    
     public ScriptValueMap getVars() {
         StepDefs stepDefs = getStepDefs();
         if (stepDefs == null) { // first step

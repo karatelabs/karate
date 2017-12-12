@@ -1,9 +1,19 @@
 @ignore
 Feature:
 
+Background:
+* def nextId = 
+"""
+function(){ 
+  var currentId = karate.get('currentId');
+  var nextId = currentId + 1;
+  karate.set('currentId', nextId);
+  return ~~nextId;
+}
+"""
+
 Scenario:
-* def cats = []
 * def cat = request
-* set cat.id = '12345'
+* set cat.id = nextId()
 * set cats[] = cat
 * def response = cat

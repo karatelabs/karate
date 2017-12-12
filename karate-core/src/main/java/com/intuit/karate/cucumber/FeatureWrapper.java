@@ -55,6 +55,10 @@ public class FeatureWrapper {
     public void setEnv(ScriptEnv scriptEnv) {
         this.scriptEnv = scriptEnv;
     }
+    
+    public static FeatureWrapper fromFile(File file) {
+        return fromFile(file, Thread.currentThread().getContextClassLoader());
+    }
 
     public static FeatureWrapper fromFile(File file, ClassLoader classLoader) {
         String text = FileUtils.toString(file);

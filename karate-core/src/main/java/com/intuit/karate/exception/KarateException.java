@@ -34,7 +34,7 @@ public class KarateException extends RuntimeException {
     }
     
     public KarateException(String message, Throwable cause) {
-        super(message + "\n" + cause.getMessage());
+        super(message + cause == null ? "" : "\n" + cause.getMessage());
     }
     
 }

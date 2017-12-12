@@ -21,20 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.exception;
+package com.intuit.karate.cucumber;
+
+import com.intuit.karate.CallContext;
+import com.intuit.karate.ScriptValueMap;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateFileNotFoundException extends KarateException {
+public class FeatureServer {
     
-    public KarateFileNotFoundException(String message) {
-        super(message);
+    private final FeatureWrapper feature;
+    private final KarateBackend backend;
+    
+    public FeatureServer(FeatureWrapper feature) {
+        this.feature = feature;
+        CallContext callContext = new CallContext(null, 0, null, -1, false, false);
+        backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
     }
     
-    public KarateFileNotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }    
+    public void initVars(Map<String, Object> args) {
+        if (args != null) {            
+            ScriptValueMap vars = backend.initAndGetVars();
+            args.forEach((k, v) -> vars.put(k, v));
+        }        
+    }
+    
+    public ScriptValueMap handle(Map<String, Object> args) {
+        initVars(args);
+        CucumberUtils.call(feature, backend);
+        return backend.getStepDefs().getContext().getVars();
+    }
     
 }

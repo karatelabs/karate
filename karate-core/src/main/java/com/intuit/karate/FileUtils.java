@@ -99,16 +99,12 @@ public class FileUtils {
     
     public static String readFileAsString(String path, boolean classpath, ScriptContext context) {
         try {
-            InputStream is = getFileStream(path, classpath, context);
-            if (is == null) {
-                String message = String.format("file not found: %s, classpath: %s", path, classpath);
-                throw new KarateFileNotFoundException(message);
-            }            
+            InputStream is = getFileStream(path, classpath, context);            
             return toString(is);
         } catch (Exception e) {            
             String message = String.format("could not read file: %s, classpath: %s", path, classpath);
             context.logger.error(message);            
-            throw new RuntimeException(message, e.getCause());
+            throw new KarateFileNotFoundException(message, e);
         }
     } 
     
@@ -139,6 +135,11 @@ public class FileUtils {
     public static File getDirContaining(Class clazz) {
         String resourcePath = clazz.getResource(clazz.getSimpleName() + ".class").getFile();
         return new File(resourcePath).getParentFile();
+    }
+    
+    public static File getFileRelativeTo(Class clazz, String path) {
+        File dir = FileUtils.getDirContaining(clazz);
+        return new File(dir.getPath() + File.separator + path);        
     }
     
     public static URL toFileUrl(String path) {
