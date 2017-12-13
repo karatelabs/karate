@@ -142,18 +142,18 @@ public class ScriptBindings implements Bindings {
     // these are never called by nashorn =======================================        
     @Override
     public Collection<Object> values() {
-        Stream<Object> temp = vars.values().stream().map(ScriptValue::getValue);
+        Stream<Object> temp = vars.values().stream().map(ScriptValue::getAfterConvertingFromJsonOrXmlIfNeeded);
         return Stream.concat(temp, adds.values().stream()).collect(Collectors.toList());
     }
 
     @Override
     public Set<Entry<String, Object>> entrySet() {
-        Map<String, Object> temp = new HashMap(size());        
-        for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
-            ScriptValue sv = entry.getValue(); // should never be null, but unit tests may do this
+        Map<String, Object> temp = new HashMap(size()); 
+        vars.forEach((k, sv)-> {
+            // value should never be null, but unit tests may do this
             Object value = sv == null ? null : sv.getAfterConvertingFromJsonOrXmlIfNeeded();
-            temp.put(entry.getKey(), value);
-        }
+            temp.put(k, value);
+        });
         temp.putAll(adds);
         return temp.entrySet();
     }

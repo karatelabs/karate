@@ -1,3 +1,4 @@
+@ignore
 Feature: sample karate script that calls a live www web-service
 
 Background:

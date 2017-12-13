@@ -28,4 +28,8 @@ public class ScriptValueMap extends HashMap<String, ScriptValue> {
         return sv.getValue(clazz);
     }
 
+    public Map<String, Object> toPrimitiveMap() {
+        return new ScriptObjectMap(this);
+    }
+    
 }

@@ -405,20 +405,6 @@ public class Script {
         return temp;
     }
 
-    // convert json & xml to primitive maps (or lists)
-    public static Map<String, Object> simplify(ScriptValueMap vars) {
-        Map<String, Object> map = new HashMap<>(vars.size());
-        for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
-            String key = entry.getKey();
-            ScriptValue sv = entry.getValue();
-            if (sv == null) { // most likely only happens in unit tests but be safe
-                sv = ScriptValue.NULL;
-            }
-            map.put(key, sv.getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        return map;
-    }
-
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
 
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
@@ -1570,8 +1556,7 @@ public class Script {
             context.env.reporter.callBegin(feature, callContext);
         }
         ScriptValueMap svm = CucumberUtils.call(feature, callContext);
-        Map<String, Object> map = simplify(svm);
-        return new ScriptValue(map);
+        return new ScriptValue(svm.toPrimitiveMap());
     }
 
     public static void callAndUpdateConfigAndAlsoVarsIfMapReturned(boolean callOnce, String name, String arg, ScriptContext context) {
