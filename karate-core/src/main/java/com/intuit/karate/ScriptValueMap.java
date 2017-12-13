@@ -32,4 +32,10 @@ public class ScriptValueMap extends HashMap<String, ScriptValue> {
         return new ScriptObjectMap(this);
     }
     
+    public ScriptValueMap copy() {
+        ScriptValueMap copy = new ScriptValueMap();
+        forEach((k, v) -> copy.put(k, v));
+        return copy;
+    }
+    
 }

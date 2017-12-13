@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.exception.KarateFileNotFoundException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -93,6 +94,10 @@ public class ScriptBindings implements Bindings {
             Object o = bindings == null ? NASHORN.eval(exp) : NASHORN.eval(exp, bindings);
             return new ScriptValue(o);
         } catch (Exception e) {
+            // reduce log bloat for common file-not-found situation
+            if (e instanceof KarateFileNotFoundException) {
+                throw (KarateFileNotFoundException) e;
+            }
             throw new RuntimeException("javascript evaluation failed: " + exp, e);
         }
     }

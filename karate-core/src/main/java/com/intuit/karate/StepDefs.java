@@ -317,6 +317,11 @@ public class StepDefs {
     public void yamlDocString(String name, String expression) {
         Script.assignYaml(name, expression, context);
     }
+    
+    @When("^copy (.+) = (.+)")
+    public void copy(String name, String expression) {
+        Script.copy(name, expression, context);
+    }    
 
     @When("^json (.+) = (.+)")
     public void castToJson(String name, String expression) {

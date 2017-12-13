@@ -395,16 +395,6 @@ public class Script {
         return ScriptBindings.evalInNashorn(exp, context, new ScriptEvalContext(selfValue, root, parent));
     }
 
-    public static ScriptValueMap clone(ScriptValueMap vars) {
-        ScriptValueMap temp = new ScriptValueMap();
-        for (Map.Entry<String, ScriptValue> entry : vars.entrySet()) {
-            String key = entry.getKey();
-            ScriptValue value = entry.getValue(); // TODO immutable / copy
-            temp.put(key, value);
-        }
-        return temp;
-    }
-
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
 
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(VARIABLE_PATTERN_STRING);
@@ -547,9 +537,13 @@ public class Script {
         }
     }
 
+    public static void copy(String name, String exp, ScriptContext context) {
+        assign(AssignType.COPY, name, exp, context);
+    }    
+    
     public static void assign(String name, String exp, ScriptContext context) {
         assign(AssignType.AUTO, name, exp, context);
-    }
+    }       
 
     public static void assignText(String name, String exp, ScriptContext context) {
         assign(AssignType.TEXT, name, exp, context);
@@ -615,6 +609,9 @@ public class Script {
             case XML_STRING:
                 Document xmlStringDoc = toXmlDoc(eval(exp, context), context);
                 sv = new ScriptValue(XmlUtils.toString(xmlStringDoc));
+                break;
+            case COPY:
+                sv = eval(exp, context).copy();
                 break;
             default: // AUTO
                 sv = eval(exp, context);

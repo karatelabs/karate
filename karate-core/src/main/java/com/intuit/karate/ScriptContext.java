@@ -129,7 +129,7 @@ public class ScriptContext {
             validators = call.parentContext.validators;
             config = call.parentContext.config;
         } else if (call.parentContext != null) {
-            vars = Script.clone(call.parentContext.vars);
+            vars = call.parentContext.vars.copy();
             validators = call.parentContext.validators;
             config = new HttpConfig(call.parentContext.config);
         } else {

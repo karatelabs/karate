@@ -7,6 +7,7 @@ package com.intuit.karate;
 public enum AssignType {
     
     AUTO,
+    COPY,
     TEXT,
     YAML,
     JSON,

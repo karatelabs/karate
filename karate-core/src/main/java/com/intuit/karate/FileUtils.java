@@ -104,7 +104,7 @@ public class FileUtils {
         } catch (Exception e) {            
             String message = String.format("could not read file: %s, classpath: %s", path, classpath);
             context.logger.error(message);            
-            throw new KarateFileNotFoundException(message, e);
+            throw new KarateFileNotFoundException(message);
         }
     } 
     
