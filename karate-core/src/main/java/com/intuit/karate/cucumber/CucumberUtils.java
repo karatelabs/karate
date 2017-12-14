@@ -59,8 +59,8 @@ public class CucumberUtils {
 
     private CucumberUtils() {
         // only static methods
-    }   
-    
+    }
+
     public static void resolveTagsAndTagValues(KarateBackend backend, Set<Tag> tags) {
         if (tags.isEmpty()) {
             backend.setTagValues(Collections.emptyMap());
@@ -98,9 +98,9 @@ public class CucumberUtils {
             tagValues.put(name, values);
         }
         backend.setTagValues(tagValues);
-        backend.setTags(rawTags);        
+        backend.setTags(rawTags);
     }
-    
+
     public static void initScenarioInfo(Scenario scenario, KarateBackend backend) {
         ScenarioInfo info = new ScenarioInfo();
         ScriptEnv env = backend.getEnv();
@@ -109,7 +109,7 @@ public class CucumberUtils {
         info.setScenarioName(scenario.getName());
         info.setScenarioType(scenario.getKeyword()); // 'Scenario' | 'Scenario Outline'
         info.setScenarioDescription(scenario.getDescription());
-        backend.setScenarioInfo(info);        
+        backend.setScenarioInfo(info);
     }
 
     public static KarateBackend getBackendWithGlue(ScriptEnv env, CallContext callContext) {
@@ -119,7 +119,7 @@ public class CucumberUtils {
         backend.loadGlue(glue, null);
         return backend;
     }
-    
+
     public static CucumberFeature parse(String text, String featurePath) {
         final List<CucumberFeature> features = new ArrayList<>();
         final FeatureBuilder builder = new FeatureBuilder(features);
@@ -129,7 +129,7 @@ public class CucumberUtils {
         cucumberFeature.setI18n(parser.getI18nLanguage());
         return cucumberFeature;
     }
-    
+
     public static ScriptValueMap call(FeatureWrapper feature, CallContext callContext) {
         KarateBackend backend = getBackendWithGlue(feature.getEnv(), callContext);
         return call(feature, backend);
@@ -145,7 +145,7 @@ public class CucumberUtils {
             } else {
                 call(section.getScenario(), backend);
             }
-        }        
+        }
         return backend.getStepDefs().getContext().getVars();
     }
 
@@ -164,52 +164,50 @@ public class CucumberUtils {
             }
         }
     }
-    
+
     public static StepResult runCalledStep(StepWrapper step, KarateBackend backend) {
         FeatureWrapper wrapper = step.getScenario().getFeature();
         CucumberFeature feature = wrapper.getFeature();
         return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend);
-    }    
-    
+    }
+
     private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
-    
+
     // adapted from cucumber.runtime.Runtime.runCalledStep
-    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, 
-            KarateBackend backend) {
+    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, KarateBackend backend) {
         backend.beforeStep(featurePath, step);
         if (reporter == null) {
             reporter = DUMMY_REPORTER;
-        }      
+        }
         StepDefinitionMatch match;
         try {
             match = backend.getGlue().stepDefinitionMatch(featurePath, step, i18n);
         } catch (AmbiguousStepDefinitionsException e) {
             match = e.getMatches().get(0);
             Result result = new Result(Result.FAILED, 0L, e, KarateReporterBase.DUMMY_OBJECT);
-            return afterStep(reporter, step, match, result, e, featurePath, backend);
+            return afterStep(reporter, step, match, result, featurePath, backend);
         }
         if (match == null) {
-            return afterStep(reporter, step, Match.UNDEFINED, Result.UNDEFINED, 
-                    new KarateException("syntax error: " + step.getName()),
-                    featurePath, backend);
+            String message = "syntax error: '" + step.getName() + "', feature: " + featurePath + ", line: " + step.getLine();
+            backend.getEnv().logger.error("{}", message);
+            Result result = new Result(Result.FAILED, 0L, new KarateException(message), KarateReporterBase.DUMMY_OBJECT);
+            return afterStep(reporter, step, Match.UNDEFINED, result, featurePath, backend);
         }
         String status = Result.PASSED;
         Throwable error = null;
         long startTime = System.nanoTime();
-        try {            
+        try {
             match.runStep(i18n);
         } catch (Throwable t) {
             error = t;
             status = Result.FAILED;
-        } finally {
-            long duration = backend.isCalled() ? 0 : System.nanoTime() - startTime;
-            Result result = new Result(status, duration, error, KarateReporterBase.DUMMY_OBJECT);
-            return afterStep(reporter, step, match, result, error, featurePath, backend);
-        }        
+        }
+        long duration = backend.isCalled() ? 0 : System.nanoTime() - startTime;
+        Result result = new Result(status, duration, error, KarateReporterBase.DUMMY_OBJECT);
+        return afterStep(reporter, step, match, result, featurePath, backend);
     }
-    
-    private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, 
-            Throwable error, String feature, KarateBackend backend) {
+
+    private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, String feature, KarateBackend backend) {
         boolean isKarateReporter = reporter instanceof KarateReporter;
         CallContext callContext = backend.getCallContext();
         if (isKarateReporter) { // report all the things !           
@@ -218,9 +216,9 @@ public class CucumberUtils {
         } else if (!backend.isCalled()) { // cucumber native reporter, steps would have been set upfront
             // preserve normal life-cycle
             reporter.match(match);
-            reporter.result(result);            
+            reporter.result(result);
         }
-        StepResult stepResult = new StepResult(step, result, error);
+        StepResult stepResult = new StepResult(step, result);
         backend.afterStep(feature, stepResult);
         return stepResult;
     }

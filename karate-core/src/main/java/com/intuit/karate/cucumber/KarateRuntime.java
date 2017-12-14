@@ -24,6 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
 import cucumber.runtime.CucumberScenarioImpl;
 import cucumber.runtime.CucumberStats;
@@ -99,7 +100,7 @@ public class KarateRuntime extends Runtime {
     public void disposeBackendWorlds(String scenarioDesignation) {
         stats.addScenario(scenarioResult.getStatus(), scenarioDesignation);
         prevContext = backend.getStepDefs().getContext();
-        invokeIfFunction(false);
+        invokeAfterHookIfConfigured(false);
         backend.disposeWorld();
         failed = false; // else a failed scenario results in all remaining ones in the feature being skipped !
     }
@@ -110,10 +111,15 @@ public class KarateRuntime extends Runtime {
     }       
     
     public void afterFeature() {
-        invokeIfFunction(true);
+        invokeAfterHookIfConfigured(true);
     }
     
-    private void invokeIfFunction(boolean afterFeature) {
+    private void invokeAfterHookIfConfigured(boolean afterFeature) {
+        if (prevContext == null) { // edge case where there are zero scenarios, e.g. only a Background:
+            ScriptEnv env = backend.getEnv();
+            env.logger.warn("no runnable scenarios found: {}", env);
+            return;
+        }
         ScriptValue sv = afterFeature ? prevContext.getAfterFeature() : prevContext.getAfterScenario();
         if (sv.isFunction()) {
             try {

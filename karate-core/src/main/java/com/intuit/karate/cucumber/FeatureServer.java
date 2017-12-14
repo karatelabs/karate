@@ -44,7 +44,7 @@ public class FeatureServer {
     
     public void initVars(Map<String, Object> args) {
         if (args != null) {            
-            ScriptValueMap vars = backend.initAndGetVars();
+            ScriptValueMap vars = backend.getVars();
             args.forEach((k, v) -> vars.put(k, v));
         }        
     }

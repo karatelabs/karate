@@ -83,6 +83,9 @@ public class KarateObjectFactory implements ObjectFactory {
     }
 
     public StepDefs getStepDefs() {
+        if (stepDefs == null) {
+            getInstance(null);
+        }
         return stepDefs;
     }        
     
