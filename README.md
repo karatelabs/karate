@@ -2578,6 +2578,12 @@ That said, if you really need to implement 'conditional' checks, this can be one
 * def result = call read(filename)
 ```
 
+And this is another, using [`karate.call()`](#the-karate-object). Here we want to [`call`](#call) a file only if a condition is satisfied:
+
+```cucumber
+* def result = (responseStatus == 404 ? {} : karate.call('delete-user.feature'))
+```
+
 And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) for more complex logic.
 
 ```cucumber
