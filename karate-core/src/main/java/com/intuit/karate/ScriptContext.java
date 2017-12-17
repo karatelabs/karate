@@ -136,6 +136,7 @@ public class ScriptContext {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
             config = new HttpConfig();
+            config.setClientClass(call.httpClientClass);
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);

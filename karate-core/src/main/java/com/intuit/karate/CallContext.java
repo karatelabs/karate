@@ -38,7 +38,8 @@ public class CallContext {
     public final Map<String, Object> callArg;
     public final boolean reuseParentContext;
     public final boolean evalKarateConfig;
-    public final int loopIndex;   
+    public final int loopIndex;
+    public final String httpClientClass;
     
     private List<String> tags;
     private Map<String, List<String>> tagValues;    
@@ -73,13 +74,14 @@ public class CallContext {
     }
     
     public CallContext(ScriptContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
-        boolean reuseParentContext, boolean evalKarateConfig) {
+        boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass) {
         this.parentContext = parentContext;
         this.callDepth = callDepth;
         this.callArg = callArg;
         this.loopIndex = loopIndex;
         this.reuseParentContext = reuseParentContext;
         this.evalKarateConfig = evalKarateConfig;
+        this.httpClientClass = httpClientClass;
     }
     
 }

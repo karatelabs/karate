@@ -39,7 +39,7 @@ public class DummyHttpClient extends HttpClient<String> {
 
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
-        logger.warn("using dummy http client");
+
     }
 
     @Override
@@ -64,7 +64,7 @@ public class DummyHttpClient extends HttpClient<String> {
 
     @Override
     protected void buildUrl(String url) {
-        
+        logger.warn("attempt to build url: {}, but dummy http client in use", url);
     }
 
     @Override

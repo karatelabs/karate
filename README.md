@@ -187,17 +187,16 @@ sourceSets {
 }
 ```
 
-With the above in place, you don't have to keep switching between your `src/test/java` and `src/test/resources` folders, you can have all your test-code and artifacts under 
-`src/test/java` and everything will work as expected.
+With the above in place, you don't have to keep switching between your `src/test/java` and `src/test/resources` folders, you can have all your test-code and artifacts under `src/test/java` and everything will work as expected.
 
 Once you get used to this, you may even start wondering why projects need a `src/test/resources` folder at all !
 
 ## Naming Conventions
 
-Since these are tests and not production Java code, you don't need to be bound by the `com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. 
-We suggest that you have a folder hierarchy only one or two levels deep - where the folder names clearly identify which 'resource', 'entity' or API is the web-service under test.
+Since these are tests and not production Java code, you don't need to be bound by the `com.mycompany.foo.bar` convention and the un-necessary explosion of sub-folders that ensues. We suggest that you have a folder hierarchy only one or two levels deep - where the folder names clearly identify which 'resource', 'entity' or API is the web-service under test.
 
 For example:
+
 ```
 src/test/java
     |
@@ -225,13 +224,13 @@ src/test/java
             +-- some-helper-function.js
             \-- DogsRunner.java
 ```
+
 Assuming you use JUnit, there are some good reasons for the recommended (best practice) naming convention and choice of file-placement shown above:
 * Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
 * `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder hierarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
 * `some-classpath-function.js` and `some-classpath-payload.js` are in the 'root' of the Java 'classpath' which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
 
-For details on what actually goes into a script or `*.feature` file, refer to the
-[syntax guide](#syntax-guide).
+For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
 ## IDE Support
 Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
@@ -261,12 +260,12 @@ public class CatsRunner {
 	
 }
 ```
+
 Refer to your IDE documentation for how to run a JUnit class.  Typically right-clicking on the file in the project browser or even within the editor view would bring up the "Run as JUnit Test" menu option.
 
 > Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be run. This is one reason why you may want to prefer a 'flat' directory structure as [explained above](#naming-conventions).
 
 ### JUnit HTML report
-
 When you use the `@RunWith(Karate.class)` - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console.
 
 ```
@@ -278,8 +277,7 @@ file:/projects/myproject/target/surefire-reports/TEST-mypackage.myfeature.html
 You can easily select (double-click), copy and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just re-fresh your browser window if you re-run the test.
 
 ## Running With TestNG
-You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior
-is the same as if using JUnit.
+You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior is the same as if using JUnit.
 
 ```java
 package animals.cats;
@@ -292,7 +290,7 @@ public class CatsRunner extends KarateRunner {
 ```
 
 ## Cucumber Options
-You normally don't need to - but if you want to run only a specific feature file from a JUnit test even if there are multiple `*.feature` files in the same folder (or sub-folders), you could use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
+To run only a specific feature file from a JUnit test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
 
 ```java
 package animals.cats;
@@ -307,8 +305,9 @@ public class CatsPostRunner {
 	
 }
 ```
-The `features` parameter in the annotation can take an array, so if you wanted to associate
-multiple feature files with a JUnit test, you could do this:
+
+The `features` parameter in the annotation can take an array, so if you wanted to associate multiple feature files with a JUnit test, you could do this:
+
 ```java
 @CucumberOptions(features = {
     "classpath:animals/cats/cats-post.feature",
@@ -326,7 +325,7 @@ Note that the `mvn test` command only runs test classes that follow the `*Test.j
 mvn test -Dtest=CatsRunner
 ```
 
-For gradle you must extend the test task to allow the cucumuber.options to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
+For gradle you must extend the test task to allow the `cucumber.options` to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
 
 ```yml
 test {
@@ -381,7 +380,7 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
 
 Note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`).
 
-For gradle, you simply specify that test is to be included:
+For Gradle, you simply specify the test which is to be `include`-d:
 
 ```yml
 test {
@@ -422,6 +421,7 @@ public class TestParallel {
     
 }
 ```
+
 Things to note:
 * You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner.parallel()` static method in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.

@@ -21,41 +21,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptEnv;
-import java.io.File;
-import java.util.HashMap;
+import com.intuit.karate.ScriptValueMap;
 import java.util.Map;
-import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
  * @author pthomas3
  */
-public class HttpClientTest {
+public class FeatureProvider {
     
-    private ScriptContext getContext() {
-        String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        CallContext callContext = new CallContext(null, 0, null, -1, false, true, null);
-        return new ScriptContext(env, callContext);
+    private final FeatureWrapper feature;
+    private final KarateBackend backend;
+    
+    public FeatureProvider(FeatureWrapper feature) {
+        this(feature, null);
+    }
+    
+    public FeatureProvider(FeatureWrapper feature, Map<String, Object> args) {
+        this.feature = feature;
+        CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
+        backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
+        updateVars(args);
+        CucumberUtils.call(feature, backend, CallType.BACKGROUND_ONLY);
+    }
+    
+    private void updateVars(Map<String, Object> args) {
+        if (args != null) {            
+            ScriptValueMap vars = backend.getVars();
+            args.forEach((k, v) -> vars.put(k, v));
+        }        
     }    
     
-    @Test
-    public void testSwappingHttpClient() {
-        HttpConfig config = new HttpConfig();
-        Map<String, Object> map = new HashMap<>();
-        map.put("name", "John");
-        config.setUserDefined(map);
-        config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
-        HttpClient client = HttpClient.construct(config, getContext());
-        HttpResponse response = client.makeHttpRequest(null, 0);
-        assertArrayEquals(response.getBody(), "hello John".getBytes());        
+    public ScriptValueMap handle(Map<String, Object> args) {
+        updateVars(args);
+        CucumberUtils.call(feature, backend, CallType.SCENARIO_ONLY);
+        return backend.getStepDefs().getContext().getVars();
     }
     
 }

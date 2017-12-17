@@ -93,7 +93,7 @@ public class Karate extends ParentRunner<KarateFeature> {
             public void result(Result result) {
                 Step step = steps.remove(0);
                 Match match = matches.remove(0);
-                CallContext callContext = new CallContext(null, 0, null, -1, false, false);
+                CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
                 // all the above complexity was just to be able to do this
                 htmlReporter.karateStep(step, match, result, callContext);
                 super.result(result);

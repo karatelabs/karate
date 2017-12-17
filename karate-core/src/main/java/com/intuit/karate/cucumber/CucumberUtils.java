@@ -132,25 +132,27 @@ public class CucumberUtils {
 
     public static ScriptValueMap call(FeatureWrapper feature, CallContext callContext) {
         KarateBackend backend = getBackendWithGlue(feature.getEnv(), callContext);
-        return call(feature, backend);
+        return call(feature, backend, CallType.DEFAULT);
     }
 
-    public static ScriptValueMap call(FeatureWrapper feature, KarateBackend backend) {
+    public static ScriptValueMap call(FeatureWrapper feature, KarateBackend backend, CallType callType) {
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();
                 for (ScenarioWrapper scenario : outline.getScenarios()) {
-                    call(scenario, backend);
+                    call(scenario, backend, callType);
                 }
             } else {
-                call(section.getScenario(), backend);
+                call(section.getScenario(), backend, callType);
             }
         }
         return backend.getStepDefs().getContext().getVars();
     }
 
-    public static void call(ScenarioWrapper scenario, KarateBackend backend) {
+    public static void call(ScenarioWrapper scenario, KarateBackend backend, CallType callType) {
         for (StepWrapper step : scenario.getSteps()) {
+            if (callType == CallType.BACKGROUND_ONLY && !step.isBackground()) continue;
+            if (callType == CallType.SCENARIO_ONLY && step.isBackground()) continue;
             StepResult result = runCalledStep(step, backend);
             if (!result.isPass()) {
                 FeatureWrapper feature = scenario.getFeature();

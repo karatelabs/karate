@@ -144,7 +144,7 @@ public class CucumberRunner {
 
     private static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file);
-        CallContext callContext = new CallContext(null, 0, vars, -1, false, evalKarateConfig);
+        CallContext callContext = new CallContext(null, 0, vars, -1, false, evalKarateConfig, null);
         ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, callContext);
         return scriptValueMap.toPrimitiveMap();
     }

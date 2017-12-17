@@ -234,7 +234,7 @@ public abstract class HttpClient<T> {
         }
         try {
             String className;
-            if (config != null && config.getClientClass() != null) {
+            if (config.getClientClass() != null) {
                 className = config.getClientClass();
             } else {
                 InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);

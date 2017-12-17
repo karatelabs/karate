@@ -537,36 +537,36 @@ public class Script {
         }
     }
 
-    public static void copy(String name, String exp, ScriptContext context) {
-        assign(AssignType.COPY, name, exp, context);
-    }    
-    
-    public static void assign(String name, String exp, ScriptContext context) {
-        assign(AssignType.AUTO, name, exp, context);
-    }       
-
-    public static void assignText(String name, String exp, ScriptContext context) {
-        assign(AssignType.TEXT, name, exp, context);
+    public static ScriptValue copy(String name, String exp, ScriptContext context) {
+        return assign(AssignType.COPY, name, exp, context);
     }
 
-    public static void assignYaml(String name, String exp, ScriptContext context) {
-        assign(AssignType.YAML, name, exp, context);
+    public static ScriptValue assign(String name, String exp, ScriptContext context) {
+        return assign(AssignType.AUTO, name, exp, context);
     }
 
-    public static void assignString(String name, String exp, ScriptContext context) {
-        assign(AssignType.STRING, name, exp, context);
+    public static ScriptValue assignText(String name, String exp, ScriptContext context) {
+        return assign(AssignType.TEXT, name, exp, context);
     }
 
-    public static void assignJson(String name, String exp, ScriptContext context) {
-        assign(AssignType.JSON, name, exp, context);
+    public static ScriptValue assignYaml(String name, String exp, ScriptContext context) {
+        return assign(AssignType.YAML, name, exp, context);
     }
 
-    public static void assignXml(String name, String exp, ScriptContext context) {
-        assign(AssignType.XML, name, exp, context);
+    public static ScriptValue assignString(String name, String exp, ScriptContext context) {
+        return assign(AssignType.STRING, name, exp, context);
     }
 
-    public static void assignXmlString(String name, String exp, ScriptContext context) {
-        assign(AssignType.XML_STRING, name, exp, context);
+    public static ScriptValue assignJson(String name, String exp, ScriptContext context) {
+        return assign(AssignType.JSON, name, exp, context);
+    }
+
+    public static ScriptValue assignXml(String name, String exp, ScriptContext context) {
+        return assign(AssignType.XML, name, exp, context);
+    }
+
+    public static ScriptValue assignXmlString(String name, String exp, ScriptContext context) {
+        return assign(AssignType.XML_STRING, name, exp, context);
     }
 
     private static void validateVariableName(String name) {
@@ -581,7 +581,7 @@ public class Script {
         }
     }
 
-    private static void assign(AssignType assignType, String name, String exp, ScriptContext context) {
+    private static ScriptValue assign(AssignType assignType, String name, String exp, ScriptContext context) {
         name = StringUtils.trimToEmpty(name);
         validateVariableName(name);
         ScriptValue sv;
@@ -617,6 +617,7 @@ public class Script {
                 sv = eval(exp, context);
         }
         context.vars.put(name, sv);
+        return sv;
     }
 
     public static DocumentContext toJsonDoc(ScriptValue sv, ScriptContext context) {
@@ -674,7 +675,6 @@ public class Script {
             name = pair.left;
             path = pair.right;
         }
-        expected = StringUtils.trimToEmpty(expected);
         if ("header".equals(name)) { // convenience shortcut for asserting against response header
             return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
         } else {
@@ -682,27 +682,31 @@ public class Script {
             if (actual == null) {
                 throw new RuntimeException("variable not initialized: " + name);
             }
-            switch (actual.getType()) {
-                case STRING:
-                case INPUT_STREAM:
-                    return matchString(matchType, actual, expected, path, context);
-                case XML:
-                    if ("$".equals(path)) {
-                        path = "/"; // whole document, also edge case where variable name was 'response'
+            return matchScriptValue(matchType, actual, path, expected, context);
+        }
+    }
+
+    public static AssertionResult matchScriptValue(MatchType matchType, ScriptValue actual, String path, String expected, ScriptContext context) {
+        switch (actual.getType()) {
+            case STRING:
+            case INPUT_STREAM:
+                return matchString(matchType, actual, expected, path, context);
+            case XML:
+                if ("$".equals(path)) {
+                    path = "/"; // whole document, also edge case where variable name was 'response'
+                }
+            // break; 
+            // fall through to JSON. yes, dot notation can be used on XML !!
+            default:
+                if (isDollarPrefixed(path)) {
+                    return matchJsonOrObject(matchType, actual, path, expected, context);
+                } else { // xpath
+                    if (actual.getType() != XML) { // force conversion to xml
+                        Node node = XmlUtils.fromMap(actual.getAsMap());
+                        actual = new ScriptValue(node);
                     }
-                // break; 
-                // fall through to JSON. yes, dot notation can be used on XML !!
-                default:
-                    if (isDollarPrefixed(path)) {
-                        return matchJsonOrObject(matchType, actual, path, expected, context);
-                    } else { // xpath
-                        if (actual.getType() != XML) { // force conversion to xml
-                            Node node = XmlUtils.fromMap(actual.getAsMap());
-                            actual = new ScriptValue(node);
-                        }
-                        return matchXml(matchType, actual, path, expected, context);
-                    }
-            }
+                    return matchXml(matchType, actual, path, expected, context);
+                }
         }
     }
 
@@ -1479,7 +1483,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScriptContext context) {        
+    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScriptContext context) {
         // injects the 'karate' variable into the js function body
         // also ensure that things like 'karate.get' operate on the latest variable state
         som.setMember("karate", context.bindings.bridge);
@@ -1548,7 +1552,7 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false);
+        CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null);
         if (context.env.reporter != null) {
             context.env.reporter.callBegin(feature, callContext);
         }

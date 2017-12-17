@@ -2,6 +2,8 @@
 Feature:
 
 Background:
+* def currentId = 0
+* def cats = []
 * def nextId = 
 """
 function(){ 

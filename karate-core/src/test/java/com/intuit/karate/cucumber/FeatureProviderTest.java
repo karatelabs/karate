@@ -24,15 +24,12 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValueMap;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
-import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,38 +37,28 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FeatureServerTest {
+public class FeatureProviderTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(FeatureServerTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(FeatureProviderTest.class);
 
     private Map<String, Object> getRequest(String name) {
-        Map<String, Object> cat = JsonUtils.toJsonDoc("{ name: '" + name + "' }").read("$");
-        Map<String, Object> args = new HashMap();
-        args.put("request", cat);
-        return args;
+        return Match.init()
+                .defText("name", name)
+                .def("cat", "{ name: #(name) }")
+                .eval("{ request: '#(cat)' }").asMap();
     }
 
     @Test
     public void testServer() {
         File file = FileUtils.getFileRelativeTo(getClass(), "server.feature");
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file);
-        FeatureServer server = new FeatureServer(featureWrapper);
-        Map<String, Object> init = new HashMap();
-        init.put("currentId", 0);
-        init.put("cats", new ArrayList());
-        server.initVars(init);
-        ScriptValueMap vars = server.handle(getRequest("Billie"));
-        Map<String, Object> response1 = vars.get("response").getAsMap();
-        assertEquals(1, response1.get("id"));
-        assertEquals("Billie", response1.get("name"));
-        vars = server.handle(getRequest("Wild"));
-        Map<String, Object> response2 = vars.get("response").getAsMap();
-        assertEquals(2, response2.get("id"));
-        assertEquals("Wild", response2.get("name"));
+        FeatureProvider provider = new FeatureProvider(featureWrapper);
+        ScriptValueMap vars = provider.handle(getRequest("Billie"));
+        Match.equals(vars.get("response").getAsMap(), "{ id: 1, name: 'Billie' }");
+        vars = provider.handle(getRequest("Wild"));
+        Match.equals(vars.get("response").getAsMap(), "{ id: 2, name: 'Wild' }");
         List<Map> list = vars.get("cats").getAsList();
-        assertEquals(2, list.size());
-        assertEquals(response1, list.get(0));
-        assertEquals(response2, list.get(1));
+        Match.equals(list, "[{ id: 1, name: 'Billie' }, { id: 2, name: 'Wild' }]");
     }
 
 }
