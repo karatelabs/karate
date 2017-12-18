@@ -29,8 +29,6 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 import net.minidev.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -51,9 +49,23 @@ public class Match {
         return m.putAll(sv.evalAsMap(m.context));
     }
     
+    public static Match json(String exp) {
+        return parse(exp);
+    }
+
+    public static Match xml(String exp) {
+        return parse(exp);
+    }    
+    
+    private static Match parse(String exp) {
+        Match m = new Match();
+        m.prevValue = Script.eval(exp, m.context);
+        return m;
+    }
+    
     private Match() {
         ScriptEnv env = ScriptEnv.init(null, new File("."));
-        CallContext callContext = new CallContext(null, 0, null, -1, false, true, DummyHttpClient.class.getName());
+        CallContext callContext = new CallContext(null, 0, null, -1, false, false, DummyHttpClient.class.getName());
         context = new ScriptContext(env, callContext);
     }
     
@@ -98,6 +110,10 @@ public class Match {
     
     public Map<String, Object> asMap() {
         return prevValue.getAsMap();
+    }
+    
+    public Map<String, Object> vars() {
+        return context.vars.toPrimitiveMap();
     }
     
     public List<Object> asList(String exp) {

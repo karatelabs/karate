@@ -144,14 +144,10 @@ public class ScriptContext {
             try {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
-                Throwable cause = e.getCause();
-                if (cause instanceof KarateFileNotFoundException) {
+                if (e instanceof KarateFileNotFoundException) {
                     logger.warn("karate-config.js not found on the classpath, skipping bootstrap configuration");
                 } else {
-                    if (cause == null) {
-                        cause = e;
-                    }
-                    throw new RuntimeException("evaluation of karate-config.js failed:", cause);
+                    throw new RuntimeException("evaluation of karate-config.js failed:", e);
                 }
             }
         }

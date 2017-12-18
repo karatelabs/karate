@@ -38,4 +38,16 @@ public class MatchTest {
         Match.equals(list, "[1, 2]");
     }
     
+    @Test
+    public void testJson() {
+        Match.json("{ a: 'foo', b: 1 }").equals("{ b: 1, a: 'foo' }");
+        Match.json("[{ a: 'foo', b: 1 }, { a: 'bar', b: 2 }]").equals("[{ b: 1, a: 'foo' }, { b: 2, a: 'bar' }]");
+    }
+    
+    @Test
+    public void testXml() {
+        Match.xml("<foo>a</foo>").equals("<foo>a</foo>");
+        Match.xml("<foo>a</foo>").asMap().get("foo").equals("a");
+    }    
+    
 }
