@@ -144,22 +144,22 @@ public class ScriptBindings implements Bindings {
         return keys;
     }
 
-    // these are never called by nashorn =======================================        
+    // these are never called by nashorn =======================================
+    
     @Override
     public Collection<Object> values() {
-        Stream<Object> temp = vars.values().stream().map(ScriptValue::getAfterConvertingFromJsonOrXmlIfNeeded);
-        return Stream.concat(temp, adds.values().stream()).collect(Collectors.toList());
+        return entrySet().stream().map(Entry::getValue).collect(Collectors.toList());
     }
 
     @Override
     public Set<Entry<String, Object>> entrySet() {
-        Map<String, Object> temp = new HashMap(size()); 
+        Map<String, Object> temp = new HashMap(size());
+        temp.putAll(adds); // duplicates possible ! the vars have priority, they will over-write next
         vars.forEach((k, sv)-> {
             // value should never be null, but unit tests may do this
             Object value = sv == null ? null : sv.getAfterConvertingFromJsonOrXmlIfNeeded();
             temp.put(k, value);
-        });
-        temp.putAll(adds);
+        });        
         return temp.entrySet();
     }
 
