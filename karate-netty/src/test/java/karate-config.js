@@ -1,5 +1,5 @@
 function() {
   var port = karate.properties['karate.server.port'];
-  karate.log('server port detected:', port);
+  port = port || 8080;
   return { serverUrl: 'http://localhost:' + port }
 }

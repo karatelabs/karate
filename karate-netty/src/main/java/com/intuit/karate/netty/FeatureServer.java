@@ -58,6 +58,14 @@ public class FeatureServer {
     public int getPort() {
         return port;
     }
+    
+    public void waitSync() {
+        try {
+            channel.closeFuture().sync();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private FeatureServer(File featureFile, int port, boolean ssl) {
         final SslContext sslCtx;
