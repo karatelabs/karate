@@ -37,7 +37,11 @@ public class FileUtils {
     
     public static final boolean isClassPath(String text) {
         return text.startsWith("classpath:");
-    }   
+    }
+    
+    public static final boolean isFilePath(String text) {
+        return text.startsWith("file:");
+    }     
     
     public static final boolean isJsonFile(String text) {
         return text.endsWith(".json");
@@ -71,52 +75,63 @@ public class FileUtils {
         int pos = text.indexOf(':');
         return pos == -1 ? text : text.substring(pos + 1);        
     }
+    
+    private static enum PathPrefix {
+        NONE,
+        CLASSPATH,
+        FILE
+    }
 
     public static ScriptValue readFile(String text, ScriptContext context) {
         text = StringUtils.trimToEmpty(text);
+        PathPrefix prefix = isClassPath(text) ? PathPrefix.CLASSPATH : (isFilePath(text) ? PathPrefix.FILE : PathPrefix.NONE);
         String fileName = removePrefix(text);
         fileName = StringUtils.trimToEmpty(fileName);
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
-            String contents = readFileAsString(fileName, isClassPath(text), context);
+            String contents = readFileAsString(fileName, prefix, context);
             ScriptValue temp = eval(contents, context);
             return new ScriptValue(temp.getValue(), text);
         } else if (isTextFile(text) || isGraphQlFile(text)) {
-            String contents = readFileAsString(fileName, isClassPath(text), context);
+            String contents = readFileAsString(fileName, prefix, context);
             return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {
-            String contents = readFileAsString(fileName, isClassPath(text), context);
+            String contents = readFileAsString(fileName, prefix, context);
             FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env, text);
             return new ScriptValue(feature, text);
         } else if (isYamlFile(text)) {
-            String contents = readFileAsString(fileName, isClassPath(text), context);
+            String contents = readFileAsString(fileName, prefix, context);
             DocumentContext doc = JsonUtils.fromYaml(contents);
             return new ScriptValue(doc, text);
         } else {
-            InputStream is = getFileStream(fileName, isClassPath(text), context);
+            InputStream is = getFileStream(fileName, prefix, context);
             return new ScriptValue(is, text);
         }        
     }       
     
-    public static String readFileAsString(String path, boolean classpath, ScriptContext context) {
+    public static String readFileAsString(String path, PathPrefix prefix, ScriptContext context) {
         try {
-            InputStream is = getFileStream(path, classpath, context);            
+            InputStream is = getFileStream(path, prefix, context);            
             return toString(is);
         } catch (Exception e) {            
-            String message = String.format("could not read file: %s, classpath: %s", path, classpath);
+            String message = String.format("could not read file: %s, prefix: %s", path, prefix);
             context.logger.error(message);            
             throw new KarateFileNotFoundException(message);
         }
     } 
     
-    public static InputStream getFileStream(String path, boolean classpath, ScriptContext context) {
-        if (classpath) {
-            return context.env.fileClassLoader.getResourceAsStream(path);
+    private static InputStream getFileStream(String path, PathPrefix prefix, ScriptContext context) {
+        switch (prefix) {
+            case CLASSPATH: 
+                return context.env.fileClassLoader.getResourceAsStream(path);
+            case NONE: // relative to feature dir
+                path = context.env.featureDir + File.separator + path;
+                break;
+            default: // as-is
         }
-        String fullPath = context.env.featureDir + File.separator + path;
         try {
-            return new FileInputStream(fullPath);
+            return new FileInputStream(path);
         } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new KarateFileNotFoundException(e.getMessage());
         }
     }
     
