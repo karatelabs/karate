@@ -496,7 +496,9 @@ You can change the `com.intuit.karate` logger level to `INFO` to reduce the amou
 > You can skip this section and jump straight to the [Syntax Guide](#syntax-guide) if you are in a hurry to get started with Karate. Things will work even if the `karate-config.js` file is not present.
 
 ## Classpath
-The 'classpath' is a Java concept and is where some configuration files such as the one for [logging](#logging) are expected to be by default. If you use the Maven `<test-resources>` tweak [described earlier](#folder-structure) (recommended), the root of the classpath will be in the `src/test/java` folder, or else would be `src/test/resources`.
+The 'classpath' is a Java concept and is where some configuration files such as the one for [logging](#logging) are expected to be by default. If you use the Maven `<test-resources>` tweak [described earlier](#folder-structure) (recommended), the 'root' of the classpath will be in the `src/test/java` folder, or else would be `src/test/resources`.
+
+## `karate-config.js`
 
 The only 'rule' is that on start-up Karate expects a file called `karate-config.js` to exist on the 'classpath' and contain a JavaScript function.
 
@@ -552,7 +554,7 @@ The recipe for doing this when running Maven from the command line is:
 mvn test -DargLine="-Dkarate.env=e2e"
 ```
 
-or in gradle:
+Or in Gradle:
 
 ```
 ./gradlew test -Dkarate.env=e2e
@@ -1037,7 +1039,7 @@ Karate makes re-use of payload data, utility-functions and even other test-scrip
 
 > Note that the [`set` (multiple)](#set-multiple) keyword can build complex, nested JSON (or XML) from scratch in a data-driven manner, and you may not even need to read from files for many situations. Test data can be within the main flow itself, which makes scripts highly readable.
 
-Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) and side-by-side with the `*.feature` file. But you can prefix the name with `classpath:` in which case the ['root' folder](#classpath) would be `src/test/java (assuming you are using the [recommended folder structure](#folder-structure)).
+Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) and side-by-side with the `*.feature` file. But you can prefix the name with `classpath:` in which case the ['root' folder](#classpath) would be `src/test/java` (assuming you are using the [recommended folder structure](#folder-structure)).
 
 Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
 
@@ -1101,6 +1103,12 @@ Or in a [`match`](#match):
 
 ```cucumber
 And match response == read('expected-response-payload.json')
+```
+
+The rarely used `file:` prefix is also supported. You could use it for 'hard-coded' absolute paths in dev mode, but is obviously not recommended for CI test-suites. A good example of where you may need this is if you programmatically write a file to the `target` folder, and then you can read it ike this:
+
+```cucumber
+* def payload = read('file:target/large.xml')
 ```
 
 Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for validating HTTP responses, like this one: [`read-files.feature`](karate-demo/src/test/java/demo/read/read-files.feature).
