@@ -228,7 +228,7 @@ src/test/java
 Assuming you use JUnit, there are some good reasons for the recommended (best practice) naming convention and choice of file-placement shown above:
 * Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
 * `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder hierarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
-* `some-classpath-function.js` and `some-classpath-payload.js` are in the 'root' of the Java 'classpath' which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
+* `some-classpath-function.js` and `some-classpath-payload.js` are in the 'root' of the Java ['classpath'](#classpath) which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
 
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
@@ -459,12 +459,9 @@ This report is recommended especially because Karate's integration includes the 
 The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-using-jacoco).
 
 ## Logging
-> This is optional, and Karate will work without the logging config in place, but the default
-console logging may be too verbose for your needs.
+> This is optional, and Karate will work without the logging config in place, but the default console logging may be too verbose for your needs.
 
-Karate uses [LOGBack](http://logback.qos.ch) which looks for a file called logback-test.xml 
-on the classpath.  If you use the Maven `<test-resources>` tweak [described earlier](#folder-structure) (recommended), 
-keep this file in `src/test/java`, or else it should go into `src/test/resources`.  
+Karate uses [LOGBack](http://logback.qos.ch) which looks for a file called `logback-test.xml` on the '[classpath](#classpath)'.
 
 Here is a sample `logback-test.xml` for you to get started.
 ```xml
@@ -498,7 +495,12 @@ You can change the `com.intuit.karate` logger level to `INFO` to reduce the amou
 # Configuration
 > You can skip this section and jump straight to the [Syntax Guide](#syntax-guide) if you are in a hurry to get started with Karate. Things will work even if the `karate-config.js` file is not present.
 
-The only 'rule' is that on start-up Karate expects a file called `karate-config.js` to exist on the classpath and contain a JavaScript function.  Karate will invoke this function and from that point onwards, you are free to set config properties in a variety of ways.  One possible method is shown below, based on reading a Java system property.
+## Classpath
+The 'classpath' is a Java concept and is where some configuration files such as the one for [logging](#logging) are expected to be by default. If you use the Maven `<test-resources>` tweak [described earlier](#folder-structure) (recommended), the root of the classpath will be in the `src/test/java` folder, or else would be `src/test/resources`.
+
+The only 'rule' is that on start-up Karate expects a file called `karate-config.js` to exist on the 'classpath' and contain a JavaScript function.
+
+Karate will invoke this function and from that point onwards, you are free to set config properties in a variety of ways.  One possible method is shown below, based on reading a Java system property.
 
 ```javascript    
 function() {   
@@ -1035,7 +1037,7 @@ Karate makes re-use of payload data, utility-functions and even other test-scrip
 
 > Note that the [`set` (multiple)](#set-multiple) keyword can build complex, nested JSON (or XML) from scratch in a data-driven manner, and you may not even need to read from files for many situations. Test data can be within the main flow itself, which makes scripts highly readable.
 
-Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) and side-by-side with the `*.feature` file. But you can prefix the name with `classpath:` in which case the 'root' folder would be `src/test/java` (assuming you are using the [recommended folder structure](#folder-structure)).
+Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) and side-by-side with the `*.feature` file. But you can prefix the name with `classpath:` in which case the ['root' folder](#classpath) would be `src/test/java (assuming you are using the [recommended folder structure](#folder-structure)).
 
 Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
 
@@ -1219,8 +1221,7 @@ In-line XML:
 ```cucumber
 And request <cat><name>Billie</name><type>Ceiling</type></cat>
 ```
-From a [file](#reading-files) in the same package.  Use the `classpath:` prefix to load from the 
-classpath instead.
+From a [file](#reading-files) in the same package.  Use the `classpath:` prefix to load from the [classpath](#classpath) instead.
 ```cucumber
 Given request read('my-json.json')
 ```
