@@ -812,6 +812,22 @@ public class ScriptTest {
         Script.assign("res2", "call fun2 res1", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res2", null, "'foobar'", ctx).pass);
     }
+    
+    @Test
+    public void testJsonReturnedFromJsRead() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return karate.read('classpath:test.json') }", ctx);
+        Script.assign("val", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "val", null, "{ foo: 'bar' }", ctx).pass);
+    }  
+    
+    @Test
+    public void testJsonFromJsRead() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ var temp = karate.read('classpath:test.json'); return temp.foo == 'bar'; }", ctx);
+        Script.assign("val", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "val", null, "true", ctx).pass);
+    }    
 
     @Test
     public void testParsingVariableAndJsonPath() {

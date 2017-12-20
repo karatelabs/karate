@@ -55,7 +55,8 @@ public class ScriptBridge {
     
     public Object read(String fileName) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
-        return sv.getValue();
+        // json should behave like json within js / function
+        return sv.isJsonLike() ? sv.getAfterConvertingFromJsonOrXmlIfNeeded() : sv.getValue();
     }
     
     public String pretty(Object o) {
