@@ -583,7 +583,7 @@ public class ScriptTest {
     @Test
     public void testRunningJsonPathOnStringAutoConvertsStringToJson() {
         ScriptContext ctx = getContext();
-        Script.assignString("response", "{ foo: { hello: 'world' } }", ctx);
+        Script.assignString("response", "{ foo: { hello: 'world' } }", ctx, true);
         Script.assign("foo", "response.foo", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ hello: 'world' }", ctx).pass);
     }
@@ -592,7 +592,7 @@ public class ScriptTest {
     public void testCastJsonToString() {
         ScriptContext ctx = getContext();
         Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
-        Script.assignString("myString", "myJson", ctx);
+        Script.assignString("myString", "myJson", ctx, true);
         ScriptValue value = ctx.vars.get("myString");
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("{\"root\":{\"foo\":\"bar\"}}", value.getAsString());
@@ -602,7 +602,7 @@ public class ScriptTest {
     public void testCastStringToJson() {
         ScriptContext ctx = getContext();
         Script.assign("myString", "{\"root\":{\"foo\":\"bar\"}}", ctx);
-        Script.assignJson("myJson", "myString", ctx);
+        Script.assignJson("myJson", "myString", ctx, true);
         ScriptValue value = ctx.vars.get("myJson");
         assertEquals(ScriptValue.Type.JSON, value.getType());
         assertEquals("{\"root\":{\"foo\":\"bar\"}}", value.getAsString());
@@ -612,7 +612,7 @@ public class ScriptTest {
     public void testCastJsonToXml() {
         ScriptContext ctx = getContext();
         Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
-        Script.assignXml("myXml", "myJson", ctx);
+        Script.assignXml("myXml", "myJson", ctx, true);
         ScriptValue value = ctx.vars.get("myXml");
         assertEquals(ScriptValue.Type.XML, value.getType());
         assertEquals("<root><foo>bar</foo></root>", value.getAsString());
@@ -621,8 +621,8 @@ public class ScriptTest {
     @Test
     public void testCastStringToXml() {
         ScriptContext ctx = getContext();
-        Script.assignString("myString", "<root><foo>bar</foo></root>", ctx);
-        Script.assignXml("myXml", "myString", ctx);
+        Script.assignString("myString", "<root><foo>bar</foo></root>", ctx, true);
+        Script.assignXml("myXml", "myString", ctx, true);
         ScriptValue value = ctx.vars.get("myXml");
         assertEquals(ScriptValue.Type.XML, value.getType());
         assertEquals("<root><foo>bar</foo></root>", value.getAsString());
@@ -632,7 +632,7 @@ public class ScriptTest {
     public void testCastXmlToString() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
-        Script.assignXmlString("myString", "myXml", ctx);
+        Script.assignXmlString("myString", "myXml", ctx, true);
         ScriptValue value = ctx.vars.get("myString");
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("<root><foo>bar</foo></root>", value.getValue());
@@ -642,7 +642,7 @@ public class ScriptTest {
     public void testCastPojoToJson() {
         ScriptContext ctx = getContext();
         Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
-        Script.assignJson("json", "pojo", ctx);
+        Script.assignJson("json", "pojo", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: null, bar: 0 }", ctx).pass);
     }
     
@@ -650,7 +650,7 @@ public class ScriptTest {
     public void testCastPojoToXml() {
         ScriptContext ctx = getContext();
         Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
-        Script.assignXml("xml", "pojo", ctx);
+        Script.assignXml("xml", "pojo", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo></foo><bar>0</bar></root>", ctx).pass);
     }    
 
@@ -1297,7 +1297,7 @@ public class ScriptTest {
         } catch (InvalidJsonException e) {
             logger.debug("expected {}", e.getMessage());
         }
-        Script.assignText("foo", "{ not json }", ctx);
+        Script.assignText("foo", "{ not json }", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'{ not json }'", ctx).pass);
     }
 
@@ -1522,9 +1522,9 @@ public class ScriptTest {
     @Test
     public void testTypeConversion() {
         ScriptContext ctx = getContext();
-        Script.assignJson("foo", "[]", ctx);
+        Script.assignJson("foo", "[]", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "[]", ctx).pass);
-        Script.assignJson("foo", "{}", ctx);
+        Script.assignJson("foo", "{}", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{}", ctx).pass);
     }
     

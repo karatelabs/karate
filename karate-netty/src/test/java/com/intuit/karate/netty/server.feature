@@ -19,3 +19,6 @@ Scenario:
 * set cat.id = nextId()
 * set cats[] = cat
 * def response = cat
+
+#* print 'requestUri', requestUri
+#* def response = { id: 1, name: 'Billie' }

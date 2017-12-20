@@ -24,7 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
-import com.intuit.karate.http.HttpRequestActual;
+import com.intuit.karate.http.HttpRequest;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
@@ -134,7 +134,7 @@ public class ScriptBridge {
         }        
     }
     
-    public HttpRequestActual getPrevRequest() {
+    public HttpRequest getPrevRequest() {
         return context.prevRequest;
     }
     

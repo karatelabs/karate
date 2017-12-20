@@ -25,7 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.Cookie;
-import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
@@ -79,11 +79,11 @@ public class StepDefs {
 
     public StepDefs(ScriptEnv scriptEnv, CallContext call) {
         context = new ScriptContext(scriptEnv, call);
-        request = new HttpRequest();
+        request = new HttpRequestBuilder();
     }
 
     private final ScriptContext context;
-    private HttpRequest request;
+    private HttpRequestBuilder request;
     private HttpResponse response;
 
     public ScriptContext getContext() {
@@ -261,16 +261,6 @@ public class StepDefs {
         request.setBody(temp);
     }
 
-    @When("^def (.+) =$")
-    public void defDocString(String name, String expression) {
-        def(name, expression);
-    }
-
-    @When("^def (\\w+) = (.+)")
-    public void def(String name, String expression) {
-        Script.assign(name, expression, context);
-    }
-
     @When("^table (.+)")
     public void table(String name, DataTable table) {
         int pos = name.indexOf('='); // backward compatibility, we used to require this till v0.5.0
@@ -307,40 +297,50 @@ public class StepDefs {
         String replaced = Script.replacePlaceholderText(text, token, value, context);
         context.vars.put(name, replaced);
     }
+    
+    @When("^def (.+) =$")
+    public void defDocString(String name, String expression) {
+        def(name, expression);
+    }
+
+    @When("^def (\\w+) = (.+)")
+    public void def(String name, String expression) {
+        Script.assign(name, expression, context, true);
+    }    
 
     @When("^text (.+) =$")
     public void textDocString(String name, String expression) {
-        Script.assignText(name, expression, context);
+        Script.assignText(name, expression, context, true);
     }
 
     @When("^yaml (.+) =$")
     public void yamlDocString(String name, String expression) {
-        Script.assignYaml(name, expression, context);
+        Script.assignYaml(name, expression, context, true);
     }
     
     @When("^copy (.+) = (.+)")
     public void copy(String name, String expression) {
-        Script.copy(name, expression, context);
+        Script.copy(name, expression, context, true);
     }    
 
     @When("^json (.+) = (.+)")
     public void castToJson(String name, String expression) {
-        Script.assignJson(name, expression, context);
+        Script.assignJson(name, expression, context, true);
     }
 
     @When("^string (.+) = (.+)")
     public void castToString(String name, String expression) {
-        Script.assignString(name, expression, context);
+        Script.assignString(name, expression, context, true);
     }
 
     @When("^xml (.+) = (.+)")
     public void castToXml(String name, String expression) {
-        Script.assignXml(name, expression, context);
+        Script.assignXml(name, expression, context, true);
     }
 
     @When("^xmlstring (.+) = (.+)")
     public void castToXmlString(String name, String expression) {
-        Script.assignXmlString(name, expression, context);
+        Script.assignXmlString(name, expression, context, true);
     }
 
     @When("^assert (.+)")
@@ -391,7 +391,7 @@ public class StepDefs {
         }
         context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
         String prevUrl = request.getUrl();
-        request = new HttpRequest();
+        request = new HttpRequestBuilder();
         request.setUrl(prevUrl);
     }
 

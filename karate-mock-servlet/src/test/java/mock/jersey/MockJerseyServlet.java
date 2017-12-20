@@ -23,7 +23,7 @@
  */
 package mock.jersey;
 
-import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.mock.servlet.MockHttpClient;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -69,7 +69,7 @@ public class MockJerseyServlet extends MockHttpClient {
     }
 
     @Override
-    protected Servlet getServlet(HttpRequest request) {
+    protected Servlet getServlet(HttpRequestBuilder request) {
         return servlet;
     }
 

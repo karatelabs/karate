@@ -537,36 +537,40 @@ public class Script {
         }
     }
 
-    public static ScriptValue copy(String name, String exp, ScriptContext context) {
-        return assign(AssignType.COPY, name, exp, context);
+    public static ScriptValue copy(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.COPY, name, exp, context, validateName);
     }
-
+    
     public static ScriptValue assign(String name, String exp, ScriptContext context) {
-        return assign(AssignType.AUTO, name, exp, context);
+        return assign(AssignType.AUTO, name, exp, context, true);
+    }    
+
+    public static ScriptValue assign(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.AUTO, name, exp, context, validateName);
     }
 
-    public static ScriptValue assignText(String name, String exp, ScriptContext context) {
-        return assign(AssignType.TEXT, name, exp, context);
+    public static ScriptValue assignText(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.TEXT, name, exp, context, validateName);
     }
 
-    public static ScriptValue assignYaml(String name, String exp, ScriptContext context) {
-        return assign(AssignType.YAML, name, exp, context);
+    public static ScriptValue assignYaml(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.YAML, name, exp, context, validateName);
     }
 
-    public static ScriptValue assignString(String name, String exp, ScriptContext context) {
-        return assign(AssignType.STRING, name, exp, context);
+    public static ScriptValue assignString(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.STRING, name, exp, context, validateName);
     }
 
-    public static ScriptValue assignJson(String name, String exp, ScriptContext context) {
-        return assign(AssignType.JSON, name, exp, context);
+    public static ScriptValue assignJson(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.JSON, name, exp, context, validateName);
     }
 
-    public static ScriptValue assignXml(String name, String exp, ScriptContext context) {
-        return assign(AssignType.XML, name, exp, context);
+    public static ScriptValue assignXml(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.XML, name, exp, context, validateName);
     }
 
-    public static ScriptValue assignXmlString(String name, String exp, ScriptContext context) {
-        return assign(AssignType.XML_STRING, name, exp, context);
+    public static ScriptValue assignXmlString(String name, String exp, ScriptContext context, boolean validateName) {
+        return assign(AssignType.XML_STRING, name, exp, context, validateName);
     }
 
     private static void validateVariableName(String name) {
@@ -581,9 +585,11 @@ public class Script {
         }
     }
 
-    private static ScriptValue assign(AssignType assignType, String name, String exp, ScriptContext context) {
+    private static ScriptValue assign(AssignType assignType, String name, String exp, ScriptContext context, boolean validateName) {
         name = StringUtils.trimToEmpty(name);
-        validateVariableName(name);
+        if (validateName) {
+            validateVariableName(name);
+        }
         ScriptValue sv;
         switch (assignType) {
             case TEXT:

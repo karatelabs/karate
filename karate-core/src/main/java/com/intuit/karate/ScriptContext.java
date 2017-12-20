@@ -28,7 +28,7 @@ import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
-import com.intuit.karate.http.HttpRequestActual;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.validator.Validator;
 import java.util.List;
 import java.util.Map;
@@ -58,13 +58,13 @@ public class ScriptContext {
     protected HttpConfig config;
     
     // the actual http request last sent on the wire
-    protected HttpRequestActual prevRequest;
+    protected HttpRequest prevRequest;
     
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());
     }
     
-    public void setPrevRequest(HttpRequestActual prevRequest) {
+    public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
     }       
     

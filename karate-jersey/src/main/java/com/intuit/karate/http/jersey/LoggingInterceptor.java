@@ -25,7 +25,7 @@ package com.intuit.karate.http.jersey;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.http.HttpRequestActual;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.LoggingFilterOutputStream;
 import java.io.BufferedInputStream;
@@ -63,7 +63,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         return HttpUtils.isPrintable(mediaType.toString());
     }
 
-    private static void logHeaders(StringBuilder sb, int id, char prefix, MultivaluedMap<String, String> headers, HttpRequestActual actual) {
+    private static void logHeaders(StringBuilder sb, int id, char prefix, MultivaluedMap<String, String> headers, HttpRequest actual) {
         Set<String> keys = new TreeSet(headers.keySet());
         for (String key : keys) {
             List<String> entries = headers.get(key);
@@ -87,7 +87,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
     @Override
     public void filter(ClientRequestContext request, ClientResponseContext response) throws IOException {
         int id = counter.incrementAndGet();
-        HttpRequestActual actual = new HttpRequestActual();
+        HttpRequest actual = new HttpRequest();
         String method = request.getMethod();
         String uri = request.getUri().toASCIIString();
         actual.setMethod(method);

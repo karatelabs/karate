@@ -24,7 +24,7 @@ Let's take a closer look at the following [`configure`](https://github.com/intui
 
 ## Mocking Your Servlet
 You only need to over-ride two methods: 
-* `Servlet getServlet(HttpRequest request)`
+* `Servlet getServlet(HttpRequestBuilder request)`
 * `ServletContext getServletContext()`
 
 Once you refer to the following examples, you should be able to get up and running for your project.

@@ -1,6 +1,9 @@
 package com.intuit.karate.restdocs;
 
-import com.intuit.karate.http.*;
+import com.intuit.karate.http.Cookie;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.HttpUtils;
+import com.intuit.karate.http.MultiPartItem;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -17,9 +20,9 @@ import java.util.Map;
  * Created by rkumar32 on 7/14/17.
  */
 public class KarateRequestConverter
-        implements RequestConverter<HttpRequest> {
+        implements RequestConverter<HttpRequestBuilder> {
     @Override
-    public OperationRequest convert(HttpRequest httpRequest) {
+    public OperationRequest convert(HttpRequestBuilder httpRequest) {
         return new OperationRequestFactory().create(
                 extractURI(httpRequest),
                 HttpMethod.valueOf(httpRequest.getMethod()),
@@ -31,7 +34,7 @@ public class KarateRequestConverter
         );
     }
 
-    private URI extractURI(HttpRequest httpRequest) {
+    private URI extractURI(HttpRequestBuilder httpRequest) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(httpRequest.getUrl());
         if (httpRequest.getPaths() != null) {
             for (String path : httpRequest.getPaths()) {
@@ -41,7 +44,7 @@ public class KarateRequestConverter
         return builder.build().toUri();
     }
 
-    private byte[] extractBody(HttpRequest httpRequest) {
+    private byte[] extractBody(HttpRequestBuilder httpRequest) {
         if (httpRequest.getBody() != null) {
             return httpRequest.getBody().getAsString().getBytes();
         }
@@ -50,7 +53,7 @@ public class KarateRequestConverter
         }
     }
 
-    private HttpHeaders extractHeaders(HttpRequest httpRequest) {
+    private HttpHeaders extractHeaders(HttpRequestBuilder httpRequest) {
         HttpHeaders httpHeaders = new HttpHeaders();
         if (httpRequest.getHeaders() != null) {
             for (Map.Entry<String, List> entry : httpRequest.getHeaders().entrySet()) {
@@ -70,7 +73,7 @@ public class KarateRequestConverter
         return httpHeaders;
     }
 
-    private Parameters extractParameters(HttpRequest httpRequest) {
+    private Parameters extractParameters(HttpRequestBuilder httpRequest) {
         Parameters parameters = new Parameters();
         if (httpRequest.getParams() != null) {
             for (Map.Entry<String, List> entry : httpRequest.getParams().entrySet()) {
@@ -94,7 +97,7 @@ public class KarateRequestConverter
         return parameters;
     }
 
-    private Collection<OperationRequestPart> extractParts(HttpRequest httpRequest) {
+    private Collection<OperationRequestPart> extractParts(HttpRequestBuilder httpRequest) {
         List<OperationRequestPart> parts = new ArrayList<>();
         if (httpRequest.getMultiPartItems() != null) {
             for (MultiPartItem multiPartItem : httpRequest.getMultiPartItems()) {
@@ -111,7 +114,7 @@ public class KarateRequestConverter
         return parts;
     }
 
-    private Collection<RequestCookie> extractCookies(HttpRequest httpRequest) {
+    private Collection<RequestCookie> extractCookies(HttpRequestBuilder httpRequest) {
         Collection<RequestCookie> cookies = new ArrayList<>();
         if (httpRequest.getCookies() != null) {
             for (Map.Entry<String, Cookie> cookie : httpRequest.getCookies().entrySet()) {

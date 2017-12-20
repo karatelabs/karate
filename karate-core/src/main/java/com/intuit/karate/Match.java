@@ -77,7 +77,7 @@ public class Match {
     }    
     
     public Match defText(String name, String exp) {
-        prevValue = Script.assignText(name, exp, context);
+        prevValue = Script.assignText(name, exp, context, false);
         return this;
     }
     
@@ -94,7 +94,7 @@ public class Match {
     }   
     
     public Match def(String name, String exp) {
-        prevValue = Script.assign(name, exp, context);
+        prevValue = Script.assign(name, exp, context, false);
         return this;
     }
     
@@ -112,9 +112,17 @@ public class Match {
         return prevValue.getAsMap();
     }
     
-    public Map<String, Object> vars() {
+    public String asJson() {
+        return JsonUtils.toJson(prevValue.getAsMap());
+    }    
+    
+    public Map<String, Object> allAsMap() {
         return context.vars.toPrimitiveMap();
     }
+    
+    public String allAsJson() {
+        return JsonUtils.toJson(context.vars.toPrimitiveMap());
+    }    
     
     public List<Object> asList(String exp) {
         eval(exp);

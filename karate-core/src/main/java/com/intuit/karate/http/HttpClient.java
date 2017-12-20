@@ -52,7 +52,7 @@ public abstract class HttpClient<T> {
 
     private static final String KARATE_HTTP_PROPERTIES = "karate-http.properties";
 
-    protected HttpRequest request;
+    protected HttpRequestBuilder request;
 
     /**
      * guaranteed to be called once if empty constructor was used
@@ -111,7 +111,7 @@ public abstract class HttpClient<T> {
         }
     }
 
-    private T buildRequestInternal(HttpRequest request, ScriptContext context) {
+    private T buildRequestInternal(HttpRequestBuilder request, ScriptContext context) {
         String method = request.getMethod();
         if (method == null) {
             String msg = "'method' is required to make an http call";
@@ -203,7 +203,7 @@ public abstract class HttpClient<T> {
         return responseTime;
     }
 
-    public HttpResponse invoke(HttpRequest request, ScriptContext context) {
+    public HttpResponse invoke(HttpRequestBuilder request, ScriptContext context) {
         T body = buildRequestInternal(request, context);
         long startTime = System.currentTimeMillis();
         try {

@@ -27,7 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.cucumber.FeatureProvider;
-import com.intuit.karate.http.HttpRequestActual;
+import com.intuit.karate.http.HttpRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -35,19 +35,18 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import io.netty.handler.codec.http.HttpUtil;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import java.util.Map;
 
@@ -55,11 +54,9 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class FeatureServerHandler extends SimpleChannelInboundHandler<Object> {
+public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
     
-    private HttpRequest request;
-    private HttpRequestActual req;
-    private final StringBuilder buf = new StringBuilder();
+    private HttpRequest request;    
     private final FeatureProvider provider;   
     
     public FeatureServerHandler(FeatureProvider provider) {
@@ -72,69 +69,46 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-        if (msg instanceof HttpRequest) {
-            request = (HttpRequest) msg;
-            if (HttpUtil.is100ContinueExpected(request)) {
-                send100Continue(ctx);
-            }
-            req = new HttpRequestActual();
-            req.setUri(request.uri());
-            HttpHeaders headers = request.headers();
-            if (!headers.isEmpty()) {
-                headers.forEach(h -> {
-                    CharSequence key = h.getKey();
-                    CharSequence value = h.getValue();
-                    req.addHeader(key.toString(), value.toString());
-                });
-            }      
-            String cookieString = request.headers().get(HttpHeaderNames.COOKIE);
-            if (cookieString != null) {
-                // TODO
-            }            
-            buf.setLength(0);
-            appendDecoderResult(buf, request);
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
+        request = new HttpRequest();
+        request.setUri(msg.uri());
+        request.setMethod(msg.method().name());
+        HttpHeaders headers = msg.headers();
+        if (!headers.isEmpty()) {
+            headers.forEach(h -> {
+                CharSequence key = h.getKey();
+                CharSequence value = h.getValue();
+                request.addHeader(key.toString(), value.toString());
+            });
         }
-        if (msg instanceof HttpContent) {
-            HttpContent httpContent = (HttpContent) msg;
-            ByteBuf content = httpContent.content();
-            if (content.isReadable()) {   
-                byte[] bytes = new byte[content.readableBytes()];
-                content.readBytes(bytes);
-                req.setBody(bytes);
-                appendDecoderResult(buf, request);
-            }
-            if (msg instanceof LastHttpContent) {
-                LastHttpContent trailer = (LastHttpContent) msg;
-                if (!trailer.trailingHeaders().isEmpty()) {
-                    // TODO
-                }
-                if (!writeResponse(trailer, ctx)) {
-                    // If keep-alive is off, close the connection once the content is fully written.
-                    ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-                }
-            }
+        HttpContent httpContent = (HttpContent) msg;
+        ByteBuf content = httpContent.content();
+        if (content.isReadable()) {   
+            byte[] bytes = new byte[content.readableBytes()];
+            content.readBytes(bytes);
+            request.setBody(bytes);
         }
+        if (!writeResponse(msg, ctx)) {
+            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        }           
     }
+    
+    private final StringBuilder sb = new StringBuilder();
 
-    private static void appendDecoderResult(StringBuilder buf, HttpObject o) {
-        DecoderResult result = o.decoderResult();
-        if (result.isSuccess()) {
-            return;
+    private boolean writeResponse(HttpMessage nettyRequest, ChannelHandlerContext ctx) {
+        sb.setLength(0);
+        Match match = Match.init()
+                .defText("requestMethod", request.getMethod())
+                .defText("requestUri", request.getUri());
+        if (request.getBody() != null) {
+            String requestBody = FileUtils.toString(request.getBody());
+            match.def("request", requestBody);
         }
-        // TODO failure
-    }
-
-    private boolean writeResponse(HttpObject currentObj, ChannelHandlerContext ctx) {
-        String requestBody = FileUtils.toString(req.getBody());
-        Map<String, Object> map = Match.init()
-                .def("temp", requestBody)
-                .eval("{ request: '#(temp)' }").asMap();
-        ScriptValueMap result = provider.handle(map);
+        ScriptValueMap result = provider.handle(match.allAsMap());
         String json = result.get("response").getAsString();
-        boolean keepAlive = HttpUtil.isKeepAlive(request);
+        boolean keepAlive = HttpUtil.isKeepAlive(nettyRequest);
         FullHttpResponse response = new DefaultFullHttpResponse(
-                HTTP_1_1, currentObj.decoderResult().isSuccess()? OK : BAD_REQUEST,
+                HTTP_1_1, nettyRequest.decoderResult().isSuccess()? OK : BAD_REQUEST,
                 Unpooled.copiedBuffer(json, CharsetUtil.UTF_8));
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json; charset=UTF-8");
         if (keepAlive) {
@@ -143,11 +117,6 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<Object> {
         }
         ctx.write(response);
         return keepAlive;
-    }
-
-    private static void send100Continue(ChannelHandlerContext ctx) {
-        FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, CONTINUE);
-        ctx.write(response);
     }
 
     @Override

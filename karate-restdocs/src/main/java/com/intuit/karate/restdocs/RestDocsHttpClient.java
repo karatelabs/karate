@@ -26,6 +26,7 @@ package com.intuit.karate.restdocs;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.apache.ApacheHttpClient;
@@ -44,7 +45,7 @@ public class RestDocsHttpClient extends ApacheHttpClient {
     private static final AtomicInteger COUNTER = new AtomicInteger();
 
     @Override
-    public HttpResponse invoke(HttpRequest request, ScriptContext context) {
+    public HttpResponse invoke(HttpRequestBuilder request, ScriptContext context) {
         COUNTER.incrementAndGet();
         if (request.getMultiPartItems() != null) {
             for (MultiPartItem item : request.getMultiPartItems()) {
@@ -71,8 +72,8 @@ public class RestDocsHttpClient extends ApacheHttpClient {
 
     }
 
-    private RestDocumentationGenerator<HttpRequest, HttpResponse> getDelegate() {
-        RestDocumentationGenerator<HttpRequest, HttpResponse> delegate
+    private RestDocumentationGenerator<HttpRequestBuilder, HttpResponse> getDelegate() {
+        RestDocumentationGenerator<HttpRequestBuilder, HttpResponse> delegate
                 = new RestDocumentationGenerator<>("restdocs" + COUNTER,
                         new KarateRequestConverter(),
                         new KarateResponseConverter());
