@@ -18,6 +18,11 @@ Scenario: json-path can be performed in js
     * def fun = function(arg) { return karate.jsonPath(arg, '$[*].foo') }
     * def res = call fun json
     * match res == [1, 2]
+    # json-path in the form $varname.blah
+    * def foo = { bar: [{baz: 1}, {baz: 2}, {baz: 3}]}
+    * def fun = function(){ return karate.get('$foo.bar[*].baz') }
+    * def res = call fun
+    * match res == [1, 2, 3]
 
 Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/karate/issues/225
     adding this test to detect if ever the JDK behavior changes

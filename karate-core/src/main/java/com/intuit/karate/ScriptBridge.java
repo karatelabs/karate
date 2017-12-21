@@ -94,7 +94,7 @@ public class ScriptBridge {
     public Object get(String exp) {
         ScriptValue sv;
         try {
-            sv = Script.eval(exp, context); // even json path expressions will work
+            sv = Script.evalKarateExpression(exp, context); // even json path expressions will work
         } catch (Exception e) {
             context.logger.warn("karate.get failed for expression: '{}': {}", exp, e.getMessage());
             return null;

@@ -102,14 +102,14 @@ public class StepDefs {
 
     @When("^url (.+)")
     public void url(String expression) {
-        String temp = Script.eval(expression, context).getAsString();
+        String temp = Script.evalKarateExpression(expression, context).getAsString();
         request.setUrl(temp);
     }
 
     @When("^path (.+)")
     public void path(List<String> paths) {
         for (String path : paths) {
-            ScriptValue temp = Script.eval(path, context);
+            ScriptValue temp = Script.evalKarateExpression(path, context);
             if (temp.isListLike()) {
                 List list = temp.getAsList();
                 for (Object o : list) {
@@ -128,12 +128,12 @@ public class StepDefs {
         List<String> list = new ArrayList(values.size());
         try {
             for (String value : values) {
-                ScriptValue temp = Script.eval(value, context);
+                ScriptValue temp = Script.evalKarateExpression(value, context);
                 list.add(temp.getAsString());
             }
         } catch (Exception e) { // hack. for e.g. json with commas would land here
             String joined = StringUtils.join(values, ',');
-            ScriptValue temp = Script.eval(joined, context);
+            ScriptValue temp = Script.evalKarateExpression(joined, context);
             if (temp.isListLike()) {
                 return temp.getAsList();
             } else {
@@ -150,7 +150,7 @@ public class StepDefs {
     }
 
     public Map<String, Object> evalMapExpr(String expr) {
-        ScriptValue value = Script.eval(expr, context);
+        ScriptValue value = Script.evalKarateExpression(expr, context);
         if (!value.isMapLike()) {
             throw new KarateException("cannot convert to map: " + expr);
         }
@@ -177,7 +177,7 @@ public class StepDefs {
 
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
-        ScriptValue sv = Script.eval(value, context);
+        ScriptValue sv = Script.evalKarateExpression(value, context);
         Cookie cookie;
         if (sv.isMapLike()) {
             cookie = new Cookie((Map) sv.getAsMap());
@@ -257,7 +257,7 @@ public class StepDefs {
 
     @When("^request (.+)")
     public void request(String requestBody) {
-        ScriptValue temp = Script.eval(requestBody, context);
+        ScriptValue temp = Script.evalKarateExpression(requestBody, context);
         request.setBody(temp);
     }
 
@@ -356,7 +356,7 @@ public class StepDefs {
     @When("^method (\\w+)")
     public void method(String method) {
         if (!HttpUtils.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
-            method = Script.eval(method, context).getAsString();
+            method = Script.evalKarateExpression(method, context).getAsString();
         }
         request.setMethod(method);
         response = context.client.invoke(request, context);
@@ -415,7 +415,7 @@ public class StepDefs {
 
     @When("^soap action( .+)?")
     public void soapAction(String action) {
-        action = Script.eval(action, context).getAsString();
+        action = Script.evalKarateExpression(action, context).getAsString();
         if (action == null) {
             action = "";
         }
@@ -442,7 +442,7 @@ public class StepDefs {
     @When("^multipart file (.+) = (.+)")
     public void multiPartFile(String name, String value) {
         name = name.trim();
-        ScriptValue sv = Script.eval(value, context);
+        ScriptValue sv = Script.evalKarateExpression(value, context);
         if (!sv.isMapLike()) {
             throw new RuntimeException("mutipart file value should be json");
         }
@@ -466,7 +466,7 @@ public class StepDefs {
     }
 
     public void multiPart(String name, String value) {
-        ScriptValue sv = Script.eval(value, context);
+        ScriptValue sv = Script.evalKarateExpression(value, context);
         request.addMultiPartItem(name, sv);
     }
 
@@ -488,7 +488,7 @@ public class StepDefs {
                     if (sv == null) {
                         try {
                             sv = Script.evalJsExpression(exp, context);
-                            prev = ""; // eval success, reset rogue comma detector
+                            prev = ""; // evalKarateExpression success, reset rogue comma detector
                         } catch (Exception e) {
                             prev = exp + ", ";
                             continue;

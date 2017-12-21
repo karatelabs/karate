@@ -45,7 +45,7 @@ public class Match {
     
     public static Match init(String exp) {
         Match m = new Match();
-        ScriptValue sv = Script.eval(exp, m.context);
+        ScriptValue sv = Script.evalKarateExpression(exp, m.context);
         return m.putAll(sv.evalAsMap(m.context));
     }
     
@@ -59,7 +59,7 @@ public class Match {
     
     private static Match parse(String exp) {
         Match m = new Match();
-        m.prevValue = Script.eval(exp, m.context);
+        m.prevValue = Script.evalKarateExpression(exp, m.context);
         return m;
     }
     
@@ -89,7 +89,7 @@ public class Match {
     }
     
     public Match eval(String exp) {
-        prevValue = Script.eval(exp, context);
+        prevValue = Script.evalKarateExpression(exp, context);
         return this;
     }   
     

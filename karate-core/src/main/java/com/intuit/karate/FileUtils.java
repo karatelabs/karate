@@ -6,7 +6,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
-import static com.intuit.karate.Script.eval;
 import com.intuit.karate.cucumber.FeatureFilePath;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.exception.KarateFileNotFoundException;
@@ -22,6 +21,7 @@ import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
+import static com.intuit.karate.Script.evalKarateExpression;
 
 /**
  *
@@ -89,7 +89,7 @@ public class FileUtils {
         fileName = StringUtils.trimToEmpty(fileName);
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(fileName, prefix, context);
-            ScriptValue temp = eval(contents, context);
+            ScriptValue temp = evalKarateExpression(contents, context);
             return new ScriptValue(temp.getValue(), text);
         } else if (isTextFile(text) || isGraphQlFile(text)) {
             String contents = readFileAsString(fileName, prefix, context);

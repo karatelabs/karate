@@ -142,11 +142,11 @@ public class ScriptTest {
         ctx.vars.put("myJson", doc);
         ScriptValue value = Script.evalJsonPathOnVarByName("myJson", "$.foo", ctx);
         assertEquals("bar", value.getValue());
-        value = Script.eval("myJson.foo", ctx);
+        value = Script.evalKarateExpression("myJson.foo", ctx);
         assertEquals("bar", value.getValue());
         value = Script.evalJsonPathOnVarByName("myJson", "$.baz[1]", ctx);
         assertEquals(2, value.getValue());
-        value = Script.eval("myJson.baz[1]", ctx);
+        value = Script.evalKarateExpression("myJson.baz[1]", ctx);
         assertEquals(2, value.getValue());
         value = Script.evalJsonPathOnVarByName("myJson", "$.baz", ctx);
         assertEquals(ScriptValue.Type.LIST, value.getType());
@@ -162,7 +162,7 @@ public class ScriptTest {
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar", value.getAsString());
-        value = Script.eval("myXml/root/foo", ctx);
+        value = Script.evalKarateExpression("myXml/root/foo", ctx);
         assertEquals("bar", value.getAsString());
     }
 
@@ -584,8 +584,10 @@ public class ScriptTest {
     public void testRunningJsonPathOnStringAutoConvertsStringToJson() {
         ScriptContext ctx = getContext();
         Script.assignString("response", "{ foo: { hello: 'world' } }", ctx, true);
-        Script.assign("foo", "response.foo", ctx);
+        Script.assign("foo", "$response.foo", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ hello: 'world' }", ctx).pass);
+        Script.assign("foo", "$.foo", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ hello: 'world' }", ctx).pass);        
     }
 
     @Test
@@ -771,7 +773,7 @@ public class ScriptTest {
     public void testCallingFunctionThatUsesJsonPath() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx);
-        Script.assign("fun", "function(){ return karate.get('foo.bar[*].baz') }", ctx);
+        Script.assign("fun", "function(){ return karate.get('$foo.bar[*].baz') }", ctx);
         Script.assign("res", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "[1, 2, 3]", ctx).pass);
         // 'normal' variable name
@@ -1012,14 +1014,14 @@ public class ScriptTest {
     public void testEvalUrl() {
         ScriptContext ctx = getContext();
         String url = "'http://localhost:8089/v1/cats'";
-        assertEquals("http://localhost:8089/v1/cats", Script.eval(url, ctx).getAsString());
+        assertEquals("http://localhost:8089/v1/cats", Script.evalKarateExpression(url, ctx).getAsString());
     }
 
     @Test
     public void testEvalParamWithDot() {
         ScriptContext ctx = getContext();
         String param = "'ACS.Itself'";
-        assertEquals("ACS.Itself", Script.eval(param, ctx).getAsString());
+        assertEquals("ACS.Itself", Script.evalKarateExpression(param, ctx).getAsString());
     }
     
     @Test

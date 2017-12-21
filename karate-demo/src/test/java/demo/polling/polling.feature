@@ -26,7 +26,7 @@ Scenario: get greeting and keep polling until id is n + 5
 * def result = call read('get.feature')
 * def current = result.response
 * print 'current: ' + current
-* def target = (current.id + 5)
+* def target = current.id + 5
 * call waitUntil target
 
 

@@ -170,7 +170,7 @@ public class ScriptContext {
     }    
     
     public void configure(String key, String exp) {
-        configure(key, Script.eval(exp, this));
+        configure(key, Script.evalKarateExpression(exp, this));
     }    
 
     public void configure(String key, ScriptValue value) { // TODO use enum
