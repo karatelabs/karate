@@ -25,15 +25,16 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.cucumber.FeatureProvider;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -42,21 +43,19 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
-import io.netty.handler.codec.http.HttpObject;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import io.netty.handler.codec.http.HttpUtil;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
-import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    
-    private HttpRequest request;    
+      
     private final FeatureProvider provider;   
     
     public FeatureServerHandler(FeatureProvider provider) {
@@ -70,7 +69,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
-        request = new HttpRequest();
+        HttpRequest request = new HttpRequest();
         request.setUri(msg.uri());
         request.setMethod(msg.method().name());
         HttpHeaders headers = msg.headers();
@@ -88,29 +87,32 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             content.readBytes(bytes);
             request.setBody(bytes);
         }
-        if (!writeResponse(msg, ctx)) {
+        if (!writeResponse(msg, request, ctx)) {
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
         }           
     }
     
-    private final StringBuilder sb = new StringBuilder();
+    private final StringBuilder sb = new StringBuilder();    
 
-    private boolean writeResponse(HttpMessage nettyRequest, ChannelHandlerContext ctx) {
+    private boolean writeResponse(HttpMessage nettyRequest, HttpRequest request, ChannelHandlerContext ctx) {
         sb.setLength(0);
+        String requestUri = request.getUri();
+        QueryStringDecoder qsDecoder = new QueryStringDecoder(requestUri);        
         Match match = Match.init()
-                .defText("requestMethod", request.getMethod())
-                .defText("requestUri", request.getUri());
+                .defText(ScriptValueMap.VAR_REQUEST_URI, requestUri)
+                .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())                
+                .def(ScriptValueMap.VAR_REQUEST_PARAMS, qsDecoder.parameters());                
         if (request.getBody() != null) {
             String requestBody = FileUtils.toString(request.getBody());
-            match.def("request", requestBody);
+            match.def(ScriptValueMap.VAR_REQUEST, requestBody);
         }
         ScriptValueMap result = provider.handle(match.allAsMap());
-        String json = result.get("response").getAsString();
+        ScriptValue responseValue = result.get(ScriptValueMap.VAR_RESPONSE);
         boolean keepAlive = HttpUtil.isKeepAlive(nettyRequest);
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HTTP_1_1, nettyRequest.decoderResult().isSuccess()? OK : BAD_REQUEST,
-                Unpooled.copiedBuffer(json, CharsetUtil.UTF_8));
-        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json; charset=UTF-8");
+                Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8));
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         if (keepAlive) {
             response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);

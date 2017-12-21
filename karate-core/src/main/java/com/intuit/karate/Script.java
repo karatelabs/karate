@@ -577,10 +577,10 @@ public class Script {
         if (!isValidVariableName(name)) {
             throw new RuntimeException("invalid variable name: " + name);
         }
-        if ("karate".equals(name)) {
+        if (ScriptBindings.KARATE.equals(name)) {
             throw new RuntimeException("'karate' is a reserved name");
         }
-        if ("request".equals(name) || "url".equals(name)) {
+        if (ScriptValueMap.VAR_REQUEST.equals(name) || "url".equals(name)) {
             throw new RuntimeException("'" + name + "' is not a variable, use the form '* " + name + " <expression>' instead");
         }
     }
@@ -1492,7 +1492,7 @@ public class Script {
     public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScriptContext context) {
         // injects the 'karate' variable into the js function body
         // also ensure that things like 'karate.get' operate on the latest variable state
-        som.setMember("karate", context.bindings.bridge);
+        som.setMember(ScriptBindings.KARATE, context.bindings.bridge);
         Object result;
         try {
             if (callArg != null) {

@@ -147,33 +147,48 @@ public class CucumberUtils {
                 }
             } else {
                 ScenarioWrapper scenario = section.getScenario();
-                String expression = StringUtils.trimToNull(scenario.getNameAndDescription());
-                if (expression != null && callType == CallType.SCENARIO_ONLY) {
-                    ScriptContext context = backend.getStepDefs().getContext();
-                    try {
-                        ScriptValue sv = Script.evalJsExpression(expression, context);
-                        if (!sv.isBooleanTrue()) {
-                            if (context.logger.isDebugEnabled()) {
-                                context.logger.debug("scenario did not match: {}", expression);
-                            }
-                            continue;
-                        } else if (context.logger.isDebugEnabled()) {
-                            context.logger.debug("scenario matched: {}", expression);
-                        }                       
-                    } catch (Exception e) {
-                        context.logger.warn("scenario match evaluation failed: {}", e.getMessage());
+                if (callType == CallType.SCENARIO_ONLY) {                    
+                    if (isMatchingScenario(scenario, backend)) {
+                        call(scenario, backend, callType);
+                        break; // only execute first matching scenario
                     }
+                } else {
+                    call(scenario, backend, callType);
                 }
-                call(scenario, backend, callType);
             }
         }
         return backend.getStepDefs().getContext().getVars();
     }
 
+    private static boolean isMatchingScenario(ScenarioWrapper scenario, KarateBackend backend) {
+        String expression = StringUtils.trimToNull(scenario.getNameAndDescription());
+        if (expression == null) {
+            return true;
+        }
+        ScriptContext context = backend.getStepDefs().getContext();
+        try {
+            ScriptValue sv = Script.evalJsExpression(expression, context);
+            if (sv.isBooleanTrue()) {
+                context.logger.debug("scenario matched: {}", expression);
+                return true;
+            } else {
+                context.logger.debug("scenario skipped: {}", expression);
+                return false;
+            }
+        } catch (Exception e) {
+            context.logger.warn("scenario match evaluation failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
     public static void call(ScenarioWrapper scenario, KarateBackend backend, CallType callType) {
         for (StepWrapper step : scenario.getSteps()) {
-            if (callType == CallType.BACKGROUND_ONLY && !step.isBackground()) continue;
-            if (callType == CallType.SCENARIO_ONLY && step.isBackground()) continue;
+            if (callType == CallType.BACKGROUND_ONLY && !step.isBackground()) {
+                continue;
+            }
+            if (callType == CallType.SCENARIO_ONLY && step.isBackground()) {
+                continue;
+            }
             StepResult result = runCalledStep(step, backend);
             if (!result.isPass()) {
                 FeatureWrapper feature = scenario.getFeature();

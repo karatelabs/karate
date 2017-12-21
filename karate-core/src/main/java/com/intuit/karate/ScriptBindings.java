@@ -52,20 +52,24 @@ public class ScriptBindings implements Bindings {
     
     private final ScriptValueMap vars;    
     private final Map<String, Object> adds;
+    
+    public static final String KARATE = "karate";
+    public static final String READ = "read";
+    public static final String PATH_MATCHES = "pathMatches";
 
     public ScriptBindings(ScriptContext context) {
         this.vars = context.vars;
         this.adds = new HashMap(6); // read, karate, self, root, parent, nashorn.global
         bridge = new ScriptBridge(context);
-        adds.put("karate", bridge);
+        adds.put(KARATE, bridge);
         // the next line calls an eval with 'incomplete' bindings
         // i.e. only the 'karate' bridge has been bound so far
         ScriptValue readFunction = eval(READ_FUNCTION, this);
         // and only now are the bindings complete - with the 'read' function
-        adds.put("read", readFunction.getValue());        
+        adds.put(READ, readFunction.getValue());        
     }
 
-    private static final String READ_FUNCTION = "function(path){ return karate.read(path) }";
+    private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
         if (context == null) {

@@ -24,6 +24,10 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.Script;
+import com.intuit.karate.ScriptBindings;
+import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import java.util.Map;
 
@@ -40,10 +44,15 @@ public class FeatureProvider {
         this(feature, null);
     }
     
+    private static final String PATH_MATCHES = "function(s){ return karate.pathMatches(s) }";
+    
     public FeatureProvider(FeatureWrapper feature, Map<String, Object> args) {
         this.feature = feature;
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
         backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
+        ScriptContext context = backend.getStepDefs().getContext();
+        ScriptValue sv = Script.evalJsExpression(PATH_MATCHES, context);
+        context.getVars().put(ScriptBindings.PATH_MATCHES, sv);        
         updateVars(args);
         CucumberUtils.call(feature, backend, CallType.BACKGROUND_ONLY);
     }
@@ -53,7 +62,7 @@ public class FeatureProvider {
             ScriptValueMap vars = backend.getVars();
             args.forEach((k, v) -> vars.put(k, v));
         }        
-    }    
+    }        
     
     public ScriptValueMap handle(Map<String, Object> args) {
         updateVars(args);

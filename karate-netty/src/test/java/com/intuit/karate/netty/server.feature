@@ -14,11 +14,15 @@ function(){
 }
 """
 
-Scenario: requestMethod == 'POST'
+Scenario: requestMethod == 'POST' && pathMatches('/cats')
     * def cat = request
     * set cat.id = nextId()
     * set cats[] = cat
     * def response = cat
 
-Scenario: requestMethod == 'GET'
-    * def response = (cats[currentId-1])
+Scenario: requestMethod == 'GET' && pathMatches('/cats')
+    * def response = cats
+
+Scenario: requestMethod == 'GET' && pathMatches('/cats/{id}')
+    * def id = requestPaths.id
+    * def response = (cats[id-1])

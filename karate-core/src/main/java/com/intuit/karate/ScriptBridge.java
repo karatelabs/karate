@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
@@ -154,7 +155,14 @@ public class ScriptBridge {
     
     public Map<String, Object> getInfo() {
         DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
-        return doc.read("$");
+        return doc.read("$");        
+    }
+    
+    public boolean pathMatches(String path) {
+        String uri = (String) get("requestUri");
+        Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
+        set("requestPaths", map);
+        return map != null;
     }
     
     public String getEnv() {

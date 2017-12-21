@@ -3,11 +3,14 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
+import com.intuit.karate.StringUtils;
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;
 import java.security.SecureRandom;
+import java.util.LinkedHashMap;
 import javax.net.ssl.TrustManager;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -63,11 +66,40 @@ public class HttpUtils {
             return APPLICATION_OCTET_STREAM;
         } else if (sv.getType() == Type.XML) {
             return APPLICATION_XML;
-        } else if (sv.isMapLike()) {
+        } else if (sv.isJsonLike()) {
             return APPLICATION_JSON;
         } else {
             return TEXT_PLAIN;
         }
+    }
+    
+    public static Map<String, String> parseUriPattern(String pattern, String url) {
+        int qpos = url.indexOf('?');
+        if (qpos != -1) {
+            url = url.substring(0, qpos);
+        }
+        List<String> leftList = StringUtils.split(pattern, '/');
+        List<String> rightList = StringUtils.split(url, '/');
+        int leftSize = leftList.size();
+        int rightSize = rightList.size();
+        if (rightSize != leftSize) {
+            return null;
+        }
+        Map<String, String> map = new LinkedHashMap(leftSize);
+        for (int i = 0; i < leftSize; i++) {
+            String left = leftList.get(i);
+            String right = rightList.get(i);
+            if (left.equals(right)) {
+                continue;
+            }
+            if (left.startsWith("{") && left.endsWith("}")) {
+                left = left.substring(1, left.length() - 1);
+                map.put(left, right);
+            } else {
+                return null; // match failed
+            }
+        }
+        return map;
     }
 
     private static final AtomicInteger BOUNDARY_COUNTER = new AtomicInteger();
