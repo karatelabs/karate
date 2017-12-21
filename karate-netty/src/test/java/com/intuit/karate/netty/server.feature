@@ -4,15 +4,7 @@ Feature:
 Background:
 * def currentId = 0
 * def cats = []
-* def nextId = 
-"""
-function(){ 
-  var currentId = karate.get('currentId');
-  var nextId = currentId + 1;
-  karate.set('currentId', nextId);
-  return ~~nextId;
-}
-"""
+* def nextId = call read('increment.js') 'currentId'
 
 Scenario: requestMethod == 'POST' && pathMatches('/cats')
     * def cat = request
