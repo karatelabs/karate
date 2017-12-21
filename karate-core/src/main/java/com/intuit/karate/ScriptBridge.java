@@ -140,7 +140,7 @@ public class ScriptBridge {
     }
     
     public Object eval(String exp) {
-        ScriptValue sv = Script.evalInNashorn(exp, context);
+        ScriptValue sv = Script.evalJsExpression(exp, context);
         return sv.getValue();
     }
     

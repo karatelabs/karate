@@ -16,7 +16,7 @@ public class ConfigTest {
         ScriptEnv env = new ScriptEnv("dev", new File(featureDir), null, getClass().getClassLoader(), null);
         CallContext callContext = new CallContext(null, 0, null, -1, false, true, null);
         ScriptContext ctx = new ScriptContext(env, callContext);        
-        ScriptValue value = Script.evalInNashorn("someConfig", ctx);
+        ScriptValue value = Script.evalJsExpression("someConfig", ctx);
         assertEquals("someValue", value.getValue());
     }
     

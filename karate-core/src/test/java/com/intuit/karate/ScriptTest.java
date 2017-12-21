@@ -64,10 +64,10 @@ public class ScriptTest {
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
         String expression = "foo + 'baz'";
-        ScriptValue value = Script.evalInNashorn(expression, ctx);
+        ScriptValue value = Script.evalJsExpression(expression, ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("barbaz", value.getValue());
-        value = Script.evalInNashorn("a + b", ctx);
+        value = Script.evalJsExpression("a + b", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
@@ -84,10 +84,10 @@ public class ScriptTest {
         testMap.put("myList", testList);
         ctx.vars.put("myMap", testMap);
         String expression = "myMap.foo + myMap.baz";
-        ScriptValue value = Script.evalInNashorn(expression, ctx);
+        ScriptValue value = Script.evalJsExpression(expression, ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar5", value.getValue());
-        value = Script.evalInNashorn("myMap.myList[0] + myMap.myList[1]", ctx);
+        value = Script.evalJsExpression("myMap.myList[0] + myMap.myList[1]", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
@@ -97,11 +97,11 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: 'bar', baz: [1, 2], ban: { hello: 'world' } }");
         ctx.vars.put("myJson", doc);
-        ScriptValue value = Script.evalInNashorn("myJson.foo", ctx);
+        ScriptValue value = Script.evalJsExpression("myJson.foo", ctx);
         assertEquals("bar", value.getValue());
-        value = Script.evalInNashorn("myJson.baz[1]", ctx);
+        value = Script.evalJsExpression("myJson.baz[1]", ctx);
         assertEquals(2, value.getValue());
-        value = Script.evalInNashorn("myJson.ban.hello", ctx);
+        value = Script.evalJsExpression("myJson.ban.hello", ctx);
         assertEquals("world", value.getValue());
     }
 
@@ -110,7 +110,7 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
-        ScriptValue value = Script.evalInNashorn("myXml.root.foo", ctx);
+        ScriptValue value = Script.evalJsExpression("myXml.root.foo", ctx);
         assertEquals("bar", value.getValue());
     }
 

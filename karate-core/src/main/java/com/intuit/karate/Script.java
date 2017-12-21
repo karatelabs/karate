@@ -184,11 +184,11 @@ public class Script {
     }
 
     public static ScriptValue evalForMatch(String text, ScriptContext context) {
-        return eval(text, context, false, true);
+        return evalKarateExpression(text, context, false, true);
     }
 
     public static ScriptValue eval(String text, ScriptContext context) {
-        return eval(text, context, false, false);
+        return evalKarateExpression(text, context, false, false);
     }
 
     private static ScriptValue callWithCache(String text, String arg, ScriptContext context, boolean reuseParentConfig) {
@@ -219,7 +219,7 @@ public class Script {
         return null;
     }
 
-    private static ScriptValue eval(String text, ScriptContext context, boolean reuseParentConfig, boolean forMatch) {
+    private static ScriptValue evalKarateExpression(String text, ScriptContext context, boolean reuseParentConfig, boolean forMatch) {
         text = StringUtils.trimToNull(text);
         if (text == null) {
             return ScriptValue.NULL;
@@ -300,7 +300,7 @@ public class Script {
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
         } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
-            return evalInNashorn(text, context);
+            return Script.evalJsExpression(text, context);
         } else if (isVariableAndJsonPath(text)) {
             StringUtils.Pair pair = parseVariableAndPath(text);
             return evalJsonPathOnVarByName(pair.left, pair.right, context);
@@ -310,7 +310,7 @@ public class Script {
         } else {
             // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, 5, true
             // including function declarations e.g. function() { }
-            return evalInNashorn(text, context);
+            return Script.evalJsExpression(text, context);
         }
     }
 
@@ -387,11 +387,11 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context) {
+    public static ScriptValue evalJsExpression(String exp, ScriptContext context) {
         return ScriptBindings.evalInNashorn(exp, context, null);
     }
 
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
+    public static ScriptValue evalJsExpression(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
         return ScriptBindings.evalInNashorn(exp, context, new ScriptEvalContext(selfValue, root, parent));
     }
 
@@ -435,7 +435,7 @@ public class Script {
             if (isEmbeddedExpression(value)) {
                 boolean optional = isOptionalMacro(value);
                 try {
-                    ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
+                    ScriptValue sv = Script.evalJsExpression(value.substring(optional ? 2 : 1), context);
                     if (optional) {
                         if (forMatch || sv.isNull()) {
                             root.delete(path);
@@ -470,7 +470,7 @@ public class Script {
             if (isEmbeddedExpression(value)) {
                 boolean optional = isOptionalMacro(value);
                 try {
-                    ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
+                    ScriptValue sv = Script.evalJsExpression(value.substring(optional ? 2 : 1), context);
                     if (optional && (forMatch || sv.isNull())) {
                         attributesToRemove.add(attrib);
                     } else {
@@ -500,7 +500,7 @@ public class Script {
                 if (isEmbeddedExpression(value)) {
                     boolean optional = isOptionalMacro(value);
                     try {
-                        ScriptValue sv = evalInNashorn(value.substring(optional ? 2 : 1), context);
+                        ScriptValue sv = Script.evalJsExpression(value.substring(optional ? 2 : 1), context);
                         if (optional && (forMatch || sv.isNull())) {
                             elementsToRemove.add(child);
                         } else {
@@ -772,7 +772,7 @@ public class Script {
                 } else {
                     isContains = false;
                 }
-                ScriptValue expValue = evalInNashorn(macroExpression, context, actValue, actRoot, actParent);
+                ScriptValue expValue = evalJsExpression(macroExpression, context, actValue, actRoot, actParent);
                 if (isContains && actValue.isListLike() && !expValue.isListLike()) { // if RHS is not list, make it so for contains                    
                     expValue = new ScriptValue(Collections.singletonList(expValue.getValue()));
                 }
@@ -814,7 +814,7 @@ public class Script {
                     } else { // #[5] | #[$.foo] 
                         expression = bracketContents + " == " + arrayLength;
                     }
-                    ScriptValue result = Script.evalInNashorn(expression, context, new ScriptValue(arrayLength), actRoot, actParent);
+                    ScriptValue result = Script.evalJsExpression(expression, context, new ScriptValue(arrayLength), actRoot, actParent);
                     if (!result.isBooleanTrue()) {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
@@ -880,7 +880,7 @@ public class Script {
                 }
                 if (questionPos != -1) {
                     macroExpression = macroExpression.substring(questionPos + 1);
-                    ScriptValue result = Script.evalInNashorn(macroExpression, context, actValue, actRoot, actParent);
+                    ScriptValue result = Script.evalJsExpression(macroExpression, context, actValue, actRoot, actParent);
                     if (!result.isBooleanTrue()) {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
@@ -1337,7 +1337,7 @@ public class Script {
             } else if (actObject instanceof Number && expObject instanceof Number) {
                 // use the JS engine for a lenient equality check
                 String exp = actObject + " == " + expObject;
-                ScriptValue sv = evalInNashorn(exp, null);
+                ScriptValue sv = Script.evalJsExpression(exp, null);
                 if (!sv.isBooleanTrue() && matchType != MatchType.NOT_EQUALS) {
                     return matchFailed(path, actObject, expObject, "not equal ("
                             + actObject.getClass().getSimpleName() + " : " + expObject.getClass().getSimpleName() + ")");
@@ -1603,7 +1603,7 @@ public class Script {
     }
 
     public static AssertionResult assertBoolean(String expression, ScriptContext context) {
-        ScriptValue result = Script.evalInNashorn(expression, context);
+        ScriptValue result = Script.evalJsExpression(expression, context);
         if (!result.isBooleanTrue()) {
             return AssertionResult.fail("assert evaluated to false: " + expression);
         }

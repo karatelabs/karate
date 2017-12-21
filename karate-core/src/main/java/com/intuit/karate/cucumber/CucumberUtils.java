@@ -24,8 +24,11 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.Script;
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
 import cucumber.runtime.AmbiguousStepDefinitionsException;
@@ -143,7 +146,25 @@ public class CucumberUtils {
                     call(scenario, backend, callType);
                 }
             } else {
-                call(section.getScenario(), backend, callType);
+                ScenarioWrapper scenario = section.getScenario();
+                String expression = StringUtils.trimToNull(scenario.getNameAndDescription());
+                if (expression != null && callType == CallType.SCENARIO_ONLY) {
+                    ScriptContext context = backend.getStepDefs().getContext();
+                    try {
+                        ScriptValue sv = Script.evalJsExpression(expression, context);
+                        if (!sv.isBooleanTrue()) {
+                            if (context.logger.isDebugEnabled()) {
+                                context.logger.debug("scenario did not match: {}", expression);
+                            }
+                            continue;
+                        } else if (context.logger.isDebugEnabled()) {
+                            context.logger.debug("scenario matched: {}", expression);
+                        }                       
+                    } catch (Exception e) {
+                        context.logger.warn("scenario match evaluation failed: {}", e.getMessage());
+                    }
+                }
+                call(scenario, backend, callType);
             }
         }
         return backend.getStepDefs().getContext().getVars();

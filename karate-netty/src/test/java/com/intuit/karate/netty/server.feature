@@ -14,11 +14,11 @@ function(){
 }
 """
 
-Scenario:
-* def cat = request
-* set cat.id = nextId()
-* set cats[] = cat
-* def response = cat
+Scenario: requestMethod == 'POST'
+    * def cat = request
+    * set cat.id = nextId()
+    * set cats[] = cat
+    * def response = cat
 
-#* print 'requestUri', requestUri
-#* def response = { id: 1, name: 'Billie' }
+Scenario: requestMethod == 'GET'
+    * def response = (cats[currentId-1])

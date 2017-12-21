@@ -487,7 +487,7 @@ public class StepDefs {
                     ScriptValue sv = Script.getIfVariableReference(exp, context);
                     if (sv == null) {
                         try {
-                            sv = Script.evalInNashorn(exp, context);
+                            sv = Script.evalJsExpression(exp, context);
                             prev = ""; // eval success, reset rogue comma detector
                         } catch (Exception e) {
                             prev = exp + ", ";
