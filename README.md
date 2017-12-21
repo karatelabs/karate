@@ -24,7 +24,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [JUnit](#running-with-junit) / [TestNG](#running-with-testng) | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging)
 .... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
+**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) / [`eval`](#eval) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
@@ -731,6 +731,22 @@ The built-in [`karate` object](#the-karate-object) is explained in detail later,
 
 Also refer to the [`configure`](#configure) keyword on how to switch on pretty-printing of all HTTP requests and responses.
 
+## `eval`
+### Execute arbitrary JavaScript
+Use this 'nuclear option' only when absolutely necessary ! Conditional logic is especially not recommended within test scripts because tests should be deterministic.
+
+But there are a couple of situations this comes in handy:
+* you *really* don't need to assign a result to a variable
+* `if` style statements - also see [conditional logic](#conditional-logic)
+
+```cucumber
+# just perform an action, we don't care about saving the result
+* eval myJavaScriptFunction()
+
+# do something only if a condition is true
+* eval if (zone == 'zone1') karate.set('temp', 'after')
+```
+
 # 'Native' data types
 Native data types mean that you can insert them into a script without having to worry about enclosing them in strings and then having to 'escape' double-quotes all over the place. They seamlessly fit 'in-line' within your test script.
 
@@ -1181,8 +1197,7 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
  Example | Shape | Description
 -------- | ----- | -----------
 `* def foo = 'bar'` | JS | simple strings, numbers or booleans
-`* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in
-`* def foo = (bar.length + 1)` | JS | Karate assumes that users need [JsonPath](https://github.com/json-path/JsonPath#path-examples) most of the time, so in some rare cases - you may need to force Karate to evaluate the Right-Hand-Side as JavaScript, which is easily achieved by wrapping the RHS in parentheses
+`* def foo = 'bar' + baz[0]` | JS | any valid JavaScript expression, and variables can be mixed in, another example: `bar.length + 1`
 `* def foo = { bar: '#(baz)' }` | JSON | anything that starts with a `{` or a `[` is parsed as JSON, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
 `* def foo = ({ bar: baz })` | JS | [enclosed JavaScript](#enclosed-javascript), the result of which is exactly equivalent to the above
 `* def foo = <foo>bar</foo>` | XML | anything that starts with a `<` is parsed as XML, use [`text`](#text) instead of [`def`](#def) if you need to suppress the default behavior
@@ -1190,11 +1205,9 @@ Before we get to the HTTP keywords, it is worth doing a recap of the various 'sh
 `* def foo = read('bar.json')` | JS | using the built-in [`read()`](#reading-files) function
 `* def foo = $.bar[0]` | JsonPath | short-cut JsonPath on the [`response`](#response)
 `* def foo = /bar/baz` | XPath | short-cut XPath on the [`response`](#response)
-`* def foo = bar.baz[0]` | var.JsonPath | JsonPath on the variable `bar`
-`* def foo = bar/baz/ban[1]` | var/XPath | XPath on the variable `bar`
-`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect JsonPath correctly on the RHS (especially when using [filter-criteria](#jsonpath-filters)). You can also use [`get[0]`](#get-plus-index) to get the first item if the JsonPath evaluates to an array.
+`* def foo = get bar $..baz[?(@.ban)]` | [`get`](#get) JsonPath | [JsonPath](https://github.com/json-path/JsonPath#path-examples) on the variable `bar`, you can also use [`get[0]`](#get-plus-index) to get the first item if the JsonPath evaluates to an array - especially useful when using wildcards such as `[*]` or [filter-criteria](#jsonpath-filters)
 `* def foo = $bar..baz[?(@.ban)]` | $var.JsonPath | [convenience short-cut](#get-short-cut) for the above
-`* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`, use [`get`](#get) in cases where Karate fails to detect XPath correctly on the RHS  (especially when using [XPath functions](#xpath-functions))
+`* def foo = get bar count(/baz//ban)` | [`get`](#get) XPath | XPath on the variable `bar`
 `* def foo = karate.pretty(bar)` | JS | using the [built-in `karate` object](#the-karate-object) in JS expressions
 `* def Foo = Java.type('com.mycompany.Foo')` | JS-Java | [Java Interop](#java-interop), and even package-name-spaced one-liners like `java.lang.System.currentTimeMillis()` are possible
 `* def foo = call bar { baz: '#(ban)' }` | [`call`](#call) | or [`callonce`](#callonce), where expressions like [`read('foo.js')`](#reading-files) are allowed as the object to be called or the argument
@@ -2606,6 +2619,12 @@ And this is another, using [`karate.call()`](#the-karate-object). Here we want t
 
 ```cucumber
 * def result = (responseStatus == 404 ? {} : karate.call('delete-user.feature'))
+```
+
+Or if we don't care about the result, we can use [`eval`](#eval):
+
+```cucumber
+* eval if (responseStatus == 404) karate.call('delete-user.feature')
 ```
 
 And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) for more complex logic.

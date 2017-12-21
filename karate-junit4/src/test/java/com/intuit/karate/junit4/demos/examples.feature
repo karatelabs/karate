@@ -109,3 +109,15 @@ Then match session == <session><locale>en</locale><sessionUser><user><name>john<
 * match response[?(@.b=='ab')] == '#[1]'
 * match $[?(@.b=='ab')] == '#[1]'
 
+# conditional logic
+* def zone = 'zone1'
+* def filename = (zone == 'zone1' ? 'test1.feature' : 'test2.feature')
+* match filename == 'test1.feature'
+
+* def response = { foo: 'bar' }
+* def expected = (zone == 'zone1' ? { foo: '#string' } : { bar: '#number' })
+* match response == expected
+
+* def temp = 'before'
+* eval if (zone == 'zone1') karate.set('temp', 'after')
+* match temp == 'after'

@@ -599,15 +599,20 @@ public class StepDefs {
     }
 
     @When("^call ([^\\s]+)( .*)?")
-    public final void callAndUpdateConfigAndVars(String name, String arg) {
+    public void callAndUpdateConfigAndVars(String name, String arg) {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, name, arg, context);
     }
 
     @When("^callonce ([^\\s]+)( .*)?")
-    public final void callOnceAndUpdateConfigAndVars(String name, String arg) {
+    public void callOnceAndUpdateConfigAndVars(String name, String arg) {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(true, name, arg, context);
     }
 
+    @When("^eval (.+)")
+    public final void eval(String exp) {
+        Script.evalJsExpression(exp, context);
+    }
+    
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {
             context.logger.error("{}", ar);
