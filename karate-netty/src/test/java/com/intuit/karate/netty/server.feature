@@ -2,9 +2,8 @@
 Feature:
 
 Background:
-* def currentId = 0
 * def cats = []
-* def nextId = call read('increment.js') 'currentId'
+* def nextId = call read('increment.js')
 
 Scenario: requestMethod == 'POST' && pathMatches('/cats')
     * def cat = request

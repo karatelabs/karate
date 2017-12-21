@@ -1,8 +1,10 @@
-function(varName) {
+function() {
+  var varName = '_curId';
+  karate.set(varName, 0);
   return function() {
-    var curVal = karate.get(varName);
-    var nextVal = curVal + 1;
-    karate.set(varName, nextVal);
-    return ~~nextVal;
+    var curId = karate.get(varName);
+    var nextId = curId + 1;
+    karate.set(varName, nextId);
+    return ~~nextId;
   }
 }  
