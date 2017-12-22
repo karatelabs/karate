@@ -1863,8 +1863,8 @@ The `!` (not) operator is especially useful for `contains` and JSON arrays.
 If you want to verify some keys exist and at the same time some are not presented then use `##null` within `contains` statement 
 
 ```cucumber
-* def human = { firstName: "John", lastName: "Doe"}
-* def car = { maker: "Honda", model: "Civic" }
+* def human = { firstName: 'John', lastName: 'Doe'}
+* def car = { maker: 'Honda', model: 'Civic' }
 * match human contains { firstName: '#string', lastName: '#string', maker: '##null', model: '##null' }
 * match car contains { firstName: '##null', lastName: '##null', maker: '#string', model: '#string' }
 ```
