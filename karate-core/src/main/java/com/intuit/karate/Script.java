@@ -1253,7 +1253,7 @@ public class Script {
                         }
                     }
                     if (found && matchType == MatchType.NOT_CONTAINS) {
-                        return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value contains expected");
+                        return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value contains unexpected");
                     } else if (!found && matchType != MatchType.NOT_CONTAINS) {
                         return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value does not contain expected");
                     }
