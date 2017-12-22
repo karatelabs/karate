@@ -742,7 +742,7 @@ public class Script {
                 if (stringMatchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 } else {
-                    return matchFailed(path, actValue.getValue(), expected, "actual value is not null");
+                    return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is not null");
                 }
             }
         } else if (isMacro(expected)) {
@@ -791,7 +791,7 @@ public class Script {
                     if (stringMatchType == MatchType.NOT_EQUALS) {
                         return AssertionResult.PASS;
                     } else {
-                        return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
+                        return matchFailed(stringMatchType, path, actValue.getValue(), expected, vr.getMessage());
                     }
                 }
             } else if (macroExpression.startsWith("[") && macroExpression.indexOf(']') > 0) {
@@ -801,7 +801,7 @@ public class Script {
                     if (stringMatchType == MatchType.NOT_EQUALS) {
                         return AssertionResult.PASS;
                     } else {
-                        return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
+                        return matchFailed(stringMatchType, path, actValue.getValue(), expected, vr.getMessage());
                     }
                 }
                 int endBracketPos = macroExpression.indexOf(']');
@@ -820,7 +820,7 @@ public class Script {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
                         } else {
-                            return matchFailed(path, actValue.getValue(), expected, "array length expression did not evaluate to 'true'");
+                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "array length expression did not evaluate to 'true'");
                         }
                     }
                 }
@@ -867,14 +867,14 @@ public class Script {
                 if (validatorName != null) {
                     Validator v = context.validators.get(validatorName);
                     if (v == null) {
-                        return matchFailed(path, actValue.getValue(), expected, "unknown validator");
+                        return matchFailed(stringMatchType, path, actValue.getValue(), expected, "unknown validator");
                     } else {
                         ValidationResult vr = v.validate(actValue);
                         if (!vr.isPass()) {
                             if (stringMatchType == MatchType.NOT_EQUALS) {
                                 return AssertionResult.PASS;
                             } else {
-                                return matchFailed(path, actValue.getValue(), expected, vr.getMessage());
+                                return matchFailed(stringMatchType, path, actValue.getValue(), expected, vr.getMessage());
                             }
                         }
                     }
@@ -886,7 +886,7 @@ public class Script {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
                         } else {
-                            return matchFailed(path, actValue.getValue(), expected, "did not evaluate to 'true'");
+                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "did not evaluate to 'true'");
                         }
                     }
                 }
@@ -896,17 +896,17 @@ public class Script {
             switch (stringMatchType) {
                 case CONTAINS:
                     if (!actual.contains(expected)) {
-                        return matchFailed(path, actual, expected, "not a sub-string");
+                        return matchFailed(stringMatchType, path, actual, expected, "not a sub-string");
                     }
                     break;
                 case NOT_CONTAINS:
                     if (actual.contains(expected)) {
-                        return matchFailed(path, actual, expected, "does contain expected");
+                        return matchFailed(stringMatchType, path, actual, expected, "does contain expected");
                     }
                     break;
                 case NOT_EQUALS:
                     if (expected.equals(actual)) {
-                        return matchFailed(path, actual, expected, "is equal");
+                        return matchFailed(stringMatchType, path, actual, expected, "is equal");
                     }
                     // edge case, we have to exit here !
                     // the check for a NOT_EQUALS at the end of this routine will flip to failure otherwise
@@ -914,7 +914,7 @@ public class Script {
                 // break;
                 case EQUALS:
                     if (!expected.equals(actual)) {
-                        return matchFailed(path, actual, expected, "not equal");
+                        return matchFailed(stringMatchType, path, actual, expected, "not equal");
                     }
                     break;
                 default:
@@ -925,11 +925,11 @@ public class Script {
                 return AssertionResult.PASS;
             }
             Object actual = actValue.getValue();
-            return matchFailed(path, actual, expected, "actual value is not a string");
+            return matchFailed(stringMatchType, path, actual, expected, "actual value is not a string");
         }
         // if we reached here, the macros passed
         if (stringMatchType == MatchType.NOT_EQUALS) {
-            return matchFailed(path, actValue.getValue(), expected, "matched");
+            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "matched");
         }
         return AssertionResult.PASS;
     }
@@ -1003,7 +1003,7 @@ public class Script {
                 ScriptValue expectedString = evalKarateExpression(expression, context);
                 // exit the function early
                 if (!expectedString.isString()) {
-                    return matchFailed(path, actualString, expectedString.getValue(),
+                    return matchFailed(matchType, path, actualString, expectedString.getValue(),
                             "type of actual value is 'string' but that of expected is " + expectedString.getType());
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, null, actual, expectedString.getValue(String.class), context);
@@ -1019,14 +1019,14 @@ public class Script {
                 ScriptValue expectedNull = evalKarateExpression(expression, context);
                 if (expectedNull.isNull()) {
                     if (matchType == MatchType.NOT_EQUALS) {
-                        return matchFailed(path, null, null, "actual and expected values are both null");
+                        return matchFailed(matchType, path, null, null, "actual and expected values are both null");
                     }
                     return AssertionResult.PASS;
                 } else if (!expectedNull.isString()) { // primitive or anything which is not a string
                     if (matchType == MatchType.NOT_EQUALS) {
                         return AssertionResult.PASS;
                     }
-                    return matchFailed(path, null, expectedNull.getValue(), "actual value is null but expected is " + expectedNull);
+                    return matchFailed(matchType, path, null, expectedNull.getValue(), "actual value is null but expected is " + expectedNull);
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, null, actual, expectedNull.getValue(String.class), context);
                 }
@@ -1080,7 +1080,7 @@ public class Script {
                     }
                     // if we reached here all list items (each) matched
                     if (matchType == MatchType.EACH_NOT_EQUALS) {
-                        return matchFailed(path, actual.getValue(), expected.getValue(), "all list items matched");
+                        return matchFailed(matchType, path, actual.getValue(), expected.getValue(), "all list items matched");
                     }
                     return AssertionResult.PASS;
                 } else {
@@ -1122,15 +1122,29 @@ public class Script {
             return o;
         }
     }
+    
+    private static boolean isNegation(MatchType type) {
+        switch (type) {
+            case EACH_NOT_CONTAINS:
+            case EACH_NOT_EQUALS:
+            case NOT_CONTAINS:
+            case NOT_EQUALS:
+                return true;
+            default:
+                return false;
+        }
+    }
 
-    public static AssertionResult matchFailed(String path, Object actObject, Object expObject, String reason) {
+    public static AssertionResult matchFailed(MatchType matchType, String path, 
+            Object actObject, Object expObject, String reason) {
         if (path.startsWith("/")) {
             String leafName = getLeafNameFromXmlPath(path);
             actObject = toXmlString(leafName, actObject);
             expObject = toXmlString(leafName, expObject);
             path = path.replace("/@/", "/@");
         }
-        String message = String.format("path: %s, actual: %s, expected: %s, reason: %s", path, quoteIfString(actObject), quoteIfString(expObject), reason);
+        String message = String.format("path: %s, actual: %s, %sexpected: %s, reason: %s", 
+                path, quoteIfString(actObject), isNegation(matchType) ? "NOT " : "", quoteIfString(expObject), reason);
         return AssertionResult.fail(message);
     }
 
@@ -1141,11 +1155,11 @@ public class Script {
                 if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 } else {
-                    return matchFailed(path, actObject, expObject, "actual value is not null");
+                    return matchFailed(matchType, path, actObject, expObject, "actual value is not null");
                 }
             } else { // both are null
                 if (matchType == MatchType.NOT_EQUALS) {
-                    return matchFailed(path, actObject, expObject, "equal, both are null");
+                    return matchFailed(matchType, path, actObject, expObject, "equal, both are null");
                 } else {
                     return AssertionResult.PASS;
                 }
@@ -1157,14 +1171,14 @@ public class Script {
             if (matchType == MatchType.NOT_EQUALS) {
                 return AssertionResult.PASS;
             } else {
-                return matchFailed(path, actObject, expObject, "actual value is null");
+                return matchFailed(matchType, path, actObject, expObject, "actual value is null");
             }
         } else if (expObject instanceof Map) {
             if (!(actObject instanceof Map)) {
                 if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 } else {
-                    return matchFailed(path, actObject, expObject, "actual value is not map-like");
+                    return matchFailed(matchType, path, actObject, expObject, "actual value is not map-like");
                 }
             }
             Map<String, Object> expMap = (Map) expObject;
@@ -1176,7 +1190,7 @@ public class Script {
                     for (String key : expMap.keySet()) {
                         diffMap.remove(key);
                     }
-                    return matchFailed(path, actObject, expObject, "actual value has " + sizeDiff + " more key(s) than expected: " + diffMap);
+                    return matchFailed(matchType, path, actObject, expObject, "actual value has " + sizeDiff + " more key(s) than expected: " + diffMap);
                 } else if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS; // exit early
                 }
@@ -1189,7 +1203,7 @@ public class Script {
                 AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match
                     if (matchType == MatchType.NOT_CONTAINS) {
-                        return matchFailed(childPath, childAct, childExp, "actual value contains expected");
+                        return matchFailed(matchType, childPath, childAct, childExp, "actual value contains expected");
                     }
                 } else { // values for this key don't match
                     if (matchType == MatchType.NOT_EQUALS) {
@@ -1202,7 +1216,7 @@ public class Script {
             }
             // if we reached here, all map entries matched
             if (matchType == MatchType.NOT_EQUALS) {
-                return matchFailed(path, actObject, expObject, "all key-values matched");
+                return matchFailed(matchType, path, actObject, expObject, "all key-values matched");
             }
             return AssertionResult.PASS;
         } else if (expObject instanceof List) {
@@ -1210,7 +1224,7 @@ public class Script {
                 if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 } else {
-                    return matchFailed(path, actObject, expObject, "actual value is not list-like");
+                    return matchFailed(matchType, path, actObject, expObject, "actual value is not list-like");
                 }
             }
             List expList = (List) expObject;
@@ -1219,7 +1233,7 @@ public class Script {
             int expCount = expList.size();
             if (actCount != expCount) {
                 if (matchType == MatchType.EQUALS || matchType == MatchType.CONTAINS_ONLY) {
-                    return matchFailed(path, actObject, expObject, "actual and expected arrays are not the same size - " + actCount + ":" + expCount);
+                    return matchFailed(matchType, path, actObject, expObject, "actual and expected arrays are not the same size - " + actCount + ":" + expCount);
                 } else if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS; // exit early
                 }
@@ -1239,9 +1253,9 @@ public class Script {
                         }
                     }
                     if (found && matchType == MatchType.NOT_CONTAINS) {
-                        return matchFailed(path + "[*]", actObject, expListObject, "actual value contains expected");
+                        return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value contains expected");
                     } else if (!found && matchType != MatchType.NOT_CONTAINS) {
-                        return matchFailed(path + "[*]", actObject, expListObject, "actual value does not contain expected");
+                        return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value does not contain expected");
                     }
                 }
                 // reminder: we are here only for the contains / not-contains cases
@@ -1256,13 +1270,13 @@ public class Script {
                         if (matchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS; // exit early
                         } else {
-                            return matchFailed(listPath, actListObject, expListObject, "[" + ar.message + "]");
+                            return matchFailed(matchType, listPath, actListObject, expListObject, "[" + ar.message + "]");
                         }
                     }
                 }
                 // if we reached here, all list entries matched
                 if (matchType == MatchType.NOT_EQUALS) {
-                    return matchFailed(path, actObject, expObject, "all list items matched");
+                    return matchFailed(matchType, path, actObject, expObject, "all list items matched");
                 }
                 return AssertionResult.PASS;
             }
@@ -1271,17 +1285,17 @@ public class Script {
             if (actObject instanceof BigDecimal) {
                 BigDecimal actNumber = (BigDecimal) actObject;
                 if (actNumber.compareTo(expNumber) != 0 && matchType != MatchType.NOT_EQUALS) {
-                    return matchFailed(path, actObject, expObject, "not equal (big decimal)");
+                    return matchFailed(matchType, path, actObject, expObject, "not equal (big decimal)");
                 }
             } else {
                 BigDecimal actNumber = convertToBigDecimal(actObject);
                 if ((actNumber == null || actNumber.compareTo(expNumber) != 0) && matchType != MatchType.NOT_EQUALS) {
-                    return matchFailed(path, actObject, expObject, "not equal (primitive : big decimal)");
+                    return matchFailed(matchType, path, actObject, expObject, "not equal (primitive : big decimal)");
                 }
             }
             // if we reached here, both are equal
             if (matchType == MatchType.NOT_EQUALS) {
-                return matchFailed(path, actObject, expObject, "equal");
+                return matchFailed(matchType, path, actObject, expObject, "equal");
             }
             return AssertionResult.PASS;
         } else if (isPrimitive(expObject.getClass())) {
@@ -1318,13 +1332,13 @@ public class Script {
             if (matchType == MatchType.NOT_EQUALS) {
                 return AssertionResult.PASS;
             } else {
-                return matchFailed(path, actObject, expObject, "actual value is null");
+                return matchFailed(matchType, path, actObject, expObject, "actual value is null");
             }
         } else if (expObject == null) {
             if (matchType == MatchType.NOT_EQUALS) {
                 return AssertionResult.PASS;
             } else {
-                return matchFailed(path, actObject, expObject, "expected value is null");
+                return matchFailed(matchType, path, actObject, expObject, "expected value is null");
             }
         }
         // if either was null we would have exited already
@@ -1333,32 +1347,32 @@ public class Script {
                 BigDecimal actNumber = (BigDecimal) actObject;
                 BigDecimal expNumber = convertToBigDecimal(expObject);
                 if ((expNumber == null || expNumber.compareTo(actNumber) != 0) && matchType != MatchType.NOT_EQUALS) {
-                    return matchFailed(path, actObject, expObject, "not equal (big decimal : primitive)");
+                    return matchFailed(matchType, path, actObject, expObject, "not equal (big decimal : primitive)");
                 }
             } else if (actObject instanceof Number && expObject instanceof Number) {
                 // use the JS engine for a lenient equality check
                 String exp = actObject + " == " + expObject;
                 ScriptValue sv = evalJsExpression(exp, null);
                 if (!sv.isBooleanTrue() && matchType != MatchType.NOT_EQUALS) {
-                    return matchFailed(path, actObject, expObject, "not equal ("
+                    return matchFailed(matchType, path, actObject, expObject, "not equal ("
                             + actObject.getClass().getSimpleName() + " : " + expObject.getClass().getSimpleName() + ")");
                 }
             } else { // completely different data types, certainly not equal
                 if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 } else {
-                    return matchFailed(path, actObject, expObject, "not equal ("
+                    return matchFailed(matchType, path, actObject, expObject, "not equal ("
                             + actObject.getClass().getSimpleName() + " : " + expObject.getClass().getSimpleName() + ")");
                 }
             }
         } else if (!expObject.equals(actObject)) { // same data type, but not equal
             if (matchType != MatchType.NOT_EQUALS) {
-                return matchFailed(path, actObject, expObject, "not equal (" + actObject.getClass().getSimpleName() + ")");
+                return matchFailed(matchType, path, actObject, expObject, "not equal (" + actObject.getClass().getSimpleName() + ")");
             }
         }
         // if we reached here both were equal
         if (matchType == MatchType.NOT_EQUALS) {
-            return matchFailed(path, actObject, expObject, "equal");
+            return matchFailed(matchType, path, actObject, expObject, "equal");
         }
         return AssertionResult.PASS;
     }
