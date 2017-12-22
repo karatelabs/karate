@@ -301,7 +301,7 @@ public class Script {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
         } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
             return evalJsExpression(text, context);
-          // remove after 0.7.0 release feedback
+            // remove after 0.7.0 release feedback
 //        } else if (isVariableAndJsonPath(text)) {
 //            StringUtils.Pair pair = parseVariableAndPath(text);
 //            return evalJsonPathOnVarByName(pair.left, pair.right, context);
@@ -541,10 +541,10 @@ public class Script {
     public static ScriptValue copy(String name, String exp, ScriptContext context, boolean validateName) {
         return assign(AssignType.COPY, name, exp, context, validateName);
     }
-    
+
     public static ScriptValue assign(String name, String exp, ScriptContext context) {
         return assign(AssignType.AUTO, name, exp, context, true);
-    }    
+    }
 
     public static ScriptValue assign(String name, String exp, ScriptContext context, boolean validateName) {
         return assign(AssignType.AUTO, name, exp, context, validateName);
@@ -1122,7 +1122,7 @@ public class Script {
             return o;
         }
     }
-    
+
     private static boolean isNegation(MatchType type) {
         switch (type) {
             case EACH_NOT_CONTAINS:
@@ -1135,7 +1135,7 @@ public class Script {
         }
     }
 
-    public static AssertionResult matchFailed(MatchType matchType, String path, 
+    public static AssertionResult matchFailed(MatchType matchType, String path,
             Object actObject, Object expObject, String reason) {
         if (path.startsWith("/")) {
             String leafName = getLeafNameFromXmlPath(path);
@@ -1143,7 +1143,7 @@ public class Script {
             expObject = toXmlString(leafName, expObject);
             path = path.replace("/@/", "/@");
         }
-        String message = String.format("path: %s, actual: %s, %sexpected: %s, reason: %s", 
+        String message = String.format("path: %s, actual: %s, %sexpected: %s, reason: %s",
                 path, quoteIfString(actObject), isNegation(matchType) ? "NOT " : "", quoteIfString(expObject), reason);
         return AssertionResult.fail(message);
     }
@@ -1197,9 +1197,32 @@ public class Script {
             }
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
-                String childPath = delimiter == '.' ? JsonUtils.buildPath(path, key) : path + delimiter + key;
-                Object childAct = actMap.get(key);
                 Object childExp = expEntry.getValue();
+                String childPath = delimiter == '.' ? JsonUtils.buildPath(path, key) : path + delimiter + key;
+                if (!actMap.containsKey(key)) {
+                    boolean equal = false;
+                    if (childExp instanceof String) {
+                        String childMacro = (String) childExp;
+                        if (isOptionalMacro(childMacro) 
+                                || childMacro.equals("#ignore") 
+                                || childMacro.equals("#notpresent")) { // logical match
+                            if (matchType == MatchType.NOT_CONTAINS) {
+                                return matchFailed(matchType, childPath, "(not present)", childExp, "actual value contains expected");
+                            }
+                            equal = true;
+                        }
+                    }
+                    if (!equal) {
+                        if (matchType == MatchType.NOT_EQUALS) {
+                            return AssertionResult.PASS; // exit early
+                        }
+                        if (matchType != MatchType.NOT_CONTAINS) {
+                            return matchFailed(matchType, childPath, "(not present)", childExp, "actual value does not contain expected");
+                        }
+                    }
+                    continue; // end edge case for key not present
+                }
+                Object childAct = actMap.get(key);
                 AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match
                     if (matchType == MatchType.NOT_CONTAINS) {

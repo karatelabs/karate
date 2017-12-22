@@ -97,6 +97,13 @@ Scenario: optional json values
     * def response = [{a: 'one', b: 'two'}, { a: 'one' }]
     * match each response contains { a: 'one', b: '##("two")' }
 
+Scenario: #null and #notpresent
+    * def foo = { }
+    * match foo == { a: '#notpresent' }
+    * match foo == { a: '#ignore' }
+    * match foo != { a: '#null' }
+    * match foo != { a: null }
+
 Scenario: get and json path
     * def foo = { bar: { baz: 'ban' } }
     * def res = get foo $..bar[?(@.baz)]
