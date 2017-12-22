@@ -23,7 +23,7 @@
  */
 package demo;
 
-import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.mock.servlet.MockHttpClient;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -48,7 +48,7 @@ public class MockSpringMvcServlet extends MockHttpClient {
     }
 
     @Override
-    protected Servlet getServlet(HttpRequest request) {
+    protected Servlet getServlet(HttpRequestBuilder request) {
         return servlet;
     }
 

@@ -23,77 +23,85 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.exception.KarateFileNotFoundException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import org.slf4j.Logger;
 
 /**
  * this class exists as a performance optimization - we init Nashorn only once
  * and set up the Bindings to Karate variables only once per scenario
- * 
+ *
  * we also avoid re-creating hash-maps as far as possible
- * 
+ *
  * @author pthomas3
  */
 public class ScriptBindings implements Bindings {
-    
-    // all threads will share this ! only for pure JS eval with ZERO bindings
-    private static final ScriptEngine NASHORN = getNashorn(null);
 
-    private final Logger logger;
-    private final ScriptContext context;
-    private final ScriptValueMap vars;
-    private final ScriptBridge bridge;
-    private final ScriptEngine nashorn;
+    // all threads will share this ! thread isolation is via Bindings (this class)
+    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");      
+
+    protected final ScriptBridge bridge;
+    
+    private final ScriptValueMap vars;    
     private final Map<String, Object> adds;
+    
+    public static final String KARATE = "karate";
+    public static final String READ = "read";
+    public static final String PATH_MATCHES = "pathMatches";
 
     public ScriptBindings(ScriptContext context) {
-        this.context = context;
-        this.logger = context.env.logger;
         this.vars = context.vars;
         this.adds = new HashMap(6); // read, karate, self, root, parent, nashorn.global
-        this.bridge = new ScriptBridge(context);
-        this.nashorn = getNashorn(this);
+        bridge = new ScriptBridge(context);
+        adds.put(KARATE, bridge);
+        // the next line calls an eval with 'incomplete' bindings
+        // i.e. only the 'karate' bridge has been bound so far
+        ScriptValue readFunction = eval(READ_FUNCTION, this);
+        // and only now are the bindings complete - with the 'read' function
+        adds.put(READ, readFunction.getValue());        
     }
 
-    private static ScriptEngine getNashorn(Bindings bindings) {
-        ScriptEngine nashorn = new ScriptEngineManager(null).getEngineByName("nashorn");
-        if (bindings != null) {
-            nashorn.setBindings(bindings, javax.script.ScriptContext.ENGINE_SCOPE);
+    private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
+
+    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
+        if (context == null) {
+            return eval(exp, null);
+        } else {
+            return context.bindings.updateBindingsAndEval(exp, evalContext);
         }
-        return nashorn;
     }
 
-    private ScriptEngine getNashorn(ScriptValue selfValue, Object root, Object parent) {
-        adds.clear();
-        adds.put(ScriptContext.KARATE_NAME, bridge);
-        if (context.readFunction != null) {
-            adds.put(ScriptContext.VAR_READ, context.readFunction.getValue());
+    private ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) {
+        if (ec == null) {
+            adds.remove(Script.VAR_SELF);
+            adds.remove(Script.VAR_ROOT);
+            adds.remove(Script.VAR_PARENT);
+        } else {
+            // ec.selfValue will never be null
+            adds.put(Script.VAR_SELF, ec.selfValue.getAfterConvertingFromJsonOrXmlIfNeeded());
+            adds.put(Script.VAR_ROOT, new ScriptValue(ec.root).getAfterConvertingFromJsonOrXmlIfNeeded());
+            adds.put(Script.VAR_PARENT, new ScriptValue(ec.parent).getAfterConvertingFromJsonOrXmlIfNeeded());
         }
-        if (selfValue != null) {
-            adds.put(Script.VAR_SELF, selfValue.getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        if (root != null) {
-            adds.put(Script.VAR_ROOT, new ScriptValue(root).getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        if (parent != null) {
-            adds.put(Script.VAR_PARENT, new ScriptValue(parent).getAfterConvertingFromJsonOrXmlIfNeeded());
-        }
-        return nashorn;
+        return eval(exp, this);
     }
 
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptValue selfValue, Object root, Object parent) {
-        ScriptEngine nashorn = context == null ? NASHORN : context.bindings.getNashorn(selfValue, root, parent);
+    private static ScriptValue eval(String exp, Bindings bindings) {
         try {
-            Object o = nashorn.eval(exp);
+            Object o = bindings == null ? NASHORN.eval(exp) : NASHORN.eval(exp, bindings);
             return new ScriptValue(o);
         } catch (Exception e) {
+            // reduce log bloat for common file-not-found situation
+            if (e instanceof KarateFileNotFoundException) {
+                throw (KarateFileNotFoundException) e;
+            }
             throw new RuntimeException("javascript evaluation failed: " + exp, e);
         }
     }
@@ -121,14 +129,12 @@ public class ScriptBindings implements Bindings {
     public boolean containsKey(Object key) {
         // this has to be implemented correctly ! else nashorn won't return 'undefined'
         return vars.containsKey(key) || adds.containsKey(key);
-    }    
-    
+    }
+
     @Override
     public int size() {
         return vars.size() + adds.size();
-    }    
-    
-    // these are never called by nashorn =======================================    
+    }
 
     @Override
     public boolean isEmpty() {
@@ -142,29 +148,40 @@ public class ScriptBindings implements Bindings {
         return keys;
     }
 
-    @Override
-    public Object remove(Object key) {
-        return adds.remove(key);
-    }
-
-    @Override
-    public boolean containsValue(Object value) {
-        return adds.containsValue(value);
-    }
-
-    @Override
-    public void clear() {
-        adds.clear();
-    }
-
+    // these are never called by nashorn =======================================
+    
     @Override
     public Collection<Object> values() {
-        return adds.values();
+        return entrySet().stream().map(Entry::getValue).collect(Collectors.toList());
     }
 
     @Override
     public Set<Entry<String, Object>> entrySet() {
-        return adds.entrySet();
+        Map<String, Object> temp = new HashMap(size());
+        temp.putAll(adds); // duplicates possible ! the vars have priority, they will over-write next
+        vars.forEach((k, sv)-> {
+            // value should never be null, but unit tests may do this
+            Object value = sv == null ? null : sv.getAfterConvertingFromJsonOrXmlIfNeeded();
+            temp.put(k, value);
+        });        
+        return temp.entrySet();
     }
+
+    @Override
+    public boolean containsValue(Object value) {
+        return values().contains(value);
+    }
+
+    @Override
+    public void clear() {
+        // this is wrong, but doesn't matter
+        adds.clear();
+    }
+    
+    @Override
+    public Object remove(Object key) {
+        // this is wrong, but doesn't matter
+        return adds.remove(key);
+    }    
 
 }

@@ -24,7 +24,6 @@
 package com.intuit.karate.web.wicket.model;
 
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.StepDefs;
 import com.intuit.karate.web.service.KarateService;
 import org.apache.wicket.injection.Injector;
 import org.apache.wicket.model.LoadableDetachableModel;
@@ -52,12 +51,7 @@ public class ScriptContextModel extends LoadableDetachableModel<ScriptContext> {
 
     @Override
     protected ScriptContext load() {        
-        StepDefs stepDefs = service.getSession(sessionId).getBackend().getStepDefs();
-        if (stepDefs == null) {
-            return null;
-        } else {
-            return stepDefs.getContext();
-        }
+        return service.getSession(sessionId).getBackend().getStepDefs().getContext();
     }
     
 }

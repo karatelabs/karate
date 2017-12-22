@@ -25,7 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.Cookie;
-import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
@@ -51,7 +51,7 @@ public class StepDefs {
     private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
-        this(getFeatureEnv(), new CallContext(null, 0, null, -1, false, true));
+        this(getFeatureEnv(), new CallContext(null, 0, null, -1, false, true, null));
     }
 
     private static ScriptEnv ideScriptEnv;
@@ -79,11 +79,11 @@ public class StepDefs {
 
     public StepDefs(ScriptEnv scriptEnv, CallContext call) {
         context = new ScriptContext(scriptEnv, call);
-        request = new HttpRequest();
+        request = new HttpRequestBuilder();
     }
 
     private final ScriptContext context;
-    private HttpRequest request;
+    private HttpRequestBuilder request;
     private HttpResponse response;
 
     public ScriptContext getContext() {
@@ -102,14 +102,14 @@ public class StepDefs {
 
     @When("^url (.+)")
     public void url(String expression) {
-        String temp = Script.eval(expression, context).getAsString();
+        String temp = Script.evalKarateExpression(expression, context).getAsString();
         request.setUrl(temp);
     }
 
     @When("^path (.+)")
     public void path(List<String> paths) {
         for (String path : paths) {
-            ScriptValue temp = Script.eval(path, context);
+            ScriptValue temp = Script.evalKarateExpression(path, context);
             if (temp.isListLike()) {
                 List list = temp.getAsList();
                 for (Object o : list) {
@@ -128,12 +128,12 @@ public class StepDefs {
         List<String> list = new ArrayList(values.size());
         try {
             for (String value : values) {
-                ScriptValue temp = Script.eval(value, context);
+                ScriptValue temp = Script.evalKarateExpression(value, context);
                 list.add(temp.getAsString());
             }
         } catch (Exception e) { // hack. for e.g. json with commas would land here
             String joined = StringUtils.join(values, ',');
-            ScriptValue temp = Script.eval(joined, context);
+            ScriptValue temp = Script.evalKarateExpression(joined, context);
             if (temp.isListLike()) {
                 return temp.getAsList();
             } else {
@@ -150,7 +150,7 @@ public class StepDefs {
     }
 
     public Map<String, Object> evalMapExpr(String expr) {
-        ScriptValue value = Script.eval(expr, context);
+        ScriptValue value = Script.evalKarateExpression(expr, context);
         if (!value.isMapLike()) {
             throw new KarateException("cannot convert to map: " + expr);
         }
@@ -177,7 +177,7 @@ public class StepDefs {
 
     @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
-        ScriptValue sv = Script.eval(value, context);
+        ScriptValue sv = Script.evalKarateExpression(value, context);
         Cookie cookie;
         if (sv.isMapLike()) {
             cookie = new Cookie((Map) sv.getAsMap());
@@ -257,18 +257,8 @@ public class StepDefs {
 
     @When("^request (.+)")
     public void request(String requestBody) {
-        ScriptValue temp = Script.eval(requestBody, context);
+        ScriptValue temp = Script.evalKarateExpression(requestBody, context);
         request.setBody(temp);
-    }
-
-    @When("^def (.+) =$")
-    public void defDocString(String name, String expression) {
-        def(name, expression);
-    }
-
-    @When("^def (\\w+) = (.+)")
-    public void def(String name, String expression) {
-        Script.assign(name, expression, context);
     }
 
     @When("^table (.+)")
@@ -307,35 +297,50 @@ public class StepDefs {
         String replaced = Script.replacePlaceholderText(text, token, value, context);
         context.vars.put(name, replaced);
     }
+    
+    @When("^def (.+) =$")
+    public void defDocString(String name, String expression) {
+        def(name, expression);
+    }
+
+    @When("^def (\\w+) = (.+)")
+    public void def(String name, String expression) {
+        Script.assign(name, expression, context, true);
+    }    
 
     @When("^text (.+) =$")
     public void textDocString(String name, String expression) {
-        Script.assignText(name, expression, context);
+        Script.assignText(name, expression, context, true);
     }
 
     @When("^yaml (.+) =$")
     public void yamlDocString(String name, String expression) {
-        Script.assignYaml(name, expression, context);
+        Script.assignYaml(name, expression, context, true);
     }
+    
+    @When("^copy (.+) = (.+)")
+    public void copy(String name, String expression) {
+        Script.copy(name, expression, context, true);
+    }    
 
     @When("^json (.+) = (.+)")
     public void castToJson(String name, String expression) {
-        Script.assignJson(name, expression, context);
+        Script.assignJson(name, expression, context, true);
     }
 
     @When("^string (.+) = (.+)")
     public void castToString(String name, String expression) {
-        Script.assignString(name, expression, context);
+        Script.assignString(name, expression, context, true);
     }
 
     @When("^xml (.+) = (.+)")
     public void castToXml(String name, String expression) {
-        Script.assignXml(name, expression, context);
+        Script.assignXml(name, expression, context, true);
     }
 
     @When("^xmlstring (.+) = (.+)")
     public void castToXmlString(String name, String expression) {
-        Script.assignXmlString(name, expression, context);
+        Script.assignXmlString(name, expression, context, true);
     }
 
     @When("^assert (.+)")
@@ -351,7 +356,7 @@ public class StepDefs {
     @When("^method (\\w+)")
     public void method(String method) {
         if (!HttpUtils.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
-            method = Script.eval(method, context).getAsString();
+            method = Script.evalKarateExpression(method, context).getAsString();
         }
         request.setMethod(method);
         response = context.client.invoke(request, context);
@@ -386,7 +391,7 @@ public class StepDefs {
         }
         context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
         String prevUrl = request.getUrl();
-        request = new HttpRequest();
+        request = new HttpRequestBuilder();
         request.setUrl(prevUrl);
     }
 
@@ -410,7 +415,7 @@ public class StepDefs {
 
     @When("^soap action( .+)?")
     public void soapAction(String action) {
-        action = Script.eval(action, context).getAsString();
+        action = Script.evalKarateExpression(action, context).getAsString();
         if (action == null) {
             action = "";
         }
@@ -437,7 +442,7 @@ public class StepDefs {
     @When("^multipart file (.+) = (.+)")
     public void multiPartFile(String name, String value) {
         name = name.trim();
-        ScriptValue sv = Script.eval(value, context);
+        ScriptValue sv = Script.evalKarateExpression(value, context);
         if (!sv.isMapLike()) {
             throw new RuntimeException("mutipart file value should be json");
         }
@@ -461,7 +466,7 @@ public class StepDefs {
     }
 
     public void multiPart(String name, String value) {
-        ScriptValue sv = Script.eval(value, context);
+        ScriptValue sv = Script.evalKarateExpression(value, context);
         request.addMultiPartItem(name, sv);
     }
 
@@ -482,8 +487,8 @@ public class StepDefs {
                     ScriptValue sv = Script.getIfVariableReference(exp, context);
                     if (sv == null) {
                         try {
-                            sv = Script.evalInNashorn(exp, context);
-                            prev = ""; // eval success, reset rogue comma detector
+                            sv = Script.evalJsExpression(exp, context);
+                            prev = ""; // evalKarateExpression success, reset rogue comma detector
                         } catch (Exception e) {
                             prev = exp + ", ";
                             continue;
@@ -594,15 +599,20 @@ public class StepDefs {
     }
 
     @When("^call ([^\\s]+)( .*)?")
-    public final void callAndUpdateConfigAndVars(String name, String arg) {
+    public void callAndUpdateConfigAndVars(String name, String arg) {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, name, arg, context);
     }
 
     @When("^callonce ([^\\s]+)( .*)?")
-    public final void callOnceAndUpdateConfigAndVars(String name, String arg) {
+    public void callOnceAndUpdateConfigAndVars(String name, String arg) {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(true, name, arg, context);
     }
 
+    @When("^eval (.+)")
+    public final void eval(String exp) {
+        Script.evalJsExpression(exp, context);
+    }
+    
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {
             context.logger.error("{}", ar);

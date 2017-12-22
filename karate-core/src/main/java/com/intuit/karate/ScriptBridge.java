@@ -24,7 +24,8 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
-import com.intuit.karate.http.HttpRequestActual;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
@@ -55,7 +56,8 @@ public class ScriptBridge {
     
     public Object read(String fileName) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
-        return sv.getValue();
+        // json should behave like json within js / function
+        return sv.isJsonLike() ? sv.getAfterConvertingFromJsonOrXmlIfNeeded() : sv.getValue();
     }
     
     public String pretty(Object o) {
@@ -92,7 +94,7 @@ public class ScriptBridge {
     public Object get(String exp) {
         ScriptValue sv;
         try {
-            sv = Script.eval(exp, context); // even json path expressions will work
+            sv = Script.evalKarateExpression(exp, context); // even json path expressions will work
         } catch (Exception e) {
             context.logger.warn("karate.get failed for expression: '{}': {}", exp, e.getMessage());
             return null;
@@ -134,12 +136,12 @@ public class ScriptBridge {
         }        
     }
     
-    public HttpRequestActual getPrevRequest() {
+    public HttpRequest getPrevRequest() {
         return context.prevRequest;
     }
     
     public Object eval(String exp) {
-        ScriptValue sv = Script.evalInNashorn(exp, context);
+        ScriptValue sv = Script.evalJsExpression(exp, context);
         return sv.getValue();
     }
     
@@ -153,7 +155,14 @@ public class ScriptBridge {
     
     public Map<String, Object> getInfo() {
         DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
-        return doc.read("$");
+        return doc.read("$");        
+    }
+    
+    public boolean pathMatches(String path) {
+        String uri = (String) get("requestUri");
+        Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
+        set("requestPaths", map);
+        return map != null;
     }
     
     public String getEnv() {

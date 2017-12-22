@@ -25,16 +25,14 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.http.HttpRequestActual;
+import com.intuit.karate.http.HttpRequest;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.protocol.HttpContext;
-import org.slf4j.Logger;
 
 /**
  *
@@ -51,8 +49,8 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
     }      
 
     @Override
-    public void process(HttpRequest request, HttpContext httpContext) throws HttpException, IOException {
-        HttpRequestActual actual = new HttpRequestActual();
+    public void process(org.apache.http.HttpRequest request, HttpContext httpContext) throws HttpException, IOException {
+        HttpRequest actual = new HttpRequest();
         int id = counter.incrementAndGet();
         String uri = (String) httpContext.getAttribute(ApacheHttpClient.URI_CONTEXT_KEY);
         String method = request.getRequestLine().getMethod();

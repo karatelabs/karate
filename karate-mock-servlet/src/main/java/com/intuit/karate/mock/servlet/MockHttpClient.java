@@ -34,6 +34,7 @@ import com.intuit.karate.http.HttpBody;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
@@ -68,7 +69,7 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
     private URI uri;
     private MockHttpServletRequestBuilder requestBuilder;
 
-    protected abstract Servlet getServlet(HttpRequest request);
+    protected abstract Servlet getServlet(HttpRequestBuilder request);
 
     protected abstract ServletContext getServletContext();
 

@@ -21,6 +21,7 @@ public class SyntaxPerfRunner {
         System.out.println("elapsed time: " + elapsedTime);
         // 25.5 seconds for git 76c92bd
         // 14.0 seconds after refactoring
+        // 11.0 seconds after second wave git 20445d5
     }
     
     public static void main(String[] args) {

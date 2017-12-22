@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.http.DummyHttpClient;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
@@ -26,7 +27,7 @@ public class ScriptTest {
     private ScriptContext getContext() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        CallContext callContext = new CallContext(null, 0, null, -1, false, true);
+        CallContext callContext = new CallContext(null, 0, null, -1, false, true, DummyHttpClient.class.getName());
         return new ScriptContext(env, callContext);
     }
 
@@ -63,10 +64,10 @@ public class ScriptTest {
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
         String expression = "foo + 'baz'";
-        ScriptValue value = Script.evalInNashorn(expression, ctx);
+        ScriptValue value = Script.evalJsExpression(expression, ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("barbaz", value.getValue());
-        value = Script.evalInNashorn("a + b", ctx);
+        value = Script.evalJsExpression("a + b", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
@@ -83,10 +84,10 @@ public class ScriptTest {
         testMap.put("myList", testList);
         ctx.vars.put("myMap", testMap);
         String expression = "myMap.foo + myMap.baz";
-        ScriptValue value = Script.evalInNashorn(expression, ctx);
+        ScriptValue value = Script.evalJsExpression(expression, ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar5", value.getValue());
-        value = Script.evalInNashorn("myMap.myList[0] + myMap.myList[1]", ctx);
+        value = Script.evalJsExpression("myMap.myList[0] + myMap.myList[1]", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
         assertEquals(3.0, value.getValue());
     }
@@ -96,11 +97,11 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: 'bar', baz: [1, 2], ban: { hello: 'world' } }");
         ctx.vars.put("myJson", doc);
-        ScriptValue value = Script.evalInNashorn("myJson.foo", ctx);
+        ScriptValue value = Script.evalJsExpression("myJson.foo", ctx);
         assertEquals("bar", value.getValue());
-        value = Script.evalInNashorn("myJson.baz[1]", ctx);
+        value = Script.evalJsExpression("myJson.baz[1]", ctx);
         assertEquals(2, value.getValue());
-        value = Script.evalInNashorn("myJson.ban.hello", ctx);
+        value = Script.evalJsExpression("myJson.ban.hello", ctx);
         assertEquals("world", value.getValue());
     }
 
@@ -109,7 +110,7 @@ public class ScriptTest {
         ScriptContext ctx = getContext();
         Document doc = XmlUtils.toXmlDoc("<root><foo>bar</foo><hello>world</hello></root>");
         ctx.vars.put("myXml", doc);
-        ScriptValue value = Script.evalInNashorn("myXml.root.foo", ctx);
+        ScriptValue value = Script.evalJsExpression("myXml.root.foo", ctx);
         assertEquals("bar", value.getValue());
     }
 
@@ -141,11 +142,11 @@ public class ScriptTest {
         ctx.vars.put("myJson", doc);
         ScriptValue value = Script.evalJsonPathOnVarByName("myJson", "$.foo", ctx);
         assertEquals("bar", value.getValue());
-        value = Script.eval("myJson.foo", ctx);
+        value = Script.evalKarateExpression("myJson.foo", ctx);
         assertEquals("bar", value.getValue());
         value = Script.evalJsonPathOnVarByName("myJson", "$.baz[1]", ctx);
         assertEquals(2, value.getValue());
-        value = Script.eval("myJson.baz[1]", ctx);
+        value = Script.evalKarateExpression("myJson.baz[1]", ctx);
         assertEquals(2, value.getValue());
         value = Script.evalJsonPathOnVarByName("myJson", "$.baz", ctx);
         assertEquals(ScriptValue.Type.LIST, value.getType());
@@ -161,7 +162,7 @@ public class ScriptTest {
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar", value.getAsString());
-        value = Script.eval("myXml/root/foo", ctx);
+        value = Script.evalKarateExpression("myXml/root/foo", ctx);
         assertEquals("bar", value.getAsString());
     }
 
@@ -582,16 +583,18 @@ public class ScriptTest {
     @Test
     public void testRunningJsonPathOnStringAutoConvertsStringToJson() {
         ScriptContext ctx = getContext();
-        Script.assignString("response", "{ foo: { hello: 'world' } }", ctx);
-        Script.assign("foo", "response.foo", ctx);
+        Script.assignString("response", "{ foo: { hello: 'world' } }", ctx, true);
+        Script.assign("foo", "$response.foo", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ hello: 'world' }", ctx).pass);
+        Script.assign("foo", "$.foo", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ hello: 'world' }", ctx).pass);        
     }
 
     @Test
     public void testCastJsonToString() {
         ScriptContext ctx = getContext();
         Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
-        Script.assignString("myString", "myJson", ctx);
+        Script.assignString("myString", "myJson", ctx, true);
         ScriptValue value = ctx.vars.get("myString");
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("{\"root\":{\"foo\":\"bar\"}}", value.getAsString());
@@ -601,7 +604,7 @@ public class ScriptTest {
     public void testCastStringToJson() {
         ScriptContext ctx = getContext();
         Script.assign("myString", "{\"root\":{\"foo\":\"bar\"}}", ctx);
-        Script.assignJson("myJson", "myString", ctx);
+        Script.assignJson("myJson", "myString", ctx, true);
         ScriptValue value = ctx.vars.get("myJson");
         assertEquals(ScriptValue.Type.JSON, value.getType());
         assertEquals("{\"root\":{\"foo\":\"bar\"}}", value.getAsString());
@@ -611,7 +614,7 @@ public class ScriptTest {
     public void testCastJsonToXml() {
         ScriptContext ctx = getContext();
         Script.assign("myJson", "{ root: { foo: 'bar' } }", ctx);
-        Script.assignXml("myXml", "myJson", ctx);
+        Script.assignXml("myXml", "myJson", ctx, true);
         ScriptValue value = ctx.vars.get("myXml");
         assertEquals(ScriptValue.Type.XML, value.getType());
         assertEquals("<root><foo>bar</foo></root>", value.getAsString());
@@ -620,8 +623,8 @@ public class ScriptTest {
     @Test
     public void testCastStringToXml() {
         ScriptContext ctx = getContext();
-        Script.assignString("myString", "<root><foo>bar</foo></root>", ctx);
-        Script.assignXml("myXml", "myString", ctx);
+        Script.assignString("myString", "<root><foo>bar</foo></root>", ctx, true);
+        Script.assignXml("myXml", "myString", ctx, true);
         ScriptValue value = ctx.vars.get("myXml");
         assertEquals(ScriptValue.Type.XML, value.getType());
         assertEquals("<root><foo>bar</foo></root>", value.getAsString());
@@ -631,7 +634,7 @@ public class ScriptTest {
     public void testCastXmlToString() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
-        Script.assignXmlString("myString", "myXml", ctx);
+        Script.assignXmlString("myString", "myXml", ctx, true);
         ScriptValue value = ctx.vars.get("myString");
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("<root><foo>bar</foo></root>", value.getValue());
@@ -641,7 +644,7 @@ public class ScriptTest {
     public void testCastPojoToJson() {
         ScriptContext ctx = getContext();
         Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
-        Script.assignJson("json", "pojo", ctx);
+        Script.assignJson("json", "pojo", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: null, bar: 0 }", ctx).pass);
     }
     
@@ -649,7 +652,7 @@ public class ScriptTest {
     public void testCastPojoToXml() {
         ScriptContext ctx = getContext();
         Script.assign("pojo", "new com.intuit.karate.SimplePojo()", ctx);
-        Script.assignXml("xml", "pojo", ctx);
+        Script.assignXml("xml", "pojo", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo></foo><bar>0</bar></root>", ctx).pass);
     }    
 
@@ -770,7 +773,7 @@ public class ScriptTest {
     public void testCallingFunctionThatUsesJsonPath() {
         ScriptContext ctx = getContext();
         Script.assign("foo", "{ bar: [{baz: 1}, {baz: 2}, {baz: 3}]}", ctx);
-        Script.assign("fun", "function(){ return karate.get('foo.bar[*].baz') }", ctx);
+        Script.assign("fun", "function(){ return karate.get('$foo.bar[*].baz') }", ctx);
         Script.assign("res", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res", null, "[1, 2, 3]", ctx).pass);
         // 'normal' variable name
@@ -811,6 +814,22 @@ public class ScriptTest {
         Script.assign("res2", "call fun2 res1", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "res2", null, "'foobar'", ctx).pass);
     }
+    
+    @Test
+    public void testJsonReturnedFromJsRead() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ return karate.read('classpath:test.json') }", ctx);
+        Script.assign("val", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "val", null, "{ foo: 'bar' }", ctx).pass);
+    }  
+    
+    @Test
+    public void testJsonFromJsRead() {
+        ScriptContext ctx = getContext();
+        Script.assign("fun", "function(){ var temp = karate.read('classpath:test.json'); return temp.foo == 'bar'; }", ctx);
+        Script.assign("val", "call fun", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "val", null, "true", ctx).pass);
+    }    
 
     @Test
     public void testParsingVariableAndJsonPath() {
@@ -995,14 +1014,14 @@ public class ScriptTest {
     public void testEvalUrl() {
         ScriptContext ctx = getContext();
         String url = "'http://localhost:8089/v1/cats'";
-        assertEquals("http://localhost:8089/v1/cats", Script.eval(url, ctx).getAsString());
+        assertEquals("http://localhost:8089/v1/cats", Script.evalKarateExpression(url, ctx).getAsString());
     }
 
     @Test
     public void testEvalParamWithDot() {
         ScriptContext ctx = getContext();
         String param = "'ACS.Itself'";
-        assertEquals("ACS.Itself", Script.eval(param, ctx).getAsString());
+        assertEquals("ACS.Itself", Script.evalKarateExpression(param, ctx).getAsString());
     }
     
     @Test
@@ -1087,7 +1106,7 @@ public class ScriptTest {
     public void testKarateEnvAccessFromScript() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("baz", new File(featureDir));
-        CallContext callContext = new CallContext(null, 0, null, -1, false, true);
+        CallContext callContext = new CallContext(null, 0, null, -1, false, true, null);
         ScriptContext ctx = new ScriptContext(env, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
@@ -1296,7 +1315,7 @@ public class ScriptTest {
         } catch (InvalidJsonException e) {
             logger.debug("expected {}", e.getMessage());
         }
-        Script.assignText("foo", "{ not json }", ctx);
+        Script.assignText("foo", "{ not json }", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "'{ not json }'", ctx).pass);
     }
 
@@ -1521,9 +1540,9 @@ public class ScriptTest {
     @Test
     public void testTypeConversion() {
         ScriptContext ctx = getContext();
-        Script.assignJson("foo", "[]", ctx);
+        Script.assignJson("foo", "[]", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "[]", ctx).pass);
-        Script.assignJson("foo", "{}", ctx);
+        Script.assignJson("foo", "{}", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{}", ctx).pass);
     }
     

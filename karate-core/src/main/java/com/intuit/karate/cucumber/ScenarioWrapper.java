@@ -66,6 +66,12 @@ public class ScenarioWrapper {
             currentLine = step.getLineRange().getLast();
         }
     }
+    
+    public String getNameAndDescription() {
+        String name = scenario.getGherkinModel().getName();
+        String description = scenario.getGherkinModel().getDescription();
+        return name + description;
+    }
 
     public void setSection(FeatureSection section) {
         this.section = section;

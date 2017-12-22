@@ -21,60 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
-
-import java.util.List;
+package com.intuit.karate.cucumber;
 
 /**
- * this is only for capturing what was actually sent on the wire, read-only
- * 
+ *
  * @author pthomas3
  */
-public class HttpRequestActual {
+public enum CallType {
     
-    private String method;
-    private String uri;
-    private MultiValuedMap headers = new MultiValuedMap();
-    private byte[] body;
-    
-    public void addHeader(String key, String value) {
-        headers.add(key, value);
-    }
-    
-    public void putHeader(String key, List<String> values) {
-        headers.put(key, values);
-    }
-
-    public String getMethod() {
-        return method;
-    }
-
-    public void setMethod(String method) {
-        this.method = method;
-    }
-
-    public String getUri() {
-        return uri;
-    }
-
-    public void setUri(String uri) {
-        this.uri = uri;
-    }
-
-    public MultiValuedMap getHeaders() {
-        return headers;
-    }
-
-    public void setHeaders(MultiValuedMap headers) {
-        this.headers = headers;
-    }
-
-    public byte[] getBody() {
-        return body;
-    }
-
-    public void setBody(byte[] body) {
-        this.body = body;
-    }        
+    DEFAULT,
+    BACKGROUND_ONLY,
+    SCENARIO_ONLY
     
 }

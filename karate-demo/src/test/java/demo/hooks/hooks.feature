@@ -10,7 +10,7 @@ Background:
 
 # for custom code to run after every scenario / feature: https://github.com/intuit/karate#configure
 # note that these can be complex JS functions that you can read from separate files and re-use in multiple features
-# and you can give control to a feature via 'karate.call' if needed
+# and you can give control to another (re-usable) feature via 'karate.call' if needed
 
 # the JSON returned from 'karate.info' has the following properties:
 #   - featureDir

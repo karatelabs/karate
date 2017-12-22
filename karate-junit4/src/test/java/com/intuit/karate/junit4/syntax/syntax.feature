@@ -449,7 +449,7 @@ Then match pdf == read('test.pdf')
 
 # json path in js
 * def foo = { bar: [{baz: 1}, {baz: 2}, {baz: 3}]}
-* def fun = function(){ return karate.get('foo.bar[*].baz') }
+* def fun = function(){ return karate.get('$foo.bar[*].baz') }
 * def res = fun()
 * match res == [1, 2, 3]
 

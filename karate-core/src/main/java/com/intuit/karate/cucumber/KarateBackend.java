@@ -78,11 +78,7 @@ public class KarateBackend implements Backend {
     }
     
     public ScriptValueMap getVars() {
-        StepDefs stepDefs = getStepDefs();
-        if (stepDefs == null) { // first step
-            return null;
-        }
-        return stepDefs.getContext().getVars();
+        return getStepDefs().getContext().getVars();
     }
     
     public void beforeStep(String feature, Step step) {

@@ -71,33 +71,42 @@ public class Karate extends ParentRunner<KarateFeature> {
         JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
         htmlReporter = new KarateHtmlReporter(ro.reporter(cl), ro.formatter(cl));
         reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions) {
-            private List<Step> steps;
-            private List<Match> matches;
+            final List<Step> steps = new ArrayList();
+            final List<Match> matches = new ArrayList();
             @Override
             public void startOfScenarioLifeCycle(Scenario scenario) {
-                steps = new ArrayList();
-                matches = new ArrayList();
+                steps.clear();
+                matches.clear();
                 super.startOfScenarioLifeCycle(scenario);
             }                       
             @Override
             public void step(Step step) {
-                steps.add(step);
-                super.step(step);
+                steps.add(step);                
             }
             @Override
             public void match(Match match) {
                 matches.add(match);
-                super.match(match);
             }            
             @Override
             public void result(Result result) {
                 Step step = steps.remove(0);
                 Match match = matches.remove(0);
-                CallContext callContext = new CallContext(null, 0, null, -1, false, false);
+                CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
                 // all the above complexity was just to be able to do this
                 htmlReporter.karateStep(step, match, result, callContext);
+                // this may not work for things other than the cucumber 'native' json formatter
+                super.step(step);
+                super.match(match);
                 super.result(result);
-            }            
+            }
+            @Override
+            public void eof() {
+                try {
+                    super.eof();
+                } catch (Exception e) {
+                    System.err.println("WARNING: cucumber native plugin / formatter failed: " + e.getMessage());
+                }
+            }
         };        
     }
 
@@ -126,8 +135,10 @@ public class Karate extends ParentRunner<KarateFeature> {
     @Override
     public void run(RunNotifier notifier) {
         super.run(notifier);
-        reporter.done();
-        reporter.close();
+        if (reporter != null) { // can happen for zero features found
+            reporter.done();
+            reporter.close();
+        }
     }   
 
 }

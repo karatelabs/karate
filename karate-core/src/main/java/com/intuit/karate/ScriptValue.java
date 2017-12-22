@@ -168,6 +168,33 @@ public class ScriptValue {
                 return false;
         }
     }
+    
+    public ScriptValue copy() {
+        switch (type) {
+            case NULL:
+            case UNKNOWN:
+            case PRIMITIVE:
+            case STRING:
+            case INPUT_STREAM:
+            case FEATURE_WRAPPER:
+            case JS_FUNCTION:                
+                return this;
+            case XML:
+                String xml = XmlUtils.toString(getValue(Node.class));
+                return new ScriptValue(XmlUtils.toXmlDoc(xml));
+            case JSON:
+                String json = getValue(DocumentContext.class).jsonString();
+                return new ScriptValue(JsonPath.parse(json));
+            case MAP:                                               
+            case JS_OBJECT:
+            case JS_ARRAY:
+            case LIST:
+                DocumentContext mapOrListJson = getAsJsonDocument();
+                return new ScriptValue(JsonPath.parse(mapOrListJson).read("$"));            
+            default:
+                return this;
+        }
+    }
 
     public DocumentContext getAsJsonDocument() {
         switch (type) {

@@ -34,12 +34,10 @@ public class StepResult {
     
     private final Step step;
     private final Result result;
-    private final Throwable error;
 
-    public StepResult(Step step, Result result, Throwable error) {
+    public StepResult(Step step, Result result) {
         this.step = step;
-        this.result = result;
-        this.error = error;        
+        this.result = result;        
     }
 
     public Step getStep() {
@@ -51,11 +49,11 @@ public class StepResult {
     }        
 
     public Throwable getError() {
-        return error;
+        return result.getError();
     }    
 
     public boolean isPass() {
-        return error == null;
+        return getError() == null;
     }
     
 }

@@ -28,7 +28,7 @@ import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
-import com.intuit.karate.http.HttpRequestActual;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.validator.Validator;
 import java.util.List;
 import java.util.Map;
@@ -41,10 +41,6 @@ import org.slf4j.Logger;
 public class ScriptContext {
 
     public final Logger logger;
-
-    private static final String KARATE_DOT_CONTEXT = "karate.context";
-    public static final String KARATE_NAME = "karate";
-    public static final String VAR_READ = "read";
     
     protected final ScriptBindings bindings;
 
@@ -53,8 +49,7 @@ public class ScriptContext {
     protected final Map<String, List<String>> tagValues;
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
-    protected final ScriptEnv env;    
-    protected final ScriptValue readFunction;
+    protected final ScriptEnv env;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -63,13 +58,13 @@ public class ScriptContext {
     protected HttpConfig config;
     
     // the actual http request last sent on the wire
-    protected HttpRequestActual prevRequest;
+    protected HttpRequest prevRequest;
     
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());
     }
     
-    public void setPrevRequest(HttpRequestActual prevRequest) {
+    public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
     }       
     
@@ -134,26 +129,25 @@ public class ScriptContext {
             validators = call.parentContext.validators;
             config = call.parentContext.config;
         } else if (call.parentContext != null) {
-            vars = Script.clone(call.parentContext.vars);
+            vars = call.parentContext.vars.copy();
             validators = call.parentContext.validators;
             config = new HttpConfig(call.parentContext.config);
         } else {
             vars = new ScriptValueMap();
             validators = Script.getDefaultValidators();
             config = new HttpConfig();
+            config.setClientClass(call.httpClientClass);
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
-        readFunction = Script.eval(getFileReaderFunction(), this);
         if (call.parentContext == null && call.evalKarateConfig) {
             try {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
             } catch (Exception e) {
-                Throwable cause = e.getCause();
-                if (cause instanceof KarateFileNotFoundException) {
+                if (e instanceof KarateFileNotFoundException) {
                     logger.warn("karate-config.js not found on the classpath, skipping bootstrap configuration");
                 } else {
-                    throw new RuntimeException("bootstrap configuration error, evaluation of karate-config.js failed:", cause);
+                    throw new RuntimeException("evaluation of karate-config.js failed:", e);
                 }
             }
         }
@@ -170,20 +164,13 @@ public class ScriptContext {
         logger.trace("karate context init - initial properties: {}", vars);
     }
 
-    private static String getFileReaderFunction() {
-        return "function(path) {\n"
-                + "  var FileUtils = Java.type('" + FileUtils.class.getCanonicalName() + "');\n"
-                + "  return FileUtils.readFile(path, " + KARATE_DOT_CONTEXT + ").value;\n"
-                + "}";
-    }
-
     public void configure(HttpConfig config) {
         this.config = config;
         client = HttpClient.construct(config, this);
     }    
     
     public void configure(String key, String exp) {
-        configure(key, Script.eval(exp, this));
+        configure(key, Script.evalKarateExpression(exp, this));
     }    
 
     public void configure(String key, ScriptValue value) { // TODO use enum
