@@ -1859,6 +1859,16 @@ The `!` (not) operator is especially useful for `contains` and JSON arrays.
 * match foo !contains [5, 6]
 ```
 
+### Mixing `contains` and `!contains` to verify JSON keys availability
+If you want to verify some keys exist and at the same time some are not presented then use `##null` within `contains` statement 
+
+```cucumber
+* def human = { firstName: 'John', lastName: 'Doe'}
+* def car = { maker: 'Honda', model: 'Civic' }
+* match human contains { firstName: '#string', lastName: '#string', maker: '##null', model: '##null' }
+* match car contains { firstName: '##null', lastName: '##null', maker: '#string', model: '#string' }
+```
+
 #### JSON Arrays
 
 This is a good time to deep-dive into JsonPath, which is perfect for slicing and dicing JSON into manageable chunks. It is worth taking a few minutes to go through the documentation and examples here: [JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
