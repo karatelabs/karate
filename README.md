@@ -86,7 +86,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - tutorial by [Micha Kops](https://twitter.com/hascode) - featured by [Semaphore CI](https://twitter.com/semaphoreci)
 * [5 top open-source API testing tools: How to choose](https://techbeacon.com/5-top-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
 
-You can find a lot more at the [community wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has a healthy presence on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
+You can find a lot more at the [community wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own 'tag' and a healthy presence on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
 # Getting Started
 Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and [Maven](http://maven.apache.org) to be installed.
@@ -359,14 +359,15 @@ And then the above command in gradle would look like:
 ./gradlew test -Dtest=CatsRunner
 ```
 
-## Test Suites
+### Test Suites
 > The recommended way to define and run test-suites and reporting in Karate is to use the [parallel runner](#parallel-execution), described in the next section. The approach in this section is more suited for troubleshooting in dev-mode, using your IDE.
 
-One way to define 'test-suites' in Karate is to have a JUnit class with the `@RunWith(Karate.class)` annotation at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions):
+One way to define 'test-suites' in Karate is to have a JUnit class with the `@RunWith(Karate.class)` annotation at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions), you can do this on the command-line:
 
 ```
 mvn test -Dcucumber.options="--tags ~@ignore" -Dtest=AnimalsTest
 ```
+
 Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. Cucumber has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
 
 The tag options can be specified in the test-class via the `@CucumberOptions` annotation, in which case you don't need to pass the `-Dcucumber.options` on the command-line:
@@ -444,8 +445,8 @@ Things to note:
 * The second argument is the number of threads to use.
 * [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
 * [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`.
-* No other reports will be generated. If you specify a `plugin` option via the `@CucumberOptions` annotation, or the command-line, or the 'maven-surefire-plugin' `<systemProperties>` - it will be ignored.
-* But all other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped.
+* No other reports will be generated. If you specify a `plugin` option via the [`@CucumberOptions`](#cucumber-options) annotation, or the [command-line](#test-suites), or the 'maven-surefire-plugin' `<systemProperties>` - it will be ignored.
+* But all other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites).
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
 
 ```
@@ -1309,7 +1310,7 @@ You can also use JSON to set multiple query-parameters in one-line using [`param
 
 ## `header`
 
-You can use functions or expressions:
+You can use [functions](#calling-javascript-functions) or [expressions](#karate-expressions):
 ```cucumber
 Given header Authorization = myAuthFunction()
 And header transaction-id = 'test-' + myIdString
@@ -1489,8 +1490,8 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
 `logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting (default `false`)
 `printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' (default `true`)
-`afterScenario` | JS function | Will be called after every `Scenario` (or `Example` within a `Scenario Outline`), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
-`afterFeature` | JS function | Will be called after every `Feature`, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
+`afterScenario` | JS function | Will be called [after every `Scenario`](#hooks) (or `Example` within a `Scenario Outline`), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
+`afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
@@ -1740,20 +1741,20 @@ Karate's [`match`](#match) is strict, and the case where a JSON key exists but h
 
 But note that `##null` can be used to represent a convention that many teams adopt, which is that keys with `null` values are stripped from the JSON payload. In other words, `{ a: 1, b: null }` is considered 'equal' to `{ a: 1 }` and `{ a: 1, b: '##null' }` will `match` both cases.
 
-Here are the various possibilities:
+These examples (all exact matches) can make things more clear:
 
 ```cucumber
 * def foo = { }
-* match foo == { a: '#notpresent' }
 * match foo == { a: '##null' }
 * match foo == { a: '##notnull' }
+* match foo == { a: '#notpresent' }
 * match foo == { a: '#ignore' }
 
 * def foo = { a: null }
 * match foo == { a: '#null' }    
 * match foo == { a: '##null' }
-* match foo == { a: '#ignore' }
 * match foo == { a: '#present' }
+* match foo == { a: '#ignore' }
 
 * def foo = { a: 1 }
 * match foo == { a: '#notnull' }
@@ -2262,7 +2263,7 @@ Then match /cat/name == 'Billie'
 ```
 
 ### JsonPath short-cuts
-The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate expressions](#karate-expressions) and is different from pure [JsonPath expressions](https://github.com/json-path/JsonPath#path-examples) which always begin with `$.` or `$[`. Here is a summary of what the different 'shapes' mean in Karate:
+The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate expressions](#karate-expressions) and is *slightly* different from pure [JsonPath expressions](https://github.com/json-path/JsonPath#path-examples) which always begin with `$.` or `$[`. Here is a summary of what the different 'shapes' mean in Karate:
 
 | Shape | Description |
 | ----- | ----------- |
@@ -2271,7 +2272,7 @@ The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate 
 `$foo.bar` | Evaluates the JsonPath `$.bar` on the variable `foo` which is a JSON object or map-like
 `$foo[0]` | Evaluates the JsonPath `$[0]` on the variable `foo` which is a JSON array or list-like
 
-> There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You can if you want to, but since *only* JsonPath (on variables) is allowed here, Karate looks only at the variable name. This is why none of the examples in the documentation use the `$varName` form on the LHS.
+> There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You can if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.
@@ -2746,7 +2747,7 @@ The example above is more for demonstration purposes and it is better practice t
 ## Cucumber Tags
 Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.
 
-The documentation on how to run tests via the [command line](#command-line) has an example of how to use tags to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
+The documentation on how to run tests via the [command line](#test-suites) has an example of how to use tags to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
 has more information on tags.
 
 > For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to the `karate.tags` and `karate.tagValues` methods on [the Karate JS object](#the-karate-object).
