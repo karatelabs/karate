@@ -57,7 +57,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - with both JUnit and TestNG being supported
 * Support for multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for HTTP integration tests
 * Built-in [test-reports](#test-reports) powered by Cucumber-JVM with the option of using third-party (open-source) maven-plugins for even [better-looking reports](karate-demo#example-report)
-* Reports include HTTP request and response [logs in-line](#test-reports), which makes [troubleshooting](https://twitter.com/KarateDSL/status/935029435140489216) and [debugging a test](https://twitter.com/KarateDSL/status/935029435140489216) a lot easier
+* Reports include HTTP request and response [logs in-line](#test-reports), which makes [troubleshooting](https://twitter.com/KarateDSL/status/899671441221623809) and [debugging a test](https://twitter.com/KarateDSL/status/935029435140489216) a lot easier
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
@@ -67,7 +67,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
   * HTTPS / [SSL](#configure) - without needing certificates, key-stores or trust-stores
   * HTTP [proxy server](#configure) support
   * URL-encoded [HTML-form](#form-field) data
-  * [Multi-part](#multipart-field) file-upload - including 'multipart/mixed' and 'multipart/related'
+  * [Multi-part](#multipart-field) file-upload - including `multipart/mixed` and `multipart/related`
   * Browser-like [cookie](#cookie) handling
   * Full control over HTTP [headers](#header), [path](#path) and query [parameters](#param)
   * Intelligent defaults
@@ -281,7 +281,7 @@ Refer to your IDE documentation for how to run a JUnit class.  Typically right-c
 > Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be run. This is one reason why you may want to prefer a 'flat' directory structure as [explained above](#naming-conventions).
 
 ### JUnit HTML report
-When you use the `@RunWith(Karate.class)` - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console.
+When you use the `@RunWith(Karate.class)` - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console (see [video](https://twitter.com/KarateDSL/status/935029435140489216)).
 
 ```
 html report: (paste into browser to view)
@@ -727,22 +727,6 @@ The built-in [`karate` object](#the-karate-object) is explained in detail later,
 
 Also refer to the [`configure`](#configure) keyword on how to switch on pretty-printing of all HTTP requests and responses.
 
-## `eval`
-### Execute arbitrary JavaScript
-Use this only as a last resort ! Conditional logic is especially not recommended within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
-
-But there are a couple of situations this comes in handy:
-* you *really* don't need to assign a result to a variable
-* statements in the `if` form (also see [conditional logic](#conditional-logic))
-
-```cucumber
-# just perform an action, we don't care about saving the result
-* eval myJavaScriptFunction()
-
-# do something only if a condition is true
-* eval if (zone == 'zone1') karate.set('temp', 'after')
-```
-
 # 'Native' data types
 Native data types mean that you can insert them into a script without having to worry about enclosing them in strings and then having to 'escape' double-quotes all over the place. They seamlessly fit 'in-line' within your test script.
 
@@ -1062,7 +1046,6 @@ The `call` keyword provides an [alternate way of calling JavaScript functions](#
 ```
 
 ## Reading Files
-
 Karate makes re-use of payload data, utility-functions and even other test-scripts as easy as possible. Teams typically define complicated JSON (or XML) payloads in a file and then re-use this in multiple scripts. Keywords such as [`set`](#set) and [`remove`](#remove) allow you to to 'tweak' payload-data to fit the scenario under test. You can imagine how this greatly simplifies setting up tests for boundary conditions. And such re-use makes it easier to re-factor tests when needed, which is great for maintainability.
 
 > Note that the [`set` (multiple)](#set-multiple) keyword can build complex, nested JSON (or XML) from scratch in a data-driven manner, and you may not even need to read from files for many situations. Test data can be within the main flow itself, which makes scripts highly readable.
@@ -2497,15 +2480,14 @@ Refer to this [demo feature](karate-demo) for an example: [`kitten-create.featur
 For a [`call`](#call) (or [`callonce`](#callonce)) - payload / data structures (JSON, XML, Map-like or List-like) variables are 'passed by reference' which means that steps within the 'called' feature can update or mutate them. This is actually the intent most of the time and is convenient. If you want to pass a 'clone' to a 'called' feature, you can do so using the rarely used `copy` keyword that works very similar to [type conversion](#type-conversion). This is best explained in this example: [`copy-caller.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/copy-caller.feature)
 
 ## Calling JavaScript Functions
-
 Examples of [defining and using JavaScript functions](#javascript-functions) appear in earlier sections of this document. Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
 * call and interoperate with Java code if needed
 * share and re-use test [utilities](#commonly-needed-utilities) or 'helper' functionality across your organization
 
-In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the variables that result from a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests.
+In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the variables that result from a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests. And it is worth mentioning that the Karate [configuration 'bootstrap'](#configuration) routine is itself a JavaScript function.
 
-And it is worth mentioning that the Karate [configuration 'bootstrap'](#configuration) routine is itself a JavaScript function.
+> Also refer to the [`eval`](#eval) keyword for a simpler way to execute arbitrary JavaScript that can be useful in some situations.
 
 ### The `karate` object
 A JavaScript function or expression at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
@@ -2643,7 +2625,6 @@ function(arg) {
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
 ## `callonce`
-
 Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
 
 Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guaranteed to execute only once. The results of the first call are cached, and any future calls will simply return the cached result instead of executing the JavaScript function (or feature) again and again. 
@@ -2651,6 +2632,22 @@ Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guarante
 This does require you to move 'set-up' into a separate `*.feature` (or JavaScript) file. But this totally makes sense for things not part of the 'main' test flow and which typically need to be re-usable anyway.
 
 So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
+
+## `eval`
+### Execute arbitrary JavaScript
+Use this only as a last resort ! Conditional logic is especially not recommended within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
+
+But there are a couple of situations this comes in handy:
+* you *really* don't need to assign a result to a variable
+* statements in the `if` form (also see [conditional logic](#conditional-logic))
+
+```cucumber
+# just perform an action, we don't care about saving the result
+* eval myJavaScriptFunction()
+
+# do something only if a condition is true
+* eval if (zone == 'zone1') karate.set('temp', 'after')
+```
 
 # Advanced / Tricks
 
