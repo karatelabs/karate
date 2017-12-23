@@ -28,15 +28,7 @@ import static com.intuit.karate.ScriptValue.Type.*;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.validator.ArrayValidator;
-import com.intuit.karate.validator.BooleanValidator;
-import com.intuit.karate.validator.IgnoreValidator;
-import com.intuit.karate.validator.NotNullValidator;
-import com.intuit.karate.validator.NullValidator;
-import com.intuit.karate.validator.NumberValidator;
-import com.intuit.karate.validator.ObjectValidator;
 import com.intuit.karate.validator.RegexValidator;
-import com.intuit.karate.validator.StringValidator;
-import com.intuit.karate.validator.UuidValidator;
 import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
@@ -46,7 +38,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -747,13 +738,33 @@ public class Script {
             }
         } else if (isMacro(expected)) {
             String macroExpression;
-            if (isOptionalMacro(expected)) {
+            if (isOptionalMacro(expected)) {              
+                macroExpression = expected.substring(2); // this is used later to look up validators by name
                 if (actValue.isNull()) {
-                    return AssertionResult.PASS;
-                }
-                macroExpression = expected.substring(2);
+                    boolean isEqual;
+                    if (macroExpression.equals("null")) { // edge case
+                        isEqual = true;
+                    } else if (macroExpression.equals("notnull")) {
+                        isEqual = false;
+                    } else {
+                        isEqual = true; // for any optional, a null is ok
+                    }
+                    if (isEqual) {
+                        if (stringMatchType == MatchType.NOT_EQUALS) {
+                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is null");
+                        } else {
+                            return AssertionResult.PASS;                            
+                        }                          
+                    } else {
+                        if (stringMatchType == MatchType.NOT_EQUALS) {
+                            return AssertionResult.PASS;
+                        } else {
+                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is null");
+                        }                         
+                    }
+                }                 
             } else {
-                macroExpression = expected.substring(1);
+                macroExpression = expected.substring(1); // // this is used later to look up validators by name
             }
             if (isWithinParentheses(macroExpression)) { // '#(foo)' | '##(foo)' | '#(^foo)'
                 MatchType matchType = stringMatchType;
@@ -1624,20 +1635,6 @@ public class Script {
         for (Map.Entry<String, Object> entry : result.entrySet()) {
             context.vars.put(entry.getKey(), entry.getValue());
         }
-    }
-
-    public static Map<String, Validator> getDefaultValidators() {
-        Map<String, Validator> map = new HashMap<>();
-        map.put("ignore", IgnoreValidator.INSTANCE);
-        map.put("null", NullValidator.INSTANCE);
-        map.put("notnull", NotNullValidator.INSTANCE);
-        map.put("uuid", UuidValidator.INSTANCE);
-        map.put("string", StringValidator.INSTANCE);
-        map.put("number", NumberValidator.INSTANCE);
-        map.put("boolean", BooleanValidator.INSTANCE);
-        map.put("array", ArrayValidator.INSTANCE);
-        map.put("object", ObjectValidator.INSTANCE);
-        return map;
     }
 
     public static AssertionResult assertBoolean(String expression, ScriptContext context) {

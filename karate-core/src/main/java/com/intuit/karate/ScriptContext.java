@@ -134,7 +134,7 @@ public class ScriptContext {
             config = new HttpConfig(call.parentContext.config);
         } else {
             vars = new ScriptValueMap();
-            validators = Script.getDefaultValidators();
+            validators = Validator.getDefaults();
             config = new HttpConfig();
             config.setClientClass(call.httpClientClass);
         }

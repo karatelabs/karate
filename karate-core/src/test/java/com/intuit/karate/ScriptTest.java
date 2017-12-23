@@ -1500,19 +1500,35 @@ public class ScriptTest {
     }
     
     @Test
-    public void testNotPresentMacro() {
+    public void testPresentNotPresentAndOptionalNulls() {
         ScriptContext ctx = getContext();
         Script.assign("json", "{ }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '##null' }", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#null' }", ctx).pass);
-        assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: null }", ctx).pass);        
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: null }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '#present' }", ctx).pass);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#present' }", ctx).pass);
         Script.assign("json", "{ a: 1 }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#present' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '#present' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: null }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '#null' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '##null' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);         
-        assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass); 
+        assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass);
+        Script.assign("json", "{ a: null }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: null }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: null }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#null' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '##null' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '#null' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '##null' }", ctx).pass);        
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);         
+        assertFalse(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass); 
+        assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);         
+        assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass);         
     }
     
     @Test

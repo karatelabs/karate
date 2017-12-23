@@ -1720,6 +1720,7 @@ Marker | Description
 `#ignore` | Skip comparison for this field
 `#null` | Expects actual value to be null
 `#notnull` | Expects actual value to be not-null
+`#present` | Expects the JSON key to be present (value can be null)
 `#notpresent` | Expects the JSON key to be not present
 `#array` | Expects actual value to be a JSON array
 `#object` | Expects actual value to be a JSON object
