@@ -109,6 +109,7 @@ Scenario: #null, ##null, #present and #notpresent
     * match foo != { a: null }
 
     * def foo = { a: null }
+    * match foo == { a: null }
     * match foo == { a: '#null' }    
     * match foo == { a: '##null' }
     * match foo != { a: '#notnull' }
@@ -118,6 +119,8 @@ Scenario: #null, ##null, #present and #notpresent
     * match foo != { a: '#notpresent' }
 
     * def foo = { a: 1 }
+    * match foo == { a: 1 }
+    * match foo == { a: '#number' }
     * match foo == { a: '#notnull' }
     * match foo == { a: '##notnull' }
     * match foo != { a: '#null' }    

@@ -1717,11 +1717,11 @@ The supported markers are the following:
 
 Marker | Description
 ------ | -----------
-`#ignore` | Skip comparison for this field
-`#null` | Expects actual value to be null
-`#notnull` | Expects actual value to be not-null
-`#present` | Expects the JSON key to be present (value can be null)
-`#notpresent` | Expects the JSON key to be not present
+`#ignore` | Skip comparison for this field (whether the data element or JSON key is present or not)
+`#null` | Expects actual value to be `null` (the data element or JSON key *must* be present)
+`#notnull` | Expects actual value to be not-`null` (the data element or JSON key *must* be present)
+`#present` | Expects the actual value to be *any* type or even `null` (the data element or JSON key *must* be present) 
+`#notpresent` | Expects the data element or JSON key to be not present at all
 `#array` | Expects actual value to be a JSON array
 `#object` | Expects actual value to be a JSON object
 `#boolean` | Expects actual value to be a boolean `true` or `false`
@@ -1738,6 +1738,33 @@ If two cross-hatch `#` symbols are used as the prefix (for example: `##number`),
 ```cucumber
 * def foo = { bar: 'baz' }
 * match foo == { bar: '#string', ban: '##string' }
+```
+
+### `#null` and `#notpresent`
+Karate's [`match`](#match) is strict, and the case where a JSON key exists but has a `null` value (`#null`) is considered different from the case where the key is not present at all (`#notpresent`) in the payload.
+
+But note that `##null` can be used to represent a convention that many teams adopt, which is that keys with `null` values are stripped from the JSON payload. In other words, `{ a: 1, b: null }` is considered 'equal' to `{ a: 1 }` and `{ a: 1, b: '##null' }` will `match` both cases.
+
+Here are the various possibilities:
+
+```cucumber
+* def foo = { }
+* match foo == { a: '#notpresent' }
+* match foo == { a: '##null' }
+* match foo == { a: '##notnull' }
+* match foo == { a: '#ignore' }
+
+* def foo = { a: null }
+* match foo == { a: '#null' }    
+* match foo == { a: '##null' }
+* match foo == { a: '#ignore' }
+* match foo == { a: '#present' }
+
+* def foo = { a: 1 }
+* match foo == { a: '#notnull' }
+* match foo == { a: '##notnull' }
+* match foo == { a: '#present' }
+* match foo == { a: '#ignore' }
 ```
 
 #### Remove If Null
@@ -1774,6 +1801,7 @@ And functions work as well ! You can imagine how you could evolve a nice set of 
 ```
 
 Especially since strings can be easily coerced to numbers (and vice-versa) in Javascript, you can combine built-in validators with the self-validation 'predicate' form like this: `'#number? _ > 0'`
+
 ```cucumber
 # given this invalid input (string instead of number)
 * def date = { month: '3' }
@@ -1781,7 +1809,6 @@ Especially since strings can be easily coerced to numbers (and vice-versa) in Ja
 * match date == { month: '#? _ > 0' }
 # but this 'combined form' will fail, which is what we want
 # * match date == { month: '#number? _ > 0' }
-
 ```
 
 #### Referring to the JSON root
@@ -1853,13 +1880,13 @@ It is sometimes useful to be able to check if a key-value-pair does **not** exis
 * match foo !contains { huh: '#notnull' }
 ```
 
-Here's a reminder that the [`#notpresent`](#fuzzy-matching) marker can be combined to check that some keys exist and some *don't* at the same time:
+Here's a reminder that the [`#notpresent`](#null-and-notpresent) marker can be mixed into an equality `match` (`==`) to assert that some keys exist and at the same time ensure that some keys do **not** exist:
 
 ```cucumber
 * def foo = { a: 1 }
 * match foo == { a: '#number', b: '#notpresent' }
 
-# if b can be present, but should be always null
+# if b can be present (optional) but should always be null
 * match foo == { a: '#number', b: '##null' }
 ```
 
