@@ -46,7 +46,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Ideal for testing the highly dynamic responses from [GraphQL](http://graphql.org) API-s because of Karate's built-in [text-manipulation](#text) and [JsonPath](https://github.com/json-path/JsonPath#path-examples) capabilities
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml), Cucumber [Scenario](#the-cucumber-way) Outline [tables](#table), or a [payload builder](#set-multiple) approach [unique to Karate](https://gist.github.com/ptrthomas/d6beb17e92a43220d254af942e3ed3d9)
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
-* Payload assertion failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
+* Comprehensive [assertion capabilities](https://github.com/intuit/karate#fuzzy-matching) - and failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
 * [Embedded UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through a script in debug mode where you can even re-play a step while editing it - a huge time-saver
 * Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and format that even supports cross-field / domain validation logic
 * Scripts can [call other scripts](#calling-other-feature-files) - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
@@ -57,7 +57,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - with both JUnit and TestNG being supported
 * Support for multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for HTTP integration tests
 * Built-in [test-reports](#test-reports) powered by Cucumber-JVM with the option of using third-party (open-source) maven-plugins for even [better-looking reports](karate-demo#example-report)
-* Reports include HTTP request and response [logs in-line](#test-reports), which makes troubleshooting a lot easier
+* Reports include HTTP request and response [logs in-line](#test-reports), which makes [troubleshooting](https://twitter.com/KarateDSL/status/935029435140489216) and [debugging a test](https://twitter.com/KarateDSL/status/935029435140489216) a lot easier
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
@@ -729,11 +729,11 @@ Also refer to the [`configure`](#configure) keyword on how to switch on pretty-p
 
 ## `eval`
 ### Execute arbitrary JavaScript
-Use this 'nuclear option' only when absolutely necessary ! Conditional logic is especially not recommended within test scripts because tests should be deterministic.
+Use this only as a last resort ! Conditional logic is especially not recommended within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
 
 But there are a couple of situations this comes in handy:
 * you *really* don't need to assign a result to a variable
-* `if` style statements - also see [conditional logic](#conditional-logic)
+* statements in the `if` form (also see [conditional logic](#conditional-logic))
 
 ```cucumber
 # just perform an action, we don't care about saving the result
@@ -815,6 +815,7 @@ And def lang = 'en'
 
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
+
 ```cucumber
 # instead of:
 * def cat = <cat><name>Billie</name><scores><score>2</score><score>5</score></scores></cat>
@@ -1610,7 +1611,9 @@ In case you were wondering, variables (and even expressions) are supported on th
 * match foo == bar
 ```
 
-If you are wondering about the finer details of the `match` syntax, the left-hand-side has to be either a variable name, or a 'named' Json-Path or XPath expression. And the right-hand-side can be any valid [Karate expression](#karate-expressions).
+If you are wondering about the finer details of the `match` syntax, the left-hand-side has to be either a variable name, or a 'named' JsonPath or XPath expression. And the right-hand-side can be any valid [Karate expression](#karate-expressions).
+
+> Refer to the section on [JsonPath short-cuts](#jsonpath-short-cuts) for a deeper understanding of 'named' JsonPath expressions in Karate.
 
 ### `match !=` (not equals)
 The 'not equals' operator `!=` works as you would expect:
@@ -1720,7 +1723,7 @@ Marker | Description
 `#ignore` | Skip comparison for this field (whether the data element or JSON key is present or not)
 `#null` | Expects actual value to be `null` (the data element or JSON key *must* be present)
 `#notnull` | Expects actual value to be not-`null` (the data element or JSON key *must* be present)
-`#present` | Expects the actual value to be *any* type or even `null` (the data element or JSON key *must* be present) 
+`#present` | Actual value can be any type or *even* `null` (data element or JSON key *must* be present) 
 `#notpresent` | Expects the data element or JSON key to be not present at all
 `#array` | Expects actual value to be a JSON array
 `#object` | Expects actual value to be a JSON object
@@ -2162,6 +2165,8 @@ The 'short cut' `$variableName` form is also supported. So the above could be re
 * match kitnames == ['Bob', 'Wild']
 ```
 
+Also refer to the summary of [JsonPath short-cuts](#jsonpath-short-cuts).
+
 ### `get` plus index
 A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` (or search filter) in JsonPath, you get a list back even though you typically may be only interested in the first item.
 
@@ -2251,7 +2256,7 @@ After every HTTP call this variable is set with the response body, and is availa
 
 The response is automatically available as a JSON, XML or String object depending on what the response contents are.
 
-As a short-cut, when running JsonPath expressions - '$' represents the `response`.  This has the advantage that you can use pure [JsonPath](https://github.com/jayway/JsonPath#path-examples) and be more concise.  For example:
+As a short-cut, when running JsonPath expressions - `$` represents the `response`.  This has the advantage that you can use pure [JsonPath](https://github.com/jayway/JsonPath#path-examples) and be more concise.  For example:
 
 ```cucumber
 # the three lines below are equivalent
@@ -2278,6 +2283,18 @@ Then match response /cat/name == 'Billie'
 Then match response/cat/name == 'Billie'
 Then match /cat/name == 'Billie'
 ```
+
+### JsonPath short-cuts
+The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate expressions](#karate-expressions) and is different from pure [JsonPath expressions](https://github.com/json-path/JsonPath#path-examples) which always begin with `$.` or `$[`. Here is a summary of what the different 'shapes' mean in Karate:
+
+| Shape | Description |
+| ----- | ----------- |
+`$.bar` | Pure JsonPath equivalent of `$response.bar` where `response` is a JSON object
+`$[0]`  | Pure JsonPath equivalent of `$response[0]` where `response` is a JSON array
+`$foo.bar` | Evaluates the JsonPath `$.bar` on the variable `foo` which is a JSON object or map-like
+`$foo[0]` | Evaluates the JsonPath `$[0]` on the variable `foo` which is a JSON array or list-like
+
+> There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You can if you want to, but since *only* JsonPath (on variables) is allowed here, Karate looks only at the variable name. This is why none of the examples in the documentation use the `$varName` form on the LHS.
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.

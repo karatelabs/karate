@@ -124,16 +124,16 @@ Then match session == <session><locale>en</locale><sessionUser><user><name>john<
 
 # #null and #notpresent
 * def foo = { }
-* match foo == { a: '#notpresent' }
 * match foo == { a: '##null' }
 * match foo == { a: '##notnull' }
+* match foo == { a: '#notpresent' }
 * match foo == { a: '#ignore' }
 
 * def foo = { a: null }
 * match foo == { a: '#null' }    
 * match foo == { a: '##null' }
-* match foo == { a: '#ignore' }
 * match foo == { a: '#present' }
+* match foo == { a: '#ignore' }
 
 * def foo = { a: 1 }
 * match foo == { a: '#notnull' }
