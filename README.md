@@ -1726,6 +1726,15 @@ If two cross-hatch `#` symbols are used as the prefix (for example: `##number`),
 * match foo == { bar: '#string', ban: '##string' }
 ```
 
+### Remove If Null
+A very useful behavior when you combine the optional marker with an [embedded expression](#embedded-expressions) is as follows: if the embedded expression evaluates to `null` - the JSON key (or XML element or attribute) will be deleted from the payload (the equivalent of [`remove`](#remove)).
+
+```cucumber
+* def data = { a: 'hello', b: null, c: null }
+* def json = { foo: '#(data.a)', bar: '#(data.b)', baz: '##(data.c)' }
+* match json == { foo: 'hello', bar: null }
+```
+
 ### `#null` and `#notpresent`
 Karate's [`match`](#match) is strict, and the case where a JSON key exists but has a `null` value (`#null`) is considered different from the case where the key is not present at all (`#notpresent`) in the payload.
 
@@ -1751,15 +1760,6 @@ Here are the various possibilities:
 * match foo == { a: '##notnull' }
 * match foo == { a: '#present' }
 * match foo == { a: '#ignore' }
-```
-
-#### Remove If Null
-A very useful behavior when you combine the optional marker with an [embedded expression](#embedded-expressions) is as follows: if the embedded expression evaluates to `null` - the JSON key (or XML element or attribute) will be deleted from the payload (the equivalent of [`remove`](#remove)).
-
-```cucumber
-* def data = { a: 'hello', b: null, c: null }
-* def json = { foo: '#(data.a)', bar: '#(data.b)', baz: '##(data.c)' }
-* match json == { foo: 'hello', bar: null }
 ```
 
 ### 'Self' Validation Expressions
@@ -1798,7 +1798,6 @@ Especially since strings can be easily coerced to numbers (and vice-versa) in Ja
 ```
 
 #### Referring to the JSON root
-
 You can actually refer to any JsonPath on the document via `$` and perform cross-field or conditional validations ! This example uses [`contains`](#match-contains) and the [`#?`](#self-validation-expressions) 'predicate' syntax, and situations where this comes in useful will be apparent when we discuss [`match each`](#match-each).
 
 ```cucumber
@@ -1809,7 +1808,6 @@ Then match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }
 ```
 
 ### `match` for Text and Streams
-
 ```cucumber
 # when the response is plain-text
 Then match response == 'Health Check OK'
@@ -1885,7 +1883,6 @@ The `!` (not) operator is especially useful for `contains` and JSON arrays.
 ```
 
 #### JSON Arrays
-
 This is a good time to deep-dive into JsonPath, which is perfect for slicing and dicing JSON into manageable chunks. It is worth taking a few minutes to go through the documentation and examples here: [JsonPath Examples](https://github.com/jayway/JsonPath#path-examples).
 
 Here are some example assertions performed while scraping a list of child elements out of the JSON below. Observe how you can `match` the result of a JsonPath expression with your expected data.
@@ -1975,7 +1972,6 @@ Then match each json.hotels contains { totalPrice: '#(_$.roomInformation[0].room
 ```
 
 #### Referring to self
-
 While [`$`](#referring-to-the-json-root) always refers to the [JSON 'root'](#referring-to-the-json-root), note the use of `_$` above to represent the 'current' node of a `match each` iteration. Here is a recap of symbols that can be used in JSON [embedded expressions](#embedded-expressions):
 
 Symbol  | Evaluates To
@@ -2059,7 +2055,6 @@ Refer to this for the complete example: [`schema-like.feature`](karate-junit4/sr
 And there is another example in the [karate-demos](karate-demo): [`schema.feature`](karate-demo/src/test/java/demo/schema/schema.feature) where you can compare Karate's approach with an actual JSON-schema example. You can also find a nice visual comparison and explanation [here](https://twitter.com/KarateDSL/status/878984854012022784).
 
 ### `contains` short-cuts
-
 Especially when payloads are complex (or highly dynamic), it may be more practical to use [`contains`](#match-contains) semantics. Karate has the following short-cut symbols designed to be mixed into [`embedded expressions`](#embedded-expressions):
 
 Symbol  | Means
@@ -2208,7 +2203,6 @@ When handling XML, you sometimes need to call [XPath functions](https://docs.ora
 ```
 
 ### Advanced XPath
-
 Some XPath expressions return a list of nodes (instead of a single node). But since you can express a list of data-elements as a JSON array - even these XPath expressions can be used in `match` statements.
 
 ```cucumber
@@ -2367,9 +2361,7 @@ If a few steps in your flow need to temporarily change (or completely bypass) th
 The [karate-demo](karate-demo) has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature) 
 
 # Code Reuse / Common Routines
-
 ## `call`
-
 In any complex testing endeavor, you would find yourself needing 'common' code that needs to be re-used across multiple test scripts. A typical need would be to perform a 'sign in', or create a fresh user as a pre-requisite for the scenarios being tested.
 
 There are two types of code that can be `call`-ed. `*.feature` files and [JavaScript functions](#calling-javascript-functions).
@@ -2425,7 +2417,6 @@ So you get the picture, any kind of complicated 'sign-in' flow can be scripted a
 Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 
 ### Data-Driven Features
-
 If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something interesting happens. The feature is invoked for each item in the array. Each array element is expected to be a JSON object, and for each object - the behavior will be as described above.
 
 But this time, the return value from the `call` step will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
@@ -2634,10 +2625,9 @@ This does require you to move 'set-up' into a separate `*.feature` (or JavaScrip
 So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
 
 ## `eval`
-### Execute arbitrary JavaScript
-Use this only as a last resort ! Conditional logic is especially not recommended within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
+This is for evaluating arbitrary JavaScript and you are advised to use this only as a last resort ! Conditional logic is not recommended especially within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
 
-But there are a couple of situations this comes in handy:
+But there are a couple of situations where this comes in handy:
 * you *really* don't need to assign a result to a variable
 * statements in the `if` form (also see [conditional logic](#conditional-logic))
 
@@ -2650,7 +2640,6 @@ But there are a couple of situations this comes in handy:
 ```
 
 # Advanced / Tricks
-
 ## Polling
 Waiting or performing a 'sleep' until a certain condition is met is a common need, and this demo example should get you up and running: [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature).
 
