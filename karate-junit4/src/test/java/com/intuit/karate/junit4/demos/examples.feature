@@ -121,3 +121,22 @@ Then match session == <session><locale>en</locale><sessionUser><user><name>john<
 * def temp = 'before'
 * eval if (zone == 'zone1') karate.set('temp', 'after')
 * match temp == 'after'
+
+# #null and #notpresent
+* def foo = { }
+* match foo == { a: '##null' }
+* match foo == { a: '##notnull' }
+* match foo == { a: '#notpresent' }
+* match foo == { a: '#ignore' }
+
+* def foo = { a: null }
+* match foo == { a: '#null' }    
+* match foo == { a: '##null' }
+* match foo == { a: '#present' }
+* match foo == { a: '#ignore' }
+
+* def foo = { a: 1 }
+* match foo == { a: '#notnull' }
+* match foo == { a: '##notnull' }
+* match foo == { a: '#present' }
+* match foo == { a: '#ignore' }

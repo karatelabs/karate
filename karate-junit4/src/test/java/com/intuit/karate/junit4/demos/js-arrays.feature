@@ -97,6 +97,38 @@ Scenario: optional json values
     * def response = [{a: 'one', b: 'two'}, { a: 'one' }]
     * match each response contains { a: 'one', b: '##("two")' }
 
+Scenario: #null, ##null, #present and #notpresent
+    * def foo = { }
+    * match foo != { a: '#present' }
+    * match foo == { a: '#notpresent' }
+    * match foo == { a: '#ignore' }
+    * match foo == { a: '##null' }
+    * match foo != { a: '#null' }
+    * match foo != { a: '#notnull' }
+    * match foo == { a: '##notnull' }
+    * match foo != { a: null }
+
+    * def foo = { a: null }
+    * match foo == { a: null }
+    * match foo == { a: '#null' }    
+    * match foo == { a: '##null' }
+    * match foo != { a: '#notnull' }
+    * match foo != { a: '##notnull' }
+    * match foo == { a: '#present' }
+    * match foo == { a: '#ignore' }
+    * match foo != { a: '#notpresent' }
+
+    * def foo = { a: 1 }
+    * match foo == { a: 1 }
+    * match foo == { a: '#number' }
+    * match foo == { a: '#notnull' }
+    * match foo == { a: '##notnull' }
+    * match foo != { a: '#null' }    
+    * match foo != { a: '##null' }
+    * match foo == { a: '#present' }
+    * match foo == { a: '#ignore' }
+    * match foo != { a: '#notpresent' }
+
 Scenario: get and json path
     * def foo = { bar: { baz: 'ban' } }
     * def res = get foo $..bar[?(@.baz)]
