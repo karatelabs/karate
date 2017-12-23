@@ -1505,9 +1505,12 @@ public class ScriptTest {
         Script.assign("json", "{ }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '##null' }", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: '#null' }", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json", null, "{ a: null }", ctx).pass);        
         Script.assign("json", "{ a: 1 }", ctx);
+        assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '#null' }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '##null' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);         
         assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass); 
     }

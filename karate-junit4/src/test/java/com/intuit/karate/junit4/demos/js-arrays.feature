@@ -101,6 +101,7 @@ Scenario: #null and #notpresent
     * def foo = { }
     * match foo == { a: '#notpresent' }
     * match foo == { a: '#ignore' }
+    * match foo == { a: '##null' }
     * match foo != { a: '#null' }
     * match foo != { a: null }
 

@@ -1852,6 +1852,16 @@ It is sometimes useful to be able to check if a key-value-pair does **not** exis
 * match foo !contains { huh: '#notnull' }
 ```
 
+Here's a reminder that the [`#notpresent`](#fuzzy-matching) marker can be combined to check that some keys exist and some *don't* at the same time:
+
+```cucumber
+* def foo = { a: 1 }
+* match foo == { a: '#number', b: '#notpresent' }
+
+# if b can be present, but should be always null
+* match foo == { a: '#number', b: '##null' }
+```
+
 The `!` (not) operator is especially useful for `contains` and JSON arrays.
 
 ```cucumber
