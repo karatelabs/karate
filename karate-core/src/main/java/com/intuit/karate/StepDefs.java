@@ -613,6 +613,11 @@ public class StepDefs {
         Script.evalJsExpression(exp, context);
     }
     
+    @When("^eval$")
+    public void evalDocString(String exp) {
+        eval(exp);
+    }    
+    
     private void handleFailure(AssertionResult ar) {
         if (!ar.pass) {
             context.logger.error("{}", ar);

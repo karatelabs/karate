@@ -136,6 +136,18 @@ Then match session == <session><locale>en</locale><sessionUser><user><name>john<
 * eval if (zone == 'zone1') karate.set('temp', 'after')
 * match temp == 'after'
 
+* eval
+"""
+var foo = function(v){ return v * v };
+var nums = [0, 1, 2, 3, 4];
+var squares = [];
+for (var n in nums) {
+  squares.push(foo(n));
+}
+karate.set('temp', squares);
+"""
+* match temp == [0, 1, 4, 9, 16]
+
 # #null and #notpresent
 * def foo = { }
 * match foo == { a: '##null' }

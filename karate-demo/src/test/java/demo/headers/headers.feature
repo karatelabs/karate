@@ -28,6 +28,8 @@ Background:
 Scenario: configure function
     this is the approach that most projects would use, especially if some header needs
     to be dynamic for each request. for e.g. see how a 'request_id' header is set in 'headers.js'
+    for an example of how the steps in the 'Background:' can be moved into a re-usable feature
+    refer to 'call-updates-config.feature' and 'common.feature'
 
     * configure headers = read('classpath:headers.js')
     Given path 'headers', token

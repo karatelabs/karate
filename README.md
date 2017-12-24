@@ -77,7 +77,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 A set of real-life examples can be found here: [Karate Demos](karate-demo)
 
 ## Comparison with REST-assured
-For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](http://tinyurl.com/karatera)
+For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison of [Karate vs REST-assured](http://tinyurl.com/karatera) - can help you evaluate Karate.
 
 ## References
 * [REST API Testing with Karate](http://www.baeldung.com/karate-rest-api-testing) - tutorial by [Baeldung](http://www.baeldung.com/author/baeldung/)
@@ -799,7 +799,7 @@ And def lang = 'en'
 > So how would you choose between the two approaches to create JSON ? [Embedded expressions](#embedded-expressions) are useful when you have complex JSON [`read`](#reading-files) from files, because you can auto-replace (or even [remove](#remove-if-null)) data-elements with values dynamically evaluated from variables. And the JSON will still be 'well-formed', and editable in your IDE or text-editor. Embedded expressions also make more sense in [validation](#ignore-or-validate) and [schema-like](#schema-validation) short-cut situations.
 
 ### Multi-Line Expressions
-The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
+The keywords [`def`](#def), [`set`](#set), [`match`](#match), [`request`](#request) and [`eval`](#eval) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
 
 ```cucumber
 # instead of:
@@ -1704,11 +1704,11 @@ The supported markers are the following:
 
 Marker | Description
 ------ | -----------
-`#ignore` | Skip comparison for this field (whether the data element or JSON key is present or not)
-`#null` | Expects actual value to be `null` (the data element or JSON key *must* be present)
-`#notnull` | Expects actual value to be not-`null` (the data element or JSON key *must* be present)
-`#present` | Actual value can be any type or *even* `null` (data element or JSON key *must* be present) 
-`#notpresent` | Expects the data element or JSON key to be not present at all
+`#ignore` | Skip comparison for this field even if the data element or JSON key is present
+`#null` | Expects actual value to be `null`, and the data element or JSON key *must* be present
+`#notnull` | Expects actual value to be not-`null`
+`#present` | Actual value can be any type or *even* `null`, and the element or JSON key *must* be present
+`#notpresent` | Expects the data element or JSON key to be **not** present at all
 `#array` | Expects actual value to be a JSON array
 `#object` | Expects actual value to be a JSON object
 `#boolean` | Expects actual value to be a boolean `true` or `false`
@@ -2144,7 +2144,7 @@ The 'short cut' `$variableName` form is also supported. Refer to [JsonPath short
 * match kitnames == ['Bob', 'Wild']
 ```
 
-It is worth repeating that the above can be condensed into 2 lines. Note that since only JsonPath is expected on the left-hand-side of the `==` sign of a [`match`](#match) statement, you don't need to prefix the variable reference with `$`:
+It is worth repeating that the above can be condensed into 2 lines. Note that since [only JsonPath is expected](#match-and-variables) on the left-hand-side of the `==` sign of a [`match`](#match) statement, you don't need to prefix the variable reference with `$`:
 
 ```cucumber
 * match cat.kittens[*].id == [23, 42]
@@ -2281,7 +2281,7 @@ The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate 
 `$foo.bar` | Evaluates the JsonPath `$.bar` on the variable `foo` which is a JSON object or map-like
 `$foo[0]` | Evaluates the JsonPath `$[0]` on the variable `foo` which is a JSON array or list-like
 
-> There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You can if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
+> There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You *can* if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.
@@ -2638,11 +2638,12 @@ This does require you to move 'set-up' into a separate `*.feature` (or JavaScrip
 So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
 
 ## `eval`
-This is for evaluating arbitrary JavaScript and you are advised to use this only as a last resort ! Conditional logic is not recommended especially within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
+> This is for evaluating arbitrary JavaScript and you are advised to use this only as a last resort ! Conditional logic is not recommended especially within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
 
-But there are a couple of situations where this comes in handy:
+There are a few situations where this comes in handy:
 * you *really* don't need to assign a result to a variable
 * statements in the `if` form (also see [conditional logic](#conditional-logic))
+* 'one-off' logic (or [Java interop](#java-interop)) where you don't need the ceremony of a [re-usable function](#calling-javascript-functions)
 
 ```cucumber
 # just perform an action, we don't care about saving the result
@@ -2650,6 +2651,19 @@ But there are a couple of situations where this comes in handy:
 
 # do something only if a condition is true
 * eval if (zone == 'zone1') karate.set('temp', 'after')
+
+# you can use multiple lines of JavaScript if needed
+* eval
+"""
+var foo = function(v){ return v * v };
+var nums = [0, 1, 2, 3, 4];
+var squares = [];
+for (var n in nums) {
+  squares.push(foo(n));
+}
+karate.set('temp', squares);
+"""
+* match temp == [0, 1, 4, 9, 16]
 ```
 
 # Advanced / Tricks
