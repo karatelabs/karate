@@ -66,6 +66,20 @@ Then match session == <session><locale>en</locale><sessionUser><user><name>john<
 # you can do this in one line
 * match actual == get[0] cat.kittens[*].id
 
+# get short cuts
+* def kitnums = $cat.kittens[*].id
+* match kitnums == [23, 42]
+* def kitnames = $cat.kittens[*].name
+* match kitnames == ['Bob', 'Wild']
+
+# the above can be condensed to
+* match cat.kittens[*].id == [23, 42]
+* match cat.kittens[*].name == ['Bob', 'Wild']
+
+# or if you prefer using 'pure' JsonPath
+* match cat $.kittens[*].id == [23, 42]
+* match cat $.kittens[*].name == ['Bob', 'Wild']
+
 * def LocalDateTime = Java.type('java.time.LocalDateTime')
 * def createDate = LocalDateTime.now() + ''
 * def expiryDate = LocalDateTime.now().plusMinutes(5) + ''
@@ -121,6 +135,18 @@ Then match session == <session><locale>en</locale><sessionUser><user><name>john<
 * def temp = 'before'
 * eval if (zone == 'zone1') karate.set('temp', 'after')
 * match temp == 'after'
+
+* eval
+"""
+var foo = function(v){ return v * v };
+var nums = [0, 1, 2, 3, 4];
+var squares = [];
+for (var n in nums) {
+  squares.push(foo(n));
+}
+karate.set('temp', squares);
+"""
+* match temp == [0, 1, 4, 9, 16]
 
 # #null and #notpresent
 * def foo = { }

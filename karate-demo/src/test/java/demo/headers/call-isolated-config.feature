@@ -10,7 +10,6 @@ Background:
 * url demoBaseUrl
 
 Scenario: fail with a 400 since the header was not set
-
     Given path 'headers', setup.token
     And param url = demoBaseUrl
     When method get
@@ -18,7 +17,6 @@ Scenario: fail with a 400 since the header was not set
     Then status 400
 
 Scenario: fail with a 400 since the cookie was not set
-
     * configure headers = { Authorization: '#(setup.token + setup.time + demoBaseUrl)' }
     Given path 'headers', setup.token
     And param url = demoBaseUrl
@@ -26,7 +24,6 @@ Scenario: fail with a 400 since the cookie was not set
     Then status 400
 
 Scenario: manually set header and cookie to pass
-
     * headers { Authorization: '#(setup.token + setup.time + demoBaseUrl)' }
     * cookie time = setup.time
     Given path 'headers', setup.token
@@ -35,7 +32,6 @@ Scenario: manually set header and cookie to pass
     Then status 200
 
 Scenario: alternative way of setting headers and cookies 1
-
     * configure headers = { Authorization: '#(setup.token + setup.time + demoBaseUrl)' }
     * configure cookies = { time: '#(setup.time)' }
     Given path 'headers', setup.token
@@ -44,7 +40,6 @@ Scenario: alternative way of setting headers and cookies 1
     Then status 200
 
 Scenario: alternative way of setting headers and cookies 2
-
     * header Authorization = (setup.token + setup.time + demoBaseUrl)
     * cookies { time: '#(setup.time)' }
     Given path 'headers', setup.token

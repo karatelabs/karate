@@ -77,7 +77,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 A set of real-life examples can be found here: [Karate Demos](karate-demo)
 
 ## Comparison with REST-assured
-For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison can help you evaluate Karate: [Karate vs REST-assured](http://tinyurl.com/karatera)
+For teams familiar with or currently using [REST-assured](http://rest-assured.io), this detailed comparison of [Karate vs REST-assured](http://tinyurl.com/karatera) - can help you evaluate Karate.
 
 ## References
 * [REST API Testing with Karate](http://www.baeldung.com/karate-rest-api-testing) - tutorial by [Baeldung](http://www.baeldung.com/author/baeldung/)
@@ -799,7 +799,7 @@ And def lang = 'en'
 > So how would you choose between the two approaches to create JSON ? [Embedded expressions](#embedded-expressions) are useful when you have complex JSON [`read`](#reading-files) from files, because you can auto-replace (or even [remove](#remove-if-null)) data-elements with values dynamically evaluated from variables. And the JSON will still be 'well-formed', and editable in your IDE or text-editor. Embedded expressions also make more sense in [validation](#ignore-or-validate) and [schema-like](#schema-validation) short-cut situations.
 
 ### Multi-Line Expressions
-The keywords [`def`](#def), [`set`](#set), [`match`](#match) and [`request`](#request) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
+The keywords [`def`](#def), [`set`](#set), [`match`](#match), [`request`](#request) and [`eval`](#eval) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
 
 ```cucumber
 # instead of:
@@ -1489,7 +1489,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. However, if you need to clear any cookies, just do `configure cookies = null` at any time.
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
 `logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting (default `false`)
-`printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' (default `true`)
+`printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' by setting as `false` (default `true`)
 `afterScenario` | JS function | Will be called [after every `Scenario`](#hooks) (or `Example` within a `Scenario Outline`), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
@@ -1704,11 +1704,11 @@ The supported markers are the following:
 
 Marker | Description
 ------ | -----------
-`#ignore` | Skip comparison for this field (whether the data element or JSON key is present or not)
-`#null` | Expects actual value to be `null` (the data element or JSON key *must* be present)
-`#notnull` | Expects actual value to be not-`null` (the data element or JSON key *must* be present)
-`#present` | Actual value can be any type or *even* `null` (data element or JSON key *must* be present) 
-`#notpresent` | Expects the data element or JSON key to be not present at all
+`#ignore` | Skip comparison for this field even if the data element or JSON key is present
+`#null` | Expects actual value to be `null`, and the data element or JSON key *must* be present
+`#notnull` | Expects actual value to be not-`null`
+`#present` | Actual value can be any type or *even* `null`, and the element or JSON key *must* be present
+`#notpresent` | Expects the data element or JSON key to be **not** present at all
 `#array` | Expects actual value to be a JSON array
 `#object` | Expects actual value to be a JSON object
 `#boolean` | Expects actual value to be a boolean `true` or `false`
@@ -2135,7 +2135,7 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 ```
 
 ### `get` short-cut
-The 'short cut' `$variableName` form is also supported. So the above could be re-written as follows:
+The 'short cut' `$variableName` form is also supported. Refer to [JsonPath short-cuts](#jsonpath-short-cuts) for a detailed explanation. So the above could be re-written as follows:
 
 ```cucumber
 * def kitnums = $cat.kittens[*].id
@@ -2144,10 +2144,19 @@ The 'short cut' `$variableName` form is also supported. So the above could be re
 * match kitnames == ['Bob', 'Wild']
 ```
 
-Also refer to the summary of [JsonPath short-cuts](#jsonpath-short-cuts).
+It is worth repeating that the above can be condensed into 2 lines. Note that since [only JsonPath is expected](#match-and-variables) on the left-hand-side of the `==` sign of a [`match`](#match) statement, you don't need to prefix the variable reference with `$`:
+
+```cucumber
+* match cat.kittens[*].id == [23, 42]
+* match cat.kittens[*].name == ['Bob', 'Wild']
+
+# if you prefer using 'pure' JsonPath, you can do this
+* match cat $.kittens[*].id == [23, 42]
+* match cat $.kittens[*].name == ['Bob', 'Wild']
+```
 
 ### `get` plus index
-A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` (or search filter) in JsonPath, you get a list back even though you typically may be only interested in the first item.
+A convenience that the `get` syntax supports (but not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` (or search filter) in JsonPath, you get a list back - even though typically you may be interested in only the first item.
 
 ```cucumber
 * def actual = 23
@@ -2262,7 +2271,7 @@ Then match response/cat/name == 'Billie'
 Then match /cat/name == 'Billie'
 ```
 
-### JsonPath short-cuts
+#### JsonPath short-cuts
 The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate expressions](#karate-expressions) and is *slightly* different from pure [JsonPath expressions](https://github.com/json-path/JsonPath#path-examples) which always begin with `$.` or `$[`. Here is a summary of what the different 'shapes' mean in Karate:
 
 | Shape | Description |
@@ -2272,7 +2281,7 @@ The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate 
 `$foo.bar` | Evaluates the JsonPath `$.bar` on the variable `foo` which is a JSON object or map-like
 `$foo[0]` | Evaluates the JsonPath `$[0]` on the variable `foo` which is a JSON array or list-like
 
-> There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You can if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
+> There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You *can* if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.
@@ -2370,10 +2379,10 @@ There are two types of code that can be `call`-ed. `*.feature` files and [JavaSc
 ## Calling other `*.feature` files
 When you have a sequence of HTTP calls that need to be repeated for multiple test scripts, Karate allows you to treat a `*.feature` file as a re-usable unit. You can also pass parameters into the `*.feature` file being called, and extract variables out of the invocation result.
 
-Here is an example of how to call another feature file, using the [`read`](#reading-files) function:
+Here is an example of using the `call` keyword to invoke another feature file, loaded using the [`read`](#reading-files) function:
 
 ```cucumber
-Feature: some feature
+Feature: which makes a 'call' to another re-usable feature
 
 Background:
 * configure headers = read('classpath:my-headers.js')
@@ -2385,11 +2394,12 @@ Scenario: some scenario
 ```
 
 The contents of `my-signin.feature` are shown below. A few points to note:
-* Karate passes all context 'as-is' into the feature file being invoked. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example `loginUrlBase` in the example below. Note that JSON, XML, Map-like or List-like variables are 'passed by reference' which means that 'called' feature steps *can* update or mutate them. Use the [`copy`](#copy) keyword if needed.
+* Karate creates a new 'context' for the feature file being invoked but passes along all variables and configuration. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example `loginUrlBase` in the example below. 
+* When you use [`def`](#def) in the 'called' feature, it will **not** over-write variables in the 'calling' feature (unless you explicitly choose to use [shared scope](#shared-scope)). But note that JSON, XML, Map-like or List-like variables are 'passed by reference' which means that 'called' feature steps can *update* or 'mutate' them using the [`set`](#set) keyword. Use the [`copy`](#copy) keyword to 'clone' a JSON or XML payload if needed, and refer to this example for more details: [`copy-caller.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/copy-caller.feature).
 * You can add (or over-ride) variables by passing a call 'argument' as shown above. Only one JSON argument is allowed, but this does not limit you in any way as you can use any complex JSON structure. You can even initialize the JSON in a separate step and pass it by name, especially if it is complex. Observe how using JSON for parameter-passing makes things super-readable. In the 'called' feature, the argument can also be accessed using the built-in variable: [`__arg`](#built-in-variables-for-call).
 * **All** variables that were defined (using [`def`](#def)) in the 'called' script would be returned as 'keys' within a JSON-like object. Note that this includes ['built-in' variables](#special-variables), which means that things like the last value of [`response`](#response) would also be present. In the example above you can see that the JSON 'envelope' returned - is assigned to the variable named `signIn`. And then getting hold of any data that was generated by the 'called' script is as simple as accessing it by name, for example `signIn.authToken` as shown above. This design has the following advantages:
   * 'called' Karate scripts don't need to use any special keywords to 'return' data and can behave like 'normal' Karate tests in 'stand-alone' mode if needed
-  * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script (unless you explicitly choose to use [shared scope](#shared-scope))
+  * the data 'return' mechanism is 'safe', there is no danger of the 'called' script over-writing any variables in the 'calling' (or parent) script (unless you use [shared scope](#shared-scope))
   * the need to explicitly 'unpack' variables by name from the returned 'envelope' keeps things readable and maintainable in the 'caller' script
 
 ```cucumber
@@ -2411,9 +2421,11 @@ Then status 200
 And set authToken.projectId = response.projects[0].projectId;
 ```
 
-The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another HTTP call (a GET) is made for retrieving a list of projects for the signed-in user, the first one is 'chosen' and added to the returned 'auth token' JSON object.
+The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another HTTP call (a GET) is made for retrieving a list of projects for the signed-in user, and the first one is 'selected' and added to the returned 'auth token' JSON object.
 
 So you get the picture, any kind of complicated 'sign-in' flow can be scripted and re-used.
+
+> If the second HTTP call above expects headers to be set by `my-headers.js` - which in turn depends on the `authToken` variable being updated, you will need to duplicate the line `* configure headers = read('classpath:my-headers.js')` from the 'caller' feature here as well. The above example does not use [shared scope](#shared-scope), which means that the variables in the 'calling' (parent) feature are not shared by the 'called' `my-signin.feature`. The use of `call` (or [`callonce`](#callonce)) *without* a `def` is the [recommended pattern](#shared-scope) for implementing re-usable authentication setup flows.
 
 Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 
@@ -2469,7 +2481,7 @@ Variable  | Refers To
 Refer to this [demo feature](karate-demo) for an example: [`kitten-create.feature`](karate-demo/src/test/java/demo/calltable/kitten-create.feature)
 
 ### `copy`
-For a [`call`](#call) (or [`callonce`](#callonce)) - payload / data structures (JSON, XML, Map-like or List-like) variables are 'passed by reference' which means that steps within the 'called' feature can update or mutate them. This is actually the intent most of the time and is convenient. If you want to pass a 'clone' to a 'called' feature, you can do so using the rarely used `copy` keyword that works very similar to [type conversion](#type-conversion). This is best explained in this example: [`copy-caller.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/copy-caller.feature)
+For a [`call`](#call) (or [`callonce`](#callonce)) - payload / data structures (JSON, XML, Map-like or List-like) variables are 'passed by reference' which means that steps within the 'called' feature can update or 'mutate' them, for e.g. using the [`set`](#set) keyword. This is actually the intent most of the time and is convenient. If you want to pass a 'clone' to a 'called' feature, you can do so using the rarely used `copy` keyword that works very similar to [type conversion](#type-conversion). This is best explained in the last scenario of this example: [`copy-caller.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/copy-caller.feature)
 
 ## Calling JavaScript Functions
 Examples of [defining and using JavaScript functions](#javascript-functions) appear in earlier sections of this document. Being able to define and re-use JavaScript functions is a powerful capability of Karate. For example, you can:
@@ -2542,13 +2554,18 @@ This behavior where all key-value pairs in the returned map-like object get auto
 * call read('classpath:common-setup.feature') config
 ```
 
-You can use [`callonce`](#callonce) instead of `call` in case you have multiple `Scenario` sections or [`Examples`](#data-driven-tests). Note the 'inline' use of the [read](#reading-files) function as a short-cut above. This applies to JS functions as well:
+You can use [`callonce`](#callonce) instead of `call` within the [`Background`](#script-structure) in case you have multiple `Scenario` sections or [`Examples`](#data-driven-tests). Note the 'inline' use of the [read](#reading-files) function as a short-cut above. This applies to JS functions as well:
 
 ```cucumber
 * call read('my-function.js')
 ```
 
-Refer to this directory in the [karate-demo](karate-demo) to see examples, and how calling with 'shared scope' is different from when you use a variable assignment: [karate-demo/headers](karate-demo/src/test/java/demo/headers)
+These heavily commented [demo examples](karate-demo) can help you understand 'shared scope' better, and are designed to get you started with creating re-usable 'sign-in' or authentication flows:
+
+| Scope | Caller Feature | Called Feature |
+| ----- | -------------- | -------------- |
+Isolated | [`call-isolated-headers.feature`](karate-demo/src/test/java/demo/headers/call-isolated-headers.feature) | [`common-multiple.feature`](karate-demo/src/test/java/demo/headers/common-multiple.feature)
+Shared | [`call-updates-config.feature`](karate-demo/src/test/java/demo/headers/call-updates-config.feature) | [`common.feature`](karate-demo/src/test/java/demo/headers/common.feature)
 
 ### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
@@ -2617,7 +2634,7 @@ function(arg) {
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
 ## `callonce`
-Cucumber has a limitation where `Background` steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
+Cucumber has a limitation where [`Background`](#script-structure) steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
 
 Karate's `callonce` keyword behaves exactly like [`call`](#call) but is guaranteed to execute only once. The results of the first call are cached, and any future calls will simply return the cached result instead of executing the JavaScript function (or feature) again and again. 
 
@@ -2626,11 +2643,12 @@ This does require you to move 'set-up' into a separate `*.feature` (or JavaScrip
 So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
 
 ## `eval`
-This is for evaluating arbitrary JavaScript and you are advised to use this only as a last resort ! Conditional logic is not recommended especially within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
+> This is for evaluating arbitrary JavaScript and you are advised to use this only as a last resort ! Conditional logic is not recommended especially within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
 
-But there are a couple of situations where this comes in handy:
+There are a few situations where this comes in handy:
 * you *really* don't need to assign a result to a variable
 * statements in the `if` form (also see [conditional logic](#conditional-logic))
+* 'one-off' logic (or [Java interop](#java-interop)) where you don't need the ceremony of a [re-usable function](#calling-javascript-functions)
 
 ```cucumber
 # just perform an action, we don't care about saving the result
@@ -2638,6 +2656,19 @@ But there are a couple of situations where this comes in handy:
 
 # do something only if a condition is true
 * eval if (zone == 'zone1') karate.set('temp', 'after')
+
+# you can use multiple lines of JavaScript if needed
+* eval
+"""
+var foo = function(v){ return v * v };
+var nums = [0, 1, 2, 3, 4];
+var squares = [];
+for (var n in nums) {
+  squares.push(foo(n));
+}
+karate.set('temp', squares);
+"""
+* match temp == [0, 1, 4, 9, 16]
 ```
 
 # Advanced / Tricks
