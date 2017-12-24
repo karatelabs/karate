@@ -16,6 +16,9 @@ Background:
     And def token = response
     And def time = responseCookies.time.value
 
+    # the above flow will typically need to be re-used by multiple features
+    # refer to 'call-updates-config.feature' for the recommended approach
+
     # note that the responseCookies will be auto-sent as cookies for all future requests
     # even the responseCookies can be validated using 'match'
     And match responseCookies contains { time: '#notnull' }

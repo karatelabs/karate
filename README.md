@@ -1489,7 +1489,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. However, if you need to clear any cookies, just do `configure cookies = null` at any time.
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
 `logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting (default `false`)
-`printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' (default `true`)
+`printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' by setting as `false` (default `true`)
 `afterScenario` | JS function | Will be called [after every `Scenario`](#hooks) (or `Example` within a `Scenario Outline`), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
@@ -2135,7 +2135,7 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 ```
 
 ### `get` short-cut
-The 'short cut' `$variableName` form is also supported. So the above could be re-written as follows:
+The 'short cut' `$variableName` form is also supported. Refer to [JsonPath short-cuts](#jsonpath-short-cuts) for a detailed explanation. So the above could be re-written as follows:
 
 ```cucumber
 * def kitnums = $cat.kittens[*].id
@@ -2144,10 +2144,19 @@ The 'short cut' `$variableName` form is also supported. So the above could be re
 * match kitnames == ['Bob', 'Wild']
 ```
 
-Also refer to the summary of [JsonPath short-cuts](#jsonpath-short-cuts).
+It is worth repeating that the above can be condensed into 2 lines. Note that since only JsonPath is expected on the left-hand-side of the `==` sign of a [`match`](#match) statement, you don't need to prefix the variable reference with `$`:
+
+```cucumber
+* match cat.kittens[*].id == [23, 42]
+* match cat.kittens[*].name == ['Bob', 'Wild']
+
+# if you prefer using 'pure' JsonPath, you can do this
+* match cat $.kittens[*].id == [23, 42]
+* match cat $.kittens[*].name == ['Bob', 'Wild']
+``
 
 ### `get` plus index
-A convenience that the `get` syntax supports (not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` (or search filter) in JsonPath, you get a list back even though you typically may be only interested in the first item.
+A convenience that the `get` syntax supports (but not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` (or search filter) in JsonPath, you get a list back - even though typically you may be interested in only the first item.
 
 ```cucumber
 * def actual = 23
@@ -2411,9 +2420,11 @@ Then status 200
 And set authToken.projectId = response.projects[0].projectId;
 ```
 
-The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another HTTP call (a GET) is made for retrieving a list of projects for the signed-in user, the first one is 'chosen' and added to the returned 'auth token' JSON object.
+The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another HTTP call (a GET) is made for retrieving a list of projects for the signed-in user, and the first one is 'selected' and added to the returned 'auth token' JSON object.
 
 So you get the picture, any kind of complicated 'sign-in' flow can be scripted and re-used.
+
+> If the second HTTP call above expects headers to be set by `my-headers.js` - which in turn depends on the `authToken` variable being updated, you will need to duplicate the line `* configure headers = read('classpath:my-headers.js')` from the 'caller' feature here as well. The above example does not use [shared scope](#shared-scope), which means that the variables in the 'calling' (parent) feature are not shared by the 'called' `my-signin.feature`. The use of `call` (or [`callonce`](#callonce)) *without* a `def` is the recommended pattern for implementing re-usable authentication setup flows, and refer to this example (especially the comments) to understand how 'shared-scope' can simplify things: [`call-updates-config.feature`](karate-demo/src/test/java/demo/headers/call-updates-config.feature) | [`common.feature`](karate-demo/src/test/java/demo/headers/common.feature).
 
 Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 
