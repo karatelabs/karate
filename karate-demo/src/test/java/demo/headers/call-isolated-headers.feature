@@ -14,7 +14,7 @@ Background:
 # a cookie is also needed in our authentication demo example
 * cookie time = setup.time
 
-# for an example of using 'shared scope' which simplified the above
+# for an example of using 'shared scope' which simplifies the above
 # refer to 'call-updates-config.feature' and 'common.feature'
 
 * url demoBaseUrl
