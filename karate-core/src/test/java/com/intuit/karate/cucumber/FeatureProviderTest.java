@@ -41,11 +41,10 @@ public class FeatureProviderTest {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureProviderTest.class);
 
-    private Map<String, Object> getRequest(String name) {
+    private ScriptValueMap getRequest(String name) {
         return Match.init()
                 .defText("name", name)
-                .def("cat", "{ name: #(name) }")
-                .eval("{ request: '#(cat)' }").asMap();
+                .def("request", "{ name: '#(name)' }").vars();
     }
 
     @Test

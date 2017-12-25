@@ -23,7 +23,7 @@ public class FeatureServerTest {
     }
 
     @Test
-    public void testServer() throws Exception {
+    public void testServer() {
         CucumberRunner.runFeature(getClass(), "client.feature", null, true);
     }
 

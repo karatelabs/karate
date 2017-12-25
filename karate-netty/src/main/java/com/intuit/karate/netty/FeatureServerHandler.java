@@ -41,15 +41,14 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import io.netty.handler.codec.http.HttpUtil;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -74,14 +73,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         HttpRequest request = new HttpRequest();
         request.setUri(msg.uri());
         request.setMethod(msg.method().name());
-        HttpHeaders headers = msg.headers();
-        if (!headers.isEmpty()) {
-            headers.forEach(h -> {
-                CharSequence key = h.getKey();
-                CharSequence value = h.getValue();
-                request.addHeader(key.toString(), value.toString());
-            });
-        }
+        msg.headers().forEach(h -> request.addHeader(h.getKey(), h.getValue()));
         HttpContent httpContent = (HttpContent) msg;
         ByteBuf content = httpContent.content();
         if (content.isReadable()) {
@@ -103,29 +95,33 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         Match match = Match.init()
                 .defText(ScriptValueMap.VAR_REQUEST_URI, requestUri)
                 .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
+                .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
                 .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
                 .def(ScriptValueMap.VAR_REQUEST_PARAMS, qsDecoder.parameters());
         if (request.getBody() != null) {
             String requestBody = FileUtils.toString(request.getBody());
             match.def(ScriptValueMap.VAR_REQUEST, requestBody);
         }
-        ScriptValueMap result = provider.handle(match.allAsMap());
+        ScriptValueMap result = provider.handle(match.vars());
         ScriptValue responseValue = result.get(ScriptValueMap.VAR_RESPONSE);
         ScriptValue responseStatus = result.get(ScriptValueMap.VAR_RESPONSE_STATUS);
         HttpResponseStatus nettyResponseStatus;
-        if (responseStatus != null) {
-            nettyResponseStatus = HttpResponseStatus.valueOf(Integer.valueOf(responseStatus.getValue().toString()));
-        } else {
+        if (responseStatus == null) {
             nettyResponseStatus = OK;
+        } else {
+            nettyResponseStatus = HttpResponseStatus.valueOf(Integer.valueOf(responseStatus.getValue().toString()));
         }
-        FullHttpResponse response = new DefaultFullHttpResponse(
-                HTTP_1_1, nettyResponseStatus, Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8));
+        FullHttpResponse response;
+        if (responseValue == null) {
+            response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus);
+        } else {
+            ByteBuf responseBuf = Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8);
+            response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus, responseBuf);
+        }
         ScriptValue responseHeaders = result.get(ScriptValueMap.VAR_RESPONSE_HEADERS);
-        Map<String, Object> headersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(provider.getContext());
-        if (headersMap != null) {
-            headersMap.forEach((k, v) -> response.headers().set(k, v));
-        }
-        if (headersMap == null || !headersMap.containsKey(HttpUtils.CONTENT_TYPE)) {
+        Map<String, Object> headersMap = responseHeaders == null ? Collections.EMPTY_MAP : responseHeaders.evalAsMap(provider.getContext());
+        headersMap.forEach((k, v) -> response.headers().set(k, v));
+        if (!headersMap.containsKey(HttpUtils.CONTENT_TYPE) && responseValue != null) {
             response.headers().set(HttpUtils.CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }
         boolean keepAlive = HttpUtil.isKeepAlive(nettyRequest);

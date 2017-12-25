@@ -28,6 +28,7 @@ import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -115,7 +116,7 @@ public class ScriptBridge {
         ScriptValue sv = new ScriptValue(o);
         DocumentContext doc = Script.toJsonDoc(sv, context);
         return JsonUtils.fromJson(doc.jsonString(), className);
-    }
+    }   
     
     public Object call(String fileName) {
         return call(fileName, null);
@@ -159,10 +160,35 @@ public class ScriptBridge {
     }
     
     public boolean pathMatches(String path) {
-        String uri = (String) get("requestUri");
+        String uri = (String) get(ScriptValueMap.VAR_REQUEST_URI);
         Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
-        set("requestPaths", map);
+        set(ScriptBindings.REQUEST_PATHS, map);
         return map != null;
+    }
+    
+    private boolean headerValueContains(String name, String test) {
+        Map<String, List<String>> headers = (Map) get(ScriptValueMap.VAR_REQUEST_HEADERS);
+        if (headers == null) {
+            return false;
+        }
+        List<String> list = headers.get(name);
+        if (list == null) {
+            return false;
+        }
+        for (String s: list) {
+            if (s != null && s.contains(test)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public boolean typeContains(String test) {
+        return headerValueContains(HttpUtils.CONTENT_TYPE, test);
+    } 
+    
+    public boolean acceptContains(String test) {
+        return headerValueContains(HttpUtils.ACCEPT, test);        
     }
     
     public String getEnv() {

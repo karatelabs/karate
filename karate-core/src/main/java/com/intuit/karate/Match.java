@@ -120,6 +120,10 @@ public class Match {
         return context.vars.toPrimitiveMap();
     }
     
+    public ScriptValueMap vars() {
+        return context.vars;
+    }    
+    
     public String allAsJson() {
         return JsonUtils.toJson(context.vars.toPrimitiveMap());
     }    

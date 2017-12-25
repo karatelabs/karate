@@ -56,6 +56,9 @@ public class ScriptBindings implements Bindings {
     public static final String KARATE = "karate";
     public static final String READ = "read";
     public static final String PATH_MATCHES = "pathMatches";
+    public static final String TYPE_CONTAINS = "typeContains";
+    public static final String ACCEPT_CONTAINS = "acceptContains";
+    public static final String REQUEST_PATHS = "requestPaths";
 
     public ScriptBindings(ScriptContext context) {
         this.vars = context.vars;

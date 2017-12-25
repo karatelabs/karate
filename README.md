@@ -329,6 +329,14 @@ The `features` parameter in the annotation can take an array, so if you wanted t
     "classpath:animals/cats/cats-get.feature"})
 ```
 
+And most convenient of all, you can even point to a directory (or package). Combine this with [tags](#test-suites) to execute multiple features, without having to list every one of them.
+
+```java
+@CucumberOptions(features = "classpath:animals/cats", tags = "~@ignore") 
+// this will run all feature files in 'animals/cats'
+// except the ones tagged as @ignore
+```
+
 > For TestNG: The `@CucumberOptions` annotation can be used the same way.
 
 ## Command Line
