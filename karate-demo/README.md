@@ -1,6 +1,5 @@
 # Karate Demo
-This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services
-as well as demonstrate various Karate features and best-practices.
+This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-application that exposes some functionality as web-service end-points. And includes a set of Karate examples that test these services as well as demonstrate various Karate features and best-practices.
 
 | Example | Demonstrates
 ----------| --------
@@ -33,26 +32,24 @@ as well as demonstrate various Karate features and best-practices.
 [`TestBase.java`](src/test/java/demo/TestBase.java#L22) | This is specific to Spring Boot, but this code takes care of starting the embedded app-server and dynamically chooses a free port. The chosen port value is passed to the above config routine via a Java `System.setProperty()` call.
 [`DemoTest.java`](src/test/java/demo/DemoTest.java) | This Java class is strategically placed at the root of the [directory structure](https://github.com/intuit/karate#naming-conventions) containing `*.feature` files. Note how the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation allows you to skip any `*.feature` files if they have `@ignore` at the start. The `plugin` option specifies the reports and formats desired, which can be over-ridden on the command-line or by the maven config described below.
 [`DemoTestParallel.java`](src/test/java/demo/DemoTestParallel.java) | Karate has a utility to [run tests in parallel](https://github.com/intuit/karate#parallel-execution) and this does not depend on JUnit, TestNG or even Maven. A JUnit XML report file and Cucumber JSON report file would be generated for each feature executed. You can easily configure your CI with the location of these files so that you get proper test-reports after a build. This is **the** recommended way of running Karate as part of an automated build or CI pipeline. Here, the (optional) third-party [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library is being used (see details below).
-[`pom.xml`](pom.xml#L100) | Line 100 shows how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect.
+[`pom.xml`](pom.xml#L107) | Line 107 shows how the [`maven-surefire-plugin`](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html) can be configured to point to what is basically your 'test-suite'. You may not even need to do this if you follow the [recommended naming conventions and folder structure](https://github.com/intuit/karate#naming-conventions), and then Maven defaults would work as you would expect.
 
 ## Gradle
+This project contains an example [`build.gradle`](build.gradle) that can be used as a reference by Gradle users who want to use the [recommended directory structure](https://github.com/intuit/karate#naming-conventions).
 
-The project contains an example build.gradle that will allow gradle users make use of the karate framework with the best practice layout.
-
-To generate the gradle wrapper (as per gradle best practice):
+To generate the Gradle wrapper (as is usual for Gradle):
 
 ```
 gradle wrapper
 ```
 
-After that use the gradle wrapper to run the tests:
+After that use the Gradle wrapper to run the tests:
 
 ```
 ./gradlew test
 ```
 
 ## Example Report
-
 > This is optional and if you use the parallel runner as described above, the JUnit XML emitted is sufficient for most CI tools (e.g. Jenkins) to generate test reports and determine whether the build passed or failed. But the advantage of the approach below is that it includes HTTP request and response logs in-line with the report (see [video](https://twitter.com/KarateDSL/status/899671441221623809)).
 
 Since the [maven-cucumber-reporting](https://github.com/damianszczepanik/maven-cucumber-reporting) plugin [has an issue](https://github.com/damianszczepanik/maven-cucumber-reporting/issues/61#issuecomment-310815425) where reports will not be generated if the build fails, we recommend that you directly use the [cucumber-reporting](https://github.com/damianszczepanik/cucumber-reporting) library programmatically in combination with the [Karate parallel runner](https://github.com/intuit/karate#parallel-execution). Here is how:
