@@ -162,7 +162,7 @@ public class ScriptTest {
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar", value.getAsString());
-        value = Script.evalKarateExpression("myXml/root/foo", ctx);
+        value = Script.evalKarateExpression("$myXml/root/foo", ctx);
         assertEquals("bar", value.getAsString());
     }
 
@@ -505,7 +505,7 @@ public class ScriptTest {
     public void testAssignAndMatchXmlText() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
-        Script.assign("myStr", "myXml/root/foo", ctx);
+        Script.assign("myStr", "$myXml/root/foo", ctx);
         assertTrue(Script.assertBoolean("myStr == 'bar'", ctx).pass);
     }
 
@@ -513,7 +513,7 @@ public class ScriptTest {
     public void testAssignAndMatchXmlChunk() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
-        Script.assign("myChunk", "myXml/root/foo", ctx);
+        Script.assign("myChunk", "$myXml/root/foo", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myChunk", null, "<foo><bar>baz</bar></foo>", ctx).pass);
     }
 
@@ -521,7 +521,7 @@ public class ScriptTest {
     public void testAssignAndMatchXmlChunkByVariableReference() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
-        Script.assign("myChunk", "myXml/root/foo", ctx);
+        Script.assign("myChunk", "$myXml/root/foo", ctx);
         Script.assign("expected", "<foo><bar>baz</bar></foo>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myChunk", null, "expected", ctx).pass);
     }

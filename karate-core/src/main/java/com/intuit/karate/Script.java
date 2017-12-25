@@ -290,17 +290,17 @@ public class Script {
             return new ScriptValue(doc);
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
-        } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
-            return evalJsExpression(text, context);
-            // remove after 0.7.0 release feedback
+// remove after 0.7.0 release feedback            
+//        } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
+//            return evalJsExpression(text, context);
 //        } else if (isVariableAndJsonPath(text)) {
 //            StringUtils.Pair pair = parseVariableAndPath(text);
 //            return evalJsonPathOnVarByName(pair.left, pair.right, context);
-        } else if (isVariableAndXmlPath(text)) {
-            StringUtils.Pair pair = parseVariableAndPath(text);
-            return evalXmlPathOnVarByName(pair.left, pair.right, context);
+//        } else if (isVariableAndXmlPath(text)) {
+//            StringUtils.Pair pair = parseVariableAndPath(text);
+//            return evalXmlPathOnVarByName(pair.left, pair.right, context);
         } else {
-            // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, 5, true
+            // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, foo + '', 5, true
             // including function declarations e.g. function() { }
             return evalJsExpression(text, context);
         }

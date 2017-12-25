@@ -136,7 +136,7 @@ Then match cat / == <cat><name>Jean</name></cat>
   <Properties/>
 </root>
 """
-* def documentId = myXml/root/EntityId
+* def documentId = $myXml/root/EntityId
 * assert documentId == 'a9f7a56b-8d5c-455c-9d13-808461d17b91'
 
 # more xml

@@ -108,7 +108,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
         this.feature = feature;
         doc = XmlUtils.toXmlDoc("<html/>");
         set("/html/head/title", feature.getPath());
-        String css = "body { font-family: monospace, monospace; font-size: small; }"
+        String css = "body { font-family: sans-serif; font-size: small; }"
                 + " table { border-collapse: collapse; }"
                 + " table td { border: 1px solid gray; padding: 0.1em 0.2em; }"
                 + " .scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border-bottom: 1px solid gray; }"
@@ -119,6 +119,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
                 + " .step-row { margin: 0.2em 0; }"
                 + " .step-cell { background-color: #92DD96; display: inline-block; width: 85%; padding: 0.2em 0.5em; }"
                 + " .time-cell { background-color: #92DD96; display: inline-block; width: 10%; padding: 0.2em 0.5em; }"
+                + " .preformatted { white-space: pre-wrap; font-family: monospace; }"
                 + " .failed { background-color: #F2928C; }"
                 + " .skipped { background-color: #8AF; }";
         
@@ -161,7 +162,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
 
     private void appendLog(Node parent, String log) {
         if (!log.isEmpty()) {
-            Node pre = node("pre", null);
+            Node pre = node("div", "preformatted");
             pre.setTextContent(log);
             parent.appendChild(pre);
         }
@@ -259,7 +260,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
             }            
         } else if (step.getDocString() != null) { // only for non-call, else un-synced stack traces may creep in
             DocString docString = step.getDocString();
-            parent.appendChild(node("pre", null, docString.getValue()));            
+            parent.appendChild(node("div", "preformatted", docString.getValue()));            
         }
         appendLog(parent, reportStep.getLog());
     }
