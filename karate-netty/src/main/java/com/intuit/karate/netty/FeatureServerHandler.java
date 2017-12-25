@@ -43,21 +43,23 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import io.netty.handler.codec.http.HttpUtil;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-      
-    private final FeatureProvider provider;   
-    
+
+    private final FeatureProvider provider;
+
     public FeatureServerHandler(FeatureProvider provider) {
         this.provider = provider;
     }
@@ -82,37 +84,51 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
         HttpContent httpContent = (HttpContent) msg;
         ByteBuf content = httpContent.content();
-        if (content.isReadable()) {   
+        if (content.isReadable()) {
             byte[] bytes = new byte[content.readableBytes()];
             content.readBytes(bytes);
             request.setBody(bytes);
         }
         if (!writeResponse(msg, request, ctx)) {
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-        }           
+        }
     }
-    
-    private final StringBuilder sb = new StringBuilder();    
+
+    private final StringBuilder sb = new StringBuilder();
 
     private boolean writeResponse(HttpMessage nettyRequest, HttpRequest request, ChannelHandlerContext ctx) {
         sb.setLength(0);
         String requestUri = request.getUri();
-        QueryStringDecoder qsDecoder = new QueryStringDecoder(requestUri);        
+        QueryStringDecoder qsDecoder = new QueryStringDecoder(requestUri);
         Match match = Match.init()
                 .defText(ScriptValueMap.VAR_REQUEST_URI, requestUri)
-                .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())                
-                .def(ScriptValueMap.VAR_REQUEST_PARAMS, qsDecoder.parameters());                
+                .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
+                .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
+                .def(ScriptValueMap.VAR_REQUEST_PARAMS, qsDecoder.parameters());
         if (request.getBody() != null) {
             String requestBody = FileUtils.toString(request.getBody());
             match.def(ScriptValueMap.VAR_REQUEST, requestBody);
         }
         ScriptValueMap result = provider.handle(match.allAsMap());
         ScriptValue responseValue = result.get(ScriptValueMap.VAR_RESPONSE);
-        boolean keepAlive = HttpUtil.isKeepAlive(nettyRequest);
+        ScriptValue responseStatus = result.get(ScriptValueMap.VAR_RESPONSE_STATUS);
+        HttpResponseStatus nettyResponseStatus;
+        if (responseStatus != null) {
+            nettyResponseStatus = HttpResponseStatus.valueOf(Integer.valueOf(responseStatus.getValue().toString()));
+        } else {
+            nettyResponseStatus = OK;
+        }
         FullHttpResponse response = new DefaultFullHttpResponse(
-                HTTP_1_1, nettyRequest.decoderResult().isSuccess()? OK : BAD_REQUEST,
-                Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8));
-        response.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpUtils.getContentType(responseValue));
+                HTTP_1_1, nettyResponseStatus, Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8));
+        ScriptValue responseHeaders = result.get(ScriptValueMap.VAR_RESPONSE_HEADERS);
+        Map<String, Object> headersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(provider.getContext());
+        if (headersMap != null) {
+            headersMap.forEach((k, v) -> response.headers().set(k, v));
+        }
+        if (headersMap == null || !headersMap.containsKey(HttpUtils.CONTENT_TYPE)) {
+            response.headers().set(HttpUtils.CONTENT_TYPE, HttpUtils.getContentType(responseValue));
+        }
+        boolean keepAlive = HttpUtil.isKeepAlive(nettyRequest);
         if (keepAlive) {
             response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
@@ -125,6 +141,6 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
         ctx.close();
-    }    
-    
+    }
+
 }

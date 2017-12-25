@@ -28,7 +28,6 @@ import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
 import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.JsonPath;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;

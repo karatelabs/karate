@@ -22,6 +22,8 @@ import javax.net.ssl.SSLContext;
  * @author pthomas3
  */
 public class HttpUtils {
+    
+    public static final String CONTENT_TYPE = "Content-Type";
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
     

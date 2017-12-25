@@ -44,13 +44,17 @@ public class FeatureProvider {
         this(feature, null);
     }
     
+    public ScriptContext getContext() {
+        return backend.getStepDefs().getContext();
+    }
+    
     private static final String PATH_MATCHES = "function(s){ return karate.pathMatches(s) }";
     
     public FeatureProvider(FeatureWrapper feature, Map<String, Object> args) {
         this.feature = feature;
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
         backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
-        ScriptContext context = backend.getStepDefs().getContext();
+        ScriptContext context = getContext();
         ScriptValue sv = Script.evalJsExpression(PATH_MATCHES, context);
         context.getVars().put(ScriptBindings.PATH_MATCHES, sv);        
         updateVars(args);
@@ -67,7 +71,7 @@ public class FeatureProvider {
     public ScriptValueMap handle(Map<String, Object> args) {
         updateVars(args);
         CucumberUtils.call(feature, backend, CallType.SCENARIO_ONLY);
-        return backend.getStepDefs().getContext().getVars();
+        return getContext().getVars();
     }
     
 }
