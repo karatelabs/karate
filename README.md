@@ -556,7 +556,7 @@ function() {
 ```
 The function is expected to return a JSON object and all keys and values in that JSON object will be made available as script variables.  And that's all there is to Karate configuration.
 
-> The [`karate`](#the-karate-object) object has a few helper methods described in detail later in this document where the [`call`](#calling-javascript-functions) keyword is explained.  Here above, you see `karate.log()`, `karate.env` and `karate.configure()` being used.
+> The [`karate`](#the-karate-object) object has a few helper methods described in detail later in this document where the [`call`](#calling-javascript-functions) keyword is explained.  Here above, you see `karate.log()`, `karate.env` and `karate.configure()` being used. Note that the `karate-config.js` is re-invoked for *every* `Scenario` and in rare cases, you may want to initialize (e.g. auth tokens) only once for all of your tests. This can be achieved using [`karate.callSingle()`](#the-karate-object).
 
 A common requirement is to pass dynamic parameter values via the command line, and you can use the `karate.properties['some.name']` syntax for getting a system property passed via JVM options in the form `-Dsome.name=foo`. Refer to the section on [dynamic port numbers](#dynamic-port-numbers) for an example.
 
@@ -2520,6 +2520,7 @@ Operation | Description
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
 `karate.toBean(json, className)` | converts a JSON string or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
+`karate.callSingle(fileName, [arg])` | like the above, but guranteed to run **only once** even across multiple features *and* parallel threads, recommended only for advanced users - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js)
 `karate.eval(expression)` | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
 `karate.tags` | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 `karate.tagValues` | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)

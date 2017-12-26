@@ -11,5 +11,7 @@ function() {
     var Factory = Java.type('demo.MockSpringMvcServlet');
     karate.configure('httpClientInstance', Factory.getMock());
   }
+  var authInfo = karate.callSingle('classpath:auth-single.js', config);
+  config.authInfo = authInfo;
   return config;
 }

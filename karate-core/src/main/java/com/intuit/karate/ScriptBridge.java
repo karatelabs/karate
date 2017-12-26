@@ -29,9 +29,11 @@ import com.intuit.karate.http.HttpUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
 
@@ -39,7 +41,10 @@ import org.w3c.dom.Document;
  *
  * @author pthomas3
  */
-public class ScriptBridge {               
+public class ScriptBridge {
+    
+    private static final Object GLOBALS_LOCK = new Object();
+    private static final Map<String, Object> GLOBALS = new HashMap();
     
     public final ScriptContext context;
     
@@ -134,6 +139,32 @@ public class ScriptBridge {
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
+        }        
+    }
+    
+    public Object callSingle(String fileName) {
+        return callSingle(fileName, null);
+    }
+    
+    public Object callSingle(String fileName, Object arg) {
+        if (GLOBALS.containsKey(fileName)) {
+            context.logger.trace("callSingle cache hit: {}", fileName);
+            return GLOBALS.get(fileName);
+        }
+        long startTime = System.currentTimeMillis();
+        context.logger.trace("callSingle waiting for lock: {}", fileName);
+        synchronized (GLOBALS_LOCK) { // lock
+            if (GLOBALS.containsKey(fileName)) { // retry
+                long endTime = System.currentTimeMillis() - startTime;
+                context.logger.trace("this thread waited {} milliseconds for callSingle: {}", endTime, fileName);
+                return GLOBALS.get(fileName);
+            } 
+            // this thread is the 'winner'
+            context.logger.trace("begin callSingle: {}", fileName);
+            Object result = call(fileName, arg);
+            GLOBALS.put(fileName, result);
+            context.logger.trace("end callSingle: {}", fileName);
+            return result;
         }        
     }
     
