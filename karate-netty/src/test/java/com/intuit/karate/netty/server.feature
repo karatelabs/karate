@@ -14,5 +14,5 @@ Scenario: requestMethod == 'GET' && pathMatches('/cats')
     * def response = cats
 
 Scenario: requestMethod == 'GET' && pathMatches('/cats/{id}')
-    * def id = requestPaths.id
+    * def id = pathParams.id
     * def response = cats[id-1]

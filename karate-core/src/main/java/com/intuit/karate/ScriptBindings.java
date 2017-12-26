@@ -54,11 +54,12 @@ public class ScriptBindings implements Bindings {
     private final Map<String, Object> adds;
     
     public static final String KARATE = "karate";
+    public static final String KARATE_CONFIG_JS = "karate-config.js";
     public static final String READ = "read";
     public static final String PATH_MATCHES = "pathMatches";
     public static final String TYPE_CONTAINS = "typeContains";
     public static final String ACCEPT_CONTAINS = "acceptContains";
-    public static final String REQUEST_PATHS = "requestPaths";
+    public static final String PATH_PARAMS = "pathParams";
 
     public ScriptBindings(ScriptContext context) {
         this.vars = context.vars;
@@ -73,6 +74,8 @@ public class ScriptBindings implements Bindings {
     }
 
     private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
+    
+    public static final String READ_KARATE_CONFIG = String.format("%s('%s')", READ, FileUtils.CLASSPATH_COLON + KARATE_CONFIG_JS);
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
         if (context == null) {

@@ -18,8 +18,7 @@ public class ScriptValueMap extends HashMap<String, ScriptValue> {
     public static final String VAR_REQUEST = "request";
     public static final String VAR_REQUEST_URI = "requestUri";    
     public static final String VAR_REQUEST_METHOD = "requestMethod";
-    public static final String VAR_REQUEST_HEADERS = "requestHeaders";    
-    public static final String VAR_REQUEST_PATHS = "requestPaths";    
+    public static final String VAR_REQUEST_HEADERS = "requestHeaders";   
     public static final String VAR_REQUEST_PARAMS = "requestParams";
 
     public ScriptValue put(String key, Object value) {

@@ -31,12 +31,15 @@ public class FileUtils {
     
     public static final Charset UTF8 = StandardCharsets.UTF_8;
     
+    private static final String CLASSPATH = "classpath";    
+    public static final String CLASSPATH_COLON = CLASSPATH + ":";
+    
     private FileUtils() {
         // only static methods
     }
     
     public static final boolean isClassPath(String text) {
-        return text.startsWith("classpath:");
+        return text.startsWith(CLASSPATH_COLON);
     }
     
     public static final boolean isFilePath(String text) {

@@ -23,11 +23,11 @@ Scenario: pathMatches('/cats') && requestMethod == 'POST'
     * def response = cat
 
 Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
-    * def cat = cats[requestPaths.id]
+    * def cat = cats[pathParams.id]
     * def response = <cat><id>#(cat.id)</id><name>#(cat.name)</name></cat>
 
 Scenario: pathMatches('/cats/{id}')
-    * def response = cats[requestPaths.id]
+    * def response = cats[pathParams.id]
 
 Scenario: pathMatches('/cats/{id}/kittens')
-    * def response = cats[requestPaths.id].kittens
+    * def response = cats[pathParams.id].kittens

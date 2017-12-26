@@ -193,7 +193,7 @@ public class ScriptBridge {
     public boolean pathMatches(String path) {
         String uri = (String) get(ScriptValueMap.VAR_REQUEST_URI);
         Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
-        set(ScriptBindings.REQUEST_PATHS, map);
+        set(ScriptBindings.PATH_PARAMS, map);
         return map != null;
     }
     
