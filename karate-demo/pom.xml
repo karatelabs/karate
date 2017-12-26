@@ -105,6 +105,7 @@
                 <configuration>
                     <includes>
                         <include>demo/DemoTestParallel.java</include>
+                        <include>mock/DemoMockRunner.java</include>
                     </includes>
                 </configuration>
             </plugin>                                   

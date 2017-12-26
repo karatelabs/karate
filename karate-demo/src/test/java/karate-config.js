@@ -6,8 +6,10 @@ function() {
     port = karate.env == 'web' ? 8090 : 8080;
   }
   var config = { demoBaseUrl: 'http://127.0.0.1:' + port };
-  // 'callSingle' is guaranteed to run only once even across all threads
-  var authInfo = karate.callSingle('classpath:auth-single.js', config);
-  config.authInfo = authInfo;
+  if (karate.env != 'mock') {
+    // 'callSingle' is guaranteed to run only once even across all threads
+    var authInfo = karate.callSingle('classpath:auth-single.js', config);
+    config.authInfo = authInfo;
+  }
   return config;
 }

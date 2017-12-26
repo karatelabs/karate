@@ -28,12 +28,13 @@ public class DemoMockRunner {
     public static void beforeClass() {
         File file = FileUtils.getFileRelativeTo(DemoMockRunner.class, "demo-mock.feature");
         server = FeatureServer.start(file, 0, false);
-        int port = server.getPort();
-        System.setProperty("demo.server.port", port + "");
     }
 
     @Test
     public void testParallel() {
+        int port = server.getPort();
+        System.setProperty("karate.env", "mock");
+        System.setProperty("demo.server.port", port + "");        
         String karateOutputPath = "target/mock/surefire-reports";
         KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
         generateReport(karateOutputPath);
