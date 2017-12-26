@@ -1,4 +1,3 @@
-@ignore
 Feature: german characters and response encoding
 
 Scenario: umlauts in the response

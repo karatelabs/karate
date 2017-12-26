@@ -1,4 +1,3 @@
-@ignore
 Feature: white space edge cases
 
 Scenario: json response with leading line feed

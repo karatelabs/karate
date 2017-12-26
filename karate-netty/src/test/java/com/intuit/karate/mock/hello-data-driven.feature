@@ -1,4 +1,3 @@
-@ignore
 Feature: a karate test using cucumber scenario outlines
 
 Background:

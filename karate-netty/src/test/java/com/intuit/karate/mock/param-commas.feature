@@ -1,4 +1,3 @@
-@ignore
 Feature: testing commas in param values
 
   Scenario: using csv params in a string

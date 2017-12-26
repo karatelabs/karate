@@ -1,4 +1,3 @@
-@ignore
 Feature: testing multi param values
 
   Scenario: using params in a list

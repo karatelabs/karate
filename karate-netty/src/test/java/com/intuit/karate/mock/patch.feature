@@ -1,4 +1,3 @@
-@ignore
 Feature: testing http patch method
 
 Scenario:

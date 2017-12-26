@@ -27,7 +27,6 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import java.util.Map;
 

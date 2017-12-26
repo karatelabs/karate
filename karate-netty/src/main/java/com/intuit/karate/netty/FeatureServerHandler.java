@@ -115,7 +115,12 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         if (responseValue == null) {
             response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus);
         } else {
-            ByteBuf responseBuf = Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8);
+            ByteBuf responseBuf;
+            if (responseValue.getType() == ScriptValue.Type.BYTE_ARRAY) {
+                responseBuf = Unpooled.copiedBuffer(responseValue.getValue(byte[].class));
+            } else {
+                responseBuf = Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8);
+            }
             response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus, responseBuf);
         }
         ScriptValue responseHeaders = result.get(ScriptValueMap.VAR_RESPONSE_HEADERS);

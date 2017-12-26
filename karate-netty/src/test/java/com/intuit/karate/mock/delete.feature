@@ -1,4 +1,3 @@
-@ignore
 Feature: testing http delete method
 
 Background:

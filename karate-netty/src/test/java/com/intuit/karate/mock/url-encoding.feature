@@ -1,4 +1,3 @@
-@ignore
 Feature: url encoding
 
 Scenario: special characters should not break the http client

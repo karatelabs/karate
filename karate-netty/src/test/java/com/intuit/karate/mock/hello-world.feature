@@ -1,4 +1,3 @@
-@ignore
 Feature: simple example of a karate test
 
 Background:

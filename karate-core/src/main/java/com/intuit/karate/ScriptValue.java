@@ -55,6 +55,7 @@ public class ScriptValue {
         JS_ARRAY,
         JS_OBJECT,
         JS_FUNCTION,
+        BYTE_ARRAY,
         INPUT_STREAM,
         FEATURE_WRAPPER
     }
@@ -91,6 +92,8 @@ public class ScriptValue {
                 return "js{}";
             case JS_FUNCTION:
                 return "js()";
+            case BYTE_ARRAY:
+                return "byte[]";
             case INPUT_STREAM:
                 return "stream";
             case FEATURE_WRAPPER:
@@ -175,6 +178,7 @@ public class ScriptValue {
             case UNKNOWN:
             case PRIMITIVE:
             case STRING:
+            case BYTE_ARRAY:
             case INPUT_STREAM:
             case FEATURE_WRAPPER:
             case JS_FUNCTION:                
@@ -277,7 +281,9 @@ public class ScriptValue {
                 Map map = getAsMap();
                 DocumentContext mapDoc = JsonPath.parse(map);
                 return JsonUtils.toPrettyJsonString(mapDoc);
-            case INPUT_STREAM:
+            case BYTE_ARRAY:
+                return "(..bytes..)";
+            case INPUT_STREAM:            
                 return "(..stream..)";
             default:
                 return value.toString();
@@ -310,6 +316,8 @@ public class ScriptValue {
                 return mapDoc.jsonString();
             case JS_FUNCTION:
                 return value.toString().replace("\n", " ");
+            case BYTE_ARRAY:
+                return FileUtils.toString(getValue(byte[].class));
             case INPUT_STREAM:
                 return FileUtils.toString(getValue(InputStream.class));
             default:
@@ -382,6 +390,8 @@ public class ScriptValue {
             }
         } else if (value instanceof String) {
             type = Type.STRING;
+        } else if (value instanceof byte[]) {
+            type = Type.BYTE_ARRAY;
         } else if (value instanceof InputStream) {
             type = Type.INPUT_STREAM;
         } else if (Script.isPrimitive(value.getClass())) {
