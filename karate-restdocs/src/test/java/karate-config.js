@@ -5,7 +5,7 @@ function() {
   }
   karate.configure('httpClientClass', 'com.intuit.karate.restdocs.RestDocsHttpClient');
   var config = { demoBaseUrl: 'http://127.0.0.1:' + port };
-  var authInfo = karate.callSingle('classpath:auth-single.js', config);
-  config.authInfo = authInfo;
+  var result = karate.callSingle('classpath:demo/headers/common-noheaders.feature', config);
+  config.authInfo = { authTime: result.time, authToken: result.token };
   return config;
 }

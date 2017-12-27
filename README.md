@@ -654,7 +654,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 -------------------- | -------- | ------
 **Step Definitions Built-In** | **No**. You need to keep implementing them as your functionality grows. [This can get very tedious](https://thepracticaldeveloper.com/2017/08/03/microservices-end-to-end-tests-with-cucumber-and-spring-boot/), especially since for [dependency-injection](https://cucumber.io/docs/reference/java-di), you are [on your own](http://angiejones.tech/rest-assured-with-cucumber-using-bdd-for-web-services-automation?refreshed=y#comment-40). | :white_check_mark: **Yes**. No extra Java code needed.
 **Single Layer of Code To Maintain** | **No**. There are 2 Layers. The [Gherkin](https://cucumber.io/docs/reference#gherkin) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | :white_check_mark: **Yes**. Only 1 layer of Karate-script (based on Gherkin).
-**Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | :x: **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a mini-programming language. But it is perfect for testing web-services at the level of HTTP requests and responses.
+**Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | :x: **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a [mini-programming language](https://hackernoon.com/yes-karate-is-not-true-bdd-698bf4a9be39). But it is [perfect for testing web-services](https://stackoverflow.com/a/47799207/143475) at the level of HTTP requests and responses.
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | :white_check_mark: [**Yes**](#calling-other-feature-files).
 **Dynamic Data-Driven Testing** | **No**. Cucumber's [`Scenario Outline`](#the-cucumber-way) expects the `Examples` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features).
 **Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find various discussions and third-party projects on the web that attempt to close this gap: [1](https://github.com/cucumber/cucumber-jvm/issues/630) [2](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [3](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) [4](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [5](https://github.com/temyers/cucumber-jvm-parallel-plugin) [6](https://github.com/trivago/cucable-plugin) [7](https://github.com/eu-evops/cucumber-runner-maven-plugin) [8](https://automationrhapsody.com/running-cucumber-tests-in-parallel/) | :white_check_mark: [**Yes**](#parallel-execution).
@@ -804,7 +804,7 @@ And def lang = 'en'
 * match embedded == enclosed
 ```
 
-> So how would you choose between the two approaches to create JSON ? [Embedded expressions](#embedded-expressions) are useful when you have complex JSON [`read`](#reading-files) from files, because you can auto-replace (or even [remove](#remove-if-null)) data-elements with values dynamically evaluated from variables. And the JSON will still be 'well-formed', and editable in your IDE or text-editor. Embedded expressions also make more sense in [validation](#ignore-or-validate) and [schema-like](#schema-validation) short-cut situations.
+> So how would you choose between the two approaches to create JSON ? [Embedded expressions](#embedded-expressions) are useful when you have complex JSON [`read`](#reading-files) from files, because you can auto-replace (or even [remove](#remove-if-null)) data-elements with values dynamically evaluated from variables. And the JSON will still be 'well-formed', and editable in your IDE or text-editor. Embedded expressions also make more sense in [validation](#ignore-or-validate) and [schema-like](#schema-validation) short-cut situations. It can also be argued that the `#` symbol is easy to spot when eyeballing your test scripts - which makes things more readable and clear.
 
 ### Multi-Line Expressions
 The keywords [`def`](#def), [`set`](#set), [`match`](#match), [`request`](#request) and [`eval`](#eval) take multi-line input as the last argument. This is useful when you want to express a one-off lengthy snippet of text in-line, without having to split it out into a separate [file](#reading-files). Here are some examples:
@@ -1027,7 +1027,7 @@ are **not** supported.
 > When JavaScript executes in Karate, the built-in [`karate` object](#the-karate-object) provides some commonly used utility functions.
 
 ### Java Interop
-For more complex functions you are better off using the [multi-line](#multi-line-expressions) 'doc-string' approach. This example actually calls into existing Java code, and being able to do this opens up a whole lot of possibilities. The JavaScript interpreter will try to convert types across Java and JavaScript as smartly as possible. For e.g. JSON objects become Java Map-s, JSON arrays become Java List-s, and Java Bean properties are accessible (and update-able) using dot notation e.g. '`object.name`'
+For more complex functions you are better off using the [multi-line](#multi-line-expressions) 'doc-string' approach. This example actually calls into existing Java code, and being able to do this opens up a whole lot of possibilities. The JavaScript interpreter will try to convert types across Java and JavaScript as smartly as possible. For e.g. JSON objects become Java `Map`-s, JSON arrays become Java `List`-s, and Java Bean properties are accessible (and update-able) using 'dot notation' e.g. '`object.name`'
 
 ```cucumber
 * def dateStringToLong =
@@ -2433,7 +2433,7 @@ The above example actually makes two HTTP requests - the first is a standard 'si
 
 So you get the picture, any kind of complicated 'sign-in' flow can be scripted and re-used.
 
-> If the second HTTP call above expects headers to be set by `my-headers.js` - which in turn depends on the `authToken` variable being updated, you will need to duplicate the line `* configure headers = read('classpath:my-headers.js')` from the 'caller' feature here as well. The above example does not use [shared scope](#shared-scope), which means that the variables in the 'calling' (parent) feature are not shared by the 'called' `my-signin.feature`. The use of `call` (or [`callonce`](#callonce)) *without* a `def` is the [recommended pattern](#shared-scope) for implementing re-usable authentication setup flows.
+> If the second HTTP call above expects headers to be set by `my-headers.js` - which in turn depends on the `authToken` variable being updated, you will need to duplicate the line `* configure headers = read('classpath:my-headers.js')` from the 'caller' feature here as well. The above example does not use [shared scope](#shared-scope), which means that the variables in the 'calling' (parent) feature are not shared by the 'called' `my-signin.feature`. The use of `call` (or [`callonce`](#callonce)) *without* a [`def`](#def)-assign to a variable, is the [recommended pattern](#shared-scope) for implementing re-usable authentication setup flows.
 
 Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 
@@ -2520,7 +2520,7 @@ Operation | Description
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
 `karate.toBean(json, className)` | converts a JSON string or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
-`karate.callSingle(fileName, [arg])` | like the above, but guranteed to run **only once** even across multiple features *and* parallel threads, recommended only for advanced users - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js)
+`karate.callSingle(fileName, [arg])` | like the above, but guranteed to run **only once** even across multiple features *and* parallel threads (recommended only for advanced users) - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js) / [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
 `karate.eval(expression)` | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
 `karate.tags` | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 `karate.tagValues` | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
@@ -2575,6 +2575,8 @@ These heavily commented [demo examples](karate-demo) can help you understand 'sh
 | ----- | -------------- | -------------- |
 Isolated | [`call-isolated-headers.feature`](karate-demo/src/test/java/demo/headers/call-isolated-headers.feature) | [`common-multiple.feature`](karate-demo/src/test/java/demo/headers/common-multiple.feature)
 Shared | [`call-updates-config.feature`](karate-demo/src/test/java/demo/headers/call-updates-config.feature) | [`common.feature`](karate-demo/src/test/java/demo/headers/common.feature)
+
+> Once you get comfortable with Karate, you can consider moving your authentication flow into a 'global' one-time flow using [`karate.callSingle()`](#the-karate-object), think of it as '[`callonce`](#callonce) on steroids'.
 
 ### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
@@ -2651,13 +2653,15 @@ This does require you to move 'set-up' into a separate `*.feature` (or JavaScrip
 
 So when you use the combination of `callonce` in a `Background`, you can indeed get the same effect as using a [`@BeforeClass`](http://junit.sourceforge.net/javadoc/org/junit/BeforeClass.html) annotation, and you can find examples in the [karate-demo](karate-demo), such as this one: [`callonce.feature`](karate-demo/src/test/java/demo/callonce/call-once.feature).
 
+> Recommended only for experienced users - [`karate.callSingle()`](#the-karate-object) is a way to invoke a feature or function 'globally' only once.
+
 ## `eval`
 > This is for evaluating arbitrary JavaScript and you are advised to use this only as a last resort ! Conditional logic is not recommended especially within test scripts because [tests should be deterministic](https://martinfowler.com/articles/nonDeterminism.html).
 
 There are a few situations where this comes in handy:
 * you *really* don't need to assign a result to a variable
 * statements in the `if` form (also see [conditional logic](#conditional-logic))
-* 'one-off' logic (or [Java interop](#java-interop)) where you don't need the ceremony of a [re-usable function](#calling-javascript-functions)
+* 'one-off' logic (or [Java interop](#java-interop)) where you don't need the 'ceremony' of a [re-usable function](#calling-javascript-functions)
 
 ```cucumber
 # just perform an action, we don't care about saving the result

@@ -8,8 +8,9 @@ function() {
   var config = { demoBaseUrl: 'http://127.0.0.1:' + port };
   if (karate.env != 'mock') {
     // 'callSingle' is guaranteed to run only once even across all threads
-    var authInfo = karate.callSingle('classpath:auth-single.js', config);
-    config.authInfo = authInfo;
+    var result = karate.callSingle('classpath:demo/headers/common-noheaders.feature', config);
+    // and it sets a variable called 'authInfo' used in headers-single.feature
+    config.authInfo = { authTime: result.time, authToken: result.token };
   }
   return config;
 }

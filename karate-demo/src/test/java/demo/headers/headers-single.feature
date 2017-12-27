@@ -4,7 +4,7 @@ Feature: the karate-config.js can perform 'singleton' style one-time init of aut
 Background:
 * url demoBaseUrl
 
-# refer to karate-config.js and auth-single.js to see how these were initialized
+# refer to karate-config.js to see how these were initialized
 * def time = authInfo.authTime
 * def token = authInfo.authToken
 

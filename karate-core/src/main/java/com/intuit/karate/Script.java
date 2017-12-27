@@ -1551,9 +1551,9 @@ public class Script {
             }
             return new ScriptValue(result);
         } catch (Exception e) {
-            String message = "javascript function call failed, arg: " + callArg + "\n" + som;
-            context.logger.error(message, e);
-            throw new KarateException(message, e);
+            String message = "javascript function call failed: " + e.getMessage();
+            context.logger.error("failed function body: " + som);
+            throw new KarateException(message);
         }
     }
 
