@@ -1552,6 +1552,7 @@ public class Script {
             return new ScriptValue(result);
         } catch (Exception e) {
             String message = "javascript function call failed: " + e.getMessage();
+            context.logger.error(message);
             context.logger.error("failed function body: " + som);
             throw new KarateException(message);
         }

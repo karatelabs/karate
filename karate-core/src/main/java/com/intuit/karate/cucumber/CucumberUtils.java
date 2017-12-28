@@ -258,7 +258,7 @@ public class CucumberUtils {
         if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step, match, result, callContext);
-        } else if (!backend.isCalled()) {
+        } else if (!backend.isCalled() && reporter != null) { // can be null for server
             reporter.match(match);
             reporter.result(result);
         }
