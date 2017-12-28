@@ -949,6 +949,9 @@ public class Script {
         Node node = actual.getValue(Node.class);
         actual = evalXmlPathOnXmlNode(node, path);
         ScriptValue expected = evalKarateExpression(expression, context);
+        if (actual.isNull()) {
+            return matchFailed(matchType, path, null, expected.getValue(), "actual xpath returned null");
+        }        
         Object actObject;
         Object expObject;
         switch (expected.getType()) {
@@ -1121,6 +1124,8 @@ public class Script {
         if (o instanceof Map) {
             Node node = XmlUtils.fromObject(elementName, o);
             return XmlUtils.toString(node);
+        } else if (o instanceof Node) {
+            return XmlUtils.toString((Node) o);
         } else {
             return o;
         }

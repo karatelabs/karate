@@ -500,6 +500,13 @@ public class ScriptTest {
         ScriptValue myXml = ctx.vars.get("myXml");
         assertTrue(Script.matchXml(MatchType.EQUALS, myXml, "/root/foo", "<foo><bar>baz</bar></foo>", ctx).pass);
     }
+    
+    @Test
+    public void testMatchXmlPathThatReturnsNull() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "myXml//baz", null, "<baz>1</baz>", ctx).pass);
+    }    
 
     @Test
     public void testAssignAndMatchXmlText() {
