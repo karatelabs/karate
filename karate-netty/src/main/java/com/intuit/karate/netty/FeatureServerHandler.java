@@ -126,8 +126,8 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         ScriptValue responseHeaders = result.get(ScriptValueMap.VAR_RESPONSE_HEADERS);
         Map<String, Object> headersMap = responseHeaders == null ? Collections.EMPTY_MAP : responseHeaders.evalAsMap(provider.getContext());
         headersMap.forEach((k, v) -> response.headers().set(k, v));
-        if (!headersMap.containsKey(HttpUtils.CONTENT_TYPE) && responseValue != null) {
-            response.headers().set(HttpUtils.CONTENT_TYPE, HttpUtils.getContentType(responseValue));
+        if (!headersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE) && responseValue != null) {
+            response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }
         boolean keepAlive = HttpUtil.isKeepAlive(nettyRequest);
         if (keepAlive) {

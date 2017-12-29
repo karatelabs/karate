@@ -220,11 +220,11 @@ public class ScriptBridge {
     }
     
     public boolean typeContains(String test) {
-        return headerContains(HttpUtils.CONTENT_TYPE, test);
+        return headerContains(HttpUtils.HEADER_CONTENT_TYPE, test);
     } 
     
     public boolean acceptContains(String test) {
-        return headerContains(HttpUtils.ACCEPT, test);        
+        return headerContains(HttpUtils.HEADER_ACCEPT, test);        
     }
     
     public String getEnv() {

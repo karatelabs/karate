@@ -138,27 +138,69 @@ public class Match {
     }
     
     public Match equalsText(String exp) {
+        return matchText(exp, MatchType.EQUALS);
+    }
+    
+    public Match matchText(String exp, MatchType matchType) {
         String quoted = "\"" + JSONObject.escape(exp) + "\"";
-        return equals(quoted);
+        return match(quoted, matchType);
+    }    
+    
+    private Match match(String exp, MatchType matchType) {
+        AssertionResult result = Script.matchScriptValue(matchType, prevValue, "$", exp, context);
+        handleFailure(result);
+        return this;        
     }
     
     public Match equals(String exp) {
-        AssertionResult result = Script.matchScriptValue(MatchType.EQUALS, prevValue, "$", exp, context);
-        handleFailure(result);
-        return this;
+        return match(exp, MatchType.EQUALS);
     }
+    
+    public Match contains(String exp) {
+        return match(exp, MatchType.CONTAINS);
+    }
+
+    private Match match(Object o, MatchType matchType) {
+        Script.matchNestedObject('.', "$", matchType, 
+                prevValue.getValue(), null, null, o, context);
+        return this;        
+    }    
     
     // ideally 'equals' but conflicts with Java
     public Match equalsObject(Object o) {
-        Script.matchNestedObject('.', "$", MatchType.EQUALS, 
-                prevValue.getValue(), null, null, o, context);
-        return this;
+        return match(o, MatchType.EQUALS);
     }
     
+    public Match contains(Object o) {
+        return match(o, MatchType.CONTAINS);
+    }    
+    
     public static Match equals(Object o, String exp) {
+        return match(o, exp, MatchType.EQUALS);
+    }
+    
+    public static Match equalsText(Object o, String exp) {
+        return matchText(o, exp, MatchType.EQUALS);
+    }    
+    
+    public static Match contains(Object o, String exp) {
+        return match(o, exp, MatchType.CONTAINS);
+    } 
+    
+    public static Match containsText(Object o, String exp) {
+        return matchText(o, exp, MatchType.CONTAINS);
+    }     
+    
+    private static Match match(Object o, String exp, MatchType matchType) {    
         Match m = Match.init();
         m.prevValue = new ScriptValue(o);
-        return m.equals(exp);
+        return m.match(exp, matchType);
     }
+    
+    private static Match matchText(Object o, String exp, MatchType matchType) {    
+        Match m = Match.init();
+        m.prevValue = new ScriptValue(o);
+        return m.matchText(exp, matchType);
+    }    
     
 }

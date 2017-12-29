@@ -36,6 +36,8 @@ public class MatchTest {
                 .def("foo", "[1, 2]")
                 .asList("foo");
         Match.equals(list, "[1, 2]");
+        Match.contains(list, "[1, 2]");
+        Match.contains(list, "[1]");
     }
     
     @Test
@@ -48,6 +50,14 @@ public class MatchTest {
     public void testXml() {
         Match.xml("<foo>a</foo>").equals("<foo>a</foo>");
         Match.xml("<foo>a</foo>").asMap().get("foo").equals("a");
-    }    
+    }
+
+    @Test
+    public void testString() {
+        Match.equalsText("foo", "foo");
+        Match.containsText("foo", "foo");
+        Match.containsText("foobar", "oob");
+    } 
+    
     
 }

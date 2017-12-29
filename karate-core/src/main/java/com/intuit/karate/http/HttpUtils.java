@@ -6,7 +6,10 @@ import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.StringUtils;
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;
+import java.net.HttpCookie;
 import java.security.SecureRandom;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import javax.net.ssl.TrustManager;
 import java.util.List;
@@ -22,12 +25,13 @@ import javax.net.ssl.SSLContext;
  * @author pthomas3
  */
 public class HttpUtils {
-    
-    public static final String CONTENT_TYPE = "Content-Type";
-    public static final String ACCEPT = "Accept";
+
+    public static final String HEADER_CONTENT_TYPE = "Content-Type";
+    public static final String HEADER_ACCEPT = "Accept";
+    public static final String HEADER_COOKIE = "Cookie";
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
-    
+
     public static final Set<String> HTTP_METHODS
             = Stream.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE")
                     .collect(Collectors.toSet());
@@ -75,7 +79,29 @@ public class HttpUtils {
             return TEXT_PLAIN;
         }
     }
+
+    public static Map<String, Cookie> parseCookieHeaderString(String header) {
+        List<HttpCookie> list = HttpCookie.parse(header);
+        Map<String, Cookie> map = new HashMap(list.size());
+        list.forEach((hc) -> {
+            String name = hc.getName();
+            Cookie c = new Cookie(name, hc.getValue());
+            c.putIfValueNotNull(Cookie.DOMAIN, hc.getDomain());
+            c.putIfValueNotNull(Cookie.PATH, hc.getPath());
+            c.putIfValueNotNull(Cookie.VERSION, hc.getVersion() + "");
+            c.putIfValueNotNull(Cookie.MAX_AGE, hc.getMaxAge() + "");
+            c.putIfValueNotNull(Cookie.SECURE, hc.getSecure() + "");
+            map.put(name, c);
+        });
+        return map;
+    }
     
+    public static String createCookieHeaderValue(Collection<Cookie> cookies) {
+        return cookies.stream()
+                .map((c) -> c.getName() + "=" + c.getValue())
+                .collect(Collectors.joining("; "));
+    }
+
     public static Map<String, String> parseUriPattern(String pattern, String url) {
         int qpos = url.indexOf('?');
         if (qpos != -1) {
