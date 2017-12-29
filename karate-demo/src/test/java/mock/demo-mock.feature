@@ -4,7 +4,7 @@ Background:
 * def nextId = call read('increment.js')
 * def cats = {}
 
-Scenario: pathMatches('/cats') && requestMethod == 'POST' && typeContains('xml')
+Scenario: pathMatches('/cats') && methodIs('post') && typeContains('xml')
     * def cat = request    
     * def id = nextId()
     * set cat /cat/id = id    
@@ -15,7 +15,7 @@ Scenario: pathMatches('/cats') && requestMethod == 'POST' && typeContains('xml')
     * eval cats[id + ''] = catJson
     * def response = cat
 
-Scenario: pathMatches('/cats') && requestMethod == 'POST'
+Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request
     * def id = nextId()
     * set cat.id = id

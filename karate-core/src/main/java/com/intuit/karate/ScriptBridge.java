@@ -197,7 +197,12 @@ public class ScriptBridge {
         return map != null;
     }
     
-    private boolean headerValueContains(String name, String test) {
+    public boolean methodIs(String method) {
+        String actual = (String) get(ScriptValueMap.VAR_REQUEST_METHOD);        
+        return actual.equalsIgnoreCase(method);
+    }    
+    
+    public boolean headerContains(String name, String test) {
         Map<String, List<String>> headers = (Map) get(ScriptValueMap.VAR_REQUEST_HEADERS);
         if (headers == null) {
             return false;
@@ -215,11 +220,11 @@ public class ScriptBridge {
     }
     
     public boolean typeContains(String test) {
-        return headerValueContains(HttpUtils.CONTENT_TYPE, test);
+        return headerContains(HttpUtils.CONTENT_TYPE, test);
     } 
     
     public boolean acceptContains(String test) {
-        return headerValueContains(HttpUtils.ACCEPT, test);        
+        return headerContains(HttpUtils.ACCEPT, test);        
     }
     
     public String getEnv() {

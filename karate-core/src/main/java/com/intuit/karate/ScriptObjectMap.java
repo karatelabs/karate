@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
  */
 public class ScriptObjectMap implements Map<String, Object> {
     
-    public final ScriptValueMap map;
+    private final ScriptValueMap map;
     
     public ScriptObjectMap(ScriptValueMap map) {
         this.map = map;
@@ -58,7 +58,9 @@ public class ScriptObjectMap implements Map<String, Object> {
     
     @Override
     public Collection<Object> values() {
-        return map.values().stream().map(ScriptValue::getAfterConvertingFromJsonOrXmlIfNeeded).collect(Collectors.toList());
+        return map.values().stream()
+                .map(ScriptValue::getAfterConvertingFromJsonOrXmlIfNeeded)
+                .collect(Collectors.toList());
     }    
 
     @Override

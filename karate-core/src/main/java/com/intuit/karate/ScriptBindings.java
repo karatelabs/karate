@@ -57,6 +57,7 @@ public class ScriptBindings implements Bindings {
     public static final String KARATE_CONFIG_JS = "karate-config.js";
     public static final String READ = "read";
     public static final String PATH_MATCHES = "pathMatches";
+    public static final String METHOD_IS = "methodIs";
     public static final String TYPE_CONTAINS = "typeContains";
     public static final String ACCEPT_CONTAINS = "acceptContains";
     public static final String PATH_PARAMS = "pathParams";

@@ -47,18 +47,20 @@ public class FeatureProvider {
         return backend.getStepDefs().getContext();
     }
     
-    private static final String PATH_MATCHES = "function(s){ return karate.pathMatches(s) }";
-    private static final String TYPE_CONTAINS = "function(s){ return karate.typeContains(s) }";
-    private static final String ACCEPT_CONTAINS = "function(s){ return karate.acceptContains(s) }";
+    private static void putBinding(String name, ScriptContext context) {
+        String function = "function(s){ return " + ScriptBindings.KARATE  + "." + name + "(s) }";
+        context.getVars().put(name, Script.evalJsExpression(function, context));
+    }
     
     public FeatureProvider(FeatureWrapper feature, Map<String, Object> args) {
         this.feature = feature;
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
         backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
         ScriptContext context = getContext();
-        context.getVars().put(ScriptBindings.PATH_MATCHES, Script.evalJsExpression(PATH_MATCHES, context));
-        context.getVars().put(ScriptBindings.TYPE_CONTAINS, Script.evalJsExpression(TYPE_CONTAINS, context));
-        context.getVars().put(ScriptBindings.ACCEPT_CONTAINS, Script.evalJsExpression(ACCEPT_CONTAINS, context));
+        putBinding(ScriptBindings.PATH_MATCHES, context);
+        putBinding(ScriptBindings.METHOD_IS, context);
+        putBinding(ScriptBindings.TYPE_CONTAINS, context);
+        putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
         if (args != null) {            
             ScriptValueMap vars = backend.getVars();
             args.forEach((k, v) -> vars.put(k, v));
