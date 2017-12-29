@@ -156,14 +156,14 @@ public class ScriptBridge {
         synchronized (GLOBALS_LOCK) { // lock
             if (GLOBALS.containsKey(fileName)) { // retry
                 long endTime = System.currentTimeMillis() - startTime;
-                context.logger.trace("this thread waited {} milliseconds for callSingle: {}", endTime, fileName);
+                context.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
                 return GLOBALS.get(fileName);
             } 
             // this thread is the 'winner'
-            context.logger.trace("begin callSingle: {}", fileName);
+            context.logger.info(">> lock acquired, begin callSingle: {}", fileName);
             Object result = call(fileName, arg);
             GLOBALS.put(fileName, result);
-            context.logger.trace("end callSingle: {}", fileName);
+            context.logger.info("<< lock released, end callSingle: {}", fileName);
             return result;
         }        
     }

@@ -126,7 +126,7 @@ Alternatively for Gradle you need two `dependencies`:
 ### TestNG instead of JUnit
 If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so that you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
 
-Use the TestNG test-runner only when you are trying to add Karate tests side-by-side with an existing set of TestNG test-classes, possibly as a migration strategy.
+Use the [TestNG test-runner](#running-with-testng) only when you are trying to add Karate tests side-by-side with an existing set of TestNG test-classes, possibly as a migration strategy.
 
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure and starter files would be created for you.
