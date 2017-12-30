@@ -56,6 +56,9 @@ public class HttpRequestBuilder {
     }
 
     public void addPath(String path) {
+        if (path == null) {
+            return;
+        }
         if (paths == null) {
             paths = new ArrayList<>();
         }

@@ -28,12 +28,10 @@ import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
 
@@ -190,20 +188,44 @@ public class ScriptBridge {
         return doc.read("$");        
     }
     
+    private ScriptValue getValue(String name) {
+        ScriptValue sv = context.vars.get(name);
+        return sv == null ? ScriptValue.NULL : sv;
+    }    
+    
+    private String getAsString(String name) {
+        return getValue(name).getAsString();
+    }   
+    
     public boolean pathMatches(String path) {
-        String uri = (String) get(ScriptValueMap.VAR_REQUEST_URI);
+        String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
         Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
         set(ScriptBindings.PATH_PARAMS, map);
         return map != null;
     }
     
     public boolean methodIs(String method) {
-        String actual = (String) get(ScriptValueMap.VAR_REQUEST_METHOD);        
+        String actual = getAsString(ScriptValueMap.VAR_REQUEST_METHOD);        
         return actual.equalsIgnoreCase(method);
-    }    
+    } 
+    
+    public Object paramValue(String name) {
+        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
+        if (params == null) {
+            return null;
+        }
+        List<String> list = params.get(name);
+        if (list == null) {
+            return null;
+        }        
+        if (list.size() == 1) {
+            return list.get(0);
+        }
+        return list;
+    }     
     
     public boolean headerContains(String name, String test) {
-        Map<String, List<String>> headers = (Map) get(ScriptValueMap.VAR_REQUEST_HEADERS);
+        Map<String, List<String>> headers = (Map) getValue(ScriptValueMap.VAR_REQUEST_HEADERS).getValue();
         if (headers == null) {
             return false;
         }

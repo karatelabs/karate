@@ -4,6 +4,13 @@ Background:
 * def nextId = call read('increment.js')
 * def cats = {}
 
+Scenario: pathMatches('/greeting') && paramValue('name') != null
+    * def content = 'Hello ' + paramValue('name') + '!'
+    * def response = { id: '#(nextId())', content: '#(content)' }
+
+Scenario: pathMatches('/greeting')
+    * def response = { id: '#(nextId())', content: 'Hello World!' }
+
 Scenario: pathMatches('/cats') && methodIs('post') && typeContains('xml')
     * def cat = request    
     * def id = nextId()

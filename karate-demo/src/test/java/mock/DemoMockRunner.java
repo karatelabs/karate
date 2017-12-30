@@ -19,7 +19,7 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/cats", tags = "~@ignore")
+@CucumberOptions(features = {"classpath:demo/cats", "classpath:demo/greeting"}, tags = "~@ignore")
 public class DemoMockRunner {
 
     private static FeatureServer server;

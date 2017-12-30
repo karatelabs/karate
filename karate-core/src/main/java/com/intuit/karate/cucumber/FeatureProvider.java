@@ -59,6 +59,7 @@ public class FeatureProvider {
         ScriptContext context = getContext();
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);
+        putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
         if (args != null) {            
