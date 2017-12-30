@@ -25,7 +25,10 @@ package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
+import com.intuit.karate.http.MultiValuedMap;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.HashMap;
@@ -187,6 +190,20 @@ public class ScriptBridge {
         DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
         return doc.read("$");        
     }
+    
+    public void proceed() {
+        HttpRequestBuilder request = new HttpRequestBuilder();
+        String urlBase = getAsString(ScriptValueMap.VAR_REQUEST_URL_BASE);
+        String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
+        String url = uri == null ? urlBase : urlBase + uri;
+        request.setUrl(url);
+        request.setMethod(getAsString(ScriptValueMap.VAR_REQUEST_METHOD));
+        request.setHeaders(getValue(ScriptValueMap.VAR_REQUEST_HEADERS).getValue(MultiValuedMap.class));
+        request.removeHeader(HttpUtils.HEADER_CONTENT_LENGTH);
+        request.setBody(getValue(ScriptValueMap.VAR_REQUEST));
+        HttpResponse response = context.client.invoke(request, context);
+        HttpUtils.updateResponseVars(response, context.vars, context);
+    }    
     
     private ScriptValue getValue(String name) {
         ScriptValue sv = context.vars.get(name);

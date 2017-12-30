@@ -76,6 +76,10 @@ public class HttpRequestBuilder {
         headers.remove(name);
     }
 
+    public void setHeaders(MultiValuedMap headers) {
+        this.headers = headers;
+    }        
+
     public void setHeader(String name, String value) {
         setHeader(name, Collections.singletonList(value));
     }

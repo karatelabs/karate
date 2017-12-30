@@ -39,12 +39,9 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import io.netty.handler.codec.http.HttpUtil;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
@@ -81,14 +78,13 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             content.readBytes(bytes);
             request.setBody(bytes);
         }
-        if (!writeResponse(msg, request, ctx)) {
-            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-        }
+        writeResponse(msg, request, ctx);
+        ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
 
     private final StringBuilder sb = new StringBuilder();
 
-    private boolean writeResponse(HttpMessage nettyRequest, HttpRequest request, ChannelHandlerContext ctx) {
+    private void writeResponse(HttpMessage nettyRequest, HttpRequest request, ChannelHandlerContext ctx) {
         sb.setLength(0);
         String requestUri = request.getUri();
         QueryStringDecoder qsDecoder = new QueryStringDecoder(requestUri);
@@ -129,13 +125,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         if (!headersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE) && responseValue != null) {
             response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }
-        boolean keepAlive = HttpUtil.isKeepAlive(nettyRequest);
-        if (keepAlive) {
-            response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
-            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
-        }
         ctx.write(response);
-        return keepAlive;
     }
 
     @Override

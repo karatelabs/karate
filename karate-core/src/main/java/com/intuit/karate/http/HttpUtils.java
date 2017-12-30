@@ -1,13 +1,21 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Script;
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
+import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.XmlUtils;
 import static com.intuit.karate.http.HttpClient.*;
+import com.jayway.jsonpath.DocumentContext;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpCookie;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -19,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
+import org.w3c.dom.Document;
 
 /**
  *
@@ -27,6 +36,7 @@ import javax.net.ssl.SSLContext;
 public class HttpUtils {
 
     public static final String HEADER_CONTENT_TYPE = "Content-Type";
+    public static final String HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String HEADER_ACCEPT = "Accept";
     public static final String HEADER_COOKIE = "Cookie";
 
@@ -39,6 +49,57 @@ public class HttpUtils {
     private HttpUtils() {
         // only static methods
     }
+    
+    public static void updateResponseVars(HttpResponse response, ScriptValueMap vars, ScriptContext context) {
+        vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
+        vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getTime());
+        vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
+        vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
+        Object responseBody = convertResponseBody(response.getBody(), context);
+        if (responseBody instanceof String) {
+            String responseString = StringUtils.trimToEmpty((String) responseBody);
+            if (Script.isJson(responseString)) {
+                try {
+                    DocumentContext doc = JsonUtils.toJsonDoc(responseString);
+                    responseBody = doc;
+                    if (context.isLogPrettyResponse()) {
+                        context.logger.info("response:\n{}", JsonUtils.toPrettyJsonString(doc));
+                    }
+                } catch (Exception e) {
+                    context.logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
+                }
+            } else if (Script.isXml(responseString)) {
+                try {
+                    Document doc = XmlUtils.toXmlDoc(responseString);
+                    responseBody = doc;
+                    if (context.isLogPrettyResponse()) {
+                        context.logger.info("response:\n{}", XmlUtils.toString(doc, true));
+                    }
+                } catch (Exception e) {
+                    context.logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
+                }
+            }
+        }
+        vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);        
+    }
+    
+    private static Object convertResponseBody(byte[] bytes, ScriptContext context) {
+        if (bytes == null) {
+            return null;
+        }
+        // if a byte array contains a negative-signed byte,
+        // then the string conversion will corrupt it.
+        // in that case just return the byte array stream
+        try {
+            String rawString = FileUtils.toString(bytes);
+            if (Arrays.equals(bytes, rawString.getBytes())) {
+                return rawString;
+            }
+        } catch (Exception e) {
+            context.logger.warn("response bytes to string conversion failed: {}", e.getMessage());
+        }
+        return new ByteArrayInputStream(bytes);
+    }    
 
     public static SSLContext getSslContext(String algorithm) {
         TrustManager[] certs = new TrustManager[]{new LenientTrustManager()};
