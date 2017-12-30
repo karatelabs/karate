@@ -35,6 +35,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,8 +47,8 @@ public class FeatureServer {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureServer.class);
 
-    public static FeatureServer start(File featureFile, int port, boolean ssl) {
-        return new FeatureServer(featureFile, port, ssl);
+    public static FeatureServer start(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
+        return new FeatureServer(featureFile, port, ssl, vars);
     }
 
     private final Channel channel;
@@ -65,7 +66,7 @@ public class FeatureServer {
         }
     }
 
-    private FeatureServer(File featureFile, int port, boolean ssl) {
+    private FeatureServer(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
         final SslContext sslCtx;
         if (ssl) {
             try {
@@ -84,7 +85,7 @@ public class FeatureServer {
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new FeatureServerInitializer(sslCtx, featureFile));
+                    .childHandler(new FeatureServerInitializer(sslCtx, featureFile, vars));
             channel = b.bind(port).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             this.port = isa.getPort();

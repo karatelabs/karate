@@ -39,7 +39,6 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -66,11 +65,18 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {        
+        QueryStringDecoder decoder = new QueryStringDecoder(msg.uri());
+        String requestQuery = decoder.rawQuery();        
+        String requestUri = requestQuery.isEmpty() ? decoder.rawPath() : decoder.rawPath() + "?" + requestQuery;
+        String requestScheme = provider.isSsl() ? "https" : "http";
+        String host = msg.headers().get(HttpUtils.HEADER_HOST);        
         HttpRequest request = new HttpRequest();
-        request.setUri(msg.uri());
+        request.setUrlBase(requestScheme + "://" + host);
+        request.setUri(requestUri);
         request.setMethod(msg.method().name());
         msg.headers().forEach(h -> request.addHeader(h.getKey(), h.getValue()));
+        decoder.parameters().forEach((k, v) -> request.putParam(k, v));
         HttpContent httpContent = (HttpContent) msg;
         ByteBuf content = httpContent.content();
         if (content.isReadable()) {
@@ -78,22 +84,21 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             content.readBytes(bytes);
             request.setBody(bytes);
         }
-        writeResponse(msg, request, ctx);
+        writeResponse(request, ctx);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
 
     private final StringBuilder sb = new StringBuilder();
 
-    private void writeResponse(HttpMessage nettyRequest, HttpRequest request, ChannelHandlerContext ctx) {
+    private void writeResponse(HttpRequest request, ChannelHandlerContext ctx) {
         sb.setLength(0);
-        String requestUri = request.getUri();
-        QueryStringDecoder qsDecoder = new QueryStringDecoder(requestUri);
         Match match = Match.init()
-                .defText(ScriptValueMap.VAR_REQUEST_URI, requestUri)
+                .defText(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
+                .defText(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
                 .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
                 .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
                 .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
-                .def(ScriptValueMap.VAR_REQUEST_PARAMS, qsDecoder.parameters());
+                .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
         if (request.getBody() != null) {
             String requestBody = FileUtils.toString(request.getBody());
             match.def(ScriptValueMap.VAR_REQUEST, requestBody);

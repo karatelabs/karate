@@ -27,7 +27,7 @@ public class DemoMockRunner {
     @BeforeClass
     public static void beforeClass() {
         File file = FileUtils.getFileRelativeTo(DemoMockRunner.class, "demo-mock.feature");
-        server = FeatureServer.start(file, 0, false);
+        server = FeatureServer.start(file, 0, false, null);
     }
 
     @Test

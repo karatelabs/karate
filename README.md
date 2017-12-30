@@ -524,9 +524,9 @@ The 'classpath' is a Java concept and is where some configuration files such as 
 
 ## `karate-config.js`
 
-The only 'rule' is that on start-up Karate expects a file called `karate-config.js` to exist on the 'classpath' and contain a JavaScript function.
+The only 'rule' is that on start-up Karate expects a file called `karate-config.js` to exist on the 'classpath' and contain a JavaScript function. The function is expected to return a JSON object and all keys and values in that JSON object will be made available as script variables.
 
-Karate will invoke this function and from that point onwards, you are free to set config properties in a variety of ways.  One possible method is shown below, based on reading a Java system property.
+And that's all there is to Karate configuration ! You can easily get the value of the [current 'environment' or 'profile'](#switching-the-environment), and then set up 'global' variables using some simple JavaScript. Here is an example:
 
 ```javascript    
 function() {   
@@ -535,8 +535,7 @@ function() {
   if (!env) {
     env = 'dev'; // a custom 'intelligent' default
   }
-  var config = { // base config
-    env: env,
+  var config = { // base config JSON
     appId: 'my.app.id',
     appSecret: 'my.secret',
     someUrlBase: 'https://some-host.com/v1/auth/',
@@ -554,7 +553,6 @@ function() {
   return config;
 }
 ```
-The function is expected to return a JSON object and all keys and values in that JSON object will be made available as script variables.  And that's all there is to Karate configuration.
 
 > The [`karate`](#the-karate-object) object has a few helper methods described in detail later in this document where the [`call`](#calling-javascript-functions) keyword is explained.  Here above, you see `karate.log()`, `karate.env` and `karate.configure()` being used. Note that the `karate-config.js` is re-invoked for *every* `Scenario` and in rare cases, you may want to initialize (e.g. auth tokens) only once for all of your tests. This can be achieved using [`karate.callSingle()`](#the-karate-object).
 
@@ -619,7 +617,7 @@ public class CatsRunner {
 ## Script Structure
 Karate scripts are technically in '[Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin)' format - but all you need to grok as someone who needs to test web-services are the three sections: `Feature`, `Background` and `Scenario`. There can be multiple Scenario-s in a `*.feature` file, and at least one should be present. The `Background` is optional. 
 
-> If you are looking for a way to do something only **once** per `Feature`, take a look at [`callonce`](#callonce).
+> Variables set using [`def`](#def) in the `Background` will be re-set before *every* `Scenario`. If you are looking for a way to do something only **once** per `Feature`, take a look at [`callonce`](#callonce). On the other hand, if you are expecting a variable in the `Background` to be modified by one `Scenario` so that later ones can see the updated value - that is *not* how you should think of them, and you should combine your 'flow' into one scenario. Keep in mind that you should be able to comment-out a `Scenario` or skip some via [`tags`](#cucumber-tags) without impacting any others.
 
 Lines that start with a `#` are comments.
 ```cucumber
@@ -630,6 +628,7 @@ Background:
 # this section is optional !
 # steps here are executed before each Scenario in this file
 # variables defined here will be 'global' to all scenarios
+# and will be re-initialized before every scenario
 
 Scenario: brief description of this scenario
 # steps for this scenario
@@ -1269,9 +1268,12 @@ Lower-case is fine.
 ```cucumber
 When method post
 ```
-It is worth internalizing that during test-execution, it is upon the `method` keyword that the actual HTTP request is issued. Which suggests that the step should be in the `When` form, for example: `When method post`. And steps that follow should logically be in the `Then` form.
+
+It is worth internalizing that during test-execution, it is upon the `method` keyword that the actual HTTP request is issued. Which suggests that the step should be in the `When` form, for example: `When method post`. And steps that follow should logically be in the `Then` form. Also make sure that you complete the set up of things like [`url`](#url), [`param`](#param), [`header`](#header), [`configure`](#configure) etc. *before* you fire the `method`.
 
 ```cucumber
+# set headers or params (if any) BEFORE the method step
+Given header Accept = 'application/json'
 When method get
 # the step that immediately follows the above would typically be:
 Then status 200
@@ -2644,6 +2646,8 @@ function(arg) {
 
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
+Another great example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned is JSON, is able to use [`match`](#match) *very* effectively for data assertions.
+
 ## `callonce`
 Cucumber has a limitation where [`Background`](#script-structure) steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 
 
@@ -2710,7 +2714,7 @@ Or if we don't care about the result, we can use [`eval`](#eval):
 * eval if (responseStatus == 404) karate.call('delete-user.feature')
 ```
 
-And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) for more complex logic.
+And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) or [call Java](#calling-java) for more complex logic.
 
 ```cucumber
 * def expected = (zone == 'zone1' ? { foo: '#string' } : { bar: '#number' })
@@ -2797,21 +2801,9 @@ has more information on tags.
 > For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to the `karate.tags` and `karate.tagValues` methods on [the Karate JS object](#the-karate-object).
 
 ## Dynamic Port Numbers
-In situations where you start an (embedded) application server as part of the test set-up phase, a typical
-challenge is that the HTTP port may be determined at run-time. So how can you get this value injected
-into the Karate configuration ?
+In situations where you start an (embedded) application server as part of the test set-up phase, a typical challenge is that the HTTP port may be determined at run-time. So how can you get this value injected into the Karate configuration ?
 
-It so happens that the [`karate`](#the-karate-object) object has a field called `properties` 
-which can read a Java system-property by name like this: `karate.properties['myName']`. Since the `karate` object is injected
-within [`karate-config.js`](#configuration) on start-up, it is a simple and effective way for other 
-processes within the same JVM to pass configuration values into Karate at run-time.
-
-You can look at the [Wiremock](http://wiremock.org) based unit-test code of Karate to see how this can be done.
-* [HelloWorldTest.java](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/HelloWorldTest.java#L30) - see line #30
-* [karate-config.js](karate-junit4/src/test/java/karate-config.js#L10) - see line #10
-* [hello-world.feature](karate-junit4/src/test/java/com/intuit/karate/junit4/wiremock/hello-world.feature#L6) - see line #6
-
-The [Karate Demos](karate-demo) use a similar approach for determining the URL for each test.
+It so happens that the [`karate`](#the-karate-object) object has a field called `properties` which can read a Java system-property by name like this: `karate.properties['myName']`. Since the `karate` object is injected within [`karate-config.js`](#configuration) on start-up, it is a simple and effective way for other processes within the same JVM to pass configuration values to Karate at run-time. Refer to the 'demo' [`karate-config.js`](karate-demo/src/test/java/karate-config.js) for an example and how the `demo.server.port` system-property is set-up in the test runner: [`TestBase.java`](karate-demo/src/test/java/demo/TestBase.java).
 
 ## Java API
 It should be clear now that Karate provides a super-simple way to make HTTP requests compared to how you would have done so in Java. It is also possible to invoke a feature file via a Java API which can be very useful in some test-automation situations.

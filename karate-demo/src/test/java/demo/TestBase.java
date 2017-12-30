@@ -16,10 +16,11 @@ public abstract class TestBase {
     private static ServerStart server;
     
     @BeforeClass
-    public static void beforeClass() throws Exception {
+    public static int beforeClass() throws Exception {
         server = new ServerStart();
         server.start(new String[]{"--server.port=0"}, false);
         System.setProperty("demo.server.port", server.getPort() + "");
+        return server.getPort();
     }
     
     @AfterClass

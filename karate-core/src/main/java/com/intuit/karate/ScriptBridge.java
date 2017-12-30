@@ -192,8 +192,12 @@ public class ScriptBridge {
     }
     
     public void proceed() {
+        proceed(null);
+    }
+    
+    public void proceed(String requestUrlBase) {
         HttpRequestBuilder request = new HttpRequestBuilder();
-        String urlBase = getAsString(ScriptValueMap.VAR_REQUEST_URL_BASE);
+        String urlBase = requestUrlBase == null ? getAsString(ScriptValueMap.VAR_REQUEST_URL_BASE) : requestUrlBase;
         String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
         String url = uri == null ? urlBase : urlBase + uri;
         request.setUrl(url);

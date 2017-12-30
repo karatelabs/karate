@@ -13,7 +13,7 @@ public class FeatureServerRunner {
     @Test
     public void testServer() {
         File file = FileUtils.getFileRelativeTo(FeatureServerRunner.class, "server.feature");
-        FeatureServer server = FeatureServer.start(file, 8080, false);
+        FeatureServer server = FeatureServer.start(file, 8080, false, null);
         server.waitSync();
     }
     

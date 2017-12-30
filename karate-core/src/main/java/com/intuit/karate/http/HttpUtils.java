@@ -39,6 +39,7 @@ public class HttpUtils {
     public static final String HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String HEADER_ACCEPT = "Accept";
     public static final String HEADER_COOKIE = "Cookie";
+    public static final String HEADER_HOST = "Host";
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
 

@@ -38,10 +38,19 @@ public class FeatureProvider {
     
     private final FeatureWrapper feature;
     private final KarateBackend backend;
+    private final boolean ssl;
     
     public FeatureProvider(FeatureWrapper feature) {
-        this(feature, null);
+        this(feature, null, false);
     }
+    
+    public FeatureProvider(FeatureWrapper feature, Map<String, Object> vars) {
+        this(feature, vars, false);
+    }    
+
+    public boolean isSsl() {
+        return ssl;
+    }        
     
     public final ScriptContext getContext() {
         return backend.getStepDefs().getContext();
@@ -51,9 +60,10 @@ public class FeatureProvider {
         String function = "function(s){ return " + ScriptBindings.KARATE  + "." + name + "(s) }";
         context.getVars().put(name, Script.evalJsExpression(function, context));
     }
-    
-    public FeatureProvider(FeatureWrapper feature, Map<String, Object> args) {
+        
+    public FeatureProvider(FeatureWrapper feature, Map<String, Object> vars, boolean ssl) {
         this.feature = feature;
+        this.ssl = ssl;
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
         backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
         ScriptContext context = getContext();
@@ -62,9 +72,9 @@ public class FeatureProvider {
         putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
-        if (args != null) {            
-            ScriptValueMap vars = backend.getVars();
-            args.forEach((k, v) -> vars.put(k, v));
+        if (vars != null) {            
+            ScriptValueMap backendVars = backend.getVars();
+            vars.forEach((k, v) -> backendVars.put(k, v));
         } 
         CucumberUtils.call(feature, backend, CallType.BACKGROUND_ONLY);
     }        

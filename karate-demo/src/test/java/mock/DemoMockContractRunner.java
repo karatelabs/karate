@@ -5,12 +5,16 @@ import com.intuit.karate.cucumber.CucumberRunner;
 import com.intuit.karate.cucumber.KarateStats;
 import com.intuit.karate.netty.FeatureServer;
 import cucumber.api.CucumberOptions;
+import demo.TestBase;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
+import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -25,10 +29,17 @@ public class DemoMockContractRunner {
     private static FeatureServer server;
 
     @BeforeClass
-    public static void beforeClass() {
+    public static void beforeClass() throws Exception {
+        int port = TestBase.beforeClass();
+        Map<String, Object> map = Collections.singletonMap("karateMockPort", port);
         File file = FileUtils.getFileRelativeTo(DemoMockContractRunner.class, "demo-mock-contract.feature");
-        server = FeatureServer.start(file, 0, false);
+        server = FeatureServer.start(file, 0, false, map);
     }
+    
+    @AfterClass
+    public static void afterClass() {
+        TestBase.afterClass();
+    }     
 
     @Test
     public void testParallel() {

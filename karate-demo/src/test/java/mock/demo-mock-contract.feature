@@ -3,25 +3,26 @@ Feature:
 Background:
 * def nextId = call read('increment.js')
 * def cats = {}
-* def requestUrlBase = 'http://127.0.0.1:8080'
+* def targetUrlBase = 'http://127.0.0.1:' + karateMockPort
+* print 'init target url:', targetUrlBase
 
 Scenario: pathMatches('/greeting') && paramValue('name') != null
-    * eval karate.proceed()
+    * eval karate.proceed(targetUrlBase)
 
 Scenario: pathMatches('/greeting')
-    * eval karate.proceed()
+    * eval karate.proceed(targetUrlBase)
 
 Scenario: pathMatches('/cats') && methodIs('post') && typeContains('xml')
-    * eval karate.proceed()
+    * eval karate.proceed(targetUrlBase)
 
 Scenario: pathMatches('/cats') && methodIs('post')
-    * eval karate.proceed()
+    * eval karate.proceed(targetUrlBase)
 
 Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
-    * eval karate.proceed()
+    * eval karate.proceed(targetUrlBase)
 
 Scenario: pathMatches('/cats/{id}')
-    * eval karate.proceed()
+    * eval karate.proceed(targetUrlBase)
 
 Scenario: pathMatches('/cats/{id}/kittens')
-    * eval karate.proceed()
+    * eval karate.proceed(targetUrlBase)

@@ -29,7 +29,7 @@ public class MockServerTest {
     @BeforeClass
     public static void beforeClass() {
         File file = FileUtils.getFileRelativeTo(MockServerTest.class, "_mock.feature");
-        server = FeatureServer.start(file, 0, false);
+        server = FeatureServer.start(file, 0, false, null);
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");
     }
