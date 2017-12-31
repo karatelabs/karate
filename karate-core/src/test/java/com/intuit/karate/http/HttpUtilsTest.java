@@ -1,6 +1,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.Match;
+import com.intuit.karate.StringUtils;
 import java.util.Arrays;
 import java.util.Map;
 import org.junit.Test;
@@ -42,5 +43,21 @@ public class HttpUtilsTest {
         String header = HttpUtils.createCookieHeaderValue(Arrays.asList(c1, c2));
         Match.equalsText(header, "foo=bar; hello=world");
     }    
+    
+    @Test
+    public void testUriParsing() {
+        StringUtils.Pair pair = HttpUtils.parseUriIntoUrlBaseAndPath("http://foo/bar");
+        Match.equalsText(pair.left, "http://foo");
+        Match.equalsText(pair.right, "/bar");
+        pair = HttpUtils.parseUriIntoUrlBaseAndPath("/bar");
+        Match.equalsText(pair.left, null);
+        Match.equalsText(pair.right, "/bar");
+        pair = HttpUtils.parseUriIntoUrlBaseAndPath("/bar?baz=ban");
+        Match.equalsText(pair.left, null);
+        Match.equalsText(pair.right, "/bar?baz=ban");
+        pair = HttpUtils.parseUriIntoUrlBaseAndPath("http://foo/bar?baz=ban");
+        Match.equalsText(pair.left, "http://foo");
+        Match.equalsText(pair.right, "/bar?baz=ban");         
+    }
     
 }

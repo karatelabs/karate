@@ -142,7 +142,7 @@ public class Match {
     }
     
     public Match matchText(String exp, MatchType matchType) {
-        String quoted = "\"" + JSONObject.escape(exp) + "\"";
+        String quoted = exp == null ? "null" : "\"" + JSONObject.escape(exp) + "\"";
         return match(quoted, matchType);
     }    
     

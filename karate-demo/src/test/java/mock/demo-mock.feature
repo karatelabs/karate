@@ -1,4 +1,4 @@
-Feature:
+Feature: stateful mock server
 
 Background:
 * def nextId = call read('increment.js')

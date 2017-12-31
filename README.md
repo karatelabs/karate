@@ -2103,7 +2103,7 @@ Normal Form | In-Line Form
 `* match foo !contains others` | `* match foo == '#(!^others)'`
 `* assert foo.length == 2` | `* match foo == '#[2]'`
 
-> The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
+> The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
 
 In real-life tests, these are very useful when the order of items in arrays returned from the server are not guaranteed. You can easily assert that all expected elements are present, _even_ in nested parts of your JSON - while doing a [`match`](#match) on the _full_ payload.
 
@@ -2435,7 +2435,7 @@ The above example actually makes two HTTP requests - the first is a standard 'si
 
 So you get the picture, any kind of complicated 'sign-in' flow can be scripted and re-used.
 
-> If the second HTTP call above expects headers to be set by `my-headers.js` - which in turn depends on the `authToken` variable being updated, you will need to duplicate the line `* configure headers = read('classpath:my-headers.js')` from the 'caller' feature here as well. The above example does not use [shared scope](#shared-scope), which means that the variables in the 'calling' (parent) feature are not shared by the 'called' `my-signin.feature`. The use of `call` (or [`callonce`](#callonce)) *without* a [`def`](#def)-assign to a variable, is the [recommended pattern](#shared-scope) for implementing re-usable authentication setup flows.
+> If the second HTTP call above expects headers to be set by `my-headers.js` - which in turn depends on the `authToken` variable being updated, you will need to duplicate the line `* configure headers = read('classpath:my-headers.js')` from the 'caller' feature here as well. The above example does **not** use [shared scope](#shared-scope), which means that the variables in the 'calling' (parent) feature are *not* shared by the 'called' `my-signin.feature`. The above example can be made more simpler with the use of `call` (or [`callonce`](#callonce)) *without* a [`def`](#def)-assignment to a variable, and is the [recommended pattern](#shared-scope) for implementing re-usable authentication setup flows.
 
 Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 

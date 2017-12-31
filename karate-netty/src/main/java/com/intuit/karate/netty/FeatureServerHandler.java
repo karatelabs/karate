@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.FeatureProvider;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
@@ -65,17 +66,20 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {        
-        QueryStringDecoder decoder = new QueryStringDecoder(msg.uri());
-        String requestQuery = decoder.rawQuery();        
-        String requestUri = requestQuery.isEmpty() ? decoder.rawPath() : decoder.rawPath() + "?" + requestQuery;
-        String requestScheme = provider.isSsl() ? "https" : "http";
-        String host = msg.headers().get(HttpUtils.HEADER_HOST);        
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {  
+        StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
         HttpRequest request = new HttpRequest();
-        request.setUrlBase(requestScheme + "://" + host);
-        request.setUri(requestUri);
+        if (url.left == null) {
+            String requestScheme = provider.isSsl() ? "https" : "http";
+            String host = msg.headers().get(HttpUtils.HEADER_HOST);
+            request.setUrlBase(requestScheme + "://" + host);
+        } else {
+            request.setUrlBase(url.left);            
+        }                                
+        request.setUri(url.right);
         request.setMethod(msg.method().name());
         msg.headers().forEach(h -> request.addHeader(h.getKey(), h.getValue()));
+        QueryStringDecoder decoder = new QueryStringDecoder(url.right);                
         decoder.parameters().forEach((k, v) -> request.putParam(k, v));
         HttpContent httpContent = (HttpContent) msg;
         ByteBuf content = httpContent.content();

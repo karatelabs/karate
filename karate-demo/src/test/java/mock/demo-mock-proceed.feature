@@ -1,9 +1,9 @@
-Feature:
+Feature: mock that simply forwards to actual host
 
 Background:
 * def nextId = call read('increment.js')
 * def cats = {}
-* def targetUrlBase = 'http://127.0.0.1:' + karateMockPort
+* def targetUrlBase = demoServerPort ? 'http://127.0.0.1:' + demoServerPort : null
 * print 'init target url:', targetUrlBase
 
 Scenario: pathMatches('/greeting') && paramValue('name') != null

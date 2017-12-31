@@ -14,6 +14,7 @@ import com.jayway.jsonpath.DocumentContext;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpCookie;
+import java.net.URI;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
@@ -139,6 +140,22 @@ public class HttpUtils {
             return APPLICATION_JSON;
         } else {
             return TEXT_PLAIN;
+        }
+    }
+    
+    public static StringUtils.Pair parseUriIntoUrlBaseAndPath(String rawUri) {
+        try {
+            URI uri = new URI(rawUri);
+            String host = uri.getHost();
+            if (host == null) {
+                return StringUtils.pair(null, rawUri);
+            }
+            String path = uri.getRawPath();
+            int pos = rawUri.indexOf(path);
+            String urlBase = rawUri.substring(0, pos);
+            return StringUtils.pair(urlBase, rawUri.substring(pos));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
