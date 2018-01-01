@@ -1,6 +1,7 @@
 package mock;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Match;
 import com.intuit.karate.cucumber.CucumberRunner;
 import com.intuit.karate.cucumber.KarateStats;
 import com.intuit.karate.netty.FeatureServer;
@@ -9,7 +10,6 @@ import demo.TestBase;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import net.masterthought.cucumber.Configuration;
@@ -33,7 +33,7 @@ public class DemoMockProceedRunner {
     @BeforeClass
     public static void beforeClass() throws Exception {
         int port = TestBase.beforeClass();
-        Map<String, Object> map = Collections.singletonMap("demoServerPort", port);
+        Map map = Match.init().def("demoServerPort", port).allAsMap();
         File file = FileUtils.getFileRelativeTo(DemoMockProceedRunner.class, "demo-mock-proceed.feature");
         server = FeatureServer.start(file, 0, false, map);
     }

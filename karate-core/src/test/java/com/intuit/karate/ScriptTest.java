@@ -984,6 +984,13 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", "$", "{ foo: '#? _ > 4 && _ < 6' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", "$", "{ foo: '#? _ > min && _ < max' }", ctx).pass);
     }
+    
+    @Test
+    public void testStringThatStartsWithHashSymbol() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ bar: '#####' }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#####' }", ctx).pass);
+    }
 
     @Test
     public void testSimpleJsonMatch() {

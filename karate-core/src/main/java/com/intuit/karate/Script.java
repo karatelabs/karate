@@ -878,7 +878,14 @@ public class Script {
                 if (validatorName != null) {
                     Validator v = context.validators.get(validatorName);
                     if (v == null) {
-                        return matchFailed(stringMatchType, path, actValue.getValue(), expected, "unknown validator");
+                        boolean pass = expected.equals(actValue.getAsString());
+                        if (!pass) {
+                            if (stringMatchType == MatchType.NOT_EQUALS) {
+                                return AssertionResult.PASS;
+                            } else {
+                                return matchFailed(stringMatchType, path, actValue.getValue(), expected, "not equal");
+                            }
+                        }
                     } else {
                         ValidationResult vr = v.validate(actValue);
                         if (!vr.isPass()) {

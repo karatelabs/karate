@@ -109,7 +109,7 @@ public class Match {
     }
     
     public Map<String, Object> asMap() {
-        return prevValue.getAsMap();
+        return prevValue == null ? null : prevValue.getAsMap();
     }
     
     public String asJson() {
