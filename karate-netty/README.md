@@ -4,17 +4,17 @@
 Thanks to the developers of [Netty](http://netty.io) for such an *awesome* framework on which this is based.
 
 ### Capabilities
-* Super-easy 'hard-coded' mocks [example](src/test/java/com/intuit/karate/mock/_mock.feature)
-* Stateful mocks that can fully simulate CRUD for a micro-service [example](https://twitter.com/KarateDSL/status/946607931327266816)
+* Super-easy 'hard-coded' mocks ([example](src/test/java/com/intuit/karate/mock/_mock.feature))
+* Stateful mocks that can fully simulate CRUD for a micro-service ([example](https://twitter.com/KarateDSL/status/946607931327266816))
 * Easy HTTP request matching by path, method, headers etc.
 * Use the full power of JavaScript expressions for HTTP request matching
 * Forward HTTP requests to other URL-s (URL re-writing)
 * Proxy HTTP requests
-* AOP style API 'interceptor' - insert custom functions before and after an HTTP request is handled
+* AOP style API 'interceptor' model - insert custom functions before and after an HTTP request is handled
 * Start and stop mock servers in milliseconds
 * Server can dynamically choose free port
 * Mock is powerful enough to perform filter / interception, proxying, URL re-writing - almost like a lightweight, scriptable 'API gateway'
-* Just *one* file can do all the above, simplifying the mental-model you need to have for advanced scenarios such as [contract-testing](https://martinfowler.com/articles/consumerDrivenContracts.html)
+* Just *one* file can script all the above, simplifying the mental-model you need to have for advanced scenarios such as [contract-testing](https://martinfowler.com/articles/consumerDrivenContracts.html)
 
 
 This documentation is work in progress while this project evolves. But here is a demo that should provide sufficient detail for those interested.
