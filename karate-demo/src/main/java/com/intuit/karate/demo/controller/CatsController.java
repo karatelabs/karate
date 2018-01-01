@@ -25,6 +25,7 @@ package com.intuit.karate.demo.controller;
 
 import com.intuit.karate.demo.domain.Cat;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,7 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CatsController {
     
     private final AtomicInteger counter = new AtomicInteger();
-    private final ConcurrentHashMap<Integer, Cat> cats = new ConcurrentHashMap<>();
+    private final Map<Integer, Cat> cats = new ConcurrentHashMap<>();
     
     @PostMapping
     public Cat create(@RequestBody Cat cat) {

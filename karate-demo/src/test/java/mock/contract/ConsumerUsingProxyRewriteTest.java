@@ -35,9 +35,14 @@ public class ConsumerUsingProxyRewriteTest {
     }    
     
     @Test
-    public void testConsumerIntegration() {
-        boolean payment = consumer.getPayment();
-        assertTrue(payment);        
+    public void testPaymentCreate() {
+        Payment payment = new Payment();
+        payment.setAmount(5.67);
+        payment.setDescription("test one");
+        payment = consumer.create(payment);
+        assertTrue(payment.getId() > 0);
+        assertEquals(payment.getAmount(), 5.67, 0);
+        assertEquals(payment.getDescription(), "test one");        
     }
     
     @AfterClass

@@ -26,7 +26,7 @@ public class ConsumerUsingProxyHttpTest {
         String paymentServiceUrl = "http://localhost:" + port;        
         // proxy
         File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyHttpTest.class, "payment-service-proxy.feature");        
-        // setting this to null uses request URL as-is (no re-writing) - so acts as an http proxy
+        // setting this to null uses request url as-is (no re-writing) - so acts as an http proxy
         Map config = Collections.singletonMap("paymentServiceUrl", null);
         server = FeatureServer.start(file, 0, false, config);
         // consumer (using http proxy)
@@ -34,9 +34,14 @@ public class ConsumerUsingProxyHttpTest {
     }    
     
     @Test
-    public void testConsumerIntegration() {
-        boolean payment = consumer.getPayment();
-        assertTrue(payment);        
+    public void testPaymentCreate() {
+        Payment payment = new Payment();
+        payment.setAmount(5.67);
+        payment.setDescription("test one");
+        payment = consumer.create(payment);
+        assertTrue(payment.getId() > 0);
+        assertEquals(payment.getAmount(), 5.67, 0);
+        assertEquals(payment.getDescription(), "test one");       
     }
     
     @AfterClass
