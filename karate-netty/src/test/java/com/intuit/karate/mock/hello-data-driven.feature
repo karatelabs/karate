@@ -1,7 +1,8 @@
 Feature: a karate test using cucumber scenario outlines
 
 Background:
-Given url 'http://localhost:' + wiremockPort + '/v1/dogs'
+Given url mockServerUrl
+And path 'dogs'
 
 Scenario Outline: create many dogs
 

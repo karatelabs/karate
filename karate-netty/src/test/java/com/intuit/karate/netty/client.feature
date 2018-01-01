@@ -1,7 +1,7 @@
 Feature:
 
 Background:
-* url serverUrl + '/cats'
+* url mockServerUrl + 'cats'
 
 Scenario:
 Given request { name: 'Billie' }

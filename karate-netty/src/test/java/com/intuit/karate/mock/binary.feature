@@ -12,7 +12,8 @@ Scenario: get binary result and make sure it hasn't been corrupted
     return(expected.length == actualBytes.length)
   }
   """
-Given url 'http://localhost:' + wiremockPort + '/v1/binary/'
+Given url mockServerUrl
+And path 'binary'
 When method get
 Then status 200
 Then assert checkBinaryResult(response)
