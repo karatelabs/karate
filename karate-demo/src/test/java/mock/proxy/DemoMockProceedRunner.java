@@ -1,4 +1,4 @@
-package mock;
+package mock.proxy;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
@@ -26,30 +26,30 @@ import org.junit.Test;
 @CucumberOptions(tags = "~@ignore", features = {
     "classpath:demo/cats", 
     "classpath:demo/greeting"})
-public class DemoMockProxyRunner {
+public class DemoMockProceedRunner {
 
     private static FeatureServer server;
-    private static int demoServerPort;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        demoServerPort = TestBase.beforeClass();
-        Map map = Match.init().def("demoServerPort", null).allAsMap(); // don't rewrite url
-        File file = FileUtils.getFileRelativeTo(DemoMockProxyRunner.class, "demo-mock-proceed.feature");
+        int port = TestBase.beforeClass();
+        Map map = Match.init().def("demoServerPort", port).allAsMap();
+        File file = FileUtils.getFileRelativeTo(DemoMockProceedRunner.class, "demo-mock-proceed.feature");
         server = FeatureServer.start(file, 0, false, map);
     }
     
     @AfterClass
     public static void afterClass() {
+        server.stop();
         TestBase.afterClass();
     }     
 
     @Test
     public void testParallel() {
-        System.setProperty("karate.env", "proxy");
-        System.setProperty("demo.server.port", demoServerPort + "");
-        System.setProperty("demo.proxy.port", server.getPort() + "");         
-        String karateOutputPath = "target/mock-proxy/surefire-reports";
+        int port = server.getPort();
+        System.setProperty("karate.env", "mock");
+        System.setProperty("demo.server.port", port + "");        
+        String karateOutputPath = "target/mock-proceed/surefire-reports";
         KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
         generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
@@ -59,7 +59,7 @@ public class DemoMockProxyRunner {
         Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(karateOutputPath), new String[]{"json"}, true);
         List<String> jsonPaths = new ArrayList(jsonFiles.size());
         jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
-        Configuration config = new Configuration(new File("target/mock-proxy"), "mock-proxy");
+        Configuration config = new Configuration(new File("target/mock-proceed"), "mock-proceed");
         ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
         reportBuilder.generateReports();
     }

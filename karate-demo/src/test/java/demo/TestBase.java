@@ -17,8 +17,10 @@ public abstract class TestBase {
     
     @BeforeClass
     public static int beforeClass() throws Exception {
-        server = new ServerStart();
-        server.start(new String[]{"--server.port=0"}, false);
+        if (server == null) { // keep spring boot side alive for all tests including package 'mock'
+            server = new ServerStart();
+            server.start(new String[]{"--server.port=0"}, false);
+        }
         System.setProperty("demo.server.port", server.getPort() + "");
         return server.getPort();
     }

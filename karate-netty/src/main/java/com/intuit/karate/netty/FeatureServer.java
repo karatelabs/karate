@@ -53,6 +53,8 @@ public class FeatureServer {
 
     private final Channel channel;
     private final int port;
+    private final EventLoopGroup bossGroup;
+    private final EventLoopGroup workerGroup;
 
     public int getPort() {
         return port;
@@ -64,6 +66,13 @@ public class FeatureServer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public void stop() {
+        logger.info("stop: shutting down");
+        bossGroup.shutdownGracefully();
+        workerGroup.shutdownGracefully();
+        logger.info("stop: shutdown complete");
     }
 
     private FeatureServer(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
@@ -78,8 +87,8 @@ public class FeatureServer {
         } else {
             sslCtx = null;
         }
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        bossGroup = new NioEventLoopGroup(1);
+        workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
@@ -89,7 +98,7 @@ public class FeatureServer {
             channel = b.bind(port).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             this.port = isa.getPort();
-            logger.info("server started - {}://127.0.0.1:{}/", (ssl ? "https" : "http"), this.port);            
+            logger.info("server started - {}://127.0.0.1:{}", (ssl ? "https" : "http"), this.port);            
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
