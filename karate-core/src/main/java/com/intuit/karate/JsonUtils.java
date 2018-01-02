@@ -101,7 +101,6 @@ public class JsonUtils {
         return toJsonDoc(toJson(o));
     }
 
-    // could have used generics, but this is only going to be called from js / karate
     public static Object fromJson(String s, String className) {
         try {
             Class clazz = Class.forName(className);
@@ -109,6 +108,10 @@ public class JsonUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public static <T> T fromJson(String s, Class<T> clazz) {
+        return (T) fromJson(s, clazz.getName());
     }
 
     public static String toPrettyJsonString(DocumentContext doc) {
