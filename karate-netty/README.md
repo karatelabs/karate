@@ -25,7 +25,7 @@ Thanks to the developers of [Netty](http://netty.io) for such an *awesome* frame
 
 This documentation is work in progress while this project evolves. But here is an end-to-end demo that should provide sufficient detail for those interested.
 
-## Consumer-Producer Example
+## Consumer-Provider Example
 ```                              
                    |¯¯¯¯¯¯¯¯¯¯¯¯|
 |¯¯¯¯¯¯¯¯¯¯|       |  Payment   |
