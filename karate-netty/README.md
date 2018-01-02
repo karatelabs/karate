@@ -30,23 +30,23 @@ This documentation is work in progress while this project evolves. But here is a
                    |¯¯¯¯¯¯¯¯¯¯¯¯|
 |¯¯¯¯¯¯¯¯¯¯|       |  Payment   |
 | Consumer |------>|  Service   |
-|__________|       | (Producer) |
+|__________|       | (Provider) |
                    |____________|
 ```
-We use a simple example of a Java 'consumer' which makes HTTP calls to a 'Payment Service'. `GET`, `POST` and `DELETE` have been implemented in the service (producer).
+We use a simple example of a Java 'consumer' which makes HTTP calls to a 'Payment Service'. `GET`, `POST` and `DELETE` have been implemented in the service (provider).
 
 | File | Flow | Description |
 | ---- | ---- | ----------- |
 [`Consumer.java`](../karate-demo/src/test/java/mock/contract/Consumer.java) | C (Consumer) | The 'consumer' or client application that consumes the demo 'Payment Service'
-[`PaymentService.java`](../karate-demo/src/test/java/mock/contract/PaymentService.java) | P (Producer) | The Payment Service that implements CRUD for the [`Payment.java`](../karate-demo/src/test/java/mock/contract/Payment.java) 'POJO'
-[`ConsumerIntegrationTest.java`](../karate-demo/src/test/java/mock/contract/ConsumerIntegrationTest.java) | C->P | An end-to-end integration test of the consumer that needs the *real* producer to be up and running
+[`PaymentService.java`](../karate-demo/src/test/java/mock/contract/PaymentService.java) | P (Provider) | The Payment Service that implements CRUD for the [`Payment.java`](../karate-demo/src/test/java/mock/contract/Payment.java) 'POJO'
+[`ConsumerIntegrationTest.java`](../karate-demo/src/test/java/mock/contract/ConsumerIntegrationTest.java) | C->P | An end-to-end integration test of the consumer that needs the *real* provider to be up and running
 [`payment-service.feature`](../karate-demo/src/test/java/mock/contract/payment-service.feature) | KC (Karate Consumer / Contract) | A 'normal' Karate functional-test that tests the 'contract' of the Payment Service from the perspective of the consumer
-[`PaymentServiceContractTest.java`](../karate-demo/src/test/java/mock/contract/PaymentServiceContractTest.java) | KC->P | JUnit runner for the above Karate 'contract' test, that depends on the *real* producer being up and running
-[`payment-service-mock.feature`](../karate-demo/src/test/java/mock/contract/payment-service-mock.feature) | KP (Karate Producer) | A 'state-ful' mock (or stub) that *fully* implements the 'contract' ! Yes, *really*.
+[`PaymentServiceContractTest.java`](../karate-demo/src/test/java/mock/contract/PaymentServiceContractTest.java) | KC->P | JUnit runner for the above Karate 'contract' test, that depends on the *real* provider being up and running
+[`payment-service-mock.feature`](../karate-demo/src/test/java/mock/contract/payment-service-mock.feature) | KP (Karate Provider) | A 'state-ful' mock (or stub) that *fully* implements the 'contract' ! Yes, *really*.
 [`PaymentServiceContractUsingMockTest.java`](../karate-demo/src/test/java/mock/contract/PaymentServiceContractUsingMockTest.java) | KC->KP | Uses the above 'stub' to run the Payment Service 'contract' test
 [`ConsumerUsingMockTest.java`](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) | C->KP | Uses the 'fake' Payment Service 'stub' to run an integration test for the *real* consumer
-[`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature) | KX (Karate ProXy) | Karate can act as a proxy with 'gateway like' capabilities, you can choose to either stub a response or delegate to a remote producer, depending on the incoming request. Think of the 'X' as being able to *transform* the HTTP request and response payloads as they pass through (and before returning)
-[`ConsumerUsingProxyHttpTest.java`](../karate-demo/src/test/java/mock/contract/ConsumerUsingProxyHttpTest.java) | C->KX->P | Here Karate is set up to act as an HTTP proxy, the advantage is that the consumer can use the 'real' producer URL, which simplifies configuration, provided that you can configure the consumer to use an HTTP proxy (ideally in a non-invasive fashion)
+[`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature) | KX (Karate ProXy) | Karate can act as a proxy with 'gateway like' capabilities, you can choose to either stub a response or delegate to a remote provider, depending on the incoming request. Think of the 'X' as being able to *transform* the HTTP request and response payloads as they pass through (and before returning)
+[`ConsumerUsingProxyHttpTest.java`](../karate-demo/src/test/java/mock/contract/ConsumerUsingProxyHttpTest.java) | C->KX->P | Here Karate is set up to act as an HTTP proxy, the advantage is that the consumer can use the 'real' provider URL, which simplifies configuration, provided that you can configure the consumer to use an HTTP proxy (ideally in a non-invasive fashion)
 [`ConsumerUsingProxyRewriteTest.java`](../karate-demo/src/test/java/mock/contract/ConsumerUsingProxyHttpTest.java) | C->KX->P | Karate acts as a URL 're-writing' proxy. Here the consumer 'knows' only about the proxy. In this mode (as well as the above 'HTTP proxy' mode which uses the *same* script file), you can choose to either stub a response - or even forward the incoming HTTP request onto any remote URL you choose.
 
 ### Server-Side Karate
