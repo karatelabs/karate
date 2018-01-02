@@ -10,6 +10,8 @@ function() {
   } else if (karate.env == 'dev-mock-springmvc') {
     var Factory = Java.type('demo.MockSpringMvcServlet');
     karate.configure('httpClientInstance', Factory.getMock());
+    var result = karate.callSingle('classpath:demo/headers/common-noheaders.feature', config);
+    config.authInfo = { authTime: result.time, authToken: result.token };
   }
   return config;
 }

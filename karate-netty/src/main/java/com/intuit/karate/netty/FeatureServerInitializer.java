@@ -32,6 +32,7 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import java.io.File;
+import java.util.Map;
 
 /**
  *
@@ -42,10 +43,10 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
     private final SslContext sslCtx;
     private final FeatureProvider provider;
     
-    public FeatureServerInitializer(SslContext sslCtx, File featureFile) {
+    public FeatureServerInitializer(SslContext sslCtx, File featureFile, Map<String, Object> vars) {
         this.sslCtx = sslCtx;
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(featureFile);
-        provider = new FeatureProvider(featureWrapper);        
+        provider = new FeatureProvider(featureWrapper, vars);        
     }
     
     @Override

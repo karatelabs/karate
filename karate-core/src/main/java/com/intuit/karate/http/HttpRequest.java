@@ -32,10 +32,20 @@ import java.util.List;
  */
 public class HttpRequest {
     
-    private String uri;
+    private String urlBase; // used in mock since uri may start with '/'
+    private String uri; // will be full uri including query string
     private String method;    
     private MultiValuedMap headers = new MultiValuedMap();
+    private MultiValuedMap params; // only used in mock
     private byte[] body;
+
+    public String getUrlBase() {
+        return urlBase;
+    }
+
+    public void setUrlBase(String urlBase) {
+        this.urlBase = urlBase;
+    }        
     
     public void addHeader(String key, String value) {
         headers.add(key, value);
@@ -43,6 +53,17 @@ public class HttpRequest {
     
     public void putHeader(String key, List<String> values) {
         headers.put(key, values);
+    }
+
+    public MultiValuedMap getParams() {
+        return params;
+    }        
+    
+    public void putParam(String key, List<String> values) {
+        if (params == null) {
+            params = new MultiValuedMap();
+        }
+        params.put(key, values);
     }
 
     public String getMethod() {

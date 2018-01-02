@@ -56,6 +56,9 @@ public class HttpRequestBuilder {
     }
 
     public void addPath(String path) {
+        if (path == null) {
+            return;
+        }
         if (paths == null) {
             paths = new ArrayList<>();
         }
@@ -72,6 +75,10 @@ public class HttpRequestBuilder {
         }
         headers.remove(name);
     }
+
+    public void setHeaders(MultiValuedMap headers) {
+        this.headers = headers;
+    }        
 
     public void setHeader(String name, String value) {
         setHeader(name, Collections.singletonList(value));

@@ -17,13 +17,13 @@ public class FeatureServerTest {
     @BeforeClass
     public static void beforeClass() {
         File file = FileUtils.getFileRelativeTo(FeatureServerTest.class, "server.feature");
-        server = FeatureServer.start(file, 0, false);
+        server = FeatureServer.start(file, 0, false, null);
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");        
     }
 
     @Test
-    public void testServer() throws Exception {
+    public void testServer() {
         CucumberRunner.runFeature(getClass(), "client.feature", null, true);
     }
 

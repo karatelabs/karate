@@ -1,7 +1,6 @@
 package demo.greeting;
 
 import com.intuit.karate.junit4.Karate;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /**

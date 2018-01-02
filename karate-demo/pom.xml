@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.6.2</version>
+        <version>0.7.0.RC2</version>
     </parent>
     
     <artifactId>karate-demo</artifactId>
@@ -64,7 +64,14 @@
             <artifactId>karate-apache</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>                
+        </dependency> 
+        
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-netty</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>                                        
         
         <dependency>
             <groupId>net.masterthought</groupId>
@@ -98,6 +105,8 @@
                 <configuration>
                     <includes>
                         <include>demo/DemoTestParallel.java</include>
+                        <include>mock/contract/*Test.java</include>
+                        <include>mock/proxy/*Runner.java</include>
                     </includes>
                 </configuration>
             </plugin>                                   

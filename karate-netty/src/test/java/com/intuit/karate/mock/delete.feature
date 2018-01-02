@@ -1,8 +1,7 @@
-@ignore
 Feature: testing http delete method
 
 Background:
-* url 'http://localhost:' + wiremockPort + '/v1/'
+* url mockServerUrl
 
 Scenario: without request body
 

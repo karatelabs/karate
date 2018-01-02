@@ -213,7 +213,14 @@ public class CucumberUtils {
 
     // adapted from cucumber.runtime.Runtime.runCalledStep
     public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, KarateBackend backend) {
-        backend.beforeStep(featurePath, step);
+        try { // karate-config / bootstrap failures will manifest here !
+            backend.beforeStep(featurePath, step);
+        } catch (Exception e) {
+            String message = e.getMessage() + ", before step: '" + step.getName() + "', feature: " + featurePath + ", line: " + step.getLine();
+            backend.getEnv().logger.error("{}", message);
+            Result result = new Result(Result.FAILED, 0L, new KarateException(message), KarateReporterBase.DUMMY_OBJECT);
+            return afterStep(reporter, step, Match.UNDEFINED, result, featurePath, backend);            
+        }
         if (reporter == null) {
             reporter = DUMMY_REPORTER;
         }
@@ -251,7 +258,7 @@ public class CucumberUtils {
         if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step, match, result, callContext);
-        } else if (!backend.isCalled()) {
+        } else if (!backend.isCalled() && reporter != null) { // can be null for server
             reporter.match(match);
             reporter.result(result);
         }

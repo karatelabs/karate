@@ -290,17 +290,17 @@ public class Script {
             return new ScriptValue(doc);
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
-        } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
-            return evalJsExpression(text, context);
-            // remove after 0.7.0 release feedback
+// remove after 0.7.0 release feedback            
+//        } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
+//            return evalJsExpression(text, context);
 //        } else if (isVariableAndJsonPath(text)) {
 //            StringUtils.Pair pair = parseVariableAndPath(text);
 //            return evalJsonPathOnVarByName(pair.left, pair.right, context);
-        } else if (isVariableAndXmlPath(text)) {
-            StringUtils.Pair pair = parseVariableAndPath(text);
-            return evalXmlPathOnVarByName(pair.left, pair.right, context);
+//        } else if (isVariableAndXmlPath(text)) {
+//            StringUtils.Pair pair = parseVariableAndPath(text);
+//            return evalXmlPathOnVarByName(pair.left, pair.right, context);
         } else {
-            // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, 5, true
+            // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, foo + '', 5, true
             // including function declarations e.g. function() { }
             return evalJsExpression(text, context);
         }
@@ -878,7 +878,14 @@ public class Script {
                 if (validatorName != null) {
                     Validator v = context.validators.get(validatorName);
                     if (v == null) {
-                        return matchFailed(stringMatchType, path, actValue.getValue(), expected, "unknown validator");
+                        boolean pass = expected.equals(actValue.getAsString());
+                        if (!pass) {
+                            if (stringMatchType == MatchType.NOT_EQUALS) {
+                                return AssertionResult.PASS;
+                            } else {
+                                return matchFailed(stringMatchType, path, actValue.getValue(), expected, "not equal");
+                            }
+                        }
                     } else {
                         ValidationResult vr = v.validate(actValue);
                         if (!vr.isPass()) {
@@ -949,6 +956,9 @@ public class Script {
         Node node = actual.getValue(Node.class);
         actual = evalXmlPathOnXmlNode(node, path);
         ScriptValue expected = evalKarateExpression(expression, context);
+        if (actual.isNull()) {
+            return matchFailed(matchType, path, null, expected.getValue(), "actual xpath returned null");
+        }        
         Object actObject;
         Object expObject;
         switch (expected.getType()) {
@@ -1121,6 +1131,8 @@ public class Script {
         if (o instanceof Map) {
             Node node = XmlUtils.fromObject(elementName, o);
             return XmlUtils.toString(node);
+        } else if (o instanceof Node) {
+            return XmlUtils.toString((Node) o);
         } else {
             return o;
         }
@@ -1551,9 +1563,10 @@ public class Script {
             }
             return new ScriptValue(result);
         } catch (Exception e) {
-            String message = "javascript function call failed, arg: " + callArg + "\n" + som;
-            context.logger.error(message, e);
-            throw new KarateException(message, e);
+            String message = "javascript function call failed: " + e.getMessage();
+            context.logger.error(message);
+            context.logger.error("failed function body: " + som);
+            throw new KarateException(message);
         }
     }
 

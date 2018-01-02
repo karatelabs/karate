@@ -162,7 +162,7 @@ public class ScriptTest {
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
         assertEquals("bar", value.getAsString());
-        value = Script.evalKarateExpression("myXml/root/foo", ctx);
+        value = Script.evalKarateExpression("$myXml/root/foo", ctx);
         assertEquals("bar", value.getAsString());
     }
 
@@ -500,12 +500,19 @@ public class ScriptTest {
         ScriptValue myXml = ctx.vars.get("myXml");
         assertTrue(Script.matchXml(MatchType.EQUALS, myXml, "/root/foo", "<foo><bar>baz</bar></foo>", ctx).pass);
     }
+    
+    @Test
+    public void testMatchXmlPathThatReturnsNull() {
+        ScriptContext ctx = getContext();
+        Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "myXml//baz", null, "<baz>1</baz>", ctx).pass);
+    }    
 
     @Test
     public void testAssignAndMatchXmlText() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo>bar</foo></root>", ctx);
-        Script.assign("myStr", "myXml/root/foo", ctx);
+        Script.assign("myStr", "$myXml/root/foo", ctx);
         assertTrue(Script.assertBoolean("myStr == 'bar'", ctx).pass);
     }
 
@@ -513,7 +520,7 @@ public class ScriptTest {
     public void testAssignAndMatchXmlChunk() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
-        Script.assign("myChunk", "myXml/root/foo", ctx);
+        Script.assign("myChunk", "$myXml/root/foo", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myChunk", null, "<foo><bar>baz</bar></foo>", ctx).pass);
     }
 
@@ -521,7 +528,7 @@ public class ScriptTest {
     public void testAssignAndMatchXmlChunkByVariableReference() {
         ScriptContext ctx = getContext();
         Script.assign("myXml", "<root><foo><bar>baz</bar></foo></root>", ctx);
-        Script.assign("myChunk", "myXml/root/foo", ctx);
+        Script.assign("myChunk", "$myXml/root/foo", ctx);
         Script.assign("expected", "<foo><bar>baz</bar></foo>", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "myChunk", null, "expected", ctx).pass);
     }
@@ -976,6 +983,13 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", "$", "{ foo: '#? _ > 4' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", "$", "{ foo: '#? _ > 4 && _ < 6' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json", "$", "{ foo: '#? _ > min && _ < max' }", ctx).pass);
+    }
+    
+    @Test
+    public void testStringThatStartsWithHashSymbol() {
+        ScriptContext ctx = getContext();
+        Script.assign("foo", "{ bar: '#####' }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ bar: '#####' }", ctx).pass);
     }
 
     @Test

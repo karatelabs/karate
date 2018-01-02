@@ -43,9 +43,7 @@ public class DemoTestParallel {
     private static void generateReport(String karateOutputPath) {
         Collection<File> jsonFiles = FileUtils.listFiles(new File(karateOutputPath), new String[] {"json"}, true);
         List<String> jsonPaths = new ArrayList(jsonFiles.size());
-        for (File file : jsonFiles) {
-            jsonPaths.add(file.getAbsolutePath());
-        }
+        jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
         Configuration config = new Configuration(new File("target"), "demo");
         ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
         reportBuilder.generateReports();        

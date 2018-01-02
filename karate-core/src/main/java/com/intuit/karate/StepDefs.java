@@ -34,17 +34,14 @@ import com.jayway.jsonpath.JsonPath;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
 
 public class StepDefs {
 
@@ -360,57 +357,10 @@ public class StepDefs {
         }
         request.setMethod(method);
         response = context.client.invoke(request, context);
-        context.vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
-        context.vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getTime());
-        context.vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
-        context.vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
-        Object responseBody = convertResponseBody(response.getBody());
-        if (responseBody instanceof String) {
-            String responseString = StringUtils.trimToEmpty((String) responseBody);
-            if (Script.isJson(responseString)) {
-                try {
-                    DocumentContext doc = JsonUtils.toJsonDoc(responseString);
-                    responseBody = doc;
-                    if (context.isLogPrettyResponse()) {
-                        context.logger.info("response:\n{}", JsonUtils.toPrettyJsonString(doc));
-                    }
-                } catch (Exception e) {
-                    context.logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
-                }
-            } else if (Script.isXml(responseString)) {
-                try {
-                    Document doc = XmlUtils.toXmlDoc(responseString);
-                    responseBody = doc;
-                    if (context.isLogPrettyResponse()) {
-                        context.logger.info("response:\n{}", XmlUtils.toString(doc, true));
-                    }
-                } catch (Exception e) {
-                    context.logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
-                }
-            }
-        }
-        context.vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
+        HttpUtils.updateResponseVars(response, context.vars, context);
         String prevUrl = request.getUrl();
         request = new HttpRequestBuilder();
         request.setUrl(prevUrl);
-    }
-
-    private Object convertResponseBody(byte[] bytes) {
-        if (bytes == null) {
-            return null;
-        }
-        // if a byte array contains a negative-signed byte,
-        // then the string conversion will corrupt it.
-        // in that case just return the byte array stream
-        try {
-            String rawString = FileUtils.toString(bytes);
-            if (Arrays.equals(bytes, rawString.getBytes())) {
-                return rawString;
-            }
-        } catch (Exception e) {
-            context.logger.warn("response bytes to string conversion failed: {}", e.getMessage());
-        }
-        return new ByteArrayInputStream(bytes);
     }
 
     @When("^soap action( .+)?")

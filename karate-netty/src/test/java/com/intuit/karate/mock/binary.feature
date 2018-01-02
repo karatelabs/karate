@@ -1,11 +1,10 @@
-@ignore
 Feature: testing binary response handling
 
 Scenario: get binary result and make sure it hasn't been corrupted
   * def checkBinaryResult =
   """
   function(b){
-    var Runner = Java.type('com.intuit.karate.junit4.wiremock.HelloWorldTest')
+    var Runner = Java.type('com.intuit.karate.mock.MockServerTest')
     var expected =  Runner.testBytes;
     var FileUtils = Java.type('com.intuit.karate.FileUtils');
     var actualBytes = FileUtils.toBytes(b);
@@ -13,7 +12,8 @@ Scenario: get binary result and make sure it hasn't been corrupted
     return(expected.length == actualBytes.length)
   }
   """
-Given url 'http://localhost:' + wiremockPort + '/v1/binary/'
+Given url mockServerUrl
+And path 'binary'
 When method get
 Then status 200
 Then assert checkBinaryResult(response)

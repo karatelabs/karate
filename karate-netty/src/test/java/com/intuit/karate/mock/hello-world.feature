@@ -1,4 +1,3 @@
-@ignore
 Feature: simple example of a karate test
 
 Background:
@@ -8,7 +7,8 @@ Background:
 
 Scenario: create and retrieve a cat
 
-Given url 'http://localhost:' + wiremockPort + '/v1/cats'
+Given url mockServerUrl
+And path 'cats'
 And request { name: 'Billie' }
 When method postMethod
 Then status 201

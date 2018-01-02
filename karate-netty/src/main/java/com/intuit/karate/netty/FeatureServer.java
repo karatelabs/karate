@@ -35,6 +35,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,12 +47,14 @@ public class FeatureServer {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureServer.class);
 
-    public static FeatureServer start(File featureFile, int port, boolean ssl) {
-        return new FeatureServer(featureFile, port, ssl);
+    public static FeatureServer start(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
+        return new FeatureServer(featureFile, port, ssl, vars);
     }
 
     private final Channel channel;
     private final int port;
+    private final EventLoopGroup bossGroup;
+    private final EventLoopGroup workerGroup;
 
     public int getPort() {
         return port;
@@ -64,8 +67,15 @@ public class FeatureServer {
             throw new RuntimeException(e);
         }
     }
+    
+    public void stop() {
+        logger.info("stop: shutting down");
+        bossGroup.shutdownGracefully();
+        workerGroup.shutdownGracefully();
+        logger.info("stop: shutdown complete");
+    }
 
-    private FeatureServer(File featureFile, int port, boolean ssl) {
+    private FeatureServer(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
         final SslContext sslCtx;
         if (ssl) {
             try {
@@ -77,18 +87,18 @@ public class FeatureServer {
         } else {
             sslCtx = null;
         }
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        bossGroup = new NioEventLoopGroup(1);
+        workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new FeatureServerInitializer(sslCtx, featureFile));
+                    .childHandler(new FeatureServerInitializer(sslCtx, featureFile, vars));
             channel = b.bind(port).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             this.port = isa.getPort();
-            logger.info("server started - {}://127.0.0.1:{}/", (ssl ? "https" : "http"), this.port);            
+            logger.info("server started - {}://127.0.0.1:{}", (ssl ? "https" : "http"), this.port);            
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

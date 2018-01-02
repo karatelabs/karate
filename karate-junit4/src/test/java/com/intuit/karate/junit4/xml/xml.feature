@@ -20,7 +20,7 @@ Scenario: placeholders using xml embedded expressions
     * def phoneNumber = '123456'
     * def search = { wireless: true, voip: false, tollFree: false }
     * def req = read('soap1.xml')
-    * def phone = req/Envelope/Body/getAccountByPhoneNumber
+    * def phone = $req/Envelope/Body/getAccountByPhoneNumber
     * match phone /getAccountByPhoneNumber/phoneNumber == '123456'
     * match phone ==
     """

@@ -25,9 +25,13 @@ package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
+import com.intuit.karate.http.MultiValuedMap;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -38,7 +42,10 @@ import org.w3c.dom.Document;
  *
  * @author pthomas3
  */
-public class ScriptBridge {               
+public class ScriptBridge {
+    
+    private static final Object GLOBALS_LOCK = new Object();
+    private static final Map<String, Object> GLOBALS = new HashMap();
     
     public final ScriptContext context;
     
@@ -115,7 +122,7 @@ public class ScriptBridge {
         ScriptValue sv = new ScriptValue(o);
         DocumentContext doc = Script.toJsonDoc(sv, context);
         return JsonUtils.fromJson(doc.jsonString(), className);
-    }
+    }   
     
     public Object call(String fileName) {
         return call(fileName, null);
@@ -133,6 +140,32 @@ public class ScriptBridge {
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
+        }        
+    }
+    
+    public Object callSingle(String fileName) {
+        return callSingle(fileName, null);
+    }
+    
+    public Object callSingle(String fileName, Object arg) {
+        if (GLOBALS.containsKey(fileName)) {
+            context.logger.trace("callSingle cache hit: {}", fileName);
+            return GLOBALS.get(fileName);
+        }
+        long startTime = System.currentTimeMillis();
+        context.logger.trace("callSingle waiting for lock: {}", fileName);
+        synchronized (GLOBALS_LOCK) { // lock
+            if (GLOBALS.containsKey(fileName)) { // retry
+                long endTime = System.currentTimeMillis() - startTime;
+                context.logger.warn("this thread waited {} milliseconds for callSingle lock: {}", endTime, fileName);
+                return GLOBALS.get(fileName);
+            } 
+            // this thread is the 'winner'
+            context.logger.info(">> lock acquired, begin callSingle: {}", fileName);
+            Object result = call(fileName, arg);
+            GLOBALS.put(fileName, result);
+            context.logger.info("<< lock released, end callSingle: {}", fileName);
+            return result;
         }        
     }
     
@@ -158,11 +191,83 @@ public class ScriptBridge {
         return doc.read("$");        
     }
     
+    public void proceed() {
+        proceed(null);
+    }
+    
+    public void proceed(String requestUrlBase) {
+        HttpRequestBuilder request = new HttpRequestBuilder();
+        String urlBase = requestUrlBase == null ? getAsString(ScriptValueMap.VAR_REQUEST_URL_BASE) : requestUrlBase;
+        String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
+        String url = uri == null ? urlBase : urlBase + uri;
+        request.setUrl(url);
+        request.setMethod(getAsString(ScriptValueMap.VAR_REQUEST_METHOD));
+        request.setHeaders(getValue(ScriptValueMap.VAR_REQUEST_HEADERS).getValue(MultiValuedMap.class));
+        request.removeHeader(HttpUtils.HEADER_CONTENT_LENGTH);
+        request.setBody(getValue(ScriptValueMap.VAR_REQUEST));
+        HttpResponse response = context.client.invoke(request, context);
+        HttpUtils.updateResponseVars(response, context.vars, context);
+    }    
+    
+    private ScriptValue getValue(String name) {
+        ScriptValue sv = context.vars.get(name);
+        return sv == null ? ScriptValue.NULL : sv;
+    }    
+    
+    private String getAsString(String name) {
+        return getValue(name).getAsString();
+    }   
+    
     public boolean pathMatches(String path) {
-        String uri = (String) get("requestUri");
+        String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
         Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
-        set("requestPaths", map);
+        set(ScriptBindings.PATH_PARAMS, map);
         return map != null;
+    }
+    
+    public boolean methodIs(String method) {
+        String actual = getAsString(ScriptValueMap.VAR_REQUEST_METHOD);        
+        return actual.equalsIgnoreCase(method);
+    } 
+    
+    public Object paramValue(String name) {
+        Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
+        if (params == null) {
+            return null;
+        }
+        List<String> list = params.get(name);
+        if (list == null) {
+            return null;
+        }        
+        if (list.size() == 1) {
+            return list.get(0);
+        }
+        return list;
+    }     
+    
+    public boolean headerContains(String name, String test) {
+        Map<String, List<String>> headers = (Map) getValue(ScriptValueMap.VAR_REQUEST_HEADERS).getValue();
+        if (headers == null) {
+            return false;
+        }
+        List<String> list = headers.get(name);
+        if (list == null) {
+            return false;
+        }
+        for (String s: list) {
+            if (s != null && s.contains(test)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public boolean typeContains(String test) {
+        return headerContains(HttpUtils.HEADER_CONTENT_TYPE, test);
+    } 
+    
+    public boolean acceptContains(String test) {
+        return headerContains(HttpUtils.HEADER_ACCEPT, test);        
     }
     
     public String getEnv() {

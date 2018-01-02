@@ -115,7 +115,7 @@ public class ScriptContext {
     
     public boolean isPrintEnabled() {
         return config.isPrintEnabled();
-    }    
+    }
 
     public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
@@ -142,12 +142,12 @@ public class ScriptContext {
         bindings = new ScriptBindings(this);
         if (call.parentContext == null && call.evalKarateConfig) {
             try {
-                Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "read('classpath:karate-config.js')", null, this);
+                Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, ScriptBindings.READ_KARATE_CONFIG, null, this);
             } catch (Exception e) {
                 if (e instanceof KarateFileNotFoundException) {
-                    logger.warn("karate-config.js not found on the classpath, skipping bootstrap configuration");
+                    logger.warn("{} not found on the classpath, skipping bootstrap configuration", ScriptBindings.KARATE_CONFIG_JS);
                 } else {
-                    throw new RuntimeException("evaluation of karate-config.js failed:", e);
+                    throw new RuntimeException("evaluation of " + ScriptBindings.KARATE_CONFIG_JS +  " failed:", e);
                 }
             }
         }

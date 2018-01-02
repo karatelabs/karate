@@ -1,9 +1,9 @@
-@ignore
 Feature: testing http patch method
 
 Scenario:
 
-Given url 'http://localhost:' + wiremockPort + '/v1/patch'
+Given url mockServerUrl
+And path 'patch'
 And request { foo: 'bar' }
 When method patch
 Then status 422

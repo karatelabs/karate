@@ -27,7 +27,6 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptContext;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import java.util.Map;
 
@@ -39,35 +38,51 @@ public class FeatureProvider {
     
     private final FeatureWrapper feature;
     private final KarateBackend backend;
+    private final boolean ssl;
     
     public FeatureProvider(FeatureWrapper feature) {
-        this(feature, null);
+        this(feature, null, false);
     }
     
-    private static final String PATH_MATCHES = "function(s){ return karate.pathMatches(s) }";
-    
-    public FeatureProvider(FeatureWrapper feature, Map<String, Object> args) {
-        this.feature = feature;
-        CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
-        backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
-        ScriptContext context = backend.getStepDefs().getContext();
-        ScriptValue sv = Script.evalJsExpression(PATH_MATCHES, context);
-        context.getVars().put(ScriptBindings.PATH_MATCHES, sv);        
-        updateVars(args);
-        CucumberUtils.call(feature, backend, CallType.BACKGROUND_ONLY);
-    }
-    
-    private void updateVars(Map<String, Object> args) {
-        if (args != null) {            
-            ScriptValueMap vars = backend.getVars();
-            args.forEach((k, v) -> vars.put(k, v));
-        }        
+    public FeatureProvider(FeatureWrapper feature, Map<String, Object> vars) {
+        this(feature, vars, false);
+    }    
+
+    public boolean isSsl() {
+        return ssl;
     }        
     
-    public ScriptValueMap handle(Map<String, Object> args) {
-        updateVars(args);
+    public final ScriptContext getContext() {
+        return backend.getStepDefs().getContext();
+    }
+    
+    private static void putBinding(String name, ScriptContext context) {
+        String function = "function(s){ return " + ScriptBindings.KARATE  + "." + name + "(s) }";
+        context.getVars().put(name, Script.evalJsExpression(function, context));
+    }
+        
+    public FeatureProvider(FeatureWrapper feature, Map<String, Object> vars, boolean ssl) {
+        this.feature = feature;
+        this.ssl = ssl;
+        CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
+        backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
+        ScriptContext context = getContext();
+        putBinding(ScriptBindings.PATH_MATCHES, context);
+        putBinding(ScriptBindings.METHOD_IS, context);
+        putBinding(ScriptBindings.PARAM_VALUE, context);
+        putBinding(ScriptBindings.TYPE_CONTAINS, context);
+        putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
+        if (vars != null) {            
+            ScriptValueMap backendVars = backend.getVars();
+            vars.forEach((k, v) -> backendVars.put(k, v));
+        } 
+        CucumberUtils.call(feature, backend, CallType.BACKGROUND_ONLY);
+    }        
+    
+    public ScriptValueMap handle(ScriptValueMap vars) {
+        backend.getVars().putAll(vars);
         CucumberUtils.call(feature, backend, CallType.SCENARIO_ONLY);
-        return backend.getStepDefs().getContext().getVars();
+        return getContext().getVars();
     }
     
 }
