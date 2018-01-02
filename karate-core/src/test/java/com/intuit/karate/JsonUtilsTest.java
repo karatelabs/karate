@@ -159,6 +159,9 @@ public class JsonUtilsTest {
         ComplexPojo temp = (ComplexPojo) JsonUtils.fromJson(s, ComplexPojo.class.getName());
         assertEquals(temp.getFoo(), "testFoo");
         assertEquals(2, temp.getBan().size());
+        temp = JsonUtils.fromJson(s, ComplexPojo.class);
+        assertEquals(temp.getFoo(), "testFoo");
+        assertEquals(2, temp.getBan().size());        
         s = XmlUtils.toXml(pojo);
         assertEquals(s, "<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>");
     }

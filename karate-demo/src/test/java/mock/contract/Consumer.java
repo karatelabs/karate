@@ -50,7 +50,7 @@ public class Consumer {
                 throw new RuntimeException("status code was " + status);
             }
             String content = IOUtils.toString(con.getInputStream(), "utf-8");
-            return (Payment) JsonUtils.fromJson(content, "mock.contract.Payment");
+            return JsonUtils.fromJson(content, Payment.class);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
