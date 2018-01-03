@@ -3,7 +3,7 @@ Feature: payment service
 Background:
 * url paymentServiceUrl + '/payments'
 
-Scenario: create, get, list and delete payments
+Scenario: create, get, update, list and delete payments
     Given request { amount: 5.67, description: 'test one' }
     When method post
     Then status 200
@@ -15,9 +15,15 @@ Scenario: create, get, list and delete payments
     Then status 200
     And match response == { id: '#(id)', amount: 5.67, description: 'test one' }
 
+    Given path id
+    And request { id: '#(id)', amount: 5.67, description: 'test two' }
+    When method put
+    Then status 200
+    And match response == { id: '#(id)', amount: 5.67, description: 'test two' }
+
     When method get
     Then status 200
-    And match response contains { id: '#(id)', amount: 5.67, description: 'test one' }
+    And match response contains { id: '#(id)', amount: 5.67, description: 'test two' }
 
     Given path id
     When method delete
@@ -25,5 +31,5 @@ Scenario: create, get, list and delete payments
 
     When method get
     Then status 200
-    And match response !contains { id: '#(id)', amount: 5.67, description: 'test one' }
+    And match response !contains { id: '#(id)', amount: '#number', description: '#string' }
     

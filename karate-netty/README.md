@@ -33,7 +33,7 @@ This documentation is work in progress while this project evolves. But here is a
 |__________|       | (Provider) |
                    |____________|
 ```
-We use a simple example of a Java 'consumer' which makes HTTP calls to a 'Payment Service'. `GET`, `POST` and `DELETE` have been implemented in the service (provider).
+We use a simple example of a Java 'consumer' which makes HTTP calls to a 'Payment Service'. `GET`, `POST`, `PUT` and `DELETE` have been implemented in the service (provider).
 
 | File | Flow | Description |
 | ---- | ---- | ----------- |
@@ -50,7 +50,7 @@ We use a simple example of a Java 'consumer' which makes HTTP calls to a 'Paymen
 [`ConsumerUsingProxyRewriteTest.java`](../karate-demo/src/test/java/mock/contract/ConsumerUsingProxyRewriteTest.java) | C->KX->P | Karate acts as a URL 're-writing' proxy. Here the consumer 'knows' only about the proxy. In this mode (as well as the above 'HTTP proxy' mode which uses the *same* script file), you can choose to either stub a response - or even forward the incoming HTTP request onto any remote URL you choose.
 
 ### Server-Side Karate
-#### A match made in heaven
+#### A perfect match !
 It is worth calling out *why* Karate on the 'other side of the fence' (*handling* HTTP requests instead of *making* them) - turns out to be remarkably effective, yet simple.
 
 * 'Native' support for expressing JSON and XML

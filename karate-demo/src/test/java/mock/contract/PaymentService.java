@@ -12,13 +12,7 @@ import org.springframework.boot.autoconfigure.security.SecurityAutoConfiguration
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  *
@@ -33,12 +27,18 @@ public class PaymentService {
     class PaymentController {
 
         private final AtomicInteger counter = new AtomicInteger();
-        private Map<Integer, Payment> payments = new ConcurrentHashMap();
+        private final Map<Integer, Payment> payments = new ConcurrentHashMap();
 
         @PostMapping
         public Payment create(@RequestBody Payment payment) {
             int id = counter.incrementAndGet();
             payment.setId(id);
+            payments.put(id, payment);
+            return payment;
+        }
+
+        @PutMapping("/{id:.+}")
+        public Payment update(@PathVariable int id, @RequestBody Payment payment) {
             payments.put(id, payment);
             return payment;
         }

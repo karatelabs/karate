@@ -14,6 +14,10 @@ Scenario: pathMatches('/payments') && methodIs('post')
 Scenario: pathMatches('/payments')
     * def response = $payments.*
 
+Scenario: pathMatches('/payments/{id}') && methodIs('put')
+    * eval payments[pathParams.id] = request
+    * def response = request
+
 Scenario: pathMatches('/payments/{id}') && methodIs('delete')
     * eval karate.remove('payments', '$.' + pathParams.id)
     * def response = ''
