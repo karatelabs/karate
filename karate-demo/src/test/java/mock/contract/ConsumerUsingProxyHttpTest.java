@@ -26,7 +26,7 @@ public class ConsumerUsingProxyHttpTest {
         String paymentServiceUrl = "http://localhost:" + port;        
         // proxy
         File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyHttpTest.class, "payment-service-proxy.feature");        
-        // setting this to null uses request url as-is (no re-writing) - so acts as an http proxy
+        // setting 'paymentServiceUrl' to null uses request url as-is (no re-writing) - so acts as an http proxy
         Map config = Collections.singletonMap("paymentServiceUrl", null);
         server = FeatureServer.start(file, 0, false, config);
         // consumer (using http proxy)
