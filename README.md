@@ -92,6 +92,8 @@ You can find a lot more at the [community wiki](https://github.com/intuit/karate
 # Getting Started
 Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and [Maven](http://maven.apache.org) to be installed.
 
+> It is recommended that you use the latest possible version of JDK 8, and a version at least greater than 1.8.0_111.
+
 ## Maven
 
 Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
