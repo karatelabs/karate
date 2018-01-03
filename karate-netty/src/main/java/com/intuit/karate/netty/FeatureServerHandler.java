@@ -93,7 +93,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     private final StringBuilder sb = new StringBuilder();
-
+    
     private void writeResponse(HttpRequest request, ChannelHandlerContext ctx) {
         sb.setLength(0);
         Match match = Match.init()
@@ -107,9 +107,13 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             String requestBody = FileUtils.toString(request.getBody());
             match.def(ScriptValueMap.VAR_REQUEST, requestBody);
         }
-        ScriptValueMap result = provider.handle(match.vars());
-        ScriptValue responseValue = result.get(ScriptValueMap.VAR_RESPONSE);
-        ScriptValue responseStatus = result.get(ScriptValueMap.VAR_RESPONSE_STATUS);
+        ScriptValue responseValue, responseStatus, responseHeaders;
+        synchronized (provider) {
+            ScriptValueMap result = provider.handle(match.vars());
+            responseValue = result.get(ScriptValueMap.VAR_RESPONSE);
+            responseStatus = result.get(ScriptValueMap.VAR_RESPONSE_STATUS);
+            responseHeaders = result.get(ScriptValueMap.VAR_RESPONSE_HEADERS);
+        }
         HttpResponseStatus nettyResponseStatus;
         if (responseStatus == null) {
             nettyResponseStatus = OK;
@@ -127,8 +131,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 responseBuf = Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8);
             }
             response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus, responseBuf);
-        }
-        ScriptValue responseHeaders = result.get(ScriptValueMap.VAR_RESPONSE_HEADERS);
+        }        
         Map<String, Object> headersMap = responseHeaders == null ? Collections.EMPTY_MAP : responseHeaders.evalAsMap(provider.getContext());
         headersMap.forEach((k, v) -> response.headers().set(k, v));
         if (!headersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE) && responseValue != null) {
