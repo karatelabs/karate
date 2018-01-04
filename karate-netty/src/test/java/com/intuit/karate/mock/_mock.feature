@@ -42,7 +42,7 @@ Scenario: pathMatches('/v1/multiparams')
 Scenario: pathMatches('/v1/german')
     * def response = <name>Müller</name> 
 
-Scenario: pathMatches('/v1/encoding')
+Scenario: pathMatches('/v1/encoding/{raw}')
     * def response = { success: true }
 
 Scenario: pathMatches('/v1/linefeed')

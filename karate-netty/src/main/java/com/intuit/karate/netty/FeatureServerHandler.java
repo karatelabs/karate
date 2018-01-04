@@ -52,7 +52,7 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {    
 
     private final FeatureProvider provider;
 
@@ -92,6 +92,8 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
 
+    private static final String VAR_AFTER_SCENARIO = "afterScenario";
+    
     private final StringBuilder sb = new StringBuilder();
     
     private void writeResponse(HttpRequest request, ChannelHandlerContext ctx) {
@@ -107,13 +109,16 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             String requestBody = FileUtils.toString(request.getBody());
             match.def(ScriptValueMap.VAR_REQUEST, requestBody);
         }
-        ScriptValue responseValue, responseStatus, responseHeaders;
-        synchronized (provider) {
+        ScriptValue responseValue, responseStatus, responseHeaders, afterScenario;
+        // this is a sledgehammer approach to concurrency !
+        // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
+        synchronized (provider) { // BEGIN TRANSACTION !
             ScriptValueMap result = provider.handle(match.vars());
-            responseValue = result.get(ScriptValueMap.VAR_RESPONSE);
-            responseStatus = result.get(ScriptValueMap.VAR_RESPONSE_STATUS);
-            responseHeaders = result.get(ScriptValueMap.VAR_RESPONSE_HEADERS);
-        }
+            responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
+            responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
+            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
+            afterScenario = result.remove(VAR_AFTER_SCENARIO);
+        } // END TRANSACTION !!
         HttpResponseStatus nettyResponseStatus;
         if (responseStatus == null) {
             nettyResponseStatus = OK;
@@ -137,6 +142,11 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         if (!headersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE) && responseValue != null) {
             response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }
+        // functions here are outside of the 'transaction' and should not mutate global state !
+        // typically this is where users can set up an artificial delay or sleep
+        if (afterScenario != null && afterScenario.isFunction()) {
+            afterScenario.invokeFunction(provider.getContext());
+        }        
         ctx.write(response);
     }
 

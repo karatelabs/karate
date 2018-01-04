@@ -29,6 +29,9 @@ Scenario: pathMatches('/cats') && methodIs('post')
     * eval cats[id + ''] = cat
     * def response = cat
 
+Scenario: pathMatches('/cats')
+    * def response = $cats.*
+
 Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
     * def cat = cats[pathParams.id]
     * def response = <cat><id>#(cat.id)</id><name>#(cat.name)</name></cat>

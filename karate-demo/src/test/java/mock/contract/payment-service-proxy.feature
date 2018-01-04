@@ -1,13 +1,11 @@
 Feature: payment service proxy (or api-gateway !)
 
 Background:
-* def sleep = function(t){ java.lang.Thread.sleep(t) }
 
 Scenario: pathMatches('/payments') && methodIs('post')
     * eval karate.proceed(paymentServiceUrl)
-    # example of post-processing
-    * print response
-    # * eval sleep(3000)
+    # example of adding delay via a post-processing hook
+    # * def afterScenario = function(){ karate.log('sleeping ..'); java.lang.Thread.sleep(3000); }
 
 Scenario: pathMatches('/payments')
     * eval karate.proceed(paymentServiceUrl)
