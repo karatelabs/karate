@@ -10,12 +10,13 @@ Thanks to the developers of [Netty](http://netty.io) for such an *awesome* frame
 * Easy HTTP request matching by path, method, headers etc.
 * Use the full power of JavaScript expressions for HTTP request matching
 * Forward HTTP requests to other URL-s (URL re-writing)
-* Proxy HTTP requests
-* AOP style API 'interceptor' model - insert custom functions before and after an HTTP request is handled
+* Usable as a standard HTTP proxy server - so consumer configuration can be simplified
 * Start and stop mock servers in milliseconds
+* Super-fast (~20ms) for typical in-memory CRUD / JsonPath (as long as you don't do I/O)
+* Thread-safe - use concurrent consumers or async flows without fear
 * Easy integration into Java / JUnit test-suites via API
 * Server can dynamically choose free port
-* Mock is powerful enough to perform filter / interception, proxying, URL re-writing - almost like a lightweight, scriptable 'API gateway'
+* Think of it as a scriptable 'API gateway' or 'AOP for web-services' - insert custom functions before / after an HTTP request is handled
 * Just *one* file can script the above aspects, simplifying the mental-model you need to have for advanced scenarios such as [contract-testing](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * Enables consumer or even UI dev teams to work in parallel as the provider service is being developed
 * Provider service dev team can practice TDD using the mock + contract-test
