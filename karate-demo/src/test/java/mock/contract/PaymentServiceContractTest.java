@@ -20,7 +20,7 @@ public class PaymentServiceContractTest {
     @BeforeClass
     public static void beforeClass() {
         System.setProperty("karate.env", "contract");
-        String queueName = "DEMO.SHIPPING";
+        String queueName = "DEMO.CONTRACT";
         context = PaymentService.start(queueName);
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
         System.setProperty("payment.service.url", paymentServiceUrl);

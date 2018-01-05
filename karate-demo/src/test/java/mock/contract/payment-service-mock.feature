@@ -12,7 +12,7 @@ Scenario: pathMatches('/payments') && methodIs('post')
     * eval payments[id + ''] = payment
     * def response = payment
     * string json  = { paymentId: '#(id)', status: 'shipped' }
-    * eval QueueUtils.send('DEMO.FAKE', json, 25)
+    * eval QueueUtils.send(queueName, json, 25)
 
 Scenario: pathMatches('/payments')
     * def response = $payments.*

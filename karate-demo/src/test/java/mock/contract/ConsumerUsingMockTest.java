@@ -3,6 +3,7 @@ package mock.contract;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
+import java.util.Collections;
 import java.util.List;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -20,10 +21,11 @@ public class ConsumerUsingMockTest {
     
     @BeforeClass
     public static void beforeClass() {
+        String queueName = "DEMO.MOCK";
         File file = FileUtils.getFileRelativeTo(ConsumerUsingMockTest.class, "payment-service-mock.feature");
-        server = FeatureServer.start(file, 0, false, null);        
+        server = FeatureServer.start(file, 0, false, Collections.singletonMap("queueName", queueName));
         String paymentServiceUrl = "http://localhost:" + server.getPort();
-        consumer = new Consumer(paymentServiceUrl, "DEMO.FAKE");        
+        consumer = new Consumer(paymentServiceUrl, queueName);        
     }    
     
     @Test

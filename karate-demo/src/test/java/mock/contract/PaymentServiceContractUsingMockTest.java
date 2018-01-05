@@ -6,6 +6,7 @@ import com.intuit.karate.cucumber.KarateStats;
 import com.intuit.karate.netty.FeatureServer;
 import cucumber.api.CucumberOptions;
 import java.io.File;
+import java.util.Collections;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
@@ -22,12 +23,13 @@ public class PaymentServiceContractUsingMockTest {
     
     @BeforeClass
     public static void beforeClass() {
-        System.setProperty("karate.env", "contract");
+        String queueName = "DEMO.CONTRACT.MOCK";
+        System.setProperty("karate.env", "contract");        
         File file = FileUtils.getFileRelativeTo(PaymentServiceContractUsingMockTest.class, "payment-service-mock.feature");
-        server = FeatureServer.start(file, 0, false, null);
+        server = FeatureServer.start(file, 0, false, Collections.singletonMap("queueName", queueName));
         String paymentServiceUrl = "http://localhost:" + server.getPort();
         System.setProperty("payment.service.url", paymentServiceUrl);
-        System.setProperty("shipping.queue.name", "DEMO.FAKE");
+        System.setProperty("shipping.queue.name", queueName);
     }    
     
     @Test
