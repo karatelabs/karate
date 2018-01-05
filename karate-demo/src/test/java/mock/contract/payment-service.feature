@@ -3,7 +3,6 @@ Feature: payment service
 Background:
 * def QueueConsumer = Java.type('mock.contract.QueueConsumer')
 * def queue = new QueueConsumer(queueName)
-* configure afterScenario = function(){ queue.purgeMessages() }
 * url paymentServiceUrl + '/payments'
 
 Scenario: create, get, update, list and delete payments

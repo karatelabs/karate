@@ -4,12 +4,16 @@ import javax.jms.JMSException;
 import javax.jms.TextMessage;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class QueueUtilsTest {
+    
+    private static final Logger logger = LoggerFactory.getLogger(QueueUtilsTest.class);
 
     private boolean passed = false;
 
@@ -27,7 +31,7 @@ public class QueueUtilsTest {
         consumer.setMessageListener(m -> {
             TextMessage tm = (TextMessage) m;
             try {
-                System.out.println("*** received message: " + tm.getText());
+                logger.info("*** received message: {}", tm.getText());
                 assertEquals("foo", tm.getText());
                 passed = true;
                 consumer.stop();

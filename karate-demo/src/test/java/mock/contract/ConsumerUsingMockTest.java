@@ -35,7 +35,7 @@ public class ConsumerUsingMockTest {
         assertTrue(payment.getId() > 0);
         assertEquals(payment.getAmount(), 5.67, 0);
         assertEquals(payment.getDescription(), "test one"); 
-        Thread.sleep(500);
+        consumer.waitUntilFirstMessage();
         List<Shipment> shipments = consumer.getShipments();
         assertEquals(1, shipments.size());
         Shipment shipment = shipments.get(0);

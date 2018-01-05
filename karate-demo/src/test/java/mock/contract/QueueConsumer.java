@@ -7,12 +7,16 @@ import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class QueueConsumer {
+    
+    private static final Logger logger = LoggerFactory.getLogger(QueueConsumer.class);
 
     private final Connection connection;
     private final MessageConsumer consumer;
@@ -61,12 +65,12 @@ public class QueueConsumer {
         try {
             consumer.setMessageListener(null);
             while (true) {
-                Message message = consumer.receive(250);
+                Message message = consumer.receive(50);
                 if (message == null) {
-                    System.out.println("*** no more messages to purge");
+                    logger.info("*** no more messages to purge");
                     break;
                 }
-                System.out.println("*** purged message: " + message);
+                logger.info("*** purged message: {}", message);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

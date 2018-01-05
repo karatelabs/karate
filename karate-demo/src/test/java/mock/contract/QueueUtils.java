@@ -3,6 +3,7 @@ package mock.contract;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import javax.jms.Connection;
 import javax.jms.DeliveryMode;
 import javax.jms.Destination;
@@ -10,12 +11,16 @@ import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class QueueUtils {
+    
+    private static final Logger logger = LoggerFactory.getLogger(QueueUtils.class);
 
     public static Connection getConnection() {
         try {
@@ -28,24 +33,39 @@ public class QueueUtils {
         }
     }
 
-    private static final ExecutorService executor = Executors.newFixedThreadPool(2);
+    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(5); // 2 should be enough, but headroom
 
     public static void submit(Runnable task) {
-        executor.submit(task);
+        EXECUTOR.submit(task);
     }
 
     public static void waitUntilStopped() {
         try {
-            executor.awaitTermination(5, TimeUnit.SECONDS);
+            EXECUTOR.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    public static void waitUntilCondition(int intervalMillis, Supplier<Boolean> p) {
+        try {
+            while (true) {
+                if (p.get()) {
+                    break;
+                }
+                logger.info("waiting for condition ..");
+                Thread.sleep(intervalMillis);
+            }
+            logger.info("condition true, exit wait");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     public static void send(String queueName, String text, int delayMillis) {
-        executor.submit(() -> {
+        EXECUTOR.submit(() -> {
             try {
-                System.out.println("*** artificial delay: " + delayMillis);
+                logger.info("*** artificial delay: {}", delayMillis);
                 Thread.sleep(delayMillis);
                 Connection connection = getConnection();
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
@@ -54,7 +74,7 @@ public class QueueUtils {
                 producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
                 TextMessage message = session.createTextMessage(text);
                 producer.send(message);
-                System.out.println("*** sent message: " + text);
+                logger.info("*** sent message: {}", text);
                 session.close();
             } catch (Exception e) {
                 throw new RuntimeException(e);

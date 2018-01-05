@@ -4,6 +4,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -41,7 +42,13 @@ public class ConsumerUsingProxyHttpTest {
         payment = consumer.create(payment);
         assertTrue(payment.getId() > 0);
         assertEquals(payment.getAmount(), 5.67, 0);
-        assertEquals(payment.getDescription(), "test one");       
+        assertEquals(payment.getDescription(), "test one"); 
+        consumer.waitUntilFirstMessage();
+        List<Shipment> shipments = consumer.getShipments();
+        assertEquals(1, shipments.size());
+        Shipment shipment = shipments.get(0);
+        assertEquals(payment.getId(), shipment.getPaymentId());
+        assertEquals("shipped", shipment.getStatus());        
     }
     
     @AfterClass

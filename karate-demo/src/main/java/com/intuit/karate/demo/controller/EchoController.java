@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.demo.controller;
 
+import java.util.Map;
+import javax.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,5 +43,10 @@ public class EchoController {
     public String echo(@RequestBody String request) {
         return request;
     }   
+    
+    @GetMapping
+    public Map<String, String[]> search(HttpServletRequest request) {
+        return request.getParameterMap();
+    } 
     
 }

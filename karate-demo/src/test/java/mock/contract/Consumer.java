@@ -11,12 +11,16 @@ import javax.jms.Message;
 import javax.jms.MessageListener;
 import javax.jms.TextMessage;
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class Consumer implements MessageListener {
+    
+    private static final Logger logger = LoggerFactory.getLogger(Consumer.class);
 
     private final String paymentServiceUrl;
     private final String proxyHost;
@@ -74,7 +78,7 @@ public class Consumer implements MessageListener {
         try {
             TextMessage tm = (TextMessage) message;
             String json = tm.getText();
-            System.out.println("*** received message: " + json);
+            logger.info("*** received message: {}", json);
             Shipment shipment = JsonUtils.fromJson(json, Shipment.class);
             shipments.add(shipment);
         } catch (Exception e) {
@@ -82,8 +86,11 @@ public class Consumer implements MessageListener {
         }
     }
     
+    public void waitUntilFirstMessage() {
+        QueueUtils.waitUntilCondition(75, () -> !shipments.isEmpty());
+    }
+    
     public void stopQueueConsumer() {
-        queueConsumer.purgeMessages();
         queueConsumer.stop();        
     }
 
