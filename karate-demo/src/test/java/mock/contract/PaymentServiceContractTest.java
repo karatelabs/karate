@@ -19,7 +19,8 @@ public class PaymentServiceContractTest {
         System.setProperty("karate.env", "contract");
         int port = PaymentService.start();
         String paymentServiceUrl = "http://localhost:" + port;
-        System.setProperty("payment.service.url", paymentServiceUrl);       
+        System.setProperty("payment.service.url", paymentServiceUrl);
+        System.setProperty("shipping.queue.name", "DEMO.SHIPPING");
     }
     
     @AfterClass

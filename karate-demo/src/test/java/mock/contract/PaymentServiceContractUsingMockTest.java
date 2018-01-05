@@ -26,7 +26,8 @@ public class PaymentServiceContractUsingMockTest {
         File file = FileUtils.getFileRelativeTo(PaymentServiceContractUsingMockTest.class, "payment-service-mock.feature");
         server = FeatureServer.start(file, 0, false, null);
         String paymentServiceUrl = "http://localhost:" + server.getPort();
-        System.setProperty("payment.service.url", paymentServiceUrl);       
+        System.setProperty("payment.service.url", paymentServiceUrl);
+        System.setProperty("shipping.queue.name", "DEMO.FAKE");
     }    
     
     @Test
@@ -37,7 +38,7 @@ public class PaymentServiceContractUsingMockTest {
         
     @AfterClass
     public static void afterClass() {
-        server.stop();
+        server.stop();        
     }     
     
 }

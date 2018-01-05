@@ -30,7 +30,7 @@ public class ConsumerUsingProxyHttpTest {
         Map config = Collections.singletonMap("paymentServiceUrl", null);
         server = FeatureServer.start(file, 0, false, config);
         // consumer (using http proxy)
-        consumer = new Consumer(paymentServiceUrl, "localhost", server.getPort());        
+        consumer = new Consumer(paymentServiceUrl, "localhost", server.getPort(), "DEMO.SHIPPING");        
     }    
     
     @Test
@@ -48,6 +48,7 @@ public class ConsumerUsingProxyHttpTest {
     public static void afterClass() {
         server.stop();
         PaymentService.stop();
+        consumer.stopQueueConsumer();
     }    
     
 }

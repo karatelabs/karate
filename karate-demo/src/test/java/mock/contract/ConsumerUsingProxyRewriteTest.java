@@ -31,7 +31,7 @@ public class ConsumerUsingProxyRewriteTest {
         server = FeatureServer.start(file, 0, false, config);
         // consumer
         String proxyUrl = "http://localhost:" + server.getPort();        
-        consumer = new Consumer(proxyUrl);        
+        consumer = new Consumer(proxyUrl, "DEMO.SHIPPING");        
     }    
     
     @Test
@@ -49,6 +49,7 @@ public class ConsumerUsingProxyRewriteTest {
     public static void afterClass() {
         server.stop();
         PaymentService.stop();
+        consumer.stopQueueConsumer();
     }    
     
 }

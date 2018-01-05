@@ -1,6 +1,9 @@
 Feature: payment service
 
 Background:
+* def QueueConsumer = Java.type('mock.contract.QueueConsumer')
+* def queue = new QueueConsumer(queueName)
+* eval queue.purgeMessages()
 * url paymentServiceUrl + '/payments'
 
 Scenario: create, get, update, list and delete payments
@@ -9,6 +12,9 @@ Scenario: create, get, update, list and delete payments
     Then status 200
     And match response == { id: '#number', amount: 5.67, description: 'test one' }
     And def id = response.id
+    * json shipment = queue.waitForMessage()
+    * print '### received:', shipment
+    * match shipment == { paymentId: '#(id)', status: 'shipped' }
 
     Given path id
     When method get

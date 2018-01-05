@@ -5,32 +5,35 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
-import javax.jms.Connection;
-import javax.jms.Destination;
-import javax.jms.MessageConsumer;
+import java.util.ArrayList;
+import java.util.List;
+import javax.jms.Message;
 import javax.jms.MessageListener;
-import javax.jms.Session;
-import org.apache.activemq.ActiveMQConnectionFactory;
+import javax.jms.TextMessage;
 import org.apache.commons.io.IOUtils;
 
 /**
  *
  * @author pthomas3
  */
-public class Consumer {
+public class Consumer implements MessageListener {
 
     private final String paymentServiceUrl;
     private final String proxyHost;
     private final Integer proxyPort;
+    private final List<Shipment> shipments = new ArrayList();
+    private final QueueConsumer queueConsumer;
 
-    public Consumer(String paymentServiceUrl) {
-        this(paymentServiceUrl, null, null);
+    public Consumer(String paymentServiceUrl, String queueName) {
+        this(paymentServiceUrl, null, null, queueName);
     }
 
-    public Consumer(String paymentServiceUrl, String proxyHost, Integer proxyPort) {
+    public Consumer(String paymentServiceUrl, String proxyHost, Integer proxyPort, String queueName) {
         this.paymentServiceUrl = paymentServiceUrl;
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
+        queueConsumer = new QueueConsumer(queueName);        
+        queueConsumer.setMessageListener(this);
     }
 
     private HttpURLConnection getConnection(String path) throws Exception {
@@ -61,29 +64,26 @@ public class Consumer {
             throw new RuntimeException(e);
         }
     }
-    
-    private Connection jmsConnection;
 
-    public void startQueueListener(MessageListener ml) {
+    public List<Shipment> getShipments() {
+        return shipments;
+    }        
+
+    @Override
+    public void onMessage(Message message) {
         try {
-            ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost");
-            jmsConnection = connectionFactory.createConnection();
-            jmsConnection.start();
-            Session session = jmsConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-            Destination destination = session.createQueue("DEMO.SHIPPING");
-            MessageConsumer consumer = session.createConsumer(destination);
-            consumer.setMessageListener(ml);
-        } catch (Exception e) {
-            throw new RuntimeException();
-        }
-    }
-    
-    public void stopQueueListener() {
-        try {
-            jmsConnection.close();
+            TextMessage tm = (TextMessage) message;
+            String json = tm.getText();
+            System.out.println("*** received message: " + json);
+            Shipment shipment = JsonUtils.fromJson(json, Shipment.class);
+            shipments.add(shipment);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public void stopQueueConsumer() {
+        queueConsumer.stop();
     }
 
 }

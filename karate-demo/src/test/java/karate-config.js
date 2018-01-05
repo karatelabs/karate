@@ -12,6 +12,7 @@ function() {
   }
   if (karate.env == 'contract') {
     config.paymentServiceUrl = karate.properties['payment.service.url'];
+    config.queueName = karate.properties['shipping.queue.name'];
   }
   if (karate.env != 'mock' && karate.env != 'proxy' && karate.env != 'contract') {
     // 'callSingle' is guaranteed to run only once even across all threads

@@ -1,5 +1,6 @@
 package mock.contract;
 
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.demo.config.ServerStartedInitializingBean;
 import java.util.Collection;
 import java.util.Map;
@@ -34,6 +35,10 @@ public class PaymentService {
             int id = counter.incrementAndGet();
             payment.setId(id);
             payments.put(id, payment);
+            Shipment shipment = new Shipment();
+            shipment.setPaymentId(id);
+            shipment.setStatus("shipped");            
+            QueueUtils.send("DEMO.SHIPPING", JsonUtils.toJson(shipment), 25);
             return payment;
         }
 
@@ -73,7 +78,7 @@ public class PaymentService {
         return ss.getLocalPort();
     }
 
-    public static void stop() {
+    public static void stop() {        
         context.stop();
     }
 
