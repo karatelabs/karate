@@ -47,16 +47,22 @@ public class QueueUtils {
         }
     }
     
-    public static void waitUntilCondition(int intervalMillis, Supplier<Boolean> p) {
+    public static void waitUntilCondition(int intervalMillis, Supplier<Boolean> p) {        
         try {
+            int count = 0;
             while (true) {
                 if (p.get()) {
                     break;
                 }
-                logger.info("waiting for condition ..");
+                logger.info("*** waiting for condition ..");
                 Thread.sleep(intervalMillis);
+                count++;
+                if (count > 5) {
+                    logger.error("*** too many attempts");
+                    break;
+                }
             }
-            logger.info("condition true, exit wait");
+            logger.info("*** condition true, exit wait");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
