@@ -36,7 +36,8 @@ public class Consumer implements MessageListener {
         this.paymentServiceUrl = paymentServiceUrl;
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
-        queueConsumer = new QueueConsumer(queueName);        
+        queueConsumer = new QueueConsumer(queueName);
+        queueConsumer.purgeMessages();
         queueConsumer.setMessageListener(this);
     }
 
