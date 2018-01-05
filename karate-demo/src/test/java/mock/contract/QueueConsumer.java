@@ -40,12 +40,12 @@ public class QueueConsumer {
         QueueUtils.submit(() -> {
             try {
                 consumer.setMessageListener(ml);
-                System.out.println("*** started listener: " + queueName);
+                logger.info("*** started listener: {}", queueName);
                 while (!stopped) {
-                    System.out.println("*** listening ..");
-                    Thread.sleep(200);
+                    logger.info("*** listening ..");
+                    Thread.sleep(50);
                 }
-                System.out.println("*** stopped listening");
+                logger.info("*** stopped listening");
             } catch (Exception e) {
                 throw new RuntimeException();
             }

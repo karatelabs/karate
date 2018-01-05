@@ -52,6 +52,7 @@ public class QueueUtils {
             int count = 0;
             while (true) {
                 if (p.get()) {
+                    logger.info("*** condition true, exit wait");
                     break;
                 }
                 logger.info("*** waiting for condition ..");
@@ -61,8 +62,7 @@ public class QueueUtils {
                     logger.error("*** too many attempts");
                     break;
                 }
-            }
-            logger.info("*** condition true, exit wait");
+            }            
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -71,7 +71,7 @@ public class QueueUtils {
     public static void send(String queueName, String text, int delayMillis) {
         EXECUTOR.submit(() -> {
             try {
-                logger.info("*** artificial delay: {}", delayMillis);
+                logger.info("*** artificial delay {}: {}", queueName, delayMillis);
                 Thread.sleep(delayMillis);
                 Connection connection = getConnection();
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
@@ -80,12 +80,17 @@ public class QueueUtils {
                 producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
                 TextMessage message = session.createTextMessage(text);
                 producer.send(message);
-                logger.info("*** sent message: {}", text);
+                logger.info("*** sent message {}: {}", queueName, text);
                 session.close();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
+    }
+    
+    public static void purgeMessages(String queueName) {
+        QueueConsumer consumer = new QueueConsumer(queueName);
+        consumer.purgeMessages();
     }
 
 }

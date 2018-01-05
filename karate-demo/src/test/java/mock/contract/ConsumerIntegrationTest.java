@@ -5,6 +5,7 @@ import org.junit.AfterClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  *
@@ -12,13 +13,15 @@ import org.junit.BeforeClass;
  */
 public class ConsumerIntegrationTest {
     
+    private static ConfigurableApplicationContext context;
     private static Consumer consumer;
     
     @BeforeClass
     public static void beforeClass() {
-        int port = PaymentService.start();
-        String paymentServiceUrl = "http://localhost:" + port;
-        consumer = new Consumer(paymentServiceUrl, "DEMO.SHIPPING");       
+        String queueName = "DEMO.INTEGRATION";
+        context = PaymentService.start(queueName);
+        String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
+        consumer = new Consumer(paymentServiceUrl, queueName);       
     }
     
     @Test
@@ -40,7 +43,7 @@ public class ConsumerIntegrationTest {
     
     @AfterClass
     public static void afterClass() {
-        PaymentService.stop();
+        PaymentService.stop(context);
         consumer.stopQueueConsumer();
     }
     

@@ -6,6 +6,9 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -22,6 +25,11 @@ import org.springframework.web.bind.annotation.*;
 @Configuration
 @EnableAutoConfiguration(exclude = {SecurityAutoConfiguration.class, DataSourceAutoConfiguration.class})
 public class PaymentService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
+    
+    @Value("${queue.name}")
+    private String queueName;
 
     @RestController
     @RequestMapping("/payments")
@@ -37,8 +45,8 @@ public class PaymentService {
             payments.put(id, payment);
             Shipment shipment = new Shipment();
             shipment.setPaymentId(id);
-            shipment.setStatus("shipped");            
-            QueueUtils.send("DEMO.SHIPPING", JsonUtils.toJson(shipment), 25);
+            shipment.setStatus("shipped");
+            QueueUtils.send(queueName, JsonUtils.toJson(shipment), 25);
             return payment;
         }
 
@@ -66,21 +74,22 @@ public class PaymentService {
             }
         }
 
+    }        
+
+    
+    
+    public static ConfigurableApplicationContext start(String queueName) {
+        return SpringApplication.run(PaymentService.class, new String[]{"--server.port=0", "--queue.name=" + queueName});             
     }
 
-    private static ConfigurableApplicationContext context;
-
-    public static int start() {
-        if (context == null) {
-            context = SpringApplication.run(PaymentService.class, new String[]{"--server.port=0"});
-        }
+    public static void stop(ConfigurableApplicationContext context) {        
+        SpringApplication.exit(context, () -> 0);
+    }
+    
+    public static int getPort(ConfigurableApplicationContext context) {        
         ServerStartedInitializingBean ss = context.getBean(ServerStartedInitializingBean.class);
         return ss.getLocalPort();
-    }
-
-    public static void stop() {        
-        context.stop();
-    }
+    }    
 
     @Bean
     public ServerStartedInitializingBean getInitializingBean() {

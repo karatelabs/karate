@@ -10,6 +10,7 @@ import org.junit.AfterClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  *
@@ -17,21 +18,23 @@ import org.junit.BeforeClass;
  */
 public class ConsumerUsingProxyHttpTest {
     
+    private static ConfigurableApplicationContext context;
     private static FeatureServer server;
     private static Consumer consumer;
     
     @BeforeClass
     public static void beforeClass() {
-        // actual service        
-        int port = PaymentService.start();        
-        String paymentServiceUrl = "http://localhost:" + port;        
+        // actual service
+        String queueName = "DEMO.PROXY.HTTP";       
+        context = PaymentService.start(queueName);        
+        String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);        
         // proxy
         File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyHttpTest.class, "payment-service-proxy.feature");        
         // setting 'paymentServiceUrl' to null uses request url as-is (no re-writing) - so acts as an http proxy
         Map config = Collections.singletonMap("paymentServiceUrl", null);
         server = FeatureServer.start(file, 0, false, config);
         // consumer (using http proxy)
-        consumer = new Consumer(paymentServiceUrl, "localhost", server.getPort(), "DEMO.SHIPPING");        
+        consumer = new Consumer(paymentServiceUrl, "localhost", server.getPort(), queueName);        
     }    
     
     @Test
@@ -54,7 +57,7 @@ public class ConsumerUsingProxyHttpTest {
     @AfterClass
     public static void afterClass() {
         server.stop();
-        PaymentService.stop();
+        PaymentService.stop(context);
         consumer.stopQueueConsumer();
     }    
     

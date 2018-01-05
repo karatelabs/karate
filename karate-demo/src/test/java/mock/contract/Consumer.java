@@ -37,7 +37,6 @@ public class Consumer implements MessageListener {
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
         queueConsumer = new QueueConsumer(queueName);
-        queueConsumer.purgeMessages();
         queueConsumer.setMessageListener(this);
     }
 
@@ -88,7 +87,7 @@ public class Consumer implements MessageListener {
     }
     
     public void waitUntilFirstMessage() {
-        QueueUtils.waitUntilCondition(75, () -> !shipments.isEmpty());
+        QueueUtils.waitUntilCondition(200, () -> !shipments.isEmpty());
     }
     
     public void stopQueueConsumer() {

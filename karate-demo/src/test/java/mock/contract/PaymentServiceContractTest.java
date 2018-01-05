@@ -5,6 +5,7 @@ import cucumber.api.CucumberOptions;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  *
@@ -14,18 +15,21 @@ import org.junit.runner.RunWith;
 @CucumberOptions(features = "classpath:mock/contract/payment-service.feature")
 public class PaymentServiceContractTest {
     
+    private static ConfigurableApplicationContext context;
+    
     @BeforeClass
     public static void beforeClass() {
         System.setProperty("karate.env", "contract");
-        int port = PaymentService.start();
-        String paymentServiceUrl = "http://localhost:" + port;
+        String queueName = "DEMO.SHIPPING";
+        context = PaymentService.start(queueName);
+        String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
         System.setProperty("payment.service.url", paymentServiceUrl);
-        System.setProperty("shipping.queue.name", "DEMO.SHIPPING");
+        System.setProperty("shipping.queue.name", queueName);
     }
     
     @AfterClass
     public static void afterClass() {
-        PaymentService.stop();
+        PaymentService.stop(context);
     }
     
 }
