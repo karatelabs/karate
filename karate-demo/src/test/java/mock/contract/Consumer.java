@@ -83,7 +83,8 @@ public class Consumer implements MessageListener {
     }
     
     public void stopQueueConsumer() {
-        queueConsumer.stop();
+        queueConsumer.purgeMessages();
+        queueConsumer.stop();        
     }
 
 }

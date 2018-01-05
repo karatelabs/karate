@@ -45,7 +45,7 @@ public class QueueUtils {
     public static void send(String queueName, String text, int delayMillis) {
         executor.submit(() -> {
             try {
-                System.out.println("*** sleeping: " + delayMillis);
+                System.out.println("*** artificial delay: " + delayMillis);
                 Thread.sleep(delayMillis);
                 Connection connection = getConnection();
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
