@@ -40,7 +40,7 @@ public class DemoMockRunner {
         System.setProperty("demo.server.port", port + "");        
         String karateOutputPath = "target/mock";
         KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
-        // DemoMockUtils.generateReport(karateOutputPath);
+        DemoMockUtils.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }
 

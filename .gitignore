@@ -5,4 +5,5 @@ target/
 .settings
 .classpath
 *.iml
+karate-demo/activemq-data/
 

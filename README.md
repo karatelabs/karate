@@ -92,6 +92,8 @@ You can find a lot more at the [community wiki](https://github.com/intuit/karate
 # Getting Started
 Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and [Maven](http://maven.apache.org) to be installed.
 
+> It is recommended that you use the latest possible version of JDK 8, and a version at least greater than 1.8.0_111.
+
 ## Maven
 
 Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
@@ -1436,8 +1438,8 @@ When method post
 Then status 201
 ```
 
-# Keywords that set multiple key-value pairs in one step
-
+# Multi-Param Keywords
+## Keywords that set multiple key-value pairs in one step
 `params`, `headers`, `cookies` and `form fields` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing, especially because any JSON key with a `null` value will be ignored. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
 
 ## `params`
@@ -1489,8 +1491,8 @@ A [working example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/s
 
 More examples are available that showcase various ways of parameter-izing and dynamically manipulating SOAP requests in a data-driven fashion. Karate is quite flexible, and provides multiple options for you to evolve patterns that fit your environment, as you can see here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
-# Managing Headers, SSL, Timeouts and HTTP Proxy
-## `configure`
+# `configure`
+## Managing Headers, SSL, Timeouts and HTTP Proxy
 You can adjust configuration settings for the HTTP client used by Karate using this keyword. The syntax is similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the configuration keys supported:
 
  Key | Type | Description
@@ -1538,7 +1540,8 @@ Examples:
 
 And if you need to set some of these 'globally' you can easily do so using [the `karate` object](#the-karate-object) in [`karate-config.js`](#configuration).
 
-# Preparing, Manipulating and Matching Data
+# Payload Assertions
+## Prepare, Mutate, Assert.
 Now it should be clear how Karate makes it easy to express JSON or XML. If you [read from a file](#reading-files), the advantage is that multiple scripts can re-use the same data.
 
 Once you have a [JSON or XML object](#native-data-types), Karate provides multiple ways to manipulate, extract or transform data. And you can easily assert that the data is as expected by comparing it with another JSON or XML object.
