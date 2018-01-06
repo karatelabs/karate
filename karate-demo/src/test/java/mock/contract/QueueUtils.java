@@ -33,7 +33,8 @@ public class QueueUtils {
         }
     }
 
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(5); // 2 should be enough, but headroom
+    // 2 threads should be enough, but leave headroom especially for running CI
+    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(5);
 
     public static void submit(Runnable task) {
         EXECUTOR.submit(task);

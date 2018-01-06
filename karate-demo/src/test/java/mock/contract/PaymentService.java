@@ -74,9 +74,7 @@ public class PaymentService {
             }
         }
 
-    }        
-
-    
+    }
     
     public static ConfigurableApplicationContext start(String queueName) {
         return SpringApplication.run(PaymentService.class, new String[]{"--server.port=0", "--queue.name=" + queueName});             

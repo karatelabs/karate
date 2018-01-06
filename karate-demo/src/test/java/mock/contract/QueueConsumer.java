@@ -2,6 +2,7 @@ package mock.contract;
 
 import javax.jms.Connection;
 import javax.jms.Destination;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
@@ -52,11 +53,11 @@ public class QueueConsumer {
         });
     }
 
-    public String waitForMessage() {
+    public String waitForNextMessage() {
         try {
             TextMessage tm = (TextMessage) consumer.receive();
             return tm.getText();
-        } catch (Exception e) {
+        } catch (JMSException e) {
             throw new RuntimeException(e);
         }
     }

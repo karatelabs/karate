@@ -22,7 +22,7 @@ public class QueueUtilsTest {
         String queueName = "DEMO.TEST";
         QueueUtils.send(queueName, "first", 0);
         QueueConsumer consumer = new QueueConsumer(queueName);
-        String text = consumer.waitForMessage();
+        String text = consumer.waitForNextMessage();
         assertEquals("first", text);
         QueueUtils.send(queueName, "second", 0);
         QueueUtils.send(queueName, "third", 0);
