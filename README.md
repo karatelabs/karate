@@ -90,9 +90,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 You can find a lot more at the [community wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own 'tag' and a healthy presence on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
 # Getting Started
-Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 and [Maven](http://maven.apache.org) to be installed.
-
-> It is recommended that you use the latest possible version of JDK 8, and a version at least greater than 1.8.0_111.
+Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and [Maven](http://maven.apache.org) to be installed.
 
 ## Maven
 
