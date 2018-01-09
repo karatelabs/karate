@@ -24,12 +24,19 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
+import com.jayway.jsonpath.spi.json.JsonProvider;
+import com.jayway.jsonpath.spi.json.JsonSmartJsonProvider;
+import com.jayway.jsonpath.spi.mapper.JsonSmartMappingProvider;
+import com.jayway.jsonpath.spi.mapper.MappingProvider;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -69,19 +76,41 @@ public class JsonUtils {
         }
 
     }
-    
+
     private static class FeatureWrapperJsonWriter implements JsonWriterI<FeatureWrapper> {
 
         @Override
         public <E extends FeatureWrapper> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
             JsonWriter.toStringWriter.writeJSONString("\"#feature\"", out, compression);
         }
-        
+
     }
 
-    static { // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
+    static { 
+        // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
         JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
         JSONValue.registerWriter(FeatureWrapper.class, new FeatureWrapperJsonWriter());
+        // ensure that even if jackson (databind?) is on the classpath, don't switch provider
+        Configuration.setDefaults(new Configuration.Defaults() {
+
+            private final JsonProvider jsonProvider = new JsonSmartJsonProvider();
+            private final MappingProvider mappingProvider = new JsonSmartMappingProvider();
+
+            @Override
+            public JsonProvider jsonProvider() {
+                return jsonProvider;
+            }
+
+            @Override
+            public MappingProvider mappingProvider() {
+                return mappingProvider;
+            }
+
+            @Override
+            public Set<Option> options() {
+                return EnumSet.noneOf(Option.class);
+            }
+        });
     }
 
     public static DocumentContext toJsonDoc(String raw) {
@@ -109,7 +138,7 @@ public class JsonUtils {
             throw new RuntimeException(e);
         }
     }
-    
+
     public static <T> T fromJson(String s, Class<T> clazz) {
         return (T) fromJson(s, clazz.getName());
     }
@@ -129,7 +158,7 @@ public class JsonUtils {
             sb.append(' ').append(' ');
         }
     }
-    
+
     private static void ref(StringBuilder sb, Object o) {
         sb.append("\"#ref:").append(o.getClass().getName()).append('"');
     }
@@ -137,12 +166,12 @@ public class JsonUtils {
     private static void recursePretty(Object o, StringBuilder sb, int depth, Set<Object> seen) {
         if (o == null) {
             sb.append("null");
-        } else if (o instanceof Map) {            
+        } else if (o instanceof Map) {
             if (seen.add(o)) {
                 sb.append('{').append('\n');
                 Map<String, Object> map = (Map<String, Object>) o;
                 Iterator<Map.Entry<String, Object>> iterator = map.entrySet().iterator();
-                while(iterator.hasNext()) {
+                while (iterator.hasNext()) {
                     Map.Entry<String, Object> entry = iterator.next();
                     String key = entry.getKey();
                     pad(sb, depth + 1);
@@ -153,15 +182,15 @@ public class JsonUtils {
                         sb.append(',');
                     }
                     sb.append('\n');
-                }      
+                }
                 pad(sb, depth);
-                sb.append('}');                
+                sb.append('}');
             } else {
                 ref(sb, o);
             }
         } else if (o instanceof List) {
             List list = (List) o;
-            Iterator iterator = list.iterator();            
+            Iterator iterator = list.iterator();
             if (seen.add(o)) {
                 sb.append('[').append('\n');
                 while (iterator.hasNext()) {
@@ -174,7 +203,7 @@ public class JsonUtils {
                     sb.append('\n');
                 }
                 pad(sb, depth);
-                sb.append(']');                
+                sb.append(']');
             } else {
                 ref(sb, o);
             }
@@ -268,15 +297,15 @@ public class JsonUtils {
                 if (!pathExists(doc, left)) {
                     createParents(doc, left);
                 }
-                doc.put(left, right, value);               
+                doc.put(left, right, value);
             }
         }
     }
-    
+
     private static void createParents(DocumentContext doc, String path) {
         StringUtils.Pair pathLeaf = getParentAndLeafPath(path);
         String left = pathLeaf.left;
-        String right = pathLeaf.right;        
+        String right = pathLeaf.right;
         if ("".equals(left)) { // if root
             if (!"$".equals(right)) { // special case, root is array, typically "$[0]"
                 doc.add("$", new LinkedHashMap()); // TODO we assume that second level is always object (not array of arrays)
@@ -285,8 +314,8 @@ public class JsonUtils {
         }
         if (!pathExists(doc, left)) {
             createParents(doc, left);
-        }        
-        Object empty;      
+        }
+        Object empty;
         if (right.endsWith("]") && !right.endsWith("']")) {
             int pos = right.indexOf('[');
             right = right.substring(0, pos);
@@ -294,17 +323,17 @@ public class JsonUtils {
             list.add(new LinkedHashMap());
             empty = list;
         } else {
-            empty = new LinkedHashMap();           
+            empty = new LinkedHashMap();
         }
         doc.put(left, right, empty);
     }
-    
+
     public static boolean pathExists(DocumentContext doc, String path) {
         try {
             return doc.read(path) != null;
         } catch (PathNotFoundException pnfe) {
             return false;
-        }    
+        }
     }
 
     public static DocumentContext fromYaml(String raw) {
@@ -319,17 +348,17 @@ public class JsonUtils {
         boolean needsQuotes = key.indexOf('-') != -1 || key.indexOf(' ') != -1 || key.indexOf('.') != -1;
         return needsQuotes ? parentPath + "['" + key + "']" : parentPath + '.' + key;
     }
-    
+
     public static DocumentContext emptyJsonObject() {
         return toJsonDoc(new LinkedHashMap());
     }
-    
+
     public static DocumentContext emptyJsonArray(int length) {
         List list = new ArrayList(length);
         for (int i = 0; i < length; i++) {
             list.add(new LinkedHashMap());
         }
         return toJsonDoc(list);
-    }    
+    }
 
 }

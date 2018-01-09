@@ -10,9 +10,9 @@ Thanks to the developers of [Netty](http://netty.io) for such an *awesome* frame
 * Easy HTTP request matching by path, method, headers etc.
 * Use the full power of JavaScript expressions for HTTP request matching
 * Forward HTTP requests to other URL-s (URL re-writing)
-* Usable as a standard HTTP proxy server - so consumer configuration can be simplified
+* Usable as a standard HTTP proxy server - simplifying configuration set-up for consuming applications
 * Start and stop mock servers in milliseconds
-* Super-fast (~20ms) for typical in-memory CRUD / JsonPath (as long as you don't do I/O)
+* Super-fast HTTP response times (~20ms) for typical in-memory CRUD / JsonPath (as long as you don't do I/O)
 * Thread-safe - use concurrent consumers or async flows without fear
 * Easy integration into Java / JUnit test-suites via API
 * Server can dynamically choose free port

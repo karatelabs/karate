@@ -166,3 +166,13 @@ karate.set('temp', squares);
 * match foo == { a: '##notnull' }
 * match foo == { a: '#present' }
 * match foo == { a: '#ignore' }
+
+# json-path filter
+* def expected = [{ entityId: 'foo'}, { entityId: 'bar'}]
+
+* def temp = $expected[?(@.entityId=='foo')]
+* match temp == [{ entityId: 'foo'}]
+
+* def entityId = 'foo'
+* def temp = karate.jsonPath(expected, "$[?(@.entityId=='foo')]")
+* match temp == [{ entityId: 'foo'}]
