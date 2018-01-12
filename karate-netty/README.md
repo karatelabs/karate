@@ -1,12 +1,10 @@
 # Karate Netty
 ## API Test-Doubles Made `Simple.`
-### + Consumer Driven Contract Testing
-
-Thanks to the developers of [Netty](http://netty.io) for such an *awesome* framework on which this is based.
+And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html) made easy.
 
 ### Capabilities
 * Super-easy 'hard-coded' mocks ([example](src/test/java/com/intuit/karate/mock/_mock.feature))
-* Stateful mocks that can fully simulate CRUD for a micro-service ([example](https://twitter.com/KarateDSL/status/946607931327266816))
+* Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Easy HTTP request matching by path, method, headers etc.
 * Use the full power of JavaScript expressions for HTTP request matching
 * Forward HTTP requests to other URL-s (URL re-writing)
@@ -17,7 +15,7 @@ Thanks to the developers of [Netty](http://netty.io) for such an *awesome* frame
 * Easy integration into Java / JUnit test-suites via API
 * Server can dynamically choose free port
 * Think of it as a scriptable 'API gateway' or 'AOP for web-services' - insert custom functions before / after an HTTP request is handled
-* Just *one* file can script the above aspects, simplifying the mental-model you need to have for advanced scenarios such as [contract-testing](https://martinfowler.com/articles/consumerDrivenContracts.html)
+* Just *one* file can script the above aspects, simplifying the mental-model you need to have for advanced scenarios such as [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * Integrate messaging or async flows using Java-interop if required
 * Enables consumer or even UI dev teams to work in parallel as the provider service is being developed
 * Provider service dev team can practice TDD using the mock + contract-test
@@ -55,13 +53,15 @@ KX | [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contrac
 #### A perfect match !
 It is worth calling out *why* Karate on the 'other side of the fence' (*handling* HTTP requests instead of *making* them) - turns out to be remarkably effective, yet simple.
 
-* 'Native' support for expressing JSON and XML
+* 'Native' support for expressing JSON and XML payloads
+* [Embedded Expressions](https://github.com/intuit/karate#embedded-expressions) are perfect for those parts of the payload that need to be dynamic, and JS functions can be 'in-lined' into the JSON or XML
 * Manipulate or even transform payloads
 * Validate payloads, using a [simpler alternative to JSON schema](https://twitter.com/KarateDSL/status/878984854012022784) if needed
 * Karate is *all* about making HTTP calls, giving you the flexibility to call 'downstream' services if needed
 * In-memory JSON and JsonPath solves for ['state' and filtering](https://twitter.com/KarateDSL/status/946607931327266816) if needed
 * Mix custom JavaScript (or even Java code) if needed - for complex logic
 * Easily 'seed' data or switch environment / config on start
+* Read initial 'state' from a JSON file if needed
 
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 

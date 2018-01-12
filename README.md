@@ -20,7 +20,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 
 :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square:  
 ----- | ---- | ---- | --- | ---
-**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folders](#folder-structure) / [Naming Conventions](#naming-conventions) | [Script Structure](#script-structure)
+**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folder](#folder-structure) / [Naming Conventions](#naming-conventions) | [Script Structure](#script-structure)
 .... | [JUnit](#running-with-junit) / [TestNG](#running-with-testng) | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging)
 .... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution)
 **Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
