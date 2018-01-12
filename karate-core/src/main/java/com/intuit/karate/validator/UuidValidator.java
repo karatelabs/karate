@@ -11,10 +11,10 @@ public class UuidValidator implements Validator {
 
     @Override
     public ValidationResult validate(ScriptValue value) {
-        if (!value.isString()) {
+        if (!value.isStringOrStream()) {
             return ValidationResult.fail("not a string");
         }
-        String strValue = value.getValue(String.class);
+        String strValue = value.getAsString();
         try {
             UUID uuid = UUID.fromString(strValue);
             return ValidationResult.PASS;

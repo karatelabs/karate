@@ -10,7 +10,7 @@ public class StringValidator implements Validator {
 
     @Override
     public ValidationResult validate(ScriptValue value) {
-        if (!value.isString()) {
+        if (!value.isStringOrStream()) {
             return ValidationResult.fail("not a string");
         } else {
             return ValidationResult.PASS;

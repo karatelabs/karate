@@ -627,7 +627,7 @@ public class Script {
             return JsonPath.parse(sv.getAsMap());
         } else if (sv.isUnknownType()) { // POJO
             return JsonUtils.toJsonDoc(sv.getValue());
-        } else if (sv.isString() || sv.isStream()) {
+        } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
             if (temp.getType() != JSON) {
                 throw new RuntimeException("cannot convert, not a json string: " + sv);
@@ -643,7 +643,7 @@ public class Script {
             return XmlUtils.fromMap(sv.getAsMap());
         } else if (sv.isUnknownType()) {
             return XmlUtils.toXmlDoc(sv.getValue());
-        } else if (sv.isString() || sv.isStream()) {
+        } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
             if (temp.getType() != XML) {
                 throw new RuntimeException("cannot convert, not an xml string: " + sv);
@@ -909,7 +909,7 @@ public class Script {
                     }
                 }
             }
-        } else if (actValue.isString() || actValue.isStream()) {
+        } else if (actValue.isStringOrStream()) {
             String actual = actValue.getAsString();
             switch (stringMatchType) {
                 case CONTAINS:
@@ -1020,18 +1020,19 @@ public class Script {
                 actualDoc = XmlUtils.toJsonDoc(actual.getValue(Node.class));
                 break;
             case STRING: // an edge case when the variable is a plain string not JSON, so switch to plain string compare
-                String actualString = actual.getValue(String.class);
+            case INPUT_STREAM:
+                String actualString = actual.getAsString();
                 ScriptValue expectedString = evalKarateExpression(expression, context);
                 // exit the function early
-                if (!expectedString.isString()) {
+                if (!expectedString.isStringOrStream()) {
                     return matchFailed(matchType, path, actualString, expectedString.getValue(),
                             "type of actual value is 'string' but that of expected is " + expectedString.getType());
                 } else {
-                    return matchStringOrPattern('.', path, matchType, null, null, actual, expectedString.getValue(String.class), context);
+                    return matchStringOrPattern('.', path, matchType, null, null, actual, expectedString.getAsString(), context);
                 }
             case PRIMITIVE: // an edge case when the variable is non-string, not-json (number / boolean)
                 ScriptValue expected = evalKarateExpression(expression, context);
-                if (expected.isString()) { // fuzzy match macro
+                if (expected.isStringOrStream()) { // fuzzy match macro
                     return matchStringOrPattern('.', path, matchType, null, null, actual, expected.getAsString(), context);
                 } else {
                     return matchPrimitive(matchType, path, actual.getValue(), expected.getValue());
@@ -1043,13 +1044,13 @@ public class Script {
                         return matchFailed(matchType, path, null, null, "actual and expected values are both null");
                     }
                     return AssertionResult.PASS;
-                } else if (!expectedNull.isString()) { // primitive or anything which is not a string
+                } else if (!expectedNull.isStringOrStream()) { // primitive or anything which is not a string
                     if (matchType == MatchType.NOT_EQUALS) {
                         return AssertionResult.PASS;
                     }
                     return matchFailed(matchType, path, null, expectedNull.getValue(), "actual value is null but expected is " + expectedNull);
                 } else {
-                    return matchStringOrPattern('.', path, matchType, null, null, actual, expectedNull.getValue(String.class), context);
+                    return matchStringOrPattern('.', path, matchType, null, null, actual, expectedNull.getAsString(), context);
                 }
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
@@ -1510,6 +1511,7 @@ public class Script {
                     case MAP:
                     case LIST:
                     case STRING:
+                    case INPUT_STREAM:
                     case PRIMITIVE:
                     case NULL:
                         break;

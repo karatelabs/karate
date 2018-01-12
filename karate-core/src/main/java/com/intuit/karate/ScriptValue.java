@@ -29,7 +29,6 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -110,6 +109,10 @@ public class ScriptValue {
     public boolean isString() {
         return type == Type.STRING;
     }
+    
+    public boolean isStringOrStream() {
+        return isString() || isStream();
+    }    
 
     public boolean isXml() {
         return type == Type.XML;
