@@ -85,7 +85,7 @@ This report is recommended especially because the HTTP request and response payl
 ![Report includes HTTP logs](src/test/resources/karate-maven-report-http.jpg)
 
 ## Code Coverage using Jacoco
-In the [`pom.xml`](pom.xml#L115), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Since this is set-up as a [Maven profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), instrumentation and code-coverage reporting would be performed only when you use the `coverage` profile. Note that code-coverage data (binary) would be saved to this file: `target/jacoco.exec`.
+In the [`pom.xml`](pom.xml#L142), code coverage using [Jacoco](http://www.baeldung.com/jacoco) is also demonstrated. Since this is set-up as a [Maven profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), instrumentation and code-coverage reporting would be performed only when you use the `coverage` profile. Note that code-coverage data (binary) would be saved to this file: `target/jacoco.exec`.
 
 So to run tests and perform code-coverage:
 
