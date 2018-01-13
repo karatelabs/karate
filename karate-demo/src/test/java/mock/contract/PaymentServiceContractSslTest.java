@@ -13,16 +13,16 @@ import org.springframework.context.ConfigurableApplicationContext;
  */
 @RunWith(Karate.class)
 @CucumberOptions(features = "classpath:mock/contract/payment-service.feature")
-public class PaymentServiceContractTest {
+public class PaymentServiceContractSslTest {
     
     private static ConfigurableApplicationContext context;
     
     @BeforeClass
     public static void beforeClass() {
-        System.setProperty("karate.env", "contract");
-        String queueName = "DEMO.CONTRACT";
-        context = PaymentService.start(queueName, false);
-        String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
+        System.setProperty("karate.env", "contract");        
+        String queueName = "DEMO.CONTRACT.SSL";
+        context = PaymentService.start(queueName, true);
+        String paymentServiceUrl = "https://localhost:" + PaymentService.getPort(context);
         System.setProperty("payment.service.url", paymentServiceUrl);
         System.setProperty("shipping.queue.name", queueName);
     }

@@ -15,9 +15,12 @@ function() {
     var proxyPort = karate.properties['demo.proxy.port']
     karate.configure('proxy', 'http://127.0.0.1:' + proxyPort);
   }
-  if (karate.env == 'contract') {
-    config.paymentServiceUrl = karate.properties['payment.service.url'];
+  if (karate.env == 'contract') {    
+    config.paymentServiceUrl = karate.properties['payment.service.url'];    
     config.queueName = karate.properties['shipping.queue.name'];
+    if (config.paymentServiceUrl.startsWith('https')) {
+      karate.configure('ssl', true);
+    }
   }
   if (karate.env != 'mock' && karate.env != 'proxy' && karate.env != 'contract') {
     // 'callSingle' is guaranteed to run only once even across all threads

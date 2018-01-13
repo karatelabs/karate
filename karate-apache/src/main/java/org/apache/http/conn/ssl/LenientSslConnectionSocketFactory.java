@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.net.Socket;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.protocol.HttpContext;
 
 /**

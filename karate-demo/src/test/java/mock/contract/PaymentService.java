@@ -2,10 +2,14 @@ package mock.contract;
 
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.demo.config.ServerStartedInitializingBean;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,9 +29,9 @@ import org.springframework.web.bind.annotation.*;
 @Configuration
 @EnableAutoConfiguration(exclude = {SecurityAutoConfiguration.class, DataSourceAutoConfiguration.class})
 public class PaymentService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
-    
+
     @Value("${queue.name}")
     private String queueName;
 
@@ -75,19 +79,27 @@ public class PaymentService {
         }
 
     }
-    
-    public static ConfigurableApplicationContext start(String queueName) {
-        return SpringApplication.run(PaymentService.class, new String[]{"--server.port=0", "--queue.name=" + queueName});             
+
+    public static ConfigurableApplicationContext start(String queueName, boolean ssl) {
+        Stream<String> args = Stream.of("--server.port=0", "--queue.name=" + queueName);
+        if (ssl) {
+            args = Stream.concat(args, Stream.of(
+                    "--server.ssl.key-store=src/test/java/keystore.p12",
+                    "--server.ssl.key-store-password=karate-mock",
+                    "--server.ssl.keyStoreType=PKCS12",
+                    "--server.ssl.keyAlias=karate-mock"));
+        }
+        return SpringApplication.run(PaymentService.class, args.toArray(String[]::new));
     }
 
-    public static void stop(ConfigurableApplicationContext context) {        
+    public static void stop(ConfigurableApplicationContext context) {
         SpringApplication.exit(context, () -> 0);
     }
-    
-    public static int getPort(ConfigurableApplicationContext context) {        
+
+    public static int getPort(ConfigurableApplicationContext context) {
         ServerStartedInitializingBean ss = context.getBean(ServerStartedInitializingBean.class);
         return ss.getLocalPort();
-    }    
+    }
 
     @Bean
     public ServerStartedInitializingBean getInitializingBean() {

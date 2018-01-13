@@ -26,7 +26,7 @@ public class ConsumerUsingProxyRewriteTest {
     public static void beforeClass() {
         // actual service      
         String queueName = "DEMO.PROXY.REWRITE";       
-        context = PaymentService.start(queueName);
+        context = PaymentService.start(queueName, false);
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
         // proxy
         File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyRewriteTest.class, "payment-service-proxy.feature");                        

@@ -26,7 +26,7 @@ public class ConsumerUsingProxyHttpTest {
     public static void beforeClass() {
         // actual service
         String queueName = "DEMO.PROXY.HTTP";       
-        context = PaymentService.start(queueName);        
+        context = PaymentService.start(queueName, false);        
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);        
         // proxy
         File file = FileUtils.getFileRelativeTo(ConsumerUsingProxyHttpTest.class, "payment-service-proxy.feature");        

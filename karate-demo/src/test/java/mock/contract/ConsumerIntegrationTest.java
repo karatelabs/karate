@@ -19,7 +19,7 @@ public class ConsumerIntegrationTest {
     @BeforeClass
     public static void beforeClass() {
         String queueName = "DEMO.INTEGRATION";
-        context = PaymentService.start(queueName);
+        context = PaymentService.start(queueName, false);
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
         consumer = new Consumer(paymentServiceUrl, queueName);       
     }
