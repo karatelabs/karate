@@ -15,8 +15,10 @@
     </appender>    
    
     <logger name="com.intuit.karate" level="DEBUG"/>
+    <logger name="demo" level="DEBUG"/>
+    <logger name="mock" level="DEBUG"/>
    
-    <root level="info">
+    <root level="warn">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
