@@ -43,10 +43,10 @@ public class QueueConsumer {
                 consumer.setMessageListener(ml);
                 logger.info("*** started listener: {}", queueName);
                 while (!stopped) {
-                    logger.info("*** listening ..");
+                    logger.info("*** listening: {} ..", queueName);
                     Thread.sleep(50);
                 }
-                logger.info("*** stopped listening");
+                logger.info("*** stopped listening: {}", queueName);
             } catch (Exception e) {
                 throw new RuntimeException();
             }
@@ -68,10 +68,10 @@ public class QueueConsumer {
             while (true) {
                 Message message = consumer.receive(50);
                 if (message == null) {
-                    logger.info("*** no more messages to purge");
+                    logger.info("*** no more messages to purge: {}", queueName);
                     break;
                 }
-                logger.info("*** purged message: {}", message);
+                logger.info("*** purged message: {} - {}", queueName, message);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

@@ -6,7 +6,7 @@ function() {
     port = karate.env == 'web' ? 8090 : 8080;
   }
   var protocol = 'http';
-  if (karate.properties['demo.server.https']) {
+  if (karate.properties['demo.server.https'] == 'true') {
     protocol = 'https';
     karate.configure('ssl', true);
   }  

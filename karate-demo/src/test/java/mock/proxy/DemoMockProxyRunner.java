@@ -45,7 +45,7 @@ public class DemoMockProxyRunner {
         System.setProperty("karate.env", "proxy");
         System.setProperty("demo.server.port", demoServerPort + "");
         System.setProperty("demo.proxy.port", server.getPort() + "");
-        System.setProperty("demo.server.https", null);
+        System.setProperty("demo.server.https", "false");
         String karateOutputPath = "target/mock-proxy";
         KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
         // DemoMockUtils.generateReport(karateOutputPath);

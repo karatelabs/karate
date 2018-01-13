@@ -44,7 +44,7 @@ public class DemoMockProceedRunner {
         int port = server.getPort();
         System.setProperty("karate.env", "mock");
         System.setProperty("demo.server.port", port + "");
-        System.setProperty("demo.server.https", null);        
+        System.setProperty("demo.server.https", "false");        
         String karateOutputPath = "target/mock-proceed";
         KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
         // DemoMockUtils.generateReport(karateOutputPath);
