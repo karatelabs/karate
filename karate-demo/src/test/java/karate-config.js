@@ -5,7 +5,12 @@ function() {
   if (!port) {
     port = karate.env == 'web' ? 8090 : 8080;
   }
-  var config = { demoBaseUrl: 'http://127.0.0.1:' + port };
+  var protocol = 'http';
+  if (karate.properties['demo.server.https']) {
+    protocol = 'https';
+    karate.configure('ssl', true);
+  }  
+  var config = { demoBaseUrl: protocol + '://127.0.0.1:' + port };
   if (karate.env == 'proxy') {
     var proxyPort = karate.properties['demo.proxy.port']
     karate.configure('proxy', 'http://127.0.0.1:' + proxyPort);

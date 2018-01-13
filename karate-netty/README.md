@@ -7,6 +7,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Easy HTTP request matching by path, method, headers etc.
 * Use the full power of JavaScript expressions for HTTP request matching
+* SSL / HTTPS with built-in self-signed certificate
 * Forward HTTP requests to other URL-s (URL re-writing)
 * Usable as a standard HTTP proxy server - simplifying configuration set-up for consuming applications
 * Start and stop mock servers in milliseconds
