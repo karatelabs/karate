@@ -220,6 +220,13 @@ public class ScriptContext {
             if (value.isString()) {
                 config.setSslEnabled(true);
                 config.setSslAlgorithm(value.getAsString());
+            } else if (value.isMapLike()) {
+                config.setSslEnabled(true);
+                Map<String, Object> map = value.getAsMap();
+                config.setSslTrustStore((String) map.get("trustStore"));
+                config.setSslTrustStorePassword((String) map.get("password"));
+                config.setSslTrustStoreType((String) map.get("type"));
+                config.setSslAlgorithm((String) map.get("algorithm"));                
             } else {
                 config.setSslEnabled(value.isBooleanTrue());
             }

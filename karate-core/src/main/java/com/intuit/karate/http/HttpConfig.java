@@ -33,8 +33,11 @@ import java.util.Map;
 public class HttpConfig {
     
     private boolean sslEnabled = false;
-    private boolean followRedirects = true;
     private String sslAlgorithm = "TLS";
+    private String sslTrustStore;
+    private String sslTrustStorePassword;
+    private String sslTrustStoreType;
+    private boolean followRedirects = true;    
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
     private String proxyUri;
@@ -57,8 +60,11 @@ public class HttpConfig {
     
     public HttpConfig(HttpConfig parent) {
         sslEnabled = parent.sslEnabled;
-        followRedirects = parent.followRedirects;
         sslAlgorithm = parent.sslAlgorithm;
+        sslTrustStore = parent.sslTrustStore;
+        sslTrustStorePassword = parent.sslTrustStorePassword;
+        sslTrustStoreType = parent.sslTrustStoreType;
+        followRedirects = parent.followRedirects;        
         readTimeout = parent.readTimeout;
         connectTimeout = parent.connectTimeout;
         proxyUri = parent.proxyUri;
@@ -82,14 +88,6 @@ public class HttpConfig {
 
     public void setSslEnabled(boolean sslEnabled) {
         this.sslEnabled = sslEnabled;
-    }
-
-    public boolean isFollowRedirects() {
-        return followRedirects;
-    }
-
-    public void setFollowRedirects(boolean followRedirects) {
-        this.followRedirects = followRedirects;
     }        
 
     public String getSslAlgorithm() {
@@ -99,6 +97,38 @@ public class HttpConfig {
     public void setSslAlgorithm(String sslAlgorithm) {
         this.sslAlgorithm = sslAlgorithm;
     }
+
+    public String getSslTrustStore() {
+        return sslTrustStore;
+    }
+
+    public void setSslTrustStore(String sslTrustStore) {
+        this.sslTrustStore = sslTrustStore;
+    }
+
+    public String getSslTrustStorePassword() {
+        return sslTrustStorePassword;
+    }
+
+    public void setSslTrustStorePassword(String sslTrustStorePassword) {
+        this.sslTrustStorePassword = sslTrustStorePassword;
+    }
+
+    public String getSslTrustStoreType() {
+        return sslTrustStoreType;
+    }
+
+    public void setSslTrustStoreType(String sslTrustStoreType) {
+        this.sslTrustStoreType = sslTrustStoreType;
+    }        
+    
+    public boolean isFollowRedirects() {
+        return followRedirects;
+    }
+
+    public void setFollowRedirects(boolean followRedirects) {
+        this.followRedirects = followRedirects;
+    }    
 
     public int getReadTimeout() {
         return readTimeout;

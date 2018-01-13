@@ -10,6 +10,6 @@ Background:
 Scenario: pathMatches('/greeting') && paramValue('name') != null
     * eval karate.proceed(targetUrlBase)
 
-# catch all !
+# 'catch-all' rule
 Scenario: true
     * eval karate.proceed(targetUrlBase)

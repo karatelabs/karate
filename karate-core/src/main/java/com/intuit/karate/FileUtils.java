@@ -111,7 +111,7 @@ public class FileUtils {
         }        
     }       
     
-    public static String readFileAsString(String path, PathPrefix prefix, ScriptContext context) {
+    private static String readFileAsString(String path, PathPrefix prefix, ScriptContext context) {
         try {
             InputStream is = getFileStream(path, prefix, context);            
             return toString(is);
@@ -121,6 +121,14 @@ public class FileUtils {
             throw new KarateFileNotFoundException(message);
         }
     } 
+    
+    public static InputStream getFileStream(String text, ScriptContext context) {
+        text = StringUtils.trimToEmpty(text);
+        PathPrefix prefix = isClassPath(text) ? PathPrefix.CLASSPATH : (isFilePath(text) ? PathPrefix.FILE : PathPrefix.NONE);
+        String fileName = removePrefix(text);
+        fileName = StringUtils.trimToEmpty(fileName);        
+        return getFileStream(fileName, prefix, context);
+    }
     
     private static InputStream getFileStream(String path, PathPrefix prefix, ScriptContext context) {
         switch (prefix) {

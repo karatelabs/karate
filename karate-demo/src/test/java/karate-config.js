@@ -19,7 +19,11 @@ function() {
     config.paymentServiceUrl = karate.properties['payment.service.url'];    
     config.queueName = karate.properties['shipping.queue.name'];
     if (config.paymentServiceUrl.startsWith('https')) {
-      karate.configure('ssl', true);
+      if (config.queueName == 'DEMO.CONTRACT.SSL') {
+        karate.configure('ssl', { trustStore: 'classpath:keystore.p12', password: 'karate-mock', type: 'pkcs12' });
+      } else {
+        karate.configure('ssl', true);
+      }
     }
   }
   if (karate.env != 'mock' && karate.env != 'proxy' && karate.env != 'contract') {

@@ -38,6 +38,7 @@ import com.intuit.karate.http.MultiValuedMap;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
@@ -59,8 +60,8 @@ import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.cookie.Cookie;
-import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCookieStore;
@@ -70,6 +71,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.ssl.SSLContexts;
 
 /**
  * @author pthomas3
@@ -110,8 +112,33 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter, context));
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
-            String sslAlgorithm = config.getSslAlgorithm();
-            SSLContext sslContext = HttpUtils.getSslContext(sslAlgorithm);
+            SSLContext sslContext;
+            if (config.getSslTrustStore() != null) {
+                String trustStoreFile = config.getSslTrustStore();                
+                String password = config.getSslTrustStorePassword();
+                char[] passwordChars = password == null ? null : password.toCharArray();
+                String algorithm = config.getSslAlgorithm();
+                String type = config.getSslTrustStoreType();
+                if (type == null) {
+                    type = KeyStore.getDefaultType();
+                }
+                try {
+                    KeyStore trustStore = KeyStore.getInstance(type);
+                    InputStream is = FileUtils.getFileStream(trustStoreFile, context);
+                    trustStore.load(is, passwordChars);
+                    context.logger.debug("trust store key count: {}", trustStore.size());
+                    sslContext = SSLContexts.custom()
+                            .useProtocol(algorithm) // will default to TLS if null
+                            .loadTrustMaterial(trustStore, new TrustSelfSignedStrategy())
+                            // .loadKeyMaterial(keyStore, passwordChars).build();
+                            .build();
+                } catch (Exception e) {
+                    context.logger.error("ssl config failed: {}", e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            } else {
+                sslContext = HttpUtils.getSslContext(config.getSslAlgorithm());
+            }
             SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
             clientBuilder.setSSLSocketFactory(socketFactory);
         }
@@ -202,7 +229,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         }
         cookieStore.addCookie(cookie);
     }
-    
+
     @Override
     protected HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
         return ApacheHttpUtils.getEntity(items, mediaType);
