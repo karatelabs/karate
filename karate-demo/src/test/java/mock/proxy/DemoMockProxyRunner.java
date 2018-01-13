@@ -37,7 +37,6 @@ public class DemoMockProxyRunner {
     @AfterClass
     public static void afterClass() {
         server.stop();
-        TestBase.afterClass();
     }     
 
     @Test

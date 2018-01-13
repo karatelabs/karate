@@ -25,12 +25,7 @@ public class DemoTestParallel {
     @BeforeClass
     public static void beforeClass() throws Exception {
         TestBase.beforeClass();
-    }
-    
-    @AfterClass
-    public static void afterClass() {
-        TestBase.afterClass();
-    }    
+    } 
     
     @Test
     public void testParallel() {

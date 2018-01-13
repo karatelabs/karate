@@ -76,7 +76,7 @@ public class ServerStart {
 
     public void stop() {
         logger.info("stopping spring context");
-        SpringApplication.exit(context, () -> 0);
+        context.close();
     }
 
     @Test

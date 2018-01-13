@@ -9,6 +9,7 @@ import java.io.File;
 import org.apache.commons.io.FileUtils;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
+import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
@@ -28,7 +29,7 @@ public class JerseyHttpClientTest {
         System.setProperty("demo.server.port", ss.getLocalPort() + "");
         KarateStats stats = CucumberRunner.parallel(getClass(), 5);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);        
-        context.stop();
+        SpringApplication.exit(context, () -> 0);
     }
     
 }

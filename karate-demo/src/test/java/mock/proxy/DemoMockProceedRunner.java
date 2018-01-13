@@ -36,7 +36,6 @@ public class DemoMockProceedRunner {
     @AfterClass
     public static void afterClass() {
         server.stop();
-        TestBase.afterClass();
     }     
 
     @Test

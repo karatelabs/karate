@@ -1,7 +1,6 @@
 package demo;
 
 import com.intuit.karate.junit4.Karate;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import test.ServerStart;
@@ -27,11 +26,6 @@ public abstract class TestBase {
     @BeforeClass
     public static void beforeClass() throws Exception {
         startServer();
-    }
-    
-    @AfterClass
-    public static void afterClass() {
-        server.stop();
     }
     
 }
