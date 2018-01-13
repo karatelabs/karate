@@ -26,6 +26,7 @@ public class JerseyHttpClientTest {
         FileUtils.copyDirectory(srcDir, destDir, f -> true, false);
         ConfigurableApplicationContext context = Application.run(new String[]{"--server.port=0"});
         ServerStartedInitializingBean ss = context.getBean(ServerStartedInitializingBean.class);
+        System.setProperty("karate.env", "jersey");
         System.setProperty("demo.server.port", ss.getLocalPort() + "");
         System.setProperty("demo.server.https", "false");
         KarateStats stats = CucumberRunner.parallel(getClass(), 5);
