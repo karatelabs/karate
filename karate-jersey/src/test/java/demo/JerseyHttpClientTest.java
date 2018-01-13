@@ -27,9 +27,9 @@ public class JerseyHttpClientTest {
         ConfigurableApplicationContext context = Application.run(new String[]{"--server.port=0"});
         ServerStartedInitializingBean ss = context.getBean(ServerStartedInitializingBean.class);
         System.setProperty("demo.server.port", ss.getLocalPort() + "");
+        System.setProperty("demo.server.https", "false");
         KarateStats stats = CucumberRunner.parallel(getClass(), 5);
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);        
-        SpringApplication.exit(context, () -> 0);
+        assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }
     
 }

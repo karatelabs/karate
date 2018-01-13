@@ -28,7 +28,6 @@ import com.intuit.karate.demo.config.ServerStartedInitializingBean;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
@@ -72,11 +71,6 @@ public class ServerStart {
 
     public int getPort() {
         return port;
-    }
-
-    public void stop() {
-        logger.info("stopping spring context");
-        context.close();
     }
 
     @Test
