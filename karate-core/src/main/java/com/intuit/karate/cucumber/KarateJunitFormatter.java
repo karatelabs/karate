@@ -91,6 +91,7 @@ public class KarateJunitFormatter implements Formatter, Reporter {
     private int failCount;
     private int skipCount;
     private double timeTaken;
+    private List<String> failMessages;    
 
     public int getTestCount() {
         return testCount;
@@ -115,6 +116,10 @@ public class KarateJunitFormatter implements Formatter, Reporter {
     public String getFeaturePath() {
         return featurePath;
     }
+
+    public List<String> getFailMessages() {
+        return failMessages;
+    }        
 
     public KarateJunitFormatter(String featurePath, String reportPath) throws IOException {
         this.featurePath = featurePath;
@@ -266,8 +271,8 @@ public class KarateJunitFormatter implements Formatter, Reporter {
 
         Scenario scenario;
         private Feature feature;        
-        final List<Step> steps = new ArrayList<>();
-        final List<Result> results = new ArrayList<>();
+        final List<Step> steps = new ArrayList();
+        final List<Result> results = new ArrayList();        
 
         private Element createTestCaseElement(Document doc) {
             return doc.createElement("testcase");
@@ -307,6 +312,10 @@ public class KarateJunitFormatter implements Formatter, Reporter {
             if (failed != null) {
                 addStackTrace(sb, failed);
                 child = createElementWithMessage(doc, sb, "failure", failed.getErrorMessage());
+                if (failMessages == null) {
+                    failMessages = new ArrayList();                    
+                }
+                failMessages.add(failed.getErrorMessage());
             } else if (skipped != null) {
                 child = createElement(doc, sb, "skipped");
             } else {

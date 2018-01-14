@@ -72,7 +72,7 @@ public class CucumberRunner {
                 int index = i + 1;
                 CucumberFeature feature = karateFeature.getFeature();
                 filterOnTags(feature);
-                if(!feature.getFeatureElements().isEmpty()) {
+                if (!feature.getFeatureElements().isEmpty()) {
                     callables.add(() -> {
                         // we are now within a separate thread. the reporter filters logs by self thread
                         String threadName = Thread.currentThread().getName();
@@ -94,10 +94,10 @@ public class CucumberRunner {
                     filteredCount++;
                 }
             }
-            stats.setFeatureCount(count-filteredCount);
+            stats.setFeatureCount(count - filteredCount);
 
             List<Future<KarateJunitAndJsonReporter>> futures = executor.invokeAll(callables);
-            stats.stopTimer();            
+            stats.stopTimer();
             for (Future<KarateJunitAndJsonReporter> future : futures) {
                 KarateJunitAndJsonReporter reporter = future.get(); // guaranteed to be not-null
                 KarateJunitFormatter formatter = reporter.getJunitFormatter();
@@ -110,14 +110,14 @@ public class CucumberRunner {
                 stats.addToSkipCount(formatter.getSkipCount());
                 stats.addToTimeTaken(formatter.getTimeTaken());
                 if (formatter.isFail()) {
-                    stats.addToFailedList(formatter.getFeaturePath());
+                    stats.addToFailedList(formatter.getFeaturePath(), formatter.getFailMessages() + "");
                 }
-            }            
+            }
         } catch (Exception e) {
             logger.error("karate parallel runner failed: ", e.getMessage());
             stats.setFailureReason(e);
         } finally {
-            executor.shutdownNow();                        
+            executor.shutdownNow();
         }
         stats.printStats(threadCount);
         return stats;
@@ -129,9 +129,9 @@ public class CucumberRunner {
         for (Iterator<CucumberTagStatement> iterator = featureElements.iterator(); iterator.hasNext();) {
             CucumberTagStatement cucumberTagStatement = iterator.next();
             for (TagFilter implClass : loader) {
-                logger.info("Tag filter found: {}",implClass.getClass().getSimpleName());
+                logger.info("Tag filter found: {}", implClass.getClass().getSimpleName());
                 final boolean isFiltered = implClass.filter(feature, cucumberTagStatement);
-                if(isFiltered) {
+                if (isFiltered) {
                     logger.info("skipping feature element {} of feature {} due to feature-tag-filter {} ",
                             cucumberTagStatement.getVisualName(),
                             feature.getPath(), implClass.getClass().getSimpleName());

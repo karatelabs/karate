@@ -82,9 +82,9 @@ public class CucumberRunnerTest {
         assertTrue(contains(pathBase + "multi-scenario.xml", "Then assert a != 2"));
         // a scenario failure should not stop other features from running
         assertTrue(contains(pathBase + "multi-scenario-fail.xml", "Then assert a != 2..........................................................passed"));
-        assertEquals(2, stats.getFailedList().size());
-        assertTrue(stats.getFailedList().contains("com.intuit.karate.cucumber.no-scenario-name"));
-        assertTrue(stats.getFailedList().contains("com.intuit.karate.cucumber.multi-scenario-fail"));
+        assertEquals(2, stats.getFailedMap().size());
+        assertTrue(stats.getFailedMap().keySet().contains("com.intuit.karate.cucumber.no-scenario-name"));
+        assertTrue(stats.getFailedMap().keySet().contains("com.intuit.karate.cucumber.multi-scenario-fail"));
     }    
     
     @Test

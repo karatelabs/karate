@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.cucumber;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  *
@@ -39,18 +39,18 @@ public class KarateStats {
     private double timeTaken;    
     private final long startTime;
     private long endTime;
-    private List<String> failedList;
+    private Map<String, String> failedMap;
     private Throwable failureReason;
     
     private KarateStats(long startTime) {
         this.startTime = startTime;
     }
     
-    public void addToFailedList(String name) {
-        if (failedList == null) {
-            failedList = new ArrayList<>();
+    public void addToFailedList(String name, String errorMessage) {
+        if (failedMap == null) {
+            failedMap = new LinkedHashMap();
         }
-        failedList.add(name);
+        failedMap.put(name, errorMessage);
     }
     
     public static KarateStats startTimer() {
@@ -95,8 +95,11 @@ public class KarateStats {
         System.out.println(String.format("scenarios: %4d | failed: %4d | skipped: %4d", 
                 testCount, failCount, skipCount));
         System.out.println("====================================================");
-        if (failedList != null) {
-            System.out.println("failed: " + failedList);
+        if (failedMap != null) {
+            System.out.println("failed features:");
+            failedMap.forEach((k, v) -> {
+                System.out.println(k + ": " + v);
+            });
         }
         if (failureReason != null) {
             if (failCount == 0) {
@@ -139,8 +142,8 @@ public class KarateStats {
         return endTime;
     }
 
-    public List<String> getFailedList() {
-        return failedList;
+    public Map<String, String> getFailedMap() {
+        return failedMap;
     }        
     
 }
