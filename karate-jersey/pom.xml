@@ -14,14 +14,12 @@
         <jersey.version>2.25</jersey.version>
     </properties>          
 
-    <dependencies>
-        
+    <dependencies>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        
+        </dependency>        
         <dependency>
             <groupId>org.glassfish.jersey.core</groupId>
             <artifactId>jersey-client</artifactId>
@@ -32,35 +30,41 @@
                     <artifactId>asm-all-repackaged</artifactId>
                 </exclusion>                 
             </exclusions>
-        </dependency>                                
-        
+        </dependency>      
         <dependency>
             <groupId>org.glassfish.jersey.media</groupId>
             <artifactId>jersey-media-multipart</artifactId>
             <version>${jersey.version}</version>
-        </dependency>
-        
+        </dependency>        
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
-        </dependency>
-        
+        </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-demo</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>
-        
+        </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-netty</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>                                                                                                                         
-		
-    </dependencies>          
+        </dependency>                                                                                                                         		
+    </dependencies>      
+            
+    <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/java</directory>
+                <excludes>
+                    <exclude>**/*.java</exclude>
+                </excludes>
+            </testResource>
+        </testResources>
+    </build>                            
     
 </project>

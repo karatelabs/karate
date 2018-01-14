@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http.jersey;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
@@ -33,6 +34,7 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
 import java.io.InputStream;
+import java.security.KeyStore;
 import java.util.List;
 import java.util.Map.Entry;
 import javax.net.ssl.HttpsURLConnection;
@@ -47,6 +49,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
+import org.glassfish.jersey.SslConfigurator;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.HttpUrlConnectorProvider;
@@ -79,7 +82,33 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 .register(new LoggingInterceptor(context)) // must be first
                 .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
-            SSLContext sslContext = HttpUtils.getSslContext(config.getSslAlgorithm());
+            SSLContext sslContext;
+            if (config.getSslTrustStore() != null) {
+                String trustStoreFile = config.getSslTrustStore();                
+                String password = config.getSslTrustStorePassword();
+                char[] passwordChars = password == null ? null : password.toCharArray();
+                String algorithm = config.getSslAlgorithm();
+                String type = config.getSslTrustStoreType();
+                if (type == null) {
+                    type = KeyStore.getDefaultType();
+                }
+                try {
+                    KeyStore trustStore = KeyStore.getInstance(type);
+                    InputStream is = FileUtils.getFileStream(trustStoreFile, context);
+                    trustStore.load(is, passwordChars);
+                    context.logger.debug("trust store key count: {}", trustStore.size());
+                    sslContext = SslConfigurator.newInstance()
+                            .securityProtocol(algorithm) // will default to TLS if null
+                            .trustStore(trustStore)
+                            // .keyStore(trustStore)
+                            .createSSLContext();
+                } catch (Exception e) {
+                    context.logger.error("ssl config failed: {}", e.getMessage());
+                    throw new RuntimeException(e);
+                }                
+            } else {
+                sslContext = HttpUtils.getSslContext(config.getSslAlgorithm());
+            }
             HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
             clientBuilder.sslContext(sslContext);
             clientBuilder.hostnameVerifier((host, session) -> true);
