@@ -3,6 +3,7 @@ package com.intuit.karate.netty;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.cucumber.CucumberRunner;
 import java.io.File;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -25,6 +26,11 @@ public class FeatureServerTest {
     @Test
     public void testServer() {
         CucumberRunner.runFeature(getClass(), "client.feature", null, true);
+    }
+    
+    @AfterClass
+    public static void afterClass() {
+        server.stop();
     }
 
 }

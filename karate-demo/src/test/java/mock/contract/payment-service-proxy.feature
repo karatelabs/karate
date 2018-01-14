@@ -1,6 +1,7 @@
 Feature: payment service proxy (or api-gateway !)
 
 Background:
+* eval if (paymentServiceUrl && paymentServiceUrl.startsWith('https')) karate.configure('ssl', true)
 
 Scenario: pathMatches('/payments') && methodIs('post')
     * eval karate.proceed(paymentServiceUrl)

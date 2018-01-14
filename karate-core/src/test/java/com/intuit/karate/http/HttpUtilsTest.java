@@ -57,7 +57,13 @@ public class HttpUtilsTest {
         Match.equalsText(pair.right, "/bar?baz=ban");
         pair = HttpUtils.parseUriIntoUrlBaseAndPath("http://foo/bar?baz=ban");
         Match.equalsText(pair.left, "http://foo");
-        Match.equalsText(pair.right, "/bar?baz=ban");         
+        Match.equalsText(pair.right, "/bar?baz=ban");
+        pair = HttpUtils.parseUriIntoUrlBaseAndPath("localhost:50856");
+        Match.equalsText(pair.left, null);
+        Match.equalsText(pair.right, "");
+        pair = HttpUtils.parseUriIntoUrlBaseAndPath("127.0.0.1:50856");
+        Match.equalsText(pair.left, null);
+        Match.equalsText(pair.right, "");          
     }
     
 }

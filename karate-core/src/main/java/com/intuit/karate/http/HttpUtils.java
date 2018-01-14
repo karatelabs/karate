@@ -51,7 +51,7 @@ public class HttpUtils {
     private HttpUtils() {
         // only static methods
     }
-    
+
     public static void updateResponseVars(HttpResponse response, ScriptValueMap vars, ScriptContext context) {
         vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
         vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getTime());
@@ -82,9 +82,9 @@ public class HttpUtils {
                 }
             }
         }
-        vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);        
+        vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
     }
-    
+
     private static Object convertResponseBody(byte[] bytes, ScriptContext context) {
         if (bytes == null) {
             return null;
@@ -101,7 +101,7 @@ public class HttpUtils {
             context.logger.warn("response bytes to string conversion failed: {}", e.getMessage());
         }
         return new ByteArrayInputStream(bytes);
-    }    
+    }
 
     public static SSLContext getSslContext(String algorithm) {
         TrustManager[] certs = new TrustManager[]{new LenientTrustManager()};
@@ -142,21 +142,25 @@ public class HttpUtils {
             return TEXT_PLAIN;
         }
     }
-    
+
     public static StringUtils.Pair parseUriIntoUrlBaseAndPath(String rawUri) {
+        int pos = rawUri.indexOf('/');
+        if (pos == -1) {
+            return StringUtils.pair(null, "");
+        }
+        URI uri;        
         try {
-            URI uri = new URI(rawUri);
-            String host = uri.getHost();
-            if (host == null) {
-                return StringUtils.pair(null, rawUri);
-            }
-            String path = uri.getRawPath();
-            int pos = rawUri.indexOf(path);
-            String urlBase = rawUri.substring(0, pos);
-            return StringUtils.pair(urlBase, rawUri.substring(pos));
+            uri = new URI(rawUri);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        if (uri.getHost() == null) {
+            return StringUtils.pair(null, rawUri);
+        }
+        String path = uri.getRawPath();
+        pos = rawUri.indexOf(path);
+        String urlBase = rawUri.substring(0, pos);
+        return StringUtils.pair(urlBase, rawUri.substring(pos));
     }
 
     public static Map<String, Cookie> parseCookieHeaderString(String header) {
@@ -174,7 +178,7 @@ public class HttpUtils {
         });
         return map;
     }
-    
+
     public static String createCookieHeaderValue(Collection<Cookie> cookies) {
         return cookies.stream()
                 .map((c) -> c.getName() + "=" + c.getValue())
