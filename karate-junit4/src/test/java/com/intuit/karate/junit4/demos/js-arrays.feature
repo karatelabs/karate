@@ -333,3 +333,16 @@ Scenario: read json within a js function
     * def fun = function(){ var temp = karate.read('classpath:test.json'); return temp.error[1].id }
     * def val = call fun
     * match val == 2
+
+Scenario: case-insensitive sort mixing js and java
+    * def ArrayList = Java.type('java.util.ArrayList')
+    * def Collections = Java.type('java.util.Collections')
+
+    * def json = [{ v: 'C' }, { v: 'b' }, { v: 'A' }]
+    * def actual = $json[*].v
+    * match actual == ['C', 'b', 'A']
+    * def list = new ArrayList()
+    * eval for(var i = 0; i < actual.length; i++) list.add(actual[i])
+    * match list == ['C', 'b', 'A']
+    * eval Collections.sort(list, java.lang.String.CASE_INSENSITIVE_ORDER)
+    * match list == ['A', 'b', 'C']
