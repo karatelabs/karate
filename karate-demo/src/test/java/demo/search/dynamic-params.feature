@@ -84,7 +84,7 @@ Scenario: using a data-driven called feature instead of a scenario outline
 
 Scenario: using the set keyword to build json and nulls are skipped by default
     this is possibly the simplest form of all the above, avoiding any javascript
-    but still needing a 'call' to a second feature file
+    but does require however - a 'call' to a second feature file
 
     # table would have been sufficient below, but here we demo how 'set' is simply a 'transpose' of table
     * set data

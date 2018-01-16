@@ -342,7 +342,14 @@ Scenario: case-insensitive sort mixing js and java
     * def actual = $json[*].v
     * match actual == ['C', 'b', 'A']
     * def list = new ArrayList()
-    * eval for(var i = 0; i < actual.length; i++) list.add(actual[i])
+    * eval for (var i = 0; i < actual.length; i++) list.add(actual[i])
     * match list == ['C', 'b', 'A']
     * eval Collections.sort(list, java.lang.String.CASE_INSENSITIVE_ORDER)
     * match list == ['A', 'b', 'C']
+
+Scenario: the example above implemented using a re-usable js function
+    * def json = [{ v: 'C' }, { v: 'b' }, { v: 'A' }]
+    * def actual = $json[*].v
+    * match actual == ['C', 'b', 'A']
+    * def sorted = call read('sort.js') actual
+    * match sorted == ['A', 'b', 'C']
