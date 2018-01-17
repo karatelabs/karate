@@ -130,8 +130,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                     sslContext = SSLContexts.custom()
                             .useProtocol(algorithm) // will default to TLS if null
                             .loadTrustMaterial(trustStore, new TrustSelfSignedStrategy())
-                            // .loadKeyMaterial(keyStore, passwordChars).build();
-                            .build();
+                            .loadKeyMaterial(trustStore, passwordChars).build();
                 } catch (Exception e) {
                     context.logger.error("ssl config failed: {}", e.getMessage());
                     throw new RuntimeException(e);
