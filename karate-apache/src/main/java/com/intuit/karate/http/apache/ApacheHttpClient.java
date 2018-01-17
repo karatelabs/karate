@@ -60,7 +60,6 @@ import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
@@ -129,9 +128,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                     context.logger.debug("trust store key count: {}", trustStore.size());
                     sslContext = SSLContexts.custom()
                             .useProtocol(algorithm) // will default to TLS if null
-                            .loadTrustMaterial(trustStore, new TrustSelfSignedStrategy())
-                            // .loadKeyMaterial(keyStore, passwordChars).build();
-                            .build();
+                            .loadKeyMaterial(trustStore, passwordChars).build();
                 } catch (Exception e) {
                     context.logger.error("ssl config failed: {}", e.getMessage());
                     throw new RuntimeException(e);
