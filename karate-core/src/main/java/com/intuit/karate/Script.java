@@ -134,22 +134,6 @@ public class Script {
         return text.matches("^" + VARIABLE_PATTERN_STRING + "\\s+.+");
     }
 
-    public static final boolean isVariableAndJsonPath(String text) {
-        return !text.endsWith(")") // hack, just to ignore JS method calls
-                && text.matches("^" + VARIABLE_PATTERN_STRING + "\\..+");
-    }
-
-    public static final boolean isVariableAndXmlPath(String text) {
-        return text.matches("^" + VARIABLE_PATTERN_STRING + "/.*");
-    }
-
-    public static final boolean isStringExpression(String text) {
-        // somewhat of a cop out but should be sufficient
-        // users can enclose complicated expressions in parantheses as a work around
-        return text.startsWith("'") || text.startsWith("\"")
-                || text.endsWith("'") || text.endsWith("\"");
-    }
-
     public static boolean isJavaScriptFunction(String text) {
         return text.matches("^function\\s*[(].+");
     }
@@ -290,15 +274,6 @@ public class Script {
             return new ScriptValue(doc);
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
-// remove after 0.7.0 release feedback            
-//        } else if (isStringExpression(text)) { // has to be above variableAndXml/JsonPath because of / in URL-s etc
-//            return evalJsExpression(text, context);
-//        } else if (isVariableAndJsonPath(text)) {
-//            StringUtils.Pair pair = parseVariableAndPath(text);
-//            return evalJsonPathOnVarByName(pair.left, pair.right, context);
-//        } else if (isVariableAndXmlPath(text)) {
-//            StringUtils.Pair pair = parseVariableAndPath(text);
-//            return evalXmlPathOnVarByName(pair.left, pair.right, context);
         } else {
             // js expressions e.g. foo, foo(bar), foo.bar, foo + bar, foo + '', 5, true
             // including function declarations e.g. function() { }
