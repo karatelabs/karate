@@ -356,7 +356,13 @@ public class StepDefs {
             method = Script.evalKarateExpression(method, context).getAsString();
         }
         request.setMethod(method);
-        response = context.client.invoke(request, context);
+        try {
+            response = context.client.invoke(request, context);
+        } catch (Exception e) {
+            String message = e.getMessage();
+            context.logger.error("http request failed: {}", message);
+            throw new KarateException(message); // reduce log verbosity
+        }
         HttpUtils.updateResponseVars(response, context.vars, context);
         String prevUrl = request.getUrl();
         request = new HttpRequestBuilder();

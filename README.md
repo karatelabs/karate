@@ -1257,9 +1257,19 @@ And request myVariable
 In most cases you won't need to set the `Content-Type` [`header`](#header) as Karate will automatically do the right thing depending on the data-type of the `request`.
 
 Defining the `request` is mandatory if you are using an HTTP `method` that expects a body such as `post`. If you really need to have an empty body, you can use an empty string as shown below, and you can force the right `Content-Type` header by using the [`header`](#header) keyword.
+
 ```cucumber
 Given request ''
 And header Content-Type = 'text/html'
+```
+
+Sending a [file](#reading-files) as the entire binary request body is easy (note that [`multipart`](#multipart-file) is different):
+
+```cucumber
+Given path 'upload'
+And request read('my-image.jpg')
+When method put
+Then status 200
 ```
 
 ## `method`
