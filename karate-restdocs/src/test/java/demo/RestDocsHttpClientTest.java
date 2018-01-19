@@ -46,7 +46,9 @@ public class RestDocsHttpClientTest {
         File srcDir = new File("../karate-demo/src/test/java");
         File destDir = new File("target/test-classes");
         // don't over-write karate-config.js
-        FileUtils.copyDirectory(srcDir, destDir, f -> !f.getName().equals("karate-config.js"), false);
+        FileUtils.copyDirectory(srcDir, destDir, 
+                f -> !f.getName().equals("karate-config.js") 
+                        && !f.getName().equals("upload-image.feature"), false); // TODO support binary request content
         ConfigurableApplicationContext context = Application.run(new String[]{"--server.port=0"});
         ServerStartedInitializingBean ss = context.getBean(ServerStartedInitializingBean.class);
         System.setProperty("demo.server.port", ss.getLocalPort() + "");        

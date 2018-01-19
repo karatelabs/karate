@@ -39,6 +39,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -100,5 +101,17 @@ public class UploadController {
                 .header(HttpHeaders.CONTENT_TYPE, fileInfo.getContentType())
                 .body(new FileSystemResource(file));
     }
+    
+    @PostMapping("/binary")
+    public @ResponseBody FileInfo uploadBinary(@RequestParam String name, @RequestBody byte[] bytes) throws Exception {
+        String uuid = UUID.randomUUID().toString();
+        String filePath = FILES_BASE + uuid;
+        File file = new File(filePath);
+        FileUtils.writeByteArrayToFile(file, bytes);
+        FileInfo fileInfo = new FileInfo(uuid, name, "hello world", "application/octet-stream");
+        String json = mapper.writeValueAsString(fileInfo);
+        FileUtils.writeStringToFile(new File(filePath + "_meta.txt"), json, "utf-8");
+        return fileInfo;
+    }    
 
 }
