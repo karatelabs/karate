@@ -50,6 +50,10 @@ public class FeatureServer {
     public static FeatureServer start(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
         return new FeatureServer(featureFile, port, ssl, vars);
     }
+    
+    public static FeatureServer start(File featureFile, int port, File certFile, File privateKeyFile, Map<String, Object> vars) {
+        return new FeatureServer(featureFile, port, certFile, privateKeyFile, vars);
+    }    
 
     private final Channel channel;
     private final int port;
@@ -59,7 +63,7 @@ public class FeatureServer {
     public int getPort() {
         return port;
     }
-    
+
     public void waitSync() {
         try {
             channel.closeFuture().sync();
@@ -67,7 +71,7 @@ public class FeatureServer {
             throw new RuntimeException(e);
         }
     }
-    
+
     public void stop() {
         logger.info("stop: shutting down");
         bossGroup.shutdownGracefully();
@@ -75,18 +79,32 @@ public class FeatureServer {
         logger.info("stop: shutdown complete");
     }
 
-    private FeatureServer(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
-        final SslContext sslCtx;
-        if (ssl) {
-            try {
-                SelfSignedCertificate ssc = new SelfSignedCertificate();
-                sslCtx = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            sslCtx = null;
+    private static SslContext getSelfSignedSslContext() {
+        try {
+            SelfSignedCertificate ssc = new SelfSignedCertificate();
+            return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
+    }
+    
+    private static SslContext getSslContextFromFiles(File sslCert, File sslPrivateKey) {
+        try {
+            return SslContextBuilder.forServer(sslCert, sslPrivateKey).build();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private FeatureServer(File featureFile, int port, File certificate, File privateKey, Map<String, Object> vars) {
+        this(featureFile, port, getSslContextFromFiles(certificate, privateKey), vars);
+    }
+
+    private FeatureServer(File featureFile, int port, boolean ssl, Map<String, Object> vars) {
+        this(featureFile, port, ssl ? getSelfSignedSslContext() : null, vars);
+    }
+
+    private FeatureServer(File featureFile, int port, SslContext sslCtx, Map<String, Object> vars) {
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
         try {
@@ -98,7 +116,7 @@ public class FeatureServer {
             channel = b.bind(port).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             this.port = isa.getPort();
-            logger.info("server started - {}://127.0.0.1:{}", (ssl ? "https" : "http"), this.port);            
+            logger.info("server started - {}://127.0.0.1:{}", (sslCtx == null ? "http" : "https"), this.port);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -84,6 +84,10 @@ public class ScriptContext {
         return config.getCookies();
     }
     
+    public ScriptValue getConfigResponseHeaders() {
+        return config.getResponseHeaders();
+    }    
+    
     public ScriptValue getAfterScenario() {
         return config.getAfterScenario();
     }  
@@ -183,6 +187,10 @@ public class ScriptContext {
             config.setCookies(value);
             return;
         }
+        if (key.equals("responseHeaders")) {
+            config.setResponseHeaders(value);
+            return;
+        }        
         if (key.equals("logPrettyResponse")) {
             config.setLogPrettyResponse(value.isBooleanTrue());
             return;

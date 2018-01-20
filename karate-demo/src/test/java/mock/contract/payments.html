@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Payments</title>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  </head>
+  <body>
+    <div><a href="/payments">Get Payments</a></div>
+    <button onclick="createPayment()">Create</button>
+    <div id="response"></div>
+    <script>
+      var createPayment = function() {
+        $.ajax({          
+          url: '/payments',
+          data: JSON.stringify({ amount: 5.67, description: 'test one' }),
+          method: 'POST',
+          success: function(result) {
+            $('#response').html('<strong>' + result.id + '</strong> created');
+          }
+        });
+      };
+    </script>    
+</body>
+</html>
+

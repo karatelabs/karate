@@ -25,6 +25,7 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
@@ -46,6 +47,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -110,14 +112,19 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             match.def(ScriptValueMap.VAR_REQUEST, requestBody);
         }
         ScriptValue responseValue, responseStatus, responseHeaders, afterScenario;
+        Map<String, Object> responseHeadersMap, configResponseHeadersMap;
         // this is a sledgehammer approach to concurrency !
         // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
         synchronized (provider) { // BEGIN TRANSACTION !
             ScriptValueMap result = provider.handle(match.vars());
+            ScriptContext context = provider.getContext();
+            ScriptValue configResponseHeaders = context.getConfigResponseHeaders();            
             responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
             responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
-            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
+            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);            
             afterScenario = result.remove(VAR_AFTER_SCENARIO);
+            configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
+            responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
         } // END TRANSACTION !!
         HttpResponseStatus nettyResponseStatus;
         if (responseStatus == null) {
@@ -136,11 +143,24 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 responseBuf = Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8);
             }
             response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus, responseBuf);
-        }        
-        Map<String, Object> headersMap = responseHeaders == null ? Collections.EMPTY_MAP : responseHeaders.evalAsMap(provider.getContext());
-        headersMap.forEach((k, v) -> response.headers().set(k, v));
-        if (!headersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE) && responseValue != null) {
-            response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
+        }
+        // trying to avoid creating a map unless absolutely necessary
+        Map<String, Object> headers = null;
+        if (responseHeadersMap != null) {
+            headers = responseHeadersMap;
+        }
+        if (configResponseHeadersMap != null) {
+            if (headers == null) {
+                headers = configResponseHeadersMap;
+            } else {
+                headers.putAll(configResponseHeadersMap);
+            }
+        }
+        if (headers != null) {
+            headers.forEach((k, v) -> response.headers().set(k, v));
+            if (!headers.containsKey(HttpUtils.HEADER_CONTENT_TYPE) && responseValue != null) {
+                response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
+            }
         }
         // functions here are outside of the 'transaction' and should not mutate global state !
         // typically this is where users can set up an artificial delay or sleep

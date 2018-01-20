@@ -45,6 +45,7 @@ public class HttpConfig {
     private String proxyPassword;
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
+    private ScriptValue responseHeaders = ScriptValue.NULL;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
     private boolean printEnabled = true;    
@@ -72,6 +73,7 @@ public class HttpConfig {
         proxyPassword = parent.proxyPassword;
         headers = parent.headers;
         cookies = parent.cookies;
+        responseHeaders = parent.responseHeaders;
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
         printEnabled = parent.printEnabled;        
@@ -184,6 +186,14 @@ public class HttpConfig {
 
     public void setCookies(ScriptValue cookies) {
         this.cookies = cookies;
+    }       
+
+    public ScriptValue getResponseHeaders() {
+        return responseHeaders;
+    }
+
+    public void setResponseHeaders(ScriptValue responseHeaders) {
+        this.responseHeaders = responseHeaders;
     }        
 
     public boolean isLogPrettyRequest() {
