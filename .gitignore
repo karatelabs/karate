@@ -6,4 +6,5 @@ target/
 .classpath
 *.iml
 karate-demo/activemq-data/
+karate-netty/dependency-reduced-pom.xml
 
