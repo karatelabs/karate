@@ -170,6 +170,9 @@ For now, refer to this example: [`demo-mock.feature`](../karate-demo/src/test/ja
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
 # Proxy Mode
+
+Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
+
 ## `karate.proceed()`
 
 

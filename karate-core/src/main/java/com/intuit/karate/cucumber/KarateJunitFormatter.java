@@ -59,8 +59,11 @@ import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +94,7 @@ public class KarateJunitFormatter implements Formatter, Reporter {
     private int failCount;
     private int skipCount;
     private double timeTaken;
-    private List<String> failMessages;    
+    private Set<String> failMessages;    
 
     public int getTestCount() {
         return testCount;
@@ -117,7 +120,7 @@ public class KarateJunitFormatter implements Formatter, Reporter {
         return featurePath;
     }
 
-    public List<String> getFailMessages() {
+    public Collection<String> getFailMessages() {
         return failMessages;
     }        
 
@@ -313,7 +316,8 @@ public class KarateJunitFormatter implements Formatter, Reporter {
                 addStackTrace(sb, failed);
                 child = createElementWithMessage(doc, sb, "failure", failed.getErrorMessage());
                 if (failMessages == null) {
-                    failMessages = new ArrayList();                    
+                    // TODO investigate why a set is needed, a list ends up with mysterious duplicates
+                    failMessages = new LinkedHashSet();
                 }
                 failMessages.add(failed.getErrorMessage());
             } else if (skipped != null) {
