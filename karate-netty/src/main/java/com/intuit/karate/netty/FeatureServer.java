@@ -105,6 +105,10 @@ public class FeatureServer {
     }
 
     private FeatureServer(File featureFile, int port, SslContext sslCtx, Map<String, Object> vars) {
+        File parent = featureFile.getParentFile();
+        if (parent == null) { // when running via command line and same dir
+            featureFile = new File(featureFile.getAbsolutePath());
+        }
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
         try {
