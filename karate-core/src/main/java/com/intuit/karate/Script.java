@@ -1400,13 +1400,17 @@ public class Script {
     }
 
     public static void removeValueByPath(String name, String path, ScriptContext context) {
-        setValueByPath(name, path, null, true, context, false);
+        setValueByPath(name, path, ScriptValue.NULL, true, context, false);
     }
 
+    public static void setValueByPath(String name, String path, ScriptValue value, ScriptContext context) {
+        setValueByPath(name, path, value, false, context, false);
+    }    
+    
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
         setValueByPath(name, path, exp, false, context, false);
     }
-
+    
     public static void setValueByPath(String name, String path, String exp, boolean delete, ScriptContext context, boolean viaTable) {
         ScriptValue value = delete ? ScriptValue.NULL : evalKarateExpression(exp, context);
         if (viaTable && value.isNull() && !isWithinParentheses(exp)) {
@@ -1414,6 +1418,10 @@ public class Script {
             // intent to over-ride by enclosing the expression in parentheses
             return;
         }
+        setValueByPath(name, path, value, delete, context, viaTable);
+    }
+
+    public static void setValueByPath(String name, String path, ScriptValue value, boolean delete, ScriptContext context, boolean viaTable) {
         name = StringUtils.trimToEmpty(name);
         path = StringUtils.trimToNull(path);
         if (path == null) {

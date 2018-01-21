@@ -851,7 +851,7 @@ Then match response ==
 ```
 
 ## `table`
-### A simple way to create JSON
+### A simple way to create JSON Arrays
 Now that we have seen how JSON is a 'native' data type that Karate understands, there is a very nice way to create JSON using Cucumber's support for expressing [data-tables](http://www.thinkcode.se/blog/2014/06/30/cucumber-data-tables).
 
 ```cucumber
@@ -1505,9 +1505,8 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 
  Key | Type | Description
 ------ | ---- | ---------
-`headers` | JS function | See [`configure headers`](#configure-headers)
-`headers` | JSON | See [`configure headers`](#configure-headers)
-`cookies` | JSON | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. However, if you need to clear any cookies, just do `configure cookies = null` at any time.
+`headers` | JSON / JS function | See [`configure headers`](#configure-headers)
+`cookies` | JSON / JS function | Just like `configure headers`, but for cookies. You will typically never use this, as response cookies are auto-added to all future requests. If you need to clear cookies at any time, just do `configure cookies = null`
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
 `logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting (default `false`)
 `printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' by setting as `false` (default `true`)
@@ -1523,6 +1522,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
 `httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)
 `userDefined` | JSON | See [karate-mock-servlet](karate-mock-servlet)
+`responseHeaders` | JSON / JS function | See [karate-netty](karate-netty)
 
 
 Examples:
@@ -2524,7 +2524,8 @@ A JavaScript function or expression at runtime has access to a utility object in
 Operation | Description
 --------- | -----------
 `karate.set(name, value)` | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
-`karate.set(name, path, value)` | this is only needed when dealing with XML and when you need to conditionally build elements. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature#L78), and it behaves the same way as the [`set`](#set) keyword.
+`karate.setXml(name, xmlString)` | rarely used, refer to the next example
+`karate.set(name, path, value)` | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword.
 `karate.remove(name, path)` | similar to the above, again very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 `karate.get(name)` | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 `karate.jsonPath(json, expression)` | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).

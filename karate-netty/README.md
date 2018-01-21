@@ -68,4 +68,111 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 
+# Standalone JAR
+Karate-Netty is available as a single, executable JAR file, which includes even the [`karate-apache`](https://mvnrepository.com/artifact/com.intuit.karate/karate-apache) dependency. This is ideal for handing off to UI / web-dev teams for example who don't want to mess around with a Java IDE. All you need is the [JRE](http://www.oracle.com/technetwork/java/javase/downloads/index.html) (at least version 1.8.0_112 or greater).
+
+You can download this JAR file from the [releases page](https://github.com/intuit/karate/releases), and it will have the name: `karate-netty-<version>-all.jar`.
+
+## Usage
+The 2 mandatory arguments are the path of the feature file and the port.
+
+```
+java -jar karate-netty-<version>-all.jar my-mock.feature 8080
+```
+
+For SSL, add an extra parameter `ssl`:
+
+```
+java -jar karate-netty-<version>-all.jar my-mock.feature 8443 ssl
+```
+
+If you have a certificate and private-key (in PEM format) you can specify them:
+
+```
+java -jar karate-netty-<version>-all.jar my-mock.feature 8443 my-cert.crt my-key.key
+```
+
+If you have a `logback.xml` in the working directory, it will control logging. Here is a sample that you can use:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+ 
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+  
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>karate.log</file>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>    
+   
+    <logger name="com.intuit.karate" level="DEBUG"/>
+   
+    <root level="warn">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+    </root>
+  
+</configuration>
+```
+
+> To use a custom `logback.xml`, set the system property `logback.configurationFile`
+
+# Request-Response Flow
+TODO
+For now, refer to this example: [`demo-mock.feature`](../karate-demo/src/test/java/mock/proxy/demo-mock.feature).
+
+# Request 
+
+## `request`
+
+## `requestUrlBase`
+
+## `requestUri`
+
+## `requestMethod`
+
+## `requestHeaders`
+
+## `requestParams`
+
+## `pathMatches`
+
+## `pathParams`
+
+## `methodIs`
+
+## `paramValue`
+
+## `typeContains`
+
+## `acceptContains`
+
+## `typeContains`
+
+## `headerContains`
+
+# Response
+
+## `responseStatus`
+
+## `response`
+
+## `responseHeaders`
+### `configure responseHeaders`
+
+## `afterScenario`
+Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
+
+# Proxy Mode
+## `karate.proceed()`
+
+
+
+
 

@@ -12,8 +12,7 @@ Scenario: test removing elements using keyword
 
 Scenario: test removing elements from xml from js
     * def base = <query><name>foo</name></query>
-    * def fun = function(){ karate.remove('base', '/query/name') }
-    * call fun
+    * eval karate.remove('base', '/query/name')
     * match base == <query/>
 
 Scenario: placeholders using xml embedded expressions
@@ -198,6 +197,29 @@ Scenario: a cleaner way to achieve the above by using tables and the 'set' keywo
     * match search/queries/query[1] == <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query>
     * match search/queries/query[2] == <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>
     * match search/queries/query[3] == <query><name><lastName>Waldo</lastName></name></query>
+
+Scenario: karate.set() is another way to conditionally modify xml
+    * table data
+        | first  | last    | age |
+        | 'John' | 'Smith' |  20 |
+        | 'Jane' | 'Doe'   |     |
+        |        | 'Waldo' |     |
+    * def fun =
+    """
+    function(v) {
+      karate.setXml('temp', '<query/>');
+      if (v.first) karate.set('temp', '/query/name/firstName', v.first);
+      if (v.last) karate.set('temp', '/query/name/lastName', v.last);
+      if (v.age) karate.set('temp', '/query/age', v.age);
+      return karate.get('temp');
+    }    
+    """
+    * call fun data[0]
+    * match temp == <query><name><firstName>John</firstName><lastName>Smith</lastName></name><age>20</age></query> 
+    * call fun data[1]
+    * match temp == <query><name><firstName>Jane</firstName><lastName>Doe</lastName></name></query>
+    * call fun data[2]
+    * match temp == <query><name><lastName>Waldo</lastName></name></query>  
 
 Scenario: xml containing DTD reference
     * def xml = <!DOCTYPE USER SYSTEM "http://127.0.0.1:5000/login/dtd"><foo/>

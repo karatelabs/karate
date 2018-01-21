@@ -88,9 +88,13 @@ public class ScriptBridge {
         context.vars.put(name, o);
     }
     
-    // this makes sense for xml / xpath manipulation from within js
-    public void set(String name, String path, String expr) {
-        Script.setValueByPath(name, path, expr, context);
+    public void setXml(String name, String xml) {
+        context.vars.put(name, XmlUtils.toXmlDoc(xml));
+    }    
+    
+    // this makes sense mainly for xpath manipulation from within js
+    public void set(String name, String path, Object value) {
+        Script.setValueByPath(name, path, new ScriptValue(value), context);
     }
     
     // this makes sense for xml / xpath manipulation from within js
