@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.netty;
 
+import com.intuit.karate.StringUtils;
 import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +34,8 @@ import org.slf4j.LoggerFactory;
  */
 public class Main {
 
-    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+    private static final String LOGBACK_CONFIG= "logback.configurationFile";
+    private static Logger logger;
 
     private static void printUsage() {
         logger.info("usage: featureFile port");
@@ -42,6 +44,11 @@ public class Main {
     }
 
     public static void main(String[] args) {
+        String logbackConfig = System.getProperty(LOGBACK_CONFIG);
+        if (StringUtils.isBlank(logbackConfig)) {
+            System.setProperty(LOGBACK_CONFIG, new File("logback.xml").getAbsolutePath());
+        }
+        logger = LoggerFactory.getLogger(Main.class);
         if (args.length < 2) {
             printUsage();
         }

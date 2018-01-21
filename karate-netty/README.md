@@ -17,8 +17,10 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Server can dynamically choose free port
 * Think of it as a scriptable 'API gateway' or 'AOP for web-services' - insert custom functions before / after an HTTP request is handled
 * Just *one* file can script the above aspects, simplifying the mental-model you need to have for advanced scenarios such as [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
-* Integrate messaging or async flows using Java-interop if required
+* Easily integrate messaging or async flows using Java-interop if required
 * Enables consumer or even UI dev teams to work in parallel as the provider service is being developed
+* Option to use an existing certificate and private-key for server-side SSL - making it easier for UI dev / browser consumers in some situations
+* Configure a 'global' response header routine, ideal for browser consumers to handle [CORS](https://spring.io/understanding/CORS) for e.g.
 * Provider service dev team can practice TDD using the mock + contract-test
 * The mock + contract-test serves as the ultimate form of documentation of the 'contract' including payload / schema details.
 
