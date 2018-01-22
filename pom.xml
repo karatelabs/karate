@@ -4,7 +4,7 @@
 
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-parent</artifactId>
-    <version>0.7.0.RC4</version>
+    <version>0.7.0.RC5</version>
     <packaging>pom</packaging>
     
     <name>${project.artifactId}</name>
