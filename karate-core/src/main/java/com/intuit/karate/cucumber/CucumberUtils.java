@@ -162,10 +162,11 @@ public class CucumberUtils {
 
     private static boolean isMatchingScenario(ScenarioWrapper scenario, KarateBackend backend) {
         String expression = StringUtils.trimToNull(scenario.getNameAndDescription());
-        if (expression == null) {
-            return true;
-        }
         ScriptContext context = backend.getStepDefs().getContext();
+        if (expression == null) {
+            context.logger.debug("scenario matched: (empty)");
+            return true;
+        }        
         try {
             ScriptValue sv = Script.evalJsExpression(expression, context);
             if (sv.isBooleanTrue()) {

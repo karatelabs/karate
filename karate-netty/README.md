@@ -138,7 +138,7 @@ A server-side `Feature` file can have multiple `Scenario` sections in it. Each S
 
 On each incoming HTTP request, the `Scenario` expressions are evaluated in order, starting from the first one within the `Feature`. If the expression evaluates to `true`, the body of the `Scenario` is evaluated and the HTTP response is returned.
 
-> It is good practice to have the last `Scenario` in the file with `true` as the description expression, so that it can act as a 'catch-all' and log or throw an error / `404 Not Found` in response.
+> It is good practice to have the last `Scenario` in the file with an empty description, (which will evaluate to `true`) so that it can act as a 'catch-all' and log or throw an error / `404 Not Found` in response.
 
 ## Request Matching
 
