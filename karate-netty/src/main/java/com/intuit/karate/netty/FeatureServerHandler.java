@@ -158,10 +158,10 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
         if (headers != null) {
             headers.forEach((k, v) -> response.headers().set(k, v));
-            if (!headers.containsKey(HttpUtils.HEADER_CONTENT_TYPE) && responseValue != null) {
-                response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
-            }
         }
+        if (responseValue != null && (headers == null || !headers.containsKey(HttpUtils.HEADER_CONTENT_TYPE))) {
+            response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
+        }        
         // functions here are outside of the 'transaction' and should not mutate global state !
         // typically this is where users can set up an artificial delay or sleep
         if (afterScenario != null && afterScenario.isFunction()) {
