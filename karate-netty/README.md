@@ -164,13 +164,11 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 
 ## `paramValue`
 
+## `headerContains`
+
 ## `typeContains`
 
 ## `acceptContains`
-
-## `typeContains`
-
-## `headerContains`
 
 # Response
 
