@@ -1514,7 +1514,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
-`ssl` | JSON | For X509 certificate authentication, set `keyStore`, `password`, `type`, and optionally `algorithm` (`algorithm` defaults to `TLS`).  See [X509 Certificate Authentication](#X509-Certificate-Authentication)
+`ssl` | JSON | For X509 certificate authentication, set `keyStore`, `password`, `type`, and optionally `algorithm` (`algorithm` defaults to `TLS`).  See [X509 Certificate Authentication](#x509-certificate-authentication)
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
