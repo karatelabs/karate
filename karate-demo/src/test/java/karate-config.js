@@ -20,7 +20,7 @@ function() {
     config.queueName = karate.properties['shipping.queue.name'];
     if (config.paymentServiceUrl.startsWith('https')) {
       if (config.queueName == 'DEMO.CONTRACT.SSL') {
-        karate.configure('ssl', { trustStore: 'classpath:keystore.p12', password: 'karate-mock', type: 'pkcs12' });
+        karate.configure('ssl', { keyStore: 'classpath:keystore.p12', password: 'karate-mock', type: 'pkcs12' });
       } else {
         karate.configure('ssl', true);
       }

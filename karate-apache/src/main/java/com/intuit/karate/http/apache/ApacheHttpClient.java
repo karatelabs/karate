@@ -113,24 +113,24 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             SSLContext sslContext;
-            if (config.getSslTrustStore() != null) {
-                String trustStoreFile = config.getSslTrustStore();                
-                String password = config.getSslTrustStorePassword();
+            if (config.getSslKeyStore() != null) {
+                String keyStoreFile = config.getSslKeyStore();
+                String password = config.getSslKeyStorePassword();
                 char[] passwordChars = password == null ? null : password.toCharArray();
                 String algorithm = config.getSslAlgorithm();
-                String type = config.getSslTrustStoreType();
+                String type = config.getSslKeyStoreType();
                 if (type == null) {
                     type = KeyStore.getDefaultType();
                 }
                 try {
-                    KeyStore trustStore = KeyStore.getInstance(type);
-                    InputStream is = FileUtils.getFileStream(trustStoreFile, context);
-                    trustStore.load(is, passwordChars);
-                    context.logger.debug("trust store key count: {}", trustStore.size());
+                    KeyStore keyStore = KeyStore.getInstance(type);
+                    InputStream is = FileUtils.getFileStream(keyStoreFile, context);
+                    keyStore.load(is, passwordChars);
+                    context.logger.debug("trust store key count: {}", keyStore.size());
                     sslContext = SSLContexts.custom()
                             .setProtocol(algorithm) // will default to TLS if null
-                            .loadTrustMaterial(trustStore, new TrustAllStrategy())
-                            .loadKeyMaterial(trustStore, passwordChars)
+                            .loadTrustMaterial(keyStore, new TrustAllStrategy())
+                            .loadKeyMaterial(keyStore, passwordChars)
                             .build();
                 } catch (Exception e) {
                     context.logger.error("ssl config failed: {}", e.getMessage());

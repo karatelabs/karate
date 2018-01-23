@@ -1514,6 +1514,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
+`ssl` | JSON | For X509 certificate authentication, set `keyStore`, `password`, `type`, and optionally `algorithm` (`algorithm` defaults to `TLS`).  See [X509 Certificate Authentication](#X509 Certificate Authentication)
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
@@ -1535,6 +1536,9 @@ Examples:
 
 # enable ssl and force the algorithm to TLSv1.2
 * configure ssl = 'TLSv1.2'
+
+# enable X509 certificate authentication with PKCS12 file 'certstore.pfx' and password 'certpassword'
+* configure ssl = {keyStore: 'classpath:certstore.pfx', password: 'certpassword', type: 'pkcs12'};
 
 # time-out if the response is not received within 10 seconds (after the connection is established)
 * configure readTimeout = 10000
@@ -2843,6 +2847,16 @@ Once (or at the start of) every `Feature` | Use a [`callonce`](#callonce) in the
 After every `Scenario` | [`configure afterScenario`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 At the end of the `Feature` | [`configure afterFeature`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
 
+## X509 Certificate Authentication
+
+Sometimes called "mutual auth"--if your API requires that clients present an X509 certificate for authentication, Karate supports this via configuration parameters.  
+
+Syntax is covered in [configure](#configure).  Note:
+
+* Allowed keystore types are as described in the [Sun Java KeyStore Docs](https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyStore)
+* Your keystore must contain the private key for your certificate
+* There is no need to provide a list of trusted certificates or CAs in the keystore (your keystore may require a root certificate for your client certificate, but Karate doesn't care about it)
+* Karate does not verify the server's certificate is trusted--all certificates are trusted, including self-signed certificates
 
 ## Data Driven Tests
 ### The Cucumber Way

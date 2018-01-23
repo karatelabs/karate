@@ -83,24 +83,24 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
             SSLContext sslContext;
-            if (config.getSslTrustStore() != null) {
-                String trustStoreFile = config.getSslTrustStore();                
-                String password = config.getSslTrustStorePassword();
+            if (config.getSslKeyStore() != null) {
+                String keyStoreFile = config.getSslKeyStore();
+                String password = config.getSslKeyStorePassword();
                 char[] passwordChars = password == null ? null : password.toCharArray();
                 String algorithm = config.getSslAlgorithm();
-                String type = config.getSslTrustStoreType();
+                String type = config.getSslKeyStoreType();
                 if (type == null) {
                     type = KeyStore.getDefaultType();
                 }
                 try {
-                    KeyStore trustStore = KeyStore.getInstance(type);
-                    InputStream is = FileUtils.getFileStream(trustStoreFile, context);
-                    trustStore.load(is, passwordChars);
-                    context.logger.debug("trust store key count: {}", trustStore.size());
+                    KeyStore keyStore = KeyStore.getInstance(type);
+                    InputStream is = FileUtils.getFileStream(keyStoreFile, context);
+                    keyStore.load(is, passwordChars);
+                    context.logger.debug("trust store key count: {}", keyStore.size());
                     sslContext = SslConfigurator.newInstance()
                             .securityProtocol(algorithm) // will default to TLS if null
-                            .trustStore(trustStore)
-                            // .keyStore(trustStore)
+                            .keyStore(keyStore)
+                            // .keyStore(keyStore)
                             .createSSLContext();
                 } catch (Exception e) {
                     context.logger.error("ssl config failed: {}", e.getMessage());

@@ -100,27 +100,27 @@ public class HttpConfig {
         this.sslAlgorithm = sslAlgorithm;
     }
 
-    public String getSslTrustStore() {
+    public String getSslKeyStore() {
         return sslTrustStore;
     }
 
-    public void setSslTrustStore(String sslTrustStore) {
+    public void setSslKeyStore(String sslTrustStore) {
         this.sslTrustStore = sslTrustStore;
     }
 
-    public String getSslTrustStorePassword() {
+    public String getSslKeyStorePassword() {
         return sslTrustStorePassword;
     }
 
-    public void setSslTrustStorePassword(String sslTrustStorePassword) {
+    public void setSslKeyStorePassword(String sslTrustStorePassword) {
         this.sslTrustStorePassword = sslTrustStorePassword;
     }
 
-    public String getSslTrustStoreType() {
+    public String getSslKeyStoreType() {
         return sslTrustStoreType;
     }
 
-    public void setSslTrustStoreType(String sslTrustStoreType) {
+    public void setSslKeyStoreType(String sslTrustStoreType) {
         this.sslTrustStoreType = sslTrustStoreType;
     }        
     

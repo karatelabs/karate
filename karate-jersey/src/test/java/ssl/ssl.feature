@@ -1,7 +1,7 @@
 Feature: jersey ssl with trust store / cert
 
 Background:
-    * configure ssl = { trustStore: 'classpath:keystore.p12', password: 'karate-mock', type: 'pkcs12' }
+    * configure ssl = { keyStore: 'classpath:keystore.p12', password: 'karate-mock', type: 'pkcs12' }
     * url 'https://localhost:' + karate.properties['jersey.ssl.port']
 
 Scenario:
