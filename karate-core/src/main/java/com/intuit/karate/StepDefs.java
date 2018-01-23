@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import net.minidev.json.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -419,6 +420,16 @@ public class StepDefs {
             item.setContentType(contentType);
         }
         request.addMultiPartItem(item);
+    }
+
+    @When("^multipart files (.+)")
+    public void multiPartFiles(String expr) {
+        Map<String, Object> map = evalMapExpr(expr);
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            multiPartFile(key, JSONValue.toJSONString(value));
+        }
     }
 
     public void multiPart(String name, String value) {
