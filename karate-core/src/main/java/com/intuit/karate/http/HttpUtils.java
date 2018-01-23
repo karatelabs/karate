@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpCookie;
 import java.net.URI;
+import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
@@ -118,6 +119,26 @@ public class HttpUtils {
         return ctx;
     }
 
+    public static KeyStore getKeyStore(ScriptContext context, String trustStoreFile, String password, String type) {
+        if (trustStoreFile == null) {
+            return null;
+        }
+        char[] passwordChars = password == null ? null : password.toCharArray();
+        if (type == null) {
+            type = KeyStore.getDefaultType();
+        }
+        try {
+            KeyStore keyStore = KeyStore.getInstance(type);
+            InputStream is = FileUtils.getFileStream(trustStoreFile, context);
+            keyStore.load(is, passwordChars);
+            context.logger.debug("key store key count for {}: {}", trustStoreFile, keyStore.size());
+            return keyStore;
+        } catch (Exception e) {
+            context.logger.error("key store init failed: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
     public static boolean isPrintable(String mediaType) {
         if (mediaType == null) {
             return false;
@@ -148,7 +169,7 @@ public class HttpUtils {
         if (pos == -1) {
             return StringUtils.pair(null, "");
         }
-        URI uri;        
+        URI uri;
         try {
             uri = new URI(rawUri);
         } catch (Exception e) {

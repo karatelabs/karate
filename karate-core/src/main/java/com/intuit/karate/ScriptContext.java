@@ -231,9 +231,12 @@ public class ScriptContext {
             } else if (value.isMapLike()) {
                 config.setSslEnabled(true);
                 Map<String, Object> map = value.getAsMap();
+                config.setSslKeyStore((String) map.get("keyStore"));
+                config.setSslKeyStorePassword((String) map.get("keyStorePassword"));
+                config.setSslKeyStoreType((String) map.get("keyStoreType"));
                 config.setSslTrustStore((String) map.get("trustStore"));
-                config.setSslTrustStorePassword((String) map.get("password"));
-                config.setSslTrustStoreType((String) map.get("type"));
+                config.setSslTrustStorePassword((String) map.get("trustStorePassword"));
+                config.setSslTrustStoreType((String) map.get("trustStoreType"));                
                 config.setSslAlgorithm((String) map.get("algorithm"));                
             } else {
                 config.setSslEnabled(value.isBooleanTrue());

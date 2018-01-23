@@ -124,6 +124,7 @@
                         <include>mock/contract/*Test.java</include>
                         <include>mock/micro/*Runner.java</include>
                         <include>mock/proxy/*Runner.java</include>
+                        <include>ssl/*Test.java</include>
                     </includes>
                 </configuration>
             </plugin>                                   

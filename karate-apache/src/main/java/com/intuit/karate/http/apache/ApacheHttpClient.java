@@ -71,6 +71,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 
 /**
@@ -112,32 +113,24 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter, context));
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
+            String algorithm = config.getSslAlgorithm(); // could be null
+            KeyStore trustStore = HttpUtils.getKeyStore(context,
+                    config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
+            KeyStore keyStore = HttpUtils.getKeyStore(context,
+                    config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
             SSLContext sslContext;
-            if (config.getSslTrustStore() != null) {
-                String trustStoreFile = config.getSslTrustStore();                
-                String password = config.getSslTrustStorePassword();
-                char[] passwordChars = password == null ? null : password.toCharArray();
-                String algorithm = config.getSslAlgorithm();
-                String type = config.getSslTrustStoreType();
-                if (type == null) {
-                    type = KeyStore.getDefaultType();
+            try {
+                SSLContextBuilder builder = SSLContexts.custom()
+                        .setProtocol(algorithm) // will default to TLS if null
+                        .loadTrustMaterial(trustStore, new TrustAllStrategy());
+                if (keyStore != null) {
+                    char[] keyPassword = config.getSslKeyStorePassword() == null ? null : config.getSslKeyStorePassword().toCharArray();
+                    builder = builder.loadKeyMaterial(keyStore, keyPassword);
                 }
-                try {
-                    KeyStore trustStore = KeyStore.getInstance(type);
-                    InputStream is = FileUtils.getFileStream(trustStoreFile, context);
-                    trustStore.load(is, passwordChars);
-                    context.logger.debug("trust store key count: {}", trustStore.size());
-                    sslContext = SSLContexts.custom()
-                            .setProtocol(algorithm) // will default to TLS if null
-                            .loadTrustMaterial(trustStore, new TrustAllStrategy())
-                            // .loadKeyMaterial(keyStore, passwordChars).build();
-                            .build();
-                } catch (Exception e) {
-                    context.logger.error("ssl config failed: {}", e.getMessage());
-                    throw new RuntimeException(e);
-                }
-            } else {
-                sslContext = HttpUtils.getSslContext(config.getSslAlgorithm());
+                sslContext = builder.build();
+            } catch (Exception e) {
+                context.logger.error("ssl context init failed: {}", e.getMessage());
+                throw new RuntimeException(e);
             }
             SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
             clientBuilder.setSSLSocketFactory(socketFactory);

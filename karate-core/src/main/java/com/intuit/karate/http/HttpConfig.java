@@ -34,6 +34,9 @@ public class HttpConfig {
     
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
+    private String sslKeyStore;
+    private String sslKeyStorePassword;
+    private String sslKeyStoreType;    
     private String sslTrustStore;
     private String sslTrustStorePassword;
     private String sslTrustStoreType;
@@ -65,6 +68,9 @@ public class HttpConfig {
         sslTrustStore = parent.sslTrustStore;
         sslTrustStorePassword = parent.sslTrustStorePassword;
         sslTrustStoreType = parent.sslTrustStoreType;
+        sslKeyStore = parent.sslKeyStore;
+        sslKeyStorePassword = parent.sslKeyStorePassword;
+        sslKeyStoreType = parent.sslKeyStoreType;        
         followRedirects = parent.followRedirects;        
         readTimeout = parent.readTimeout;
         connectTimeout = parent.connectTimeout;
@@ -99,6 +105,30 @@ public class HttpConfig {
     public void setSslAlgorithm(String sslAlgorithm) {
         this.sslAlgorithm = sslAlgorithm;
     }
+
+    public String getSslKeyStore() {
+        return sslKeyStore;
+    }
+
+    public void setSslKeyStore(String sslKeyStore) {
+        this.sslKeyStore = sslKeyStore;
+    }
+
+    public String getSslKeyStorePassword() {
+        return sslKeyStorePassword;
+    }
+
+    public void setSslKeyStorePassword(String sslKeyStorePassword) {
+        this.sslKeyStorePassword = sslKeyStorePassword;
+    }
+
+    public String getSslKeyStoreType() {
+        return sslKeyStoreType;
+    }
+
+    public void setSslKeyStoreType(String sslKeyStoreType) {
+        this.sslKeyStoreType = sslKeyStoreType;
+    }        
 
     public String getSslTrustStore() {
         return sslTrustStore;

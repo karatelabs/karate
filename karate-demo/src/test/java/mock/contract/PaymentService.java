@@ -81,7 +81,7 @@ public class PaymentService {
         Stream<String> args = Stream.of("--server.port=0", "--queue.name=" + queueName);
         if (ssl) {
             args = Stream.concat(args, Stream.of(
-                    "--server.ssl.key-store=src/test/java/keystore.p12",
+                    "--server.ssl.key-store=src/test/java/server-keystore.p12",
                     "--server.ssl.key-store-password=karate-mock",
                     "--server.ssl.keyStoreType=PKCS12",
                     "--server.ssl.keyAlias=karate-mock"));
