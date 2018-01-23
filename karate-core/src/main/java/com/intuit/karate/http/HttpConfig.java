@@ -34,9 +34,9 @@ public class HttpConfig {
     
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
-    private String sslTrustStore;
-    private String sslTrustStorePassword;
-    private String sslTrustStoreType;
+    private String sslKeyStore;
+    private String sslKeyStorePassword;
+    private String sslKeyStoreType;
     private boolean followRedirects = true;    
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
@@ -62,9 +62,9 @@ public class HttpConfig {
     public HttpConfig(HttpConfig parent) {
         sslEnabled = parent.sslEnabled;
         sslAlgorithm = parent.sslAlgorithm;
-        sslTrustStore = parent.sslTrustStore;
-        sslTrustStorePassword = parent.sslTrustStorePassword;
-        sslTrustStoreType = parent.sslTrustStoreType;
+        sslKeyStore = parent.sslKeyStore;
+        sslKeyStorePassword = parent.sslKeyStorePassword;
+        sslKeyStoreType = parent.sslKeyStoreType;
         followRedirects = parent.followRedirects;        
         readTimeout = parent.readTimeout;
         connectTimeout = parent.connectTimeout;
@@ -101,27 +101,27 @@ public class HttpConfig {
     }
 
     public String getSslKeyStore() {
-        return sslTrustStore;
+        return sslKeyStore;
     }
 
-    public void setSslKeyStore(String sslTrustStore) {
-        this.sslTrustStore = sslTrustStore;
+    public void setSslKeyStore(String sslKeyStore) {
+        this.sslKeyStore = sslKeyStore;
     }
 
     public String getSslKeyStorePassword() {
-        return sslTrustStorePassword;
+        return sslKeyStorePassword;
     }
 
-    public void setSslKeyStorePassword(String sslTrustStorePassword) {
-        this.sslTrustStorePassword = sslTrustStorePassword;
+    public void setSslKeyStorePassword(String sslKeyStorePassword) {
+        this.sslKeyStorePassword = sslKeyStorePassword;
     }
 
     public String getSslKeyStoreType() {
-        return sslTrustStoreType;
+        return sslKeyStoreType;
     }
 
-    public void setSslKeyStoreType(String sslTrustStoreType) {
-        this.sslTrustStoreType = sslTrustStoreType;
+    public void setSslKeyStoreType(String sslKeyStoreType) {
+        this.sslKeyStoreType = sslKeyStoreType;
     }        
     
     public boolean isFollowRedirects() {
