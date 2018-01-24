@@ -421,6 +421,18 @@ public class StepDefs {
         request.addMultiPartItem(item);
     }
 
+    @When("^multipart files (.+)")
+     public void multiPartFiles(String expr) {
+        Map<String, Object> map = evalMapExpr(expr);
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            ScriptValue sv = new ScriptValue(value);
+            multiPartFile(key, sv.getAsString());
+        }
+    }
+
+
     public void multiPart(String name, String value) {
         ScriptValue sv = Script.evalKarateExpression(value, context);
         request.addMultiPartItem(name, sv);
