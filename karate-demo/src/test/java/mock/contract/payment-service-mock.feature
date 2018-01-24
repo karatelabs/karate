@@ -4,7 +4,7 @@ Background:
 * def nextId = call read('increment.js')
 * def payments = {}
 * def QueueUtils = Java.type('mock.contract.QueueUtils')
-* configure responseHeaders = { 'Access-Control-Allow-Origin': '*' }
+* configure cors = true
 
 Scenario: pathMatches('/payments') && methodIs('post')
     * def payment = request

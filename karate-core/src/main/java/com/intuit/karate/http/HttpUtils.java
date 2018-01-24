@@ -42,6 +42,11 @@ public class HttpUtils {
     public static final String HEADER_ACCEPT = "Accept";
     public static final String HEADER_COOKIE = "Cookie";
     public static final String HEADER_HOST = "Host";
+    public static final String HEADER_ALLOW = "Allow";
+    public static final String HEADER_AC_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
+    public static final String HEADER_AC_ALLOW_METHODS = "Access-Control-Allow-Methods";
+    public static final String HEADER_AC_REQUEST_HEADERS = "Access-Control-Request-Headers";
+    public static final String HEADER_AC_ALLOW_HEADERS = "Access-Control-Allow-Headers";
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
 

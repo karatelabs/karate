@@ -144,7 +144,8 @@ public abstract class HttpClient<T> {
                 }
             }
         }
-        Map<String, Object> configHeaders = context.getConfigHeaders().evalAsMap(context);
+        HttpConfig config = context.getConfig();
+        Map<String, Object> configHeaders = config.getHeaders().evalAsMap(context);
         if (configHeaders != null) {
             for (Map.Entry<String, Object> entry : configHeaders.entrySet()) {
                 buildHeader(entry.getKey(), entry.getValue(), true);
@@ -155,7 +156,7 @@ public abstract class HttpClient<T> {
                 buildCookie(cookie);
             }
         }
-        Map<String, Object> configCookies = context.getConfigCookies().evalAsMap(context);
+        Map<String, Object> configCookies = config.getCookies().evalAsMap(context);
         for (Cookie cookie : Cookie.toCookies(configCookies)) {
             buildCookie(cookie);
         }       

@@ -49,6 +49,7 @@ public class HttpConfig {
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
     private ScriptValue responseHeaders = ScriptValue.NULL;
+    private boolean corsEnabled = false;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
     private boolean printEnabled = true;    
@@ -80,6 +81,7 @@ public class HttpConfig {
         headers = parent.headers;
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
+        corsEnabled = parent.corsEnabled;
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
         printEnabled = parent.printEnabled;        
@@ -224,7 +226,15 @@ public class HttpConfig {
 
     public void setResponseHeaders(ScriptValue responseHeaders) {
         this.responseHeaders = responseHeaders;
-    }        
+    }      
+
+    public boolean isCorsEnabled() {
+        return corsEnabled;
+    }
+
+    public void setCorsEnabled(boolean corsEnabled) {
+        this.corsEnabled = corsEnabled;
+    } 
 
     public boolean isLogPrettyRequest() {
         return logPrettyRequest;

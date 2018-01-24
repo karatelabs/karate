@@ -41,13 +41,12 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -66,31 +65,46 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.flush();
     }
+    
+    private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {  
-        StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
-        HttpRequest request = new HttpRequest();
-        if (url.left == null) {
-            String requestScheme = provider.isSsl() ? "https" : "http";
-            String host = msg.headers().get(HttpUtils.HEADER_HOST);
-            request.setUrlBase(requestScheme + "://" + host);
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
+        if (provider.isCorsEnabled() && msg.method().equals(HttpMethod.OPTIONS)) {
+            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            HttpHeaders responseHeaders = response.headers();
+            responseHeaders.set(HttpUtils.HEADER_ALLOW, ALLOWED_METHODS);
+            responseHeaders.set(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
+            responseHeaders.set(HttpUtils.HEADER_AC_ALLOW_METHODS, ALLOWED_METHODS);
+            String requestHeaders = msg.headers().get(HttpUtils.HEADER_AC_REQUEST_HEADERS);
+            if (requestHeaders != null) {
+                responseHeaders.set(HttpUtils.HEADER_AC_ALLOW_HEADERS, requestHeaders);
+            }
+            ctx.write(response);
         } else {
-            request.setUrlBase(url.left);            
-        }                                
-        request.setUri(url.right);
-        request.setMethod(msg.method().name());
-        msg.headers().forEach(h -> request.addHeader(h.getKey(), h.getValue()));
-        QueryStringDecoder decoder = new QueryStringDecoder(url.right);                
-        decoder.parameters().forEach((k, v) -> request.putParam(k, v));
-        HttpContent httpContent = (HttpContent) msg;
-        ByteBuf content = httpContent.content();
-        if (content.isReadable()) {
-            byte[] bytes = new byte[content.readableBytes()];
-            content.readBytes(bytes);
-            request.setBody(bytes);
+            StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
+            HttpRequest request = new HttpRequest();
+            if (url.left == null) {
+                String requestScheme = provider.isSsl() ? "https" : "http";
+                String host = msg.headers().get(HttpUtils.HEADER_HOST);
+                request.setUrlBase(requestScheme + "://" + host);
+            } else {
+                request.setUrlBase(url.left);            
+            }                                
+            request.setUri(url.right);
+            request.setMethod(msg.method().name());
+            msg.headers().forEach(h -> request.addHeader(h.getKey(), h.getValue()));
+            QueryStringDecoder decoder = new QueryStringDecoder(url.right);                
+            decoder.parameters().forEach((k, v) -> request.putParam(k, v));
+            HttpContent httpContent = (HttpContent) msg;
+            ByteBuf content = httpContent.content();
+            if (content.isReadable()) {
+                byte[] bytes = new byte[content.readableBytes()];
+                content.readBytes(bytes);
+                request.setBody(bytes);
+            }
+            writeResponse(request, ctx);
         }
-        writeResponse(request, ctx);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
 
@@ -118,7 +132,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         synchronized (provider) { // BEGIN TRANSACTION !
             ScriptValueMap result = provider.handle(match.vars());
             ScriptContext context = provider.getContext();
-            ScriptValue configResponseHeaders = context.getConfigResponseHeaders();            
+            ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
             responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
             responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
             responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);            
@@ -128,13 +142,13 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         } // END TRANSACTION !!
         HttpResponseStatus nettyResponseStatus;
         if (responseStatus == null) {
-            nettyResponseStatus = OK;
+            nettyResponseStatus = HttpResponseStatus.OK;
         } else {
             nettyResponseStatus = HttpResponseStatus.valueOf(Integer.valueOf(responseStatus.getValue().toString()));
         }
         FullHttpResponse response;
         if (responseValue == null) {
-            response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus);
+            response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, nettyResponseStatus);
         } else {
             ByteBuf responseBuf;
             if (responseValue.getType() == ScriptValue.Type.BYTE_ARRAY) {
@@ -142,7 +156,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             } else {
                 responseBuf = Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8);
             }
-            response = new DefaultFullHttpResponse(HTTP_1_1, nettyResponseStatus, responseBuf);
+            response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, nettyResponseStatus, responseBuf);
         }
         // trying to avoid creating a map unless absolutely necessary
         Map<String, Object> headers = null;
@@ -161,7 +175,10 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
         if (responseValue != null && (headers == null || !headers.containsKey(HttpUtils.HEADER_CONTENT_TYPE))) {
             response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
-        }        
+        }
+        if (provider.isCorsEnabled()) {
+            response.headers().set(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
+        }
         // functions here are outside of the 'transaction' and should not mutate global state !
         // typically this is where users can set up an artificial delay or sleep
         if (afterScenario != null && afterScenario.isFunction()) {

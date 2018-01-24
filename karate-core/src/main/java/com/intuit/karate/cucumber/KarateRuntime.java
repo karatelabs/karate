@@ -26,6 +26,7 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.http.HttpConfig;
 import cucumber.runtime.CucumberScenarioImpl;
 import cucumber.runtime.CucumberStats;
 import cucumber.runtime.Runtime;
@@ -120,7 +121,8 @@ public class KarateRuntime extends Runtime {
             env.logger.warn("no runnable scenarios found: {}", env);
             return;
         }
-        ScriptValue sv = afterFeature ? prevContext.getAfterFeature() : prevContext.getAfterScenario();
+        HttpConfig config = prevContext.getConfig();
+        ScriptValue sv = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (sv.isFunction()) {
             try {
                 sv.invokeFunction(prevContext);

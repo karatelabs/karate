@@ -3,6 +3,7 @@ Feature:
 Background:
 * def cats = []
 * def nextId = call read('increment.js')
+* configure cors = true
 
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request
@@ -16,3 +17,4 @@ Scenario: pathMatches('/v1/cats') && methodIs('get')
 Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
     * def id = pathParams.id
     * def response = cats[id-1]
+

@@ -39,6 +39,7 @@ public class FeatureProvider {
     private final FeatureWrapper feature;
     private final KarateBackend backend;
     private final boolean ssl;
+    private final boolean corsEnabled;
     
     public FeatureProvider(FeatureWrapper feature) {
         this(feature, null, false);
@@ -50,6 +51,10 @@ public class FeatureProvider {
 
     public boolean isSsl() {
         return ssl;
+    }        
+
+    public boolean isCorsEnabled() {
+        return corsEnabled;
     }        
     
     public final ScriptContext getContext() {
@@ -77,6 +82,9 @@ public class FeatureProvider {
             vars.forEach((k, v) -> backendVars.put(k, v));
         } 
         CucumberUtils.call(feature, backend, CallType.BACKGROUND_ONLY);
+        // this is a special case, we support the auto-handling of cors
+        // only if '* configure cors = true' has been done in the Background
+        corsEnabled = context.getConfig().isCorsEnabled();
     }        
     
     public ScriptValueMap handle(ScriptValueMap vars) {

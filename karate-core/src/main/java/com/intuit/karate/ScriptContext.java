@@ -76,25 +76,9 @@ public class ScriptContext {
         return vars;
     }
 
-    public ScriptValue getConfigHeaders() {
-        return config.getHeaders();
-    }
-
-    public ScriptValue getConfigCookies() {
-        return config.getCookies();
-    }
-    
-    public ScriptValue getConfigResponseHeaders() {
-        return config.getResponseHeaders();
+    public HttpConfig getConfig() {
+        return config;
     }    
-    
-    public ScriptValue getAfterScenario() {
-        return config.getAfterScenario();
-    }  
-    
-    public ScriptValue getAfterFeature() {
-        return config.getAfterFeature();
-    }     
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
@@ -190,7 +174,11 @@ public class ScriptContext {
         if (key.equals("responseHeaders")) {
             config.setResponseHeaders(value);
             return;
-        }        
+        }
+        if (key.equals("cors")) {
+            config.setCorsEnabled(value.isBooleanTrue());
+            return;
+        }           
         if (key.equals("logPrettyResponse")) {
             config.setLogPrettyResponse(value.isBooleanTrue());
             return;
