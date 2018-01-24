@@ -126,7 +126,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                     KeyStore keyStore = KeyStore.getInstance(type);
                     InputStream is = FileUtils.getFileStream(keyStoreFile, context);
                     keyStore.load(is, passwordChars);
-                    context.logger.debug("trust store key count: {}", keyStore.size());
+                    context.logger.debug("key store key count: {}", keyStore.size());
                     sslContext = SSLContexts.custom()
                             .setProtocol(algorithm) // will default to TLS if null
                             .loadTrustMaterial(keyStore, new TrustAllStrategy())
