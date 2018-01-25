@@ -28,7 +28,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
-.... | [`multipart file`](#multipart-file) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
+.... | [`multipart file`](#multipart-file) / [`files`](#multipart-files) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Prepare, Mutate, Assert** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) / [`!=`](#match--not-equals) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
@@ -1488,7 +1488,9 @@ The single JSON argument needs to be in the form `{ field1: { read: 'file1.ext' 
 ```cucumber
 * def json = {}
 * set json.myFile1 = { read: 'test1.pdf', filename: 'upload-name1.pdf', contentType: 'application/pdf' }
-* set json.myFile2 = { read: 'test2.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
+# if you have dynamic keys you can do this
+* def key = 'myFile2'
+* eval json[key] = { read: 'test2.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
 And multipart files json
 ```
 

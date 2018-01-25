@@ -75,22 +75,27 @@ Karate-Netty is available as a single, executable JAR file, which includes even 
 You can download this JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-netty-<version>-all.jar`.
 
 ## Usage
-The 2 mandatory arguments are the path of the feature file and the port.
-
+You can view the command line help like this:
 ```
-java -jar karate-netty-<version>-all.jar my-mock.feature 8080
-```
-
-For SSL, add an extra parameter `ssl`:
-
-```
-java -jar karate-netty-<version>-all.jar my-mock.feature 8443 ssl
+java -jar karate-netty-<version>-all.jar --help
 ```
 
-If you have a certificate and private-key (in PEM format) you can specify them:
+The 2 mandatory arguments are the path of the feature file 'mock' `-m` and the port `-p`
 
 ```
-java -jar karate-netty-<version>-all.jar my-mock.feature 8443 my-cert.crt my-key.key
+java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8080
+```
+
+For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
+
+```
+java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -s
+```
+
+If you have a custom certificate and private-key (in PEM format) you can specify them, perhaps because these are your actual certificates or because they are trusted within your organization:
+
+```
+java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
 ```
 
 If you have a `logback.xml` in the working directory, it will control logging. Here is a sample that you can use:
