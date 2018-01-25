@@ -27,6 +27,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intuit.karate.demo.domain.FileInfo;
 import com.intuit.karate.demo.domain.Message;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -67,17 +69,35 @@ public class UploadController {
     }
 
     @PostMapping
-    public @ResponseBody FileInfo upload(@RequestParam("myFile") MultipartFile file, 
+    public @ResponseBody FileInfo upload(@RequestParam("myFile") MultipartFile file,
             @RequestParam("message") String message) throws Exception {
+        return getFileInfo(file, message);
+    }
+
+    @PostMapping("/multiple")
+    public @ResponseBody List<FileInfo> upload(@RequestParam("myFile1") MultipartFile file1,
+                          @RequestParam("myFile2") MultipartFile file2, @RequestParam("message") String message) throws Exception {
+        List<FileInfo> fileInfoList = new ArrayList<>();
+        fileInfoList.add(getFileInfo(file1, message));
+        fileInfoList.add(getFileInfo(file2, message));
+        return fileInfoList;
+    }
+
+    private FileInfo getFileInfo(MultipartFile file, String message) throws Exception {
+
         String uuid = UUID.randomUUID().toString();
         String filePath = FILES_BASE + uuid;
+
         FileUtils.copyToFile(file.getInputStream(), new File(filePath));
-        String filename = file.getOriginalFilename();
-        String contentType = file.getContentType();
-        FileInfo fileInfo = new FileInfo(uuid, filename, message, contentType);
+        String filename1 = file.getOriginalFilename();
+        String contentType1 = file.getContentType();
+
+        FileInfo fileInfo = new FileInfo(uuid, filename1, message, contentType1);
         String json = mapper.writeValueAsString(fileInfo);
         FileUtils.writeStringToFile(new File(filePath + "_meta.txt"), json, "utf-8");
+
         return fileInfo;
+
     }
     
     @PostMapping("/mixed")
