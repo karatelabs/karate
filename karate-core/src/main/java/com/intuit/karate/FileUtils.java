@@ -301,7 +301,9 @@ public class FileUtils {
 
     public static void writeToFile(File file, String data) {
         try {
-            file.getParentFile().mkdirs();
+            if (file.getParentFile() != null) {
+                file.getParentFile().mkdirs();
+            }
             FileOutputStream fos = new FileOutputStream(file);
             fos.write(data.getBytes(UTF8));
             fos.close();

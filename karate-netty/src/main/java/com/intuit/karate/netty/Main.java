@@ -23,53 +23,86 @@
  */
 package com.intuit.karate.netty;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
+import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
+import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 /**
  *
  * @author pthomas3
  */
-public class Main {
+public class Main implements Callable<Void> {
 
-    private static final String LOGBACK_CONFIG= "logback.configurationFile";
+    private static final String LOGBACK_CONFIG = "logback.configurationFile";
+    private static final String CERT_FILE = "cert.pem";
+    private static final String KEY_FILE = "key.pem";
+
     private static Logger logger;
 
-    private static void printUsage() {
-        logger.info("usage: featureFile port");
-        logger.info("usage: (ssl, auto-generated cert): featureFile port ssl");
-        logger.info("usage: (ssl, using cert): featureFile port certFile privateKeyFile");
-    }
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
+    boolean help;
 
+    @Option(names = {"-m", "--mock"}, required = true, description = "mock server file")
+    File mock;
+
+    @Option(names = {"-p", "--port"}, required = true, description = "mock server port")
+    int port;
+
+    @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
+            + CERT_FILE + "' and '" + KEY_FILE + "' if they exist in the working directory, or generate them")
+    boolean ssl;
+    
+    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + CERT_FILE + ")")
+    File cert;
+    
+    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
+    File key;    
+    
     public static void main(String[] args) {
+        // ensure WE init logback before anything else
         String logbackConfig = System.getProperty(LOGBACK_CONFIG);
         if (StringUtils.isBlank(logbackConfig)) {
             System.setProperty(LOGBACK_CONFIG, new File("logback.xml").getAbsolutePath());
         }
         logger = LoggerFactory.getLogger(Main.class);
-        if (args.length < 2) {
-            printUsage();
-        }
-        try {
-            File featureFile = new File(args[0]);
-            int port = Integer.valueOf(args[1]);
-            FeatureServer server;
-            if (args.length > 3) {
-                File certFile = new File(args[2]);
-                File privateKeyFile = new File(args[3]);
-                server = FeatureServer.start(featureFile, port, certFile, privateKeyFile, null);
-            } else if(args.length > 2) {
-                server = FeatureServer.start(featureFile, port, true, null);
-            } else {
-                server = FeatureServer.start(featureFile, port, false, null);
-            }
-            server.waitSync();
-        } catch (Exception e) {
-            printUsage();
-            throw new RuntimeException(e);
-        }
+        CommandLine.call(new Main(), System.err, args);
     }
+
+    @Override
+    public Void call() throws Exception {
+        FeatureServer server;
+        if (cert != null) {
+            ssl = true;
+        }
+        if (ssl) {
+            if (cert == null) {
+                cert = new File(CERT_FILE);
+                key = new File(KEY_FILE);
+            }
+            if (!cert.exists() || !key.exists()) {
+                logger.warn("ssl requested, but " + CERT_FILE + " and/or " + KEY_FILE + " not found in working directory, will create");
+                try {
+                    SelfSignedCertificate ssc = new SelfSignedCertificate();
+                    FileUtils.copy(ssc.certificate(), cert);
+                    FileUtils.copy(ssc.privateKey(), key);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                logger.info("ssl on, using existing files: {} and {}", CERT_FILE, KEY_FILE);
+            }
+            server = FeatureServer.start(mock, port, cert, key, null);
+        } else {
+            server = FeatureServer.start(mock, port, false, null);
+        }
+        server.waitSync();
+        return null;
+    }        
 
 }

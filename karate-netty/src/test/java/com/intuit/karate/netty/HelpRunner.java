@@ -6,11 +6,11 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-public class MainRunner {
+public class HelpRunner {
     
     @Test
     public void testMain() {
-        Main.main(new String[]{"-m", "src/test/java/com/intuit/karate/netty/server.feature", "-p", "8080"});        
+        Main.main(new String[]{"-h"});        
     }
     
 }
