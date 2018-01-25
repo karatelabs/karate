@@ -27,10 +27,15 @@ public class TestService {
     class TestController {
 
         @GetMapping
-        public String test() {
+        public String get() {
             return "{ \"success\": true }";
         }
-
+        
+        @PostMapping
+        public String post() {
+            return "{ \"success\": true }";
+        }
+        
     }
 
     public static ConfigurableApplicationContext start() {

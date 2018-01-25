@@ -235,12 +235,14 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
 
     @Override
     protected HttpEntity getEntity(String value, String mediaType) {
-        return new StringEntity(value, ApacheHttpUtils.createContentType(mediaType));
+        return ApacheHttpUtils.getEntity(value, mediaType);
     }
 
     @Override
-    protected HttpEntity getEntity(InputStream value, String mediaType) {
-        return new InputStreamEntity(value, ApacheHttpUtils.createContentType(mediaType));
+    protected HttpEntity getEntity(InputStream value, String mediaType) {        
+        InputStreamEntity entity = new InputStreamEntity(value);
+        entity.setContentType(mediaType);
+        return entity;
     }
 
     @Override

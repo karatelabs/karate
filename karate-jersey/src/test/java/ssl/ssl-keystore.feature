@@ -10,3 +10,9 @@ Scenario:
     Then status 200
     And match response == { success: true }
 
+    Given path 'test'
+    And request {}
+    When method post
+    Then status 200
+    And match response == { success: true }
+

@@ -15,7 +15,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = {"~@ignore"})
+@CucumberOptions(tags = {"~@ignore", "~@apache"})
 public class JerseyHttpClientTest {
     
     @Test

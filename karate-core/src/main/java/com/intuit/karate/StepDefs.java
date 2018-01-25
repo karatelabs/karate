@@ -432,7 +432,6 @@ public class StepDefs {
         }
     }
 
-
     public void multiPart(String name, String value) {
         ScriptValue sv = Script.evalKarateExpression(value, context);
         request.addMultiPartItem(name, sv);

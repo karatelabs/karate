@@ -66,6 +66,16 @@ public class ApacheHttpUtils {
         }        
     }
     
+    public static HttpEntity getEntity(String value, String mediaType) {
+        try {
+            StringEntity entity = new StringEntity(value);
+            entity.setContentType(mediaType);
+            return entity;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }         
+    }
+    
     public static HttpEntity getEntity(MultiValuedMap fields, String mediaType) {
         List<NameValuePair> list = new ArrayList<>(fields.size());
         for (Map.Entry<String, List> entry : fields.entrySet()) {
@@ -95,10 +105,6 @@ public class ApacheHttpUtils {
             throw new RuntimeException(e);
         }
     }
-    
-    public static ContentType createContentType(String mediaType) {
-        return ContentType.parse(mediaType);
-    }
 
     public static HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
         boolean hasNullName = false;
@@ -111,10 +117,10 @@ public class ApacheHttpUtils {
         if (hasNullName) { // multipart/related
             String boundary = HttpUtils.generateMimeBoundaryMarker();
             String text = HttpUtils.multiPartToString(items, boundary);
-            ContentType ct = createContentType(mediaType).withParameters(new BasicNameValuePair("boundary", boundary));
+            ContentType ct = ContentType.parse(mediaType).withParameters(new BasicNameValuePair("boundary", boundary));
             return new StringEntity(text, ct);
         } else {
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create().setContentType(createContentType(mediaType));
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create().setContentType(ContentType.parse(mediaType));
             for (MultiPartItem item : items) {
                 if (item.getValue() == null || item.getValue().isNull()) {
                     continue;

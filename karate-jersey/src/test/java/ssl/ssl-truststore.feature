@@ -10,3 +10,10 @@ Scenario:
     Then status 200
     And match response == { success: true }
 
+    Given path 'test'
+    And header Content-Type = 'application/json'
+    And request {}
+    When method post
+    Then status 200
+    And match response == { success: true }
+
