@@ -1429,6 +1429,8 @@ You can over-ride it by using the [`header`](#header) keyword before the `method
 
 Also refer to this [demo example](karate-demo) for a working example of multipart file uploads: [`upload.feature`](karate-demo/src/test/java/demo/upload/upload.feature).
 
+You can also dynamically set multiple files in one step using [`multipart files`](#multipart-files).
+
 ## `multipart entity`
 
 > This is technically not in the key-value form: `multipart field name = 'foo'`, but logically
@@ -1448,7 +1450,7 @@ Then status 201
 
 # Multi-Param Keywords
 ## Keywords that set multiple key-value pairs in one step
-`params`, `headers`, `cookies` and `form fields` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing, especially because any JSON key with a `null` value will be ignored. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
+`params`, `headers`, `cookies`, `form fields` and `multipart files` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing, especially because any JSON key with a `null` value will be ignored. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
 
 ## `params`
 ```cucumber
@@ -1479,6 +1481,16 @@ See also [`cookie`](#cookie).
 ```
 
 See also [`form field`](#form-field).
+
+## `multipart files`
+The single JSON argument needs to be in the form `{ field1: { read: 'file1.ext' }, field2: { read: 'file2.ext' } }` where each nested JSON is in the form expected by [`multipart file`](#multipart-file)
+
+```cucumber
+* def json = {}
+* set json.myFile1 = { read: 'test1.pdf', filename: 'upload-name1.pdf', contentType: 'application/pdf' }
+* set json.myFile2 = { read: 'test2.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
+And multipart files json
+```
 
 # SOAP
 Since a SOAP request needs special handling, this is the only case where the
@@ -2215,6 +2227,10 @@ JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-opera
 # using the karate object if the expression is dynamic
 * def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")
 * match temp[0] == bob
+
+# or alternatively
+* def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")[0]
+* match temp == bob
 ```
 
 You usually won't need this, but the second-last line above shows how the [`karate` object](#the-karate-object) can be used to evaluate a JsonPath if the filter expression depends on a variable.

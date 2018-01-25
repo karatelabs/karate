@@ -19,6 +19,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Just *one* file can script the above aspects, simplifying the mental-model you need to have for advanced scenarios such as [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * Easily integrate messaging or async flows using Java-interop if required
 * Enables consumer or even UI dev teams to work in parallel as the provider service is being developed
+* Built-in [CORS](#configure-cors) support for the ease of web-dev teams using the mock service
 * Option to use an existing certificate and private-key for server-side SSL - making it easier for UI dev / browser consumers in some situations
 * Configure a 'global' response header routine, ideal for browser consumers to handle [CORS](https://spring.io/understanding/CORS) for e.g.
 * Provider service dev team can practice TDD using the mock + contract-test
@@ -178,6 +179,7 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 
 ## `responseHeaders`
 ### `configure responseHeaders`
+### `configure cors`
 
 ## `afterScenario`
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).

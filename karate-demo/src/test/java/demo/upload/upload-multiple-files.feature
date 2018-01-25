@@ -1,12 +1,15 @@
-Feature: file upload end-point
+Feature: multipart files (multiple)
 
 Background:
 * url demoBaseUrl
 
-
-Scenario: upload with filename and content-type specified
-    Given path 'files','multiple'
-    And multipart files {myFile1:{read:'test.pdf',filename:'upload-name1.pdf',contentType:'application/pdf'}, myFile2:{read: 'test.pdf',filename: 'upload-name2.pdf',contentType: 'application/pdf' }}
+Scenario: upload multiple files
+    * def json = {}
+    * set json.myFile1 = { read: 'test.pdf', filename: 'upload-name1.pdf', contentType: 'application/pdf' }
+    * set json.myFile2 = { read: 'test.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
+    Given path 'files', 'multiple'
+    # so you can dynamically construct this json if there are multiple files
+    And multipart files json
     And multipart field message = 'hello world'
     When method post
     Then status 200

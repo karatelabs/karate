@@ -33,6 +33,10 @@ Then match each cat.kittens contains { id: '#? isLessThanFifty(_)' }
 * def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")
 * match temp[0] == bob
 
+# getting the first element of the array returned by a json-path expression in one step
+* def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")[0]
+* match temp == bob
+
 Given def foo = 42
 And def bar = { hello: 'world' }
 And def temp = { id: '#(foo)', value: '#(bar.hello)' }
