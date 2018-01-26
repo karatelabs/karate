@@ -2132,10 +2132,10 @@ Normal Form | In-Line Form
 `* match foo contains only reversed` | `* match foo == '#(^^reversed)'`
 `* match foo contains first` | `* match foo == '#(^first)'`
 `* match foo !contains others` | `* match foo == '#(!^others)'`
- - | `* match foo contains '#(^partial)'`
- - | `* match foo !contains '#(!^partial)'`
- - | `* match foo !contains '#(^nope)'`
- - | `* match foo contains '#(!^nope)'`
+`# NA` | `* match foo contains '#(^partial)'`
+`# NA` | `* match foo !contains '#(!^partial)'`
+`# NA` | `* match foo !contains '#(^nope)'`
+`# NA` | `* match foo contains '#(!^nope)'`
 `* assert foo.length == 2` | `* match foo == '#[2]'`
 
 > The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
