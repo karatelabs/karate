@@ -101,6 +101,18 @@ Then match response ==
 * match foo !contains others
 * match foo == '#(!^others)'
 
+# no equivalent !
+* match foo contains '#(^partial)'
+
+# no equivalent !
+* match foo !contains '#(!^partial)'
+
+# no equivalent !
+* match foo !contains '#(^nope)'
+
+# no equivalent !
+* match foo contains '#(!^nope)'
+
 * assert foo.length == 2
 * match foo == '#[2]'
 

@@ -75,12 +75,12 @@ Karate-Netty is available as a single, executable JAR file, which includes even 
 You can download this JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-netty-<version>-all.jar`.
 
 ## Usage
-You can view the command line help like this:
+You can view the command line help with the `-h` option:
 ```
-java -jar karate-netty-<version>-all.jar --help
+java -jar karate-netty-<version>-all.jar -h
 ```
 
-The 2 mandatory arguments are the path of the feature file 'mock' `-m` and the port `-p`
+To start a mock server, the 2 mandatory arguments are the path of the feature file 'mock' `-m` and the port `-p`
 
 ```
 java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8080

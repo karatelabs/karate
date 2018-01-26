@@ -2119,6 +2119,8 @@ So given the following data:
 
 Here are the alternative forms compared with the 'normal' form. Note that the short-cut forms on the right all resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ payload `match`, using [embedded expressions](#embedded-expressions).
 
+A very useful capability is to be able to check that an array `contains` an object that `contains` given keys *instead* of having to specify *all* keys - which can get really cumbersome for large JSON objects. This turns out to be very useful in practice, and interestingly this exotic `contains contains` construct has no 'normal form' equivalent.
+
 Normal Form | In-Line Form
 ----------- | ------------
 `* match foo[0] == exact` | `* match foo[0] == '#(exact)'`
@@ -2130,6 +2132,10 @@ Normal Form | In-Line Form
 `* match foo contains only reversed` | `* match foo == '#(^^reversed)'`
 `* match foo contains first` | `* match foo == '#(^first)'`
 `* match foo !contains others` | `* match foo == '#(!^others)'`
+ - | `* match foo contains '#(^partial)'`
+ - | `* match foo !contains '#(!^partial)'`
+ - | `* match foo !contains '#(^nope)'`
+ - | `* match foo contains '#(!^nope)'`
 `* assert foo.length == 2` | `* match foo == '#[2]'`
 
 > The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
@@ -2223,15 +2229,15 @@ JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-opera
 }
 """
 # find single kitten where id == 23
-* def bob =  get[0] cat.kittens[?(@.id==23)]
+* def bob = get[0] cat.kittens[?(@.id==23)]
 * match bob.name == 'Bob'
 
 # using the karate object if the expression is dynamic
-* def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")
+* def temp = karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")
 * match temp[0] == bob
 
 # or alternatively
-* def temp =  karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")[0]
+* def temp = karate.jsonPath(cat, "$.kittens[?(@.name=='" + bob.name + "')]")[0]
 * match temp == bob
 ```
 
