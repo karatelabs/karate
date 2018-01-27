@@ -64,57 +64,49 @@ Then match response ==
 * match foo == '##[] #string'
 
 # contains
-* def foo = [{ a: 1, b: 'x' }, { a: 2, b: 'y' }]
+* def actual = [{ a: 1, b: 'x' }, { a: 2, b: 'y' }]
 
-* def exact = { a: '#number', b: '#string' }
-* def partial = { a: '#number' }
-* def nope = { c: '#boolean' }
+* def schema = { a: '#number', b: '#string' }
+* def partSchema = { a: '#number' }
+* def badSchema = { c: '#boolean' }
 
-* def reversed = [{ a: 2, b: 'y' }, { b: 'x', a: 1 }]
+* def shuffled = [{ a: 2, b: 'y' }, { b: 'x', a: 1 }]
 * def first = { a: 1, b: 'x' }
+* def part = { a: 1 }
 * def others = [{ a: 3, b: 'u' }, { a: 4, b: 'v' }]
 
-* match foo[0] == exact
-* match foo[0] == '#(exact)'
+* match actual[0] == schema
+* match actual[0] == '#(schema)'
 
-* match foo[0] contains partial
-* match foo[0] == '#(^partial)'
+* match actual[0] contains partSchema
+* match actual[0] == '#(^partSchema)'
 
-* match foo[0] !contains nope
-* match foo[0] == '#(!^nope)'
+* match actual[0] !contains badSchema
+* match actual[0] == '#(!^badSchema)'
 
-* match each foo == exact
-* match foo == '#[] exact'
+* match each actual == schema
+* match actual == '#[] schema'
 
-* match each foo contains partial
-* match foo == '#[] ^partial'
+* match each actual contains partSchema
+* match actual == '#[] ^partSchema'
 
-* match each foo !contains nope
-* match foo == '#[] !^nope'
+* match each actual !contains badSchema
+* match actual == '#[] !^badSchema'
 
-* match foo contains only reversed
-* match foo == '#(^^reversed)'
+* match actual contains only shuffled
+* match actual == '#(^^shuffled)'
 
-* match foo contains first
-* match foo == '#(^first)'
+* match actual contains first
+* match actual == '#(^first)'
 
-* match foo !contains others
-* match foo == '#(!^others)'
-
-# no equivalent !
-* match foo contains '#(^partial)'
+* match actual !contains others
+* match actual == '#(!^others)'
 
 # no equivalent !
-* match foo !contains '#(!^partial)'
+* match actual contains '#(^part)'
 
-# no equivalent !
-* match foo !contains '#(^nope)'
-
-# no equivalent !
-* match foo contains '#(!^nope)'
-
-* assert foo.length == 2
-* match foo == '#[2]'
+* assert actual.length == 2
+* match actual == '#[2]'
 
 Scenario: re-usable json chunks as nodes, but optional
 * def dogSchema = { id: '#string', color: '#string' }
