@@ -2107,7 +2107,7 @@ Here are the alternative forms compared with the 'normal' form. Note that the sh
 
 A very useful capability is to be able to check that an array `contains` an object that `contains` given keys *instead* of having to specify *all* keys - which can get really cumbersome for large JSON objects. This turns out to be very useful in practice, and interestingly this exotic `contains contains` construct has no 'normal form' equivalent (the second-last row below).
 
-<a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.png" height="668px"/></a>
+<a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.png" height="520px"/></a>
 
 > The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
 
