@@ -2103,13 +2103,13 @@ Symbol  | Means
 | `^^`  | [`contains only`](#match-contains-only) 
 | `!^`  | [`not contains`](#not-contains)     
 
-Here are the alternative forms compared with the 'normal' form. Note that the short-cut forms on the right mostly resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ (single-step / schema-like) payload `match`, using [embedded expressions](#embedded-expressions).
+Here'a table of the alternative 'in-line' forms compared with the 'standard' form. Note that the short-cut forms on the right-side of the table mostly resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ (single-step) payload `match`, using [embedded expressions](#embedded-expressions).
 
-A very useful capability is to be able to check that an array `contains` an object that `contains` given keys *instead* of having to specify *all* keys - which can get really cumbersome for large JSON objects. This turns out to be very useful in practice, and interestingly this exotic `contains contains` construct has no 'normal form' equivalent (the second-last row below).
+<a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.jpg" height="520px"/></a>
 
-<a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.png" height="520px"/></a>
+A very useful capability is to be able to check that an array `contains` an object that `contains` the provided sub-set of keys *instead* of having to specify the *complete* JSON - which can get really cumbersome for large objects. This turns out to be very useful in practice, and this particular `match` *jsonArray* `contains '#(^`*partialObject*`)'` form has no 'standard' equivalent (see the second-last row above).
 
-> The last one above is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
+> The last row in the table is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
 
 In real-life tests, these are very useful when the order of items in arrays returned from the server are not guaranteed. You can easily assert that all expected elements are present, _even_ in nested parts of your JSON - while doing a [`match`](#match) on the _full_ payload.
 
