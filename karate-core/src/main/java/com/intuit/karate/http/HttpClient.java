@@ -95,18 +95,18 @@ public abstract class HttpClient<T> {
             if (mediaType == null) {
                 mediaType = APPLICATION_XML;
             }
-            return getEntity(XmlUtils.toString(node), mediaType);           
+            return getEntity(XmlUtils.toString(node), mediaType);
         } else if (body.isStream()) {
             InputStream is = body.getValue(InputStream.class);
             if (mediaType == null) {
                 mediaType = APPLICATION_OCTET_STREAM;
             }
-            return getEntity(is, mediaType);           
+            return getEntity(is, mediaType);
         } else {
             if (mediaType == null) {
                 mediaType = TEXT_PLAIN;
             }
-            return getEntity(body.getAsString(), mediaType);          
+            return getEntity(body.getAsString(), mediaType);
         }
     }
 
@@ -120,6 +120,11 @@ public abstract class HttpClient<T> {
         method = method.toUpperCase();
         request.setMethod(method);
         this.request = request;
+        boolean methodThatRequiresBody
+                = "POST".equals(method)
+                || "PUT".equals(method)
+                || "PATCH".equals(method)
+                || "DELETE".equals(method);
         String url = request.getUrl();
         if (url == null) {
             String msg = "url not set, please refer to the keyword documentation for 'url'";
@@ -136,6 +141,13 @@ public abstract class HttpClient<T> {
             for (Map.Entry<String, List> entry : request.getParams().entrySet()) {
                 buildParam(entry.getKey(), entry.getValue().toArray());
             }
+        }
+        if (request.getFormFields() != null && !methodThatRequiresBody) {
+            // not POST, move form-fields to params
+            for (Map.Entry<String, List> entry : request.getFormFields().entrySet()) {
+                buildParam(entry.getKey(), entry.getValue().toArray());
+            }
+
         }
         if (request.getHeaders() != null) {
             for (Map.Entry<String, List> entry : request.getHeaders().entrySet()) {
@@ -159,8 +171,8 @@ public abstract class HttpClient<T> {
         Map<String, Object> configCookies = config.getCookies().evalAsMap(context);
         for (Cookie cookie : Cookie.toCookies(configCookies)) {
             buildCookie(cookie);
-        }       
-        if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method) || "DELETE".equals(method)) {
+        }
+        if (methodThatRequiresBody) {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
@@ -172,7 +184,7 @@ public abstract class HttpClient<T> {
                     mediaType = APPLICATION_FORM_URLENCODED;
                 }
                 return getEntity(request.getFormFields(), mediaType);
-            } else {               
+            } else {
                 ScriptValue body = request.getBody();
                 if ((body == null || body.isNull())) {
                     if ("DELETE".equals(method)) {
@@ -188,11 +200,6 @@ public abstract class HttpClient<T> {
                 return getEntityInternal(body, mediaType);
             }
         } else {
-            if (request.getFormFields() != null) { // not POST, move form-fields to params
-                for (Map.Entry<String, List> entry : request.getFormFields().entrySet()) {
-                    buildParam(entry.getKey(), entry.getValue().toArray());
-                }
-            }             
             return null;
         }
     }
@@ -217,7 +224,7 @@ public abstract class HttpClient<T> {
             context.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
-    }        
+    }
 
     public static HttpClient construct(String className) {
         try {
