@@ -23,6 +23,6 @@ Scenario: pathMatches('/hardcoded')
 
 Scenario:
     # catch-all
-    * def responseStatus = 400
+    * def responseStatus = 404
     * def responseHeaders = { 'Content-Type': 'text/html; charset=utf-8' }
     * def response = <html><body>Not Found</body></html>
