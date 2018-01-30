@@ -1583,13 +1583,11 @@ Key | Type | Required? | Description
 `trustAll` | boolean | optional | if all server certificates should be considered trusted.  Default is `true` and if the above 3 keys are present will allow self-signed certificates. If `false`, will expect the whole chain in the `trustStore` or use what is available in the environment.
 `algorithm` | string | optional | force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). Default is `TLS`.  
 
-
 Example:  
 ```
 # enable X509 certificate authentication with PKCS12 file 'certstore.pfx' and password 'certpassword'
-* configure ssl = {keyStore: 'classpath:certstore.pfx', keyStorePassword: 'certpassword', keyStoretype: 'pkcs12'};
+* configure ssl = { keyStore: 'classpath:certstore.pfx', keyStorePassword: 'certpassword', keyStoreType: 'pkcs12' };
 ```
-
 
 # Payload Assertions
 ## Prepare, Mutate, Assert.
