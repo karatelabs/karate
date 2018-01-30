@@ -61,6 +61,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
@@ -115,14 +116,22 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
             KeyStore trustStore = HttpUtils.getKeyStore(context,
-                    config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
+                        config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
             KeyStore keyStore = HttpUtils.getKeyStore(context,
                     config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
             SSLContext sslContext;
             try {
                 SSLContextBuilder builder = SSLContexts.custom()
-                        .setProtocol(algorithm) // will default to TLS if null
-                        .loadTrustMaterial(trustStore, new TrustAllStrategy());
+                        .setProtocol(algorithm); // will default to TLS if null
+                if (trustStore == null) {
+                    builder = builder.loadTrustMaterial(new TrustAllStrategy());
+                } else {
+                    if (config.isSslTrustAll()) {
+                        builder = builder.loadTrustMaterial(trustStore, new TrustSelfSignedStrategy());
+                    } else {
+                        builder = builder.loadTrustMaterial(trustStore, null); // will use system / java default
+                    }                    
+                }
                 if (keyStore != null) {
                     char[] keyPassword = config.getSslKeyStorePassword() == null ? null : config.getSslKeyStorePassword().toCharArray();
                     builder = builder.loadKeyMaterial(keyStore, keyPassword);
@@ -239,7 +248,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpEntity getEntity(InputStream value, String mediaType) {        
+    protected HttpEntity getEntity(InputStream value, String mediaType) {
         InputStreamEntity entity = new InputStreamEntity(value);
         entity.setContentType(mediaType);
         return entity;

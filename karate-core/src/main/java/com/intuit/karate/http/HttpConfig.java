@@ -31,16 +31,17 @@ import java.util.Map;
  * @author pthomas3
  */
 public class HttpConfig {
-    
+
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
     private String sslKeyStore;
     private String sslKeyStorePassword;
-    private String sslKeyStoreType;    
+    private String sslKeyStoreType;
     private String sslTrustStore;
     private String sslTrustStorePassword;
     private String sslTrustStoreType;
-    private boolean followRedirects = true;    
+    private boolean sslTrustAll = true;
+    private boolean followRedirects = true;
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
     private String proxyUri;
@@ -52,17 +53,17 @@ public class HttpConfig {
     private boolean corsEnabled = false;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
-    private boolean printEnabled = true;    
+    private boolean printEnabled = true;
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
-    
+
     public HttpConfig() {
         // zero arg constructor
     }
-    
+
     public HttpConfig(HttpConfig parent) {
         sslEnabled = parent.sslEnabled;
         sslAlgorithm = parent.sslAlgorithm;
@@ -71,8 +72,9 @@ public class HttpConfig {
         sslTrustStoreType = parent.sslTrustStoreType;
         sslKeyStore = parent.sslKeyStore;
         sslKeyStorePassword = parent.sslKeyStorePassword;
-        sslKeyStoreType = parent.sslKeyStoreType;        
-        followRedirects = parent.followRedirects;        
+        sslKeyStoreType = parent.sslKeyStoreType;
+        sslTrustAll = parent.sslTrustAll;
+        followRedirects = parent.followRedirects;
         readTimeout = parent.readTimeout;
         connectTimeout = parent.connectTimeout;
         proxyUri = parent.proxyUri;
@@ -84,21 +86,21 @@ public class HttpConfig {
         corsEnabled = parent.corsEnabled;
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
-        printEnabled = parent.printEnabled;        
+        printEnabled = parent.printEnabled;
         clientClass = parent.clientClass;
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
     }
-    
+
     public boolean isSslEnabled() {
         return sslEnabled;
     }
 
     public void setSslEnabled(boolean sslEnabled) {
         this.sslEnabled = sslEnabled;
-    }        
+    }
 
     public String getSslAlgorithm() {
         return sslAlgorithm;
@@ -130,7 +132,7 @@ public class HttpConfig {
 
     public void setSslKeyStoreType(String sslKeyStoreType) {
         this.sslKeyStoreType = sslKeyStoreType;
-    }        
+    }
 
     public String getSslTrustStore() {
         return sslTrustStore;
@@ -154,15 +156,23 @@ public class HttpConfig {
 
     public void setSslTrustStoreType(String sslTrustStoreType) {
         this.sslTrustStoreType = sslTrustStoreType;
-    }        
-    
+    }
+
+    public boolean isSslTrustAll() {
+        return sslTrustAll;
+    }
+
+    public void setSslTrustAll(boolean sslTrustAll) {
+        this.sslTrustAll = sslTrustAll;
+    }
+
     public boolean isFollowRedirects() {
         return followRedirects;
     }
 
     public void setFollowRedirects(boolean followRedirects) {
         this.followRedirects = followRedirects;
-    }    
+    }
 
     public int getReadTimeout() {
         return readTimeout;
@@ -218,7 +228,7 @@ public class HttpConfig {
 
     public void setCookies(ScriptValue cookies) {
         this.cookies = cookies;
-    }       
+    }
 
     public ScriptValue getResponseHeaders() {
         return responseHeaders;
@@ -226,7 +236,7 @@ public class HttpConfig {
 
     public void setResponseHeaders(ScriptValue responseHeaders) {
         this.responseHeaders = responseHeaders;
-    }      
+    }
 
     public boolean isCorsEnabled() {
         return corsEnabled;
@@ -234,7 +244,7 @@ public class HttpConfig {
 
     public void setCorsEnabled(boolean corsEnabled) {
         this.corsEnabled = corsEnabled;
-    } 
+    }
 
     public boolean isLogPrettyRequest() {
         return logPrettyRequest;
@@ -258,7 +268,7 @@ public class HttpConfig {
 
     public void setPrintEnabled(boolean printEnabled) {
         this.printEnabled = printEnabled;
-    }        
+    }
 
     public String getClientClass() {
         return clientClass;
@@ -274,7 +284,7 @@ public class HttpConfig {
 
     public void setUserDefined(Map<String, Object> userDefined) {
         this.userDefined = userDefined;
-    }        
+    }
 
     public HttpClient getClientInstance() {
         return clientInstance;
@@ -282,7 +292,7 @@ public class HttpConfig {
 
     public void setClientInstance(HttpClient clientInstance) {
         this.clientInstance = clientInstance;
-    }    
+    }
 
     public ScriptValue getAfterScenario() {
         return afterScenario;
@@ -298,6 +308,6 @@ public class HttpConfig {
 
     public void setAfterFeature(ScriptValue afterFeature) {
         this.afterFeature = afterFeature;
-    }    
-    
+    }
+
 }

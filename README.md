@@ -1530,6 +1530,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
+`ssl` | JSON | see [X509 certificate authentication](#x509-certificate-authentication)
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
@@ -1566,6 +1567,29 @@ And if you need to set some of these 'globally' you can easily do so using [the 
 
 ### System Properties for SSL and HTTP proxy
 For HTTPS / SSL, you can also specify a custom certificate or trust store by [setting Java system properties](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/JSSERefGuide.html#InstallationAndCustomization). And similarly - for [specifying the HTTP proxy](https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html).
+
+### X509 Certificate Authentication
+
+Also referred to as "mutual auth" - if your API requires that clients present an X509 certificate for authentication, Karate supports this via JSON as the `configure ssl` value.  The following parameters are supported:
+
+Key | Type | Required? | Description
+---- | ----- | ------ | ----------
+`keyStore` | string | required | path to file containing public and private keys for your client certificate.
+`keyStorePassword` | string | required | password for keyStore file.
+`keyStoreType` | string | required | Format of the keyStore file.  Allowed keystore types are as described in the [Java `KeyStore` docs](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore).
+`trustStore` | string | optional | path to file containing the trust chain for your server certificate.
+`trustStorePassword` | string | optional | password for trustStore file.
+`trustStoreType` | string | optional | Format of the trustStore file.  Allowed keystore types are as described in the [Java `KeyStore` docs](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore).
+`trustAll` | boolean | optional | if all server certificates should be considered trusted.  Default is `true` and if the above 3 keys are present will allow self-signed certificates. If `false`, will expect the whole chain in the `trustStore` or use what is available in the environment.
+`algorithm` | string | optional | force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). Default is `TLS`.  
+
+
+Example:  
+```
+# enable X509 certificate authentication with PKCS12 file 'certstore.pfx' and password 'certpassword'
+* configure ssl = {keyStore: 'classpath:certstore.pfx', keyStorePassword: 'certpassword', keyStoretype: 'pkcs12'};
+```
+
 
 # Payload Assertions
 ## Prepare, Mutate, Assert.
