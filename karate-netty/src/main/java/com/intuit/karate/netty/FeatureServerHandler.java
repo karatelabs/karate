@@ -47,6 +47,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -161,7 +163,16 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         // trying to avoid creating a map unless absolutely necessary
         Map<String, Object> headers = null;
         if (responseHeadersMap != null) {
-            headers = responseHeadersMap;
+            Map<String, Object> temp = new LinkedHashMap(responseHeadersMap.size());
+            responseHeadersMap.forEach((k, v) -> {
+                if (v instanceof List) { // MultiValueMap returned by proceed / response.headers
+                    List values = (List) v;
+                    temp.put(k, StringUtils.join(values, ','));
+                } else {
+                    temp.put(k, v);
+                }
+            });
+            headers = temp;
         }
         if (configResponseHeadersMap != null) {
             if (headers == null) {
