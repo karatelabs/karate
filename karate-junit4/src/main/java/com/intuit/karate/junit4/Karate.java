@@ -1,6 +1,8 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.cucumber.DummyFormatter;
+import com.intuit.karate.cucumber.DummyReporter;
 import com.intuit.karate.cucumber.KarateFeature;
 import com.intuit.karate.cucumber.KarateHtmlReporter;
 import com.intuit.karate.cucumber.KarateRuntime;
@@ -20,9 +22,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
+import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
 
 /**
@@ -40,6 +44,10 @@ public class Karate extends ParentRunner<KarateFeature> {
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
+        List<FrameworkMethod> testMethods = getTestClass().getAnnotatedMethods(Test.class);
+        if (!testMethods.isEmpty()) {
+            System.err.println("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
+        }
         // we have to repeat this step again later, for the sake of lazy init of the logger
         KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
         children = KarateFeature.loadFeatures(kro);
@@ -67,9 +75,8 @@ public class Karate extends ParentRunner<KarateFeature> {
         // we re-do the karate runtime, just so that the logger is fresh, else custom log appender collection fails
         KarateRuntimeOptions kro = new KarateRuntimeOptions(getTestClass().getJavaClass());
         RuntimeOptions ro = kro.getRuntimeOptions();
-        ClassLoader cl = kro.getClassLoader();
         JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
-        htmlReporter = new KarateHtmlReporter(ro.reporter(cl), ro.formatter(cl));
+        htmlReporter = new KarateHtmlReporter(new DummyReporter(), new DummyFormatter());
         reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions) {
             final List<Step> steps = new ArrayList();
             final List<Match> matches = new ArrayList();

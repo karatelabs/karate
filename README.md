@@ -338,7 +338,9 @@ And most convenient of all, you can even point to a directory (or package). Comb
 // except the ones tagged as @ignore
 ```
 
-> For TestNG: The `@CucumberOptions` annotation can be used the same way.
+> Note that any `plugins` specified on the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm) annotation will be ignored when using `@RunWith(Karate.class)`, because Karate's execution life-cycle is not compatible with 'native' Cucumber reports. This is not a limitation of Karate at all - as for API tests, you will only ever need the [parallel report](#test-reports) (which also produces standard JUnit and Cucumber-JSON output) or the [HTML report](#junit-html-report).
+
+For TestNG, the `@CucumberOptions` annotation can be used the same way as for JUnit.
 
 ## Command Line
 Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.

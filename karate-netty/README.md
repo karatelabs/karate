@@ -22,7 +22,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * [Stand-alone executable JAR](#standalone-jar) (10 MB) which only requires a JRE to run, ideal for web-developers or anyone who needs to quickly experiment with services.
 * Built-in [CORS](#configure-cors) support for the ease of web-dev teams using the mock service
 * Option to use an existing certificate and private-key for server-side SSL - making it easier for UI dev / browser consumers in some situations
-* Configure a 'global' response header routine, ideal for browser consumers to handle [CORS](https://spring.io/understanding/CORS) for e.g.
+* Configure a 'global' response header routine, ideal for browser consumers to add headers common for *all* responses - yet dynamic if needed
 * Provider service dev team can practice TDD using the mock + contract-test
 * The mock + contract-test serves as the ultimate form of documentation of the 'contract' including payload / schema details.
 
