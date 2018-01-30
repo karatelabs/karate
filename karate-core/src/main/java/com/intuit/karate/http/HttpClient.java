@@ -120,7 +120,7 @@ public abstract class HttpClient<T> {
         method = method.toUpperCase();
         request.setMethod(method);
         this.request = request;
-        boolean methodThatRequiresBody
+        boolean methodRequiresBody
                 = "POST".equals(method)
                 || "PUT".equals(method)
                 || "PATCH".equals(method)
@@ -142,7 +142,7 @@ public abstract class HttpClient<T> {
                 buildParam(entry.getKey(), entry.getValue().toArray());
             }
         }
-        if (request.getFormFields() != null && !methodThatRequiresBody) {
+        if (request.getFormFields() != null && !methodRequiresBody) {
             // not POST, move form-fields to params
             for (Map.Entry<String, List> entry : request.getFormFields().entrySet()) {
                 buildParam(entry.getKey(), entry.getValue().toArray());
@@ -172,7 +172,7 @@ public abstract class HttpClient<T> {
         for (Cookie cookie : Cookie.toCookies(configCookies)) {
             buildCookie(cookie);
         }
-        if (methodThatRequiresBody) {
+        if (methodRequiresBody) {
             String mediaType = request.getContentType();
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
