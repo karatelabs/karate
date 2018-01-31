@@ -251,5 +251,11 @@ Scenario: xml containing a CDATA section
     * xml naming = $xml /ResponseSet/Response
     * match naming //Attribute[@name='url']/@value == 'localhost'
 
-
-
+Scenario: xml with attributes but null value
+    * def xml = <foo><bar bbb="2" aaa="1"/></foo>
+    * match xml == <foo><bar bbb="2" aaa="1"/></foo>
+    * xmlstring temp = xml
+    # unfortunately xml attributes get re-ordered on string conversion / http request
+    * match temp == '<foo><bar aaa="1" bbb="2"/></foo>'
+    * def temp = karate.prettyXml(xml)
+    * match temp contains '<bar aaa="1" bbb="2"/>'

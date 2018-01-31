@@ -307,7 +307,7 @@ public class XmlUtils {
                 continue;
             }
             String childName = child.getNodeName();
-            Object childValue = child.hasChildNodes() ? toObject(child) : null;
+            Object childValue = toObject(child);
             // auto detect repeating elements
             if (map.containsKey(childName)) {
                 Object temp = map.get(childName);
@@ -361,10 +361,10 @@ public class XmlUtils {
     public static List<Element> fromObject(Document doc, String name, Object o) {
         if (o instanceof Map) {
             Map<String, Object> map = (Map) o;
+            Map<String, Object> attribs = (Map) map.get("@");
             Object value = map.get("_");
-            if (value != null) {
-                List<Element> elements = fromObject(doc, name, value);
-                Map<String, Object> attribs = (Map) map.get("@");
+            if (value != null || attribs != null) {
+                List<Element> elements = fromObject(doc, name, value);                
                 addAttributes(elements.get(0), attribs);
                 return elements;
             } else {

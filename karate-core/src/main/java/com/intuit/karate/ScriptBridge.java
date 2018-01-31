@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Properties;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -74,7 +75,10 @@ public class ScriptBridge {
     
     public String prettyXml(Object o) {
         ScriptValue sv = new ScriptValue(o);
-        if (sv.isMapLike()) {
+        if (sv.isXml()) {
+            Node node = sv.getValue(Node.class);
+            return XmlUtils.toString(node, true);
+        } else if (sv.isMapLike()) {
             Document doc = XmlUtils.fromMap(sv.getAsMap());
             return XmlUtils.toString(doc, true);
         } else {

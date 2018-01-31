@@ -576,11 +576,11 @@ public class Script {
                 sv = new ScriptValue(jsonDoc);
                 break;
             case XML:
-                Document xmlDoc = toXmlDoc(evalKarateExpression(exp, context), context);
+                Node xmlDoc = toXmlDoc(evalKarateExpression(exp, context), context);
                 sv = new ScriptValue(xmlDoc);
                 break;
             case XML_STRING:
-                Document xmlStringDoc = toXmlDoc(evalKarateExpression(exp, context), context);
+                Node xmlStringDoc = toXmlDoc(evalKarateExpression(exp, context), context);
                 sv = new ScriptValue(XmlUtils.toString(xmlStringDoc));
                 break;
             case COPY:
@@ -613,8 +613,10 @@ public class Script {
         }
     }
 
-    private static Document toXmlDoc(ScriptValue sv, ScriptContext context) {
-        if (sv.isMapLike()) {
+    private static Node toXmlDoc(ScriptValue sv, ScriptContext context) {
+        if (sv.isXml()) {
+            return sv.getValue(Node.class);
+        } else if (sv.isMapLike()) {
             return XmlUtils.fromMap(sv.getAsMap());
         } else if (sv.isUnknownType()) {
             return XmlUtils.toXmlDoc(sv.getValue());

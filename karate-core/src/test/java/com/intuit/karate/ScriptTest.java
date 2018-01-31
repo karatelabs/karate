@@ -674,6 +674,26 @@ public class ScriptTest {
     }
 
     @Test
+    public void testXmlStringConversion() {
+        ScriptContext ctx = getContext();
+        Script.assign("response", "<foo><bar bbb=\"2\" aaa=\"1\"/></foo>", ctx);
+        Script.assignXmlString("temp", "response", ctx, false);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "temp", null, "<foo><bar bbb=\"2\" aaa=\"1\"/></foo>", ctx).pass);
+        // XML DOM parsing unfortunately re-orders attributes
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "temp", null, "'<foo><bar aaa=\"1\" bbb=\"2\"/></foo>'", ctx).pass);
+    }
+    
+    @Test
+    public void testXmlStringConversionInJs() {
+        ScriptContext ctx = getContext();
+        Script.assign("response", "<foo><bar bbb=\"2\" aaa=\"1\"/></foo>", ctx);
+        Script.assignXml("xml", "karate.prettyXml(response)", ctx, false);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<foo><bar bbb=\"2\" aaa=\"1\"/></foo>", ctx).pass);
+        Script.assign("temp", "karate.prettyXml(response)", ctx, false);
+        assertTrue(Script.matchNamed(MatchType.CONTAINS, "temp", null, "'<bar aaa=\"1\" bbb=\"2\"/>'", ctx).pass);
+    }    
+    
+    @Test
     public void testMatchXmlRepeatedElements() {
         ScriptContext ctx = getContext();
         String xml = "<foo><bar>baz1</bar><bar>baz2</bar></foo>";
