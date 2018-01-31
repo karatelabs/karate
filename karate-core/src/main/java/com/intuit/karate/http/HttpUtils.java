@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpCookie;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -155,6 +156,20 @@ public class HttpUtils {
             }
         }
         return false;
+    }
+    
+    public static Charset parseContentTypeCharset(String mimeType) {
+        mimeType = mimeType.toLowerCase();
+        int pos = mimeType.indexOf("charset");
+        if (pos == -1) {
+            return null;
+        }
+        String temp = mimeType.substring(pos + 8);
+        pos = temp.indexOf(';');
+        if (pos != -1) {
+            temp = temp.substring(0, pos).trim();
+        }
+        return Charset.forName(temp);
     }
 
     public static String getContentType(ScriptValue sv) {

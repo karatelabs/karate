@@ -28,3 +28,40 @@ Scenario: manually decode before passing to karate
     When method get
     Then status 200
     And match response == 'foo+bar'
+
+Scenario: german xml
+    Given url demoBaseUrl
+    And path 'echo'    
+    And request <name>Müller</name>
+    And header Content-Type = 'application/xml; charset=utf-8'
+    When method post
+    Then status 200
+    And match response == <name>Müller</name>
+
+Scenario: french json
+    Given url demoBaseUrl
+    And path 'echo'
+    And request { givenName: 'oliàèôç' }
+    And header Content-Type = 'application/json; charset=utf-8'
+    When method post
+    Then status 200
+    And match response == { givenName: 'oliàèôç' }
+
+Scenario: french & german form field
+    Given url demoBaseUrl
+    And path 'echo', 'message'
+    And form field text = 'oliàèôç Müller'
+    And header Content-Type = 'application/x-www-form-urlencoded; charset=utf-8'
+    When method post
+    Then status 200
+    And match response == 'oliàèôç Müller'
+
+Scenario: french & german multipart
+    Given url demoBaseUrl
+    Given path 'files'
+    And multipart file myFile = { read: '../upload/karate-logo.jpg', filename: 'karate-logo.jpg', contentType: 'image/jpg' }
+    And multipart field message = 'oliàèôç Müller'
+    And header Content-Type = 'multipart/form-data; charset=utf-8'
+    When method post
+    Then status 200
+    And match response == { id: '#uuid', filename: 'karate-logo.jpg', message: 'oliàèôç Müller', contentType: 'image/jpg' }

@@ -31,6 +31,7 @@ import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +69,8 @@ public class ApacheHttpUtils {
     
     public static HttpEntity getEntity(String value, String mediaType) {
         try {
-            StringEntity entity = new StringEntity(value);
+            Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
+            StringEntity entity = new StringEntity(value, cs);
             entity.setContentType(mediaType);
             return entity;
         } catch (Exception e) {
@@ -98,7 +100,8 @@ public class ApacheHttpUtils {
             list.add(new BasicNameValuePair(entry.getKey(), stringValue));
         }
         try {
-            UrlEncodedFormEntity entity = new UrlEncodedFormEntity(list);
+            Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
+            UrlEncodedFormEntity entity = new UrlEncodedFormEntity(list, cs);
             entity.setContentType(mediaType);
             return entity;
         } catch (Exception e) {
@@ -144,7 +147,9 @@ public class ApacheHttpUtils {
                         contentBody = new InputStreamBody(is, contentType, filename);
                     } else if (sv.isStream()) {
                         contentBody = new InputStreamBody(sv.getAsStream(), contentType);
-                    } else {                    
+                    } else {
+                        Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
+                        contentType = contentType.withCharset(cs);
                         contentBody = new StringBody(sv.getAsString(), contentType);
                     }
                     formBuilder = formBuilder.setBody(contentBody);

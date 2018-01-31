@@ -23,9 +23,12 @@
  */
 package com.intuit.karate.demo.controller;
 
+import com.intuit.karate.demo.domain.Message;
+import com.intuit.karate.demo.domain.SignIn;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,7 +45,13 @@ public class EchoController {
     @PostMapping
     public String echo(@RequestBody String request) {
         return request;
-    }   
+    }  
+    
+    @PostMapping
+    @RequestMapping("/message")
+    public String echo(@ModelAttribute Message message) {
+        return message.getText();
+    }     
     
     @GetMapping
     public Map<String, String[]> search(HttpServletRequest request) {
