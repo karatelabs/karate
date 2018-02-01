@@ -90,7 +90,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 You can find a lot more at the [community wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own 'tag' and a healthy presence on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
 # Getting Started
-Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and [Maven](http://maven.apache.org) to be installed.
+Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org) or [Eclipse](#eclipse-quickstart) to be installed.
 
 ## Maven
 
@@ -146,6 +146,8 @@ mvn archetype:generate \
 ```
 
 This will create a folder called `myproject` (or whatever you set the name to).
+
+### Eclipse Quickstart
 
 You can refer to this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse (without having to run the command above). Use the latest available version of Karate (refer to the `archetypeVersion` above), and also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
 
