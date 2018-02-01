@@ -100,10 +100,11 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
 ```
 
-### Test
-Convenient to run a standard [Karate](https://github.com/intuit/karate) test on the command-line without messing around with Java or the IDE ! Great for demos or exploratory testing.
+### Run Test
+Convenient to run a standard [Karate](https://github.com/intuit/karate) test on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing.
 
 > Note that if you are depending on external Java libraries or custom code to be compiled, this won't work.
+
 ```
 java -jar karate-netty-<version>-all.jar -t my-test.feature
 ```
