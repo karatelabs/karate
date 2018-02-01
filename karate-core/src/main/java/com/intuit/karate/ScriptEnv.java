@@ -78,7 +78,7 @@ public class ScriptEnv {
         if (karateEnv == null) {
             karateEnv = StringUtils.trimToNull(env);
             if (karateEnv == null) {
-                karateEnv = StringUtils.trimToNull(System.getProperty("karate.env"));
+                karateEnv = StringUtils.trimToNull(System.getProperty(ScriptBindings.KARATE_ENV));
             }
         }
         return new ScriptEnv(karateEnv, featureDir, featureName, fileClassLoader, callCache, logger, reporter, debug);

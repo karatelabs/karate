@@ -24,6 +24,7 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptBindings;
 import java.io.File;
 import java.util.List;
 
@@ -93,7 +94,7 @@ public class App extends Application {
     @Override
     public void start(Stage stage) throws Exception {        
         List<String> params = getParameters().getUnnamed();
-        String envString = System.getProperty("karate.env");
+        String envString = System.getProperty(ScriptBindings.KARATE_ENV);
         if (!params.isEmpty()) {
             String fileName = params.get(0);
             if (params.size() > 1) {

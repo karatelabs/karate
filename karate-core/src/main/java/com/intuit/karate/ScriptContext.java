@@ -30,6 +30,7 @@ import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.validator.Validator;
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -130,10 +131,18 @@ public class ScriptContext {
         bindings = new ScriptBindings(this);
         if (call.parentContext == null && call.evalKarateConfig) {
             try {
-                Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, ScriptBindings.READ_KARATE_CONFIG, null, this);
+                String configScript;
+                String configPath = System.getProperty(ScriptBindings.KARATE_CONFIG);
+                if (configPath != null) { // over-ridden by user or command-line / stand-alone jar
+                    File configFile = new File(configPath);
+                    configScript = String.format("%s('%s')", ScriptBindings.READ, FileUtils.FILE_COLON + configFile.getPath());
+                } else {
+                    configScript = ScriptBindings.READ_KARATE_CONFIG;                    
+                }
+                Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
             } catch (Exception e) {
                 if (e instanceof KarateFileNotFoundException) {
-                    logger.warn("{} not found on the classpath, skipping bootstrap configuration", ScriptBindings.KARATE_CONFIG_JS);
+                    logger.warn("skipping bootstrap configuration: {}", e.getMessage());
                 } else {
                     throw new RuntimeException("evaluation of " + ScriptBindings.KARATE_CONFIG_JS +  " failed:", e);
                 }

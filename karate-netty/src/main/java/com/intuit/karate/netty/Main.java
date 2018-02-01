@@ -24,11 +24,13 @@
 package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.CucumberRunner;
 import com.intuit.karate.ui.App;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +41,7 @@ import picocli.CommandLine.Option;
  *
  * @author pthomas3
  */
-public class Main extends App implements Callable<Void> {
+public class Main implements Callable<Void> {
 
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
     private static final String CERT_FILE = "cert.pem";
@@ -66,7 +68,7 @@ public class Main extends App implements Callable<Void> {
     @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
     File key; 
     
-    @Option(names = {"-t", "--test"}, description = "test feature file to run")
+    @Option(names = {"-t", "--test"}, description = "run feature file as Karate test")
     File test; 
     
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
@@ -75,7 +77,8 @@ public class Main extends App implements Callable<Void> {
     @Option(names = {"-u", "--ui"}, description = "show user interface")
     boolean ui;
     
-    
+    @Option(names = {"-a", "--args"}, description = "variables as key=value pair arguments")
+    Map<String, Object> args;     
     
     public static void main(String[] args) {
         // ensure WE init logback before anything else
@@ -90,14 +93,21 @@ public class Main extends App implements Callable<Void> {
     @Override
     public Void call() throws Exception {
         if (test != null) {
-            if (ui) {
-                Main.launch(new String[]{test.getAbsolutePath(), env});
+            if (ui) {                
+                App.main(new String[]{test.getAbsolutePath(), env});
             } else {
-                CucumberRunner.runFeature(test, null, true); // TODO karate config, classpath, report
+                if (env != null) {
+                    System.setProperty(ScriptBindings.KARATE_ENV, env);
+                }
+                String configPath = System.getProperty(ScriptBindings.KARATE_CONFIG);
+                if (configPath == null) {
+                    System.setProperty(ScriptBindings.KARATE_CONFIG, new File(ScriptBindings.KARATE_CONFIG_JS).getPath() + "");
+                }
+                CucumberRunner.runFeature(test, args, true);
             }
             return null;
         } else if (ui || mock == null) {
-            Main.launch(new String[]{});
+            App.main(new String[]{});
             return null;
         }
         if (mock != null) {

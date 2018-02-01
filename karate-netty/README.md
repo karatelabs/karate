@@ -75,6 +75,8 @@ Karate-Netty is available as a single, executable JAR file, which includes even 
 
 You can download the latest version of this JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-netty-<version>-all.jar`.
 
+> Tip: Rename the file to `karate.jar` to make the commands below easier to type !
+
 ## Usage
 ### Mock Server
 You can view the command line help with the `-h` option:
@@ -107,6 +109,18 @@ Convenient to run a standard [Karate](https://github.com/intuit/karate) test on 
 
 ```
 java -jar karate-netty-<version>-all.jar -t my-test.feature
+```
+
+If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
+
+```
+java -jar -Dkarate.config=somedir/my-config.js karate-netty-<version>-all.jar -t my-test.feature
+```
+
+And you can even set or over-ride variable values via the command line by using the `-a` (args) option:
+
+```
+java -jar karate-netty-<version>-all.jar -t my-test.feature -a myKey1=myValue1 -a myKey2=myValue2
 ```
 
 ### UI

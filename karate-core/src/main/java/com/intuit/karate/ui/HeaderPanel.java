@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.ScriptBindings;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -85,7 +86,7 @@ public class HeaderPanel extends BorderPane {
         setTop(menuBar);
 
         if (session != null) {
-            Label envLabel = new Label("karate.env");
+            Label envLabel = new Label(ScriptBindings.KARATE_ENV);
             envLabel.setPadding(new Insets(5, 0, 0, 0));
             TextField envTextField = new TextField();
             envTextField.setText(session.getEnv().env);

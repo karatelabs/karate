@@ -33,6 +33,7 @@ public class FileUtils {
 
     private static final String CLASSPATH = "classpath";
     public static final String CLASSPATH_COLON = CLASSPATH + ":";
+    public static final String FILE_COLON = "file:";
 
     private FileUtils() {
         // only static methods
@@ -43,7 +44,7 @@ public class FileUtils {
     }
 
     public static final boolean isFilePath(String text) {
-        return text.startsWith("file:");
+        return text.startsWith(FILE_COLON);
     }
 
     public static final boolean isJsonFile(String text) {
@@ -116,7 +117,7 @@ public class FileUtils {
             InputStream is = getFileStream(path, prefix, context);
             return toString(is);
         } catch (Exception e) {
-            String message = String.format("could not read file: %s, prefix: %s", path, prefix);
+            String message = String.format("could not find or read file: %s, prefix: %s", path, prefix);
             context.logger.error(message);
             throw new KarateFileNotFoundException(message);
         }

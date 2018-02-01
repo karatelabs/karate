@@ -54,6 +54,8 @@ public class ScriptBindings implements Bindings {
     private final Map<String, Object> adds;
     
     public static final String KARATE = "karate";
+    public static final String KARATE_ENV = "karate.env";
+    public static final String KARATE_CONFIG = "karate.config";
     public static final String KARATE_CONFIG_JS = "karate-config.js";
     public static final String READ = "read";
     public static final String PATH_MATCHES = "pathMatches";
