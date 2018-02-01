@@ -34,7 +34,7 @@ public class CatsUiRunner {
     
     @Test
     public void testApp() {
-        App.run("src/test/java/demo/cats/cats.feature", "dev");
+        App.run("src/test/java/demo/cats/cats.feature", "mock");
     }    
     
 }

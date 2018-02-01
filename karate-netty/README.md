@@ -76,6 +76,7 @@ Karate-Netty is available as a single, executable JAR file, which includes even 
 You can download the latest version of this JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-netty-<version>-all.jar`.
 
 ## Usage
+### Mock Server
 You can view the command line help with the `-h` option:
 ```
 java -jar karate-netty-<version>-all.jar -h
@@ -86,7 +87,7 @@ To start a mock server, the 2 mandatory arguments are the path of the feature fi
 ```
 java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8080
 ```
-
+#### SSL
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
 
 ```
@@ -98,6 +99,27 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 ```
 java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
 ```
+
+### Test
+Convenient to run a standard [Karate](https://github.com/intuit/karate) test on the command-line without messing around with Java or the IDE ! Great for demos or exploratory testing.
+
+> Note that if you are depending on external Java libraries or custom code to be compiled, this won't work.
+```
+java -jar karate-netty-<version>-all.jar -t my-test.feature
+```
+
+### UI
+The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
+```
+java -jar karate-netty-<version>-all.jar
+```
+
+You can also open an existing Karate test in the UI via the command-line:
+```
+java -jar karate-netty-<version>-all.jar -u -t my-test.feature
+```
+
+## Logging
 
 If you have a `logback.xml` in the working directory, it will control logging. Here is a sample that you can use:
 
@@ -130,7 +152,7 @@ If you have a `logback.xml` in the working directory, it will control logging. H
 
 > To use a custom `logback.xml`, set the system property `logback.configurationFile`
 
-# Life Cycle
+# Server Life Cycle
 Writing a mock can get complicated for real-life API interactions, and most other frameworks attempt to solve this using declarative approaches, such as expecting you to create a large, complicated JSON to model all requests and responses. You can think of Karate's approach as combining the best of both the worlds of declarative and imperative programming. Combined with the capability to maintain state in the form of JSON objects in memory, and Karate's native support for [Json-Path](https://github.com/intuit/karate#jsonpath-filters), XML and [`embedded expressions`](https://github.com/intuit/karate#embedded-expressions) - you have a very powerful toolkit at your disposal. And Karate's intelligent defaults keep things dead simple.
 
 The Karate 'server' life-cycle is simple and has only 2 phases - the `Background` and `Scenario`. You can see that the existing [`Gherkin`](https://github.com/cucumber/cucumber/wiki/Gherkin) format has been 're-purposed' for HTTP request handling. This means that you get the benefit of IDE support and syntax coloring for your mocks.

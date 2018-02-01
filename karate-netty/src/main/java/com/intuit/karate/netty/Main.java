@@ -25,6 +25,8 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.ui.App;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.util.concurrent.Callable;
@@ -37,7 +39,7 @@ import picocli.CommandLine.Option;
  *
  * @author pthomas3
  */
-public class Main implements Callable<Void> {
+public class Main extends App implements Callable<Void> {
 
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
     private static final String CERT_FILE = "cert.pem";
@@ -48,11 +50,11 @@ public class Main implements Callable<Void> {
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
     boolean help;
 
-    @Option(names = {"-m", "--mock"}, required = true, description = "mock server file")
+    @Option(names = {"-m", "--mock"}, description = "mock server file")
     File mock;
 
-    @Option(names = {"-p", "--port"}, required = true, description = "mock server port")
-    int port;
+    @Option(names = {"-p", "--port"}, description = "mock server port (required for --mock)")
+    Integer port;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + CERT_FILE + "' and '" + KEY_FILE + "' if they exist in the working directory, or generate them")
@@ -62,7 +64,18 @@ public class Main implements Callable<Void> {
     File cert;
     
     @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
-    File key;    
+    File key; 
+    
+    @Option(names = {"-t", "--test"}, description = "test feature file to run")
+    File test; 
+    
+    @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
+    String env;     
+    
+    @Option(names = {"-u", "--ui"}, description = "show user interface")
+    boolean ui;
+    
+    
     
     public static void main(String[] args) {
         // ensure WE init logback before anything else
@@ -76,6 +89,24 @@ public class Main implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {
+        if (test != null) {
+            if (ui) {
+                Main.launch(new String[]{test.getAbsolutePath(), env});
+            } else {
+                CucumberRunner.runFeature(test, null, true); // TODO karate config, classpath, report
+            }
+            return null;
+        } else if (ui || mock == null) {
+            Main.launch(new String[]{});
+            return null;
+        }
+        if (mock != null) {
+            if (port == null) {
+                System.err.println("--port required for --mock option");
+                CommandLine.usage(this, System.err);
+                return null;
+            }
+        }
         FeatureServer server;
         if (cert != null) {
             ssl = true;

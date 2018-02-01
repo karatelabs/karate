@@ -142,7 +142,7 @@ public class CucumberRunner {
         }
     }
 
-    private static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
+    public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file);
         CallContext callContext = new CallContext(null, 0, vars, -1, false, evalKarateConfig, null);
         ScriptValueMap scriptValueMap = CucumberUtils.call(featureWrapper, callContext);
@@ -152,7 +152,7 @@ public class CucumberRunner {
     public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars, boolean evalKarateConfig) {
         File file = FileUtils.getFileRelativeTo(relativeTo, path);
         return runFeature(file, vars, evalKarateConfig);
-    }
+    }   
 
     public static Map<String, Object> runClasspathFeature(String classPath, Map<String, Object> vars, boolean evalKarateConfig) {
         URL url = Thread.currentThread().getContextClassLoader().getResource(classPath);
