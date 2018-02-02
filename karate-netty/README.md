@@ -30,6 +30,21 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 
 This documentation is work in progress while this project evolves. But here is an end-to-end demo that should provide sufficient detail for those interested.
 
+## Using
+Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
+
+### Maven
+Note that this includes the [`karate-apache`](https://github.com/intuit/karate#maven) dependency for convenience.
+
+```xml
+<dependency>
+    <groupId>com.intuit.karate</groupId>
+    <artifactId>karate-netty</artifactId>
+    <version>${karate.version}</version>
+    <scope>test</scope>
+</dependency>  
+```
+
 ## Consumer-Provider Example
 
 <img src="src/test/resources/karate-test-doubles.jpg" height="720px"/>
@@ -111,6 +126,12 @@ Convenient to run a standard [Karate](https://github.com/intuit/karate) test on 
 java -jar karate-netty-<version>-all.jar -t my-test.feature
 ```
 
+If your test depends on the [`karate.env`]() environment 'switch', you can specify that using the `-e` (env) option:
+
+```
+java -jar karate-netty-<version>-all.jar -t my-test.feature -e e2e
+```
+
 If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
@@ -135,8 +156,11 @@ java -jar karate-netty-<version>-all.jar -u -t my-test.feature
 ```
 
 ## Logging
-
-If you have a `logback.xml` in the working directory, it will control logging. Here is a sample that you can use:
+A default [`logback.xml`](https://logback.qos.ch/manual/configuration.html) is present within the stand-alone JAR. To customize logging, set the system property `logback.configurationFile` to point to your custom config:
+```
+java -jar -Dlogback.configurationFile=my-logback.xml karate-netty-<version>-all.jar -t my-test.feature
+```
+Here is the 'out-of-the-box' default which you can customize.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -164,8 +188,6 @@ If you have a `logback.xml` in the working directory, it will control logging. H
   
 </configuration>
 ```
-
-> To use a custom `logback.xml`, set the system property `logback.configurationFile`
 
 # Server Life Cycle
 Writing a mock can get complicated for real-life API interactions, and most other frameworks attempt to solve this using declarative approaches, such as expecting you to create a large, complicated JSON to model all requests and responses. You can think of Karate's approach as combining the best of both the worlds of declarative and imperative programming. Combined with the capability to maintain state in the form of JSON objects in memory, and Karate's native support for [Json-Path](https://github.com/intuit/karate#jsonpath-filters), XML and [`embedded expressions`](https://github.com/intuit/karate#embedded-expressions) - you have a very powerful toolkit at your disposal. And Karate's intelligent defaults keep things dead simple.
