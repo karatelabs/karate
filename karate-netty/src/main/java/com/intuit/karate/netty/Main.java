@@ -25,7 +25,6 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.CucumberRunner;
 import com.intuit.karate.ui.App;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
@@ -43,7 +42,6 @@ import picocli.CommandLine.Option;
  */
 public class Main implements Callable<Void> {
 
-    private static final String LOGBACK_CONFIG = "logback.configurationFile";
     private static final String CERT_FILE = "cert.pem";
     private static final String KEY_FILE = "key.pem";
 
@@ -81,11 +79,7 @@ public class Main implements Callable<Void> {
     Map<String, Object> args;     
     
     public static void main(String[] args) {
-        // ensure WE init logback before anything else
-        String logbackConfig = System.getProperty(LOGBACK_CONFIG);
-        if (StringUtils.isBlank(logbackConfig)) {
-            System.setProperty(LOGBACK_CONFIG, new File("logback.xml").getAbsolutePath());
-        }
+        // ensure we init logback before anything else
         logger = LoggerFactory.getLogger(Main.class);
         CommandLine.call(new Main(), System.err, args);
     }
