@@ -48,6 +48,7 @@ public class HeaderPanel extends BorderPane {
     private final HBox content;
     private final AppSession session;    
     private final MenuItem openFileMenuItem;
+    private final MenuItem openDirectoryMenuItem;
     private final MenuItem openImportMenuItem;
     private final TextArea textContent;
     
@@ -77,6 +78,9 @@ public class HeaderPanel extends BorderPane {
         Menu fileMenu = new Menu("File");
         openFileMenuItem = new MenuItem("Open");
         fileMenu.getItems().addAll(openFileMenuItem);
+
+        openDirectoryMenuItem = new MenuItem("Load Directory");
+        fileMenu.getItems().addAll(openDirectoryMenuItem);
 
         Menu importMenu = new Menu("Import");
         openImportMenuItem = new MenuItem("Open");
@@ -112,6 +116,10 @@ public class HeaderPanel extends BorderPane {
     
     public void setFileOpenAction(EventHandler<ActionEvent> handler) {
         openFileMenuItem.setOnAction(handler);
+    }
+
+    public void setDirectoryOpenAction(EventHandler<ActionEvent> handler) {
+        openDirectoryMenuItem.setOnAction(handler);
     }
 
     public void setImportOpenAction(EventHandler<ActionEvent> handler) {

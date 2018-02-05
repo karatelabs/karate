@@ -25,17 +25,19 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
-import java.io.File;
-import java.util.List;
-
 import com.intuit.karate.convert.ConvertUtils;
 import com.intuit.karate.convert.PostmanRequest;
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Font;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import java.io.File;
+import java.util.List;
 
 /**
  *
@@ -60,22 +62,48 @@ public class App extends Application {
         return fileChooser.showOpenDialog(stage);
     }
 
-    private void initUi(File file, String envString, Stage stage) {
+    void initUi(File file, String envString, Stage stage) {
         AppSession session = new AppSession(file, envString);
         rootPane.setTop(session.headerPanel);
         rootPane.setCenter(session.featurePanel);
         rootPane.setRight(session.varsPanel);
         rootPane.setBottom(session.logPanel);
         initFileOpenAction(session.headerPanel, envString, stage);
+        initDirectoryOpenAction(session.headerPanel, envString, stage);
         initImportOpenAction(session.headerPanel, envString, stage);
         workingDir = file.getParentFile();        
     }
     
     private void initFileOpenAction(HeaderPanel header, String envString, Stage stage) {
         header.setFileOpenAction(e -> {
+            if(rootPane.getLeft() != null) {
+                rootPane.setLeft(null);
+            }
             File file = chooseFile(stage, "*.feature files", "*.feature");
             initUi(file, envString, stage);
         });
+    }
+
+    private void initDirectoryOpenAction(HeaderPanel header, String envString, Stage stage) {
+        App app = this;
+        header.setDirectoryOpenAction(e -> {
+                    DirectoryChooser directoryChooser = new DirectoryChooser();
+                    directoryChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+                    File choice = directoryChooser.showDialog(stage);
+                    if (choice != null) {
+                        if (!choice.isDirectory()) {
+                            Alert alert = new Alert(Alert.AlertType.ERROR);
+                            alert.setHeaderText("Could not open directory");
+                            alert.setContentText("The directory is invalid.");
+                            alert.showAndWait();
+                        } else {
+                            final DirectoryPanel directoryPanel = new DirectoryPanel(app, envString, stage);
+                            directoryPanel.init(choice);
+                            rootPane.setLeft(directoryPanel);
+                        }
+                    }
+                }
+        );
     }
 
     private void initImportOpenAction(HeaderPanel header, String envString, Stage stage) {
@@ -105,11 +133,14 @@ public class App extends Application {
             HeaderPanel header = new HeaderPanel();
             rootPane.setTop(header);
             initFileOpenAction(header, envString, stage);
+            initDirectoryOpenAction(header, envString, stage);
             initImportOpenAction(header, envString, stage);
         }
-        Scene scene = new Scene(rootPane, 900, 750);                
+
+        Scene scene = new Scene(rootPane, 900, 750);
         stage.setScene(scene);
         stage.setTitle("Karate UI");
+        stage.setMaximized(true);
         stage.show();
     }
 

@@ -24,10 +24,14 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.cucumber.FeatureSection;
-import java.util.ArrayList;
-import java.util.List;
+import gherkin.formatter.model.Feature;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *
@@ -50,6 +54,15 @@ public class FeaturePanel extends ScrollPane {
     }
     
     private void addSections() {
+        final Feature gherkinFeature = session.getFeature().getFeature().getGherkinFeature();
+
+        TextFlow flow = new TextFlow();
+        Text keyword=new Text(gherkinFeature.getKeyword()+" : ");
+        Text name=new Text(gherkinFeature.getName());
+        flow.getChildren().addAll(keyword, name);
+
+        flow.setMaxHeight(8);
+        content.getChildren().add(flow);
         for (FeatureSection section : session.getFeature().getSections()) {
             SectionPanel sectionPanel = new SectionPanel(session, section);            
             content.getChildren().add(sectionPanel);
