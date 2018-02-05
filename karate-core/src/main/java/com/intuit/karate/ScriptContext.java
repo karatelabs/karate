@@ -31,6 +31,7 @@ import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.validator.Validator;
 import java.io.File;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -207,7 +208,11 @@ public class ScriptContext {
         if (key.equals("afterFeature")) {
             config.setAfterFeature(value);
             return;
-        }        
+        }
+        if (key.equals("charset")) {
+            config.setCharset(Charset.forName(value.getAsString()));
+            return;
+        }         
         if (key.equals("httpClientClass")) {
             config.setClientClass(value.getAsString());
             // re-construct all the things ! and we exit early
@@ -219,7 +224,7 @@ public class ScriptContext {
             // here too, re-construct client - and exit early
             client = HttpClient.construct(config, this);
             return;
-        }
+        }        
         // beyond this point, we don't exit early and we have to re-configure the http client
         if (key.equals("ssl")) {
             if (value.isString()) {

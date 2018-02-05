@@ -3,7 +3,6 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.StringUtils;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Map;
 import org.junit.Test;
@@ -18,7 +17,9 @@ public class HttpUtilsTest {
     @Test
     public void testParseContentTypeCharset() {
         assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8"));
+        assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset = UTF-8 "));        
         assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset=UTF-8; version=1.2.3"));
+        assertEquals(FileUtils.UTF8, HttpUtils.parseContentTypeCharset("application/json; charset = UTF-8 ; version=1.2.3"));
     }
     
     @Test

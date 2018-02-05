@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
@@ -44,6 +46,7 @@ public class HttpConfig {
     private boolean followRedirects = true;
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
+    private Charset charset = FileUtils.UTF8;
     private String proxyUri;
     private String proxyUsername;
     private String proxyPassword;
@@ -77,6 +80,7 @@ public class HttpConfig {
         followRedirects = parent.followRedirects;
         readTimeout = parent.readTimeout;
         connectTimeout = parent.connectTimeout;
+        charset = parent.charset;
         proxyUri = parent.proxyUri;
         proxyUsername = parent.proxyUsername;
         proxyPassword = parent.proxyPassword;
@@ -189,6 +193,14 @@ public class HttpConfig {
     public void setConnectTimeout(int connectTimeout) {
         this.connectTimeout = connectTimeout;
     }
+
+    public Charset getCharset() {
+        return charset;
+    }
+
+    public void setCharset(Charset charset) {
+        this.charset = charset;
+    }    
 
     public String getProxyUri() {
         return proxyUri;

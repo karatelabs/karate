@@ -39,6 +39,7 @@ import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.entity.ContentType;
+import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.entity.mime.FormBodyPartBuilder;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
@@ -67,18 +68,47 @@ public class ApacheHttpUtils {
         }        
     }
     
-    public static HttpEntity getEntity(String value, String mediaType) {
+    // all this complexity is to be able to support "bad" values such as an empty string
+    private static ContentType getContentType(String mediaType, Charset charset) {
+        if (!HttpUtils.isPrintable(mediaType)) {
+            try {
+                return ContentType.create(mediaType);
+            } catch (Exception e) {                
+                return null;
+            }
+        }
+        Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
+        if (cs == null) {
+            return ContentType.parse(mediaType).withCharset(charset);
+        } else {
+            return ContentType.parse(mediaType);
+        }        
+    }
+    
+    public static HttpEntity getEntity(InputStream is, String mediaType, Charset charset) {
         try {
-            Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
-            StringEntity entity = new StringEntity(value, cs);
-            entity.setContentType(mediaType);
-            return entity;
+            return new InputStreamEntity(is, getContentType(mediaType, charset));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }         
+    }    
+    
+    public static HttpEntity getEntity(String value, String mediaType, Charset charset) {
+        try {
+            ContentType ct = getContentType(mediaType, charset);
+            if (ct == null) { // "bad" value such as an empty string
+                StringEntity entity = new StringEntity(value);
+                entity.setContentType(mediaType);
+                return entity;
+            } else {
+                return new StringEntity(value, ct);
+            }            
         } catch (Exception e) {
             throw new RuntimeException(e);
         }         
     }
     
-    public static HttpEntity getEntity(MultiValuedMap fields, String mediaType) {
+    public static HttpEntity getEntity(MultiValuedMap fields, String mediaType, Charset charset) {
         List<NameValuePair> list = new ArrayList<>(fields.size());
         for (Map.Entry<String, List> entry : fields.entrySet()) {
             String stringValue;
@@ -101,15 +131,16 @@ public class ApacheHttpUtils {
         }
         try {
             Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
-            UrlEncodedFormEntity entity = new UrlEncodedFormEntity(list, cs);
-            entity.setContentType(mediaType);
-            return entity;
+            if (cs == null) {
+                cs = charset;
+            }            
+            return new UrlEncodedFormEntity(list, cs);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public static HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
+    public static HttpEntity getEntity(List<MultiPartItem> items, String mediaType, Charset charset) {
         boolean hasNullName = false;
         for (MultiPartItem item : items) {
             if (item.getName() == null) {
@@ -137,8 +168,15 @@ public class ApacheHttpUtils {
                     String ct = item.getContentType();                    
                     if (ct == null) {
                         ct = HttpUtils.getContentType(sv);
-                    }                    
+                    }
                     ContentType contentType = ContentType.create(ct);
+                    if (HttpUtils.isPrintable(ct)) {
+                        Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
+                        if (cs == null) {
+                            cs = charset;
+                        }
+                        contentType = contentType.withCharset(cs);                         
+                    }                   
                     FormBodyPartBuilder formBuilder = FormBodyPartBuilder.create().setName(name);
                     ContentBody contentBody;
                     String filename = item.getFilename();
@@ -148,8 +186,6 @@ public class ApacheHttpUtils {
                     } else if (sv.isStream()) {
                         contentBody = new InputStreamBody(sv.getAsStream(), contentType);
                     } else {
-                        Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
-                        contentType = contentType.withCharset(cs);
                         contentBody = new StringBody(sv.getAsString(), contentType);
                     }
                     formBuilder = formBuilder.setBody(contentBody);

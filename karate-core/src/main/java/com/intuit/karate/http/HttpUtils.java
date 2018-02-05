@@ -164,12 +164,16 @@ public class HttpUtils {
         if (pos == -1) {
             return null;
         }
-        String temp = mimeType.substring(pos + 8);
+        pos = mimeType.indexOf('=', pos + 7);
+        if (pos == -1) {
+            return null;
+        }        
+        String temp = mimeType.substring(pos + 1);
         pos = temp.indexOf(';');
         if (pos != -1) {
-            temp = temp.substring(0, pos).trim();
+            temp = temp.substring(0, pos);
         }
-        return Charset.forName(temp);
+        return Charset.forName(temp.trim());
     }
 
     public static String getContentType(ScriptValue sv) {

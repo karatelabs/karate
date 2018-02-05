@@ -126,7 +126,7 @@ Convenient to run a standard [Karate](https://github.com/intuit/karate) test on 
 java -jar karate-netty-<version>-all.jar -t my-test.feature
 ```
 
-If your test depends on the [`karate.env`]() environment 'switch', you can specify that using the `-e` (env) option:
+If your test depends on the `karate.env` [environment 'switch'](https://github.com/intuit/karate#switching-the-environment), you can specify that using the `-e` (env) option:
 
 ```
 java -jar karate-netty-<version>-all.jar -t my-test.feature -e e2e

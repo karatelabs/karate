@@ -1,3 +1,4 @@
+@mock-servlet-todo
 Feature: test accessing the 'actual' request made
 
 Background:
@@ -14,7 +15,9 @@ Scenario: create cat
     * def requestMethod = temp.method
     * match requestMethod == 'POST'
     * def requestHeaders = temp.headers
-    * match requestHeaders contains { 'Content-Type': ['application/json'] }
+    * def contentType = temp.headers['Content-Type'][0]
+    * match contentType contains 'application/json'
+    * match contentType contains 'charset=UTF-8'
     * def requestUri = temp.uri
     * match requestUri == demoBaseUrl + '/cats'
     # this will be of java type byte[]

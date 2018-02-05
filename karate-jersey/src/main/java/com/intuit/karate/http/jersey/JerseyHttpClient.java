@@ -33,6 +33,7 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.security.KeyStore;
 import java.util.List;
 import java.util.Map.Entry;
@@ -67,12 +68,14 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     private Client client;
     private WebTarget target;
     private Builder builder;
+    private Charset charset;
 
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
         ClientConfig cc = new ClientConfig();
         // support request body for DELETE (non-standard)
         cc.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true);
+        charset = config.getCharset();
         if (!config.isFollowRedirects()) {
             cc.property(ClientProperties.FOLLOW_REDIRECTS, false);
         }
@@ -82,15 +85,15 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 .register(MultiPartFeature.class);
         if (config.isSslEnabled()) {
             String algorithm = config.getSslAlgorithm(); // could be null
-            KeyStore trustStore = HttpUtils.getKeyStore(context, 
+            KeyStore trustStore = HttpUtils.getKeyStore(context,
                     config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
-            KeyStore keyStore = HttpUtils.getKeyStore(context, 
+            KeyStore keyStore = HttpUtils.getKeyStore(context,
                     config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
             SSLContext sslContext = SslConfigurator.newInstance()
                     .securityProtocol(algorithm) // will default to TLS if null
                     .trustStore(trustStore)
                     .keyStore(keyStore)
-                    .createSSLContext();            
+                    .createSSLContext();
             HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
             clientBuilder.sslContext(sslContext);
             clientBuilder.hostnameVerifier((host, session) -> true);
@@ -144,13 +147,21 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         builder.cookie(cookie);
     }
 
+    private MediaType getMediaType(String mediaType) {
+        Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
+        if (cs == null) {
+            cs = charset;
+        }
+        return MediaType.valueOf(mediaType).withCharset(cs.name());
+    }
+
     @Override
     public Entity getEntity(MultiValuedMap fields, String mediaType) {
         MultivaluedHashMap<String, Object> map = new MultivaluedHashMap<>();
         for (Entry<String, List> entry : fields.entrySet()) {
             map.put(entry.getKey(), entry.getValue());
         }
-        return Entity.entity(map, mediaType);
+        return Entity.entity(map, getMediaType(mediaType));
     }
 
     @Override
@@ -163,11 +174,18 @@ public class JerseyHttpClient extends HttpClient<Entity> {
             String name = item.getName();
             String filename = item.getFilename();
             ScriptValue sv = item.getValue();
-            String ct = item.getContentType();                    
+            String ct = item.getContentType();
             if (ct == null) {
                 ct = HttpUtils.getContentType(sv);
             }
             MediaType itemType = MediaType.valueOf(ct);
+            if (HttpUtils.isPrintable(ct)) {
+                Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
+                if (cs == null) {
+                    cs = charset;
+                }
+                itemType = itemType.withCharset(cs.name());
+            }
             if (name == null) { // most likely multipart/mixed
                 BodyPart bp = new BodyPart().entity(sv.getAsString()).type(itemType);
                 multiPart.bodyPart(bp);
@@ -183,13 +201,13 @@ public class JerseyHttpClient extends HttpClient<Entity> {
 
     @Override
     public Entity getEntity(String value, String mediaType) {
-        return Entity.entity(value, mediaType);
+        return Entity.entity(value, getMediaType(mediaType));
     }
-    
+
     @Override
     public Entity getEntity(InputStream value, String mediaType) {
-        return Entity.entity(value, mediaType);
-    }    
+        return Entity.entity(value, getMediaType(mediaType));
+    }
 
     @Override
     public HttpResponse makeHttpRequest(Entity entity, long startTime) {

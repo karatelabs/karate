@@ -47,6 +47,19 @@ Scenario: french json
     Then status 200
     And match response == { givenName: 'oliàèôç' }
 
+@mock-servlet-todo
+Scenario: french json ISO-8859-1
+    Given url demoBaseUrl
+    And path 'echo'
+    And request { givenName: 'oliàèôç' }
+    And header Content-Type = 'application/json; charset=ISO-8859-1'
+    When method post
+    Then status 200
+    And match response == { givenName: 'oliàèôç' }
+    * def contentType = karate.prevRequest.headers['Content-Type'][0]
+    * match contentType contains 'application/json'
+    * match contentType contains 'charset=ISO-8859-1'
+
 Scenario: french & german form field
     Given url demoBaseUrl
     And path 'echo', 'message'

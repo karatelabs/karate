@@ -38,6 +38,7 @@ import com.intuit.karate.http.MultiValuedMap;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.List;
@@ -63,8 +64,6 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.cookie.Cookie;
-import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -86,6 +85,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     private URIBuilder uriBuilder;
     private RequestBuilder requestBuilder;
     private CookieStore cookieStore;
+    private Charset charset;
 
     private void build() {
         try {
@@ -100,6 +100,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     @Override
     public void configure(HttpConfig config, ScriptContext context) {
         clientBuilder = HttpClientBuilder.create();
+        charset = config.getCharset();
         if (!config.isFollowRedirects()) {
             clientBuilder.disableRedirectHandling();
         } else { // support redirect on POST by default
@@ -234,24 +235,22 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
 
     @Override
     protected HttpEntity getEntity(List<MultiPartItem> items, String mediaType) {
-        return ApacheHttpUtils.getEntity(items, mediaType);
+        return ApacheHttpUtils.getEntity(items, mediaType, charset);
     }
 
     @Override
     protected HttpEntity getEntity(MultiValuedMap fields, String mediaType) {
-        return ApacheHttpUtils.getEntity(fields, mediaType);
+        return ApacheHttpUtils.getEntity(fields, mediaType, charset);
     }
 
     @Override
     protected HttpEntity getEntity(String value, String mediaType) {
-        return ApacheHttpUtils.getEntity(value, mediaType);
+        return ApacheHttpUtils.getEntity(value, mediaType, charset);
     }
 
     @Override
     protected HttpEntity getEntity(InputStream value, String mediaType) {
-        InputStreamEntity entity = new InputStreamEntity(value);
-        entity.setContentType(mediaType);
-        return entity;
+        return ApacheHttpUtils.getEntity(value, mediaType, charset);
     }
 
     @Override

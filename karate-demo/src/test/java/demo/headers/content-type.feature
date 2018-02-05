@@ -34,7 +34,7 @@ Scenario: json post with with charset and version
     * assert temp.contains('charset=utf-8')
     * assert temp.contains('version=1.2.3')
 
-@apache
+@apache @mock-servlet-todo
 Scenario: empty string as content-type
     Given path 'search', 'headers'
     And header Content-Type = ''
