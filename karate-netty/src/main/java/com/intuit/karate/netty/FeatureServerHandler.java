@@ -72,6 +72,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
+        provider.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
         if (provider.isCorsEnabled() && msg.method().equals(HttpMethod.OPTIONS)) {
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
             HttpHeaders responseHeaders = response.headers();
