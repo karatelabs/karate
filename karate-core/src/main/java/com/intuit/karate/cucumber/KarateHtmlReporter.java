@@ -102,109 +102,23 @@ public class KarateHtmlReporter extends KarateReporterBase {
         }
         return parent;
     }
+    
+    private String getFile(String name) {
+        return FileUtils.toString(getClass().getClassLoader().getResourceAsStream(name));
+    }
 
     public void startKarateFeature(CucumberFeature feature) {
         currentScenario = 0;
         this.feature = feature;
-        doc = XmlUtils.toXmlDoc("<html/>");
+        String html = getFile("report-template.html");
+        String js = getFile("report-template.js");
+        doc = XmlUtils.toXmlDoc(html);        
         set("/html/head/title", feature.getPath());
-        String css = "body { font-family: sans-serif; font-size: small; }"
-                + " table { border-collapse: collapse; }"
-                + " table td { border: 1px solid gray; padding: 0.1em 0.2em; }"
-                + " .scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border-bottom: 1px solid gray; }"
-                + " .scenario-name { font-weight: bold; }"
-                + " .scenario { border: 1px solid gray; margin-bottom: 1em; }"
-                + " .scenario-steps { padding-left: 0.2em; }"
-                + " .scenario-steps-nested { padding-left: 2em; }"
-                + " .step-row { margin: 0.2em 0; }"
-                + " .step-cell { display: inline-block; width: 85%; padding: 0.2em 0.5em; }"
-                + " .time-cell { background-color: #92DD96; display: inline-block; width: 10%; padding: 0.2em 0.5em; }"
-                + " .preformatted { white-space: pre-wrap; font-family: monospace; }"
-                + " .passed { background-color: #92DD96; }"
-                + " .failed { background-color: #F2928C; }"
-                + " .skipped { background-color: #f5f28f; }"
-                + " .passed_font { color: #92DD96; font-size: 15px; }"
-                + " .failed_font { color: #F2928C; font-size: 15px; }"
-                + " .skipped_font { color: #f5f28f; font-size: 15px; }"
-                + " .passed_border { display: block; pading: 5px; border: 2px solid #92DD96; }"
-                + " .failed_border { display: block; padding: 5px; border: 2px solid #F2928C; }"
-                + " .skipped_border { display: block; padding: 5px; border: 2px solid #F5F28F; }"
-                + " .sidenav { height: 100%; width: 300px; position: fixed; z-index: 1; top: 0; left: 0; background-color: #111; overflow-x: hidden; padding-top: 20px;}"
-                + " .sidenav a { padding: 6px 6px 6px 16px; text-decoration: none; font-size: 15px; color: #000 !important; display: inline-block; border: 1px solid #111; }"
-                + " .sidenav h2 { color: #fff; padding: 10px; }"
-                + " .sidenav p { padding: 5px; font-size: 13px; }"
-                + " .sidenav a:hover { color: #fff !important; }"
-                + " .panel { position: relative; left: 5px; width: 20px !important; font-weight: 200; }"
-                + " .scenario { margin-left: 300px; padding: 0px 10px; }"
-                + " @media screen and (max-height: 450px) {"
-                + "     .sidenav { padding-top: 15px; }"
-                + "   .sidenav a { font-size: 18px; }"
-                + " }";
-
-        String js = "window.onload = function(){"
-                + "\n  possibleModes = ['failed', 'skipped', 'passed'];"
-                + "\n  tests = {};"
-                + "\n  modeBorder = {};" 
-                + "\n  for (mode of possibleModes) {"
-                + "\n    tests[mode] = [];"
-                + "\n    modeBorder[mode] = document.createElement('div');"
-                + "\n    modeBorder[mode].classList.add(mode+'_border');"
-                + "\n  }"
-                + "\n  sidenavDiv = document.createElement('div');"
-                + "\n  sidenavDiv.classList.add('sidenav');"
-                + "\n  sidenavDiv.innerHTML += '<h2>Test Suite Navigation</h2>';"
-                + "\n  document.body.appendChild(sidenavDiv);"
-                + "\n  scenarios = document.getElementsByClassName('step-cell');"
-                + "\n  for (i = 0; i < scenarios.length; ++i) {"
-                + "\n    scenarios[i].id = getIdForTest(i);"
-                + "\n    scenarios[i].innerHTML = (getTextForTest(i) + ' : ' + scenarios[i].innerHTML);"
-                + "\n    mode = scenarios[i].classList[1];"
-                + "\n    tests[mode].push(i);"
-                + "\n  }"
-                + "\n  for (mode of possibleModes) {"
-                + "\n    buildSidebarVerboseReport(mode);"
-                + "\n    buildSidebarAnchors(mode);"
-                + "\n    sidenavDiv.appendChild(modeBorder[mode]);"
-                + "\n  }"
-                + "\n  console.log(tests);"
-                + "\n  console.log(modeBorder);"
-                + "\n  function getIdForTest(i) {"
-                + "\n    return('test_'+(i+1));"
-                + "\n  }"
-                + "\n  function getTextForTest(i) {"
-                + "\n    return('Test '+(i+1));"  
-                + "\n  }"
-                + "\n  function buildSidebarVerboseReport(mode) {"
-                + "\n    verboseReport = document.createElement('p');"
-                + "\n    verboseReport.appendChild(document.createTextNode('# of ' + mode + ' tests: ' + tests[mode].length + '/' + scenarios.length));"
-                + "\n    verboseReport.appendChild(document.createElement('br'));"
-                + "\n    verboseReport.appendChild(document.createTextNode('('+(tests[mode].length/scenarios.length)*100 + '%)'));"
-                + "\n    verboseReport.classList.add(mode+'_font');"
-                + "\n    modeBorder[mode].appendChild(verboseReport);"
-                + "\n  }"
-                + "\n  function buildSidebarAnchors(mode) {"
-                + "\n    suchTests = tests[mode];"
-                + "\n    for (i=0; i<suchTests.length; ++i) {"
-                + "\n      anchor = document.createElement('a');"
-                + "\n      anchor.setAttribute('href', '#'+getIdForTest(suchTests[i]));"
-                + "\n      anchor.appendChild(document.createTextNode(suchTests[i]+1));"
-                + "\n      anchor.classList.add('panel');"
-                + "\n      anchor.classList.add(mode);"
-                + "\n      modeBorder[mode].appendChild(anchor);"
-                + "\n      if ((i+1)%6==0) {"
-                + "\n        modeBorder[mode].appendChild(document.createElement('br'));"
-                + "\n      }"
-                + "\n    }"
-                + "\n    modeBorder[mode].appendChild(document.createElement('br'));"
-                + "\n  }"
-                + "\n }";
-
-        set("/html/head/style", css);
-        set("/html/body/script", js);
+        set("/html/head/script", js);
     }
 
     public void endKarateFeature() {
-        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc);
+        String xml = XmlUtils.toString(doc);
         String packageName = FileUtils.toPackageQualifiedName(feature.getPath());
         File file = new File("target/surefire-reports/TEST-" + packageName + ".html");
         try {
