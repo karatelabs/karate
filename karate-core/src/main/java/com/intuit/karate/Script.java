@@ -808,7 +808,7 @@ public class Script {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
                         } else {
-                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "array length expression did not evaluate to 'true'");
+                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual array length was: " + arrayLength);
                         }
                     }
                 }
