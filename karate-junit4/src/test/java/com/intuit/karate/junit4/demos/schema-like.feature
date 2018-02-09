@@ -69,17 +69,23 @@ Then match response ==
 * def schema = { a: '#number', b: '#string' }
 * def partSchema = { a: '#number' }
 * def badSchema = { c: '#boolean' }
+* def mixSchema = { a: '#number', c: '#boolean' }
 
 * def shuffled = [{ a: 2, b: 'y' }, { b: 'x', a: 1 }]
 * def first = { a: 1, b: 'x' }
 * def part = { a: 1 }
+* def mix = { b: 'y', c: true }
 * def others = [{ a: 3, b: 'u' }, { a: 4, b: 'v' }]
+* def some = [{ a: 1, b: 'x' }, { a: 5, b: 'w' }]
 
 * match actual[0] == schema
 * match actual[0] == '#(schema)'
 
 * match actual[0] contains partSchema
 * match actual[0] == '#(^partSchema)'
+
+* match actual[0] contains any mixSchema
+* match actual[0] == '#(^*mixSchema)'
 
 * match actual[0] !contains badSchema
 * match actual[0] == '#(!^badSchema)'
@@ -90,6 +96,9 @@ Then match response ==
 * match each actual contains partSchema
 * match actual == '#[] ^partSchema'
 
+* match each actual contains any mixSchema
+* match actual == '#[] ^*mixSchema'
+
 * match each actual !contains badSchema
 * match actual == '#[] !^badSchema'
 
@@ -99,11 +108,17 @@ Then match response ==
 * match actual contains first
 * match actual == '#(^first)'
 
+* match actual contains any some
+* match actual == '#(^*some)'
+
 * match actual !contains others
 * match actual == '#(!^others)'
 
 # no equivalent !
 * match actual contains '#(^part)'
+
+# no equivalent !
+* match actual contains '#(^*mix)'
 
 * assert actual.length == 2
 * match actual == '#[2]'
