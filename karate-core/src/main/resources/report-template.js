@@ -23,8 +23,8 @@ window.onload = function() {
     buildSidebarAnchors(mode);
     sidenavDiv.appendChild(modeBorder[mode]);
   }
-  console.log(tests);
-  console.log(modeBorder);
+  buildAccordians();
+
   function getIdForTest(i) {
     return('test_'+(i+1));
   }
@@ -53,5 +53,30 @@ window.onload = function() {
       }
     }
     modeBorder[mode].appendChild(document.createElement('br'));
+  }
+  function buildAccordians(){
+    tables = document.getElementsByTagName('table');
+    preformatted = document.getElementsByClassName('preformatted');
+    buildAccordianForListOfItems(tables);
+    buildAccordianForListOfItems(preformatted);
+    accordion = document.getElementsByClassName("accordion");
+    for (i = 0; i < accordion.length; i++) {
+        accordion[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var panel = this.nextElementSibling;
+            if (panel.style.display === "block") {
+                panel.style.display = "none";
+            } else {
+                panel.style.display = "block";
+            }
+        });
+    }   
+    function buildAccordianForListOfItems(items) {
+      for(i=0;i<items.length;++i){
+        items[i].classList.add('accordion_panel');
+        step = items[i].previousElementSibling;
+        step.classList.add('accordion');
+      }      
+    }
   }
 }
