@@ -27,6 +27,8 @@ import com.intuit.karate.cucumber.ScenarioWrapper;
 import com.intuit.karate.cucumber.StepWrapper;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
 import javafx.geometry.Insets;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
@@ -56,10 +58,12 @@ public class ExamplesPanel extends TitledPane {
     
     private void initTitleAndContent() {
         setText(scenario.getScenario().getVisualName());
+        Optional<StepPanel> previousStep = Optional.empty();
         for (StepWrapper step : scenario.getSteps()) {
-            StepPanel stepPanel = new StepPanel(session, step);
+            StepPanel stepPanel = new StepPanel(session, step, previousStep);
             content.getChildren().add(stepPanel);
             stepPanels.add(stepPanel);
+            previousStep = Optional.of(stepPanel);
         }       
     }
     
