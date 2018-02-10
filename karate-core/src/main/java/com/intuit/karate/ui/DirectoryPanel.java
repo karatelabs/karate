@@ -78,11 +78,11 @@ public class DirectoryPanel extends ScrollPane {
         setFitToWidth(true);
     }
 
-    public TreeItem<String> getNodesForDirectory(File directory) { //Returns a TreeItem representation of the specified directory
+    public TreeItem<String> getNodesForDirectory(File directory) {
         TreeItem<String> root = new TreeItem<String>(directory.getName());
         for(File file : directory.listFiles()) {
             System.out.println("Loading " + file.getName());
-            if(file.isDirectory()) { //Then we call the function recursively
+            if(file.isDirectory()) {
                 root.getChildren().add(getNodesForDirectory(file));
             } else {
                 final DirectoryFileItem treeItem = new DirectoryFileItem(file);
