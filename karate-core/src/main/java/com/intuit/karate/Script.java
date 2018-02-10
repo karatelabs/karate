@@ -113,6 +113,10 @@ public class Script {
     public static final boolean isContainsOnlyMacro(String text) {
         return text.startsWith("^^");
     }
+    
+    public static final boolean isContainsAnyMacro(String text) {
+        return text.startsWith("^*");
+    }    
 
     public static final boolean isNotContainsMacro(String text) {
         return text.startsWith("!^");
@@ -631,10 +635,6 @@ public class Script {
         }
     }
 
-    public static boolean isQuoted(String exp) {
-        return exp.startsWith("'") || exp.startsWith("\"");
-    }
-
     public static AssertionResult matchNamed(MatchType matchType, String name, String path, String expected, ScriptContext context) {
         name = StringUtils.trimToEmpty(name);
         if (isJsonPath(name) || isXmlPath(name)) { // short-cut for operating on response
@@ -751,6 +751,9 @@ public class Script {
                     if (isContainsOnlyMacro(macroExpression)) {
                         matchType = MatchType.CONTAINS_ONLY;
                         macroExpression = macroExpression.substring(2);
+                    } else if (isContainsAnyMacro(macroExpression)) {
+                        matchType = MatchType.CONTAINS_ANY;
+                        macroExpression = macroExpression.substring(2);                        
                     } else {
                         matchType = MatchType.CONTAINS;
                         macroExpression = macroExpression.substring(1);
@@ -808,7 +811,7 @@ public class Script {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
                         } else {
-                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "array length expression did not evaluate to 'true'");
+                            return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual array length was: " + arrayLength);
                         }
                     }
                 }
@@ -830,6 +833,9 @@ public class Script {
                                 if (isContainsOnlyMacro(expression)) {
                                     matchType = MatchType.EACH_CONTAINS_ONLY;
                                     expression = expression.substring(2);
+                                } else if (isContainsAnyMacro(expression)) {
+                                    matchType = MatchType.EACH_CONTAINS_ANY;
+                                    expression = expression.substring(2);                                    
                                 } else {
                                     matchType = MatchType.EACH_CONTAINS;
                                     expression = expression.substring(1);
@@ -974,6 +980,8 @@ public class Script {
                 return MatchType.NOT_CONTAINS;
             case EACH_CONTAINS_ONLY:
                 return MatchType.CONTAINS_ONLY;
+            case EACH_CONTAINS_ANY:
+                return MatchType.CONTAINS_ANY;                
             case EACH_EQUALS:
                 return MatchType.EQUALS;
             case EACH_NOT_EQUALS:
@@ -1050,6 +1058,7 @@ public class Script {
             case CONTAINS:
             case NOT_CONTAINS:
             case CONTAINS_ONLY:
+            case CONTAINS_ANY:
                 if (actObject instanceof List && !(expObject instanceof List)) { // if RHS is not a list, make it so
                     expObject = Collections.singletonList(expObject);
                 }
@@ -1059,6 +1068,7 @@ public class Script {
             case EACH_CONTAINS:
             case EACH_NOT_CONTAINS:
             case EACH_CONTAINS_ONLY:
+            case EACH_CONTAINS_ANY:
             case EACH_NOT_EQUALS:
             case EACH_EQUALS:
                 if (actObject instanceof List) {
@@ -1217,9 +1227,16 @@ public class Script {
                         if (matchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS; // exit early
                         }
+                        if (matchType == MatchType.CONTAINS_ANY) {
+                            continue; // keep trying
+                        }                        
                         if (matchType != MatchType.NOT_CONTAINS) {
                             return matchFailed(matchType, childPath, "(not present)", childExp, "actual value does not contain expected");
                         }
+                    } else { // we found one
+                        if (matchType == MatchType.CONTAINS_ANY) {
+                            return AssertionResult.PASS; // at least one matched, exit early
+                        }                        
                     }
                     continue; // end edge case for key not present
                 }
@@ -1229,14 +1246,24 @@ public class Script {
                     if (matchType == MatchType.NOT_CONTAINS) {
                         return matchFailed(matchType, childPath, childAct, childExp, "actual value contains expected");
                     }
+                    if (matchType == MatchType.CONTAINS_ANY) {
+                        return AssertionResult.PASS; // exit early
+                    }
                 } else { // values for this key don't match
                     if (matchType == MatchType.NOT_EQUALS) {
                         return AssertionResult.PASS; // exit early
                     }
+                    if (matchType == MatchType.CONTAINS_ANY) {
+                        continue; // keep trying
+                    }                    
                     if (matchType != MatchType.NOT_CONTAINS) {
                         return ar; // fail early
-                    }
+                    }                    
                 }
+            }
+            if (matchType == MatchType.CONTAINS_ANY) {
+                // if any were found, we would have exited early
+                return matchFailed(matchType, path, actObject, expObject, "no key-values matched");
             }
             // if we reached here, all map entries matched
             if (matchType == MatchType.NOT_EQUALS) {
@@ -1264,6 +1291,7 @@ public class Script {
             }
             if (matchType == MatchType.CONTAINS
                     || matchType == MatchType.CONTAINS_ONLY
+                    || matchType == MatchType.CONTAINS_ANY
                     || matchType == MatchType.NOT_CONTAINS) { // just checks for existence (or non-existence)
                 for (Object expListObject : expList) { // for each expected item in the list
                     boolean found = false;
@@ -1276,11 +1304,25 @@ public class Script {
                             break;
                         }
                     }
-                    if (found && matchType == MatchType.NOT_CONTAINS) {
-                        return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value contains unexpected");
-                    } else if (!found && matchType != MatchType.NOT_CONTAINS) {
-                        return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value does not contain expected");
+                    if (found) {
+                        if (matchType == MatchType.NOT_CONTAINS) {
+                            return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value contains unexpected");
+                        }
+                        if (matchType == MatchType.CONTAINS_ANY) {
+                            return AssertionResult.PASS; // exit early
+                        }
+                    } else {
+                        if (matchType == MatchType.CONTAINS_ANY) {
+                            continue; // keep trying
+                        }
+                        if (matchType != MatchType.NOT_CONTAINS) {
+                            return matchFailed(matchType, path + "[*]", actObject, expListObject, "actual value does not contain expected");
+                        }
                     }
+                }
+                if (matchType == MatchType.CONTAINS_ANY) {
+                    // if we found any, we would have exited early
+                    return matchFailed(matchType, path + "[*]", actObject, expList, "actual value does not contain any expected");
                 }
                 // reminder: we are here only for the contains / not-contains cases
                 return AssertionResult.PASS; // all items were found

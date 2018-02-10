@@ -77,12 +77,21 @@ public class ApacheHttpUtils {
                 return null;
             }
         }
-        Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
-        if (cs == null) {
-            return ContentType.parse(mediaType).withCharset(charset);
-        } else {
-            return ContentType.parse(mediaType);
-        }        
+        Map<String, String> map = HttpUtils.parseContentTypeParams(mediaType);
+        if (map != null) {
+            String cs = map.get(HttpUtils.CHARSET);
+            if (cs != null) {
+                charset = Charset.forName(cs);
+                map.remove(HttpUtils.CHARSET);
+            }
+        }
+        ContentType ct = ContentType.parse(mediaType).withCharset(charset);
+        if (map != null) {
+            for (Map.Entry<String, String> entry : map.entrySet()) {
+                ct = ct.withParameters(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+            }
+        }
+        return ct;
     }
     
     public static HttpEntity getEntity(InputStream is, String mediaType, Charset charset) {

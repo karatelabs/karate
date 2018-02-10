@@ -48,6 +48,8 @@ public class HttpUtils {
     public static final String HEADER_AC_ALLOW_METHODS = "Access-Control-Allow-Methods";
     public static final String HEADER_AC_REQUEST_HEADERS = "Access-Control-Request-Headers";
     public static final String HEADER_AC_ALLOW_HEADERS = "Access-Control-Allow-Headers";
+    
+    public static final String CHARSET = "charset";
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
 
@@ -159,22 +161,36 @@ public class HttpUtils {
     }
     
     public static Charset parseContentTypeCharset(String mimeType) {
-        mimeType = mimeType.toLowerCase();
-        int pos = mimeType.indexOf("charset");
-        if (pos == -1) {
+        Map<String, String> map = parseContentTypeParams(mimeType);
+        if (map == null) {
             return null;
         }
-        pos = mimeType.indexOf('=', pos + 7);
-        if (pos == -1) {
+        String cs = map.get(CHARSET);
+        if (cs == null) {
             return null;
-        }        
-        String temp = mimeType.substring(pos + 1);
-        pos = temp.indexOf(';');
-        if (pos != -1) {
-            temp = temp.substring(0, pos);
         }
-        return Charset.forName(temp.trim());
+        return Charset.forName(cs);
     }
+    
+    public static Map<String, String> parseContentTypeParams(String mimeType) {
+        List<String> items = StringUtils.split(mimeType, ';');
+        int count = items.size();
+        if (count <= 1) {
+            return null;
+        }
+        Map<String, String> map = new LinkedHashMap(count - 1);
+        for (int i = 1; i < count; i++) {
+            String item = items.get(i);
+            int pos = item.indexOf('=');
+            if (pos == -1) {
+                continue;
+            }
+            String key = item.substring(0, pos).trim();
+            String val = item.substring(pos + 1).trim();
+            map.put(key, val);
+        }
+        return map;
+    }    
 
     public static String getContentType(ScriptValue sv) {
         if (sv.isStream()) {

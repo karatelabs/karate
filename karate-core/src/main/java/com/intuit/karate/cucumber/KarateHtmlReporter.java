@@ -102,32 +102,23 @@ public class KarateHtmlReporter extends KarateReporterBase {
         }
         return parent;
     }
+    
+    private String getFile(String name) {
+        return FileUtils.toString(getClass().getClassLoader().getResourceAsStream(name));
+    }
 
     public void startKarateFeature(CucumberFeature feature) {
         currentScenario = 0;
         this.feature = feature;
-        doc = XmlUtils.toXmlDoc("<html/>");
+        String html = getFile("report-template.html");
+        String js = getFile("report-template.js");
+        doc = XmlUtils.toXmlDoc(html);        
         set("/html/head/title", feature.getPath());
-        String css = "body { font-family: sans-serif; font-size: small; }"
-                + " table { border-collapse: collapse; }"
-                + " table td { border: 1px solid gray; padding: 0.1em 0.2em; }"
-                + " .scenario-heading { background-color: #F5F28F; padding: 0.2em 0.5em; border-bottom: 1px solid gray; }"
-                + " .scenario-name { font-weight: bold; }"
-                + " .scenario { border: 1px solid gray; margin-bottom: 1em; }"
-                + " .scenario-steps { padding-left: 0.2em; }"
-                + " .scenario-steps-nested { padding-left: 2em; }"
-                + " .step-row { margin: 0.2em 0; }"
-                + " .step-cell { background-color: #92DD96; display: inline-block; width: 85%; padding: 0.2em 0.5em; }"
-                + " .time-cell { background-color: #92DD96; display: inline-block; width: 10%; padding: 0.2em 0.5em; }"
-                + " .preformatted { white-space: pre-wrap; font-family: monospace; }"
-                + " .failed { background-color: #F2928C; }"
-                + " .skipped { background-color: #8AF; }";
-        
-        set("/html/head/style", css);
+        set("/html/head/script", js);
     }
 
     public void endKarateFeature() {
-        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc);
+        String xml = XmlUtils.toString(doc);
         String packageName = FileUtils.toPackageQualifiedName(feature.getPath());
         File file = new File("target/surefire-reports/TEST-" + packageName + ".html");
         try {
@@ -236,6 +227,8 @@ public class KarateHtmlReporter extends KarateReporterBase {
             extraClass = " failed";
         } else if ("skipped".equals(result.getStatus())) {
             extraClass = " skipped";
+        } else {
+            extraClass = " passed";            
         }
         Node stepRow = div("step-row",
                 div("step-cell" + extraClass, step.getKeyword() + step.getName()),

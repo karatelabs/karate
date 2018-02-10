@@ -98,7 +98,7 @@ public class XmlUtils {
         for (int i = 0; i < count; ++i) {
             Node child = children.item(i);
             if (child.getNodeType() == Node.TEXT_NODE) {
-                child.setTextContent(child.getTextContent().trim());
+                child.setTextContent(child.getTextContent() == null ? "" : child.getTextContent().trim());
             }
             trimWhiteSpace(child);
         }

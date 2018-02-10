@@ -29,7 +29,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 .... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart file`](#multipart-file) / [`files`](#multipart-files) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Prepare, Mutate, Assert** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) / [`!=`](#match--not-equals) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`!contains`](#not-contains) | [`match each`](#match-each)
+**Prepare, Mutate, Assert** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) / [`!=`](#match--not-equals) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`any`](#match-contains-any) / [`!contains`](#not-contains) | [`match each`](#match-each)
 **Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [Polling / Conditional](#polling) | [XML and XPath](#xpath-functions) | [Tags / Grouping Tests](#cucumber-tags)
@@ -1913,6 +1913,7 @@ You can always directly access the variable called [`responseHeaders`](#response
 ### `match contains`
 #### JSON Keys
 In some cases where the response JSON is wildly dynamic, you may want to only check for the existence of some keys. And `match` (name) `contains` is how you can do so:
+
 ```cucumber
 * def foo = { bar: 1, baz: 'hello', ban: 'world' }
 
@@ -1922,6 +1923,8 @@ In some cases where the response JSON is wildly dynamic, you may want to only ch
 # this will fail
 # * match foo == { bar:1, baz: 'hello' }
 ```
+
+Also note that [`match contains any`](#match-contains-any) is possible for JSON objects as well as JSON arrays.
 
 ### (not) `!contains`
 It is sometimes useful to be able to check if a key-value-pair does **not** exist. This is possible by prefixing `contains` with a `!` (with no space in between).
@@ -2002,6 +2005,21 @@ you can do this:
 * match data.foo contains only [2, 3, 1]
 # this will fail
 # * match data.foo contains only [2, 3]
+```
+
+#### `match contains any`
+To assert that **any** of the given array elements are present.
+
+```cucumber
+* def data = { foo: [1, 2, 3] }
+* match data.foo contains any [9, 2, 8]
+```
+
+And this happens to work as expected for JSON object keys as well:
+
+```cucumber
+* def data = { a: 1, b: 'x' }
+* match data contains any { b: 'x', c: true }
 ```
 
 ## Validate every element in a JSON array
@@ -2129,13 +2147,14 @@ Symbol  | Means
 ------- | ------                               
 | `^`   | [`contains`](#match-contains)           
 | `^^`  | [`contains only`](#match-contains-only) 
+| `^*`  | [`contains any`](#match-contains-any) 
 | `!^`  | [`not contains`](#not-contains)     
 
 Here'a table of the alternative 'in-line' forms compared with the 'standard' form. Note that the short-cut forms on the right-side of the table mostly resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ (single-step) payload `match`, using [embedded expressions](#embedded-expressions).
 
-<a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.jpg" height="520px"/></a>
+<a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.jpg" height="690px"/></a>
 
-A very useful capability is to be able to check that an array `contains` an object that `contains` the provided sub-set of keys *instead* of having to specify the *complete* JSON - which can get really cumbersome for large objects. This turns out to be very useful in practice, and this particular `match` *jsonArray* `contains '#(^`*partialObject*`)'` form has no 'standard' equivalent (see the second-last row above).
+A very useful capability is to be able to check that an array `contains` an object that `contains` the provided *sub-set* of keys instead of having to specify the *complete* JSON - which can get really cumbersome for large objects. This turns out to be very useful in practice, and this particular `match` *jsonArray* `contains '#(^`*partialObject*`)'` form has no 'standard' equivalent (see the third-from-last row above).
 
 > The last row in the table is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
 
@@ -2904,9 +2923,9 @@ Examples:
 | 3    | 2     |
 | 4    | 2     |
 ```
-This is great for testing boundary conditions against a single end-point, with the added bonus that
-your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
-who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
+This is great for testing boundary conditions against a single end-point, with the added bonus that your test becomes even more readable. This approach can certainly enable product-owners or domain-experts who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
+
+For an advanced example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
 ### The Karate Way
 The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it.

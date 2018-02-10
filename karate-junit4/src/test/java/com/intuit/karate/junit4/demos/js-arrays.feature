@@ -32,6 +32,25 @@ Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/ka
     * def actual = ({ a: temp })
     * match actual == { a: [1, 2, 3] }
 
+Scenario: advanced json-path that the jayway implementation has limitations with
+    * def response = read('products.json')
+    * def result = $[?(@.partIDs[?(@.id == 1)])]
+    # should be 2
+    * match result == '#[3]'
+
+Scenario: work around for the above
+    * def hasId = 
+        """
+        function(product, id) {
+            return karate.jsonPath(product, '$.partIDs[?(@.id==' + id + ')]').length;
+        }
+        """
+    * def products = read('products.json')
+    * def result = []
+    * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) result.add(products[i]) 
+    # >
+    * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
+
 Scenario: table to json with expressions evaluated
     * def one = 'hello'
     * def two = { baz: 'world' }
@@ -334,22 +353,11 @@ Scenario: read json within a js function
     * def val = call fun
     * match val == 2
 
-Scenario: case-insensitive sort mixing js and java
-    * def ArrayList = Java.type('java.util.ArrayList')
-    * def Collections = Java.type('java.util.Collections')
-
-    * def json = [{ v: 'C' }, { v: 'b' }, { v: 'A' }]
-    * def actual = $json[*].v
-    * match actual == ['C', 'b', 'A']
-    * def list = new ArrayList()
-    * eval for (var i = 0; i < actual.length; i++) list.add(actual[i])
-    * match list == ['C', 'b', 'A']
-    * eval Collections.sort(list, java.lang.String.CASE_INSENSITIVE_ORDER)
-    * match list == ['A', 'b', 'C']
-
-Scenario: the example above implemented using a re-usable js function
-    * def json = [{ v: 'C' }, { v: 'b' }, { v: 'A' }]
-    * def actual = $json[*].v
-    * match actual == ['C', 'b', 'A']
-    * def sorted = call read('sort.js') actual
-    * match sorted == ['A', 'b', 'C']
+Scenario: contains / not contains
+    * def some = [1, 2]
+    * def actual = [1, 2, 3]
+    * def none = [4, 5]
+    * match actual contains some
+    * match actual == '#(^some)'
+    * match actual !contains none
+    * match actual == '#(!^none)'

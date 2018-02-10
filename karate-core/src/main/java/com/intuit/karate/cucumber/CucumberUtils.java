@@ -139,6 +139,7 @@ public class CucumberUtils {
     }
 
     public static ScriptValueMap call(FeatureWrapper feature, KarateBackend backend, CallType callType) {
+        boolean matched = callType != CallType.SCENARIO_ONLY;
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {
                 ScenarioOutlineWrapper outline = section.getScenarioOutline();
@@ -147,15 +148,19 @@ public class CucumberUtils {
                 }
             } else {
                 ScenarioWrapper scenario = section.getScenario();
-                if (callType == CallType.SCENARIO_ONLY) {                    
+                if (callType == CallType.SCENARIO_ONLY) {
                     if (isMatchingScenario(scenario, backend)) {
                         call(scenario, backend, callType);
+                        matched = true;
                         break; // only execute first matching scenario
                     }
                 } else {
                     call(scenario, backend, callType);
                 }
             }
+        }
+        if (!matched) {
+            backend.getEnv().logger.warn("no scenarios matched");
         }
         return backend.getStepDefs().getContext().getVars();
     }
@@ -199,6 +204,9 @@ public class CucumberUtils {
                     message = message + ", scenario: " + scenarioName;
                 }
                 message = message + ", line: " + step.getStep().getLine();
+                if (callType != CallType.DEFAULT) { // more verbose for karate server / mock
+                    backend.getEnv().logger.error("{}, {}", result.getError(), message);
+                }
                 throw new KarateException(message, result.getError());
             }
         }

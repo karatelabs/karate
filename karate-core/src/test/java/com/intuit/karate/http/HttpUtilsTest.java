@@ -23,6 +23,22 @@ public class HttpUtilsTest {
     }
     
     @Test
+    public void testParseContentTypeParams() {
+        Map<String, String> map = HttpUtils.parseContentTypeParams("application/json");
+        assertNull(map);
+        map = HttpUtils.parseContentTypeParams("application/json; charset=UTF-8");
+        Match.equals(map, "{ charset: 'UTF-8' }");
+        map = HttpUtils.parseContentTypeParams("application/json; charset = UTF-8 ");
+        Match.equals(map, "{ charset: 'UTF-8' }");
+        map = HttpUtils.parseContentTypeParams("application/json; charset=UTF-8; version=1.2.3");
+        Match.equals(map, "{ charset: 'UTF-8', version: '1.2.3' }");
+        map = HttpUtils.parseContentTypeParams("application/json; charset = UTF-8 ; version=1.2.3");
+        Match.equals(map, "{ charset: 'UTF-8', version: '1.2.3' }");
+        map = HttpUtils.parseContentTypeParams("application/vnd.app.test+json;ton-version=1");
+        Match.equals(map, "{ 'ton-version': '1' }");         
+    }
+    
+    @Test
     public void testParseUriPathPatterns() {
         Map<String, String> map = HttpUtils.parseUriPattern("/cats/{id}", "/cats/1");
         Match.equals(map, "{ id: '1' }");
