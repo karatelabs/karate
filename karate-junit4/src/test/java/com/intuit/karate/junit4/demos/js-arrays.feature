@@ -47,7 +47,8 @@ Scenario: work around for the above
         """
     * def products = read('products.json')
     * def result = []
-    * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) result.add(products[i])
+    * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) result.add(products[i]) 
+    # >
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
 
 Scenario: table to json with expressions evaluated

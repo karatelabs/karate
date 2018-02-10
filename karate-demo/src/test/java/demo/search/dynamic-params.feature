@@ -1,4 +1,5 @@
 Feature: dynamic params using scenario-outline, examples and json
+    see also the file demo/outline/examples.feature
 
 Background:
     * url demoBaseUrl

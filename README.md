@@ -2154,7 +2154,7 @@ Here'a table of the alternative 'in-line' forms compared with the 'standard' for
 
 <a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.jpg" height="690px"/></a>
 
-A very useful capability is to be able to check that an array `contains` an object that `contains` the provided sub-set of keys *instead* of having to specify the *complete* JSON - which can get really cumbersome for large objects. This turns out to be very useful in practice, and this particular `match` *jsonArray* `contains '#(^`*partialObject*`)'` form has no 'standard' equivalent (see the second-last row above).
+A very useful capability is to be able to check that an array `contains` an object that `contains` the provided *sub-set* of keys instead of having to specify the *complete* JSON - which can get really cumbersome for large objects. This turns out to be very useful in practice, and this particular `match` *jsonArray* `contains '#(^`*partialObject*`)'` form has no 'standard' equivalent (see the third-from-last row above).
 
 > The last row in the table is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
 
@@ -2923,9 +2923,9 @@ Examples:
 | 3    | 2     |
 | 4    | 2     |
 ```
-This is great for testing boundary conditions against a single end-point, with the added bonus that
-your test becomes even more readable. This approach can certainly enable product-owners or domain-experts 
-who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
+This is great for testing boundary conditions against a single end-point, with the added bonus that your test becomes even more readable. This approach can certainly enable product-owners or domain-experts who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
+
+For an advanced example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
 ### The Karate Way
 The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it.
