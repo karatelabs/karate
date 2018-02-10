@@ -111,8 +111,10 @@ public class KarateHtmlReporter extends KarateReporterBase {
         currentScenario = 0;
         this.feature = feature;
         String html = getFile("report-template.html");
+        String img = getFile("karate-logo.svg");
         String js = getFile("report-template.js");
-        doc = XmlUtils.toXmlDoc(html);        
+        doc = XmlUtils.toXmlDoc(html);
+        set("/html/body/img", img);
         set("/html/head/title", feature.getPath());
         set("/html/head/script", js);
     }
