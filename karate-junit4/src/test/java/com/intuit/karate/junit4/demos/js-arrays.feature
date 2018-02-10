@@ -32,6 +32,24 @@ Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/ka
     * def actual = ({ a: temp })
     * match actual == { a: [1, 2, 3] }
 
+Scenario: advanced json-path that the jayway implementation has limitations with
+    * def response = read('products.json')
+    * def result = $[?(@.partIDs[?(@.id == 1)])]
+    # should be 2
+    * match result == '#[3]'
+
+Scenario: work around for the above
+    * def hasId = 
+        """
+        function(product, id) {
+            return karate.jsonPath(product, '$.partIDs[?(@.id==' + id + ')]').length;
+        }
+        """
+    * def products = read('products.json')
+    * def result = []
+    * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) result.add(products[i])
+    * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
+
 Scenario: table to json with expressions evaluated
     * def one = 'hello'
     * def two = { baz: 'world' }
