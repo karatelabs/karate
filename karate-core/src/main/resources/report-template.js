@@ -9,8 +9,9 @@ window.onload = function() {
   }
   sidenavDiv = document.createElement('div');
   sidenavDiv.classList.add('sidenav');
-  sidenavDiv.innerHTML += '<h2>Test Suite Navigation</h2>';
   document.body.appendChild(sidenavDiv);
+  addKarateLogoToSidebar();
+  sidenavDiv.innerHTML += '<h2>Test Suite Navigation</h2>';
   scenarios = document.getElementsByClassName('step-cell');
   for (i = 0; i < scenarios.length; ++i) {
     scenarios[i].id = getIdForTest(i);
@@ -25,6 +26,18 @@ window.onload = function() {
   }
   buildAccordians();
 
+  function addKarateLogoToSidebar() {
+    imgContainer = document.createElement('div');
+    sidenavDiv.appendChild(imgContainer);
+    imgContainer.classList.add('svgHolder');
+    img = document.getElementsByTagName('svg');
+    imgContainer.appendChild(img[0]);
+    box = img[0].getBBox();
+    viewBox = [box.x, box.y, box.width, box.height].join(" ");
+    img[0].setAttribute("viewBox", viewBox);
+    img[0].style.width = "100px";
+    img[0].style.height = "100px";
+  }
   function getIdForTest(i) {
     return('test_'+(i+1));
   }
@@ -35,7 +48,7 @@ window.onload = function() {
     verboseReport = document.createElement('p');
     verboseReport.appendChild(document.createTextNode('# of ' + mode + ' tests: ' + tests[mode].length + '/' + scenarios.length));
     verboseReport.appendChild(document.createElement('br'));
-    verboseReport.appendChild(document.createTextNode('('+(tests[mode].length/scenarios.length)*100 + '%)'));
+    verboseReport.appendChild(document.createTextNode('('+((tests[mode].length/scenarios.length)*100).toFixed(2) + '%)'));
     verboseReport.classList.add(mode+'_font');
     modeBorder[mode].appendChild(verboseReport);
   }
