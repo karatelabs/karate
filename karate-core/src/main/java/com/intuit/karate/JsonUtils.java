@@ -144,15 +144,11 @@ public class JsonUtils {
     }
 
     public static String toPrettyJsonString(DocumentContext doc) {
-        return toPrettyJsonString(doc, true);
-    }
-
-    public static String toPrettyJsonString(DocumentContext doc, boolean escape) {
         Object o = doc.read("$");
         StringBuilder sb = new StringBuilder();
         // anti recursion / back-references
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
-        recursePretty(o, sb, 0, seen, escape);
+        recursePretty(o, sb, 0, seen);
         sb.append('\n');
         return sb.toString();
     }
@@ -167,7 +163,7 @@ public class JsonUtils {
         sb.append("\"#ref:").append(o.getClass().getName()).append('"');
     }
 
-    private static void recursePretty(Object o, StringBuilder sb, int depth, Set<Object> seen, boolean escape) {
+    private static void recursePretty(Object o, StringBuilder sb, int depth, Set<Object> seen) {
         if (o == null) {
             sb.append("null");
         } else if (o instanceof Map) {
@@ -179,9 +175,9 @@ public class JsonUtils {
                     Map.Entry<String, Object> entry = iterator.next();
                     String key = entry.getKey();
                     pad(sb, depth + 1);
-                    sb.append('"').append(escape ? JSONObject.escape(key) : key).append('"');
+                    sb.append('"').append(JSONObject.escape(key)).append('"');
                     sb.append(':').append(' ');
-                    recursePretty(entry.getValue(), sb, depth + 1, seen, escape);
+                    recursePretty(entry.getValue(), sb, depth + 1, seen);
                     if (iterator.hasNext()) {
                         sb.append(',');
                     }
@@ -200,7 +196,7 @@ public class JsonUtils {
                 while (iterator.hasNext()) {
                     Object child = iterator.next();
                     pad(sb, depth + 1);
-                    recursePretty(child, sb, depth + 1, seen, escape);
+                    recursePretty(child, sb, depth + 1, seen);
                     if (iterator.hasNext()) {
                         sb.append(',');
                     }
@@ -213,7 +209,7 @@ public class JsonUtils {
             }
         } else if (o instanceof String) {
             String value = (String) o;
-            sb.append('"').append(escape ? JSONObject.escape(value) : value).append('"');
+            sb.append('"').append(JSONObject.escape(value)).append('"');
         } else {
             sb.append(o);
         }
