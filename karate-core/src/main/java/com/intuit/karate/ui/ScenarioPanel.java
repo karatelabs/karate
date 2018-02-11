@@ -27,6 +27,8 @@ import com.intuit.karate.cucumber.ScenarioWrapper;
 import com.intuit.karate.cucumber.StepWrapper;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
@@ -53,11 +55,13 @@ public class ScenarioPanel extends BorderPane {
     }
     
     private void initTitleAndContent() {
+        Optional<StepPanel> previousStep = Optional.empty();
         for (StepWrapper step : scenario.getSteps()) {
-            StepPanel stepPanel = new StepPanel(session, step);
+            StepPanel stepPanel = new StepPanel(session, step, previousStep);
             content.getChildren().add(stepPanel);
             stepPanels.add(stepPanel);
-        }       
+            previousStep = Optional.of(stepPanel);
+        }
     }
     
     public void action(AppAction action) {
