@@ -26,11 +26,16 @@ package com.intuit.karate.ui;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.StepResult;
 import com.intuit.karate.cucumber.StepWrapper;
+import javafx.collections.ObservableList;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.AnchorPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 
 /**
  *
@@ -43,6 +48,8 @@ public class StepPanel extends AnchorPane {
     private final AppSession session;
     private final TextArea textArea;
     private final Button runButton;
+    private Optional<Button> runAllUptoButton = Optional.empty();
+    private final Optional<StepPanel> previousPanel;
     private String oldText;
     private StepWrapper step;
     private Boolean pass = null;
@@ -53,9 +60,10 @@ public class StepPanel extends AnchorPane {
     private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
     private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
 
-    public StepPanel(AppSession session, StepWrapper step) {
+    public StepPanel(AppSession session, StepWrapper step, Optional<StepPanel> previousPanel) {
         this.session = session;
-        runButton = new Button("►");        
+        this.previousPanel = previousPanel;
+        runButton = new Button("►");
         textArea = new TextArea();
         textArea.setFont(App.getDefaultFont());
         textArea.setMinHeight(0);
@@ -68,13 +76,28 @@ public class StepPanel extends AnchorPane {
         this.step = step;
         initTextArea();
         runButton.setOnAction(e -> run());
-        getChildren().addAll(textArea, runButton);
+        final ObservableList<Node> children = getChildren();
+        children.addAll(textArea, runButton);
+        setUpRunAllUptoButton(previousPanel, children);
         setLeftAnchor(textArea, 0.0);
-        setRightAnchor(textArea, 30.0);
+        setRightAnchor(textArea, 72.0);
         setBottomAnchor(textArea, 0.0);
         setRightAnchor(runButton, 0.0);
         setTopAnchor(runButton, 2.0);
         setBottomAnchor(runButton, 0.0);
+    }
+
+    private void setUpRunAllUptoButton(Optional<StepPanel> previousPanel, ObservableList<Node> children) {
+        if(previousPanel.isPresent()) {
+            final Button button = new Button("►►");
+            runAllUptoButton = Optional.of(button);
+            button.setTooltip(new Tooltip("Run all steps upto current step"));
+            button.setOnAction(e -> runAllUpto());
+            children.add(button);
+            setRightAnchor(button, 32.0);
+            setTopAnchor(button, 2.0);
+            setBottomAnchor(button, 0.0);
+        }
     }
     
     private void rebuildFeatureIfTextChanged() {
@@ -93,6 +116,15 @@ public class StepPanel extends AnchorPane {
         if (!pass) {
             throw new StepException(result);
         }
+    }
+
+    private void runAllUpto() {
+        previousPanel.ifPresent(p -> p.runAllUpto());
+        run();
+    }
+
+    private void setStyleForRunAllUptoButton(String style) {
+        runAllUptoButton.ifPresent(b -> b.setStyle(style));
     }
 
     public void action(AppAction action) {
@@ -116,10 +148,13 @@ public class StepPanel extends AnchorPane {
     private void initStyleColor() {
         if (pass == null) {
             runButton.setStyle("");
+            setStyleForRunAllUptoButton("");
         } else if (pass) {
             runButton.setStyle(STYLE_PASS);
+            setStyleForRunAllUptoButton(STYLE_PASS);
         } else {
             runButton.setStyle(STYLE_FAIL);
+            setStyleForRunAllUptoButton(STYLE_FAIL);
         }       
     }
 
