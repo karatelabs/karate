@@ -363,6 +363,7 @@ public class StepDefs {
             context.logger.error("http request failed: {}", message);
             throw new KarateException(message); // reduce log verbosity
         }
+        HttpUtils.updateRequestVars(request, context.vars, context);
         HttpUtils.updateResponseVars(response, context.vars, context);
         String prevUrl = request.getUrl();
         request = new HttpRequestBuilder();

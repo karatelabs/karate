@@ -265,6 +265,10 @@ public class ScriptValue {
     }
 
     public String getAsPrettyString() {
+        return getAsPrettyString(true);
+    }
+
+    public String getAsPrettyString(boolean escapeJSON) {
         switch (type) {
             case NULL:
                 return "";
@@ -273,17 +277,17 @@ public class ScriptValue {
                 return XmlUtils.toString(node, true);
             case JSON:
                 DocumentContext doc = getValue(DocumentContext.class);
-                return JsonUtils.toPrettyJsonString(doc);
+                return JsonUtils.toPrettyJsonString(doc, escapeJSON);
             case JS_ARRAY:
             case LIST:
                 List list = getAsList();
                 DocumentContext listDoc = JsonPath.parse(list);
-                return JsonUtils.toPrettyJsonString(listDoc);
+                return JsonUtils.toPrettyJsonString(listDoc, escapeJSON);
             case JS_OBJECT:
             case MAP:
                 Map map = getAsMap();
                 DocumentContext mapDoc = JsonPath.parse(map);
-                return JsonUtils.toPrettyJsonString(mapDoc);
+                return JsonUtils.toPrettyJsonString(mapDoc, escapeJSON);
             case BYTE_ARRAY:
                 return "(..bytes..)";
             case INPUT_STREAM:            
