@@ -75,7 +75,7 @@ Then match response ==
 * def first = { a: 1, b: 'x' }
 * def part = { a: 1 }
 * def mix = { b: 'y', c: true }
-* def others = [{ a: 3, b: 'u' }, { a: 4, b: 'v' }]
+* def other = [{ a: 3, b: 'u' }, { a: 4, b: 'v' }]
 * def some = [{ a: 1, b: 'x' }, { a: 5, b: 'w' }]
 
 * match actual[0] == schema
@@ -111,8 +111,8 @@ Then match response ==
 * match actual contains any some
 * match actual == '#(^*some)'
 
-* match actual !contains others
-* match actual == '#(!^others)'
+* match actual !contains other
+* match actual == '#(!^other)'
 
 # no equivalent !
 * match actual contains '#(^part)'

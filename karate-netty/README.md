@@ -221,6 +221,7 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 ## `requestHeaders`
 
 ## `requestParams`
+A map-like' object of all query-string parameters and the values will always be an array. Use the convenience built-iun function [`paramValue(name)`](#paramValue) which is convenient as it will return a single (string) value if the size of the array is 1, which is what you need most of the time.
 
 ## `pathMatches`
 
