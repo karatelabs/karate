@@ -94,6 +94,14 @@ public class HttpUtils {
         vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
     }
 
+    public static void updateRequestVars(HttpRequestBuilder request, ScriptValueMap vars, ScriptContext context) {
+        vars.put(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod());
+        vars.put(ScriptValueMap.VAR_REQUEST_URI, request.getUrl());
+        vars.put(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
+        vars.put(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders());
+        vars.put(ScriptValueMap.VAR_REQUEST_BODY, request.getBody());
+    }
+
     private static Object convertResponseBody(byte[] bytes, ScriptContext context) {
         if (bytes == null) {
             return null;
