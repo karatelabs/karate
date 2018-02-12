@@ -55,3 +55,9 @@ Scenario: troublesome commas
 * print 'the value, of foo, is:', foo
 * def test = logger.collect()
 * match test == '[print] the value, of foo, is: {\n  "bar": 1\n}\n\n'
+
+Scenario: forward slash in json
+* def foo = { bar: 'http://localhost:8080' }
+* print 'the value, of foo, is:', foo
+* def test = logger.collect()
+* match test == '[print] the value, of foo, is: {\n  "bar": "http://localhost:8080"\n}\n\n'

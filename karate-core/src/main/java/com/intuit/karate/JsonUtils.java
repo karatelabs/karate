@@ -175,7 +175,7 @@ public class JsonUtils {
                     Map.Entry<String, Object> entry = iterator.next();
                     String key = entry.getKey();
                     pad(sb, depth + 1);
-                    sb.append('"').append(JSONObject.escape(key)).append('"');
+                    sb.append('"').append(JSONValue.escape(key, JSONStyle.LT_COMPRESS)).append('"');
                     sb.append(':').append(' ');
                     recursePretty(entry.getValue(), sb, depth + 1, seen);
                     if (iterator.hasNext()) {
@@ -209,7 +209,7 @@ public class JsonUtils {
             }
         } else if (o instanceof String) {
             String value = (String) o;
-            sb.append('"').append(JSONObject.escape(value)).append('"');
+            sb.append('"').append(JSONValue.escape(value, JSONStyle.LT_COMPRESS)).append('"');
         } else {
             sb.append(o);
         }
