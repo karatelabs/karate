@@ -152,7 +152,8 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         if (cs == null) {
             cs = charset;
         }
-        return MediaType.valueOf(mediaType).withCharset(cs.name());
+        MediaType mt = MediaType.valueOf(mediaType);
+        return cs == null ? mt : mt.withCharset(cs.name());
     }
 
     @Override
@@ -184,7 +185,9 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 if (cs == null) {
                     cs = charset;
                 }
-                itemType = itemType.withCharset(cs.name());
+                if (cs != null) {
+                    itemType = itemType.withCharset(cs.name());
+                }
             }
             if (name == null) { // most likely multipart/mixed
                 BodyPart bp = new BodyPart().entity(sv.getAsString()).type(itemType);

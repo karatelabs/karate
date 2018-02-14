@@ -18,6 +18,6 @@ Scenario: pathMatches('/payments/{id}')
     * eval karate.proceed(paymentServiceUrl)
 
 # 'catch-all' rule
-Scenario: true  
+Scenario:  
     # if arg to karate.proceed() is null, incoming url will be used as-is (http proxy)
     * eval karate.proceed(paymentServiceUrl)

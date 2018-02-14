@@ -11,5 +11,5 @@ Scenario: pathMatches('/greeting') && paramValue('name') != null
     * eval karate.proceed(targetUrlBase)
 
 # 'catch-all' rule
-Scenario: true
+Scenario:
     * eval karate.proceed(targetUrlBase)

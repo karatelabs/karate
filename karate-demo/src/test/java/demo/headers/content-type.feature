@@ -55,3 +55,25 @@ Scenario: empty string as content-type
     Then status 200
     * def temp = response['content-type'][0]
     * assert temp == ''
+
+Scenario: json post with header but NO charset   
+    Given path 'search', 'headers'
+    And configure charset = null
+    And header Content-Type = 'application/json'
+    And request { foo: 'bar' }
+    When method post
+    Then status 200
+    * def temp = response['content-type'][0].toLowerCase()
+    * assert temp.contains('application/json')
+    * assert !temp.contains('charset=utf-8')
+
+Scenario: json post with default header but NO charset   
+    Given path 'search', 'headers'
+    And configure charset = null
+    And request { foo: 'bar' }
+    When method post
+    Then status 200
+    * def temp = response['content-type'][0].toLowerCase()
+    * assert temp.contains('application/json')
+    * assert !temp.contains('charset=utf-8')
+

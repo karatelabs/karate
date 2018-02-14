@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 public class ScriptContext {
 
     public final Logger logger;
-    
+
     protected final ScriptBindings bindings;
 
     protected final int callDepth;
@@ -58,21 +58,21 @@ public class ScriptContext {
     // these can get re-built or swapped, so cannot be final
     protected HttpClient client;
     protected HttpConfig config;
-    
+
     // the actual http request last sent on the wire
     protected HttpRequest prevRequest;
-    
+
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());
     }
-    
+
     public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
-    }       
-    
+    }
+
     public ScriptEnv getEnv() {
         return env;
-    }        
+    }
 
     public ScriptValueMap getVars() {
         return vars;
@@ -80,7 +80,7 @@ public class ScriptContext {
 
     public HttpConfig getConfig() {
         return config;
-    }    
+    }
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
@@ -102,15 +102,15 @@ public class ScriptContext {
     public boolean isLogPrettyResponse() {
         return config.isLogPrettyResponse();
     }
-    
+
     public boolean isPrintEnabled() {
         return config.isPrintEnabled();
     }
 
     public ScriptContext(ScriptEnv env, CallContext call) {
         this.env = env.refresh(null);
-        logger = env.logger;        
-        callDepth = call.callDepth;        
+        logger = env.logger;
+        callDepth = call.callDepth;
         tags = call.getTags();
         tagValues = call.getTagValues();
         scenarioInfo = call.getScenarioInfo();
@@ -138,14 +138,14 @@ public class ScriptContext {
                     File configFile = new File(configPath);
                     configScript = String.format("%s('%s')", ScriptBindings.READ, FileUtils.FILE_COLON + configFile.getPath());
                 } else {
-                    configScript = ScriptBindings.READ_KARATE_CONFIG;                    
+                    configScript = ScriptBindings.READ_KARATE_CONFIG;
                 }
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
             } catch (Exception e) {
                 if (e instanceof KarateFileNotFoundException) {
                     logger.warn("skipping bootstrap configuration: {}", e.getMessage());
                 } else {
-                    throw new RuntimeException("evaluation of " + ScriptBindings.KARATE_CONFIG_JS +  " failed:", e);
+                    throw new RuntimeException("evaluation of " + ScriptBindings.KARATE_CONFIG_JS + " failed:", e);
                 }
             }
         }
@@ -157,19 +157,19 @@ public class ScriptContext {
             vars.put(Script.VAR_LOOP, call.loopIndex);
         } else if (call.parentContext != null) {
             vars.put(Script.VAR_ARG, ScriptValue.NULL);
-            vars.put(Script.VAR_LOOP, -1);            
-        }        
+            vars.put(Script.VAR_LOOP, -1);
+        }
         logger.trace("karate context init - initial properties: {}", vars);
     }
 
     public void configure(HttpConfig config) {
         this.config = config;
         client = HttpClient.construct(config, this);
-    }    
-    
+    }
+
     public void configure(String key, String exp) {
         configure(key, Script.evalKarateExpression(exp, this));
-    }    
+    }
 
     public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
@@ -188,7 +188,7 @@ public class ScriptContext {
         if (key.equals("cors")) {
             config.setCorsEnabled(value.isBooleanTrue());
             return;
-        }           
+        }
         if (key.equals("logPrettyResponse")) {
             config.setLogPrettyResponse(value.isBooleanTrue());
             return;
@@ -200,7 +200,7 @@ public class ScriptContext {
         if (key.equals("printEnabled")) {
             config.setPrintEnabled(value.isBooleanTrue());
             return;
-        }        
+        }
         if (key.equals("afterScenario")) {
             config.setAfterScenario(value);
             return;
@@ -209,10 +209,6 @@ public class ScriptContext {
             config.setAfterFeature(value);
             return;
         }
-        if (key.equals("charset")) {
-            config.setCharset(Charset.forName(value.getAsString()));
-            return;
-        }         
         if (key.equals("httpClientClass")) {
             config.setClientClass(value.getAsString());
             // re-construct all the things ! and we exit early
@@ -224,7 +220,17 @@ public class ScriptContext {
             // here too, re-construct client - and exit early
             client = HttpClient.construct(config, this);
             return;
-        }        
+        }
+        if (key.equals("charset")) {
+            if (value.isNull()) {
+                config.setCharset(null);
+            } else {
+                config.setCharset(Charset.forName(value.getAsString()));
+            }
+            // here again, re-construct client - and exit early
+            client = HttpClient.construct(config, this);            
+            return;
+        }
         // beyond this point, we don't exit early and we have to re-configure the http client
         if (key.equals("ssl")) {
             if (value.isString()) {
@@ -242,8 +248,8 @@ public class ScriptContext {
                 String trustAll = (String) map.get("trustStoreType");
                 if (trustAll != null) {
                     config.setSslTrustAll(Boolean.valueOf(trustAll));
-                }                
-                config.setSslAlgorithm((String) map.get("algorithm"));                
+                }
+                config.setSslAlgorithm((String) map.get("algorithm"));
             } else {
                 config.setSslEnabled(value.isBooleanTrue());
             }
