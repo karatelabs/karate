@@ -102,13 +102,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.6.2</version>
+    <version>0.7.0</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.6.2</version>
+    <version>0.7.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -120,8 +120,8 @@ And if you run into class-loading conflicts, for example if an older version of 
 Alternatively for Gradle you need two `dependencies`:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit4:0.6.2'
-    testCompile 'com.intuit.karate:karate-apache:0.6.2'
+    testCompile 'com.intuit.karate:karate-junit4:0.7.0'
+    testCompile 'com.intuit.karate:karate-apache:0.7.0'
 ```
 
 ### TestNG instead of JUnit
@@ -140,7 +140,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.6.2 \
+-DarchetypeVersion=0.7.0 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -2154,7 +2154,7 @@ Here'a table of the alternative 'in-line' forms compared with the 'standard' for
 
 <a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.jpg" height="690px"/></a>
 
-A very useful capability is to be able to check that an array `contains` an object that `contains` the provided *sub-set* of keys instead of having to specify the *complete* JSON - which can get really cumbersome for large objects. This turns out to be very useful in practice, and this particular `match` *jsonArray* `contains '#(^`*partialObject*`)'` form has no 'standard' equivalent (see the third-from-last row above).
+A very useful capability is to be able to check that an array `contains` an object that `contains` the provided *sub-set* of keys instead of having to specify the *complete* JSON - which can get really cumbersome for large objects. This turns out to be very useful in practice, and this particular `match` *jsonArray* `contains '#(^`*partialObject*`)'` form has no 'in-line' equivalent (see the third-from-last row above).
 
 > The last row in the table is a little different from the rest, and this short-cut form is the recommended way to validate the length of a JSON array. As a rule of thumb, prefer [`match`](#match) over [`assert`](#assert), because `match` failure messages are more detailed and descriptive.
 
@@ -2704,7 +2704,7 @@ function(arg) {
 
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
-Another great example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned is JSON, is able to use [`match`](#match) *very* effectively for data assertions.
+Another great example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
 
 ## `callonce`
 Cucumber has a limitation where [`Background`](#script-structure) steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 

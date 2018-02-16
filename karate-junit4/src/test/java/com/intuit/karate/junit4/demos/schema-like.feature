@@ -114,10 +114,10 @@ Then match response ==
 * match actual !contains other
 * match actual == '#(!^other)'
 
-# no equivalent !
+# no in-line equivalent !
 * match actual contains '#(^part)'
 
-# no equivalent !
+# no in-line equivalent !
 * match actual contains '#(^*mix)'
 
 * assert actual.length == 2
