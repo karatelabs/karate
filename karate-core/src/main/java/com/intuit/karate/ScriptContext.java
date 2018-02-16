@@ -245,7 +245,7 @@ public class ScriptContext {
                 config.setSslTrustStore((String) map.get("trustStore"));
                 config.setSslTrustStorePassword((String) map.get("trustStorePassword"));
                 config.setSslTrustStoreType((String) map.get("trustStoreType"));
-                String trustAll = (String) map.get("trustStoreType");
+                String trustAll = (String) map.get("trustAll");
                 if (trustAll != null) {
                     config.setSslTrustAll(Boolean.valueOf(trustAll));
                 }
