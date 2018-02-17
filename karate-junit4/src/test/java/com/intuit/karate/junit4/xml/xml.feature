@@ -251,6 +251,34 @@ Scenario: xml containing a CDATA section
     * xml naming = $xml /ResponseSet/Response
     * match naming //Attribute[@name='url']/@value == 'localhost'
 
+Scenario: CDATA and simple string embedded expression
+    * def foo = 'hello world'
+    * def xml = <bar><![CDATA[#(foo)]]></bar>
+    * match xml = <bar><![CDATA[hello world]]></bar>
+
+Scenario: CDATA and xml embedded expression
+    * def foo = <bar>baz</bar>
+    * def xml =
+    """
+    <ResponseSet vers="1.0" svcid="com.iplanet.am.naming" reqid="0">
+        <Response><![CDATA[#(foo)]]></Response>
+    </ResponseSet>
+    """
+    * match xml ==
+    """
+    <ResponseSet vers="1.0" svcid="com.iplanet.am.naming" reqid="0">
+        <Response><![CDATA[<bar>baz</bar>]]></Response>
+    </ResponseSet>
+    """
+
+Scenario: CDATA and xml string embedded expression
+    * def foo = <bar>baz</bar>
+    * xmlstring foo = foo
+    * def xml = <ResponseSet vers="1.0" svcid="com.iplanet.am.naming" reqid="0"><Response><![CDATA[#(foo)]]></Response></ResponseSet>
+    * xmlstring xml = xml
+    # note that attributes get re-ordered / sorted by name
+    * match xml == '<ResponseSet reqid="0" svcid="com.iplanet.am.naming" vers="1.0"><Response><![CDATA[<bar>baz</bar>]]></Response></ResponseSet>'
+
 Scenario: xml with attributes but null value
     * def xml = <foo><bar bbb="2" aaa="1"/></foo>
     * match xml == <foo><bar bbb="2" aaa="1"/></foo>

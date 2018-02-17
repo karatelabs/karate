@@ -485,8 +485,12 @@ public class Script {
                                 if (evalNode.getNodeType() == Node.DOCUMENT_NODE) {
                                     evalNode = evalNode.getFirstChild();
                                 }
-                                evalNode = node.getOwnerDocument().importNode(evalNode, true);
-                                child.getParentNode().replaceChild(evalNode, child);
+                                if (child.getNodeType() == Node.CDATA_SECTION_NODE) {
+                                    child.setNodeValue(XmlUtils.toString(evalNode));
+                                } else {
+                                    evalNode = node.getOwnerDocument().importNode(evalNode, true);
+                                    child.getParentNode().replaceChild(evalNode, child);
+                                }
                             } else {
                                 child.setNodeValue(sv.getAsString());
                             }

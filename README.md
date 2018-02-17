@@ -1538,7 +1538,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
-`charset` | string | Defaults to `utf-8` which you typically never need to change. Note that you can set the `Content-Type` charset per-request if needed via [`header`](#header)
+`charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
 `httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)
 `userDefined` | JSON | See [karate-mock-servlet](karate-mock-servlet)
@@ -2879,7 +2879,7 @@ Instead, Karate gives you all you need as part of the syntax. Here is a summary:
 
 To Run Some Code | How
 ---------------- | ---
-Before *Everything* (or 'globally' once) | Use [`karate.callSingle()`](#the-karate-object) in [`karate-config.js`](#karate-configjs). Only recommended for advanced users, but this guarantees a routine is run only once, *even* when [running tests in parallel](#parallel-execution).
+Before *everything* (or 'globally' once) | Use [`karate.callSingle()`](#the-karate-object) in [`karate-config.js`](#karate-configjs). Only recommended for advanced users, but this guarantees a routine is run only once, *even* when [running tests in parallel](#parallel-execution).
 Before every `Scenario` | Use the [`Background`](#script-structure)
 Once (or at the start of) every `Feature` | Use a [`callonce`](#callonce) in the [`Background`](#script-structure). The advantage is that you can set up variables (using [`def`](#def) if needed) which can be used in all `Scenario`-s within that `Feature`.
 After every `Scenario` | [`configure afterScenario`](#configure) (see [example](karate-demo/src/test/java/demo/hooks/hooks.feature))
@@ -2928,4 +2928,4 @@ This is great for testing boundary conditions against a single end-point, with t
 For an advanced example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
 ### The Karate Way
-The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it.
+The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).
