@@ -124,7 +124,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             try {
                 SSLContextBuilder builder = SSLContexts.custom()
                         .setProtocol(algorithm); // will default to TLS if null
-                if (trustStore == null) {
+                if (trustStore == null && config.isSslTrustAll() ) {
                     builder = builder.loadTrustMaterial(new TrustAllStrategy());
                 } else {
                     if (config.isSslTrustAll()) {
