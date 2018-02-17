@@ -254,7 +254,7 @@ Scenario: xml containing a CDATA section
 Scenario: CDATA and simple string embedded expression
     * def foo = 'hello world'
     * def xml = <bar><![CDATA[#(foo)]]></bar>
-    * match xml = <bar><![CDATA[hello world]]></bar>
+    * match xml == <bar><![CDATA[hello world]]></bar>
 
 Scenario: CDATA and xml embedded expression
     * def foo = <bar>baz</bar>
