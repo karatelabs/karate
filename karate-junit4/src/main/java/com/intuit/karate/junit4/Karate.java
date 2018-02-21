@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Karate extends ParentRunner<FeatureRunner> {
     
-    private static Logger logger;
+    private static final Logger logger = LoggerFactory.getLogger(Karate.class);
     
     private final List<FeatureRunner> children;
     
@@ -46,7 +46,6 @@ public class Karate extends ParentRunner<FeatureRunner> {
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
-        logger = LoggerFactory.getLogger(Karate.class);
         List<FrameworkMethod> testMethods = getTestClass().getAnnotatedMethods(Test.class);
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
