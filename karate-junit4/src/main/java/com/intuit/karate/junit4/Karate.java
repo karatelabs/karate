@@ -26,6 +26,8 @@ import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * implementation adapted from cucumber.api.junit.Cucumber
@@ -33,6 +35,8 @@ import org.junit.runners.model.InitializationError;
  * @author pthomas3
  */
 public class Karate extends ParentRunner<FeatureRunner> {
+    
+    private static Logger logger;
     
     private final List<FeatureRunner> children;
     
@@ -42,9 +46,10 @@ public class Karate extends ParentRunner<FeatureRunner> {
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
+        logger = LoggerFactory.getLogger(Karate.class);
         List<FrameworkMethod> testMethods = getTestClass().getAnnotatedMethods(Test.class);
         if (!testMethods.isEmpty()) {
-            System.err.println("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
+            logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
         KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
         RuntimeOptions ro = kro.getRuntimeOptions();
@@ -84,7 +89,7 @@ public class Karate extends ParentRunner<FeatureRunner> {
                 try {
                     super.eof();
                 } catch (Exception e) {
-                    System.err.println("WARNING: cucumber native plugin / formatter failed: " + e.getMessage());
+                    logger.warn("WARNING: cucumber native plugin / formatter failed: " + e.getMessage());
                 }
             }
         };  

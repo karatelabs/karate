@@ -167,7 +167,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
 
     @Override
     public void karateStepProceed(Step step, Match match, Result result, CallContext callContext) {
-        String log = logAppender.collect();
+        String log = getAppender().collect();
         // step should be first        
         int prevDepth = prevStep == null ? 0 : prevStep.getCallContext().callDepth;
         int currDepth = callContext.callDepth;

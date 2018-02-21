@@ -37,7 +37,14 @@ import gherkin.formatter.model.Step;
  */
 public abstract class KarateReporterBase implements KarateReporter {
 
-    protected final ReporterLogAppender logAppender = new ReporterLogAppender();
+    private ReporterLogAppender appender;
+    
+    protected ReporterLogAppender getAppender() {
+        if (appender == null) {
+            appender = new ReporterLogAppender();
+        }
+        return appender;
+    }
 
     public static final Object DUMMY_OBJECT = new Object();
 
@@ -51,7 +58,7 @@ public abstract class KarateReporterBase implements KarateReporter {
 
     @Override // this is a hack to bring called feature steps into cucumber reports
     public void callBegin(FeatureWrapper feature, CallContext callContext) {
-        logAppender.collect(); // clear log to suppress misleading stack trace from previous call if any
+        getAppender().collect(); // clear log to suppress misleading stack trace from previous call if any
         DocString docString = null;
         if (callContext.callArg != null) {
             String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(callContext.callArg));
@@ -65,7 +72,7 @@ public abstract class KarateReporterBase implements KarateReporter {
     @Override // see the step() method for an explanation of this hack
     public void karateStep(Step step, Match match, Result result, CallContext callContext) {
         if (step.getDocString() == null) {
-            String log = logAppender.collect();
+            String log = getAppender().collect();
             DocString docString = log.isEmpty() ? null : new DocString("", log, step.getLine());
             step = new Step(step.getComments(), step.getKeyword(), step.getName(), step.getLine(), step.getRows(), docString);
         }
