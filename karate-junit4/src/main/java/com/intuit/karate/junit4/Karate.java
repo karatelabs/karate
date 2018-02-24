@@ -42,7 +42,7 @@ public class Karate extends ParentRunner<FeatureRunner> {
     
     private final JUnitReporter reporter;
     private final KarateHtmlReporter htmlReporter;    
-    private final Map<String, KarateFeatureRunner> featureMap;
+    private final Map<Integer, KarateFeatureRunner> featureMap;
 
     public Karate(Class clazz) throws InitializationError, IOException {
         super(clazz);
@@ -99,7 +99,7 @@ public class Karate extends ParentRunner<FeatureRunner> {
             KarateRuntime kr = kf.getRuntime(htmlReporter);
             FeatureRunner runner = new FeatureRunner(kf.getFeature(), kr, reporter);
             children.add(runner);
-            featureMap.put(runner.getName(), new KarateFeatureRunner(kf, kr));
+            featureMap.put(runner.hashCode(), new KarateFeatureRunner(kf, kr));
         }
     }
     
@@ -115,7 +115,7 @@ public class Karate extends ParentRunner<FeatureRunner> {
 
     @Override
     protected void runChild(FeatureRunner child, RunNotifier notifier) {
-        KarateFeatureRunner kfr = featureMap.get(child.getName());
+        KarateFeatureRunner kfr = featureMap.get(child.hashCode());
         KarateRuntime karateRuntime = kfr.runtime;
         htmlReporter.startKarateFeature(kfr.feature.getFeature());
         child.run(notifier);
