@@ -31,6 +31,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 
+import static com.intuit.karate.ui.App.PADDING_INSET;
+
 /**
  *
  * @author pthomas3
@@ -39,9 +41,10 @@ public class VarsPanel extends BorderPane {
     
     private final AppSession session;
     private final TableView<Var> table;
-        
+
     public VarsPanel(AppSession session) {
-        this.session = session;        
+        this.session = session;
+        this.setPadding(PADDING_INSET);
         table = new TableView();
         table.setPrefWidth(300);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -69,7 +72,7 @@ public class VarsPanel extends BorderPane {
                 }
             });
             return row ;
-        });        
+        });
     }
     
     public void refresh() {
