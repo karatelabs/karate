@@ -28,6 +28,7 @@ import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.convert.ConvertUtils;
 import com.intuit.karate.convert.PostmanRequest;
 import javafx.application.Application;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.layout.BorderPane;
@@ -44,7 +45,9 @@ import java.util.List;
  * @author pthomas3
  */
 public class App extends Application {
-    
+    public static final double PADDING = 3.0;
+    public static final Insets PADDING_INSET = new Insets(App.PADDING, App.PADDING, App.PADDING, App.PADDING);
+
     private final FileChooser fileChooser = new FileChooser();
     
     private File workingDir = new File(".");

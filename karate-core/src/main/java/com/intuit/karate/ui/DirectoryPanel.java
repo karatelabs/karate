@@ -17,9 +17,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-public class DirectoryPanel extends ScrollPane {
+import static com.intuit.karate.ui.App.PADDING_INSET;
+
+public class DirectoryPanel extends BorderPane {
 
     private final TreeView<String> treeView = new TreeView<String>();
+    private final ScrollPane scrollPane = new ScrollPane();
     private final App app ;
     private final String envString ;
     private final Stage stage;
@@ -57,7 +60,7 @@ public class DirectoryPanel extends ScrollPane {
     }
 
     public void init(File choice) {
-        BorderPane borderPane = new BorderPane();
+        this.setPadding(PADDING_INSET);
         treeView.setRoot(getNodesForDirectory(choice));
         treeView.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseEventHandle);
 
@@ -73,9 +76,9 @@ public class DirectoryPanel extends ScrollPane {
                 }
         );
 
-        borderPane.setCenter(treeView);
-        setContent(borderPane);
-        setFitToWidth(true);
+        scrollPane.setContent(treeView);
+        this.setCenter(scrollPane);
+        scrollPane.setFitToWidth(true);
     }
 
     public TreeItem<String> getNodesForDirectory(File directory) {
