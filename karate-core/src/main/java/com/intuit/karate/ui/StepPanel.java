@@ -152,12 +152,16 @@ public class StepPanel extends AnchorPane {
         StringBuilder text = new StringBuilder();
         text.append("Request "+System.lineSeparator());
         session.getVars().stream().filter(v -> v.getName().contains(ScriptValueMap.VAR_REQUEST))
-                .forEach(v -> text.append(v.getName()+" : "+v.getValue().getAsPrettyString()+System.lineSeparator()));
+                .forEach(v -> text.append(getLine(v)));
         text.append(System.lineSeparator());
         text.append("Response "+System.lineSeparator());
         session.getVars().stream().filter(v -> v.getName().contains(ScriptValueMap.VAR_RESPONSE))
-                .forEach(v -> text.append(v.getName()+" : "+v.getValue().getAsPrettyString()+System.lineSeparator()));
+                .forEach(v -> text.append(getLine(v)));
         textArea.setText(text.toString());
+    }
+
+    private String getLine(Var var) {
+        return var.getName() + " : " + (var.getValue() != null ? var.getValue().getAsPrettyString() : "") + System.lineSeparator();
     }
 
     private void runAllUpto() {
