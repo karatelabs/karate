@@ -122,7 +122,9 @@ public class KarateHtmlReporter extends KarateReporterBase {
     public void endKarateFeature() {
         String xml = XmlUtils.toString(doc);
         String packageName = FileUtils.toPackageQualifiedName(feature.getPath());
-        File file = new File("target/surefire-reports/TEST-" + packageName + ".html");
+        String command = System.getProperty("sun.java.command", "");
+        String buildDir = command.contains("org.gradle.") ? "build" : "target";
+        File file = new File(buildDir + "/surefire-reports/TEST-" + packageName + ".html");
         try {
             FileUtils.writeToFile(file, xml);
             System.out.println("html report: (paste into browser to view)\n"
