@@ -287,3 +287,52 @@ Scenario: xml with attributes but null value
     * match temp == '<foo><bar aaa="1" bbb="2"/></foo>'
     * def temp = karate.prettyXml(xml)
     * match temp contains '<bar aaa="1" bbb="2"/>'
+
+Scenario: attribute embedded expression but empty / null element text
+    * def request_uuid = 'foo'
+    * def response =
+    """
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <S:Envelope xmlns:S="http://www.w3.org/2003/05/soap-envelope">
+        <S:Body>
+            <SucceededGetData RequestID="#(request_uuid)">some text</SucceededGetData>
+            <MessageDelivered OfferID="#(request_uuid)"/>
+        </S:Body>
+    </S:Envelope>
+    """
+    * match response == 
+    """
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <S:Envelope xmlns:S="http://www.w3.org/2003/05/soap-envelope">
+        <S:Body>
+            <SucceededGetData RequestID="foo">some text</SucceededGetData>
+            <MessageDelivered OfferID="foo"/>
+        </S:Body>
+    </S:Envelope>
+    """
+
+Scenario: attribute embedded expression but empty / null element text
+    * def request_uuid = 'foo'
+    * def response =
+    """
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <S:Envelope xmlns:S="http://www.w3.org/2003/05/soap-envelope">
+        <S:Body>
+            <SucceededGetData RequestID="#(request_uuid)">some text</SucceededGetData>
+            <MessageDelivered OfferID="#(request_uuid)"/>
+            <Test OfferID=""/>
+        </S:Body>
+    </S:Envelope>
+    """
+    * set response /Envelope/Body/Test/@OfferID = 'bar'
+    * match response == 
+    """
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <S:Envelope xmlns:S="http://www.w3.org/2003/05/soap-envelope">
+        <S:Body>
+            <SucceededGetData RequestID="foo">some text</SucceededGetData>
+            <MessageDelivered OfferID="foo"/>
+            <Test OfferID="bar"/>
+        </S:Body>
+    </S:Envelope>
+    """

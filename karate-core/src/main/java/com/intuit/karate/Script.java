@@ -501,7 +501,7 @@ public class Script {
                         }
                     }
                 }
-            } else if (child.hasChildNodes()) {
+            } else if (child.hasChildNodes() || child.hasAttributes()) {
                 evalXmlEmbeddedExpressions(child, context, forMatch);
             }
         }
