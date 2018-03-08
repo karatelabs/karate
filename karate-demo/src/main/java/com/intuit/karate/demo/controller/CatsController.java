@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -69,6 +70,12 @@ public class CatsController {
     public Collection<Cat> getKittens(@PathVariable int id) {
         return cats.get(id).getKittens();
     } 
+    
+    @PutMapping("/{id:.+}")
+    public Cat put(@PathVariable int id, @RequestBody Cat cat) {
+        cats.put(id, cat);
+        return cat;        
+    }    
     
     @DeleteMapping("/{id:.+}")
     public void delete(@PathVariable int id) {        
