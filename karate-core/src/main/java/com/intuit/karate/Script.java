@@ -1044,7 +1044,7 @@ public class Script {
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }
-        Object actObject = actualDoc.read(path);
+        Object actObject = actualDoc.read(path); // note that the path for actObject is 'reset' to '$' here
         ScriptValue expected = evalKarateExpressionForMatch(expression, context);
         Object expObject;
         switch (expected.getType()) {
@@ -1067,7 +1067,7 @@ public class Script {
                     expObject = Collections.singletonList(expObject);
                 }
             case NOT_EQUALS:
-            case EQUALS:
+            case EQUALS:                
                 return matchNestedObject('.', path, matchType, actualDoc, null, actObject, expObject, context);
             case EACH_CONTAINS:
             case EACH_NOT_CONTAINS:
@@ -1081,8 +1081,7 @@ public class Script {
                     int actSize = actList.size();
                     for (int i = 0; i < actSize; i++) {
                         Object actListObject = actList.get(i);
-                        String listPath = path + "[" + i + "]";
-                        AssertionResult ar = matchNestedObject('.', listPath, listMatchType, actObject, actListObject, actListObject, expObject, context);
+                        AssertionResult ar = matchNestedObject('.', "$[" + i + "]", listMatchType, actObject, actListObject, actListObject, expObject, context);
                         if (!ar.pass) {
                             if (matchType == MatchType.EACH_NOT_EQUALS) {
                                 return AssertionResult.PASS; // exit early

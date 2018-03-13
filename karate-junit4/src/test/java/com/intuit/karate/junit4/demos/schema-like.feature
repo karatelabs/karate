@@ -123,6 +123,25 @@ Then match response ==
 * assert actual.length == 2
 * match actual == '#[2]'
 
+Scenario: complex nested arrays
+* def json =
+"""
+{
+  "foo": {
+    "bars": [
+      { "barOne": "dc", "barTwos": [] },
+      { "barOne": "dc", "barTwos": [{ title: 'blah' }] },
+      { "barOne": "dc", "barTwos": [{ title: 'blah' }], barThrees: [] },
+      { "barOne": "dc", "barTwos": [{ title: 'blah' }], barThrees: [{ num: 1 }] }
+    ]
+  }
+}
+"""
+* def barTwo = { title: '#string' }
+* def barThree = { num: '#number' }
+* def bar = { barOne: '#string', barTwos: '#[] barTwo', barThrees: '##[] barThree' }
+* match json.foo.bars == '#[] bar'
+
 Scenario: re-usable json chunks as nodes, but optional
 * def dogSchema = { id: '#string', color: '#string' }
 * def schema = { id: '#string', name: '#string', dog: '##(dogSchema)' }
