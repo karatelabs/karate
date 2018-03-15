@@ -15,8 +15,11 @@ Scenario: arrays returned from js can be modified using 'set'
 
 Scenario: json behaves like a java map within functions
     * def payload = { a: 1, b: 2 }
-    * def fun = function(obj){ return payload.values() }
-    * json result = fun(payload)
+    * def keys = function(obj){ return payload.keySet() }
+    * def values = function(obj){ return payload.values() }
+    * json result = keys(payload)
+    * match result == ['a', 'b']
+    * json result = values(payload)
     * match result == [1, 2]
 
 Scenario: json-path can be performed in js
