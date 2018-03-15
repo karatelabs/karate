@@ -13,6 +13,12 @@ Scenario: arrays returned from js can be modified using 'set'
     * set json[1].a = 5
     * match json == [{a: 1}, {a: 5}, {b: 3}]
 
+Scenario: json behaves like a java map within functions
+    * def payload = { a: 1, b: 2 }
+    * def fun = function(obj){ return payload.values() }
+    * json result = fun(payload)
+    * match result == [1, 2]
+
 Scenario: json-path can be performed in js
     * def json = [{foo: 1}, {foo: 2}]
     * def fun = function(arg) { return karate.jsonPath(arg, '$[*].foo') }
