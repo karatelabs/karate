@@ -15,6 +15,14 @@ Scenario: test removing elements from xml from js
     * eval karate.remove('base', '/query/name')
     * match base == <query/>
 
+Scenario: dynamic xpath that uses variables
+    * def xml = <query><name><foo>bar</foo></name></query>
+    * def elementName = 'name'
+    * def name = karate.xmlPath(xml, '/query/' + elementName + '/foo')
+    * match name == 'bar'
+    * def queryName = karate.xmlPath(xml, '/query/' + elementName)
+    * match queryName == <name><foo>bar</foo></name>
+
 Scenario: placeholders using xml embedded expressions
     * def phoneNumber = '123456'
     * def search = { wireless: true, voip: false, tollFree: false }

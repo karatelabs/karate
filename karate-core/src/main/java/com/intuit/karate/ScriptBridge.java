@@ -126,6 +126,22 @@ public class ScriptBridge {
         return doc.read(exp);
     }
     
+    public Object xmlPath(Object o, String path) {
+        if (!(o instanceof Node)) {
+            if (o instanceof Map) {
+                o = XmlUtils.fromMap((Map) o);
+            } else {
+                throw new RuntimeException("not XML or cannot convert: " + o);
+            }
+        }
+        Node result = XmlUtils.getNodeByPath((Node) o, path, false);
+        int childElementCount = XmlUtils.getChildElementCount(result);
+        if (childElementCount == 0) {
+            return StringUtils.trimToNull(result.getTextContent());
+        }
+        return XmlUtils.toNewDocument(result);
+    }    
+    
     public Object toBean(Object o, String className) {
         ScriptValue sv = new ScriptValue(o);
         DocumentContext doc = Script.toJsonDoc(sv, context);

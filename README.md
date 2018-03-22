@@ -2299,6 +2299,17 @@ Some XPath expressions return a list of nodes (instead of a single node). But si
 * match teachers //teacher[@department='science']/subject == ['math', 'physics']
 ```
 
+If your XPath is dynamic and has to be formed 'on the fly' perhaps by using some variable derived from previous steps, you can use the [`karate.xmlPath()`](#the-karate-object) helper:
+
+```cucumber
+* def xml = <query><name><foo>bar</foo></name></query>
+* def elementName = 'name'
+* def name = karate.xmlPath(xml, '/query/' + elementName + '/foo')
+* match name == 'bar'
+* def queryName = karate.xmlPath(xml, '/query/' + elementName)
+* match queryName == <name><foo>bar</foo></name>
+```
+
 You can refer to this file (which is part of the Karate test-suite) for more XML examples: [`xml-and-xpath.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/xml-and-xpath.feature)
 
 
@@ -2571,6 +2582,7 @@ Operation | Description
 `karate.remove(name, path)` | similar to the above, again very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 `karate.get(name)` | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 `karate.jsonPath(json, expression)` | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into Karate-JS, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+`karate.xmlPath(xml, expression)` | Just like the above, but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 `karate.read(filename)` | read from a file, behaves exactly like [`read`](#reading-files)
 `karate.log(... args)` | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
 `karate.pretty(value)` | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
