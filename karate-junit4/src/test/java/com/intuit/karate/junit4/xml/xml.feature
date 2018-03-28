@@ -287,6 +287,31 @@ Scenario: CDATA and xml string embedded expression
     # note that attributes get re-ordered / sorted by name
     * match xml == '<ResponseSet reqid="0" svcid="com.iplanet.am.naming" vers="1.0"><Response><![CDATA[<bar>baz</bar>]]></Response></ResponseSet>'
 
+Scenario: two CDATA sections is tricky - but xpath returns a list
+    * def response = 
+    """
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <ResponseSet vers="1.0" svcid="Session" reqid="1">
+        <Response><![CDATA[<SessionResponse vers="1.0" reqid="0">
+                <GetSession>
+                    <Session sid="1">
+                        <Property name="CharSet" value="UTF-8"></Property>      
+                    </Session>
+                </GetSession>
+            </SessionResponse>]]>
+        </Response>
+        <Response><![CDATA[<SessionResponse vers="1.0" reqid="1">
+          <AddSessionListener>
+            <OK></OK>
+          </AddSessionListener>
+          </SessionResponse>]]>
+        </Response>
+    </ResponseSet>
+    """
+    * def temp = $response //Response
+    * xml session = temp[0]
+    * match session == <SessionResponse reqid="0" vers="1.0"><GetSession><Session sid="1"><Property name="CharSet" value="UTF-8"/></Session></GetSession></SessionResponse>
+
 Scenario: xml with attributes but null value
     * def xml = <foo><bar bbb="2" aaa="1"/></foo>
     * match xml == <foo><bar bbb="2" aaa="1"/></foo>
