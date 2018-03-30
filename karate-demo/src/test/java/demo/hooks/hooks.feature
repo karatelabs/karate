@@ -25,7 +25,7 @@ Background:
 function(){
   var info = karate.info; 
   karate.log('after', info.scenarioType + ':', info.scenarioName);
-  karate.call('after.feature', { caller: info.featureFileName });
+  karate.call('after-scenario.feature', { caller: info.featureFileName });
 }
 """
 
@@ -34,7 +34,7 @@ function(){
 
 # IMPORTANT: 'afterFeature' works only with the Karate "runners" (JUnit, TestNG, CucumberRunner.parallel)
 # which simply means that Cucumber IDE "right-click-and-run" will not work
-* configure afterFeature = function(){ karate.log('end feature') }
+* configure afterFeature = function(){ karate.call('after-feature.feature'); }
 
 Scenario: first
     * print foo
