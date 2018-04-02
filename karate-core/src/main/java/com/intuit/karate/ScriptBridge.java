@@ -176,7 +176,12 @@ public class ScriptBridge {
     }    
     
     public Object jsonPath(Object o, String exp) {
-        DocumentContext doc = JsonPath.parse(o);
+        DocumentContext doc;
+        if (o instanceof DocumentContext) {
+            doc = (DocumentContext) o;
+        } else {
+            doc = JsonPath.parse(o);
+        }
         return doc.read(exp);
     }
     
@@ -346,6 +351,18 @@ public class ScriptBridge {
     
     public boolean acceptContains(String test) {
         return headerContains(HttpUtils.HEADER_ACCEPT, test);        
+    }
+    
+    public Object bodyPath(String path) {
+        ScriptValue sv = context.vars.get(ScriptValueMap.VAR_REQUEST);
+        if (sv == null || sv.isNull()) {
+            return null;
+        }
+        if (path.startsWith("/")) {
+            return xmlPath(sv.getValue(), path);
+        } else {
+            return jsonPath(sv.getValue(), path);
+        }
     }
     
     public String getEnv() {

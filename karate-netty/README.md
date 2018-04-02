@@ -237,6 +237,9 @@ A map-like' object of all query-string parameters and the values will always be 
 
 ## `acceptContains`
 
+## `bodyPath`
+Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/server.feature).
+
 # Response
 
 ## `responseStatus`

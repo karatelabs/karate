@@ -49,4 +49,15 @@ Scenario: cors options with access-control-request-headers
     And match header Access-Control-Allow-Methods == 'GET, HEAD, POST, PUT, DELETE, PATCH'
     And match header Access-Control-Allow-Headers == 'POST'
     And match response == ''
+
+Scenario: body json path expression
+    Given url mockServerUrl + 'body/json'
+    And request { name: 'Scooby' }
+    When method post
+    Then match response == { success: true }
     
+Scenario: body xml path expression
+    Given url mockServerUrl + 'body/xml'
+    And request <dog><name>Scooby</name></dog>
+    When method post
+    Then match response == { success: true }

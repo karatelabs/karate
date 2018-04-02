@@ -18,3 +18,8 @@ Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
     * def id = pathParams.id
     * def response = cats[id-1]
 
+Scenario: pathMatches('/v1/body/json') && bodyPath('$.name') == 'Scooby'
+    * def response = { success: true }
+
+Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
+    * def response = { success: true }

@@ -64,6 +64,7 @@ public class ScriptBindings implements Bindings {
     public static final String ACCEPT_CONTAINS = "acceptContains";
     public static final String PARAM_VALUE = "paramValue";
     public static final String PATH_PARAMS = "pathParams";
+    public static final String BODY_PATH = "bodyPath";
 
     public ScriptBindings(ScriptContext context) {
         this.vars = context.vars;

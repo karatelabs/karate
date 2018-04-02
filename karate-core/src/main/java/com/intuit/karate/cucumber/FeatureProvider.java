@@ -77,6 +77,7 @@ public class FeatureProvider {
         putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
+        putBinding(ScriptBindings.BODY_PATH, context);
         if (vars != null) {            
             ScriptValueMap backendVars = backend.getVars();
             vars.forEach((k, v) -> backendVars.put(k, v));
