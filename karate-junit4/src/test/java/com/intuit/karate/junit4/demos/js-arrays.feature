@@ -41,6 +41,25 @@ Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/ka
     * def actual = ({ a: temp })
     * match actual == { a: [1, 2, 3] }
 
+Scenario: karate forEach operation
+    * def res = []
+    * def fun = function(x){ res.add(x * x) }
+    * def list = [1, 2, 3]
+    * eval karate.forEach(list, fun)
+    * match res == [1, 4, 9]
+
+Scenario: karate map operation
+    * def fun = function(x){ return x * x }
+    * def list = [1, 2, 3]
+    * def res = karate.map(list, fun)
+    * match res == [1, 4, 9]
+
+Scenario: karate filter operation
+    * def fun = function(x){ return x % 2 == 0 }
+    * def list = [1, 2, 3, 4]
+    * def res = karate.filter(list, fun)
+    * match res == [2, 4]
+
 Scenario: advanced json-path that the jayway implementation has limitations with
     * def response = read('products.json')
     * def result = $[?(@.partIDs[?(@.id == 1)])]
@@ -58,6 +77,13 @@ Scenario: work around for the above
     * def result = []
     * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) result.add(products[i]) 
     # >
+    * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
+
+Scenario: work around but using karate.filter
+    * def id = 1
+    * def hasId = function(x){ return karate.jsonPath(x, '$.partIDs[?(@.id==' + id + ')]').length }
+    * def products = read('products.json')
+    * def result = karate.filter(products, hasId)
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
 
 Scenario: table to json with expressions evaluated

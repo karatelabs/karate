@@ -31,6 +31,7 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,6 +121,58 @@ public class ScriptBridge {
             return null;
         }
     }
+    
+    public void forEach(List list, ScriptObjectMirror som) {
+        if (list == null) {
+            return;
+        }
+        if (!som.isFunction()) {
+            throw new RuntimeException("not a JS function: " + som);
+        }
+        for (Object x : list) {
+            som.call(som, x);
+        }
+    }    
+    
+    public Object map(List list, ScriptObjectMirror som) {
+        if (list == null) {
+            return new ArrayList();
+        }
+        if (!som.isFunction()) {
+            throw new RuntimeException("not a JS function: " + som);
+        }
+        List res = new ArrayList(list.size());
+        for (Object x : list) {
+            Object y = som.call(som, x);
+            res.add(y);
+        }
+        return res;
+    }
+    
+    public Object filter(List list, ScriptObjectMirror som) {
+        if (list == null) {
+            return new ArrayList();
+        }
+        if (!som.isFunction()) {
+            throw new RuntimeException("not a JS function: " + som);
+        }
+        List res = new ArrayList();
+        for (Object x : list) {
+            Object y = som.call(som, x);
+            if (y instanceof Boolean) {
+                if ((Boolean) y) {
+                    res.add(x);
+                }
+            } else if (y instanceof Number) { // support truthy numbers as a convenience
+                String exp = y + " == 0";
+                ScriptValue sv = Script.evalJsExpression(exp, null);
+                if (!sv.isBooleanTrue()) {
+                    res.add(x);
+                }
+            }
+        }
+        return res;
+    }    
     
     public Object jsonPath(Object o, String exp) {
         DocumentContext doc = JsonPath.parse(o);

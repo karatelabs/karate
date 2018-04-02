@@ -2585,6 +2585,9 @@ Operation | Description
 `karate.xmlPath(xml, expression)` | Just like the above, but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 `karate.read(filename)` | read from a file, behaves exactly like [`read`](#reading-files)
 `karate.log(... args)` | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
+`karate.forEach(list, predicate)` | functional 'loop' operation useful to traverse list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function
+`karate.map(list, predicate)` | functional 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function
+`karate.filter(list, predicate)` | functional 'filter' operation useful to filter list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function that returns a `boolean`
 `karate.pretty(value)` | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
 `karate.prettyXml(value)` | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
 `karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
