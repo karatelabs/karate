@@ -129,8 +129,8 @@ public class ScriptBridge {
         if (!som.isFunction()) {
             throw new RuntimeException("not a JS function: " + som);
         }
-        for (Object x : list) {
-            som.call(som, x);
+        for (int i = 0; i < list.size(); i++) {
+            som.call(som, list.get(i), i);
         }
     }    
     
@@ -142,8 +142,8 @@ public class ScriptBridge {
             throw new RuntimeException("not a JS function: " + som);
         }
         List res = new ArrayList(list.size());
-        for (Object x : list) {
-            Object y = som.call(som, x);
+        for (int i = 0; i < list.size(); i++) {
+            Object y = som.call(som, list.get(i), i);
             res.add(y);
         }
         return res;
@@ -157,8 +157,9 @@ public class ScriptBridge {
             throw new RuntimeException("not a JS function: " + som);
         }
         List res = new ArrayList();
-        for (Object x : list) {
-            Object y = som.call(som, x);
+        for (int i = 0; i < list.size(); i++) {
+            Object x = list.get(i);
+            Object y = som.call(som, x, i);
             if (y instanceof Boolean) {
                 if ((Boolean) y) {
                     res.add(x);

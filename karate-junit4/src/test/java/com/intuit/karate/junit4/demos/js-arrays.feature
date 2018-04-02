@@ -60,6 +60,12 @@ Scenario: karate filter operation
     * def res = karate.filter(list, fun)
     * match res == [2, 4]
 
+Scenario: karate filter operation, using array indexes
+    * def fun = function(x, i){ return i % 2 == 0 }
+    * def list = [1, 2, 3, 4]
+    * def res = karate.filter(list, fun)
+    * match res == [1, 3]
+
 Scenario: advanced json-path that the jayway implementation has limitations with
     * def response = read('products.json')
     * def result = $[?(@.partIDs[?(@.id == 1)])]
