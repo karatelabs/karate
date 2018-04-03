@@ -1184,6 +1184,23 @@ As per the JSON spec, all numeric values are treated as doubles, so for integers
 * match json == '{"bar":10}'
 ```
 
+### Large Numbers
+Sometimes when dealing with very large numbers, the JS engine may mangle the number into scientific notation:
+
+```cucumber
+* def big = 123123123123
+* string json = { num: '#(big)' }
+* match json == '{"num":1.23123123123E11}'
+```
+
+This can be easily solved by using `java.math.BigDecimal`:
+
+```cucumber
+* def big = new java.math.BigDecimal(123123123123)
+* string json = { num: '#(big)' }
+* match json == '{"num":123123123123}'
+```
+
 # Karate Expressions
 Before we get to the HTTP keywords, it is worth doing a recap of the various 'shapes' that the right-hand-side of an assignment statement can take:
 

@@ -181,3 +181,11 @@ Scenario: js and numbers - float vs int
     # but you can easily coerce to an integer if needed
     * string json = { bar: '#(~~(1 * foo))' }
     * match json == '{"bar":10}'
+
+Scenario: large numbers in json - use java BigDecimal
+   * def big = 123123123123
+   * string json = { num: '#(big)' }
+   * match json == '{"num":1.23123123123E11}'
+   * def big = new java.math.BigDecimal(123123123123)
+   * string json = { num: '#(big)' }
+   * match json == '{"num":123123123123}'
