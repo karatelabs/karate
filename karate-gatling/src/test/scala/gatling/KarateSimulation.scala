@@ -7,6 +7,6 @@ class KarateSimulation extends Simulation {
 
   val scn = scenario("test").exec(karateFeature("classpath:test.feature"))
 
-  setUp(scn.inject(atOnceUsers(1)).protocols(karateProtocol))
+  setUp(scn.inject(atOnceUsers(10)).protocols(karateProtocol))
 
 }
