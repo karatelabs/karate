@@ -54,9 +54,9 @@
         <module>karate-mock-servlet</module>
         <module>karate-jersey</module>
         <module>karate-testng</module>
-        <module>karate-web</module>
-        <module>karate-archetype</module>
-    <module>karate-gatling</module>
+        <module>karate-gatling</module>
+        <module>karate-web</module>        
+        <module>karate-archetype</module>    
   </modules>
 
     <dependencies>

@@ -7,7 +7,7 @@ import io.gatling.core.structure.ScenarioContext
 class KarateActionBuilder(requestName: String) extends ActionBuilder{
 
   override def build(ctx: ScenarioContext, next: Action): Action = {
-    new KarateAction(new KarateProtocol, ctx.coreComponents.statsEngine, next)
+    new KarateAction(requestName, new KarateProtocol, ctx.coreComponents.statsEngine, next)
   }
 
 }

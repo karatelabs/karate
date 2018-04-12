@@ -179,6 +179,19 @@ public class FileUtils {
         }
     }
 
+    public static File getFeatureFile(String path) {
+        PathPrefix prefix = isClassPath(path) ? PathPrefix.CLASSPATH : (isFilePath(path) ? PathPrefix.FILE : PathPrefix.NONE);
+        path = removePrefix(path);
+        switch (prefix) {
+            case CLASSPATH:
+                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                String actualPath = cl.getResource(path).getFile();
+                return new File(actualPath);
+            default:
+                return new File(path);                
+        }
+    }
+
     public static ClassLoader createClassLoader(String... paths) {
         List<URL> urls = new ArrayList<>(paths.length);
         for (String path : paths) {
@@ -227,8 +240,6 @@ public class FileUtils {
         return res;
     }
 
-    ;    
-    
     public static FeatureFilePath parseFeaturePath(File file) {
         String path = file.getAbsolutePath();
         path = path.replace('\\', '/'); // normalize windows

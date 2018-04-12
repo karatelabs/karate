@@ -5,7 +5,7 @@ import io.gatling.core.Predef._
 
 class KarateSimulation extends Simulation {
 
-  val scn = scenario("test").exec(feature("foo"))
+  val scn = scenario("test").exec(karateFeature("classpath:test.feature"))
 
   setUp(scn.inject(atOnceUsers(1)).protocols(karateProtocol))
 

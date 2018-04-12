@@ -15,6 +15,8 @@
 	<!-- 	<logger name="io.gatling.http.ahc" level="DEBUG" /> -->
 	<!--    <logger name="io.gatling.http.response" level="DEBUG" /> -->
 
+	<logger name="com.intuit.karate" level="DEBUG"/>
+
 	<root level="WARN">
 		<appender-ref ref="CONSOLE" />
 	</root>

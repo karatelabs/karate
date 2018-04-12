@@ -82,11 +82,20 @@ public class KarateBackend implements Backend {
     }
     
     public void beforeStep(String feature, Step step) {
-        getEnv().debug.beforeStep(feature, step.getLine(), step, getVars());
+        ScriptValueMap vars = getVars();
+        getEnv().debug.beforeStep(feature, step.getLine(), step, vars);
+        if (callContext.stepInterceptor != null) {
+            callContext.stepInterceptor.before(feature, step.getLine(), step, vars);
+        }
     }
     
     public void afterStep(String feature, StepResult result) {
-        getEnv().debug.afterStep(feature, result.getStep().getLine(), result, getVars());
+        ScriptValueMap vars = getVars();
+        int line = result.getStep().getLine();
+        getEnv().debug.afterStep(feature, result.getStep().getLine(), result, vars);
+        if (callContext.stepInterceptor != null) {
+            callContext.stepInterceptor.after(feature, line, result, vars);
+        }        
     }    
     
     public KarateBackend(ScriptEnv env, CallContext callContext) {
