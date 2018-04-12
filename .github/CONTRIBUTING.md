@@ -1,12 +1,12 @@
-# Contribution guidelines
+# Contribution Guidelines
 
 First of all, thanks for thinking of contributing to this project. :smile:
 
-- Before sending a Pull Request, please make sure that you're assigned the  GitHub issue.
-    - If a relevant issue already exists, discuss on the issue and get it assigned to yourself on GitHub.
-    - If no relevant issue exists, open a new issue and get it assigned to yourself on GitHub.
+- Before sending a Pull Request, please make sure that you have had a discussion with the project admins.
+    - If a relevant issue already exists, discuss on the issue and make sure that the admins are okay with your approach
+    - If no relevant issue exists, open a new issue and discuss
 
-    Please proceed with a Pull Request only after you're assigned. It'd be sad if your Pull Request (and your hardwork) isn't accepted just because it isn't ideologically compatible.
+    Please proceed with a Pull Request only after the project admins or owners are okay with your approach. It'd be sad if your Pull Request (and your hard work) isn't accepted just because it isn't ideologically compatible.
 
 - Install the required dependencies.
     - Install Git so that you can clone and later submit a PR for this project.
