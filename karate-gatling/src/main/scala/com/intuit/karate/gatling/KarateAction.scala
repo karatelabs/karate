@@ -38,8 +38,8 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
 
     val cc = new CallContext(null, 0, null, -1, false, true, null, stepInterceptor)
 
-    val system = ActorSystem("foo")
-    val act = system.actorOf(Props[KarateActor], name = "bar")
+    val system = ActorSystem("karate")
+    val act = system.actorOf(Props[KarateActor], name = "karate-actor")
     act ! new KarateMessage(file, cc, session, next)
 
   }
