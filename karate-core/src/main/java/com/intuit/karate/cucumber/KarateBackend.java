@@ -24,6 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepDefs;
@@ -82,11 +83,20 @@ public class KarateBackend implements Backend {
     }
     
     public void beforeStep(String feature, Step step) {
-        getEnv().debug.beforeStep(feature, step.getLine(), step, getVars());
+        ScriptContext context = getStepDefs().getContext();
+        getEnv().debug.beforeStep(feature, step.getLine(), step, context.getVars());
+        if (callContext.stepInterceptor != null) {
+            callContext.stepInterceptor.before(feature, step.getLine(), step, context);
+        }
     }
     
     public void afterStep(String feature, StepResult result) {
-        getEnv().debug.afterStep(feature, result.getStep().getLine(), result, getVars());
+        ScriptContext context = getStepDefs().getContext();
+        int line = result.getStep().getLine();
+        getEnv().debug.afterStep(feature, result.getStep().getLine(), result, context.getVars());
+        if (callContext.stepInterceptor != null) {
+            callContext.stepInterceptor.after(feature, line, result, context);
+        }        
     }    
     
     public KarateBackend(ScriptEnv env, CallContext callContext) {
