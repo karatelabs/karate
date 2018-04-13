@@ -32,8 +32,8 @@ import gherkin.formatter.model.Step;
  */
 public interface StepInterceptor {
     
-    void before(String feature, int line, Step step, ScriptValueMap vars);
+    void before(String feature, int line, Step step, ScriptContext ctx);
     
-    void after(String feature, int line, StepResult result, ScriptValueMap vars);
+    void after(String feature, int line, StepResult result, ScriptContext ctx);
     
 }

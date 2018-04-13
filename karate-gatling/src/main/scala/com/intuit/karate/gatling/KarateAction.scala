@@ -2,7 +2,7 @@ package com.intuit.karate.gatling
 
 import akka.actor.{ActorSystem, Props}
 import com.intuit.karate.cucumber.StepResult
-import com.intuit.karate.{CallContext, FileUtils, ScriptValueMap, StepInterceptor}
+import com.intuit.karate._
 import gherkin.formatter.model.Step
 import io.gatling.commons.stats.OK
 import io.gatling.core.action.{Action, ExitableAction}
@@ -18,23 +18,25 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
 
     val stepInterceptor = new StepInterceptor {
       var start: Long = 0
-      override def before(s: String, i: Int, step: Step, scriptValueMap: ScriptValueMap): Unit = {
+      override def before(s: String, i: Int, step: Step, ctx: ScriptContext): Unit = {
         if (step.getName.startsWith("method")) {
           start = System.currentTimeMillis
         } else {
           start = 0
         }
       }
-      override def after(s: String, i: Int, stepResult: StepResult, scriptValueMap: ScriptValueMap): Unit = {
+      override def after(s: String, i: Int, stepResult: StepResult, ctx: ScriptContext): Unit = {
         if (start != 0) {
           val end = System.currentTimeMillis
           val timings = ResponseTimings(start, end)
-          statsEngine.logResponse(session, name, timings, OK, None, None)
+          val request = ctx.getPrevRequest
+          val key = request.getMethod + " " + request.getUri
+          statsEngine.logResponse(session, key, timings, OK, None, None)
         }
       }
     }
 
-    val cc = new CallContext(null, 0, null, -1, false, false, null, stepInterceptor)
+    val cc = new CallContext(null, 0, null, -1, false, true, null, stepInterceptor)
 
     val system = ActorSystem("foo")
     val act = system.actorOf(Props[KarateActor], name = "bar")

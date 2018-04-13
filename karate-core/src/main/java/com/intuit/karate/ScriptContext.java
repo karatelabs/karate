@@ -70,6 +70,10 @@ public class ScriptContext {
         this.prevRequest = prevRequest;
     }
 
+    public HttpRequest getPrevRequest() {
+        return prevRequest;
+    }        
+
     public ScriptEnv getEnv() {
         return env;
     }
