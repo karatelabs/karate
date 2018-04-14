@@ -454,7 +454,7 @@ public class TestParallel {
 Things to note:
 * You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner.parallel()` static method in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
-* The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself.
+* The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@CucumberOptions` annotation, it will be processed (see below).
 * The second argument is the number of threads to use.
 * [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
 * [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`.
@@ -576,6 +576,8 @@ And there is no more worrying about Maven profiles and whether the 'right' `*.pr
 ## Switching the Environment
 There is only one thing you need to do to switch the environment - which is to set a Java system property.
 
+> By default, the value of `karate.env` when you access it within [`karate-config.js`](#karate-configjs) - would be `null`.
+
 The recipe for doing this when running Maven from the command line is:
 ```
 mvn test -DargLine="-Dkarate.env=e2e"
@@ -598,7 +600,7 @@ Where `CatsRunner` is the JUnit class name (in any package) you wish to run.
 
 Karate is flexible, you can easily over-write config variables within each individual test-script - which is very convenient when in dev-mode or rapid-prototyping.
 
-Just for illustrative purposes, you could 'hard-code' the `karate.env` for a specific JUnit test like this. Since CI test-automation would typically use a [designated 'top-level suite' test-runner](#test-suites), you can actually have these individual test-runners lying around without any ill-effects. They are obviously useful for dev-mode troubleshooting. To ensure that they don't get run by CI by mistake - just *don't* use the `*Test.java` naming convention.
+Just for illustrative purposes, you could 'hard-code' the `karate.env` for a specific JUnit test like this. Since CI test-automation would typically use a [designated 'top-level suite' test-runner](#test-suites), you can actually have these individual test-runners lying around without any ill-effects. They are obviously useful for dev-mode troubleshooting. To ensure that they don't get run by CI by mistake - just *don't* use the [`*Test.java` naming convention](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html).
 
 ```java
 package animals.cats;
@@ -670,7 +672,7 @@ In fact Cucumber supports the [catch-all symbol '`*`'](https://www.relishapp.com
 
 You can read more about the Given-When-Then convention at the [Cucumber reference documentation](https://cucumber.io/docs/reference). Since Karate is based on Cucumber, you can also employ [data-driven](#data-driven-tests) techniques such as expressing data-tables in test scripts. Another good thing that Karate inherits is the nice IDE support for Cucumber that [IntelliJ](https://www.jetbrains.com/idea/help/cucumber.html) and [Eclipse](https://cucumber.io/cucumber-eclipse/) have. So you can do things like right-click and run a `*.feature` file (or scenario) without needing to use a JUnit runner.
 
-For a detailed discussion on BDD and how Karate relates to Cucumber, please refer to this blog-post: [Yes, Karate is not *true* BDD](https://medium.com/@ptrthomas/yes-karate-is-not-true-bdd-698bf4a9be39). It is the opinion of the author of Karate that *true* BDD is un-necessary overkill for API testing, and this is explained more in [this answer](https://stackoverflow.com/a/47799207/143475) on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
+For a detailed discussion on BDD and how Karate relates to Cucumber, please refer to this blog-post: [Yes, Karate is not *true* BDD](https://medium.com/@ptrthomas/yes-karate-is-not-true-bdd-698bf4a9be39). It is the opinion of the author of Karate that *true* BDD is un-necessary over-kill for API testing, and this is explained more in [this answer](https://stackoverflow.com/a/47799207/143475) on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
 With the formalities out of the way, let's dive straight into the syntax.
 
@@ -1065,7 +1067,7 @@ Karate makes re-use of payload data, utility-functions and even other test-scrip
 
 Reading files is achieved using the `read` keyword. By default, the file is expected to be in the same folder (package) and side-by-side with the `*.feature` file. But you can prefix the name with `classpath:` in which case the ['root' folder](#classpath) would be `src/test/java` (assuming you are using the [recommended folder structure](#folder-structure)).
 
-Prefer `classpath:` when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
+Prefer [`classpath:`](#classpath) when a file is expected to be heavily re-used all across your project.  And yes, relative paths will work.
 
 ```cucumber
 # json
@@ -1848,7 +1850,7 @@ These examples (all exact matches) can make things more clear:
 ```
 
 ### 'Self' Validation Expressions
-The special 'predicate' marker `#? EXPR` in the table above is an interesting one.  It is best explained via examples.
+The special 'predicate' marker `#? EXPR` in the table above is an interesting one.  It is best explained via examples. Any valid JavaScript expression that evaluates to a [Truthy](https://developer.mozilla.org/en-US/docs/Glossary/Truthy) or [Falsy](https://developer.mozilla.org/en-US/docs/Glossary/Falsy) value is expected after the `#?`.
 
 Observe how the value of the field being validated (or 'self') is injected into the 'underscore' expression variable: '`_`'
 ```cucumber
@@ -2461,7 +2463,7 @@ Assuming the above code is in a file called `my-headers.js`, the next section on
 
 Notice how once the `authToken` variable is initialized, it is used by the above function to generate headers for every HTTP call made as part of the test flow.
 
-If a few steps in your flow need to temporarily change (or completely bypass) the currently-set header-manipulation scheme, just update the `headers` configuration value or set it to `null` in the middle of a script.
+If a few steps in your flow need to temporarily change (or completely bypass) the currently-set header-manipulation scheme, just update `configure headers` to a new value (or set it to `null`) in the middle of a script. Then use the [`header`](#header) keyword to do a custom 'over-ride' if needed.
 
 The [karate-demo](karate-demo) has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature) 
 
@@ -2602,9 +2604,9 @@ Operation | Description
 `karate.xmlPath(xml, expression)` | Just like the above, but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 `karate.read(filename)` | read from a file, behaves exactly like [`read`](#reading-files)
 `karate.log(... args)` | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
-`karate.forEach(list, predicate)` | functional 'loop' operation useful to traverse list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
-`karate.map(list, predicate)` | functional 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
-`karate.filter(list, predicate)` | functional 'filter' operation useful to filter list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index]) that returns a `boolean`
+`karate.forEach(list, function)` | functional-style 'loop' operation useful to traverse list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
+`karate.map(list, function)` | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
+`karate.filter(list, predicate)` | functional-style 'filter' operation useful to filter list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index]) that returns a `boolean`
 `karate.pretty(value)` | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
 `karate.prettyXml(value)` | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
 `karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)

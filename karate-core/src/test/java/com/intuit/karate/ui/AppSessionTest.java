@@ -44,7 +44,7 @@ public class AppSessionTest {
     
     @Test
     public void testRunning() {
-        File tempFile = new File("src/test/java/feature/test.feature");
+        File tempFile = new File("src/test/java/com/intuit/karate/ui/test.feature");
         AppSession session = new AppSession(tempFile, null, true);
         for (FeatureSection section : session.getFeature().getSections()) {
             if (section.isOutline()) {

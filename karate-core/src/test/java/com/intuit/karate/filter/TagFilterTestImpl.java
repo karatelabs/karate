@@ -1,7 +1,5 @@
-package com.intuit.karate;
+package com.intuit.karate.filter;
 
-import com.intuit.karate.filter.TagFilter;
-import com.intuit.karate.filter.TagFilterException;
 import cucumber.runtime.model.CucumberExamples;
 import cucumber.runtime.model.CucumberFeature;
 import cucumber.runtime.model.CucumberScenarioOutline;
@@ -23,31 +21,30 @@ public class TagFilterTestImpl implements TagFilter {
     @Override
     public boolean filter(CucumberFeature feature, CucumberTagStatement cucumberTagStatement) throws TagFilterException {
         String path = feature.getPath();
-        if(path.endsWith(TAG_FILTER_FEATURE)) {
-            throw new TagFilterException("Feature: "+TAG_FILTER_FEATURE+" failed due to tag filtering");
+        if (path.endsWith(TAG_FILTER_FEATURE)) {
+            throw new TagFilterException("Feature: " + TAG_FILTER_FEATURE + " failed due to tag filtering");
         }
-
-        if(path.endsWith(TAG_FILTER_MULTISCENARIO_FEATURE)) {
+        if (path.endsWith(TAG_FILTER_MULTISCENARIO_FEATURE)) {
             validateTags(feature, cucumberTagStatement);
         }
         return false;
     }
 
-    private void validateTags (CucumberFeature cucumberFeature, CucumberTagStatement cucumberTagStatement) throws TagFilterException {
-
+    private void validateTags(CucumberFeature cucumberFeature, CucumberTagStatement cucumberTagStatement) throws TagFilterException {
         Set<Tag> effectiveTags = null;
         if (cucumberTagStatement.getGherkinModel() instanceof ScenarioOutline) {
             final List<CucumberExamples> cucumberExamplesList = ((CucumberScenarioOutline) cucumberTagStatement).getCucumberExamplesList();
+            if (cucumberExamplesList.isEmpty()) {
+                return; // if no examples matched cucumber options, no point checking for tags
+            }
             for (CucumberExamples cucumberExamples : cucumberExamplesList) {
                 effectiveTags = getAllTagsForScenarioOutline(cucumberExamples.getExamples(), cucumberFeature, cucumberTagStatement);
             }
-
         } else if (cucumberTagStatement.getGherkinModel() instanceof Scenario) {
             effectiveTags = getAllTagsForScenario(cucumberFeature, cucumberTagStatement);
         }
-
         if (null == effectiveTags) {
-            throw new TagFilterException("Required tags missing for feature "+ cucumberFeature.getPath());
+            throw new TagFilterException("Required tags missing for feature " + cucumberFeature.getPath());
         }
     }
 
@@ -64,4 +61,5 @@ public class TagFilterTestImpl implements TagFilter {
         tags.addAll(examples.getTags());
         return tags;
     }
+
 }
