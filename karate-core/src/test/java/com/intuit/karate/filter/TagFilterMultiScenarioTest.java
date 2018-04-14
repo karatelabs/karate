@@ -6,7 +6,7 @@ import cucumber.api.CucumberOptions;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-@CucumberOptions(features = "classpath:com/intuit/karate/filter/tag-filter-multiscenario.feature", tags = {"@testId=5"})
+@CucumberOptions(tags = {"@testId=5"})
 public class TagFilterMultiScenarioTest {
 
     @Test
