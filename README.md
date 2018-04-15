@@ -2760,7 +2760,7 @@ There are a few situations where this comes in handy:
 * you *really* don't need to assign a result to a variable
 * statements in the `if` form (also see [conditional logic](#conditional-logic))
 * 'one-off' logic (or [Java interop](#java-interop)) where you don't need the 'ceremony' of a [re-usable function](#calling-javascript-functions)
-* JavaScript / JSON-style mutation of [variables](#def) as dynamic alternatives to [`set`](#set) and [`remove`](#remove)
+* JavaScript / JSON-style mutation of existing [variables](#def) as a dynamic alternative to [`set`](#set)
 
 ```cucumber
 # just perform an action, we don't care about saving the result
