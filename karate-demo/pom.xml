@@ -16,6 +16,7 @@
     </properties>
 
     <!-- you will not need all these dependencies for a typical karate project !-->
+    <!-- for a skeleton project, use the archetype: https://github.com/intuit/karate#quickstart !-->
     <dependencies>        
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -72,7 +73,24 @@
             <artifactId>karate-netty</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-gatling</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <!-- spring boot tomcat doesn't like these -->
+                <exclusion>           
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>bcprov-jdk15on</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>bcpkix-jdk15on</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>                
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
@@ -101,6 +119,7 @@
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-jms_1.1_spec</artifactId>
             <version>1.1.1</version>
+            <scope>test</scope>
         </dependency>                                                           		
     </dependencies>
 
@@ -135,7 +154,15 @@
                 <configuration>
                     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
-            </plugin>             
+            </plugin>
+            <plugin>
+                <groupId>io.gatling</groupId>
+                <artifactId>gatling-maven-plugin</artifactId>
+                <version>${gatling.plugin.version}</version>
+                <configuration>
+                    <simulationsFolder>src/test/java</simulationsFolder>
+                </configuration>
+            </plugin>                         
         </plugins>
     </build>
     

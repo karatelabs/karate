@@ -1673,6 +1673,8 @@ XML and XPath works just like you'd expect.
 ```
 Refer to the section on [XPath Functions](#xpath-functions) for examples of advanced XPath usage.
 
+> For JSON, you can also use [`eval`](#eval) instead of `set`, useful when the path you are trying to mutate is dynamic.
+
 ### `match` and variables
 In case you were wondering, variables (and even expressions) are supported on the right-hand-side. So you can compare 2 JSON (or XML) payloads if you wanted to:
 ```cucumber
@@ -2758,6 +2760,7 @@ There are a few situations where this comes in handy:
 * you *really* don't need to assign a result to a variable
 * statements in the `if` form (also see [conditional logic](#conditional-logic))
 * 'one-off' logic (or [Java interop](#java-interop)) where you don't need the 'ceremony' of a [re-usable function](#calling-javascript-functions)
+* JavaScript / JSON-style mutation of [variables](#def) as dynamic alternatives to [`set`](#set) and [`remove`](#remove)
 
 ```cucumber
 # just perform an action, we don't care about saving the result
@@ -2778,6 +2781,12 @@ for (var n in nums) {
 karate.set('temp', squares);
 """
 * match temp == [0, 1, 4, 9, 16]
+
+* def json = { a: 1 }
+* def key = 'b'
+# use dynamic path expressions to mutate json
+* eval json[key] = 2
+* match json == { a: 1, b: 2 }
 ```
 
 # Advanced / Tricks

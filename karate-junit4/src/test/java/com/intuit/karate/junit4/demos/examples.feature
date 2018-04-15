@@ -152,6 +152,12 @@ karate.set('temp', squares);
 """
 * match temp == [0, 1, 4, 9, 16]
 
+* def json = { a: 1 }
+* def key = 'b'
+# use dynamic path expressions to mutate json
+* eval json[key] = 2
+* match json == { a: 1, b: 2 }
+
 # #null and #notpresent
 * def foo = { }
 * match foo == { a: '##null' }

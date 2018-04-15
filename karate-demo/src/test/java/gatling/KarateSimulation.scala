@@ -1,12 +1,12 @@
 package gatling
 
 import com.intuit.karate.gatling.PreDef._
-import demo.DemoUtils
+import demo.TestBase
 import io.gatling.core.Predef._
 
 class KarateSimulation extends Simulation {
 
-  DemoUtils.copyFeatureFilesAndStartServer()
+  TestBase.startServer()
 
   val cats = scenario("cats").exec(karateFeature("classpath:demo/cats/cats.feature"))
   val dogs = scenario("dogs").exec(karateFeature("classpath:demo/dogs/dogs.feature"))

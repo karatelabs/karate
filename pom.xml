@@ -42,19 +42,20 @@
         <spring.version>4.3.8.RELEASE</spring.version>
         <spring.boot.version>1.5.3.RELEASE</spring.boot.version>
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
+        <gatling.plugin.version>2.2.4</gatling.plugin.version>
     </properties>
 
     <modules>
         <module>karate-core</module>
         <module>karate-apache</module>        
         <module>karate-junit4</module>
+        <module>karate-gatling</module>
         <module>karate-netty</module>     
         <module>karate-demo</module>
         <module>karate-restdocs</module>
         <module>karate-mock-servlet</module>
         <module>karate-jersey</module>
         <module>karate-testng</module>
-        <module>karate-gatling</module>
         <module>karate-web</module>        
         <module>karate-archetype</module>    
   </modules>
