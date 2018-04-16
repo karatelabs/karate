@@ -3,6 +3,7 @@ package com.intuit.karate.gatling
 import akka.actor.{ActorSystem, Props}
 import com.intuit.karate.cucumber.StepResult
 import com.intuit.karate._
+import com.intuit.karate.http.HttpUtils
 import gherkin.formatter.model.Step
 import io.gatling.commons.stats.OK
 import io.gatling.core.action.{Action, ExitableAction}
@@ -30,15 +31,17 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
           val end = System.currentTimeMillis
           val timings = ResponseTimings(start, end)
           val request = ctx.getPrevRequest
-          val key = request.getMethod + " " + request.getUri
+          val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(request.getUri)
+          val matchedUri = protocol.pathMatches(pathPair.right)
+          val reportUri = if (matchedUri.isDefined) matchedUri.get else pathPair.right
+          val key = request.getMethod + " " + reportUri
           statsEngine.logResponse(session, key, timings, OK, None, None)
         }
       }
     }
 
     val cc = new CallContext(null, 0, null, -1, false, true, null, stepInterceptor)
-
-    val system = ActorSystem("karate")
+    val system = ActorSystem("karate-actor-system")
     val act = system.actorOf(Props[KarateActor], name = "karate-actor")
     act ! new KarateMessage(file, cc, session, next)
 

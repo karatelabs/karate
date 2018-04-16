@@ -5,9 +5,8 @@ import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.structure.ScenarioContext
 
 class KarateActionBuilder(requestName: String) extends ActionBuilder {
-
   override def build(ctx: ScenarioContext, next: Action): Action = {
-    new KarateAction(requestName, new KarateProtocol, ctx.coreComponents.statsEngine, next)
+    val karateComponents = ctx.protocolComponentsRegistry.components(KarateProtocol.KarateProtocolKey)
+    new KarateAction(requestName, karateComponents.protocol, ctx.coreComponents.statsEngine, next)
   }
-
 }
