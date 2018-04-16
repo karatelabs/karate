@@ -66,6 +66,10 @@ public class KarateBackend implements Backend {
         objectFactory.getStepDefs().getContext().setScenarioError(error);
     }
 
+    public boolean isExceptionThrowingEnabled() {
+        return callContext.stepInterceptor == null;
+    }
+
     public boolean isCalled() {
         return callContext.isCalled();
     }
@@ -86,7 +90,7 @@ public class KarateBackend implements Backend {
         ScriptContext context = getStepDefs().getContext();
         getEnv().debug.beforeStep(feature, step.getLine(), step, context.getVars());
         if (callContext.stepInterceptor != null) {
-            callContext.stepInterceptor.before(feature, step.getLine(), step, context);
+            callContext.stepInterceptor.beforeStep(feature, step.getLine(), step, context);
         }
     }
     
@@ -95,9 +99,15 @@ public class KarateBackend implements Backend {
         int line = result.getStep().getLine();
         getEnv().debug.afterStep(feature, result.getStep().getLine(), result, context.getVars());
         if (callContext.stepInterceptor != null) {
-            callContext.stepInterceptor.after(feature, line, result, context);
+            callContext.stepInterceptor.afterStep(feature, line, result, context);
         }        
-    }    
+    }
+
+    public void afterScenario(String feature) {
+        if (callContext.stepInterceptor != null) {
+            callContext.stepInterceptor.afterScenario(feature, getStepDefs().getContext());
+        }
+    }
     
     public KarateBackend(ScriptEnv env, CallContext callContext) {
         this.callContext = callContext;

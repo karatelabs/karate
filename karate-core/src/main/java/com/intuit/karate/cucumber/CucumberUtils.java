@@ -187,7 +187,7 @@ public class CucumberUtils {
         }
     }
 
-    public static void call(ScenarioWrapper scenario, KarateBackend backend, CallType callType) {
+    public static void call(ScenarioWrapper scenario, KarateBackend backend, CallType callType) {        
         for (StepWrapper step : scenario.getSteps()) {
             if (callType == CallType.BACKGROUND_ONLY && !step.isBackground()) {
                 continue;
@@ -207,9 +207,12 @@ public class CucumberUtils {
                 if (callType != CallType.DEFAULT) { // more verbose for karate server / mock
                     backend.getEnv().logger.error("{}, {}", result.getError(), message);
                 }
-                throw new KarateException(message, result.getError());
+                if (backend.isExceptionThrowingEnabled()) {
+                    throw new KarateException(message, result.getError());
+                }
             }
         }
+        backend.afterScenario(scenario.getFeature().getPath());
     }
 
     public static StepResult runCalledStep(StepWrapper step, KarateBackend backend) {

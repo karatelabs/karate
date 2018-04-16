@@ -13,7 +13,7 @@ Scenario: create and get cats
     Given path id1
     When method get
     Then status 200
-    And match response == { id: '#(id1)', name: 'Billie' }
+    And match response == { id: '#(id1)', name: 'Billi' }
 
     When method get
     Then status 200

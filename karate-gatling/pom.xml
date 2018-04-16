@@ -86,6 +86,7 @@
                 <version>${gatling.plugin.version}</version>
                 <configuration>
                     <disableCompiler>true</disableCompiler>
+                    <skip>${skipTests}</skip>
                 </configuration>
                 <executions>
                     <execution>
