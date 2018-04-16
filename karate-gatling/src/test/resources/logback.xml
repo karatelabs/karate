@@ -8,14 +8,7 @@
 		</encoder>
 	</appender>
 
-	<!-- Uncomment for logging ALL HTTP request and responses -->
-	<!-- 	<logger name="io.gatling.http.ahc" level="TRACE" /> -->
-	<!--    <logger name="io.gatling.http.response" level="TRACE" /> -->
-	<!-- Uncomment for logging ONLY FAILED HTTP request and responses -->
-	<!-- 	<logger name="io.gatling.http.ahc" level="DEBUG" /> -->
-	<!--    <logger name="io.gatling.http.response" level="DEBUG" /> -->
-
-	<logger name="com.intuit.karate" level="DEBUG"/>
+	<logger name="com.intuit.karate" level="INFO"/>
 
 	<root level="WARN">
 		<appender-ref ref="CONSOLE" />

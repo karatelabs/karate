@@ -115,7 +115,7 @@ public class FeatureServer {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
-                    .handler(new LoggingHandler(getClass().getName(), LogLevel.INFO))
+                    .handler(new LoggingHandler(getClass().getName(), LogLevel.TRACE))
                     .childHandler(new FeatureServerInitializer(sslCtx, featureFile, vars));
             channel = b.bind(port).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();

@@ -1,35 +1,40 @@
 Feature: cats integration test
 
-Background:
+  Background:
     * url karate.properties['mock.cats.url']
 
-Scenario: create and get cats
+  Scenario: create and get cats
     Given request { name: 'Billie' }
     When method post
-    Then status 200    
+    Then status 200
     And match response == { id: '#uuid', name: 'Billie' }
 
-    * def id1 = response.id
-    Given path id1
+    * def id = response.id
+    Given path id
     When method get
     Then status 200
-    And match response == { id: '#(id1)', name: 'Billi' }
+    And match response == { id: '#(id)', name: 'Billie' }
 
     When method get
     Then status 200
-    And match response contains { id: '#(id1)', name: 'Billie' }
+    # intentional assertion failure
+    And match response contains { id: '#(id)', name: 'Billi' }
 
-    Given request { name: 'Bob' }
-    When method post
-    Then status 200    
-    And match response == { id: '#uuid', name: 'Bob' }
-
-    * def id2 = response.id
-    Given path id2
-    When method get
+    Given path id
+    When request { id: '#(id)', name: 'Bob' }
+    When method put
     Then status 200
-    And match response == { id: '#(id2)', name: 'Bob' }
+    And match response == { id: '#(id)', name: 'Bob' }
 
     When method get
     Then status 200
-    And match response contains [{ id: '#(id1)', name: 'Billie' },{ id: '#(id2)', name: 'Bob' }]
+    And match response contains { id: '#(id)', name: 'Bob' }
+
+    Given path id
+    When method delete
+    Then status 200
+    And match response == ''
+
+    When method get
+    Then status 200
+    And match response !contains { id: '#(id)', name: '#string' }

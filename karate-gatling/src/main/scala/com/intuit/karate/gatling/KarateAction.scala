@@ -17,13 +17,13 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
 
   override def execute(session: Session) = {
 
-    def logRequestStats(request: HttpRequest, timings: ResponseTimings, pass: Boolean) = {
+    def logRequestStats(request: HttpRequest, timings: ResponseTimings, pass: Boolean, statusCode: Int, message: Option[String]) = {
       val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(request.getUri)
       val matchedUri = protocol.pathMatches(pathPair.right)
       val reportUri = if (matchedUri.isDefined) matchedUri.get else pathPair.right
       val key = request.getMethod + " " + reportUri
       val okOrNot = if (pass) OK else KO
-      statsEngine.logResponse(session, key, timings, okOrNot, None, None)
+      statsEngine.logResponse(session, key, timings, okOrNot, Option(statusCode + ""), message)
     }
 
     val stepInterceptor = new StepInterceptor {
@@ -31,18 +31,19 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
       var prevRequest: Option[HttpRequest] = None
       var start: Long = 0
 
-      def logPrevRequestIfDefined(ctx: ScriptContext, pass: Boolean) = {
+      def logPrevRequestIfDefined(ctx: ScriptContext, pass: Boolean, message: Option[String]) = {
         if (prevRequest.isDefined) {
           val responseTime = ctx.getVars.get("responseTime").getValue(classOf[Long])
+          val responseStatus = ctx.getVars.get("responseStatus").getValue(classOf[Int])
           val responseTimings = ResponseTimings(start, start + responseTime);
-          logRequestStats(prevRequest.get, responseTimings, pass)
+          logRequestStats(prevRequest.get, responseTimings, pass, responseStatus, message)
           prevRequest = None
         }
       }
 
       override def beforeStep(feature: String, line: Int, step: Step, ctx: ScriptContext): Unit = {
         if (step.getName.startsWith("method")) {
-          logPrevRequestIfDefined(ctx, true)
+          logPrevRequestIfDefined(ctx, true, None)
           start = System.currentTimeMillis()
         }
       }
@@ -52,13 +53,13 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
           prevRequest = Option(ctx.getPrevRequest)
         }
         if (!stepResult.isPass) { // if a step failed, assume that the last http request is a fail
-          System.out.println("*** fail", stepResult.getStep)
-          logPrevRequestIfDefined(ctx, false)
+          val message = stepResult.getError.getMessage
+          logPrevRequestIfDefined(ctx, false, Option(message))
         }
       }
 
       override def afterScenario(feature: String, ctx: ScriptContext): Unit = {
-        logPrevRequestIfDefined(ctx, true)
+        logPrevRequestIfDefined(ctx, true, None)
       }
 
     }
