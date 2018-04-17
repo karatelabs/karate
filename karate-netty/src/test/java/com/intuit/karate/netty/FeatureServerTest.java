@@ -1,16 +1,19 @@
 package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.junit4.Karate;
+import cucumber.api.CucumberOptions;
 import java.io.File;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.runner.RunWith;
 
 /**
  *
  * @author pthomas3
  */
+@RunWith(Karate.class)
+@CucumberOptions(features = "classpath:com/intuit/karate/netty/client.feature")
 public class FeatureServerTest {
     
     private static FeatureServer server;
@@ -21,11 +24,6 @@ public class FeatureServerTest {
         server = FeatureServer.start(file, 0, false, null);
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");        
-    }
-
-    @Test
-    public void testServer() {
-        CucumberRunner.runFeature(getClass(), "client.feature", null, true);
     }
     
     @AfterClass

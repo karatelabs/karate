@@ -9,10 +9,13 @@ class CatsSimulation extends Simulation {
   MockUtils.startServer()
 
   val protocol = karateProtocol("/cats/{id}")
-  val cats = scenario("cats").exec(karateFeature("classpath:mock/cats.feature"))
+
+  val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"))
+  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature"))
 
   setUp(
-    cats.inject(rampUsers(10) over (2 seconds)).protocols(protocol)
+    create.inject(rampUsers(10) over (5 seconds)).protocols(protocol),
+    delete.inject(rampUsers(5) over (5 seconds)).protocols(protocol)
   )
 
 }

@@ -3,6 +3,10 @@ Feature:
 Scenario: cats crud
     * url mockServerUrl + 'cats'
 
+    Given path 0
+    When method get
+    Then status 404
+
     Given request { name: 'Billie' }
     When method post
     Then status 200

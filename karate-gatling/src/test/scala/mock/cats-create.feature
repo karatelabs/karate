@@ -1,9 +1,9 @@
-Feature: cats integration test
+Feature: cats crud
 
   Background:
     * url karate.properties['mock.cats.url']
 
-  Scenario: create and get cats
+  Scenario: create, get and update cat
     Given request { name: 'Billie' }
     When method post
     Then status 200
@@ -13,12 +13,8 @@ Feature: cats integration test
     Given path id
     When method get
     Then status 200
-    And match response == { id: '#(id)', name: 'Billie' }
-
-    When method get
-    Then status 200
     # intentional assertion failure
-    And match response contains { id: '#(id)', name: 'Billi' }
+    And match response == { id: '#(id)', name: 'Billi' }
 
     Given path id
     When request { id: '#(id)', name: 'Bob' }
@@ -28,13 +24,5 @@ Feature: cats integration test
 
     When method get
     Then status 200
-    And match response contains { id: '#(id)', name: 'Bob' }
+    # And match response contains { id: '#(id)', name: 'Bob' }
 
-    Given path id
-    When method delete
-    Then status 200
-    And match response == ''
-
-    When method get
-    Then status 200
-    And match response !contains { id: '#(id)', name: '#string' }

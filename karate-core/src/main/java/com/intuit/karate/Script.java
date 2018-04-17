@@ -1652,7 +1652,8 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, null);
+        CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex, 
+                reuseParentConfig, false, null, context.stepInterceptor);
         if (context.env.reporter != null) {
             context.env.reporter.callBegin(feature, callContext);
         }

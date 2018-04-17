@@ -1,8 +1,8 @@
 package com.intuit.karate.gatling
 
 import akka.actor.{ActorSystem, Props}
+import com.intuit.karate.{CallContext, FileUtils, ScriptContext, StepInterceptor}
 import com.intuit.karate.cucumber.StepResult
-import com.intuit.karate._
 import com.intuit.karate.http.{HttpRequest, HttpUtils}
 import gherkin.formatter.model.Step
 import io.gatling.commons.stats.{KO, OK}
@@ -53,7 +53,7 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
           prevRequest = Option(ctx.getPrevRequest)
         }
         if (!stepResult.isPass) { // if a step failed, assume that the last http request is a fail
-          val message = stepResult.getError.getMessage
+          val message = name + ":" + line + " " + stepResult.getStep.getName
           logPrevRequestIfDefined(ctx, false, Option(message))
         }
       }

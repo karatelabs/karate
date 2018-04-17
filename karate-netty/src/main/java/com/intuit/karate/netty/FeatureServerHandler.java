@@ -150,7 +150,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             nettyResponseStatus = HttpResponseStatus.valueOf(Integer.valueOf(responseStatus.getValue().toString()));
         }
         FullHttpResponse response;
-        if (responseValue == null) {
+        if (responseValue == null || responseValue.isNull()) {
             response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, nettyResponseStatus);
         } else {
             ByteBuf responseBuf;

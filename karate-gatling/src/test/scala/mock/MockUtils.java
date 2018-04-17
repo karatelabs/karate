@@ -11,7 +11,7 @@ import java.io.File;
 public class MockUtils {
     
     public static void startServer() {
-        File file = FileUtils.getFileRelativeTo(MockUtils.class, "cats-mock.feature");
+        File file = FileUtils.getFileRelativeTo(MockUtils.class, "mock.feature");
         FeatureServer server = FeatureServer.start(file, 0, false, null);
         System.setProperty("mock.cats.url", "http://localhost:" + server.getPort() + "/cats");        
     }

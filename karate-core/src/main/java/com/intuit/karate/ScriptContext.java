@@ -52,6 +52,7 @@ public class ScriptContext {
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;
+    protected final StepInterceptor stepInterceptor;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -115,6 +116,7 @@ public class ScriptContext {
         this.env = env.refresh(null);
         logger = env.logger;
         callDepth = call.callDepth;
+        stepInterceptor = call.stepInterceptor;
         tags = call.getTags();
         tagValues = call.getTagValues();
         scenarioInfo = call.getScenarioInfo();

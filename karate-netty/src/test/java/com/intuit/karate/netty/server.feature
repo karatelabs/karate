@@ -1,22 +1,23 @@
 Feature:
 
 Background:
-* def cats = []
-* def nextId = call read('increment.js')
+* def cats = {}
+* def id = 0
 * configure cors = true
 
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request
-    * set cat.id = nextId()
-    * set cats[] = cat
+    * def id = ~~(id + 1)
+    * set cat.id = id
+    * eval cats[id + ''] = cat
     * def response = cat
 
 Scenario: pathMatches('/v1/cats') && methodIs('get')
-    * def response = cats
+    * def response = $cats.*
 
 Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
-    * def id = pathParams.id
-    * def response = cats[id-1]
+    * def response = cats[pathParams.id]
+    * def responseStatus = response ? 200 : 404
 
 Scenario: pathMatches('/v1/body/json') && bodyPath('$.name') == 'Scooby'
     * def response = { success: true }
