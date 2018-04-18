@@ -122,6 +122,14 @@ public class ScriptBridge {
         }
     }
     
+    public Map<String, Object> match(Object actual, Object expected) {
+        AssertionResult result = Script.matchNestedObject('.', "$", MatchType.EQUALS, actual, null, actual, expected, context);
+        Map<String, Object> map = new HashMap(2);
+        map.put("pass", result.pass);
+        map.put("message", result.message);
+        return map;
+    }    
+    
     public void forEach(List list, ScriptObjectMirror som) {
         if (list == null) {
             return;

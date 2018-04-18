@@ -402,3 +402,9 @@ Scenario: contains / not contains
     * match actual == '#(^some)'
     * match actual !contains none
     * match actual == '#(!^none)'
+
+Scenario: match in js
+    * def foo = { hello: 'world' }
+    * def result = karate.match(foo, { hello: '#string'} )
+    * match result == { pass: true, message: null }
+    * eval if (result.pass) karate.log('*** passed')
