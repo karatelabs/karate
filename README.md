@@ -1765,6 +1765,8 @@ This is like the opposite of [`set`](#set) if you need to remove keys or data el
 * match json == { foo: 'world', zee: [1, 3] }
 ```
 
+> For JSON, you can also use [`eval`](#eval) instead of `remove`, useful when the path you are trying to mutate is dynamic.
+
 `remove` works for XML elements as well:
 ```cucumber
 * def xml = <foo><bar><hello>world</hello></bar></foo>
@@ -2760,7 +2762,7 @@ There are a few situations where this comes in handy:
 * you *really* don't need to assign a result to a variable
 * statements in the `if` form (also see [conditional logic](#conditional-logic))
 * 'one-off' logic (or [Java interop](#java-interop)) where you don't need the 'ceremony' of a [re-usable function](#calling-javascript-functions)
-* JavaScript / JSON-style mutation of existing [variables](#def) as a dynamic alternative to [`set`](#set)
+* JavaScript / JSON-style mutation of existing [variables](#def) as a dynamic alternative to [`set`](#set) and [`remove`](#remove)
 
 ```cucumber
 # just perform an action, we don't care about saving the result
@@ -2787,6 +2789,8 @@ karate.set('temp', squares);
 # use dynamic path expressions to mutate json
 * eval json[key] = 2
 * match json == { a: 1, b: 2 }
+* eval karate.remove('json', '$.' + key)
+* match json == { a: 1 }
 ```
 
 # Advanced / Tricks

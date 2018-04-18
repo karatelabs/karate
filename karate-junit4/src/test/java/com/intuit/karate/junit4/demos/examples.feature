@@ -157,6 +157,8 @@ karate.set('temp', squares);
 # use dynamic path expressions to mutate json
 * eval json[key] = 2
 * match json == { a: 1, b: 2 }
+* eval karate.remove('json', '$.' + key)
+* match json == { a: 1 }
 
 # #null and #notpresent
 * def foo = { }
