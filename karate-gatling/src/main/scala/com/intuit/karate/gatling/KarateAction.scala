@@ -1,5 +1,7 @@
 package com.intuit.karate.gatling
 
+import java.io.File
+
 import akka.actor.{ActorSystem, Props}
 import com.intuit.karate.{CallContext, FileUtils, ScriptContext, StepInterceptor}
 import com.intuit.karate.cucumber.StepResult
@@ -11,7 +13,7 @@ import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 import io.gatling.core.stats.message.ResponseTimings
 
-class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: StatsEngine, val next: Action) extends ExitableAction {
+class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val next: Action) extends ExitableAction {
 
   val file = FileUtils.getFeatureFile(name)
 
@@ -53,7 +55,8 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
           prevRequest = Option(ctx.getPrevRequest)
         }
         if (!stepResult.isPass) { // if a step failed, assume that the last http request is a fail
-          val message = name + ":" + line + " " + stepResult.getStep.getName
+          val fileName = new File(feature).getName
+          val message = fileName + ":" + line + " " + stepResult.getStep.getName
           logPrevRequestIfDefined(ctx, false, Option(message))
         }
       }
@@ -65,8 +68,8 @@ class KarateAction(val name: String, protocol: KarateProtocol, val statsEngine: 
     }
 
     val cc = new CallContext(null, 0, null, -1, false, true, null, stepInterceptor)
-    val system = ActorSystem("karate-actor-system")
-    val act = system.actorOf(Props[KarateActor], name = "karate-actor")
+    val featureName = new File(name).getName + "-" + KarateProtocol.actorCounter.incrementAndGet()
+    val act = system.actorOf(Props[KarateActor], featureName)
     act ! new KarateMessage(file, cc, session, next)
 
   }

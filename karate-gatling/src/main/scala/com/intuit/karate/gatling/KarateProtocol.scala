@@ -1,5 +1,7 @@
 package com.intuit.karate.gatling
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorSystem
 import com.intuit.karate.http.HttpUtils
 import io.gatling.core.{CoreComponents, protocol}
@@ -18,12 +20,14 @@ object KarateProtocol {
     type Protocol = KarateProtocol
     type Components = KarateComponents
     override def defaultProtocolValue(configuration: GatlingConfiguration) = new KarateProtocol(Nil)
-    override def newComponents(system: ActorSystem, coreComponents: CoreComponents)= karateProtocol => KarateComponents(karateProtocol)
+    override def newComponents(system: ActorSystem, coreComponents: CoreComponents)=
+      karateProtocol => KarateComponents(karateProtocol, system)
     override def protocolClass= classOf[KarateProtocol].asInstanceOf[Class[io.gatling.core.protocol.Protocol]]
   }
+  val actorCounter = new AtomicInteger()
 }
 
-case class KarateComponents(protocol: KarateProtocol) extends ProtocolComponents {
+case class KarateComponents(val protocol: KarateProtocol, val system: ActorSystem) extends ProtocolComponents {
   def onStart: Option[Session => Session] = None
   def onExit: Option[Session => Unit] = None
 }
