@@ -10,9 +10,8 @@ import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
 import io.gatling.core.session.Session
 
 class KarateProtocol(uriPatterns: Seq[String]) extends Protocol {
-  def pathMatches(uri: String): Option[String] = {
-    uriPatterns.find(HttpUtils.parseUriPattern(_, uri) != null)
-  }
+  def pathMatches(uri: String): Option[String] = uriPatterns.find(HttpUtils.parseUriPattern(_, uri) != null)
+  val actorCount = new AtomicInteger()
 }
 
 object KarateProtocol {
@@ -24,7 +23,6 @@ object KarateProtocol {
       karateProtocol => KarateComponents(karateProtocol, system)
     override def protocolClass= classOf[KarateProtocol].asInstanceOf[Class[io.gatling.core.protocol.Protocol]]
   }
-  val actorCounter = new AtomicInteger()
 }
 
 case class KarateComponents(val protocol: KarateProtocol, val system: ActorSystem) extends ProtocolComponents {

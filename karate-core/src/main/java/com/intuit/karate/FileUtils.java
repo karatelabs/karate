@@ -118,7 +118,7 @@ public class FileUtils {
             return toString(is);
         } catch (Exception e) {
             String message = String.format("could not find or read file: %s, prefix: %s", path, prefix);
-            context.logger.error(message);
+            // context.logger.error(message);
             throw new KarateFileNotFoundException(message);
         }
     }

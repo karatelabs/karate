@@ -68,8 +68,8 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
     }
 
     val cc = new CallContext(null, 0, null, -1, false, true, null, stepInterceptor)
-    val featureName = new File(name).getName + "-" + KarateProtocol.actorCounter.incrementAndGet()
-    val act = system.actorOf(Props[KarateActor], featureName)
+    val actorName = new File(name).getName + "-" + protocol.actorCount.incrementAndGet()
+    val act = system.actorOf(Props[KarateActor], actorName)
     act ! new KarateMessage(file, cc, session, next)
 
   }
