@@ -31,10 +31,6 @@ public class KarateFileNotFoundException extends KarateException {
     
     public KarateFileNotFoundException(String message) {
         super(message);
-    }
-    
-    public KarateFileNotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }    
+    }   
     
 }

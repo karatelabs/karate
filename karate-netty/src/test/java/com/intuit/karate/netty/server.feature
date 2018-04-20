@@ -24,3 +24,10 @@ Scenario: pathMatches('/v1/body/json') && bodyPath('$.name') == 'Scooby'
 
 Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
     * def response = { success: true }
+
+Scenario: pathMatches('/v1/abort')
+    * def response = { success: true }
+    * eval if (response.success) karate.abort()
+    # the next line will not be executed
+    * def response = { success: false }
+

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,13 +47,13 @@ import javax.script.ScriptEngineManager;
 public class ScriptBindings implements Bindings {
 
     // all threads will share this ! thread isolation is via Bindings (this class)
-    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");      
+    private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
 
     protected final ScriptBridge bridge;
-    
-    private final ScriptValueMap vars;    
+
+    private final ScriptValueMap vars;
     private final Map<String, Object> adds;
-    
+
     public static final String KARATE = "karate";
     public static final String KARATE_ENV = "karate.env";
     public static final String KARATE_CONFIG = "karate.config";
@@ -75,11 +76,11 @@ public class ScriptBindings implements Bindings {
         // i.e. only the 'karate' bridge has been bound so far
         ScriptValue readFunction = eval(READ_FUNCTION, this);
         // and only now are the bindings complete - with the 'read' function
-        adds.put(READ, readFunction.getValue());        
+        adds.put(READ, readFunction.getValue());
     }
 
     private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
-    
+
     public static final String READ_KARATE_CONFIG = String.format("%s('%s')", READ, FileUtils.CLASSPATH_COLON + KARATE_CONFIG_JS);
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
@@ -108,11 +109,9 @@ public class ScriptBindings implements Bindings {
         try {
             Object o = bindings == null ? NASHORN.eval(exp) : NASHORN.eval(exp, bindings);
             return new ScriptValue(o);
+        } catch (KarateAbortException | KarateFileNotFoundException ke) {
+            throw ke; // reduce log bloat for common file-not-found situation / handle karate.abort()
         } catch (Exception e) {
-            // reduce log bloat for common file-not-found situation
-            if (e instanceof KarateFileNotFoundException) {
-                throw (KarateFileNotFoundException) e;
-            }
             throw new RuntimeException("javascript evaluation failed: " + exp, e);
         }
     }
@@ -160,7 +159,6 @@ public class ScriptBindings implements Bindings {
     }
 
     // these are never called by nashorn =======================================
-    
     @Override
     public Collection<Object> values() {
         return entrySet().stream().map(Entry::getValue).collect(Collectors.toList());
@@ -170,11 +168,11 @@ public class ScriptBindings implements Bindings {
     public Set<Entry<String, Object>> entrySet() {
         Map<String, Object> temp = new HashMap(size());
         temp.putAll(adds); // duplicates possible ! the vars have priority, they will over-write next
-        vars.forEach((k, sv)-> {
+        vars.forEach((k, sv) -> {
             // value should never be null, but unit tests may do this
             Object value = sv == null ? null : sv.getAfterConvertingFromJsonOrXmlIfNeeded();
             temp.put(k, value);
-        });        
+        });
         return temp.entrySet();
     }
 
@@ -188,11 +186,11 @@ public class ScriptBindings implements Bindings {
         // this is wrong, but doesn't matter
         adds.clear();
     }
-    
+
     @Override
     public Object remove(Object key) {
         // this is wrong, but doesn't matter
         return adds.remove(key);
-    }    
+    }
 
 }

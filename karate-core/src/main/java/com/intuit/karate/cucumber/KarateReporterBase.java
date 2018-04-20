@@ -46,14 +46,12 @@ public abstract class KarateReporterBase implements KarateReporter {
         return appender;
     }
 
-    public static final Object DUMMY_OBJECT = new Object();
-
     public static Result passed(long time) {
-        return new Result(Result.PASSED, time, null, DUMMY_OBJECT);
+        return new Result(Result.PASSED, time, null, StepResult.DUMMY_OBJECT);
     }
 
     public static Result failed(long time, Throwable t) {
-        return new Result(Result.FAILED, null, t, DUMMY_OBJECT);
+        return new Result(Result.FAILED, null, t, StepResult.DUMMY_OBJECT);
     }
 
     @Override // this is a hack to bring called feature steps into cucumber reports

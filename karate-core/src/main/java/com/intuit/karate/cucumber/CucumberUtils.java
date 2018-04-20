@@ -31,6 +31,7 @@ import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.exception.KarateAbortException;
 import cucumber.runtime.AmbiguousStepDefinitionsException;
 import cucumber.runtime.FeatureBuilder;
 import cucumber.runtime.RuntimeGlue;
@@ -196,6 +197,10 @@ public class CucumberUtils {
                 continue;
             }
             StepResult result = runCalledStep(step, backend);
+            if (result.isAbort()) {
+                backend.getEnv().logger.debug("abort at {}:{}", scenario.getFeature().getPath(), step.getStep().getLine());
+                break;
+            }
             if (!result.isPass()) {
                 FeatureWrapper feature = scenario.getFeature();
                 String scenarioName = StringUtils.trimToNull(scenario.getScenario().getGherkinModel().getName());
@@ -221,7 +226,7 @@ public class CucumberUtils {
         return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend);
     }
 
-    private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
+    private static final DummyReporter DUMMY_REPORTER = new DummyReporter();    
 
     // adapted from cucumber.runtime.Runtime.runCalledStep
     public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, KarateBackend backend) {
@@ -230,7 +235,7 @@ public class CucumberUtils {
         } catch (Exception e) {
             String message = e.getMessage() + ", before step: '" + step.getName() + "', feature: " + featurePath + ", line: " + step.getLine();
             backend.getEnv().logger.error("{}", message);
-            Result result = new Result(Result.FAILED, 0L, new KarateException(message), KarateReporterBase.DUMMY_OBJECT);
+            Result result = new Result(Result.FAILED, 0L, new KarateException(message), StepResult.DUMMY_OBJECT);
             return afterStep(reporter, step, Match.UNDEFINED, result, featurePath, backend);            
         }
         if (reporter == null) {
@@ -241,13 +246,13 @@ public class CucumberUtils {
             match = backend.getGlue().stepDefinitionMatch(featurePath, step, i18n);
         } catch (AmbiguousStepDefinitionsException e) {
             match = e.getMatches().get(0);
-            Result result = new Result(Result.FAILED, 0L, e, KarateReporterBase.DUMMY_OBJECT);
+            Result result = new Result(Result.FAILED, 0L, e, StepResult.DUMMY_OBJECT);
             return afterStep(reporter, step, match, result, featurePath, backend);
         }
         if (match == null) {
             String message = "syntax error: '" + step.getName() + "', feature: " + featurePath + ", line: " + step.getLine();
             backend.getEnv().logger.error("{}", message);
-            Result result = new Result(Result.FAILED, 0L, new KarateException(message), KarateReporterBase.DUMMY_OBJECT);
+            Result result = new Result(Result.FAILED, 0L, new KarateException(message), StepResult.DUMMY_OBJECT);
             return afterStep(reporter, step, Match.UNDEFINED, result, featurePath, backend);
         }
         String status = Result.PASSED;
@@ -255,12 +260,14 @@ public class CucumberUtils {
         long startTime = System.nanoTime();
         try {
             match.runStep(i18n);
+        } catch (KarateAbortException ke) {
+            status = StepResult.ABORTED;
         } catch (Throwable t) {
             error = t;
             status = Result.FAILED;
         }
         long duration = backend.isCalled() ? 0 : System.nanoTime() - startTime;
-        Result result = new Result(status, duration, error, KarateReporterBase.DUMMY_OBJECT);
+        Result result = new Result(status, duration, error, StepResult.DUMMY_OBJECT);
         return afterStep(reporter, step, match, result, featurePath, backend);
     }
 

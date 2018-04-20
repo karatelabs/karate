@@ -21,51 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
-
-import gherkin.formatter.model.Result;
-import gherkin.formatter.model.Step;
+package com.intuit.karate.exception;
 
 /**
  *
  * @author pthomas3
  */
-public class StepResult {
+public class KarateAbortException extends KarateException {
     
-    public static final String ABORTED = "aborted";
-    public static final Result PASSED = new Result(Result.PASSED, null, null);
-    public static final Object DUMMY_OBJECT = new Object();
+    public KarateAbortException(String message) {
+        super(message);
+    }   
     
-    private final Step step;
-    private final Result result;
-    private final boolean pass;
-    private final boolean abort;
-
-    public StepResult(Step step, Result result) {
-        this.step = step;
-        this.result = result;
-        pass = result.getError() == null;
-        abort = result.getStatus().equals(ABORTED);
-    }
-
-    public Step getStep() {
-        return step;
-    }
-
-    public Result getResult() {
-        return result;
-    }        
-
-    public Throwable getError() {
-        return result.getError();
-    }    
-
-    public boolean isPass() {
-        return pass;
-    }    
-
-    public boolean isAbort() {
-        return abort;
-    }
-        
 }

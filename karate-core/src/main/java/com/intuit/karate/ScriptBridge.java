@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
@@ -299,6 +300,10 @@ public class ScriptBridge {
         HttpResponse response = context.client.invoke(request, context);
         HttpUtils.updateResponseVars(response, context.vars, context);
     }    
+    
+    public void abort() {
+        throw new KarateAbortException(null);
+    }
     
     private ScriptValue getValue(String name) {
         ScriptValue sv = context.vars.get(name);

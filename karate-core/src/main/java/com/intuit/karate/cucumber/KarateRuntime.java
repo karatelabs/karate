@@ -50,7 +50,8 @@ public class KarateRuntime extends Runtime {
     private final KarateBackend backend;
     private final CucumberStats stats;
     private CucumberScenarioImpl scenarioResult;
-    private boolean failed;
+    private boolean stopped;
+    private boolean aborted;
     private ScriptContext prevContext;
 
     public KarateRuntime(KarateRuntimeOptions kro, KarateBackend backend, RuntimeGlue glue) {
@@ -66,9 +67,9 @@ public class KarateRuntime extends Runtime {
 
     @Override
     public void runStep(String featurePath, Step step, Reporter reporter, I18n i18n) {
-        if (failed) {
+        if (stopped) {
             Match match = Match.UNDEFINED;
-            Result result = Result.SKIPPED;
+            Result result = aborted ? StepResult.PASSED : Result.SKIPPED;
             if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
                 ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext());
             }
@@ -78,11 +79,14 @@ public class KarateRuntime extends Runtime {
             return;
         }
         StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend);
-        if (!result.isPass()) {
-            addError(result.getError());
-            backend.setScenarioError(result.getError());
+        if (!result.isPass() || result.isAbort()) {
+            if (!result.isAbort()) {
+                addError(result.getError());
+                backend.setScenarioError(result.getError());
+            }
             prevContext = backend.getStepDefs().getContext();
-            failed = true; // skip remaining steps    
+            stopped = true; // skip remaining steps
+            aborted = result.isAbort(); // if skipped steps are to be marked as PASSED
         }
         addStepToCounterAndResult(result.getResult());
     }
@@ -103,7 +107,7 @@ public class KarateRuntime extends Runtime {
         prevContext = backend.getStepDefs().getContext();
         invokeAfterHookIfConfigured(false);
         backend.disposeWorld();
-        failed = false; // else a failed scenario results in all remaining ones in the feature being skipped !
+        stopped = false; // else a failed scenario results in all remaining ones in the feature being skipped !
     }
 
     @Override

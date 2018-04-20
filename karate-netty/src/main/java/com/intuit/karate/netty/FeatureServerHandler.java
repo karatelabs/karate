@@ -55,7 +55,7 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {    
+public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final FeatureProvider provider;
 
@@ -67,7 +67,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.flush();
     }
-    
+
     private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
 
     @Override
@@ -92,12 +92,12 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 String host = msg.headers().get(HttpUtils.HEADER_HOST);
                 request.setUrlBase(requestScheme + "://" + host);
             } else {
-                request.setUrlBase(url.left);            
-            }                                
+                request.setUrlBase(url.left);
+            }
             request.setUri(url.right);
             request.setMethod(msg.method().name());
             msg.headers().forEach(h -> request.addHeader(h.getKey(), h.getValue()));
-            QueryStringDecoder decoder = new QueryStringDecoder(url.right);                
+            QueryStringDecoder decoder = new QueryStringDecoder(url.right);
             decoder.parameters().forEach((k, v) -> request.putParam(k, v));
             HttpContent httpContent = (HttpContent) msg;
             ByteBuf content = httpContent.content();
@@ -112,9 +112,9 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     private static final String VAR_AFTER_SCENARIO = "afterScenario";
-    
+
     private final StringBuilder sb = new StringBuilder();
-    
+
     private void writeResponse(HttpRequest request, ChannelHandlerContext ctx) {
         sb.setLength(0);
         Match match = Match.init()
@@ -138,7 +138,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
             responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
             responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
-            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);            
+            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
             afterScenario = result.remove(VAR_AFTER_SCENARIO);
             configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
             responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
@@ -195,7 +195,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         // typically this is where users can set up an artificial delay or sleep
         if (afterScenario != null && afterScenario.isFunction()) {
             afterScenario.invokeFunction(provider.getContext());
-        }        
+        }
         ctx.write(response);
     }
 

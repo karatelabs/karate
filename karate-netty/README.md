@@ -253,10 +253,16 @@ Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/
 ## `afterScenario`
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
+## `karate.abort()`
+Stop evaluating any more steps in the `Scenario` and return the `response`. Useful when combined with [`eval`](https://github.com/intuit/karate#eval) and conditional checks in JavaScript.
+
+Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/server.feature).
+
 # Proxy Mode
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
 ## `karate.proceed()`
+
 
 
 
