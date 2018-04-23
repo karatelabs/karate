@@ -34,7 +34,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [Polling / Conditional](#polling) | [XML and XPath](#xpath-functions) | [Tags / Grouping Tests](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Fuzzy Matching](#fuzzy-matching) | [Examples and Demos](karate-demo)
-.... | [Mock HTTP Servlet](karate-mock-servlet) | [Test Doubles / Contract Tests](karate-netty) | [Postman Import](https://github.com/intuit/karate/wiki/Karate-UI#postman-import) | [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
+.... | [Mock HTTP Servlet](karate-mock-servlet) | [Test Doubles / Contract Tests](karate-netty) | [Performance Testing](karate-gatling) | [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) / [Postman Inport](https://github.com/intuit/karate/wiki/Karate-UI#postman-import)
 .... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
 
 # Features
@@ -61,6 +61,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
+* Save significant effort by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that properly assert that server responses are OK under load
 * [API mock server](karate-netty) for test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:
