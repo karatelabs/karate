@@ -41,12 +41,23 @@ Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/ka
     * def actual = ({ a: temp })
     * match actual == { a: [1, 2, 3] }
 
-Scenario: karate forEach operation
+Scenario: karate forEach operation on lists
     * def res = []
     * def fun = function(x){ res.add(x * x) }
     * def list = [1, 2, 3]
     * eval karate.forEach(list, fun)
     * match res == [1, 4, 9]
+
+Scenario: karate forEach operation on maps (json)
+    * def keys = []
+    * def vals = []
+    * def idxs = []
+    * def fun = function(x, y, i){ keys.add(x); vals.add(y); idxs.add(i) }
+    * def map = { a: 2, b: 4, c: 6 }
+    * eval karate.forEach(map, fun)
+    * match keys == ['a', 'b', 'c']
+    * match vals == [2, 4, 6]
+    * match idxs == [0, 1, 2]
 
 Scenario: karate map operation
     * def fun = function(x){ return x * x }

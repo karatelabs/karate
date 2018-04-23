@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -129,6 +130,17 @@ public class ScriptBridge {
         map.put("pass", result.pass);
         map.put("message", result.message);
         return map;
+    }   
+    
+    public void forEach(Map<String, Object> map, ScriptObjectMirror som) {
+        if (map == null) {
+            return;
+        }
+        if (!som.isFunction()) {
+            throw new RuntimeException("not a JS function: " + som);
+        }
+        AtomicInteger i = new AtomicInteger();
+        map.forEach((k, v) -> som.call(som, k, v, i.getAndIncrement()));
     }    
     
     public void forEach(List list, ScriptObjectMirror som) {
