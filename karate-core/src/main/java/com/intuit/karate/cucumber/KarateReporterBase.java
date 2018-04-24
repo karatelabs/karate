@@ -25,6 +25,7 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.StringUtils;
 import static com.intuit.karate.cucumber.KarateJunitAndJsonReporter.passed;
 import gherkin.formatter.model.DocString;
 import gherkin.formatter.model.Match;
@@ -62,8 +63,16 @@ public abstract class KarateReporterBase implements KarateReporter {
             String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(callContext.callArg));
             docString = new DocString("", json, 0);
         }
-        String suffix = callContext.loopIndex == -1 ? " " : "[" + callContext.loopIndex + "] ";
-        Step step = new Step(null, "* ", "call" + suffix + feature.getPath(), 0, null, docString);
+        String prefix = "call" + (callContext.loopIndex == -1 ? "" : "[" + callContext.loopIndex + "]");
+        String featureName = StringUtils.trimToNull(feature.getFeature().getGherkinFeature().getName());
+        String scenarioName = StringUtils.trimToNull(feature.getFirstScenarioName());
+        if (featureName != null) {
+            prefix = prefix + " [" + featureName + "]";
+        }
+        if (scenarioName != null) {
+            prefix = prefix + " [" + scenarioName + "]";
+        }
+        Step step = new Step(null, "* ", prefix + " " + feature.getPath(), 0, null, docString);
         karateStep(step, Match.UNDEFINED, passed(0L), callContext);
     }    
 

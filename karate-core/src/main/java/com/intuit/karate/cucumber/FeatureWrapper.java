@@ -100,6 +100,18 @@ public class FeatureWrapper {
     public List<String> getLines() {
         return lines;
     }
+    
+    public String getFirstScenarioName() {
+        if (featureSections == null || featureSections.isEmpty()) {
+            return null;
+        }
+        FeatureSection fs = featureSections.get(0);
+        if (fs.isOutline()) {
+            return fs.getScenarioOutline().getScenarioOutline().getGherkinModel().getName();
+        } else {
+            return fs.getScenario().getScenario().getGherkinModel().getName();
+        }
+     }
 
     public CucumberFeature getFeature() {
         return feature;
