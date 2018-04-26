@@ -46,6 +46,9 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
       override def beforeStep(feature: String, line: Int, step: Step, ctx: ScriptContext): Unit = {
         if (step.getName.startsWith("method")) {
           logPrevRequestIfDefined(ctx, true, None)
+          if (protocol.pauseTime > 0) {
+            Thread.sleep(protocol.pauseTime)
+          }
           start = System.currentTimeMillis()
         }
       }

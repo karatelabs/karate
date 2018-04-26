@@ -1,6 +1,6 @@
 package com.intuit.karate.gatling
 
 object PreDef {
-  def karateProtocol(uriPatterns: String*) = new KarateProtocol(uriPatterns)
+  def karateProtocol(pauseTime: Int, uriPatterns: String*) = new KarateProtocol(pauseTime, uriPatterns)
   def karateFeature(name: String) = new KarateActionBuilder(name)
 }
