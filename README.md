@@ -354,6 +354,14 @@ Note that the `mvn test` command only runs test classes that follow the `*Test.j
 mvn test -Dtest=CatsRunner
 ```
 
+When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature (or even directory) via the command-line, useful in dev-mode. Note how even [tags](#tags) to ignore can be specified using the [Cucumber options](#cucumber-options).
+
+```
+mvn test -Dcucumber.options="--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
+```
+
+### Command Line - Gradle
+
 For gradle you must extend the test task to allow the `cucumber.options` to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
 
 ```yml
