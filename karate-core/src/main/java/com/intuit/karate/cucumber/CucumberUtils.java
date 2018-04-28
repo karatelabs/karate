@@ -221,9 +221,8 @@ public class CucumberUtils {
     }
 
     public static StepResult runCalledStep(StepWrapper step, KarateBackend backend) {
-        FeatureWrapper wrapper = step.getScenario().getFeature();
-        CucumberFeature feature = wrapper.getFeature();
-        return runStep(wrapper.getPath(), step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend);
+        CucumberFeature feature = step.getScenario().getFeature().getFeature();
+        return backend.getCallContext().stepInterceptor.proceed(feature.getPath(), step.getStep(), feature.getI18n(), backend);
     }
 
     private static final DummyReporter DUMMY_REPORTER = new DummyReporter();    
@@ -256,7 +255,7 @@ public class CucumberUtils {
             return afterStep(reporter, step, Match.UNDEFINED, result, featurePath, backend);
         }
         String status = Result.PASSED;
-        Throwable error = null;
+        Throwable error = null;        
         long startTime = System.nanoTime();
         try {
             match.runStep(i18n);

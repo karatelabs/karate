@@ -204,22 +204,16 @@ public abstract class HttpClient<T> {
         }
     }
 
-    protected static long getResponseTime(long startTime) {
-        long endTime = System.currentTimeMillis();
-        long responseTime = endTime - startTime;
-        return responseTime;
-    }
-
     public HttpResponse invoke(HttpRequestBuilder request, ScriptContext context) {
         T body = buildRequestInternal(request, context);
         long startTime = System.currentTimeMillis();
         try {
             HttpResponse response = makeHttpRequest(body, startTime);
-            context.logger.debug("response time in milliseconds: {}", response.getTime());
+            context.logger.debug("response time in milliseconds: {}", response.getResponseTime());
             context.updateConfigCookies(response.getCookies());
             return response;
         } catch (Exception e) {
-            long responseTime = getResponseTime(startTime);
+            long responseTime = System.currentTimeMillis() - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
             context.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);

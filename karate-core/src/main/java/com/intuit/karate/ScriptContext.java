@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.StepInterceptor;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;

@@ -21,21 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.cucumber;
 
-import com.intuit.karate.cucumber.StepResult;
+import com.intuit.karate.ScriptContext;
+import gherkin.I18n;
 import gherkin.formatter.model.Step;
 
 /**
  *
  * @author pthomas3
  */
-public interface StepInterceptor {    
-    
-    void beforeStep(String feature, int line, Step step, ScriptContext ctx);
-    
-    void afterStep(String feature, int line, StepResult result, ScriptContext ctx);
-    
-    void afterScenario(String feature, ScriptContext ctx); // TODO improve
-    
+public class StepInterceptor {
+
+    public StepResult proceed(String feature, Step step, I18n i18n, KarateBackend backend) {
+        return CucumberUtils.runStep(feature, step, backend.getEnv().reporter, i18n, backend);
+    }
+
+    public void afterScenario(String feature, ScriptContext ctx) {
+
+    }
+
 }

@@ -43,8 +43,8 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class KarateBackend implements Backend {    
-    
+public class KarateBackend implements Backend {
+
     private final JavaBackend backend;
     private final KarateObjectFactory objectFactory;
     private final CallContext callContext;
@@ -52,16 +52,16 @@ public class KarateBackend implements Backend {
 
     public void setTags(List<String> tags) {
         callContext.setTags(tags);
-    }  
+    }
 
     public void setTagValues(Map<String, List<String>> tagValues) {
         callContext.setTagValues(tagValues);
-    }      
+    }
 
     public void setScenarioInfo(ScenarioInfo scenarioInfo) {
         callContext.setScenarioInfo(scenarioInfo);
-    }     
-    
+    }
+
     public void setScenarioError(Throwable error) {
         objectFactory.getStepDefs().getContext().setScenarioError(error);
     }
@@ -73,42 +73,33 @@ public class KarateBackend implements Backend {
     public boolean isCalled() {
         return callContext.isCalled();
     }
-    
+
     public CallContext getCallContext() {
         return callContext;
-    }        
-    
+    }
+
     public ScriptEnv getEnv() {
         return objectFactory.getEnv();
     }
-    
+
     public ScriptValueMap getVars() {
         return getStepDefs().getContext().getVars();
     }
-    
+
     public void beforeStep(String feature, Step step) {
         ScriptContext context = getStepDefs().getContext();
         getEnv().debug.beforeStep(feature, step.getLine(), step, context.getVars());
-        if (callContext.stepInterceptor != null) {
-            callContext.stepInterceptor.beforeStep(feature, step.getLine(), step, context);
-        }
     }
-    
+
     public void afterStep(String feature, StepResult result) {
         ScriptContext context = getStepDefs().getContext();
-        int line = result.getStep().getLine();
         getEnv().debug.afterStep(feature, result.getStep().getLine(), result, context.getVars());
-        if (callContext.stepInterceptor != null) {
-            callContext.stepInterceptor.afterStep(feature, line, result, context);
-        }        
     }
 
     public void afterScenario(String feature) {
-        if (callContext.stepInterceptor != null) {
-            callContext.stepInterceptor.afterScenario(feature, getStepDefs().getContext());
-        }
+        callContext.stepInterceptor.afterScenario(feature, getStepDefs().getContext());
     }
-    
+
     public KarateBackend(ScriptEnv env, CallContext callContext) {
         this.callContext = callContext;
         ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);
@@ -118,15 +109,15 @@ public class KarateBackend implements Backend {
 
     public KarateObjectFactory getObjectFactory() {
         return objectFactory;
-    }   
-    
+    }
+
     public StepDefs getStepDefs() {
         return objectFactory.getStepDefs();
     }
 
     public Glue getGlue() {
         return glue;
-    }        
+    }
 
     public String getCallingFeature() {
         if (callContext.parentContext != null) {
@@ -134,7 +125,7 @@ public class KarateBackend implements Backend {
         } else {
             return null;
         }
-    }        
+    }
 
     @Override
     public void loadGlue(Glue glue, List<String> NOT_USED) {
@@ -142,7 +133,7 @@ public class KarateBackend implements Backend {
         Class glueCodeClass = StepDefs.class;
         for (Method method : glueCodeClass.getMethods()) {
             backend.loadGlue(glue, method, glueCodeClass);
-        }         
+        }
     }
 
     @Override
@@ -164,5 +155,5 @@ public class KarateBackend implements Backend {
     public String getSnippet(Step step, FunctionNameGenerator functionNameGenerator) {
         return backend.getSnippet(step, functionNameGenerator);
     }
-    
+
 }

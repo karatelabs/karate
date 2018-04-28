@@ -4,6 +4,8 @@
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert that the responses are as expected.  It makes it really easy to build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' of two JSON or XML documents without being affected by white-space or the order in which data-elements actually appear, and you can opt to ignore fields that you choose.
 
+Karate is the only open-source tool that combines [test-doubles](#karate-netty) and [performance-testing](#karate-gatling) into one *unified* test automation framework.
+
 Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But instead of Java - you write tests in a language designed to make dealing with HTTP, JSON or XML - **simple**.
 
 ## Hello World
@@ -30,7 +32,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 **Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
 .... | [`multipart file`](#multipart-file) / [`files`](#multipart-files) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
 **Prepare, Mutate, Assert** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) / [`!=`](#match--not-equals) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`any`](#match-contains-any) / [`!contains`](#not-contains) | [`match each`](#match-each)
-**Special Variables** | [`response`](#response) | [`responseHeaders`](#responseheaders) | [`responseCookies`](#responsecookies) | [`responseStatus`](#responsestatus) / [`responseTime`](#responsetime)
+**Special Variables** | [`response`](#response) | [`responseStatus`](#responsestatus) | [`responseHeaders`](#responseheaders) / [`responseCookies`](#responsecookies) |  [`responseTime`](#responsetime) / [`requestTimeStamp`](#requesttimestamp)
  **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
  **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [Polling / Conditional](#polling) | [XML and XPath](#xpath-functions) | [Tags / Grouping Tests](#cucumber-tags)
 .... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Fuzzy Matching](#fuzzy-matching) | [Examples and Demos](karate-demo)
@@ -354,11 +356,13 @@ Note that the `mvn test` command only runs test classes that follow the `*Test.j
 mvn test -Dtest=CatsRunner
 ```
 
-When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature (or even directory) via the command-line, useful in dev-mode. Note how even [tags](#tags) to ignore can be specified using the [Cucumber options](#cucumber-options).
+When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature (or even directory) via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified using the [Cucumber options](#cucumber-options).
 
 ```
 mvn test -Dcucumber.options="--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
 ```
+
+Multiple feature files (or paths) can be specified, de-limited by the space character. They should be at the end of the `cucumber.options`.
 
 ### Command Line - Gradle
 
@@ -2428,12 +2432,15 @@ You would normally only need to use the [`status`](#status) keyword.  But if you
 * def uploadStatusCode = responseStatus
 ```
 ## `responseTime`
-The response time (in milliseconds) for every HTTP request would be available in a variable called `responseTime`. You can use this to assert that the response was returned within the expected time like so:
+The response time (in milliseconds) for the current [`response`](#response) would be available in a variable called `responseTime`. You can use this to assert that it was returned within the expected time like so:
 ```cucumber
 When method post
 Then status 201
 And assert responseTime < 1000
 ```
+
+## `requestTimeStamp`
+Very rarely used - but you can get the Java system-time (for the current [`response`](#response)) at the point when the HTTP request was initiated (the value of `System.currentTimeMillis()`) which can be used for detailed logging or custom framework / stats calculations.
 
 # HTTP Header Manipulation
 ## `configure headers`
@@ -2544,7 +2551,7 @@ If the argument passed to the [call of a `*.feature` file](#calling-other-featur
 
 But this time, the return value from the `call` step will be a JSON array of the same size as the input array. And each element of the returned array will be the 'envelope' of variables that resulted from each iteration where the `*.feature` got invoked.
 
-Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) [shortcut](#get-short-cut) is used to 'distill' the result array of variable 'envelopes' into an array consisting only of `response` payloads.
+Here is an example that combines the [`table`](#table) keyword with calling a `*.feature`. Observe how the [`get`](#get) [shortcut](#get-short-cut) is used to 'distill' the result array of variable 'envelopes' into an array consisting only of [`response`](#response) payloads.
 
 ```cucumber
 * table kittens 

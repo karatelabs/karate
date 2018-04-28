@@ -8,4 +8,4 @@ Scenario: f1 - s1
 
 @fire
 Scenario: f1 - s2
-    * print 'first feature:@smoke, second scenario:@second'
+    * print 'first feature:@smoke, second scenario:@fire'

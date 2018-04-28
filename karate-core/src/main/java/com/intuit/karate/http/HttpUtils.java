@@ -63,7 +63,8 @@ public class HttpUtils {
 
     public static void updateResponseVars(HttpResponse response, ScriptValueMap vars, ScriptContext context) {
         vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
-        vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getTime());
+        vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, response.getStartTime());
+        vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getResponseTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
         vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
         Object responseBody = convertResponseBody(response.getBody(), context);

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cucumber.StepInterceptor;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.List;
 import java.util.Map;
@@ -83,7 +84,7 @@ public class CallContext {
         this.reuseParentContext = reuseParentContext;
         this.evalKarateConfig = evalKarateConfig;
         this.httpClientClass = httpClientClass;
-        this.stepInterceptor = stepInterceptor;
+        this.stepInterceptor = stepInterceptor == null ? new StepInterceptor() : stepInterceptor;
     }
     
 }
