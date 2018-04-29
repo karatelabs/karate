@@ -69,8 +69,8 @@ public class FeatureProvider {
     public FeatureProvider(FeatureWrapper feature, Map<String, Object> vars, boolean ssl) {
         this.feature = feature;
         this.ssl = ssl;
-        CallContext callContext = new CallContext(null, 0, null, -1, false, false, null, null);
-        backend = CucumberUtils.getBackendWithGlue(feature.getEnv(), callContext);
+        CallContext callContext = new CallContext(null, 0, null, -1, false, false, null);
+        backend = CucumberUtils.getBackendWithGlue(feature, callContext);
         ScriptContext context = getContext();
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);

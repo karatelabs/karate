@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.cucumber.StepInterceptor;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
@@ -35,6 +34,7 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 import org.slf4j.Logger;
 
 /**
@@ -53,7 +53,6 @@ public class ScriptContext {
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;
-    protected final StepInterceptor stepInterceptor;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -117,7 +116,6 @@ public class ScriptContext {
         this.env = env.refresh(null);
         logger = env.logger;
         callDepth = call.callDepth;
-        stepInterceptor = call.stepInterceptor;
         tags = call.getTags();
         tagValues = call.getTagValues();
         scenarioInfo = call.getScenarioInfo();

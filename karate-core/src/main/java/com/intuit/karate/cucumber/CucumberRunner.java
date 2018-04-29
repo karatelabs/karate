@@ -143,7 +143,7 @@ public class CucumberRunner {
     }
     
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {        
-        CallContext callContext = new CallContext(null, 0, vars, -1, false, evalKarateConfig, null, null);
+        CallContext callContext = new CallContext(null, 0, vars, -1, false, evalKarateConfig, null);
         return runFeature(file, callContext);
     }     
 

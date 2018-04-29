@@ -78,7 +78,7 @@ public class KarateRuntime extends Runtime {
             reporter.result(result);
             return;
         }
-        StepResult result = CucumberUtils.runStep(featurePath, step, reporter, i18n, backend);
+        StepResult result = CucumberUtils.runStep(step, reporter, i18n, backend);
         if (!result.isPass() || result.isAbort()) {
             if (!result.isAbort()) {
                 addError(result.getError());

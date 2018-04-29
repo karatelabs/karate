@@ -24,7 +24,6 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepDefs;
@@ -48,7 +47,12 @@ public class KarateBackend implements Backend {
     private final JavaBackend backend;
     private final KarateObjectFactory objectFactory;
     private final CallContext callContext;
-    private Glue glue;
+    private final String featurePath;
+    private Glue glue;        
+
+    public String getFeaturePath() {
+        return featurePath;
+    }    
 
     public void setTags(List<String> tags) {
         callContext.setTags(tags);
@@ -64,10 +68,6 @@ public class KarateBackend implements Backend {
 
     public void setScenarioError(Throwable error) {
         objectFactory.getStepDefs().getContext().setScenarioError(error);
-    }
-
-    public boolean isExceptionThrowingEnabled() {
-        return callContext.stepInterceptor == null;
     }
 
     public boolean isCalled() {
@@ -86,24 +86,11 @@ public class KarateBackend implements Backend {
         return getStepDefs().getContext().getVars();
     }
 
-    public void beforeStep(String feature, Step step) {
-        ScriptContext context = getStepDefs().getContext();
-        getEnv().debug.beforeStep(feature, step.getLine(), step, context.getVars());
-    }
-
-    public void afterStep(String feature, StepResult result) {
-        ScriptContext context = getStepDefs().getContext();
-        getEnv().debug.afterStep(feature, result.getStep().getLine(), result, context.getVars());
-    }
-
-    public void afterScenario(String feature) {
-        callContext.stepInterceptor.afterScenario(feature, getStepDefs().getContext());
-    }
-
-    public KarateBackend(ScriptEnv env, CallContext callContext) {
+    public KarateBackend(FeatureWrapper feature, CallContext callContext) {
         this.callContext = callContext;
-        ClassFinder classFinder = new KarateClassFinder(env.fileClassLoader);
-        objectFactory = new KarateObjectFactory(env, callContext);
+        this.featurePath = feature.getPath();
+        ClassFinder classFinder = new KarateClassFinder(feature.getEnv().fileClassLoader);
+        objectFactory = new KarateObjectFactory(feature.getEnv(), callContext);
         backend = new JavaBackend(objectFactory, classFinder);
     }
 

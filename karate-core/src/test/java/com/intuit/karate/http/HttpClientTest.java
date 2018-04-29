@@ -42,7 +42,7 @@ public class HttpClientTest {
     private ScriptContext getContext() {
         String featureDir = FileUtils.getDirContaining(getClass()).getPath();
         ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
-        CallContext callContext = new CallContext(null, 0, null, -1, false, true, null, null);
+        CallContext callContext = new CallContext(null, 0, null, -1, false, true, null);
         return new ScriptContext(env, callContext);
     }    
     

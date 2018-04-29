@@ -116,8 +116,8 @@ public class CucumberUtils {
         backend.setScenarioInfo(info);
     }
 
-    public static KarateBackend getBackendWithGlue(ScriptEnv env, CallContext callContext) {
-        KarateBackend backend = new KarateBackend(env, callContext);
+    public static KarateBackend getBackendWithGlue(FeatureWrapper feature, CallContext callContext) {
+        KarateBackend backend = new KarateBackend(feature, callContext);
         ClassLoader defaultClassLoader = Thread.currentThread().getContextClassLoader();
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(defaultClassLoader));
         backend.loadGlue(glue, null);
@@ -135,7 +135,7 @@ public class CucumberUtils {
     }
 
     public static ScriptValueMap call(FeatureWrapper feature, CallContext callContext) {
-        KarateBackend backend = getBackendWithGlue(feature.getEnv(), callContext);
+        KarateBackend backend = getBackendWithGlue(feature, callContext);
         return call(feature, backend, CallType.DEFAULT);
     }
 
@@ -172,7 +172,7 @@ public class CucumberUtils {
         if (expression == null) {
             context.logger.debug("scenario matched: (empty)");
             return true;
-        }        
+        }
         try {
             ScriptValue sv = Script.evalJsExpression(expression, context);
             if (sv.isBooleanTrue()) {
@@ -188,7 +188,7 @@ public class CucumberUtils {
         }
     }
 
-    public static void call(ScenarioWrapper scenario, KarateBackend backend, CallType callType) {        
+    public static void call(ScenarioWrapper scenario, KarateBackend backend, CallType callType) {
         for (StepWrapper step : scenario.getSteps()) {
             if (callType == CallType.BACKGROUND_ONLY && !step.isBackground()) {
                 continue;
@@ -212,50 +212,39 @@ public class CucumberUtils {
                 if (callType != CallType.DEFAULT) { // more verbose for karate server / mock
                     backend.getEnv().logger.error("{}, {}", result.getError(), message);
                 }
-                if (backend.isExceptionThrowingEnabled()) {
-                    throw new KarateException(message, result.getError());
-                }
+                throw new KarateException(message, result.getError());
             }
         }
-        backend.afterScenario(scenario.getFeature().getPath());
     }
 
     public static StepResult runCalledStep(StepWrapper step, KarateBackend backend) {
         CucumberFeature feature = step.getScenario().getFeature().getFeature();
-        return backend.getCallContext().stepInterceptor.proceed(feature.getPath(), step.getStep(), feature.getI18n(), backend);
+        return runStep(step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend);
     }
 
-    private static final DummyReporter DUMMY_REPORTER = new DummyReporter();    
+    private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
 
     // adapted from cucumber.runtime.Runtime.runCalledStep
-    public static StepResult runStep(String featurePath, Step step, Reporter reporter, I18n i18n, KarateBackend backend) {
-        try { // karate-config / bootstrap failures will manifest here !
-            backend.beforeStep(featurePath, step);
-        } catch (Exception e) {
-            String message = e.getMessage() + ", before step: '" + step.getName() + "', feature: " + featurePath + ", line: " + step.getLine();
-            backend.getEnv().logger.error("{}", message);
-            Result result = new Result(Result.FAILED, 0L, new KarateException(message), StepResult.DUMMY_OBJECT);
-            return afterStep(reporter, step, Match.UNDEFINED, result, featurePath, backend);            
-        }
+    public static StepResult runStep(Step step, Reporter reporter, I18n i18n, KarateBackend backend) {
         if (reporter == null) {
             reporter = DUMMY_REPORTER;
         }
         StepDefinitionMatch match;
         try {
-            match = backend.getGlue().stepDefinitionMatch(featurePath, step, i18n);
+            match = backend.getGlue().stepDefinitionMatch(backend.getFeaturePath(), step, i18n);
         } catch (AmbiguousStepDefinitionsException e) {
             match = e.getMatches().get(0);
             Result result = new Result(Result.FAILED, 0L, e, StepResult.DUMMY_OBJECT);
-            return afterStep(reporter, step, match, result, featurePath, backend);
+            return afterStep(reporter, step, match, result, backend);
         }
         if (match == null) {
-            String message = "syntax error: '" + step.getName() + "', feature: " + featurePath + ", line: " + step.getLine();
+            String message = "syntax error: '" + step.getName() + "', feature: " + backend.getFeaturePath() + ", line: " + step.getLine();
             backend.getEnv().logger.error("{}", message);
             Result result = new Result(Result.FAILED, 0L, new KarateException(message), StepResult.DUMMY_OBJECT);
-            return afterStep(reporter, step, Match.UNDEFINED, result, featurePath, backend);
+            return afterStep(reporter, step, Match.UNDEFINED, result, backend);
         }
         String status = Result.PASSED;
-        Throwable error = null;        
+        Throwable error = null;
         long startTime = System.nanoTime();
         try {
             match.runStep(i18n);
@@ -267,10 +256,10 @@ public class CucumberUtils {
         }
         long duration = backend.isCalled() ? 0 : System.nanoTime() - startTime;
         Result result = new Result(status, duration, error, StepResult.DUMMY_OBJECT);
-        return afterStep(reporter, step, match, result, featurePath, backend);
+        return afterStep(reporter, step, match, result, backend);
     }
 
-    private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, String feature, KarateBackend backend) {
+    private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, KarateBackend backend) {
         boolean isKarateReporter = reporter instanceof KarateReporter;
         CallContext callContext = backend.getCallContext();
         if (isKarateReporter) { // report all the things !           
@@ -280,9 +269,7 @@ public class CucumberUtils {
             reporter.match(match);
             reporter.result(result);
         }
-        StepResult stepResult = new StepResult(step, result);
-        backend.afterStep(feature, stepResult);
-        return stepResult;
+        return new StepResult(step, result);
     }
 
 }
