@@ -48,7 +48,7 @@ public class StepDefs {
     private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
     public StepDefs() { // zero-arg constructor for IDE support
-        this(getFeatureEnv(), new CallContext(null, 0, null, -1, false, true, null));
+        this(getFeatureEnv(), new CallContext(null, true));
     }
 
     private static ScriptEnv ideScriptEnv;

@@ -1,12 +1,12 @@
 package com.intuit.karate.gatling
 
 import java.io.File
+import java.util.function.Consumer
 
-import akka.actor.{ActorSystem, Props}
-import com.intuit.karate.{CallContext, FileUtils, ScriptContext, ScriptValueMap}
-import com.intuit.karate.cucumber.{KarateBackend, StepInterceptor, StepResult}
+import akka.actor.{Actor, ActorSystem, Props}
+import com.intuit.karate.{CallContext, ScriptContext, ScriptValueMap}
+import com.intuit.karate.cucumber._
 import com.intuit.karate.http.{HttpRequest, HttpUtils}
-import gherkin.I18n
 import gherkin.formatter.model.Step
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.core.action.{Action, ExitableAction}
@@ -14,13 +14,14 @@ import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 import io.gatling.core.stats.message.ResponseTimings
 
-//import scala.concurrent.{Await, Future}
-//import scala.concurrent.ExecutionContext.Implicits.global
-//import scala.concurrent.duration._
+class KarateActor extends Actor {
+  override def receive: Receive = {
+    case m: Runnable => m.run()
+  }
+}
 
 class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val next: Action) extends ExitableAction {
 
-  val file = FileUtils.getFeatureFile(name)
   val actorName = new File(name).getName + "-" + protocol.actorCount.incrementAndGet()
   val actor = system.actorOf(Props[KarateActor], actorName)
 
@@ -58,34 +59,34 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         }
       }
 
-      override def proceed(feature: String, step: Step, i18n: I18n, backend: KarateBackend): StepResult = {
-        val ctx = backend.getStepDefs.getContext
-        val isHttpMethod = step.getName.startsWith("method")
+      override def beforeStep(step: StepWrapper, backend: KarateBackend) = {
+        val isHttpMethod = step.getStep.getName.startsWith("method")
         if (isHttpMethod) {
+          val ctx = backend.getStepDefs.getContext
           logPrevRequestIfDefined(ctx, true, None)
-          // val future = Future[StepResult] {
-            Thread.sleep(protocol.pauseTime)
-            val result = super.proceed(feature, step, i18n, backend)
-            prevRequest = Option(ctx.getPrevRequest)
-            handleResultIfFail(feature, result, step, ctx)
-            return result
-          // }
-          // Await.result(future, protocol.pauseTime + 250 milliseconds)
-        } else {
-          val result = super.proceed(feature, step, i18n, backend)
-          handleResultIfFail(feature, result, step, ctx)
-          return result
         }
       }
 
-      override def afterScenario(feature: String, ctx: ScriptContext): Unit = {
-        logPrevRequestIfDefined(ctx, true, None)
+      override def afterStep(result: StepResult, backend: KarateBackend): Unit = {
+        val isHttpMethod = result.getStep.getName.startsWith("method")
+        val ctx = backend.getStepDefs.getContext
+        if (isHttpMethod) {
+          prevRequest = Option(ctx.getPrevRequest)
+        }
+        handleResultIfFail(backend.getFeaturePath, result, result.getStep, ctx)
+      }
+
+      override def afterScenario(scenario: ScenarioWrapper, backend: KarateBackend): Unit = {
+        logPrevRequestIfDefined(backend.getStepDefs.getContext, true, None)
       }
 
     }
 
-    val cc = new CallContext(null, 0, null, -1, false, true, null, stepInterceptor)
-    actor ! new KarateFeatureMessage(file, cc, session, next)
+    val asyncSystem: Consumer[Runnable] = r => actor ! r
+    val asyncNext: Runnable = () => next ! session
+    val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, stepInterceptor)
+
+    CucumberUtils.callAsync(name, callContext)
 
   }
 

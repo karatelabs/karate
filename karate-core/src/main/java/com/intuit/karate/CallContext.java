@@ -24,8 +24,10 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.ScenarioInfo;
+import com.intuit.karate.cucumber.StepInterceptor;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  *
@@ -40,6 +42,9 @@ public class CallContext {
     public final boolean evalKarateConfig;
     public final int loopIndex;
     public final String httpClientClass;
+    public final Consumer<Runnable> asyncSystem;
+    public final Runnable asyncNext;
+    public final StepInterceptor stepInterceptor;
     
     private List<String> tags;
     private Map<String, List<String>> tagValues;    
@@ -73,8 +78,13 @@ public class CallContext {
         return callDepth > 0;
     }
     
+    public CallContext(Map<String, Object> callArg, boolean evalKarateConfig) {
+        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, null, null);
+    }
+    
     public CallContext(ScriptContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
-        boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass) {
+        boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass, 
+            Consumer<Runnable> asyncSystem, Runnable asyncNext, StepInterceptor stepInterceptor) {
         this.parentContext = parentContext;
         this.callDepth = callDepth;
         this.callArg = callArg;
@@ -82,6 +92,9 @@ public class CallContext {
         this.reuseParentContext = reuseParentContext;
         this.evalKarateConfig = evalKarateConfig;
         this.httpClientClass = httpClientClass;
+        this.asyncSystem = asyncSystem;
+        this.asyncNext = asyncNext;
+        this.stepInterceptor = stepInterceptor;
     }
     
 }

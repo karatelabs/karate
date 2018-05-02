@@ -62,7 +62,7 @@ public class KarateRuntimeOptions {
     public KarateRuntime getRuntime(File file, KarateReporter reporter) {
         File featureDir = file.getParentFile();
         ScriptEnv env = new ScriptEnv(null, featureDir, file.getName(), classLoader, reporter);
-        CallContext callContext = new CallContext(null, 0, null, -1, false, true, null);
+        CallContext callContext = new CallContext(null, true);
         FeatureWrapper fw = FeatureWrapper.fromFile(file, env);        
         KarateBackend backend = new KarateBackend(fw, callContext);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));

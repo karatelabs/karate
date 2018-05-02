@@ -23,8 +23,7 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.CallType;
-import com.intuit.karate.cucumber.CucumberUtils;
+import com.intuit.karate.cucumber.AsyncScenario;
 import com.intuit.karate.cucumber.FeatureSection;
 import com.intuit.karate.cucumber.KarateBackend;
 import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
@@ -59,7 +58,8 @@ public class AppSessionTest {
     }
     
     private static void call(ScenarioWrapper scenario, KarateBackend backend) {
-        CucumberUtils.call(scenario, backend, CallType.DEFAULT);
+        AsyncScenario as = new AsyncScenario(scenario, backend);
+        as.submit(r -> r.run(), (r, e) -> {});
     }    
     
 }

@@ -3,7 +3,7 @@ Feature: cats stateful crud
   Background:
     * def uuid = function(){ return java.util.UUID.randomUUID() + '' }
     * def cats = {}
-    * def delay = function(){ java.lang.Thread.sleep(1000) }
+    * def delay = function(){ java.lang.Thread.sleep(850) }
 
   Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request

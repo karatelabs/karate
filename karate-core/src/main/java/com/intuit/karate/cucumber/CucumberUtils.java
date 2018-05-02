@@ -24,13 +24,10 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.Script;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateAbortException;
 import cucumber.runtime.AmbiguousStepDefinitionsException;
 import cucumber.runtime.FeatureBuilder;
@@ -47,6 +44,7 @@ import gherkin.formatter.model.Scenario;
 import gherkin.formatter.model.Step;
 import gherkin.formatter.model.Tag;
 import gherkin.parser.Parser;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +52,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  *
@@ -132,94 +132,44 @@ public class CucumberUtils {
         CucumberFeature cucumberFeature = features.get(0);
         cucumberFeature.setI18n(parser.getI18nLanguage());
         return cucumberFeature;
+    }    
+    
+    private static final Consumer<Runnable> DEFAULT_SYNC = r -> r.run();
+    
+    public static ScriptValueMap callSync(FeatureWrapper feature, CallContext callContext) {
+        KarateBackend backend = getBackendWithGlue(feature, callContext);       
+        AsyncFeature af = new AsyncFeature(feature, backend);
+        AsyncResult result = new AsyncResult();
+        af.submit(DEFAULT_SYNC, result);
+        if (result.error != null) {
+            throw result.error;
+        }
+        return result.vars;
     }
-
-    public static ScriptValueMap call(FeatureWrapper feature, CallContext callContext) {
+    
+    public static void callAsync(String filePath, CallContext callContext) {
+        File file = FileUtils.getFeatureFile(filePath);
+        FeatureWrapper feature = FeatureWrapper.fromFile(file);
+        callAsync(feature, callContext);
+    }    
+    
+    public static void callAsync(FeatureWrapper feature, CallContext callContext) {
         KarateBackend backend = getBackendWithGlue(feature, callContext);
-        return call(feature, backend, CallType.DEFAULT);
-    }
-
-    public static ScriptValueMap call(FeatureWrapper feature, KarateBackend backend, CallType callType) {
-        boolean matched = callType != CallType.SCENARIO_ONLY;
-        for (FeatureSection section : feature.getSections()) {
-            if (section.isOutline()) {
-                ScenarioOutlineWrapper outline = section.getScenarioOutline();
-                for (ScenarioWrapper scenario : outline.getScenarios()) {
-                    call(scenario, backend, callType);
-                }
-            } else {
-                ScenarioWrapper scenario = section.getScenario();
-                if (callType == CallType.SCENARIO_ONLY) {
-                    if (isMatchingScenario(scenario, backend)) {
-                        call(scenario, backend, callType);
-                        matched = true;
-                        break; // only execute first matching scenario
-                    }
-                } else {
-                    call(scenario, backend, callType);
-                }
-            }
-        }
-        if (!matched) {
-            backend.getEnv().logger.warn("no scenarios matched");
-        }
-        return backend.getStepDefs().getContext().getVars();
-    }
-
-    private static boolean isMatchingScenario(ScenarioWrapper scenario, KarateBackend backend) {
-        String expression = StringUtils.trimToNull(scenario.getNameAndDescription());
-        ScriptContext context = backend.getStepDefs().getContext();
-        if (expression == null) {
-            context.logger.debug("scenario matched: (empty)");
-            return true;
-        }
-        try {
-            ScriptValue sv = Script.evalJsExpression(expression, context);
-            if (sv.isBooleanTrue()) {
-                context.logger.debug("scenario matched: {}", expression);
-                return true;
-            } else {
-                context.logger.debug("scenario skipped: {}", expression);
-                return false;
-            }
-        } catch (Exception e) {
-            context.logger.warn("scenario match evaluation failed: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    public static void call(ScenarioWrapper scenario, KarateBackend backend, CallType callType) {
-        for (StepWrapper step : scenario.getSteps()) {
-            if (callType == CallType.BACKGROUND_ONLY && !step.isBackground()) {
-                continue;
-            }
-            if (callType == CallType.SCENARIO_ONLY && step.isBackground()) {
-                continue;
-            }
-            StepResult result = runCalledStep(step, backend);
-            if (result.isAbort()) {
-                backend.getEnv().logger.debug("abort at {}:{}", scenario.getFeature().getPath(), step.getStep().getLine());
-                break;
-            }
-            if (!result.isPass()) {
-                FeatureWrapper feature = scenario.getFeature();
-                String scenarioName = StringUtils.trimToNull(scenario.getScenario().getGherkinModel().getName());
-                String message = "called: " + feature.getPath();
-                if (scenarioName != null) {
-                    message = message + ", scenario: " + scenarioName;
-                }
-                message = message + ", line: " + step.getStep().getLine();
-                if (callType != CallType.DEFAULT) { // more verbose for karate server / mock
-                    backend.getEnv().logger.error("{}, {}", result.getError(), message);
-                }
-                throw new KarateException(message, result.getError());
-            }
-        }
+        AsyncFeature af = new AsyncFeature(feature, backend);
+        af.submit(callContext.asyncSystem, (r, e) -> callContext.asyncNext.run());
     }
 
     public static StepResult runCalledStep(StepWrapper step, KarateBackend backend) {
         CucumberFeature feature = step.getScenario().getFeature().getFeature();
-        return runStep(step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend);
+        StepInterceptor interceptor = backend.getCallContext().stepInterceptor;
+        if (interceptor != null) {
+            interceptor.beforeStep(step, backend);
+        }        
+        StepResult result = runStep(step.getStep(), backend.getEnv().reporter, feature.getI18n(), backend);
+        if (interceptor != null) {
+            interceptor.afterStep(result, backend);
+        }         
+        return result;
     }
 
     private static final DummyReporter DUMMY_REPORTER = new DummyReporter();
@@ -246,7 +196,7 @@ public class CucumberUtils {
         String status = Result.PASSED;
         Throwable error = null;
         long startTime = System.nanoTime();
-        try {
+        try {            
             match.runStep(i18n);
         } catch (KarateAbortException ke) {
             status = StepResult.ABORTED;

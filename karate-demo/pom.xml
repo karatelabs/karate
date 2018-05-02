@@ -74,13 +74,13 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-<!--        <dependency>
+        <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-gatling</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <exclusions>
-                 spring boot tomcat doesn't like these 
+                <!-- spring boot tomcat doesn't like these -->            
                 <exclusion>           
                     <groupId>org.bouncycastle</groupId>
                     <artifactId>bcprov-jdk15on</artifactId>
@@ -90,7 +90,7 @@
                     <artifactId>bcpkix-jdk15on</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>                -->
+        </dependency>                
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>

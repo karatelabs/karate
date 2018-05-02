@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.ScenarioInfo;
+import com.intuit.karate.cucumber.StepInterceptor;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
@@ -34,7 +35,7 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 
 /**
@@ -53,6 +54,9 @@ public class ScriptContext {
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;
+    protected final Consumer<Runnable> asyncSystem;
+    protected final Runnable asyncNext;
+    protected final StepInterceptor stepInterceptor;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -61,7 +65,7 @@ public class ScriptContext {
     protected HttpConfig config;
 
     // the actual http request last sent on the wire
-    protected HttpRequest prevRequest;
+    protected HttpRequest prevRequest;           
 
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());
@@ -73,6 +77,10 @@ public class ScriptContext {
 
     public HttpRequest getPrevRequest() {
         return prevRequest;
+    }        
+
+    public int getCallDepth() {
+        return callDepth;
     }        
 
     public ScriptEnv getEnv() {
@@ -116,6 +124,9 @@ public class ScriptContext {
         this.env = env.refresh(null);
         logger = env.logger;
         callDepth = call.callDepth;
+        asyncSystem = call.asyncSystem;
+        stepInterceptor = call.stepInterceptor;
+        asyncNext = call.asyncNext;
         tags = call.getTags();
         tagValues = call.getTagValues();
         scenarioInfo = call.getScenarioInfo();

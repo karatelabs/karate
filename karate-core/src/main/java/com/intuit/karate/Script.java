@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import static com.intuit.karate.ScriptValue.Type.*;
+import com.intuit.karate.cucumber.AsyncScenario;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.validator.ArrayValidator;
@@ -113,10 +114,10 @@ public class Script {
     public static final boolean isContainsOnlyMacro(String text) {
         return text.startsWith("^^");
     }
-    
+
     public static final boolean isContainsAnyMacro(String text) {
         return text.startsWith("^*");
-    }    
+    }
 
     public static final boolean isNotContainsMacro(String text) {
         return text.startsWith("!^");
@@ -719,7 +720,7 @@ public class Script {
             }
         } else if (isMacro(expected)) {
             String macroExpression;
-            if (isOptionalMacro(expected)) {              
+            if (isOptionalMacro(expected)) {
                 macroExpression = expected.substring(2); // this is used later to look up validators by name
                 if (actValue.isNull()) {
                     boolean isEqual;
@@ -734,16 +735,16 @@ public class Script {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is null");
                         } else {
-                            return AssertionResult.PASS;                            
-                        }                          
+                            return AssertionResult.PASS;
+                        }
                     } else {
                         if (stringMatchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS;
                         } else {
                             return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is null");
-                        }                         
+                        }
                     }
-                }                 
+                }
             } else {
                 macroExpression = expected.substring(1); // // this is used later to look up validators by name
             }
@@ -757,7 +758,7 @@ public class Script {
                         macroExpression = macroExpression.substring(2);
                     } else if (isContainsAnyMacro(macroExpression)) {
                         matchType = MatchType.CONTAINS_ANY;
-                        macroExpression = macroExpression.substring(2);                        
+                        macroExpression = macroExpression.substring(2);
                     } else {
                         matchType = MatchType.CONTAINS;
                         macroExpression = macroExpression.substring(1);
@@ -839,7 +840,7 @@ public class Script {
                                     expression = expression.substring(2);
                                 } else if (isContainsAnyMacro(expression)) {
                                     matchType = MatchType.EACH_CONTAINS_ANY;
-                                    expression = expression.substring(2);                                    
+                                    expression = expression.substring(2);
                                 } else {
                                     matchType = MatchType.EACH_CONTAINS;
                                     expression = expression.substring(1);
@@ -945,7 +946,7 @@ public class Script {
         ScriptValue expected = evalKarateExpression(expression, context);
         if (actual.isNull()) {
             return matchFailed(matchType, path, null, expected.getValue(), "actual xpath returned null");
-        }        
+        }
         Object actObject;
         Object expObject;
         switch (expected.getType()) {
@@ -985,7 +986,7 @@ public class Script {
             case EACH_CONTAINS_ONLY:
                 return MatchType.CONTAINS_ONLY;
             case EACH_CONTAINS_ANY:
-                return MatchType.CONTAINS_ANY;                
+                return MatchType.CONTAINS_ANY;
             case EACH_EQUALS:
                 return MatchType.EQUALS;
             case EACH_NOT_EQUALS:
@@ -1067,7 +1068,7 @@ public class Script {
                     expObject = Collections.singletonList(expObject);
                 }
             case NOT_EQUALS:
-            case EQUALS:                
+            case EQUALS:
                 return matchNestedObject('.', path, matchType, actualDoc, null, actObject, expObject, context);
             case EACH_CONTAINS:
             case EACH_NOT_CONTAINS:
@@ -1217,8 +1218,8 @@ public class Script {
                     boolean equal = false;
                     if (childExp instanceof String) {
                         String childMacro = (String) childExp;
-                        if (isOptionalMacro(childMacro) 
-                                || childMacro.equals("#ignore") 
+                        if (isOptionalMacro(childMacro)
+                                || childMacro.equals("#ignore")
                                 || childMacro.equals("#notpresent")) { // logical match
                             if (matchType == MatchType.NOT_CONTAINS) {
                                 return matchFailed(matchType, childPath, "(not present)", childExp, "actual value contains expected");
@@ -1232,14 +1233,14 @@ public class Script {
                         }
                         if (matchType == MatchType.CONTAINS_ANY) {
                             continue; // keep trying
-                        }                        
+                        }
                         if (matchType != MatchType.NOT_CONTAINS) {
                             return matchFailed(matchType, childPath, "(not present)", childExp, "actual value does not contain expected");
                         }
                     } else { // we found one
                         if (matchType == MatchType.CONTAINS_ANY) {
                             return AssertionResult.PASS; // at least one matched, exit early
-                        }                        
+                        }
                     }
                     continue; // end edge case for key not present
                 }
@@ -1258,10 +1259,10 @@ public class Script {
                     }
                     if (matchType == MatchType.CONTAINS_ANY) {
                         continue; // keep trying
-                    }                    
+                    }
                     if (matchType != MatchType.NOT_CONTAINS) {
                         return ar; // fail early
-                    }                    
+                    }
                 }
             }
             if (matchType == MatchType.CONTAINS_ANY) {
@@ -1452,12 +1453,12 @@ public class Script {
 
     public static void setValueByPath(String name, String path, ScriptValue value, ScriptContext context) {
         setValueByPath(name, path, value, false, context, false);
-    }    
-    
+    }
+
     public static void setValueByPath(String name, String path, String exp, ScriptContext context) {
         setValueByPath(name, path, exp, false, context, false);
     }
-    
+
     public static void setValueByPath(String name, String path, String exp, boolean delete, ScriptContext context, boolean viaTable) {
         ScriptValue value = delete ? ScriptValue.NULL : evalKarateExpression(exp, context);
         if (viaTable && value.isNull() && !isWithinParentheses(exp)) {
@@ -1652,12 +1653,12 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex, 
-                reuseParentConfig, false, null);
+        CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex,
+                reuseParentConfig, false, null, context.asyncSystem, null, context.stepInterceptor);
         if (context.env.reporter != null) {
             context.env.reporter.callBegin(feature, callContext);
         }
-        ScriptValueMap svm = CucumberUtils.call(feature, callContext);
+        ScriptValueMap svm = CucumberUtils.callSync(feature, callContext);
         return new ScriptValue(svm.toPrimitiveMap());
     }
 
