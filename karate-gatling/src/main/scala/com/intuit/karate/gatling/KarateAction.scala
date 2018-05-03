@@ -62,8 +62,15 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
       override def beforeStep(step: StepWrapper, backend: KarateBackend) = {
         val isHttpMethod = step.getStep.getName.startsWith("method")
         if (isHttpMethod) {
+          val method = step.getStep.getName.substring(6).trim
           val ctx = backend.getStepDefs.getContext
           logPrevRequestIfDefined(ctx, true, None)
+          val request = backend.getStepDefs.getRequest
+          val pauseTime = protocol.pauseFor(request.getUrlAndPath, method)
+          if (pauseTime > 0) {
+            // println("*** pause for: " + request.getUrlAndPath + ":" + method + ":" + pauseTime)
+            Thread.sleep(pauseTime)
+          }
         }
       }
 

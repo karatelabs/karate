@@ -54,6 +54,23 @@ public class HttpRequestBuilder {
     public String getUrl() {
         return url;
     }
+    
+    public String getUrlAndPath() {
+        String temp = url;
+        if (!temp.endsWith("/")) {
+            temp = temp + "/";
+        }
+        if (paths == null) {
+            return temp;
+        }
+        for (String path : paths) {
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            temp = temp + path;
+        }
+        return temp;
+    }
 
     public void addPath(String path) {
         if (path == null) {

@@ -87,6 +87,10 @@ public class StepDefs {
         return context;
     }
 
+    public HttpRequestBuilder getRequest() {
+        return request;
+    }        
+
     @When("^configure ([^\\s]+) =$")
     public void configureDocString(String key, String exp) {
         configure(key, exp);
