@@ -1571,7 +1571,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
-`proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`. (See example below).
+`proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
 `charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
 `httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)

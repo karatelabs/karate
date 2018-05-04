@@ -283,6 +283,7 @@ public class ScriptContext {
                 config.setProxyUri((String) map.get("uri"));
                 config.setProxyUsername((String) map.get("username"));
                 config.setProxyPassword((String) map.get("password"));
+                config.setNonProxyHosts((List) map.get("nonProxyHosts"));
             }
         } else if (key.equals("userDefined")) {
             config.setUserDefined(value.getAsMap());

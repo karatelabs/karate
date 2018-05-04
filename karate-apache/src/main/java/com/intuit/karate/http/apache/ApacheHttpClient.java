@@ -35,12 +35,18 @@ import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
+import java.io.IOException;
 
 import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -69,6 +75,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
+import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
 import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
@@ -160,7 +167,22 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                             new AuthScope(proxyUri.getHost(), proxyUri.getPort()),
                             new UsernamePasswordCredentials(config.getProxyUsername(), config.getProxyPassword()));
                     clientBuilder.setDefaultCredentialsProvider(credsProvider);
-
+                }
+                if (config.getNonProxyHosts() != null) {
+                    ProxySelector proxySelector = new ProxySelector() {
+                        private final List<String> proxyExceptions = config.getNonProxyHosts();
+                        @Override
+                        public List<Proxy> select(URI uri) {
+                            return Collections.singletonList(proxyExceptions.contains(uri.getHost()) 
+                                    ? Proxy.NO_PROXY 
+                                    : new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())));
+                        }
+                        @Override
+                        public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                            context.logger.info("connect failed to uri: {}", uri, ioe);
+                        }
+                    };
+                    clientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(proxySelector));
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);

@@ -26,6 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,6 +51,7 @@ public class HttpConfig {
     private String proxyUri;
     private String proxyUsername;
     private String proxyPassword;
+    private List<String> nonProxyHosts;
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
     private ScriptValue responseHeaders = ScriptValue.NULL;
@@ -84,6 +86,7 @@ public class HttpConfig {
         proxyUri = parent.proxyUri;
         proxyUsername = parent.proxyUsername;
         proxyPassword = parent.proxyPassword;
+        nonProxyHosts = parent.nonProxyHosts;
         headers = parent.headers;
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
@@ -225,6 +228,14 @@ public class HttpConfig {
     public void setProxyPassword(String proxyPassword) {
         this.proxyPassword = proxyPassword;
     }
+
+    public List<String> getNonProxyHosts() {
+        return nonProxyHosts;
+    }
+
+    public void setNonProxyHosts(List<String> nonProxyHosts) {
+        this.nonProxyHosts = nonProxyHosts;
+    }        
 
     public ScriptValue getHeaders() {
         return headers;
