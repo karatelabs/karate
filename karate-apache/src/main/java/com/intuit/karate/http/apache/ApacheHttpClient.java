@@ -117,33 +117,35 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
             KeyStore trustStore = HttpUtils.getKeyStore(context,
-                        config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
+                    config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
             KeyStore keyStore = HttpUtils.getKeyStore(context,
                     config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
             SSLContext sslContext;
             try {
                 SSLContextBuilder builder = SSLContexts.custom()
                         .setProtocol(algorithm); // will default to TLS if null
-                if (trustStore == null && config.isSslTrustAll() ) {
+                if (trustStore == null && config.isSslTrustAll()) {
                     builder = builder.loadTrustMaterial(new TrustAllStrategy());
                 } else {
                     if (config.isSslTrustAll()) {
                         builder = builder.loadTrustMaterial(trustStore, new TrustSelfSignedStrategy());
                     } else {
                         builder = builder.loadTrustMaterial(trustStore, null); // will use system / java default
-                    }                    
+                    }
                 }
                 if (keyStore != null) {
                     char[] keyPassword = config.getSslKeyStorePassword() == null ? null : config.getSslKeyStorePassword().toCharArray();
                     builder = builder.loadKeyMaterial(keyStore, keyPassword);
                 }
                 sslContext = builder.build();
+                if (keyStore == null) {
+                    SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
+                    clientBuilder.setSSLSocketFactory(socketFactory);
+                }
             } catch (Exception e) {
                 context.logger.error("ssl context init failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
-            SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
-            clientBuilder.setSSLSocketFactory(socketFactory);
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
                 .setCookieSpec(LenientCookieSpec.KARATE)
