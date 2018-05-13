@@ -15,6 +15,20 @@ Examples:
     | 'a'        | ['a']      |
     | ['a', 'b'] | ['a', 'b'] |
 
+Scenario: comma delimited param value (normal)
+    Given url demoBaseUrl
+    And path 'echo'
+    And param fieldList = 'name,id,date_created,date_modified,created_id,modified_id'
+    When method get
+    Then status 200
+    And match response.fieldList[0] == 'name,id,date_created,date_modified,created_id,modified_id'
+
+Scenario: comma delimited param value (in url)
+    Given url demoBaseUrl + '?fieldList=name,id,date_created,date_modified,created_id,modified_id'
+    And path 'echo'
+    When method get
+    Then status 200
+    And match response.fieldList[0] == 'name,id,date_created,date_modified,created_id,modified_id'
 
 Scenario: parameter which is an array and dynamic
     * def fun =
