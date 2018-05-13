@@ -23,6 +23,7 @@ Scenario: comma delimited param value (normal)
     Then status 200
     And match response.fieldList[0] == 'name,id,date_created,date_modified,created_id,modified_id'
 
+@mock-servlet-todo
 Scenario: comma delimited param value (in url)
     Given url demoBaseUrl + '?fieldList=name,id,date_created,date_modified,created_id,modified_id'
     And path 'echo'
