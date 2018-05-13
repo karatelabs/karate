@@ -105,6 +105,11 @@
                                     <goal>shade</goal>
                                 </goals>
                                 <configuration>
+                                    <artifactSet>
+                                        <includes>
+                                            <include>*:*</include>                                    
+                                        </includes>
+                                    </artifactSet>                                    
                                     <shadedArtifactAttached>true</shadedArtifactAttached>
                                     <shadedClassifierName>all</shadedClassifierName>
                                     <transformers>

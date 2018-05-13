@@ -113,10 +113,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     private static final String VAR_AFTER_SCENARIO = "afterScenario";
 
-    private final StringBuilder sb = new StringBuilder();
-
     private void writeResponse(HttpRequest request, ChannelHandlerContext ctx) {
-        sb.setLength(0);
         Match match = Match.init()
                 .defText(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
                 .defText(ScriptValueMap.VAR_REQUEST_URI, request.getUri())

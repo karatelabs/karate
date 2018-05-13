@@ -25,6 +25,7 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.CucumberRunner;
 import com.intuit.karate.ui.App;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
@@ -42,6 +43,7 @@ import picocli.CommandLine.Option;
  */
 public class Main implements Callable<Void> {
 
+    private static final String LOGBACK_CONFIG = "logback.configurationFile";
     private static final String CERT_FILE = "cert.pem";
     private static final String KEY_FILE = "key.pem";
 
@@ -59,27 +61,31 @@ public class Main implements Callable<Void> {
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + CERT_FILE + "' and '" + KEY_FILE + "' if they exist in the working directory, or generate them")
     boolean ssl;
-    
+
     @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + CERT_FILE + ")")
     File cert;
-    
+
     @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
-    File key; 
-    
+    File key;
+
     @Option(names = {"-t", "--test"}, description = "run feature file as Karate test")
-    File test; 
-    
+    File test;
+
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
-    String env;     
-    
+    String env;
+
     @Option(names = {"-u", "--ui"}, description = "show user interface")
     boolean ui;
-    
+
     @Option(names = {"-a", "--args"}, description = "variables as key=value pair arguments")
-    Map<String, Object> args;     
-    
+    Map<String, Object> args;
+
     public static void main(String[] args) {
         // ensure we init logback before anything else
+        String logbackConfig = System.getProperty(LOGBACK_CONFIG);
+        if (StringUtils.isBlank(logbackConfig)) {        
+            System.setProperty(LOGBACK_CONFIG, "logback-netty.xml");
+        }
         logger = LoggerFactory.getLogger(Main.class);
         CommandLine.call(new Main(), System.err, args);
     }
@@ -87,7 +93,7 @@ public class Main implements Callable<Void> {
     @Override
     public Void call() throws Exception {
         if (test != null) {
-            if (ui) {                
+            if (ui) {
                 App.main(new String[]{test.getAbsolutePath(), env});
             } else {
                 if (env != null) {
@@ -138,6 +144,6 @@ public class Main implements Callable<Void> {
         }
         server.waitSync();
         return null;
-    }        
+    }
 
 }
