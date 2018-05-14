@@ -36,6 +36,7 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+
 import org.slf4j.Logger;
 
 /**
@@ -283,7 +284,7 @@ public class ScriptContext {
                 config.setProxyUri((String) map.get("uri"));
                 config.setProxyUsername((String) map.get("username"));
                 config.setProxyPassword((String) map.get("password"));
-                config.setNonProxyHosts((List) map.get("nonProxyHosts"));
+                config.setNonProxyHosts(((List)((ScriptObjectMirror)map.get("nonProxyHosts")).values()));
             }
         } else if (key.equals("userDefined")) {
             config.setUserDefined(value.getAsMap());
