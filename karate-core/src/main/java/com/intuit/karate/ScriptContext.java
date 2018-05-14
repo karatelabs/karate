@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.slf4j.Logger;
 
 /**
