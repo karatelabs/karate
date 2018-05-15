@@ -89,6 +89,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 * [Karate at the Ministry of Testing (Dallas)](https://www.slideshare.net/ptrthomas/karate-mot-dallas-26oct2017) - [presentation](https://www.meetup.com/Ministry-Of-Testing-Dallas/events/242414866/) by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - tutorial by [Micha Kops](https://twitter.com/hascode) - featured by [Semaphore CI](https://twitter.com/semaphoreci)
 * [5 top open-source API testing tools: How to choose](https://techbeacon.com/5-top-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
+* [Ceinture noire Karate en tests d’API REST](http://cfp.devoxx.fr/2018/talk/INV-5571/Ceinture_noire_Karate_en_tests_d%E2%80%99API_REST) - [Video](https://youtu.be/NYlPxd5dZOU) / [Code](https://github.com/binout/karate-devoxxfr2018) / [Slides](https://binout.github.io/karate-devoxxfr2018/) - [Devoxx.fr 2018](http://www.devoxx.fr) talk by [Nicolas Comet](https://twitter.com/NicolasComet) and [Benoît Prioux](https://twitter.com/binout)
 
 You can find a lot more at the [community wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own 'tag' and a healthy presence on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
@@ -748,6 +749,8 @@ Which results in the following output:
   ]
 }
 ```
+
+> Since XML is represented internally as a JSON-like or map-like object, if you perform string concatenation when printing, you will *not* see XML - which can be confusing at first. Use the comma-delimited form (see above) or the JS helper (see below).
 
 The built-in [`karate` object](#the-karate-object) is explained in detail later, but for now, note that this is also injected into `print` (and even `assert`) statements, and it has a helpful `pretty` method, that takes a JSON argument and a `prettyXml` method that deals with XML. So you could have also done something like:
 

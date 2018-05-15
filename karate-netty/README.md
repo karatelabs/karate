@@ -156,7 +156,7 @@ java -jar karate-netty-<version>-all.jar -u -t my-test.feature
 ```
 
 ## Logging
-A default [`logback.xml`](https://logback.qos.ch/manual/configuration.html) is present within the stand-alone JAR. To customize logging, set the system property `logback.configurationFile` to point to your custom config:
+A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-netty.xml`](src/main/resources/logback-netty.xml)) is present within the stand-alone JAR. If you need to customize logging, set the system property `logback.configurationFile` to point to your custom config:
 ```
 java -jar -Dlogback.configurationFile=my-logback.xml karate-netty-<version>-all.jar -t my-test.feature
 ```
