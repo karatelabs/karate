@@ -39,12 +39,13 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
     val stepInterceptor = new StepInterceptor {
 
       var prevRequest: Option[HttpRequest] = None
+      var startTime: Long = 0
+      var responseTime: Long = 0
+      var responseStatus: Int = 0
+
 
       def logPrevRequestIfDefined(ctx: ScriptContext, pass: Boolean, message: Option[String]) = {
         if (prevRequest.isDefined) {
-          val startTime = ctx.getVars.get(ScriptValueMap.VAR_REQUEST_TIME_STAMP).getValue(classOf[Long])
-          val responseTime = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_TIME).getValue(classOf[Long])
-          val responseStatus = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_STATUS).getValue(classOf[Int])
           val responseTimings = ResponseTimings(startTime, startTime + responseTime);
           logRequestStats(prevRequest.get, responseTimings, pass, responseStatus, message)
           prevRequest = None
@@ -68,7 +69,6 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
           val request = backend.getStepDefs.getRequest
           val pauseTime = protocol.pauseFor(request.getUrlAndPath, method)
           if (pauseTime > 0) {
-            // println("*** pause for: " + request.getUrlAndPath + ":" + method + ":" + pauseTime)
             Thread.sleep(pauseTime)
           }
         }
@@ -79,6 +79,9 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         val ctx = backend.getStepDefs.getContext
         if (isHttpMethod) {
           prevRequest = Option(ctx.getPrevRequest)
+          startTime = ctx.getVars.get(ScriptValueMap.VAR_REQUEST_TIME_STAMP).getValue(classOf[Long])
+          responseTime = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_TIME).getValue(classOf[Long])
+          responseStatus = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_STATUS).getValue(classOf[Int])
         }
         handleResultIfFail(backend.getFeaturePath, result, result.getStep, ctx)
       }

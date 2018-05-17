@@ -8,7 +8,11 @@ class KarateSimulation extends Simulation {
 
   TestBase.startServer()
 
-  val protocol = karateProtocol("/cats/{id}", "/dogs/{id}")
+  val protocol = karateProtocol(
+    "/cats/{id}" -> pauseFor("get" -> 10),
+    "/cats" -> pauseFor("get" -> 15, "post" -> 25),
+    "/dogs/{id}" -> Nil
+  )
 
   val cats = scenario("cats").exec(karateFeature("classpath:demo/cats/cats.feature"))
   val dogs = scenario("dogs").exec(karateFeature("classpath:demo/dogs/dogs.feature"))
