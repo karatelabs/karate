@@ -27,15 +27,21 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ui.App;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
+import picocli.CommandLine.DefaultExceptionHandler;
+import picocli.CommandLine.ExecutionException;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParseResult;
+import picocli.CommandLine.RunLast;
 
 /**
  *
@@ -83,11 +89,22 @@ public class Main implements Callable<Void> {
     public static void main(String[] args) {
         // ensure we init logback before anything else
         String logbackConfig = System.getProperty(LOGBACK_CONFIG);
-        if (StringUtils.isBlank(logbackConfig)) {        
+        if (StringUtils.isBlank(logbackConfig)) {
             System.setProperty(LOGBACK_CONFIG, "logback-netty.xml");
         }
         logger = LoggerFactory.getLogger(Main.class);
-        CommandLine.call(new Main(), System.err, args);
+        CommandLine cmd = new CommandLine(new Main());
+        DefaultExceptionHandler<List<Object>> exceptionHandler = new DefaultExceptionHandler() {
+            @Override
+            public Object handleExecutionException(ExecutionException ex, ParseResult parseResult) {                
+                if (ex.getCause() instanceof KarateException) {
+                    throw new ExecutionException(cmd, ""); // minimum possible stack trace but exit code 1
+                } else {
+                    throw ex;
+                }
+            }            
+        };                        
+        cmd.parseWithHandlers(new RunLast(), exceptionHandler, args);
     }
 
     @Override
@@ -103,7 +120,12 @@ public class Main implements Callable<Void> {
                 if (configPath == null) {
                     System.setProperty(ScriptBindings.KARATE_CONFIG, new File(ScriptBindings.KARATE_CONFIG_JS).getPath() + "");
                 }
-                CucumberRunner.runFeature(test, args, true);
+                try {
+                    CucumberRunner.runFeature(test, args, true);
+                } catch (Exception e) {
+                    logger.error(e.getMessage());
+                    throw new KarateException(e.getMessage());
+                }
             }
             return null;
         } else if (ui || mock == null) {
