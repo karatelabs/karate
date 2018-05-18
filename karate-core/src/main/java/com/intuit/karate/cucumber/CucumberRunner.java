@@ -59,11 +59,15 @@ public class CucumberRunner {
     }
 
     public static KarateStats parallel(Class clazz, int threadCount, String reportDir) {
+        KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
+        List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
+        return parallel(karateFeatures, threadCount, reportDir);
+    }
+
+    public static KarateStats parallel(List<KarateFeature> karateFeatures, int threadCount, String reportDir) {
         KarateStats stats = KarateStats.startTimer();
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         try {
-            KarateRuntimeOptions kro = new KarateRuntimeOptions(clazz);
-            List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
             int count = karateFeatures.size();
             int filteredCount = 0;
             List<Callable<KarateJunitAndJsonReporter>> callables = new ArrayList<>(count);
@@ -141,14 +145,14 @@ public class CucumberRunner {
             }
         }
     }
-    
-    public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {        
-        CallContext callContext = new CallContext(vars, evalKarateConfig);
-        return runFeature(file, callContext);
-    }     
 
-    public static Map<String, Object> runFeature(File file, CallContext callContext) {
-        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file);
+    public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
+        CallContext callContext = new CallContext(vars, evalKarateConfig);
+        return runFeature(file, callContext, null);
+    }
+
+    public static Map<String, Object> runFeature(File file, CallContext callContext, KarateReporter reporter) {
+        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, reporter);
         ScriptValueMap scriptValueMap = CucumberUtils.callSync(featureWrapper, callContext);
         return scriptValueMap.toPrimitiveMap();
     }
@@ -156,7 +160,7 @@ public class CucumberRunner {
     public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars, boolean evalKarateConfig) {
         File file = FileUtils.getFileRelativeTo(relativeTo, path);
         return runFeature(file, vars, evalKarateConfig);
-    }   
+    }
 
     public static Map<String, Object> runClasspathFeature(String classPath, Map<String, Object> vars, boolean evalKarateConfig) {
         URL url = Thread.currentThread().getContextClassLoader().getResource(classPath);

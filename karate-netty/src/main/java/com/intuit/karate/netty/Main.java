@@ -4,7 +4,7 @@
  * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
+ * of this software and associated documentation tests (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
@@ -27,6 +27,9 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.cucumber.KarateFeature;
+import com.intuit.karate.cucumber.KarateRuntimeOptions;
+import com.intuit.karate.cucumber.KarateStats;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ui.App;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
@@ -40,6 +43,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.DefaultExceptionHandler;
 import picocli.CommandLine.ExecutionException;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParseResult;
 import picocli.CommandLine.RunLast;
 
@@ -74,8 +78,14 @@ public class Main implements Callable<Void> {
     @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
     File key;
 
-    @Option(names = {"-t", "--test"}, description = "run feature file as Karate test")
-    File test;
+    @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")
+    String tags;
+    
+    @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
+    int threads = 1;    
+    
+    @Parameters(description = "one or more tests (features) or search-paths to run")
+    List<String> tests;
 
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
@@ -96,22 +106,22 @@ public class Main implements Callable<Void> {
         CommandLine cmd = new CommandLine(new Main());
         DefaultExceptionHandler<List<Object>> exceptionHandler = new DefaultExceptionHandler() {
             @Override
-            public Object handleExecutionException(ExecutionException ex, ParseResult parseResult) {                
+            public Object handleExecutionException(ExecutionException ex, ParseResult parseResult) {
                 if (ex.getCause() instanceof KarateException) {
-                    throw new ExecutionException(cmd, ""); // minimum possible stack trace but exit code 1
+                    throw new ExecutionException(cmd, ex.getCause().getMessage()); // minimum possible stack trace but exit code 1
                 } else {
                     throw ex;
                 }
-            }            
-        };                        
+            }
+        };
         cmd.parseWithHandlers(new RunLast(), exceptionHandler, args);
     }
 
     @Override
     public Void call() throws Exception {
-        if (test != null) {
+        if (tests != null) {
             if (ui) {
-                App.main(new String[]{test.getAbsolutePath(), env});
+                App.main(new String[]{tests.get(0), env});
             } else {
                 if (env != null) {
                     System.setProperty(ScriptBindings.KARATE_ENV, env);
@@ -120,11 +130,11 @@ public class Main implements Callable<Void> {
                 if (configPath == null) {
                     System.setProperty(ScriptBindings.KARATE_CONFIG, new File(ScriptBindings.KARATE_CONFIG_JS).getPath() + "");
                 }
-                try {
-                    CucumberRunner.runFeature(test, args, true);
-                } catch (Exception e) {
-                    logger.error(e.getMessage());
-                    throw new KarateException(e.getMessage());
+                KarateRuntimeOptions kro = new KarateRuntimeOptions(tags, tests);
+                List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
+                KarateStats stats = CucumberRunner.parallel(karateFeatures, threads, "target");
+                if (stats.getFailCount() > 0) {
+                    throw new KarateException("there are test failures");
                 }
             }
             return null;

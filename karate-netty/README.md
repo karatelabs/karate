@@ -118,30 +118,44 @@ java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -c my-cert.c
 ```
 
 ### Run Test
-Convenient to run a standard [Karate](https://github.com/intuit/karate) test on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing.
+Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing.
 
 > Note that if you are depending on external Java libraries or custom code to be compiled, this won't work.
 
+Feature files (or search paths) to be tested don't need command-line options and can be just listed at the end of the command.
+
 ```
-java -jar karate-netty-<version>-all.jar -t my-test.feature
+java -jar karate-netty-<version>-all.jar my-test.feature
+```
+
+You can specify [Cucumber tags](https://github.com/intuit/karate#cucumber-tags) to include (or exclude) using the `-t` or `--tags`  option as follows:
+
+```
+java -jar karate-netty-<version>-all.jar -t @smoke,~@ignore my-test.feature
 ```
 
 If your test depends on the `karate.env` [environment 'switch'](https://github.com/intuit/karate#switching-the-environment), you can specify that using the `-e` (env) option:
 
 ```
-java -jar karate-netty-<version>-all.jar -t my-test.feature -e e2e
+java -jar karate-netty-<version>-all.jar -e e2e my-test.feature
 ```
 
 If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
-java -jar -Dkarate.config=somedir/my-config.js karate-netty-<version>-all.jar -t my-test.feature
+java -jar -Dkarate.config=somedir/my-config.js karate-netty-<version>-all.jar my-test.feature
 ```
 
 And you can even set or over-ride variable values via the command line by using the `-a` (args) option:
 
 ```
-java -jar karate-netty-<version>-all.jar -t my-test.feature -a myKey1=myValue1 -a myKey2=myValue2
+java -jar karate-netty-<version>-all.jar -a myKey1=myValue1 -a myKey2=myValue2 my-test.feature
+```
+
+If you provide a directory in which multiple feature files are present (even in sub-folders), they will be all run. You can even specify the number of threads to run in parallel using `-T` or `--threads` (not to be confused with `-t` for tags):
+
+```
+java -jar karate-netty-<version>-all.jar -T 5 -t ~@ignore src/features
 ```
 
 ### UI
@@ -152,7 +166,7 @@ java -jar karate-netty-<version>-all.jar
 
 You can also open an existing Karate test in the UI via the command-line:
 ```
-java -jar karate-netty-<version>-all.jar -u -t my-test.feature
+java -jar karate-netty-<version>-all.jar -u my-test.feature
 ```
 
 ## Logging
@@ -160,7 +174,7 @@ A default [logback configuration file](https://logback.qos.ch/manual/configurati
 ```
 java -jar -Dlogback.configurationFile=my-logback.xml karate-netty-<version>-all.jar -t my-test.feature
 ```
-Here is the 'out-of-the-box' default which you can customize.
+Here is the 'out-of-the-box' default which you can customize. Note that the default creates a folder called `target` and within it, logs will be in `karate.log`.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -173,7 +187,7 @@ Here is the 'out-of-the-box' default which you can customize.
     </appender>
   
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>karate.log</file>
+        <file>target/karate.log</file>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>

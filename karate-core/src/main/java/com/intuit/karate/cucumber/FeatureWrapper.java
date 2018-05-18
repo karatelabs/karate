@@ -57,12 +57,16 @@ public class FeatureWrapper {
     }
     
     public static FeatureWrapper fromFile(File file) {
-        return fromFile(file, Thread.currentThread().getContextClassLoader());
+        return fromFile(file, Thread.currentThread().getContextClassLoader(), null);
+    }    
+    
+    public static FeatureWrapper fromFile(File file, KarateReporter reporter) {
+        return fromFile(file, Thread.currentThread().getContextClassLoader(), reporter);
     }
 
-    public static FeatureWrapper fromFile(File file, ClassLoader classLoader) {
+    public static FeatureWrapper fromFile(File file, ClassLoader classLoader, KarateReporter reporter) {
         String text = FileUtils.toString(file);
-        ScriptEnv env = ScriptEnv.init(file.getParentFile(), file.getName(), classLoader);
+        ScriptEnv env = new ScriptEnv(null, file.getParentFile(), file.getName(), classLoader, reporter);
         return new FeatureWrapper(text, env, file.getPath());
     }
 

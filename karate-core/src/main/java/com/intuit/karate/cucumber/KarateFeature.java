@@ -44,7 +44,7 @@ public class KarateFeature {
     }        
     
     public KarateFeature(CucumberFeature feature, KarateRuntimeOptions karateOptions) {
-        file = FileUtils.resolveIfClassPath(feature.getPath());
+        file = FileUtils.resolveIfClassPath(feature.getPath(), karateOptions.getClassLoader());
         this.feature = feature;
         this.runtimeOptions = karateOptions;
     }

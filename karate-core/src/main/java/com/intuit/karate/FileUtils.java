@@ -147,14 +147,13 @@ public class FileUtils {
         }
     }
 
-    public static File resolveIfClassPath(String path) {
+    public static File resolveIfClassPath(String path, ClassLoader classLoader) {
         File file = new File(path);
         if (file.exists()) { // loaded by karate
             return file;
         } else { // was loaded by cucumber-jvm, is relative to classpath
-            String temp = file.getPath().replace('\\', '/'); // fix for windows
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            String actualPath = cl.getResource(temp).getFile();
+            String temp = file.getPath().replace('\\', '/'); // fix for windows            
+            String actualPath = classLoader.getResource(temp).getFile();
             return new File(actualPath);
         }
     }

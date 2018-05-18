@@ -49,7 +49,7 @@ public abstract class KarateRunner {
     @Test(groups = "cucumber", description = "Runs Cucumber Feature", dataProvider = "features")
     public void feature(CucumberFeatureWrapper wrapper) {
         CucumberFeature feature = wrapper.getCucumberFeature();
-        File file = FileUtils.resolveIfClassPath(feature.getPath());
+        File file = FileUtils.resolveIfClassPath(feature.getPath(), runtimeOptions.getClassLoader());
         KarateRuntime runtime = runtimeOptions.getRuntime(file, null);
         resultListener.startFeature();
         RuntimeOptions ro = runtimeOptions.getRuntimeOptions();

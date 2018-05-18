@@ -24,6 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptEnv;
 import cucumber.runtime.RuntimeGlue;
 import cucumber.runtime.RuntimeOptions;
@@ -34,6 +35,8 @@ import cucumber.runtime.io.ResourceLoader;
 import cucumber.runtime.model.CucumberFeature;
 import cucumber.runtime.xstream.LocalizedXStreams;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -54,10 +57,22 @@ public class KarateRuntimeOptions {
     }
 
     public KarateRuntimeOptions(File file) {
-        classLoader = Thread.currentThread().getContextClassLoader();
-        runtimeOptions = new RuntimeOptions(file.getPath());
+        this(null, Arrays.asList(file.getPath()));
+    }    
+    
+    public KarateRuntimeOptions(String tagOptions, List<String> files) {
+        classLoader = FileUtils.createClassLoader(files.toArray(new String[]{}));
+        if (tagOptions != null) {
+            List<String> temp = new ArrayList();
+            temp.add("-t");
+            temp.add(tagOptions);
+            temp.addAll(files);
+            runtimeOptions = new RuntimeOptions(temp);
+        } else {
+            runtimeOptions = new RuntimeOptions(files);
+        }
         resourceLoader = new MultiLoader(classLoader);
-    }
+    }    
     
     public KarateRuntime getRuntime(File file, KarateReporter reporter) {
         File featureDir = file.getParentFile();
