@@ -34,9 +34,14 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ui.App;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import net.masterthought.cucumber.Configuration;
+import net.masterthought.cucumber.ReportBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -80,10 +85,13 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")
     String tags;
-    
+
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
-    int threads = 1;    
-    
+    int threads = 1;
+
+    @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
+    String output = "target";
+
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> tests;
 
@@ -132,7 +140,13 @@ public class Main implements Callable<Void> {
                 }
                 KarateRuntimeOptions kro = new KarateRuntimeOptions(tags, tests);
                 List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
-                KarateStats stats = CucumberRunner.parallel(karateFeatures, threads, "target");
+                KarateStats stats = CucumberRunner.parallel(karateFeatures, threads, output);
+                Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(output), new String[]{"json"}, true);
+                List<String> jsonPaths = new ArrayList(jsonFiles.size());
+                jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
+                Configuration config = new Configuration(new File(output), new Date() + "");
+                ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
+                reportBuilder.generateReports();
                 if (stats.getFailCount() > 0) {
                     throw new KarateException("there are test failures");
                 }

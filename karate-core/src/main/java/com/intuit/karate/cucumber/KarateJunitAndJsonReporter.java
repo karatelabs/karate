@@ -74,6 +74,9 @@ public class KarateJunitAndJsonReporter extends KarateReporterBase {
         json.step(step);
         // step has to happen first !
         match(match);
+        if ("aborted".equals(result.getStatus())) {
+            result = Result.UNDEFINED; // else 3rd-party cucumber reporter breaks
+        }
         result(result);        
     }        
 

@@ -35,19 +35,18 @@
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>3.0.1</version>
-        </dependency>                                     
+        </dependency>
+        <dependency>
+            <groupId>net.masterthought</groupId>
+            <artifactId>cucumber-reporting</artifactId>
+            <version>3.8.0</version>
+        </dependency>                                             
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-junit4</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>        
-        <dependency>
-            <groupId>net.masterthought</groupId>
-            <artifactId>cucumber-reporting</artifactId>
-            <version>3.8.0</version>
-            <scope>test</scope>
-        </dependency>                                                                                                                                                                                          		
+        </dependency>                                                                                                                                                                                         		
     </dependencies>
     
     <build>

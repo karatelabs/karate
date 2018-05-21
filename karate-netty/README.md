@@ -117,12 +117,12 @@ If you have a custom certificate and private-key (in PEM format) you can specify
 java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
 ```
 
-### Run Test
-Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing.
+### Running Tests
+Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
 
 > Note that if you are depending on external Java libraries or custom code to be compiled, this won't work.
 
-Feature files (or search paths) to be tested don't need command-line options and can be just listed at the end of the command.
+Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
 
 ```
 java -jar karate-netty-<version>-all.jar my-test.feature
@@ -156,6 +156,12 @@ If you provide a directory in which multiple feature files are present (even in 
 
 ```
 java -jar karate-netty-<version>-all.jar -T 5 -t ~@ignore src/features
+```
+
+The output directory where the `karate.log` file, JUnit XML and Cucumber report JSON files would be output will default to `target` in the current working directory. The Cucumber HTML report would be found in a folder called `cucumber-html-reports` within this "output" folder. You can change the output folder using the `-o` or `--output` option:
+
+```
+java -jar karate-netty-<version>-all.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
 ```
 
 ### UI
