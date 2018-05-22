@@ -5,4 +5,3 @@ Scenario: first scenario
 * def info = karate.info
 * print 'info:', info
 * match info contains { scenarioName: 'first scenario', featureFileName: 'info.feature' }
-

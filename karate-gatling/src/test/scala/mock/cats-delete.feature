@@ -9,4 +9,3 @@ Feature: delete all cats found
 
     * def delete = read('cats-delete-one.feature')
     * def result = call delete response
-

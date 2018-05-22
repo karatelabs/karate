@@ -31,4 +31,3 @@ Scenario: pathMatches('/v1/abort')
     * eval if (response.success) karate.abort()
     # the next line will not be executed
     * def response = { success: false }
-

@@ -23,4 +23,3 @@ Scenario: oauth 2 flow
 # * param access_token = accessToken
 * method get
 * status 200
-

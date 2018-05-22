@@ -24,6 +24,3 @@ Scenario: html url encoded form submit - get
     When method get
     Then status 200
     And match response == 'success'
-
-
-

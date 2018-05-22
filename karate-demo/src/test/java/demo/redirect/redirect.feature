@@ -49,5 +49,3 @@ Scenario: post redirects can be disabled
     When method get
     Then status 200
     And match response == { foo: ['bar'] }
-
-

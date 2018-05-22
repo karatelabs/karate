@@ -32,6 +32,3 @@ Scenario: soap 1.2
     Then status 200
     # note how we focus only on the relevant part of the payload and read expected XML from a file
     And match /Envelope/Body/AddResponse == read('expected.xml')
-
-
-

@@ -17,4 +17,3 @@ Scenario: malformed json response
     When method post
     Then status 200
     And match response == '{ "foo": }'
-

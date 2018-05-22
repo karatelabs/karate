@@ -50,4 +50,3 @@ Scenario: parameter which is an array and dynamic
     Then status 200
     And match response == { pl: ['r', 'r', 'r', 'r', 'r'] }
     
-

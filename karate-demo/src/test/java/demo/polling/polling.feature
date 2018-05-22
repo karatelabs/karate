@@ -28,5 +28,3 @@ Scenario: get greeting and keep polling until id is n + 5
 * print 'current: ' + current
 * def target = current.id + 5
 * call waitUntil target
-
-

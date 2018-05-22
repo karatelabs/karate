@@ -25,4 +25,3 @@ Then status 200
 
 # refer to 'call-isolated-headers.feature' and 'common-multiple.feature'
 # for an example of NOT using 'shared scope'
-

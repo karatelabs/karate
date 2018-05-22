@@ -34,6 +34,3 @@ And header Accept = 'application/xml'
 When method get
 Then status 200
 And match response == <cat><id>#(id)</id><name>Billie</name></cat>
-
-
-

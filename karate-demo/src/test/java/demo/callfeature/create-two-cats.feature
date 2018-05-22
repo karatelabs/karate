@@ -18,8 +18,3 @@ And request { name: 'Wild' }
 When method post
 Then status 200
 And def wild = response
-
-
-
-
-

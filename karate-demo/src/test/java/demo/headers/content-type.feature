@@ -76,4 +76,3 @@ Scenario: json post with default header but NO charset
     * def temp = response['content-type'][0].toLowerCase()
     * assert temp.contains('application/json')
     * assert !temp.contains('charset=utf-8')
-

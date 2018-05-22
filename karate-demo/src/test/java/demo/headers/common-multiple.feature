@@ -21,4 +21,3 @@ Given path 'headers', token
 And param url = demoBaseUrl
 When method get
 Then status 200
-

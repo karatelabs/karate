@@ -49,6 +49,3 @@ Then status 200
 * assert response.length == 6
 # prefer match instead of assert
 * match response == '#[6]'
-
-
-

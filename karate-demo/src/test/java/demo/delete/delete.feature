@@ -21,4 +21,3 @@ Given path 'cats'
 And request cat
 When method delete
 Then status 200
-

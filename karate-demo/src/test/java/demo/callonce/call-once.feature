@@ -42,7 +42,3 @@ Scenario: create a cat with kittens
     And match response.kittens[*].name contains only ['Bob', 'Wild', 'Nyan']
     # the ultimate data-driven test
     And match response.kittens[*].name contains only $kittens[*].name
-
-
-
-

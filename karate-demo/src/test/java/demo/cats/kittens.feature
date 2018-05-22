@@ -34,6 +34,3 @@ When method get
 Then status 200
 And match each response == { id: '#number', name: '#string' }
 And match response contains { id: '#(wild.id)', name: 'Wild' }
-
-
-

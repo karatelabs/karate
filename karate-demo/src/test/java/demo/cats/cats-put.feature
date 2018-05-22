@@ -26,6 +26,3 @@ And request { id: '#(id)', name: 'Billie Edit' }
 When method put
 Then status 200
 And match response == { id: '#(id)', name: 'Billie Edit' }
-
-
-

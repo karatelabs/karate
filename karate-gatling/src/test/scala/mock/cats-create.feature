@@ -27,4 +27,3 @@ Feature: cats crud
     When method get
     Then status 200
     And match response contains { id: '#(id)', name: 'Bob' }
-

@@ -15,7 +15,3 @@ Scenario: demo of json handling
 * match billie.kittens contains { id: 42, name: 'Wild' }
 
 * match billie.kittens contains { id: '#? _ > 25', name: '#string' }
-
-
-
-
