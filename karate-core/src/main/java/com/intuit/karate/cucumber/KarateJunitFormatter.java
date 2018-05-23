@@ -166,7 +166,13 @@ public class KarateJunitFormatter implements Formatter, Reporter {
                 featureName = featurePath;
             }
             rootElement.setAttribute("name", featureName);
-            testCount = Integer.valueOf(rootElement.getAttribute("tests"));
+            String testCountString = rootElement.getAttribute("tests");
+            try {
+                testCount = Integer.valueOf(testCountString);
+            } catch (Exception e) {
+                testCount = 0;
+                logger.warn("invalid test count: {}", e.getMessage());
+            }
             failCount = rootElement.getElementsByTagName("failure").getLength();
             rootElement.setAttribute("failures", String.valueOf(failCount));
             skipCount = rootElement.getElementsByTagName("skipped").getLength();
