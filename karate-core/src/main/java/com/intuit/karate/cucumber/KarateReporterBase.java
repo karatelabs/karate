@@ -38,11 +38,12 @@ import gherkin.formatter.model.Step;
  */
 public abstract class KarateReporterBase implements KarateReporter {
 
-    private ReporterLogAppender appender;
+    protected String tempFilePath;
+    private ReporterLogAppender appender;  
     
     protected ReporterLogAppender getAppender() {
         if (appender == null) {
-            appender = new ReporterLogAppender();
+            appender = new ReporterLogAppender(tempFilePath);
         }
         return appender;
     }

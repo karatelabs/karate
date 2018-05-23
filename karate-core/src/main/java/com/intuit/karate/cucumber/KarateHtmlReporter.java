@@ -59,6 +59,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
 
     private final Reporter reporter;
     private final Formatter formatter;
+    private final String buildDir;
 
     private CucumberFeature feature;
     private Document doc;
@@ -72,6 +73,9 @@ public class KarateHtmlReporter extends KarateReporterBase {
         this.reporter = reporter;
         this.formatter = formatter;
         NUMBER_FORMAT.applyPattern("0.######");
+        String command = System.getProperty("sun.java.command", "");
+        buildDir = command.contains("org.gradle.") ? "build" : "target";
+        tempFilePath = buildDir + "/karate-html.log";
     }
 
     private void append(String path, Node node) {
@@ -123,8 +127,6 @@ public class KarateHtmlReporter extends KarateReporterBase {
     public void endKarateFeature() {
         String xml = XmlUtils.toString(doc);
         String packageName = FileUtils.toPackageQualifiedName(feature.getPath());
-        String command = System.getProperty("sun.java.command", "");
-        String buildDir = command.contains("org.gradle.") ? "build" : "target";
         File file = new File(buildDir + "/surefire-reports/TEST-" + packageName + ".html");
         try {
             FileUtils.writeToFile(file, xml);

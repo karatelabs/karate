@@ -29,6 +29,10 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
 import com.intuit.karate.FileUtils;
+import java.io.File;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -36,33 +40,51 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class ReporterLogAppender extends AppenderBase<ILoggingEvent> {
-    
+
     private final Logger logger;
     private final PatternLayoutEncoder encoder;
     private final String threadName;
-    private StringBuilder sb;
-    
-    public ReporterLogAppender() {
-        sb = new StringBuilder();
+    private final FileChannel file;
+    private int prevPos;
+
+    public ReporterLogAppender(String tempFilePath) {
+        try {
+            if (tempFilePath == null) {
+                File temp = File.createTempFile("karate", "tmp");
+                tempFilePath = temp.getPath();
+            }
+            RandomAccessFile raf = new RandomAccessFile(tempFilePath, "rw");
+            file = raf.getChannel();
+            prevPos = (int) file.position();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         this.threadName = Thread.currentThread().getName();
         this.logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
         setName("karate-reporter");
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        setContext(lc);        
+        setContext(lc);
         encoder = new PatternLayoutEncoder();
         encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
         encoder.setContext(context);
         encoder.start();
         start();
-        logger.addAppender(this);     
-    }       
-    
-    public String collect() {
-        String temp = sb.toString();
-        sb = new StringBuilder();
-        return temp;
+        logger.addAppender(this);
     }
-    
+
+    public String collect() {
+        try {
+            int pos = (int) file.position();
+            ByteBuffer buf = ByteBuffer.allocate(pos - prevPos);
+            file.read(buf, prevPos);
+            prevPos = pos;
+            buf.flip();
+            return FileUtils.toString(buf.array());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     protected void append(ILoggingEvent event) {
         if (!threadName.equals(event.getThreadName())) {
@@ -70,12 +92,11 @@ public class ReporterLogAppender extends AppenderBase<ILoggingEvent> {
         }
         try {
             byte[] bytes = encoder.encode(event);
-            String line = FileUtils.toString(bytes);
-            sb.append(line);
+            file.write(ByteBuffer.wrap(bytes));
         } catch (Exception e) {
             System.err.println("possible logback version conflict: " + e.getMessage());
             e.printStackTrace();
         }
-    }    
-    
+    }
+
 }

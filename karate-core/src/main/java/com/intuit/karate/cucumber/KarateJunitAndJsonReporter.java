@@ -63,7 +63,10 @@ public class KarateJunitAndJsonReporter extends KarateReporterBase {
 
     public KarateJunitAndJsonReporter(String featurePath, String reportPath) throws IOException {
         junit = new KarateJunitFormatter(featurePath, reportPath);
-        String jsonReportPath = reportPath.replaceFirst("\\.xml$", ".json");
+        int pos = reportPath.lastIndexOf('.'); // foo/bar.xml
+        String basePath = reportPath.substring(0, pos);
+        String jsonReportPath = basePath + ".json";
+        tempFilePath = basePath + ".log";
         FileWriter fileWriter = new FileWriter(jsonReportPath);
         json = new CucumberJSONFormatter(fileWriter);
     }        
