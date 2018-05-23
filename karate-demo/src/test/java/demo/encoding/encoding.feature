@@ -78,3 +78,15 @@ Scenario: french & german multipart
     When method post
     Then status 200
     And match response == { id: '#uuid', filename: 'karate-logo.jpg', message: 'oliàèôç Müller', contentType: 'image/jpg' }
+
+Scenario: multipart but forcing the charset to NOT be sent
+    Given url demoBaseUrl
+    Given path 'files'
+    And multipart file myFile = { read: '../upload/karate-logo.jpg', filename: 'karate-logo.jpg', contentType: 'image/jpg' }
+    And multipart field message = 'oliàèôç Müller'
+    # this ensures that "charset" does NOT appear in the Content-Type header
+    # which is often required as some servers don't like it
+    And configure charset = null
+    When method post
+    Then status 200
+    And match response == { id: '#uuid', filename: 'karate-logo.jpg', message: 'oli???? M?ller', contentType: 'image/jpg' }
