@@ -1815,8 +1815,8 @@ Marker | Description
 `#ignore` | Skip comparison for this field even if the data element or JSON key is present
 `#null` | Expects actual value to be `null`, and the data element or JSON key *must* be present
 `#notnull` | Expects actual value to be not-`null`
-`#present` | Actual value can be any type or *even* `null`, and the element or JSON key *must* be present
-`#notpresent` | Expects the data element or JSON key to be **not** present at all
+`#present` | Actual value can be any type or *even* `null`, but the key *must* be present (only works within JSON)
+`#notpresent` | Expects the key to be **not** present at all (only works within JSON)
 `#array` | Expects actual value to be a JSON array
 `#object` | Expects actual value to be a JSON object
 `#boolean` | Expects actual value to be a boolean `true` or `false`
@@ -1827,6 +1827,14 @@ Marker | Description
 `#? EXPR` | Expects the JavaScript expression 'EXPR' to evaluate to true, see [self-validation expressions](#self-validation-expressions) below
 `#[NUM] EXPR` | Advanced array validation, see [schema validation](#schema-validation)
 `#(EXPR)` | For completeness, [embedded expressions](#embedded-expressions) belong in this list as well
+
+Note that `#present` and `#notpresent` only make sense in a JSON content. The rest do, but can also be used in 'primitive' data matches like so:
+
+```cucumber
+* match foo == '#string'
+# convenient (and recommended) way to check for array length
+* match bar == '#[2]'
+```
 
 ### Optional Fields
 If two cross-hatch `#` symbols are used as the prefix (for example: `##number`), it means that the key is optional or that the value can be null.
