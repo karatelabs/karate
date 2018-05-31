@@ -121,7 +121,7 @@ And if you run into class-loading conflicts, for example if an older version of 
 
 ## Gradle
 
-Alternatively for Gradle you need two `dependencies`:
+Alternatively for Gradle you need these two entries:
 
 ```yml
     testCompile 'com.intuit.karate:karate-junit4:0.8.0'
@@ -242,7 +242,7 @@ For details on what actually goes into a script or `*.feature` file, refer to th
 ## IDE Support
 Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
 
-> A [debug helper](karate-core/src/main/java/com/intuit/karate/Debug.java) was introduced in version 0.6.0 - which helps you [set conditional break-points](https://twitter.com/KarateDSL/status/902387883478097924) while running tests. Also refer to the [JUnit HTML report](#junit-html-report).
+> Also refer to the [JUnit HTML report](#junit-html-report).
 
 ### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
@@ -2199,7 +2199,7 @@ Symbol  | Means
 | `^*`  | [`contains any`](#match-contains-any) 
 | `!^`  | [`not contains`](#not-contains)     
 
-Here'a table of the alternative 'in-line' forms compared with the 'standard' form. Note that the short-cut forms on the right-side of the table mostly resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ (single-step) payload `match`, using [embedded expressions](#embedded-expressions).
+Here'a table of the alternative 'in-line' forms compared with the 'standard' form. Note that *all* the short-cut forms on the right-side of the table resolve to 'equality' (`==`) matches, which enables them to be 'in-lined' into a _full_ (single-step) payload `match`, using [embedded expressions](#embedded-expressions).
 
 <a href="https://gist.github.com/ptrthomas/2a1e30bcb4d782279019b3d5c10b3ed1"><img src="karate-demo/src/test/resources/karate-json-assertions.jpg" height="690px"/></a>
 
@@ -2268,7 +2268,7 @@ It is worth repeating that the above can be condensed into 2 lines. Note that si
 ```
 
 ### `get` plus index
-A convenience that the `get` syntax supports (but not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` (or search filter) in JsonPath, you get a list back - even though typically you may be interested in only the first item.
+A convenience that the `get` syntax supports (but not the `$` short-cut form) is to return a single element if the right-hand-side evaluates to a list-like result (e.g. a JSON array). This is useful because the moment you use a wildcard `[*]` or search filter in JsonPath (see the next section), you get an *array* back - even though typically you would only be interested in the *first* item.
 
 ```cucumber
 * def actual = 23
@@ -2828,7 +2828,7 @@ karate.set('temp', squares);
 Waiting or performing a 'sleep' until a certain condition is met is a common need, and this demo example should get you up and running: [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature).
 
 ## Conditional Logic
-The keywords [`Given` `When` `Then`](#given-when-then) are only for decoration and should not be thought of as similar to an `if - then - else` statement. And as a testing framework, Karate discourages tests that give different results on every run.
+The keywords [`Given` `When` `Then`](#given-when-then) are only for decoration and should not be thought of as similar to an `if - then - else` statement. And as a testing framework, Karate [discourages tests](https://martinfowler.com/articles/nonDeterminism.html) that give different results on every run.
 
 That said, if you really need to implement 'conditional' checks, this can be one pattern:
 
