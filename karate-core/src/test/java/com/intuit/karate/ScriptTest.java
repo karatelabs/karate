@@ -1,6 +1,5 @@
 package com.intuit.karate;
 
-import com.intuit.karate.http.DummyHttpClient;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
@@ -946,6 +945,10 @@ public class ScriptTest {
         Script.assign("xml", "<root><foo>bar</foo></root>", ctx);
         Script.removeValueByPath("xml", "/root/foo", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root/>", ctx).pass);
+        // xml attribute
+        Script.assign("xml", "<root hello=\"world\"><foo>bar</foo></root>", ctx);
+        Script.removeValueByPath("xml", "/root/@hello", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo>bar</foo></root>", ctx).pass);        
     } 
     
     @Test

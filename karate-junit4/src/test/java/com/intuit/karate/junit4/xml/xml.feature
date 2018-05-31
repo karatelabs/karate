@@ -5,13 +5,15 @@ Scenario: pretty print xml
     * def xml = read('soap1.xml')
     * print 'pretty print:', xml
 
-Scenario: test removing and adding elements using keyword
+Scenario: test removing and adding elements / attributes
     * def base = <query><name>foo</name></query>
     * remove base /query/name
     * match base == <query/>
     * set base /query/foo = 'bar'
     * set base /query/@baz = 'ban'
     * match base == <query baz="ban"><foo>bar</foo></query>
+    * remove base /query/@baz
+    * match base == <query><foo>bar</foo></query>
 
 Scenario: test removing elements from xml from js
     * def base = <query><name>foo</name></query>
