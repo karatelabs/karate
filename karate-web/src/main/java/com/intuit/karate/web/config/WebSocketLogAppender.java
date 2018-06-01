@@ -48,9 +48,17 @@ public class WebSocketLogAppender extends AppenderBase<ILoggingEvent> {
     public WebSocketLogAppender(String sessionId) {
         // deliberately NOT the com.intuit form else will pick up all those
         // this is supposed to isolate user-session s
-        this.sessionId = sessionId;
-        logger = (Logger) LoggerFactory.getLogger(sessionId);
         sb = new StringBuilder();
+    	this.sessionId = sessionId;
+        LoggerContext ctx = null;
+		if (!(LoggerFactory.getILoggerFactory()
+				.getLogger(sessionId) instanceof ch.qos.logback.classic.Logger)) {
+			ctx = new LoggerContext();
+			this.logger = ctx.getLogger(sessionId);
+		} else {
+			ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
+			this.logger = (Logger) LoggerFactory.getILoggerFactory().getLogger(sessionId);
+		}
         setName("karate-web");
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         setContext(lc);

@@ -45,7 +45,16 @@ public class TextAreaLogAppender extends AppenderBase<ILoggingEvent> {
 
     public TextAreaLogAppender(TextArea textArea) {
         this.textArea = textArea;
-        logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
+        LoggerContext ctx = null;
+		if (!(LoggerFactory.getILoggerFactory()
+				.getLogger("com.intuit.karate") instanceof ch.qos.logback.classic.Logger)) {
+			ctx = new LoggerContext();
+			this.logger = ctx.getLogger("com.intuit.karate");
+		} else {
+			ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
+			this.logger = (Logger) LoggerFactory.getILoggerFactory().getLogger("com.intuit.karate");
+
+		}
         setName("karate-ui");
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         setContext(lc);

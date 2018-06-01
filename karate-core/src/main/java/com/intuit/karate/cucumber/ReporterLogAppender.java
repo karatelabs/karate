@@ -28,54 +28,64 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
-import com.intuit.karate.FileUtils;
+
 import org.slf4j.LoggerFactory;
+
+import com.intuit.karate.FileUtils;
 
 /**
  *
  * @author pthomas3
  */
 public class ReporterLogAppender extends AppenderBase<ILoggingEvent> {
-    
-    private final Logger logger;
-    private final PatternLayoutEncoder encoder;
-    private final String threadName;
-    private StringBuilder sb;
-    
-    public ReporterLogAppender() {
-        sb = new StringBuilder();
-        this.threadName = Thread.currentThread().getName();
-        this.logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
-        setName("karate-reporter");
-        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        setContext(lc);        
-        encoder = new PatternLayoutEncoder();
-        encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
-        encoder.setContext(context);
-        encoder.start();
-        start();
-        logger.addAppender(this);     
-    }       
-    
-    public String collect() {
-        String temp = sb.toString();
-        sb = new StringBuilder();
-        return temp;
-    }
-    
-    @Override
-    protected void append(ILoggingEvent event) {
-        if (!threadName.equals(event.getThreadName())) {
-            return;
-        }
-        try {
-            byte[] bytes = encoder.encode(event);
-            String line = FileUtils.toString(bytes);
-            sb.append(line);
-        } catch (Exception e) {
-            System.err.println("possible logback version conflict: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }    
-    
+
+	private final Logger logger;
+	private final PatternLayoutEncoder encoder;
+	private final String threadName;
+	private StringBuilder sb;
+
+	public ReporterLogAppender() {
+		sb = new StringBuilder();
+		this.threadName = Thread.currentThread().getName();
+		LoggerContext ctx = null;
+		if (!(LoggerFactory.getILoggerFactory()
+				.getLogger("com.intuit.karate") instanceof ch.qos.logback.classic.Logger)) {
+			ctx = new LoggerContext();
+			this.logger = ctx.getLogger("com.intuit.karate");
+		} else {
+			ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
+			this.logger = (Logger) LoggerFactory.getILoggerFactory().getLogger("com.intuit.karate");
+
+		}
+		setName("karate-reporter");
+		setContext(ctx);
+		encoder = new PatternLayoutEncoder();
+		encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
+		encoder.setContext(context);
+		encoder.start();
+		start();
+		logger.addAppender(this);
+	}
+
+	public String collect() {
+		String temp = sb.toString();
+		sb = new StringBuilder();
+		return temp;
+	}
+
+	@Override
+	protected void append(ILoggingEvent event) {
+		if (!threadName.equals(event.getThreadName())) {
+			return;
+		}
+		try {
+			byte[] bytes = encoder.encode(event);
+			String line = FileUtils.toString(bytes);
+			sb.append(line);
+		} catch (Exception e) {
+			System.err.println("possible logback version conflict: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+
 }
