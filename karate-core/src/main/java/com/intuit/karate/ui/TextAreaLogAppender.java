@@ -49,15 +49,12 @@ public class TextAreaLogAppender extends AppenderBase<ILoggingEvent> {
 		if (!(LoggerFactory.getILoggerFactory()
 				.getLogger("com.intuit.karate") instanceof ch.qos.logback.classic.Logger)) {
 			ctx = new LoggerContext();
-			this.logger = ctx.getLogger("com.intuit.karate");
 		} else {
 			ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
-			this.logger = (Logger) LoggerFactory.getILoggerFactory().getLogger("com.intuit.karate");
-
-		}
+        }
+        this.logger = ctx.getLogger("com.intuit.karate");
         setName("karate-ui");
-        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        setContext(lc);
+        setContext(ctx);
         encoder = new PatternLayoutEncoder();
         encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
         encoder.setContext(context);

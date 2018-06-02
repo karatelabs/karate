@@ -53,15 +53,13 @@ public class WebSocketLogAppender extends AppenderBase<ILoggingEvent> {
         LoggerContext ctx = null;
 		if (!(LoggerFactory.getILoggerFactory()
 				.getLogger(sessionId) instanceof ch.qos.logback.classic.Logger)) {
-			ctx = new LoggerContext();
-			this.logger = ctx.getLogger(sessionId);
+			ctx = new LoggerContext();	
 		} else {
 			ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
-			this.logger = (Logger) LoggerFactory.getILoggerFactory().getLogger(sessionId);
-		}
+        }
+        this.logger = ctx.getLogger(sessionId);
         setName("karate-web");
-        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        setContext(lc);
+        setContext(ctx);
         encoder = new PatternLayoutEncoder();
         encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
         encoder.setContext(context);
