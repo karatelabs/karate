@@ -123,7 +123,8 @@ public class ScriptContext {
     }
 
     public ScriptContext(ScriptEnv env, CallContext call) {
-        this.env = env.refresh(null);
+        env = env.refresh(null);
+        this.env = env; // make sure references below to env.env use the updated one
         logger = env.logger;
         callDepth = call.callDepth;
         asyncSystem = call.asyncSystem;
@@ -149,23 +150,35 @@ public class ScriptContext {
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
         if (call.parentContext == null && call.evalKarateConfig) {
-            try {
-                String configScript;
-                String configPath = System.getProperty(ScriptBindings.KARATE_CONFIG);
-                if (configPath != null) { // over-ridden by user or command-line / stand-alone jar
-                    File configFile = new File(configPath);
-                    configScript = String.format("%s('%s')", ScriptBindings.READ, FileUtils.FILE_COLON + configFile.getPath());
-                } else {
-                    configScript = ScriptBindings.READ_KARATE_CONFIG;
-                }
+            String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
+            String configScript = ScriptBindings.readKarateConfigForEnv(true, configDir, null);
+            try {                                                
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
             } catch (Exception e) {
                 if (e instanceof KarateFileNotFoundException) {
                     logger.warn("skipping bootstrap configuration: {}", e.getMessage());
                 } else {
-                    throw new RuntimeException("evaluation of " + ScriptBindings.KARATE_CONFIG_JS + " failed:", e);
+                    throw new RuntimeException("evaluation of '" + ScriptBindings.KARATE_CONFIG_JS + "' failed", e);
                 }
             }
+            if (env.env != null) {
+                if (configDir == null) {
+                    configDir = ScriptBindings.DOT_KARATE;
+                }
+                File configDirFile = new File(configDir);
+                if (configDirFile.exists()) {
+                    configScript =  ScriptBindings.readKarateConfigForEnv(false, configDir, env.env);
+                    try {
+                        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
+                    } catch (Exception e) {
+                        if (e instanceof KarateFileNotFoundException) {
+                            logger.debug("skipping bootstrap configuration for env: {} - {}", env.env, e.getMessage());
+                        } else {
+                            throw new RuntimeException("evaluation of 'karate-config-" + env.env + ".js' failed", e);
+                        }                        
+                    }
+                }
+            }            
         }
         if (call.callArg != null) { // if call.reuseParentContext is true, arg will clobber parent context
             for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {

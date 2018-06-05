@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
+import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,9 +55,12 @@ public class ScriptBindings implements Bindings {
     private final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
+    public static final String DOT_KARATE = ".karate";
     public static final String KARATE_ENV = "karate.env";
-    public static final String KARATE_CONFIG = "karate.config";
-    public static final String KARATE_CONFIG_JS = "karate-config.js";
+    public static final String KARATE_CONFIG_DIR = "karate.config.dir";
+    private static final String KARATE_DASH_CONFIG = "karate-config";
+    private static final String DOT_JS = ".js";
+    public static final String KARATE_CONFIG_JS = KARATE_DASH_CONFIG + DOT_JS;
     public static final String READ = "read";
     public static final String PATH_MATCHES = "pathMatches";
     public static final String METHOD_IS = "methodIs";
@@ -65,6 +69,8 @@ public class ScriptBindings implements Bindings {
     public static final String PARAM_VALUE = "paramValue";
     public static final String PATH_PARAMS = "pathParams";
     public static final String BODY_PATH = "bodyPath";
+
+    private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
 
     public ScriptBindings(ScriptContext context) {
         this.vars = context.vars;
@@ -78,9 +84,27 @@ public class ScriptBindings implements Bindings {
         adds.put(READ, readFunction.getValue());
     }
 
-    private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
+    private static final String READ_INVOKE = "%s('%s%s')";
+    private static final String READ_KARATE_CONFIG_DEFAULT = String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_CONFIG_JS);
+    
 
-    public static final String READ_KARATE_CONFIG = String.format("%s('%s')", READ, FileUtils.CLASSPATH_COLON + KARATE_CONFIG_JS);
+    public static final String readKarateConfigForEnv(boolean isDefault, String configDir, String env) {
+        if (isDefault) {
+            if (configDir == null) {
+                return READ_KARATE_CONFIG_DEFAULT;
+            } else {
+                File configFile = new File(configDir + "/" + KARATE_CONFIG_JS);
+                if (configFile.exists()) {
+                    return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath());
+                } else {
+                    return READ_KARATE_CONFIG_DEFAULT;
+                }
+            }
+        } else { // configDir and env are both expected to be not null
+            File configFile = new File(configDir + "/" + KARATE_DASH_CONFIG + "-" + env + DOT_JS);
+            return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath());
+        }
+    }
 
     public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
         if (context == null) {

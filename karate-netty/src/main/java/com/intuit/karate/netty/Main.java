@@ -134,9 +134,9 @@ public class Main implements Callable<Void> {
                 if (env != null) {
                     System.setProperty(ScriptBindings.KARATE_ENV, env);
                 }
-                String configPath = System.getProperty(ScriptBindings.KARATE_CONFIG);
-                if (configPath == null) {
-                    System.setProperty(ScriptBindings.KARATE_CONFIG, new File(ScriptBindings.KARATE_CONFIG_JS).getPath() + "");
+                String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
+                if (configDir == null) {
+                    System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File(".").getPath());
                 }
                 KarateRuntimeOptions kro = new KarateRuntimeOptions(tags, tests);
                 List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
