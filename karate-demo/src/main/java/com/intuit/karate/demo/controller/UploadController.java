@@ -28,7 +28,9 @@ import com.intuit.karate.demo.domain.FileInfo;
 import com.intuit.karate.demo.domain.Message;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -82,6 +84,15 @@ public class UploadController {
         fileInfoList.add(getFileInfo(file2, message));
         return fileInfoList;
     }
+    
+    @PostMapping("/fields")
+    public @ResponseBody Map<String, Object> fields(
+            @RequestParam("message") String message, @RequestParam("json") String json) throws Exception {
+        Map<String, Object> map = new HashMap();
+        map.put("message", message);
+        map.put("json", mapper.readValue(json, HashMap.class));
+        return map;
+    }    
 
     private FileInfo getFileInfo(MultipartFile file, String message) throws Exception {
 

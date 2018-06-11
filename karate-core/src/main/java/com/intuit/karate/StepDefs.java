@@ -394,6 +394,15 @@ public class StepDefs {
     public void multiPartFormField(String name, String value) {
         multiPart(name, value);
     }
+    
+    @When("^multipart fields (.+)")
+    public void multiPartFormFields(String expr) {
+        Map<String, Object> map = evalMapExpr(expr);
+        map.forEach((k, v)-> {
+            ScriptValue sv = new ScriptValue(v);
+            request.addMultiPartItem(k, sv);             
+        });
+    }    
 
     private static String asString(Map<String, Object> map, String key) {
         Object o = map.get(key);
@@ -429,12 +438,10 @@ public class StepDefs {
     @When("^multipart files (.+)")
      public void multiPartFiles(String expr) {
         Map<String, Object> map = evalMapExpr(expr);
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = entry.getKey();
-            Object value = entry.getValue();
-            ScriptValue sv = new ScriptValue(value);
-            multiPartFile(key, sv.getAsString());
-        }
+        map.forEach((k, v)-> {
+            ScriptValue sv = new ScriptValue(v);
+            multiPartFile(k, sv.getAsString());            
+        });
     }
 
     public void multiPart(String name, String value) {
