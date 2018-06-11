@@ -831,6 +831,22 @@ A few special built-in variables such as `$` (which is a [reference to the JSON 
 
 A [special case](#remove-if-null) of embedded expressions can remove a JSON key (or XML element / attribute) if the expression evaluates to `null`.
 
+#### Rules for Embedded Expressions
+They work only within JSON, XML or when the Right Hand Side of the [Karate expression](#karate-expressions) is a "quoted string". And the expression *has* to start with `"#(` and end with `)` - so note that string-concatenation may not work quite the way you expect:
+
+```cucumber
+# wrong !
+* def foo = 'hello #(name)'
+# right !
+* def foo = '#("hello " + name)'
+```
+
+Observe how you can achieve string concatenation if you really want, because any valid JavaScript expression can be stuffed within an embedded expression. You could always do this in two steps:
+```cucumber        
+* def temp = 'hello ' + name
+* def foo = '#(temp)'
+```
+
 ### Enclosed JavaScript
 An alternative to embedded expressions (for JSON only) is to enclose the entire payload within parentheses - which tells Karate to evaluate it as pure JavaScript. This can be a lot simpler than embedded expressions in many cases, and JavaScript programmers will feel right at home.
 
