@@ -1464,7 +1464,9 @@ Multi-values are supported the way you would expect (e.g. for simulating check-b
 You can also dynamically set multiple fields in one step using the [`form fields`](#form-fields) keyword.
 
 ## `multipart field`
-Use this for building multipart named (form) field requests. This is typically combined with `multipart file` as shown below.
+Use this for building multipart named (form) field requests. This is typically combined with `multipart file` as shown below.  
+
+> Multiple fields can be set in one step using [`multipart fields`](#multipart-fields).
 
 ## `multipart file`
 
@@ -1508,7 +1510,7 @@ Then status 201
 
 # Multi-Param Keywords
 ## Keywords that set multiple key-value pairs in one step
-`params`, `headers`, `cookies`, `form fields` and `multipart files` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing, especially because any JSON key with a `null` value will be ignored. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
+`params`, `headers`, `cookies`, `form fields`, `multipart fields` and `multipart files` take a single JSON argument (which can be in-line or a variable reference), and this enables certain types of dynamic data-driven testing, especially because any JSON key with a `null` value will be ignored. Here is a good example in the demos: [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature)
 
 ## `params`
 ```cucumber
@@ -1539,6 +1541,13 @@ See also [`cookie`](#cookie).
 ```
 
 See also [`form field`](#form-field).
+
+## `multipart fields`
+```cucumber
+And multipart fields { message: 'hello world', json: { foo: 'bar' } }
+```
+
+See also [`multipart field`](#multipart-field).
 
 ## `multipart files`
 The single JSON argument needs to be in the form `{ field1: { read: 'file1.ext' }, field2: { read: 'file2.ext' } }` where each nested JSON is in the form expected by [`multipart file`](#multipart-file)
