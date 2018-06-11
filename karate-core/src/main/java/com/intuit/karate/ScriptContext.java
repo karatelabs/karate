@@ -67,7 +67,7 @@ public class ScriptContext {
     protected HttpConfig config;
 
     // the actual http request last sent on the wire
-    protected HttpRequest prevRequest;           
+    protected HttpRequest prevRequest;
 
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());
@@ -79,11 +79,11 @@ public class ScriptContext {
 
     public HttpRequest getPrevRequest() {
         return prevRequest;
-    }        
+    }
 
     public int getCallDepth() {
         return callDepth;
-    }        
+    }
 
     public ScriptEnv getEnv() {
         return env;
@@ -152,7 +152,7 @@ public class ScriptContext {
         if (call.parentContext == null && call.evalKarateConfig) {
             String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
             String configScript = ScriptBindings.readKarateConfigForEnv(true, configDir, null);
-            try {                                                
+            try {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
             } catch (Exception e) {
                 if (e instanceof KarateFileNotFoundException) {
@@ -162,23 +162,17 @@ public class ScriptContext {
                 }
             }
             if (env.env != null) {
-                if (configDir == null) {
-                    configDir = ScriptBindings.DOT_KARATE;
-                }
-                File configDirFile = new File(configDir);
-                if (configDirFile.exists()) {
-                    configScript =  ScriptBindings.readKarateConfigForEnv(false, configDir, env.env);
-                    try {
-                        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
-                    } catch (Exception e) {
-                        if (e instanceof KarateFileNotFoundException) {
-                            logger.debug("skipping bootstrap configuration for env: {} - {}", env.env, e.getMessage());
-                        } else {
-                            throw new RuntimeException("evaluation of 'karate-config-" + env.env + ".js' failed", e);
-                        }                        
+                configScript = ScriptBindings.readKarateConfigForEnv(false, configDir, env.env);
+                try {
+                    Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
+                } catch (Exception e) {
+                    if (e instanceof KarateFileNotFoundException) {
+                        logger.debug("skipping bootstrap configuration for env: {} - {}", env.env, e.getMessage());
+                    } else {
+                        throw new RuntimeException("evaluation of 'karate-config-" + env.env + ".js' failed", e);
                     }
                 }
-            }            
+            }
         }
         if (call.callArg != null) { // if call.reuseParentContext is true, arg will clobber parent context
             for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
@@ -259,7 +253,7 @@ public class ScriptContext {
                 config.setCharset(Charset.forName(value.getAsString()));
             }
             // here again, re-construct client - and exit early
-            client = HttpClient.construct(config, this);            
+            client = HttpClient.construct(config, this);
             return;
         }
         // beyond this point, we don't exit early and we have to re-configure the http client
@@ -298,7 +292,7 @@ public class ScriptContext {
                 config.setProxyUri((String) map.get("uri"));
                 config.setProxyUsername((String) map.get("username"));
                 config.setProxyPassword((String) map.get("password"));
-                config.setNonProxyHosts(((List)((ScriptObjectMirror)map.get("nonProxyHosts")).values()));
+                config.setNonProxyHosts(((List) ((ScriptObjectMirror) map.get("nonProxyHosts")).values()));
             }
         } else if (key.equals("userDefined")) {
             config.setUserDefined(value.getAsMap());

@@ -1,5 +1,5 @@
 @ignore
 Feature: config over-ride per environment
 
-Scenario: check if .karate/karate-config-confdemo.js was invoked
-    * match confoverride == 'success'
+Scenario: check if classpath:karate-config-confdemo.js was invoked
+    * match confoverride == 'yes'

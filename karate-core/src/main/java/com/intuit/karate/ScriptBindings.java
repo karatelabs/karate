@@ -55,7 +55,6 @@ public class ScriptBindings implements Bindings {
     private final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
-    public static final String DOT_KARATE = ".karate";
     public static final String KARATE_ENV = "karate.env";
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
     private static final String KARATE_DASH_CONFIG = "karate-config";
@@ -86,23 +85,27 @@ public class ScriptBindings implements Bindings {
 
     private static final String READ_INVOKE = "%s('%s%s')";
     private static final String READ_KARATE_CONFIG_DEFAULT = String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_CONFIG_JS);
-    
 
-    public static final String readKarateConfigForEnv(boolean isDefault, String configDir, String env) {
-        if (isDefault) {
+    public static final String readKarateConfigForEnv(boolean isForDefault, String configDir, String env) {
+        if (isForDefault) {
             if (configDir == null) {
-                return READ_KARATE_CONFIG_DEFAULT;
-            } else {
+                return READ_KARATE_CONFIG_DEFAULT; // only look for classpath:karate-config.js
+            } else { // if the user set a config dir, look for karate-config.js but as a file in that dir
                 File configFile = new File(configDir + "/" + KARATE_CONFIG_JS);
                 if (configFile.exists()) {
                     return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath());
-                } else {
-                    return READ_KARATE_CONFIG_DEFAULT;
+                } else { // if karate-config.js was not over-ridden
+                    // user intent is likely to over-ride env config, see 'else' block for this function
+                    return READ_KARATE_CONFIG_DEFAULT; // default to classpath:karate-config.js
                 }
             }
-        } else { // configDir and env are both expected to be not null
-            File configFile = new File(configDir + "/" + KARATE_DASH_CONFIG + "-" + env + DOT_JS);
-            return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath());
+        } else {
+            if (configDir == null) { // look for classpath:karate-config-<env>.js
+                return String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_DASH_CONFIG + "-" + env + DOT_JS); 
+            } else { // look for file:<karate.config.dir>/karate-config-<env>.js
+                File configFile = new File(configDir + "/" + KARATE_DASH_CONFIG + "-" + env + DOT_JS);
+                return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath());                
+            }
         }
     }
 

@@ -635,6 +635,22 @@ public class CatsRunner {
 }
 ```
 
+## Environment Specific Config
+When your project gets complex, you can have separate `karate-config-<env>.js` files that will be processed for that specific value of [`karate.env`](#switching-the-environment). This is especially useful when you want to maintain passwords, secrets or even URL-s specific for your local dev environment. 
+
+> Make sure you configure your source code management to ignore `karate-config-*.js` if needed.
+
+Here are the rules Karate uses on bootstrap (before every `Scenario` or `Examples` row in a `Scenario Outline`):
+
+* if the system-property `karate.config.dir` was set, Karate will look in this folder for `karate-config.js`
+* if `karate-config.js` was not found in the above location (or `karate.config.dir` was not set), [`classpath:karate-config.js`](#karate-config-js) would be processed
+* if the `karate.env` system property was set
+  * if `karate.config.dir` was set, Karate will also look for `file:<config.dir>/karate-config-<env>.js`
+  * else (if the `karate.config.dir` was *not* set), Karate will look for `classpath/karate-config-<env>.js`
+* if Karate finds the extra `karate-config-<env>.js` it will be processed. Any configuration (JSON entries) returned by this function will over-ride any existing config set by `karate-config.js`
+
+Refer to the [karate demo](karate-demo) for an [example](karate-demo/src/test/java/karate-config-contract.js).
+
 # Syntax Guide
 ## Script Structure
 Karate scripts are technically in '[Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin)' format - but all you need to grok as someone who needs to test web-services are the three sections: `Feature`, `Background` and `Scenario`. There can be multiple Scenario-s in a `*.feature` file, and at least one should be present. The `Background` is optional. 
@@ -2707,26 +2723,6 @@ Shared | [`call-updates-config.feature`](karate-demo/src/test/java/demo/headers/
 
 > Once you get comfortable with Karate, you can consider moving your authentication flow into a 'global' one-time flow using [`karate.callSingle()`](#the-karate-object), think of it as '[`callonce`](#callonce) on steroids'.
 
-### HTTP Basic Authentication Example
-This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
-
-First the JavaScript file, `basic-auth.js`:
-```javascript
-function(creds) {
-  var temp = creds.username + ':' + creds.password;
-  var Base64 = Java.type('java.util.Base64');
-  var encoded = Base64.getEncoder().encodeToString(temp.bytes);
-  return 'Basic ' + encoded;
-}
-```
-And here's how it works in a test-script using the [`header`](#header) keyword.
-
-```cucumber
-* header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
-```
-
-You can set this up for all subsequent requests or dynamically generate headers for each HTTP request if you [`configure headers`](#configure-headers).
-
 ### Calling Java
 There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo). Also look at the section on [commonly needed utilities](#commonly-needed-utilities) for more ideas.
 
@@ -2774,6 +2770,26 @@ function(arg) {
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
 Another great example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
+
+#### HTTP Basic Authentication Example
+This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
+
+First the JavaScript file, `basic-auth.js`:
+```javascript
+function(creds) {
+  var temp = creds.username + ':' + creds.password;
+  var Base64 = Java.type('java.util.Base64');
+  var encoded = Base64.getEncoder().encodeToString(temp.bytes);
+  return 'Basic ' + encoded;
+}
+```
+And here's how it works in a test-script using the [`header`](#header) keyword.
+
+```cucumber
+* header Authorization = call read('basic-auth.js') { username: 'john', password: 'secret' }
+```
+
+You can set this up for all subsequent requests or dynamically generate headers for each HTTP request if you [`configure headers`](#configure-headers).
 
 ## `callonce`
 Cucumber has a limitation where [`Background`](#script-structure) steps are re-run for every `Scenario`. And if you have a `Scenario Outline`, this happens for *every* row in the `Examples`. This is a problem especially for expensive, time-consuming HTTP calls, and this has been an [open issue for a long time](https://github.com/cucumber/cucumber-jvm/issues/515). 

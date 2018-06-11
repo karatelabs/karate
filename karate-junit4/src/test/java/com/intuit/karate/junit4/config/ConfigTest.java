@@ -18,9 +18,17 @@ public class ConfigTest {
     }
 
     @Test
-    public void testOverrideEnv() {        
-        System.setProperty("karate.env", "confdemo");
-        CucumberRunner.runFeature(this.getClass(), "config-env.feature", null, true);
+    public void testOverrideEnvAndDir() {        
+        System.setProperty("karate.env", "confenvdir");
+        System.setProperty("karate.config.dir", "conf");
+        CucumberRunner.runFeature(this.getClass(), "config-envdir.feature", null, true);
+        System.clearProperty("karate.config.dir");
     }
+    
+    @Test
+    public void testOverrideEnv() {        
+        System.setProperty("karate.env", "confenv");
+        CucumberRunner.runFeature(this.getClass(), "config-env.feature", null, true);
+    }    
 
 }
