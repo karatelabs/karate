@@ -31,14 +31,12 @@ import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.validator.Validator;
-import java.io.File;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.slf4j.Logger;
 
 /**
  *

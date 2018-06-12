@@ -25,7 +25,6 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.filter.TagFilter;
 import com.intuit.karate.filter.TagFilterException;

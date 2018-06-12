@@ -25,8 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.cucumber.KarateReporter;
 import java.io.File;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -55,7 +53,7 @@ public class ScriptEnv {
     
     public ScriptEnv(String env, File featureDir, String featureName, ClassLoader fileClassLoader, KarateReporter reporter) {
         this(env, featureDir, featureName, fileClassLoader, new CallCache(), 
-                LoggerFactory.getLogger("com.intuit.karate"), reporter);
+                new Logger(), reporter);
     }
     
     public static ScriptEnv init(File featureDir, String featureName, ClassLoader classLoader) {
@@ -66,9 +64,9 @@ public class ScriptEnv {
         return new ScriptEnv(env, featureDir, null, Thread.currentThread().getContextClassLoader(), null);
     }
 
-    public static ScriptEnv init(String env, File featureFile, String[] searchPaths, Logger logger) {
+    public static ScriptEnv init(String env, File featureFile, String[] searchPaths) {
         return new ScriptEnv(env, featureFile.getParentFile(), featureFile.getName(), 
-                FileUtils.createClassLoader(searchPaths), new CallCache(), logger, null);
+                FileUtils.createClassLoader(searchPaths), new CallCache(), new Logger(), null);
     }
     
     public ScriptEnv refresh(String in) { // immutable

@@ -30,7 +30,6 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.classic.Logger;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Script;
 import org.slf4j.LoggerFactory;
 
 /**

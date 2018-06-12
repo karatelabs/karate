@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
@@ -58,6 +59,10 @@ public class KarateRuntime extends Runtime {
         super(kro.getResourceLoader(), kro.getClassLoader(), Collections.singletonList(backend), kro.getRuntimeOptions(), glue);
         this.backend = backend;
         this.stats = new CucumberStats(kro.getRuntimeOptions().isMonochrome());
+    }
+    
+    public Logger getLogger() {
+        return backend.getEnv().logger;
     }
 
     private void addStepToCounterAndResult(Result result) {

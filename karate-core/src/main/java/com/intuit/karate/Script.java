@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import static com.intuit.karate.ScriptValue.Type.*;
-import com.intuit.karate.cucumber.AsyncScenario;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.validator.ArrayValidator;

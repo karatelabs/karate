@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,39 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.ui;
-
-import com.intuit.karate.Logger;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextArea;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
-
-import static com.intuit.karate.ui.App.PADDING_INSET;
+package com.intuit.karate;
 
 /**
  *
  * @author pthomas3
  */
-public class LogPanel extends BorderPane {
-
-    private final TextArea textArea;
-
-    public LogPanel(Logger logger) {
-        setPadding(PADDING_INSET);
-        VBox content = new VBox(2.0);
-        setCenter(content);
-        textArea = new TextArea();
-        TextAreaLogAppender appender = new TextAreaLogAppender(logger, textArea);
-        textArea.setFont(App.getDefaultFont());
-        Button clearButton = new Button("Clear Log");
-        clearButton.setOnAction(e -> textArea.clear());        
-        content.getChildren().addAll(textArea, clearButton);
-        DragResizer.makeResizable(textArea, false, false, true, false);
-    }
+public interface LogAppender {
     
-    public void append(String s) {
-        textArea.appendText(s);
-    }
+    String collect();
+    
+    void append(String text);
     
 }

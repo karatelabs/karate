@@ -23,46 +23,33 @@
  */
 package com.intuit.karate.ui;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.AppenderBase;
-import com.intuit.karate.FileUtils;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.Logger;
 import javafx.scene.control.TextArea;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class TextAreaLogAppender extends AppenderBase<ILoggingEvent> {
+public class TextAreaLogAppender implements LogAppender {
 
     private final TextArea textArea;
-    private final Logger logger;
-    private final PatternLayoutEncoder encoder;
 
-    public TextAreaLogAppender(TextArea textArea) {
+    public TextAreaLogAppender(Logger logger, TextArea textArea) {
         this.textArea = textArea;
-        logger = (Logger) LoggerFactory.getLogger("com.intuit.karate");
-        setName("karate-ui");
-        LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-        setContext(lc);
-        encoder = new PatternLayoutEncoder();
-        encoder.setPattern("%d{HH:mm:ss.SSS} %-5level - %msg%n");
-        encoder.setContext(context);
-        encoder.start();
-        start();
-        logger.addAppender(this);
-        logger.setLevel(Level.DEBUG);
+        logger.setLogAppender(this);
     }
 
     @Override
-    protected void append(ILoggingEvent event) {
-        byte[] bytes = encoder.encode(event);
-        String line = FileUtils.toString(bytes);
-        textArea.appendText(line);
+    public String collect() {
+        String text = textArea.getText();
+        textArea.clear();
+        return text;
+    }
+
+    @Override
+    public void append(String text) {
+        textArea.appendText(text);
     }
 
 }

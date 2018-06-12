@@ -46,7 +46,7 @@ public class KarateService {
 
     public KarateSession createSession(String envString, File featureFile, String[] searchPaths) {
         WebSocketLogAppender appender = createAppender();
-        ScriptEnv env = ScriptEnv.init(envString, featureFile, searchPaths, appender.getLogger());
+        ScriptEnv env = ScriptEnv.init(envString, featureFile, searchPaths);
         FeatureWrapper feature = FeatureWrapper.fromFile(featureFile, env);
         return initSessionBackend(feature, appender);
     }
@@ -63,7 +63,7 @@ public class KarateService {
         UUID uuid = UUID.randomUUID();
         String sessionId = uuid.toString();
         WebSocketLogAppender appender = new WebSocketLogAppender(sessionId);
-        ScriptEnv env = ScriptEnv.init(envString, new File("."), new String[]{"src/test/java"}, appender.getLogger());
+        ScriptEnv env = ScriptEnv.init(envString, new File("."), new String[]{"src/test/java"});
         FeatureWrapper feature = FeatureWrapper.fromString(featureText, env, null);
         return initSessionBackend(feature, appender);
     }    

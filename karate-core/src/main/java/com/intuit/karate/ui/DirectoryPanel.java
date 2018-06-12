@@ -1,6 +1,5 @@
 package com.intuit.karate.ui;
 
-import ch.qos.logback.classic.Logger;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
@@ -18,15 +17,17 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 
 import static com.intuit.karate.ui.App.PADDING_INSET;
+import org.slf4j.Logger;
 
 public class DirectoryPanel extends BorderPane {
 
+    private static final Logger logger = LoggerFactory.getLogger(DirectoryPanel.class);
+    
     private final TreeView<String> treeView = new TreeView<String>();
     private final ScrollPane scrollPane = new ScrollPane();
     private final App app ;
     private final String envString ;
-    private final Stage stage;
-    private final Logger logger;
+    private final Stage stage;    
 
 
     EventHandler<MouseEvent> mouseEventHandle = (MouseEvent event) -> {
@@ -37,7 +38,6 @@ public class DirectoryPanel extends BorderPane {
         this.app = app;
         this.envString = envString;
         this.stage = primaryStage;
-        logger = (Logger) LoggerFactory.getLogger(DirectoryPanel.class);
     }
 
     private void handleMouseClicked(MouseEvent event) {

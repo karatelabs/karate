@@ -25,8 +25,9 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.FileLogAppender;
+import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
-import static com.intuit.karate.cucumber.KarateJunitAndJsonReporter.passed;
 import gherkin.formatter.model.DocString;
 import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
@@ -39,13 +40,11 @@ import gherkin.formatter.model.Step;
 public abstract class KarateReporterBase implements KarateReporter {
 
     protected String tempFilePath;
-    private ReporterLogAppender appender;  
-    
-    protected ReporterLogAppender getAppender() {
-        if (appender == null) {
-            appender = new ReporterLogAppender(tempFilePath);
-        }
-        return appender;
+    protected FileLogAppender appender;  
+
+    @Override
+    public void setLogger(Logger logger) {
+        appender = new FileLogAppender(tempFilePath, logger);
     }
 
     public static Result passed(long time) {
@@ -58,7 +57,7 @@ public abstract class KarateReporterBase implements KarateReporter {
 
     @Override // this is a hack to bring called feature steps into cucumber reports
     public void callBegin(FeatureWrapper feature, CallContext callContext) {
-        getAppender().collect(); // clear log to suppress misleading stack trace from previous call if any
+        appender.collect(); // clear log to suppress misleading stack trace from previous call if any
         DocString docString = null;
         if (callContext.callArg != null) {
             String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(callContext.callArg));
@@ -80,7 +79,7 @@ public abstract class KarateReporterBase implements KarateReporter {
     @Override // see the step() method for an explanation of this hack
     public void karateStep(Step step, Match match, Result result, CallContext callContext) {
         if (step.getDocString() == null) {
-            String log = getAppender().collect();
+            String log = appender.collect();
             DocString docString = log.isEmpty() ? null : new DocString("", log, step.getLine());
             step = new Step(step.getComments(), step.getKeyword(), step.getName(), step.getLine(), step.getRows(), docString);
         }

@@ -66,7 +66,9 @@ public class KarateFeature {
     }
     
     public KarateRuntime getRuntime(KarateReporter reporter) {
-        return runtimeOptions.getRuntime(file, reporter);
+        KarateRuntime kr = runtimeOptions.getRuntime(file, reporter);
+        reporter.setLogger(kr.getLogger());
+        return kr;
     }
     
     public KarateJunitAndJsonReporter getReporter(String reportDirPath) {

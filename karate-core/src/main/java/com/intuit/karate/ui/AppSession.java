@@ -94,7 +94,7 @@ public class AppSession {
     public AppSession(File featureFile, String envString, boolean test) {
         this.featureFile = featureFile;
         FeatureFilePath ffp = FileUtils.parseFeaturePath(featureFile);
-        ScriptEnv env = ScriptEnv.init(envString, ffp.file, ffp.searchPaths, logger);
+        ScriptEnv env = ScriptEnv.init(envString, ffp.file, ffp.searchPaths);
         feature = FeatureWrapper.fromFile(ffp.file, env);
         CallContext callContext = new CallContext(null, true);
         backend = CucumberUtils.getBackendWithGlue(feature, callContext);
@@ -102,7 +102,7 @@ public class AppSession {
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);
             varsPanel = new VarsPanel(this);
-            logPanel = new LogPanel();
+            logPanel = new LogPanel(env.logger);
         } else {
             headerPanel = null;
             featurePanel = null;
