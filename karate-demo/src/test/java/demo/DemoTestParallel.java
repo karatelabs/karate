@@ -34,7 +34,7 @@ public class DemoTestParallel {
         assertTrue("there are scenario failures", stats.getFailCount() == 0);        
     }
     
-    private static void generateReport(String karateOutputPath) {
+    public static void generateReport(String karateOutputPath) {
         Collection<File> jsonFiles = FileUtils.listFiles(new File(karateOutputPath), new String[] {"json"}, true);
         List<String> jsonPaths = new ArrayList(jsonFiles.size());
         jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));

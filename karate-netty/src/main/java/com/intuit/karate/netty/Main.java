@@ -27,8 +27,6 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateFeature;
-import com.intuit.karate.cucumber.KarateRuntimeOptions;
 import com.intuit.karate.cucumber.KarateStats;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ui.App;
@@ -84,7 +82,7 @@ public class Main implements Callable<Void> {
     File key;
 
     @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")
-    String tags;
+    List<String> tags;
 
     @Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
     int threads = 1;
@@ -138,9 +136,7 @@ public class Main implements Callable<Void> {
                 if (configDir == null) {
                     System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File(".").getPath());
                 }
-                KarateRuntimeOptions kro = new KarateRuntimeOptions(tags, tests);
-                List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
-                KarateStats stats = CucumberRunner.parallel(karateFeatures, threads, output);
+                KarateStats stats = CucumberRunner.parallel(tags, tests, threads, output);
                 Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(output), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));

@@ -54,7 +54,7 @@ public class CucumberRunner {
     private static final Logger logger = LoggerFactory.getLogger(CucumberRunner.class);
 
     public static KarateStats parallel(Class clazz, int threadCount) {
-        return parallel(clazz, threadCount, "target/surefire-reports");
+        return parallel(clazz, threadCount, null);
     }
 
     public static KarateStats parallel(Class clazz, int threadCount, String reportDir) {
@@ -63,7 +63,22 @@ public class CucumberRunner {
         return parallel(karateFeatures, threadCount, reportDir);
     }
 
-    public static KarateStats parallel(List<KarateFeature> karateFeatures, int threadCount, String reportDir) {
+    /**
+     * 
+     * @param tags - use a single list item (comma delimited) for OR, use multiple items for AND
+     * @param paths - can be paths to feature files or directories that will be scanned
+     * @param threadCount - number of threads for parallel runner
+     * @param reportDir - can be null, and defaults to "target/surefire-reports"
+     * @return stats object
+     */
+    public static KarateStats parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
+        KarateRuntimeOptions kro = new KarateRuntimeOptions(tags, paths);
+        List<KarateFeature> karateFeatures = KarateFeature.loadFeatures(kro);
+        return parallel(karateFeatures, threadCount, reportDir);
+    }
+
+    public static KarateStats parallel(List<KarateFeature> karateFeatures, int threadCount, String userReportDir) {
+        String reportDir = userReportDir == null ? "target/surefire-reports" : userReportDir;            
         KarateStats stats = KarateStats.startTimer();
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         try {

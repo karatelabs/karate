@@ -487,6 +487,8 @@ scenarios:   70 | failed:    0 | skipped:    0
 
 This is the preferred way of automating the execution of all Karate tests in a project, mainly because the other 'native' Cucumber reports (e.g. HTML) are not thread-safe.
 
+> There is also an API to run a chosen set of features (and tags) which may be useful in cases where you dynamically want to select features at run time. Refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java)
+
 ## Test Reports
 As mentioned above, most CI tools would be able to process the JUnit XML output of the [parallel runner](#parallel-execution) and determine the status of the build as well as generate reports.
 

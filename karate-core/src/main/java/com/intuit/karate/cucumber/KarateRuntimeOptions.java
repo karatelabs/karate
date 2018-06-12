@@ -58,31 +58,33 @@ public class KarateRuntimeOptions {
 
     public KarateRuntimeOptions(File file) {
         this(null, Arrays.asList(file.getPath()));
-    }    
-    
-    public KarateRuntimeOptions(String tagOptions, List<String> files) {
+    }
+
+    public KarateRuntimeOptions(List<String> tags, List<String> files) {
         classLoader = FileUtils.createClassLoader(files.toArray(new String[]{}));
-        if (tagOptions != null) {
+        if (tags != null) {
             List<String> temp = new ArrayList();
-            temp.add("-t");
-            temp.add(tagOptions);
+            for (String tag : tags) { // to support logical AND, user can do -t twice
+                temp.add("-t");
+                temp.add(tag);
+            }
             temp.addAll(files);
             runtimeOptions = new RuntimeOptions(temp);
         } else {
             runtimeOptions = new RuntimeOptions(files);
         }
         resourceLoader = new MultiLoader(classLoader);
-    }    
-    
+    }
+
     public KarateRuntime getRuntime(File file, KarateReporter reporter) {
         File featureDir = file.getParentFile();
         ScriptEnv env = new ScriptEnv(null, featureDir, file.getName(), classLoader, reporter);
         CallContext callContext = new CallContext(null, true);
-        FeatureWrapper fw = FeatureWrapper.fromFile(file, env);        
+        FeatureWrapper fw = FeatureWrapper.fromFile(file, env);
         KarateBackend backend = new KarateBackend(fw, callContext);
         RuntimeGlue glue = new RuntimeGlue(new UndefinedStepsTracker(), new LocalizedXStreams(classLoader));
-        return new KarateRuntime(this, backend, glue);         
-    }    
+        return new KarateRuntime(this, backend, glue);
+    }
 
     public List<CucumberFeature> loadFeatures() {
         return runtimeOptions.cucumberFeatures(resourceLoader);
