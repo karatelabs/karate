@@ -640,16 +640,16 @@ public class CatsRunner {
 ## Environment Specific Config
 When your project gets complex, you can have separate `karate-config-<env>.js` files that will be processed for that specific value of [`karate.env`](#switching-the-environment). This is especially useful when you want to maintain passwords, secrets or even URL-s specific for your local dev environment. 
 
-> Make sure you configure your source code management to ignore `karate-config-*.js` if needed.
+> Make sure you configure your source code management system (e.g. Git) to ignore `karate-config-*.js` if needed.
 
 Here are the rules Karate uses on bootstrap (before every `Scenario` or `Examples` row in a `Scenario Outline`):
 
-* if the system-property `karate.config.dir` was set, Karate will look in this folder for `karate-config.js`
-* if `karate-config.js` was not found in the above location (or `karate.config.dir` was not set), [`classpath:karate-config.js`](#karate-config-js) would be processed
+* if the system-property `karate.config.dir` was set, Karate will look in this folder for `karate-config.js` - and if found, will process it
+* else if `karate-config.js` was not found in the above location (or `karate.config.dir` was not set), [`classpath:karate-config.js`](#karate-config-js) would be processed (this is the default / common case)
 * if the `karate.env` system property was set
   * if `karate.config.dir` was set, Karate will also look for `file:<config.dir>/karate-config-<env>.js`
-  * else (if the `karate.config.dir` was *not* set), Karate will look for `classpath/karate-config-<env>.js`
-* if Karate finds the extra `karate-config-<env>.js` it will be processed. Any configuration (JSON entries) returned by this function will over-ride any existing config set by `karate-config.js`
+  * else (if the `karate.config.dir` was *not* set), Karate will look for `classpath:karate-config-<env>.js`
+* if the over-ride `karate-config-<env>.js` exists, it will be processed, and the configuration (JSON entries) returned by this function will over-ride any set by `karate-config.js`
 
 Refer to the [karate demo](karate-demo) for an [example](karate-demo/src/test/java/karate-config-contract.js).
 
