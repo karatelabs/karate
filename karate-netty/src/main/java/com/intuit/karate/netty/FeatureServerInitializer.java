@@ -42,11 +42,13 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
     
     private final SslContext sslCtx;
     private final FeatureProvider provider;
+    private final Runnable stopFunction;
     
-    public FeatureServerInitializer(SslContext sslCtx, File featureFile, Map<String, Object> vars) {
+    public FeatureServerInitializer(SslContext sslCtx, File featureFile, Map<String, Object> vars, Runnable stopFunction) {
         this.sslCtx = sslCtx;
         FeatureWrapper featureWrapper = FeatureWrapper.fromFile(featureFile);
-        provider = new FeatureProvider(featureWrapper, vars);        
+        provider = new FeatureProvider(featureWrapper, vars);
+        this.stopFunction = stopFunction;
     }
     
     @Override
@@ -57,7 +59,7 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
         }
         p.addLast(new HttpServerCodec());
         p.addLast(new HttpObjectAggregator(1048576));
-        p.addLast(new FeatureServerHandler(provider));
+        p.addLast(new FeatureServerHandler(provider, stopFunction));
     }    
     
 }

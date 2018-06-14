@@ -58,9 +58,11 @@ import java.util.Map;
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final FeatureProvider provider;
+    private final Runnable stopFunction;
 
-    public FeatureServerHandler(FeatureProvider provider) {
+    public FeatureServerHandler(FeatureProvider provider, Runnable stopFunction) {
         this.provider = provider;
+        this.stopFunction = stopFunction;
     }
 
     @Override
@@ -68,11 +70,20 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         ctx.flush();
     }
 
+    private static final String STOP_URI = "/__admin/stop";
     private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
         provider.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
+        if (msg.uri().startsWith(STOP_URI)) {
+            provider.getContext().logger.info("stop uri invoked, shutting down");
+            ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
+            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);            
+            ctx.write(response);
+            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+            stopFunction.run();
+        }
         if (provider.isCorsEnabled() && msg.method().equals(HttpMethod.OPTIONS)) {
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
             HttpHeaders responseHeaders = response.headers();
@@ -198,6 +209,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        provider.getContext().logger.error("server error, {}", cause.getMessage());
         cause.printStackTrace();
         ctx.close();
     }

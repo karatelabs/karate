@@ -283,6 +283,11 @@ Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test
 
 ## `karate.proceed()`
 
+# Stopping
+A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
+
+If you have started the server programmatically via Java, you can keep a reference to the `FeatureServer` instance and call the `stop()` method. Here is an example: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java).
+
 
 
 

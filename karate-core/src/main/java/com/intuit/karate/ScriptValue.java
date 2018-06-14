@@ -96,9 +96,9 @@ public class ScriptValue {
             case INPUT_STREAM:
                 return "stream";
             case FEATURE_WRAPPER:
-                return "feat";
+                return "feature";
             default:
-                return "??";
+                return "???";
         }
     }
 
