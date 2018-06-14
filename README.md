@@ -14,7 +14,7 @@ Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucum
 
 It is worth pointing out that JSON is a 'first class citizen' of the syntax such that you can express payload and expected data without having to use double-quotes and without having to enclose JSON field names in quotes.  There is no need to 'escape' characters like you would have had to in Java or other programming languages.
 
-And you don't need to create Java objects (or POJO-s) for any of the payloads that you need to work with.
+And you don't need to create Java objects (or Beans) for any of the payloads that you need to work with.
 
 # Index 
 
@@ -42,7 +42,7 @@ And you don't need to create Java objects (or POJO-s) for any of the payloads th
 * Scripts are plain-text files, require no compilation step or IDE, and teams can collaborate using standard version-control / Git
 * Based on the popular Cucumber / Gherkin standard, and [IDE support](#running-in-eclipse-or-intellij) and syntax-coloring options exist
 * Elegant [DSL](https://en.wikipedia.org/wiki/Domain-specific_language) syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
-* Eliminate the need for 'POJOs' or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
+* Eliminate the need for 'Bean Classes' or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
 * Ideal for testing the highly dynamic responses from [GraphQL](http://graphql.org) API-s because of Karate's built-in [text-manipulation](#text) and [JsonPath](https://github.com/json-path/JsonPath#path-examples) capabilities
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml), Cucumber [Scenario](#the-cucumber-way) Outline [tables](#table), or a [payload builder](#set-multiple) approach [unique to Karate](https://gist.github.com/ptrthomas/d6beb17e92a43220d254af942e3ed3d9)
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
@@ -1146,8 +1146,8 @@ One example of when you may want to convert JSON (or XML) to a string is when yo
 
 So you have the following type markers you can use instead of [`def`](#def) (or the rarely used [`text`](#text)):
 * `string` - convert JSON or any other data-type (except XML) to a string
-* `json` - convert XML, a map-like or list-like object, a string, or even a Java bean (POJO) into JSON
-* `xml` - convert JSON, a map-like object, a string, or even a Java bean (POJO) into XML
+* `json` - convert XML, a map-like or list-like object, a string, or even a Java bean into JSON
+* `xml` - convert JSON, a map-like object, a string, or even a Java bean into XML
 * `xmlstring` - specifically for converting the map-like Karate internal representation of XML into a string
 * `copy` - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
 
@@ -2578,7 +2578,7 @@ Operation | Description
 `karate.env` | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
 `karate.properties[key]` | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 `karate.configure(key, value)` | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
-`karate.toBean(json, className)` | converts a JSON string or map-like object into a Java bean (or POJO), given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
+`karate.toBean(json, className)` | converts a JSON string or map-like object into a Java bean, given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
 `karate.call(fileName, [arg])` | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 `karate.callSingle(fileName, [arg])` | like the above, but guranteed to run **only once** even across multiple features *and* parallel threads (recommended only for advanced users) - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js) / [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
 `karate.eval(expression)` | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
