@@ -19,7 +19,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Just *one* file can script the above aspects, simplifying the mental-model you need to have for advanced scenarios such as [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * Easily integrate messaging or async flows using Java-interop if required
 * Enables consumer or even UI dev teams to work in parallel as the provider service is being developed
-* [Stand-alone executable JAR](#standalone-jar) (10 MB) which only requires a JRE to run, ideal for web-developers or anyone who needs to quickly experiment with services.
+* [Stand-alone executable JAR](#standalone-jar) (20 MB) which only requires a JRE to run, ideal for web-developers or anyone who needs to quickly experiment with services.
 * Built-in [CORS](#configure-cors) support for the ease of web-dev teams using the mock service
 * Option to use an existing certificate and private-key for server-side SSL - making it easier for UI dev / browser consumers in some situations
 * Configure a 'global' response header routine, ideal for browser consumers to add headers common for *all* responses - yet dynamic if needed

@@ -85,6 +85,8 @@ public class XmlUtils {
             if (pretty) {
                 transformer.setOutputProperty(OutputKeys.INDENT, "yes");
                 transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+            } else {
+                transformer.setOutputProperty(OutputKeys.INDENT, "no");
             }
             transformer.transform(domSource, result);
             return writer.toString();
