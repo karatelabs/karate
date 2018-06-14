@@ -49,3 +49,16 @@ Scenario: create kittens and then create parent cat
     Then status 200
     And match each response == { id: '#number', name: '#string' }
     And match response contains { id: '#(wild.id)', name: 'Wild' }
+
+Scenario: create kittens but calling a feature that has a scenario outline (not recommended)
+    but interesting example of a called feature updating a 'global' variable
+    
+    # init 'global' variable
+    * def kittens = []
+    * def result = call read('create-cats-outline.feature')   
+ 
+    Given path 'cats'
+    And request { name: 'Billie', kittens: '#(kittens)' }
+    When method post
+    Then status 200
+    And match response == { id: '#number', name: 'Billie', kittens: '#(^^kittens)' }

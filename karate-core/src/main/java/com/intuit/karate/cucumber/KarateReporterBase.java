@@ -28,10 +28,15 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
+import cucumber.runtime.model.CucumberExamples;
 import gherkin.formatter.model.DocString;
+import gherkin.formatter.model.ExamplesTableRow;
 import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Step;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -73,6 +78,13 @@ public abstract class KarateReporterBase implements KarateReporter {
             prefix = prefix + " [" + scenarioName + "]";
         }
         Step step = new Step(null, "* ", prefix + " " + feature.getPath(), 0, null, docString);
+        karateStep(step, Match.UNDEFINED, passed(0L), callContext);
+    } 
+         
+    @Override // this is a hack to format scenario outlines better when they appear in a 'called' feature
+    public void exampleBegin(ScenarioWrapper scenario, CallContext callContext) {
+        String data = StringUtils.trimToNull(scenario.getScenario().getVisualName());
+        Step step = new Step(null, "* ", data, 0, null, null);
         karateStep(step, Match.UNDEFINED, passed(0L), callContext);
     }    
 

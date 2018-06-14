@@ -39,6 +39,8 @@ public interface KarateReporter extends Formatter, Reporter {
     
     public void callBegin(FeatureWrapper feature, CallContext callContext);
     
+    public void exampleBegin(ScenarioWrapper feature, CallContext callContext);
+    
     public void karateStep(Step step, Match match, Result result, CallContext call);
     
     public void karateStepProceed(Step step, Match match, Result result, CallContext call);

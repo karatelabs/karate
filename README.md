@@ -4,7 +4,7 @@
 
 Karate enables you to script a sequence of calls to any kind of web-service and assert that the responses are as expected.  It makes it really easy to build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' of two JSON or XML documents without being affected by white-space or the order in which data-elements actually appear, and you can opt to ignore fields that you choose.
 
-Karate is the only open-source tool that combines [test-doubles](#karate-netty) and [performance-testing](#karate-gatling) into one *unified* test automation framework.
+Karate is the only open-source tool that combines web-API testing and [test-doubles](#karate-netty) into a single *unified* test automation framework. [Performance testing](#karate-gatling) is in development.
 
 Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But instead of Java - you write tests in a language designed to make dealing with HTTP, JSON or XML - **simple**.
 
@@ -64,7 +64,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into existing Selenium / WebDriver test-suites](https://stackoverflow.com/q/47795762/143475).
-* Save significant effort by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that properly assert that server responses are OK under load
+* (Coming Soon) Save significant effort by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that properly assert that server responses are OK under load
 * [API mock server](karate-netty) for test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:

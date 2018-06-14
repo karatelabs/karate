@@ -14,5 +14,8 @@ Scenario: called failure loop
 * def list = [{a: 1}, {a: 2}, {a: 3}]
 * call read('fail-called.feature') list
 
+Scenario: called outline failed
+* call read('fail-outline.feature')
+
 Scenario: calling feature file that does not exist
 * call read('waldo.feature')

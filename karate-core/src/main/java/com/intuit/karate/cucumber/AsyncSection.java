@@ -24,8 +24,10 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.exception.KarateException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -38,10 +40,11 @@ public class AsyncSection implements AsyncAction<Object> {
     private final FeatureSection section;
     private final KarateBackend backend;
     private final Iterator<ScenarioWrapper> iterator;
+    private List<String> errors;
 
     public AsyncSection(FeatureSection section, KarateBackend backend) {
         this.section = section;
-        this.backend = backend;
+        this.backend = backend;        
         this.iterator = section.isOutline()
                 ? section.getScenarioOutline().getScenarios().iterator()
                 : Collections.singletonList(section.getScenario()).iterator();
@@ -52,17 +55,46 @@ public class AsyncSection implements AsyncAction<Object> {
         if (iterator.hasNext()) {
             ScenarioWrapper scenario = iterator.next();
             system.accept(() -> {
+                if (section.isOutline()) {
+                    if (backend.getCallContext().parentContext != null) {
+                        KarateReporter reporter = backend.getCallContext().parentContext.getEnv().reporter;
+                        if (reporter != null) {
+                            reporter.exampleBegin(scenario, backend.getCallContext());
+                        }                        
+                    }
+                }
                 AsyncScenario as = new AsyncScenario(scenario, backend);
                 as.submit(system, (r, e) -> {
-                    if (e != null) {
-                        next.accept(null, e);
-                    } else {
+                    if (section.isOutline()) {
+                        if (e != null) {
+                            if (errors == null) {
+                                errors = new ArrayList();
+                            }
+                            errors.add("row " + (scenario.getIndex() + 1) + ": " + e.getMessage());                        
+                        }
+                        // continue even if one example row failed
                         AsyncSection.this.submit(system, next);
+                    } else {
+                        if (e != null) {
+                            next.accept(null, e);
+                        } else {
+                            AsyncSection.this.submit(system, next);
+                        }
                     }
                 });
             });
         } else {
-            next.accept(null, null);
+            KarateException ke;
+            if (errors != null) {
+                String message = "scenario outline failed:";
+                for (String s : errors) {
+                    message = message + "\n------\n" + s;
+                }
+                ke = new KarateException(message);
+            } else {
+                ke = null;
+            }
+            next.accept(null, ke);
         }
     }
 

@@ -38,41 +38,31 @@ import org.slf4j.spi.LocationAwareLogger;
  */
 public class Logger {
 
-    private static final int LOG_LEVEL_TRACE = LocationAwareLogger.TRACE_INT;
-    private static final int LOG_LEVEL_DEBUG = LocationAwareLogger.DEBUG_INT;
-    private static final int LOG_LEVEL_INFO = LocationAwareLogger.INFO_INT;
-    private static final int LOG_LEVEL_WARN = LocationAwareLogger.WARN_INT;
-    private static final int LOG_LEVEL_ERROR = LocationAwareLogger.ERROR_INT;
-
-    private static final long START_TIME = System.currentTimeMillis();
+    public static final int LEVEL_TRACE = LocationAwareLogger.TRACE_INT;
+    public static final int LEVEL_DEBUG = LocationAwareLogger.DEBUG_INT;
+    public static final int LEVEL_INFO = LocationAwareLogger.INFO_INT;
+    public static final int LEVEL_WARN = LocationAwareLogger.WARN_INT;
+    public static final int LEVEL_ERROR = LocationAwareLogger.ERROR_INT;
 
     private final org.slf4j.Logger LOGGER;
 
     private final int currentLogLevel;
     // not static, has to be per thread
-    private final DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
+    private final DateFormat dateFormatter = new SimpleDateFormat("HH:mm:ss");
 
     private LogAppender logAppender;
 
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;
     }
-
+    
     public Logger() {
+        this(LEVEL_DEBUG);
+    }
+
+    public Logger(int logLevel) {
         LOGGER = LoggerFactory.getLogger("com.intuit.karate");
-        if (LOGGER.isTraceEnabled()) {
-            currentLogLevel = LOG_LEVEL_TRACE;
-        } else if (LOGGER.isDebugEnabled()) {
-            currentLogLevel = LOG_LEVEL_DEBUG;
-        } else if (LOGGER.isInfoEnabled()) {
-            currentLogLevel = LOG_LEVEL_INFO;
-        } else if (LOGGER.isWarnEnabled()) {
-            currentLogLevel = LOG_LEVEL_WARN;
-        } else if (LOGGER.isErrorEnabled()) {
-            currentLogLevel = LOG_LEVEL_ERROR;
-        } else {
-            currentLogLevel = LOG_LEVEL_DEBUG;
-        }
+        this.currentLogLevel = logLevel;
     }
 
     public boolean isTraceEnabled() {
@@ -81,7 +71,7 @@ public class Logger {
 
     public void trace(String format, Object... arguments) {
         LOGGER.trace(format, arguments);
-        formatAndAppend(LOG_LEVEL_TRACE, format, arguments);
+        formatAndAppend(LEVEL_TRACE, format, arguments);
     }
 
     public boolean isDebugEnabled() {
@@ -90,7 +80,7 @@ public class Logger {
 
     public void debug(String format, Object... arguments) {
         LOGGER.debug(format, arguments);
-        formatAndAppend(LOG_LEVEL_DEBUG, format, arguments);
+        formatAndAppend(LEVEL_DEBUG, format, arguments);
     }
 
     public boolean isInfoEnabled() {
@@ -99,21 +89,17 @@ public class Logger {
 
     public void info(String format, Object... arguments) {
         LOGGER.info(format, arguments);
-        formatAndAppend(LOG_LEVEL_INFO, format, arguments);
+        formatAndAppend(LEVEL_INFO, format, arguments);
     }
 
     public void warn(String format, Object... arguments) {
         LOGGER.warn(format, arguments);
-        formatAndAppend(LOG_LEVEL_WARN, format, arguments);
+        formatAndAppend(LEVEL_WARN, format, arguments);
     }
 
     public void error(String format, Object... arguments) {
         LOGGER.error(format, arguments);
-        formatAndAppend(LOG_LEVEL_ERROR, format, arguments);
-    }
-
-    private boolean isLevelEnabled(int logLevel) {
-        return (logLevel >= currentLogLevel);
+        formatAndAppend(LEVEL_ERROR, format, arguments);
     }
 
     private String getFormattedDate() {
@@ -123,24 +109,8 @@ public class Logger {
         return dateText;
     }
 
-    private String renderLevel(int level) {
-        switch (level) {
-            case LOG_LEVEL_TRACE:
-                return "TRACE";
-            case LOG_LEVEL_DEBUG:
-                return ("DEBUG");
-            case LOG_LEVEL_INFO:
-                return "INFO";
-            case LOG_LEVEL_WARN:
-                return "WARN";
-            case LOG_LEVEL_ERROR:
-                return "ERROR";
-        }
-        throw new IllegalStateException("Unrecognized level [" + level + "]");
-    }
-
     private void formatAndAppend(int level, String format, Object... arguments) {
-        if (!isLevelEnabled(level)) {
+        if (currentLogLevel > level) {
             return;
         }
         FormattingTuple tp = MessageFormatter.arrayFormat(format, arguments);
@@ -148,15 +118,12 @@ public class Logger {
     }
 
     private void append(int level, String message) {
-        if (logAppender == null || !isLevelEnabled(level)) {
+        if (logAppender == null || currentLogLevel > level) {
             return;
         }
-        StringBuilder buf = new StringBuilder(32);
+        StringBuilder buf = new StringBuilder();
         buf.append(getFormattedDate());
-        buf.append(' ').append('[');
-        String levelStr = renderLevel(level);
-        buf.append(levelStr);
-        buf.append(']').append(' ');
+        buf.append(' ');
         buf.append(message);
         logAppender.append(buf.toString());
     }
