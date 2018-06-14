@@ -125,7 +125,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
     }
 
     public void endKarateFeature() {
-        String xml = XmlUtils.toString(doc);
+        String xml = "<!DOCTYPE html>/n" + XmlUtils.toString(doc);
         String packageName = FileUtils.toPackageQualifiedName(feature.getPath());
         File file = new File(buildDir + "/surefire-reports/TEST-" + packageName + ".html");
         try {
