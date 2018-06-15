@@ -5,8 +5,7 @@ function() {
   }
   var config = {
     env: env,
-    testConfig: 'bar',
-    wiremockPort: karate.properties['wiremock.port']
+    testConfig: 'bar'
   }
   if (env == 'dev') {
     // customize
