@@ -31,6 +31,7 @@ import static com.intuit.karate.http.Cookie.*;
 
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
@@ -50,7 +51,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.Header;
@@ -117,9 +117,9 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         cookieStore = new BasicCookieStore();
         clientBuilder.setDefaultCookieStore(cookieStore);
         clientBuilder.setDefaultCookieSpecRegistry(LenientCookieSpec.registry());
-        AtomicInteger counter = new AtomicInteger();
-        clientBuilder.addInterceptorLast(new RequestLoggingInterceptor(counter, context));
-        clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(counter, context));
+        RequestLoggingInterceptor requestInterceptor = new RequestLoggingInterceptor(context);
+        clientBuilder.addInterceptorLast(requestInterceptor);
+        clientBuilder.addInterceptorLast(new ResponseLoggingInterceptor(requestInterceptor, context));
         if (config.isSslEnabled()) {
             // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
@@ -276,19 +276,19 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpResponse makeHttpRequest(HttpEntity entity, long startTime) {
+    protected HttpResponse makeHttpRequest(HttpEntity entity, ScriptContext context) {
         if (entity != null) {
             requestBuilder.setEntity(entity);
             requestBuilder.setHeader(entity.getContentType());
         }
         HttpUriRequest httpRequest = requestBuilder.build();
         CloseableHttpClient client = clientBuilder.build();
-        BasicHttpContext context = new BasicHttpContext();
-        context.setAttribute(URI_CONTEXT_KEY, getRequestUri());
+        BasicHttpContext httpContext = new BasicHttpContext();
+        httpContext.setAttribute(URI_CONTEXT_KEY, getRequestUri());
         CloseableHttpResponse httpResponse;
         byte[] bytes;
         try {
-            httpResponse = client.execute(httpRequest, context);
+            httpResponse = client.execute(httpRequest, httpContext);
             HttpEntity responseEntity = httpResponse.getEntity();
             if (responseEntity == null || responseEntity.getContent() == null) {
                 bytes = new byte[0];
@@ -299,7 +299,8 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        HttpResponse response = new HttpResponse(startTime);
+        HttpRequest actualRequest = context.getPrevRequest();
+        HttpResponse response = new HttpResponse(actualRequest.getStartTime(), actualRequest.getEndTime());
         response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(httpResponse.getStatusLine().getStatusCode());

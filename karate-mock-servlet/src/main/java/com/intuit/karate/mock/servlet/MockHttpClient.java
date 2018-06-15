@@ -163,7 +163,7 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
     }
 
     @Override
-    protected HttpResponse makeHttpRequest(HttpBody entity, long startTime) {
+    protected HttpResponse makeHttpRequest(HttpBody entity, ScriptContext context) {
         logger.info("making mock http client request: {} - {}", request.getMethod(), getRequestUri());
         MockHttpServletRequest req = requestBuilder.buildRequest(getServletContext());
         byte[] bytes;
@@ -188,12 +188,13 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
         }
         MockHttpServletResponse res = new MockHttpServletResponse();
         logRequest(req, bytes);
+        long startTime = System.currentTimeMillis();
         try {
             getServlet(request).service(req, res);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        HttpResponse response = new HttpResponse(startTime);
+        HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
         bytes = res.getContentAsByteArray();
         logResponse(res, bytes);        
         response.setUri(getRequestUri());

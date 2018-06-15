@@ -399,7 +399,7 @@ public class ScriptBridge {
     }
     
     public void log(Object ... objects) {
-        if (context.isPrintEnabled() && context.logger.isInfoEnabled()) {
+        if (context.isPrintEnabled()) {
             context.logger.info("{}", new LogWrapper(objects));
         }
     }        

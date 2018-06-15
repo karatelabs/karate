@@ -79,7 +79,7 @@ public abstract class HttpClient<T> {
 
     protected abstract void buildCookie(Cookie cookie);
 
-    protected abstract HttpResponse makeHttpRequest(T entity, long startTime);
+    protected abstract HttpResponse makeHttpRequest(T entity, ScriptContext context);
 
     protected abstract String getRequestUri();
 
@@ -205,14 +205,13 @@ public abstract class HttpClient<T> {
     }
 
     public HttpResponse invoke(HttpRequestBuilder request, ScriptContext context) {
-        T body = buildRequestInternal(request, context);
-        long startTime = System.currentTimeMillis();
+        T body = buildRequestInternal(request, context);        
         try {
-            HttpResponse response = makeHttpRequest(body, startTime);
-            context.logger.debug("response time in milliseconds: {}", response.getResponseTime());
+            HttpResponse response = makeHttpRequest(body, context);
             context.updateConfigCookies(response.getCookies());
             return response;
         } catch (Exception e) {
+            long startTime = context.getPrevRequest().getStartTime();
             long responseTime = System.currentTimeMillis() - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
             context.logger.error(e.getMessage() + ", " + message);

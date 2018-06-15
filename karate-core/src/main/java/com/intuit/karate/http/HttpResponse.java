@@ -42,9 +42,9 @@ public class HttpResponse {
     private final long endTime;
     
     // make sure client implementations don't forget to set response time
-    public HttpResponse(long startTime) {
+    public HttpResponse(long startTime, long endTime) {
         this.startTime = startTime;
-        this.endTime = System.currentTimeMillis();
+        this.endTime = endTime;
     }    
 
     public long getStartTime() {

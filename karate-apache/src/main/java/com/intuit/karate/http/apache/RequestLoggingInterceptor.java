@@ -41,41 +41,48 @@ import org.apache.http.protocol.HttpContext;
 public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
     private final ScriptContext context;
-    private final AtomicInteger counter;
+    private final AtomicInteger counter = new AtomicInteger();
     
-    public RequestLoggingInterceptor(AtomicInteger counter, ScriptContext context) {
-        this.context = context;
-        this.counter = counter;
-    }      
+    private long startTime;
 
+    public RequestLoggingInterceptor(ScriptContext context) {
+        this.context = context;
+    }
+
+    public AtomicInteger getCounter() {
+        return counter;
+    }   
+
+    public long getStartTime() {
+        return startTime;
+    }        
+    
     @Override
     public void process(org.apache.http.HttpRequest request, HttpContext httpContext) throws HttpException, IOException {
         HttpRequest actual = new HttpRequest();
         int id = counter.incrementAndGet();
         String uri = (String) httpContext.getAttribute(ApacheHttpClient.URI_CONTEXT_KEY);
         String method = request.getRequestLine().getMethod();
-        actual.setUri(uri);        
+        actual.setUri(uri);
         actual.setMethod(method);
         StringBuilder sb = new StringBuilder();
-        sb.append('\n').append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
+        sb.append("request:\n").append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
         LoggingUtils.logHeaders(sb, id, '>', request, actual);
         if (request instanceof HttpEntityEnclosingRequest) {
             HttpEntityEnclosingRequest entityRequest = (HttpEntityEnclosingRequest) request;
             HttpEntity entity = entityRequest.getEntity();
             if (LoggingUtils.isPrintable(entity)) {
                 LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
-                if (context.logger.isDebugEnabled()) {
-                    String buffer = FileUtils.toString(wrapper.getContent());
-                    sb.append(buffer).append('\n');
-                }
+                String buffer = FileUtils.toString(wrapper.getContent());
+                sb.append(buffer).append('\n');
                 actual.setBody(wrapper.getBytes());
                 entityRequest.setEntity(wrapper);
             }
         }
         context.setPrevRequest(actual);
-        if (context.logger.isDebugEnabled()) {
-            context.logger.debug(sb.toString());
-        }
-    }
+        context.logger.debug(sb.toString());
+        startTime = System.currentTimeMillis();
+        actual.setStartTime(startTime);
+    }   
 
 }

@@ -32,6 +32,8 @@ import java.util.List;
  */
 public class HttpRequest {
     
+    private long startTime;
+    private long endTime;
     private String urlBase; // used in mock since uri may start with '/'
     private String uri; // will be full uri including query string
     private String method;    
@@ -39,6 +41,22 @@ public class HttpRequest {
     private MultiValuedMap params; // only used in mock
     private byte[] body;
 
+    public long getStartTime() {
+        return startTime;
+    }
+    
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }    
+
+    public long getEndTime() {
+        return endTime;
+    }    
+    
+    public void setEndTime(long endTime) {
+        this.endTime = endTime;
+    }    
+    
     public String getUrlBase() {
         return urlBase;
     }

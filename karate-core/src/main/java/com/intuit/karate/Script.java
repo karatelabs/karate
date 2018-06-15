@@ -419,9 +419,7 @@ public class Script {
                         root.set(path, sv.getValue());
                     }
                 } catch (Exception e) {
-                    if (context.logger.isTraceEnabled()) {
-                        context.logger.trace("embedded json eval failed, path: {}, reason: {}", path, e.getMessage());
-                    }
+                    context.logger.trace("embedded json eval failed, path: {}, reason: {}", path, e.getMessage());
                 }
             }
         }
@@ -448,9 +446,7 @@ public class Script {
                         attrib.setValue(sv.getAsString());
                     }
                 } catch (Exception e) {
-                    if (context.logger.isTraceEnabled()) {
-                        context.logger.trace("embedded xml-attribute eval failed, path: {}, reason: {}", attrib.getName(), e.getMessage());
-                    }
+                    context.logger.trace("embedded xml-attribute eval failed, path: {}, reason: {}", attrib.getName(), e.getMessage());
                 }
             }
         }
@@ -496,9 +492,7 @@ public class Script {
                             }
                         }
                     } catch (Exception e) {
-                        if (context.logger.isTraceEnabled()) {
-                            context.logger.trace("embedded xml-text eval failed, path: {}, reason: {}", child.getNodeName(), e.getMessage());
-                        }
+                        context.logger.trace("embedded xml-text eval failed, path: {}, reason: {}", child.getNodeName(), e.getMessage());
                     }
                 }
             } else if (child.hasChildNodes() || child.hasAttributes()) {

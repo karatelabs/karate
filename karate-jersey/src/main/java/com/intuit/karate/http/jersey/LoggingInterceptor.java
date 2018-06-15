@@ -49,12 +49,13 @@ import javax.ws.rs.core.MultivaluedMap;
 public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFilter {
 
     private final ScriptContext context;
-    
+
     public LoggingInterceptor(ScriptContext context) {
         this.context = context;
-    }    
+    }
 
     private final AtomicInteger counter = new AtomicInteger();
+    private long startTime;
 
     private static boolean isPrintable(MediaType mediaType) {
         if (mediaType == null) {
@@ -76,42 +77,43 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
     }
 
     @Override
-    public void filter(ClientRequestContext request) throws IOException {            
+    public void filter(ClientRequestContext request) throws IOException {
         if (request.hasEntity() && isPrintable(request.getMediaType())) {
             LoggingFilterOutputStream out = new LoggingFilterOutputStream(request.getEntityStream());
             request.setEntityStream(out);
             request.setProperty(LoggingFilterOutputStream.KEY, out);
         }
+        startTime = System.currentTimeMillis();
     }
 
     @Override
     public void filter(ClientRequestContext request, ClientResponseContext response) throws IOException {
-        int id = counter.incrementAndGet();
+        long endTime = System.currentTimeMillis();
+        long responseTime = endTime - startTime;
         HttpRequest actual = new HttpRequest();
+        context.setPrevRequest(actual);
+        actual.setStartTime(startTime);
+        actual.setEndTime(endTime);        
+        int id = counter.incrementAndGet();
         String method = request.getMethod();
         String uri = request.getUri().toASCIIString();
         actual.setMethod(method);
         actual.setUri(uri);
         StringBuilder sb = new StringBuilder();
-        sb.append('\n').append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
-        logHeaders(sb, id, '>', request.getStringHeaders(), actual);        
+        sb.append("request\n").append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
+        logHeaders(sb, id, '>', request.getStringHeaders(), actual);
         LoggingFilterOutputStream out = (LoggingFilterOutputStream) request.getProperty(LoggingFilterOutputStream.KEY);
-        if (out != null) {            
+        if (out != null) {
             byte[] bytes = out.getBytes().toByteArray();
-            actual.setBody(bytes);
-            context.setPrevRequest(actual);
-            if (context.logger.isDebugEnabled()) {
-                String body = FileUtils.toString(bytes);
-                sb.append(body).append('\n');                
-            }
-        }     
-        // response
-        if (!context.logger.isDebugEnabled()) {
-            return;
-        }
+            actual.setBody(bytes);            
+            String body = FileUtils.toString(bytes);
+            sb.append(body).append('\n');
+        }        
         context.logger.debug(sb.toString()); // log request
+        // response
         sb = new StringBuilder();
-        sb.append('\n').append(id).append(" < ").append(response.getStatus()).append('\n');
+        sb.append("response time in milliseconds: ").append(responseTime).append('\n');
+        sb.append(id).append(" < ").append(response.getStatus()).append('\n');
         logHeaders(sb, id, '<', response.getHeaders(), null);
         if (response.hasEntity() && isPrintable(response.getMediaType())) {
             InputStream is = response.getEntityStream();

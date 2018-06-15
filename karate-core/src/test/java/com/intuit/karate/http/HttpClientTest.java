@@ -54,7 +54,7 @@ public class HttpClientTest {
         config.setUserDefined(map);
         config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
         HttpClient client = HttpClient.construct(config, getContext());
-        HttpResponse response = client.makeHttpRequest(null, System.currentTimeMillis());
+        HttpResponse response = client.makeHttpRequest(null, null);
         assertArrayEquals(response.getBody(), "hello John".getBytes());        
     }
     

@@ -26,13 +26,11 @@ package com.intuit.karate.http.apache;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptContext;
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.protocol.HttpContext;
-import org.slf4j.Logger;
 
 /**
  *
@@ -41,21 +39,22 @@ import org.slf4j.Logger;
 public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
 
     private final ScriptContext context;
-    private final AtomicInteger counter;
+    private final RequestLoggingInterceptor requestInterceptor;
 
-    public ResponseLoggingInterceptor(AtomicInteger counter, ScriptContext context) {
-        this.counter = counter;
+    public ResponseLoggingInterceptor(RequestLoggingInterceptor requestInterceptor, ScriptContext context) {
+        this.requestInterceptor = requestInterceptor;
         this.context = context;
     }    
 
     @Override
     public void process(HttpResponse response, HttpContext httpContext) throws HttpException, IOException {
-        if (!context.logger.isDebugEnabled()) {
-            return;
-        }        
-        int id = counter.get();
+        long endTime = System.currentTimeMillis();
+        long responseTime = endTime - requestInterceptor.getStartTime();
+        context.getPrevRequest().setEndTime(endTime);
+        int id = requestInterceptor.getCounter().get();
         StringBuilder sb = new StringBuilder();
-        sb.append('\n').append(id).append(" < ").append(response.getStatusLine().getStatusCode()).append('\n');
+        sb.append("response time in milliseconds: ").append(responseTime).append('\n');
+        sb.append(id).append(" < ").append(response.getStatusLine().getStatusCode()).append('\n');
         LoggingUtils.logHeaders(sb, id, '<', response);
         HttpEntity entity = response.getEntity();
         if (LoggingUtils.isPrintable(entity)) {

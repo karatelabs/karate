@@ -28,6 +28,7 @@ import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;
+import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
@@ -213,7 +214,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     }
 
     @Override
-    public HttpResponse makeHttpRequest(Entity entity, long startTime) {
+    public HttpResponse makeHttpRequest(Entity entity, ScriptContext context) {
         String method = request.getMethod();
         if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
             builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);
@@ -224,7 +225,8 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         } else {
             resp = builder.method(method);
         }
-        HttpResponse response = new HttpResponse(startTime);
+        HttpRequest actualRequest = context.getPrevRequest();
+        HttpResponse response = new HttpResponse(actualRequest.getStartTime(), actualRequest.getEndTime());
         byte[] bytes = resp.readEntity(byte[].class);        
         response.setUri(getRequestUri());
         response.setBody(bytes);

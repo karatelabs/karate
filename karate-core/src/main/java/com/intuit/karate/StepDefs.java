@@ -451,7 +451,7 @@ public class StepDefs {
 
     @When("^print (.+)")
     public void print(List<String> exps) {
-        if (context.isPrintEnabled() && context.logger.isInfoEnabled()) {
+        if (context.isPrintEnabled()) {
             String prev = ""; // handle rogue commas embedded in string literals
             StringBuilder sb = new StringBuilder();
             sb.append("[print]");
