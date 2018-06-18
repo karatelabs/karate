@@ -42,7 +42,7 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
     private final ScriptContext context;
     private final AtomicInteger counter = new AtomicInteger();
-    
+
     private long startTime;
 
     public RequestLoggingInterceptor(ScriptContext context) {
@@ -51,12 +51,12 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
     public AtomicInteger getCounter() {
         return counter;
-    }   
+    }
 
     public long getStartTime() {
         return startTime;
-    }        
-    
+    }
+
     @Override
     public void process(org.apache.http.HttpRequest request, HttpContext httpContext) throws HttpException, IOException {
         HttpRequest actual = new HttpRequest();
@@ -74,6 +74,9 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
             if (LoggingUtils.isPrintable(entity)) {
                 LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
                 String buffer = FileUtils.toString(wrapper.getContent());
+                if (context.getConfig().isLogPrettyRequest()) {
+                    buffer = FileUtils.toPrettyString(buffer);
+                }
                 sb.append(buffer).append('\n');
                 actual.setBody(wrapper.getBytes());
                 entityRequest.setEntity(wrapper);
@@ -83,6 +86,6 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
         context.logger.debug(sb.toString());
         startTime = System.currentTimeMillis();
         actual.setStartTime(startTime);
-    }   
+    }
 
 }

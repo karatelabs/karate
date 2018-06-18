@@ -108,14 +108,6 @@ public class ScriptContext {
         }
     }
 
-    public boolean isLogPrettyRequest() {
-        return config.isLogPrettyRequest();
-    }
-
-    public boolean isLogPrettyResponse() {
-        return config.isLogPrettyResponse();
-    }
-
     public boolean isPrintEnabled() {
         return config.isPrintEnabled();
     }

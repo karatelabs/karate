@@ -106,8 +106,11 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         if (out != null) {
             byte[] bytes = out.getBytes().toByteArray();
             actual.setBody(bytes);            
-            String body = FileUtils.toString(bytes);
-            sb.append(body).append('\n');
+            String buffer = FileUtils.toString(bytes);
+            if (context.getConfig().isLogPrettyRequest()) {
+                buffer = FileUtils.toPrettyString(buffer);
+            }
+            sb.append(buffer).append('\n');
         }        
         context.logger.debug(sb.toString()); // log request
         // response
@@ -122,6 +125,9 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
             }
             is.mark(Integer.MAX_VALUE);
             String buffer = FileUtils.toString(is);
+            if (context.getConfig().isLogPrettyResponse()) {
+                buffer = FileUtils.toPrettyString(buffer);
+            }            
             sb.append(buffer).append('\n');
             is.reset();
             response.setEntityStream(is); // in case it was swapped

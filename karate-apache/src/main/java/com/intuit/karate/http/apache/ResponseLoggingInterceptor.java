@@ -44,7 +44,7 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
     public ResponseLoggingInterceptor(RequestLoggingInterceptor requestInterceptor, ScriptContext context) {
         this.requestInterceptor = requestInterceptor;
         this.context = context;
-    }    
+    }
 
     @Override
     public void process(HttpResponse response, HttpContext httpContext) throws HttpException, IOException {
@@ -60,6 +60,9 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
         if (LoggingUtils.isPrintable(entity)) {
             LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity);
             String buffer = FileUtils.toString(wrapper.getContent());
+            if (context.getConfig().isLogPrettyResponse()) {
+                buffer = FileUtils.toPrettyString(buffer);
+            }
             sb.append(buffer).append('\n');
             response.setEntity(wrapper);
         }

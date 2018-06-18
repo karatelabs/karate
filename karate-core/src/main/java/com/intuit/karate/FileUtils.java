@@ -22,12 +22,15 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import static com.intuit.karate.Script.evalKarateExpression;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class FileUtils {
+    
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(FileUtils.class);
 
     public static final Charset UTF8 = StandardCharsets.UTF_8;
 
@@ -268,6 +271,20 @@ public class FileUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public static String toPrettyString(String raw) {
+        raw = StringUtils.trimToEmpty(raw);
+        try {
+            if (Script.isJson(raw)) {
+                return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(raw));
+            } else if (Script.isXml(raw)) {
+                return XmlUtils.toString(XmlUtils.toXmlDoc(raw), true);
+            }
+        } catch (Exception e) {
+            logger.warn("parsing failed: {}", e.getMessage());
+        }
+        return raw;
     }
 
     public static byte[] toBytes(InputStream is) {

@@ -72,21 +72,13 @@ public class HttpUtils {
             String responseString = StringUtils.trimToEmpty((String) responseBody);
             if (Script.isJson(responseString)) {
                 try {
-                    DocumentContext doc = JsonUtils.toJsonDoc(responseString);
-                    responseBody = doc;
-                    if (context.isLogPrettyResponse()) {
-                        context.logger.info("response:\n{}", JsonUtils.toPrettyJsonString(doc));
-                    }
+                    responseBody = JsonUtils.toJsonDoc(responseString);
                 } catch (Exception e) {
                     context.logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
                 }
             } else if (Script.isXml(responseString)) {
                 try {
-                    Document doc = XmlUtils.toXmlDoc(responseString);
-                    responseBody = doc;
-                    if (context.isLogPrettyResponse()) {
-                        context.logger.info("response:\n{}", XmlUtils.toString(doc, true));
-                    }
+                    responseBody = XmlUtils.toXmlDoc(responseString);
                 } catch (Exception e) {
                     context.logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
                 }

@@ -194,9 +194,6 @@ public abstract class HttpClient<T> {
                         throw new RuntimeException(msg);
                     }
                 }
-                if (context.isLogPrettyRequest()) {
-                    context.logger.info("request:\n{}", body.getAsPrettyString());
-                }
                 return getEntityInternal(body, mediaType);
             }
         } else {
