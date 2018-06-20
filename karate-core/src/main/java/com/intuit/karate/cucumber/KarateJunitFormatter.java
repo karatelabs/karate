@@ -242,10 +242,8 @@ public class KarateJunitFormatter implements Formatter, Reporter {
                 double testCaseTime
                         = Double.parseDouble(testCaseNodes.item(i).getAttributes().getNamedItem("time").getNodeValue());
                 totalDurationSecondsForAllTimes += testCaseTime;
-            } catch (NumberFormatException e) {
-                throw new CucumberException(e);
-            } catch (NullPointerException e) {
-                throw new CucumberException(e);
+            } catch (Exception e) {
+                logger.warn("junit xml reporter failed: {}", e.getMessage());
             }
         }
         return totalDurationSecondsForAllTimes;
