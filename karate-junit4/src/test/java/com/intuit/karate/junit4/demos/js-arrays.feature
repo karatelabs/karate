@@ -77,6 +77,16 @@ Scenario: karate filter operation, using array indexes
     * def res = karate.filter(list, fun)
     * match res == [1, 3]
 
+Scenario: get last array element (js)
+    * def list = [1, 2, 3, 4]
+    * def last = list[list.length-1]
+    * match last == 4
+
+Scenario: get last array element (json-path)
+    * def list = [1, 2, 3, 4]
+    * def last = get[0] list[-1:]
+    * match last == 4
+
 Scenario: advanced json-path that the jayway implementation has limitations with
     * def response = read('products.json')
     * def result = $[?(@.partIDs[?(@.id == 1)])]
