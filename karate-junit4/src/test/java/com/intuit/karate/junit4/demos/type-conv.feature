@@ -32,8 +32,10 @@ Scenario Outline: multi-line text in a scenario outline
 Scenario: multi-line string expression
     # this is normally never required since you can use replace
     * def name = 'Luke Skywalker'
-    * string query = '{\n  hero(name: "' + name + '") {\n    height\n    mass\n  }\n}'
-    * match query == read('query.txt')
+    * string expectedOnUnix = '{\n  hero(name: "' + name + '") {\n    height\n    mass\n  }\n}'
+    * string expectedOnWindows = '{\r\n  hero(name: "' + name + '") {\r\n    height\r\n    mass\r\n  }\r\n}'
+    * def actual = read('query.txt')
+    * assert actual === expectedOnUnix || actual === expectedOnWindows
 
 Scenario: string to json
     # this would be of type string (not JSON)
