@@ -2930,8 +2930,9 @@ Here below are a few more common examples:
 
 Utility | Recipe
 ------- | ------                               
-| System Time | `function(){ return java.lang.System.currentTimeMillis() }`         
-| UUID  | `function(){ return java.util.UUID.randomUUID() + '' }` 
+| System Time | `function(){ return java.lang.System.currentTimeMillis() }`
+| UUID  | `function(){ return java.util.UUID.randomUUID() + '' }`
+| Random Number (`0` to `max-1`) | `function(max){ return Math.floor(Math.random() * max) }`
 
 The above are good enough for the purposes of random string generation for most situations.
 
