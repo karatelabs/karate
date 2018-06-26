@@ -1,6 +1,8 @@
+# On Hold !
+This is still in development. If you have Gatling internals experience please do consider contributing !
+
 # Karate Gatling
 ## API Perf-Testing Made `Simple.`
-
 ### Capabilities
 * Re-use Karate tests as performance tests executed by [Gatling](https://gatling.io)
 * Use Gatling (and Scala) only for defining the load-model, everything else can be in Karate
