@@ -645,13 +645,18 @@ When your project gets complex, you can have separate `karate-config-<env>.js` f
 Here are the rules Karate uses on bootstrap (before every `Scenario` or `Examples` row in a `Scenario Outline`):
 
 * if the system-property `karate.config.dir` was set, Karate will look in this folder for `karate-config.js` - and if found, will process it
-* else if `karate-config.js` was not found in the above location (or `karate.config.dir` was not set), [`classpath:karate-config.js`](#karate-config-js) would be processed (this is the default / common case)
+* else if `karate-config.js` was not found in the above location (or `karate.config.dir` was not set), [`classpath:karate-config.js`](#configuration) would be processed (this is the default / common case)
 * if the `karate.env` system property was set
   * if `karate.config.dir` was set, Karate will also look for `file:<config.dir>/karate-config-<env>.js`
   * else (if the `karate.config.dir` was *not* set), Karate will look for `classpath:karate-config-<env>.js`
 * if the over-ride `karate-config-<env>.js` exists, it will be processed, and the configuration (JSON entries) returned by this function will over-ride any set by `karate-config.js`
 
 Refer to the [karate demo](karate-demo) for an [example](karate-demo/src/test/java/karate-config-contract.js).
+
+### `karate-base.js`
+Advanced users who build frameworks on top of Karate have the option to supply a `karate-base.js` file that Karate will look for on the [`classpath:`](#classpath). This is useful when you ship a JAR file containing re-usable features and JavaScript / Java code and want to 'default' a few variables that teams can 'inherit' from. So an additional rule in the above flow of 'rules' (before the *first* step) is as follows:
+
+* if `classpath:karate-base.js` exists - Karate will process this as a [configuration source](#configuration) before anything else
 
 # Syntax Guide
 ## Script Structure

@@ -58,8 +58,10 @@ public class ScriptBindings implements Bindings {
     public static final String KARATE_ENV = "karate.env";
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
     private static final String KARATE_DASH_CONFIG = "karate-config";
+    private static final String KARATE_DASH_BASE = "karate-base";
     private static final String DOT_JS = ".js";
     public static final String KARATE_CONFIG_JS = KARATE_DASH_CONFIG + DOT_JS;
+    private static final String KARATE_BASE_JS = KARATE_DASH_BASE + DOT_JS;
     public static final String READ = "read";
     public static final String PATH_MATCHES = "pathMatches";
     public static final String METHOD_IS = "methodIs";
@@ -85,6 +87,7 @@ public class ScriptBindings implements Bindings {
 
     private static final String READ_INVOKE = "%s('%s%s')";
     private static final String READ_KARATE_CONFIG_DEFAULT = String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_CONFIG_JS);
+    public static final String READ_KARATE_CONFIG_BASE = String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_BASE_JS);
 
     public static final String readKarateConfigForEnv(boolean isForDefault, String configDir, String env) {
         if (isForDefault) {

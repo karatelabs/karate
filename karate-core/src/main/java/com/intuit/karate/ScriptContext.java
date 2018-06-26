@@ -140,6 +140,16 @@ public class ScriptContext {
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
         if (call.parentContext == null && call.evalKarateConfig) {
+            // base config is only looked for in the classpath
+            try {
+                Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, ScriptBindings.READ_KARATE_CONFIG_BASE, null, this);
+            } catch (Exception e) {
+                if (e instanceof KarateFileNotFoundException) {
+                    logger.trace("skipping 'classpath:karate-base.js': {}", e.getMessage());
+                } else {
+                    throw new RuntimeException("evaluation of 'classpath:karate-base.js' failed", e);
+                }
+            }            
             String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
             String configScript = ScriptBindings.readKarateConfigForEnv(true, configDir, null);
             try {

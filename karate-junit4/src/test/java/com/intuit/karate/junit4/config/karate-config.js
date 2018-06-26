@@ -1,3 +1,3 @@
 function() {
-  return { defaultoverride: 'worked' };
+  return { defaultoverride: 'worked', baseconfig: 'overridden' };
 }
