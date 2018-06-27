@@ -188,3 +188,9 @@ karate.set('temp', squares);
 * def entityId = 'foo'
 * def temp = karate.jsonPath(expected, "$[?(@.entityId=='foo')]")
 * match temp == [{ entityId: 'foo'}]
+
+# using java for a case-insensitive string comparison
+* def equalsIgnoreCase = function(a, b){ return a.equalsIgnoreCase(b) }
+* assert equalsIgnoreCase('hello', 'HELLO')
+* def foo = { message: 'HELLO' }
+* match foo == { message: '#? equalsIgnoreCase(_, "hello")' }
