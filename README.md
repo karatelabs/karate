@@ -793,6 +793,9 @@ Note that the parser is 'lenient' so that you don't have to enclose all keys in 
 * def cat = { name: 'Billie', scores: [2, 5] }
 * assert cat.scores[1] == 5
 ```
+
+> Some characters such as the hyphen `-` are not permitted in 'lenient' JSON keys (because they are interpreted by the JS engine as a 'minus sign'). In such cases, you *have* to use string quotes: `{ 'Content-Type': 'application/json' }`
+
 When asserting for expected values in JSON or XML, always prefer using [`match`](#match) instead of [`assert`](#assert). Match failure messages are much more descriptive and useful, and you get the power of [embedded expressions](#embedded-expressions) and [fuzzy matching](#fuzzy-matching).
 ```cucumber
 * def cats = [{ name: 'Billie' }, { name: 'Bob' }]
@@ -1385,7 +1388,7 @@ Then status 200
 ```
 And this assertion will cause the test to fail if the HTTP response code is something else.
 
-See also [`responseStatus`](#responsestatus).
+See also [`responseStatus`](#responsestatus) if you want to do some complex assertions against the HTTP status code.
 
 # Keywords that set key-value pairs
 They are `param`, `header`, `cookie`, `form field` and `multipart field`. 
@@ -1857,6 +1860,9 @@ This means that even when you have dynamic server-side generated values such as 
 # this will fail
 # * match cat == { name: '#ignore', type: '#regex .{2}', id: '#uuid' }	
 ```
+
+> Note that regex escaping has to be done with a *double* back-slash - for e.g: `'#regex a\\.dot'` will match `'a.dot'`
+
 The supported markers are the following:
 
 Marker | Description
@@ -2490,8 +2496,12 @@ And just as in the [`responseCookies`](#responsecookies) example above, you can 
 
 ## `responseStatus`
 You would normally only need to use the [`status`](#status) keyword.  But if you really need to use the HTTP response code in an expression or save it for later, you can get it as an integer:
+
 ```cucumber
 * def uploadStatusCode = responseStatus
+
+# check if the response status is either of two values
+Then assert responseStatus == 200 || 204
 ```
 ## `responseTime`
 The response time (in milliseconds) for the current [`response`](#response) would be available in a variable called `responseTime`. You can use this to assert that it was returned within the expected time like so:
