@@ -109,6 +109,7 @@ public class Main implements Callable<Void> {
             System.setProperty(LOGBACK_CONFIG, "logback-netty.xml");
         }
         logger = LoggerFactory.getLogger(Main.class);
+        logger.info("Karate version: {}", FileUtils.getKarateVersion());
         CommandLine cmd = new CommandLine(new Main());
         DefaultExceptionHandler<List<Object>> exceptionHandler = new DefaultExceptionHandler() {
             @Override

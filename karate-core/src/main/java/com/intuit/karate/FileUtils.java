@@ -22,6 +22,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import static com.intuit.karate.Script.evalKarateExpression;
+import java.util.Properties;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -29,7 +30,7 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class FileUtils {
-    
+
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(FileUtils.class);
 
     public static final Charset UTF8 = StandardCharsets.UTF_8;
@@ -190,7 +191,7 @@ public class FileUtils {
                 String actualPath = cl.getResource(path).getFile();
                 return new File(actualPath);
             default:
-                return new File(path);                
+                return new File(path);
         }
     }
 
@@ -272,7 +273,7 @@ public class FileUtils {
             throw new RuntimeException(e);
         }
     }
-    
+
     public static String toPrettyString(String raw) {
         raw = StringUtils.trimToEmpty(raw);
         try {
@@ -354,6 +355,23 @@ public class FileUtils {
             return path + '.' + extension;
         } else {
             return path.substring(0, pos + 1) + extension;
+        }
+    }
+    
+    private static final String UNKNOWN = "(unknown)";
+
+    public static String getKarateVersion() {
+        InputStream stream = FileUtils.class.getResourceAsStream("/karate-meta.properties");
+        if (stream == null) {
+            return UNKNOWN;
+        }
+        Properties props = new Properties();
+        try {
+            props.load(stream);
+            stream.close();
+            return (String) props.get("karate.version");
+        } catch (IOException e) {
+            return UNKNOWN;
         }
     }
 

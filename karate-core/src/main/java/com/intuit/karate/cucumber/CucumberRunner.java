@@ -78,7 +78,8 @@ public class CucumberRunner {
     }
 
     public static KarateStats parallel(List<KarateFeature> karateFeatures, int threadCount, String userReportDir) {
-        String reportDir = userReportDir == null ? "target/surefire-reports" : userReportDir;            
+        String reportDir = userReportDir == null ? "target/surefire-reports" : userReportDir;
+        logger.info("Karate version: {}", FileUtils.getKarateVersion());
         KarateStats stats = KarateStats.startTimer();
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         try {

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.cucumber;
 
+import com.intuit.karate.FileUtils;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -87,6 +88,7 @@ public class KarateStats {
     
     public void printStats(int threadCount) {
         double elapsedTime = endTime - startTime;
+        System.out.println("Karate version: " + FileUtils.getKarateVersion());
         System.out.println("====================================================");
         System.out.println(String.format("elapsed time: %.2f | total thread time: %.2f", elapsedTime / 1000, timeTaken));
         double efficiency = 1000 * timeTaken / (elapsedTime * threadCount);

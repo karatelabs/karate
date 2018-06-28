@@ -1,6 +1,7 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.cucumber.DummyFormatter;
 import com.intuit.karate.cucumber.DummyReporter;
 import com.intuit.karate.cucumber.KarateFeature;
@@ -95,6 +96,7 @@ public class Karate extends ParentRunner<FeatureRunner> {
         List<KarateFeature> list = KarateFeature.loadFeatures(kro);
         children = new ArrayList(list.size());
         featureMap = new HashMap(list.size());
+        logger.info("Karate version: {}", FileUtils.getKarateVersion());
         for (KarateFeature kf : list) {
             KarateRuntime kr = kf.getRuntime(htmlReporter);
             FeatureRunner runner = new FeatureRunner(kf.getFeature(), kr, reporter);

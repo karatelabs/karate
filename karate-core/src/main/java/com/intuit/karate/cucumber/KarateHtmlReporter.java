@@ -130,6 +130,7 @@ public class KarateHtmlReporter extends KarateReporterBase {
         File file = new File(buildDir + "/surefire-reports/TEST-" + packageName + ".html");
         try {
             FileUtils.writeToFile(file, xml);
+            System.out.println("Karate version: " + FileUtils.getKarateVersion());
             System.out.println("html report: (paste into browser to view)\n"
                     + "-----------------------------------------\n"
                     + file.toURI() + '\n');
