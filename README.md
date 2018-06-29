@@ -2501,7 +2501,7 @@ You would normally only need to use the [`status`](#status) keyword.  But if you
 * def uploadStatusCode = responseStatus
 
 # check if the response status is either of two values
-Then assert responseStatus == 200 || 204
+Then assert responseStatus == 200 || responseStatus == 204
 ```
 ## `responseTime`
 The response time (in milliseconds) for the current [`response`](#response) would be available in a variable called `responseTime`. You can use this to assert that it was returned within the expected time like so:

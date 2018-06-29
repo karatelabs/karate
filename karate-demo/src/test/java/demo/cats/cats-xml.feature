@@ -24,3 +24,4 @@ Given path 'cats', id
 When method get
 Then status 200
 And match response == <cat><id>#(id)</id><name>Billie</name></cat>
+And assert responseStatus == 204 || responseStatus == 200
