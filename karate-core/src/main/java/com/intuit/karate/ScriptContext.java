@@ -149,7 +149,7 @@ public class ScriptContext {
                 } else {
                     throw new RuntimeException("evaluation of 'classpath:karate-base.js' failed", e);
                 }
-            }            
+            }
             String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
             String configScript = ScriptBindings.readKarateConfigForEnv(true, configDir, null);
             try {
@@ -254,6 +254,20 @@ public class ScriptContext {
             }
             // here again, re-construct client - and exit early
             client = HttpClient.construct(config, this);
+            return;
+        }
+        if (key.equals("report")) {
+            if (value.isMapLike()) {
+                Map<String, Object> map = value.getAsMap();
+                config.setLogEnabled((Boolean) map.get("logEnabled"));
+                config.setShowAllSteps((Boolean) map.get("showAllSteps"));
+            } else if (value.isBooleanTrue()) {
+                config.setLogEnabled(true);
+                config.setShowAllSteps(true);
+            } else {
+                config.setLogEnabled(false);
+                config.setShowAllSteps(false);
+            }
             return;
         }
         // beyond this point, we don't exit early and we have to re-configure the http client

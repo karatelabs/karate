@@ -102,7 +102,7 @@ public class AppSession {
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);
             varsPanel = new VarsPanel(this);
-            logPanel = new LogPanel(env.logger);
+            logPanel = new LogPanel(null);
         } else {
             headerPanel = null;
             featurePanel = null;

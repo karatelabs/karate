@@ -27,16 +27,12 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.StringUtils;
-import cucumber.runtime.model.CucumberExamples;
 import gherkin.formatter.model.DocString;
-import gherkin.formatter.model.ExamplesTableRow;
 import gherkin.formatter.model.Match;
 import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Step;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  *
@@ -45,7 +41,7 @@ import java.util.Map;
 public abstract class KarateReporterBase implements KarateReporter {
 
     protected String tempFilePath;
-    protected FileLogAppender appender;  
+    protected FileLogAppender appender;
 
     @Override
     public void setLogger(Logger logger) {
@@ -78,26 +74,37 @@ public abstract class KarateReporterBase implements KarateReporter {
             prefix = prefix + " [" + scenarioName + "]";
         }
         Step step = new Step(null, "* ", prefix + " " + feature.getPath(), 0, null, docString);
-        karateStep(step, Match.UNDEFINED, passed(0L), callContext);
-    } 
-         
+        karateStep(step, Match.UNDEFINED, passed(0L), callContext, null);
+    }
+
     @Override // this is a hack to format scenario outlines better when they appear in a 'called' feature
     public void exampleBegin(ScenarioWrapper scenario, CallContext callContext) {
         String data = StringUtils.trimToNull(scenario.getScenario().getVisualName());
         Step step = new Step(null, "* ", data, 0, null, null);
-        karateStep(step, Match.UNDEFINED, passed(0L), callContext);
-    }    
+        karateStep(step, Match.UNDEFINED, passed(0L), callContext, null);
+    }
 
     @Override // see the step() method for an explanation of this hack
-    public void karateStep(Step step, Match match, Result result, CallContext callContext) {
-        if (step.getDocString() == null) {
-            String log = appender.collect();
-            DocString docString = log.isEmpty() ? null : new DocString("", log, step.getLine());
-            step = new Step(step.getComments(), step.getKeyword(), step.getName(), step.getLine(), step.getRows(), docString);
+    public void karateStep(Step step, Match match, Result result, CallContext callContext, ScriptContext context) {
+        boolean isPrint = true; // TODO step.getName().startsWith("print ");
+        boolean isNoise = false; // TODO step.getKeyword().charAt(0) == '*';
+        boolean showAllSteps = true; // TODO context == null ? true : context.getConfig().isShowAllSteps();
+        boolean logEnabled = context == null ? true : context.getConfig().isLogEnabled();        
+        if (!isPrint && isNoise && !showAllSteps) {            
+            appender.collect(); // swallow log
         }
+        if (step.getDocString() == null && (isPrint || logEnabled)) {
+            String log = appender.collect();
+            if (!log.isEmpty()) {
+                DocString docString = new DocString("", log, step.getLine());
+                step = new Step(step.getComments(), step.getKeyword(), step.getName(), step.getLine(), step.getRows(), docString);
+            }            
+        }
+        // TODO figure out a way to skip steps completely
+        // exiting here does not work because of some weird held state in the json reporter :(
         karateStepProceed(step, match, result, callContext);
     }
-    
+
     @Override
     public void step(Step step) {
         // hack alert !
@@ -106,6 +113,6 @@ public abstract class KarateReporterBase implements KarateReporter {
         // now we can 'in-line' called feature steps in the final report, plus time stats - see StepWrapper.run()
         // the downside is that on failure, we don't show skipped steps (only in called features)
         // but really, this should not be a big concern for karate users
-    }     
+    }
 
 }

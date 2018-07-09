@@ -1617,6 +1617,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `logPrettyRequest` | boolean | Pretty print the request payload JSON or XML with indenting (default `false`)
 `logPrettyResponse` | boolean | Pretty print the response payload JSON or XML with indenting (default `false`)
 `printEnabled` | boolean | Can be used to suppress the [`print`](#print) output when not in 'dev mode' by setting as `false` (default `true`)
+`report` | JSON / boolean | see [report verbosity](#report-verbosity)
 `afterScenario` | JS function | Will be called [after every `Scenario`](#hooks) (or `Example` within a `Scenario Outline`), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `afterFeature` | JS function | Will be called [after every `Feature`](#hooks), refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
@@ -1657,6 +1658,29 @@ Examples:
 ```
 
 And if you need to set some of these 'globally' you can easily do so using [the `karate` object](#the-karate-object) in [`karate-config.js`](#configuration).
+
+### Report Verbosity
+By default, when the [parallel runner](#parallel-execution) is used Karate will add logs to the report output so that HTTP requests and responses appear in-line in the HTML reports. There may be cases where you want to suppress this to make the logs "lighter" and easier to read.
+
+The configure key here is `report` and it takes a JSON value. For example:
+
+> IMPORTANT: `showAllSteps` is *not* implemented yet. It was attempted but reverted due to some technical challenges. The documentation has been left in-place below. If you have some thoughts on how this feature should work, do comment or discuss [here](https://github.com/intuit/karate/issues/397).
+
+```cucumber
+* configure report = { logEnabled: true, showAllSteps: false }
+```
+
+ `report` | Type | Description
+------ | ---- | ---------
+`logEnabled` | boolean | HTTP requests and responses (including headers) will appear in the HTML report, default `true`
+`showAllSteps` | boolean | Any step that starts with `*` instead of `Given`, `When`, `Then` etc. will *not* appear in the HTML report. The [`print`](#print) step is an exception.
+
+You can 'reset' by using the following short-cut:
+
+```cucumber
+# reset to defaults
+* configure report = true
+```
 
 ### System Properties for SSL and HTTP proxy
 For HTTPS / SSL, you can also specify a custom certificate or trust store by [setting Java system properties](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/JSSERefGuide.html#InstallationAndCustomization). And similarly - for [specifying the HTTP proxy](https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html).

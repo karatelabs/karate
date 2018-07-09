@@ -76,7 +76,7 @@ public class KarateRuntime extends Runtime {
             Match match = Match.UNDEFINED;
             Result result = aborted ? StepResult.PASSED : Result.SKIPPED;
             if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
-                ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext());
+                ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext(), backend.getStepDefs().getContext());
             }
             reporter.match(match);
             addStepToCounterAndResult(result);

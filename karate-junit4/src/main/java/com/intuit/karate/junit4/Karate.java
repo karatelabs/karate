@@ -78,7 +78,7 @@ public class Karate extends ParentRunner<FeatureRunner> {
                 Match match = matches.remove(0);
                 CallContext callContext = new CallContext(null, false);
                 // all the above complexity was just to be able to do this
-                htmlReporter.karateStep(step, match, result, callContext);
+                htmlReporter.karateStep(step, match, result, callContext, null);
                 // this may not work for things other than the cucumber 'native' json formatter
                 super.step(step);
                 super.match(match);

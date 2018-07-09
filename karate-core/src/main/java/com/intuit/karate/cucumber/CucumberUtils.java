@@ -25,6 +25,7 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
@@ -212,9 +213,10 @@ public class CucumberUtils {
     private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, KarateBackend backend) {
         boolean isKarateReporter = reporter instanceof KarateReporter;
         CallContext callContext = backend.getCallContext();
+        ScriptContext context = backend.getStepDefs().getContext();
         if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
-            karateReporter.karateStep(step, match, result, callContext);
+            karateReporter.karateStep(step, match, result, callContext, context);
         } else if (!backend.isCalled() && reporter != null) { // can be null for server
             reporter.match(match);
             reporter.result(result);

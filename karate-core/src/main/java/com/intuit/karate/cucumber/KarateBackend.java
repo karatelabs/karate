@@ -24,6 +24,8 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.Logger;
+import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepDefs;

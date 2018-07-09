@@ -64,6 +64,10 @@ public class HttpConfig {
     private Map<String, Object> userDefined;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
+    
+    // report config
+    private boolean logEnabled = true;
+    private boolean showAllSteps = true;
 
     public HttpConfig() {
         // zero arg constructor
@@ -99,6 +103,8 @@ public class HttpConfig {
         userDefined = parent.userDefined;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
+        logEnabled = parent.logEnabled;
+        showAllSteps = parent.showAllSteps;
     }
 
     public boolean isSslEnabled() {
@@ -333,4 +339,20 @@ public class HttpConfig {
         this.afterFeature = afterFeature;
     }
 
+    public boolean isLogEnabled() {
+        return logEnabled;
+    }
+
+    public void setLogEnabled(boolean logEnabled) {
+        this.logEnabled = logEnabled;
+    }
+
+    public boolean isShowAllSteps() {
+        return showAllSteps;
+    }
+
+    public void setShowAllSteps(boolean showAllSteps) {
+        this.showAllSteps = showAllSteps;
+    }
+    
 }

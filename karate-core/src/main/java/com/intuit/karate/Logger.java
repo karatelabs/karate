@@ -29,7 +29,6 @@ import java.util.Date;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.FormattingTuple;
 import org.slf4j.helpers.MessageFormatter;
-import org.slf4j.spi.LocationAwareLogger;
 
 /**
  * derived from org.slf4j.simple.SimpleLogger
@@ -37,16 +36,9 @@ import org.slf4j.spi.LocationAwareLogger;
  * @author pthomas3
  */
 public class Logger {
-
-    public static final int LEVEL_TRACE = LocationAwareLogger.TRACE_INT;
-    public static final int LEVEL_DEBUG = LocationAwareLogger.DEBUG_INT;
-    public static final int LEVEL_INFO = LocationAwareLogger.INFO_INT;
-    public static final int LEVEL_WARN = LocationAwareLogger.WARN_INT;
-    public static final int LEVEL_ERROR = LocationAwareLogger.ERROR_INT;
-
+    
     private final org.slf4j.Logger LOGGER;
-
-    private final int currentLogLevel;
+    
     // not static, has to be per thread
     private final DateFormat dateFormatter = new SimpleDateFormat("HH:mm:ss.SSS");
 
@@ -54,56 +46,43 @@ public class Logger {
 
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;
-    }
+    }        
 
     public Logger() {
-        this(LEVEL_DEBUG);
-    }
-
-    public Logger(int logLevel) {
         LOGGER = LoggerFactory.getLogger("com.intuit.karate");
-        this.currentLogLevel = logLevel;
     }
 
     public void trace(String format, Object... arguments) {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace(format, arguments);
         }
-        if (isLogEnabled(LEVEL_TRACE)) {
-            formatAndAppend(LEVEL_TRACE, format, arguments);
-        }
+        // we never do trace in html logs
     }
 
     public void debug(String format, Object... arguments) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(format, arguments);
         }
-        if (isLogEnabled(LEVEL_DEBUG)) {
-            formatAndAppend(LEVEL_DEBUG, format, arguments);
-        }
+        formatAndAppend(format, arguments);
     }
 
     public void info(String format, Object... arguments) {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(format, arguments);
         }
-        if (isLogEnabled(LEVEL_INFO)) {
-            formatAndAppend(LEVEL_INFO, format, arguments);
-        }
+        formatAndAppend(format, arguments);
     }
 
     public void warn(String format, Object... arguments) {
         if (LOGGER.isWarnEnabled()) {
             LOGGER.warn(format, arguments);
         }
-        if (isLogEnabled(LEVEL_WARN)) {
-            formatAndAppend(LEVEL_WARN, format, arguments);
-        }
+        formatAndAppend(format, arguments);
     }
 
     public void error(String format, Object... arguments) {
         LOGGER.error(format, arguments);
-        formatAndAppend(LEVEL_ERROR, format, arguments);
+        formatAndAppend(format, arguments);
     }
 
     private String getFormattedDate() {
@@ -113,27 +92,17 @@ public class Logger {
         return dateText;
     }
 
-    private boolean isLogEnabled(int level) {
-        return currentLogLevel <= level;
-    }
-
-    private void formatAndAppend(int level, String format, Object... arguments) {
-        if (!isLogEnabled(level)) {
+    private void formatAndAppend(String format, Object... arguments) {
+        if (logAppender == null) {
             return;
         }
         FormattingTuple tp = MessageFormatter.arrayFormat(format, arguments);
-        append(level, tp.getMessage());
+        append(tp.getMessage());
     }
 
-    private void append(int level, String message) {
-        if (logAppender == null || !isLogEnabled(level)) {
-            return;
-        }
+    private void append(String message) {
         StringBuilder buf = new StringBuilder();
-        buf.append(getFormattedDate());
-        buf.append(' ');
-        buf.append(message);
-        buf.append('\n');
+        buf.append(getFormattedDate()).append(' ').append(message).append('\n');
         logAppender.append(buf.toString());
     }
 

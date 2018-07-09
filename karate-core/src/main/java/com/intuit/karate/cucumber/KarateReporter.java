@@ -25,6 +25,7 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.Logger;
+import com.intuit.karate.ScriptContext;
 import gherkin.formatter.Formatter;
 import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Match;
@@ -41,7 +42,7 @@ public interface KarateReporter extends Formatter, Reporter {
     
     public void exampleBegin(ScenarioWrapper feature, CallContext callContext);
     
-    public void karateStep(Step step, Match match, Result result, CallContext call);
+    public void karateStep(Step step, Match match, Result result, CallContext call, ScriptContext context);
     
     public void karateStepProceed(Step step, Match match, Result result, CallContext call);
     
