@@ -33,6 +33,7 @@ import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -293,18 +294,26 @@ public class Script {
         return value;
     }
 
+    // this is called only from the routine that evaluates karate expressions
     public static ScriptValue evalXmlPathOnVarByName(String name, String path, ScriptContext context) {
         ScriptValue value = getValuebyName(name, context);
+        Node node;
         switch (value.getType()) {
             case XML:
-                Node doc = value.getValue(Node.class);
-                return evalXmlPathOnXmlNode(doc, path);
+                node = value.getValue(Node.class);
+                break;
             default:
-                Node node = XmlUtils.fromMap(value.getAsMap());
-                return evalXmlPathOnXmlNode(node, path);
+                node = XmlUtils.fromMap(value.getAsMap());
         }
+        ScriptValue sv = evalXmlPathOnXmlNode(node, path);
+        if (sv == null) {
+            throw new KarateException("xpath does not exist: " + path + " on " + name);
+        }
+        return sv;
     }
 
+    // hack: if this returns null - it means the node does not exist
+    // this is relevant for the match routine to process #present and #notpresent macros
     public static ScriptValue evalXmlPathOnXmlNode(Node doc, String path) {
         NodeList nodeList;
         try {
@@ -315,8 +324,8 @@ public class Script {
             return new ScriptValue(strValue);
         }
         int count = nodeList.getLength();
-        if (count == 0) {
-            return ScriptValue.NULL;
+        if (count == 0) { // xpath / node does not exist !
+            return null;
         }
         if (count == 1) {
             return nodeToValue(nodeList.item(0));
@@ -937,8 +946,11 @@ public class Script {
         Node node = actual.getValue(Node.class);
         actual = evalXmlPathOnXmlNode(node, path);
         ScriptValue expected = evalKarateExpression(expression, context);
-        if (actual.isNull()) {
-            return matchFailed(matchType, path, null, expected.getValue(), "actual xpath returned null");
+        if (actual == null) { // the xpath did not exist
+            if (expected.isString() && "#notpresent".equals(expected.getValue())) {
+                return AssertionResult.PASS;
+            }
+            return matchFailed(matchType, path, null, expected.getValue(), "actual xpath does not exist");
         }
         Object actObject;
         Object expObject;
@@ -960,9 +972,15 @@ public class Script {
                 expObject = expected.getValue(List.class);
                 actObject = actual.getValue(List.class);
                 break;
-            default: // try string comparison
-                actObject = actual.getAsString();
+            default: // try string comparison                
                 expObject = expected.getAsString();
+                if ("#present".equals(expObject)) {
+                    return AssertionResult.PASS;
+                }
+                if ("#notpresent".equals(expObject)) {
+                    return matchFailed(matchType, path, actual, expObject, "actual xpath exists");
+                }
+                actObject = actual.getAsString();
         }
         if ("/".equals(path)) {
             path = ""; // else error x-paths reported would start with "//"
@@ -1038,8 +1056,17 @@ public class Script {
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);
         }
-        Object actObject = actualDoc.read(path); // note that the path for actObject is 'reset' to '$' here
         ScriptValue expected = evalKarateExpressionForMatch(expression, context);
+        Object actObject;
+        try {
+            actObject = actualDoc.read(path); // note that the path for actObject is 'reset' to '$' here
+        } catch (PathNotFoundException e) {
+            if (expected.isString() && "#notpresent".equals(expected.getValue())) {
+                return AssertionResult.PASS;
+            } else {
+                return matchFailed(matchType, path, null, expected.getValue(), "actual json-path does not exist");
+            }
+        }
         Object expObject;
         switch (expected.getType()) {
             case JSON: // convert to map or list

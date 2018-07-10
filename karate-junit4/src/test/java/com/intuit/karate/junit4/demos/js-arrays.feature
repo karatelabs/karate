@@ -210,6 +210,11 @@ Scenario: #null, ##null, #present and #notpresent
     * match foo == { a: '#ignore' }
     * match foo != { a: '#notpresent' }
 
+Scenario: alternative notpresent check using json-path
+    * def foo = { a: 1 }
+    * match foo.a == '#present'
+    * match foo.nope == '#notpresent'
+
 Scenario: get and json path
     * def foo = { bar: { baz: 'ban' } }
     * def res = get foo $..bar[?(@.baz)]

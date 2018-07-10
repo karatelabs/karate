@@ -1894,8 +1894,8 @@ Marker | Description
 `#ignore` | Skip comparison for this field even if the data element or JSON key is present
 `#null` | Expects actual value to be `null`, and the data element or JSON key *must* be present
 `#notnull` | Expects actual value to be not-`null`
-`#present` | Actual value can be any type or *even* `null`, but the key *must* be present (only works within JSON)
-`#notpresent` | Expects the key to be **not** present at all (only works within JSON)
+`#present` | Actual value can be any type or *even* `null`, but the key *must* be present (only for JSON / XML, see below)
+`#notpresent` | Expects the key to be **not** present at all (only for JSON / XML, see below)
 `#array` | Expects actual value to be a JSON array
 `#object` | Expects actual value to be a JSON object
 `#boolean` | Expects actual value to be a boolean `true` or `false`
@@ -1907,8 +1907,14 @@ Marker | Description
 `#[NUM] EXPR` | Advanced array validation, see [schema validation](#schema-validation)
 `#(EXPR)` | For completeness, [embedded expressions](#embedded-expressions) belong in this list as well
 
-Note that `#present` and `#notpresent` only make sense in a JSON content. The rest do, but can also be used in 'primitive' data matches like so:
+Note that `#present` and `#notpresent` only make sense when you are matching within a JSON or XML context or using a JsonPath or XPath on the left-hand-side.
+```cucumber
+* def json = { foo: 'bar' }
+* match json == { foo: '#present' }
+* match json.nope == '#notpresent'
+```
 
+The rest can also be used even in 'primitive' data matches like so:
 ```cucumber
 * match foo == '#string'
 # convenient (and recommended) way to check for array length
@@ -1957,6 +1963,16 @@ These examples (all exact matches) can make things more clear:
 * match foo == { a: '#present' }
 * match foo == { a: '#ignore' }
 ```
+
+Note that you can alternatively use JsonPath on the left-hand-side:
+
+```cucumber
+* def foo = { a: 1 }
+* match foo.a == '#present'
+* match foo.nope == '#notpresent'
+```
+
+But of course it is preferable to match whole objects in one step as far as possible.
 
 ### 'Self' Validation Expressions
 The special 'predicate' marker `#? EXPR` in the table above is an interesting one.  It is best explained via examples. Any valid JavaScript expression that evaluates to a [Truthy](https://developer.mozilla.org/en-US/docs/Glossary/Truthy) or [Falsy](https://developer.mozilla.org/en-US/docs/Glossary/Falsy) value is expected after the `#?`.
