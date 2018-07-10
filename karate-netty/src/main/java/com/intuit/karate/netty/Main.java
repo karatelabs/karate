@@ -38,6 +38,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 import org.slf4j.Logger;
@@ -123,7 +124,7 @@ public class Main implements Callable<Void> {
         };
         cmd.parseWithHandlers(new RunLast(), exceptionHandler, args);
     }
-
+    
     @Override
     public Void call() throws Exception {
         if (tests != null) {
@@ -137,7 +138,8 @@ public class Main implements Callable<Void> {
                 if (configDir == null) {
                     System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File(".").getPath());
                 }
-                KarateStats stats = CucumberRunner.parallel(tags, tests, threads, output);
+                List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
+                KarateStats stats = CucumberRunner.parallel(tags, fixed, threads, output);
                 Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(output), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));

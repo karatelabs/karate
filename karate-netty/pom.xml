@@ -104,7 +104,7 @@
                                     <goal>shade</goal>
                                 </goals>
                                 <configuration>
-                                    <finalName>karate</finalName>
+                                    <finalName>karate-${project.version}</finalName>
                                     <artifactSet>
                                         <includes>
                                             <include>*:*</include>                                    
