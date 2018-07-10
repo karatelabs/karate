@@ -88,7 +88,7 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 # Standalone JAR
 Karate-Netty is available as a single, executable JAR file, which includes even the [`karate-apache`](https://mvnrepository.com/artifact/com.intuit.karate/karate-apache) dependency. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. All you need is the [JRE](http://www.oracle.com/technetwork/java/javase/downloads/index.html) (at least version 1.8.0_112 or greater).
 
-You can download the latest version of this JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-netty-<version>-all.jar`.
+You can download the latest version of this JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-<version>.jar`.
 
 > Tip: Rename the file to `karate.jar` to make the commands below easier to type !
 
@@ -96,25 +96,25 @@ You can download the latest version of this JAR file from [Bintray](https://dl.b
 ### Mock Server
 You can view the command line help with the `-h` option:
 ```
-java -jar karate-netty-<version>-all.jar -h
+java -jar karate.jar -h
 ```
 
 To start a mock server, the 2 mandatory arguments are the path of the feature file 'mock' `-m` and the port `-p`
 
 ```
-java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8080
+java -jar karate.jar -m my-mock.feature -p 8080
 ```
 #### SSL
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
 
 ```
-java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -s
+java -jar karate.jar -m my-mock.feature -p 8443 -s
 ```
 
 If you have a custom certificate and private-key (in PEM format) you can specify them, perhaps because these are your actual certificates or because they are trusted within your organization:
 
 ```
-java -jar karate-netty-<version>-all.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
+java -jar karate.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
 ```
 
 ### Running Tests
@@ -125,60 +125,60 @@ Convenient to run standard [Karate](https://github.com/intuit/karate) tests on t
 Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
 
 ```
-java -jar karate-netty-<version>-all.jar my-test.feature
+java -jar karate.jar my-test.feature
 ```
 
 You can specify [Cucumber tags](https://github.com/intuit/karate#cucumber-tags) to include (or exclude) using the `-t` or `--tags`  option as follows:
 
 ```
-java -jar karate-netty-<version>-all.jar -t @smoke,~@ignore my-test.feature
+java -jar karate.jar -t @smoke,~@ignore my-test.feature
 ```
 
 If your test depends on the `karate.env` [environment 'switch'](https://github.com/intuit/karate#switching-the-environment), you can specify that using the `-e` (env) option:
 
 ```
-java -jar karate-netty-<version>-all.jar -e e2e my-test.feature
+java -jar karate.jar -e e2e my-test.feature
 ```
 
 If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
-java -jar -Dkarate.config=somedir/my-config.js karate-netty-<version>-all.jar my-test.feature
+java -jar -Dkarate.config=somedir/my-config.js karate.jar my-test.feature
 ```
 
 And you can even set or over-ride variable values via the command line by using the `-a` (args) option:
 
 ```
-java -jar karate-netty-<version>-all.jar -a myKey1=myValue1 -a myKey2=myValue2 my-test.feature
+java -jar karate.jar -a myKey1=myValue1 -a myKey2=myValue2 my-test.feature
 ```
 
 If you provide a directory in which multiple feature files are present (even in sub-folders), they will be all run. You can even specify the number of threads to run in parallel using `-T` or `--threads` (not to be confused with `-t` for tags):
 
 ```
-java -jar karate-netty-<version>-all.jar -T 5 -t ~@ignore src/features
+java -jar karate.jar -T 5 -t ~@ignore src/features
 ```
 
 The output directory where the `karate.log` file, JUnit XML and Cucumber report JSON files would be output will default to `target` in the current working directory. The Cucumber HTML report would be found in a folder called `cucumber-html-reports` within this "output" folder. You can change the output folder using the `-o` or `--output` option:
 
 ```
-java -jar karate-netty-<version>-all.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
+java -jar karate.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
 ```
 
 ### UI
 The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
 ```
-java -jar karate-netty-<version>-all.jar
+java -jar karate.jar
 ```
 
 You can also open an existing Karate test in the UI via the command-line:
 ```
-java -jar karate-netty-<version>-all.jar -u my-test.feature
+java -jar karate.jar -u my-test.feature
 ```
 
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-netty.xml`](src/main/resources/logback-netty.xml)) is present within the stand-alone JAR. If you need to customize logging, set the system property `logback.configurationFile` to point to your custom config:
 ```
-java -jar -Dlogback.configurationFile=my-logback.xml karate-netty-<version>-all.jar -t my-test.feature
+java -jar -Dlogback.configurationFile=my-logback.xml karate.jar my-test.feature
 ```
 Here is the 'out-of-the-box' default which you can customize. Note that the default creates a folder called `target` and within it, logs will be in `karate.log`.
 
@@ -241,7 +241,7 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 ## `requestHeaders`
 
 ## `requestParams`
-A map-like' object of all query-string parameters and the values will always be an array. Use the convenience built-iun function [`paramValue(name)`](#paramValue) which is convenient as it will return a single (string) value if the size of the array is 1, which is what you need most of the time.
+A map-like' object of all query-string parameters and the values will always be an array. Use the convenience built-in function [`paramValue(name)`](#paramValue) which is convenient as it will return a single (string) value if the size of the array is 1, which is what you need most of the time.
 
 ## `pathMatches`
 
@@ -271,6 +271,12 @@ Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/
 ### `configure cors`
 
 ## `afterScenario`
+Use this to add an artificial delay instead of calling `Thread.sleep()` directly which will block all other threads. For example:
+
+```cucumber
+* def afterScenario = function(){ java.lang.Thread.sleep(3000); }
+```
+
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
 ## `karate.abort()`
@@ -282,14 +288,16 @@ Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
 ## `karate.proceed()`
+Refer to the above example. A twist here is that if the parameter is `null` Karate will use the host in the incoming HTTP request as the target URL - which is what you want when you run Karate as an HTTP proxy.
+
+The parameter has to be a URL that starts with `http` or `https`.
+
+> Karate cannot act as an HTTPS proxy yet (do consider contributing !). But most teams are able to configure the "consumer" application to use HTTP and if you set the target URL for e.g. like this: `karate.proceed('https://myhost.com:8080')` Karate will proxy the current request to the server.
+
+This is great because you have control before and after the actual call and you can modify the request or response or introduce time-delays.
 
 # Stopping
 A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
 
 If you have started the server programmatically via Java, you can keep a reference to the `FeatureServer` instance and call the `stop()` method. Here is an example: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java).
-
-
-
-
-
 

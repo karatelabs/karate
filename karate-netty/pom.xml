@@ -104,13 +104,12 @@
                                     <goal>shade</goal>
                                 </goals>
                                 <configuration>
+                                    <finalName>karate</finalName>
                                     <artifactSet>
                                         <includes>
                                             <include>*:*</include>                                    
                                         </includes>
-                                    </artifactSet>                                    
-                                    <shadedArtifactAttached>true</shadedArtifactAttached>
-                                    <shadedClassifierName>all</shadedClassifierName>
+                                    </artifactSet>
                                     <transformers>
                                         <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                             <mainClass>com.intuit.karate.netty.Main</mainClass>
