@@ -1,5 +1,5 @@
 # On Hold !
-This is still in development. If you have Gatling internals experience please do consider contributing !
+This is still in development. If you have Gatling internals experience please do consider contributing ! Please refer to [this ticket](https://github.com/intuit/karate/issues/438).
 
 # Karate Gatling
 ## API Perf-Testing Made `Simple.`
