@@ -3,7 +3,7 @@ package com.intuit.karate.gatling
 import java.io.File
 import java.util.function.Consumer
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.intuit.karate.{CallContext, ScriptContext, ScriptValueMap}
 import com.intuit.karate.cucumber._
 import com.intuit.karate.http.{HttpRequest, HttpUtils}
@@ -22,8 +22,10 @@ class KarateActor extends Actor {
 
 class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val next: Action) extends ExitableAction {
 
-  val actorName = new File(name).getName + "-" + protocol.actorCount.incrementAndGet()
-  val actor = system.actorOf(Props[KarateActor], actorName)
+  def getActor(): ActorRef = {
+    val actorName = new File(name).getName + "-" + protocol.actorCount.incrementAndGet()
+    system.actorOf(Props[KarateActor], actorName)
+  }
 
   override def execute(session: Session) = {
 
@@ -42,7 +44,6 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
       var startTime: Long = 0
       var responseTime: Long = 0
       var responseStatus: Int = 0
-
 
       def logPrevRequestIfDefined(ctx: ScriptContext, pass: Boolean, message: Option[String]) = {
         if (prevRequest.isDefined) {
@@ -69,7 +70,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
           val request = backend.getStepDefs.getRequest
           val pauseTime = protocol.pauseFor(request.getUrlAndPath, method)
           if (pauseTime > 0) {
-            Thread.sleep(pauseTime)
+            Thread.sleep(pauseTime) // TODO use actors here as well
           }
         }
       }
@@ -92,7 +93,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
     }
 
-    val asyncSystem: Consumer[Runnable] = r => actor ! r
+    val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
     val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, stepInterceptor)
 
