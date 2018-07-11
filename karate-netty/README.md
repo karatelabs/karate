@@ -88,15 +88,16 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 # Standalone JAR
 Karate-Netty is available as a single, executable JAR file, which includes even the [`karate-apache`](https://mvnrepository.com/artifact/com.intuit.karate/karate-apache) dependency. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. All you need is the [JRE](http://www.oracle.com/technetwork/java/javase/downloads/index.html) (at least version 1.8.0_112 or greater).
 
-> Tip: Rename the file to `karate.jar` to make the commands below easier to type !
-
 ## Quick Start
 It will take you only 2 minutes to see Karate's mock-server capabilities in action !
+
+> Tip: Rename the file to `karate.jar` to make the commands below easier to type !
+
 * Download the latest version of the JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-<version>.jar`
 * Download this file: [`cats-mock.feature`](../karate-demo/src/test/java/mock/web/cats-mock.feature) (or copy the text) to a local file next to the above JAR file
 * In the same directory, start the mock server with the command: `java -jar karate.jar -m cats-mock.feature -p 8080`
 * To see how this is capable of backing an HTML front-end, download this file: [`cats.html`](../karate-demo/src/test/java/mock/web/cats.html). Open it in a browser and you will be able to `POST` data. Browse to [`http://localhost:8080/cats`](http://localhost:8080/cats) - to see the saved data (state).
-* You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command: `java -jar karate.jar cats-test.feature`
+* You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal): `java -jar karate.jar cats-test.feature`
 * You will see HTML reports in the `target/cucumber-html-reports` directory
 
 ## Usage
