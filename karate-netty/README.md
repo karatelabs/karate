@@ -97,6 +97,7 @@ It will take you only 2 minutes to see Karate's mock-server capabilities in acti
 * In the same directory, start the mock server with the command: `java -jar karate.jar -m cats-mock.feature -p 8080`
 * To see how this is capable of backing an HTML front-end, download this file: [`cats.html`](../karate-demo/src/test/java/mock/web/cats.html). Open it in a browser and you will be able to `POST` data. Browse to [`http://localhost:8080/cats`](http://localhost:8080/cats) - to see the saved data (state).
 * You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command: `java -jar karate.jar cats-test.feature`
+* You will see HTML reports in the `target/cucumber-html-reports` directory
 
 ## Usage
 ### Mock Server
