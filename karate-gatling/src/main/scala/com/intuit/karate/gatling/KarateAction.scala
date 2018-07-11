@@ -16,7 +16,10 @@ import io.gatling.core.stats.message.ResponseTimings
 
 class KarateActor extends Actor {
   override def receive: Receive = {
-    case m: Runnable => m.run()
+    case m: Runnable => {
+      m.run()
+      context.stop(self)
+    }
   }
 }
 
