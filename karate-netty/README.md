@@ -98,7 +98,7 @@ It will take you only 2 minutes to see Karate's mock-server capabilities in acti
 * You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal): `java -jar karate.jar cats-test.feature`
 * You will see HTML reports in the `target/cucumber-html-reports` directory
 
-Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice) !
+Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
 ## Usage
 ### Mock Server
@@ -229,7 +229,7 @@ Also see [how to stop](#stopping) a running server.
 ## `Background`
 This is executed on start-up. You can read files and set-up common functions and 'global' state here. Note that unlike the life-cycle of ['normal' Karate](https://github.com/intuit/karate#script-structure), the `Background` is *not* executed before each `Scenario`.
 
-Here's an example of setting up a function to generate primary keys which can be invoked as `uuid()`:
+Here's an example of setting up a [function to generate primary keys](https://github.com/intuit/karate#commonly-needed-utilities) which can be invoked like this: `uuid()`
 
 ```cucumber
 Feature: stateful mock server
@@ -261,14 +261,18 @@ The main [Karate](https://github.com/intuit/karate) documentation explains thing
 The other parts of the simple example above are explained in the sections below. 
 
 ## `Scenario`
-A server-side `Feature` file can have multiple `Scenario` sections in it. Each Scenario is expected to have a JavaScript expression as the content of the `Scenario` description.
+A server-side `Feature` file can have multiple `Scenario` sections in it. Each Scenario is expected to have a JavaScript expression as the content of the `Scenario` description which we will refer to as the "request matcher".
 
 On each incoming HTTP request, the `Scenario` expressions are evaluated in order, starting from the first one within the `Feature`. If the expression evaluates to `true`, the body of the `Scenario` is evaluated and the HTTP response is returned.
 
 > It is good practice to have the last `Scenario` in the file with an empty description, (which will evaluate to `true`) so that it can act as a 'catch-all' and log or throw an error / `404 Not Found` in response.
 
-# Request
+# Request Handling
 The Karate "server-side" has a set of "built-in" variables or helper-functions. They have been carefully designed to solve for common matching and processing that you will need to perform against the incoming HTTP request.
+
+You can use these in the "request matcher" described above. This is how you can "route" incoming HTTP requests to the blocks of code within the individual `Scenario`-s. And you can also use them in the `Scenario` body, to process the request, URL, and maybe the headers, and then form the [response](#response-building).
+
+> The [`pathParams`](#pathparams) is a special case. For each request, it will be initialized only if, and after you have used [`pathMatches`](#pathmatches). In other words you have to call `pathMatches` first - typically in the "request matcher" and then you will be able to unpack URL parameters in the `Scenario` body.
 
 ## `request`
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
@@ -348,11 +352,11 @@ Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
 
 Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/server.feature).
 
-# Response
-Shaping the HTTP response is very easy - you just set a bunch of variables. This is surprisingly effective, and gives you the flexibility to perform multiple steps as part of request processing. You don't need to build the whole response and "return" it on the last line.
+# Response Building
+Shaping the HTTP response is very easy - you just set a bunch of variables. This is surprisingly effective, and gives you the flexibility to perform multiple steps as part of request processing. You don't need to build the whole response and "return" it on the last line. And the order of what you define does not matter.
 
 ## `responseStatus`
-This defaults to `200` for convenience. Here's an example of conditionally setting a `404`:
+The HTTP response code. This defaults to `200` for convenience, so you don't need to set it at all for "happy path" cases. Here's an example of conditionally setting a `404`:
 
 ```cucumber
 Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
@@ -371,6 +375,8 @@ Scenario: pathMatches('/v1/cats')
     * def response = { id: '#(uuid())', name: 'Billie' }
 ```
 
+See the [`Background`](#background) example for how the `uuid` function can be defined.
+
 ## `responseHeaders`
 You can easily set multiple headers as JSON in one step as follows:
 
@@ -384,13 +390,13 @@ Many times you want a set of "common" headers to be returned for *every* end-poi
 
 ```cucumber
 Background:
-    * configure responseHeaders = { 'Content-type': 'application/json' }
+    * configure responseHeaders = { 'Content-Type': 'application/json' }
 ```
 
 ## `configure cors`
 This allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). And this is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.
 
-Like [`responseHeaders`](#responseheaders), this is also meant to be declared in the [`Background`](#background).
+Like [`configure responseHeaders`](#configure-responseheaders), this is also meant to be declared in the [`Background`](#background).
 
 ```cucumber
 Background:
@@ -417,19 +423,29 @@ Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test
 ## `karate.abort()`
 Stop evaluating any more steps in the `Scenario` and return the `response`. Useful when combined with [`eval`](https://github.com/intuit/karate#eval) and conditional checks in JavaScript.
 
-Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/server.feature).
+```cucumber
+Scenario: pathMatches('/v1/abort')
+    * def response = { success: true }
+    * eval if (response.success) karate.abort()
+```
 
 # Proxy Mode
-Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
-
 ## `karate.proceed()`
-Refer to the above example. A twist here is that if the parameter is `null` Karate will use the host in the incoming HTTP request as the target URL - which is what you want when you run Karate as an HTTP proxy.
+It is easy to set up a Karate server to "intercept" HTTP requests and then delegate them to a target server only if needed. Think of this as "[AOP](https://en.wikipedia.org/wiki/Aspect-oriented_programming)" for web services !
 
-The parameter has to be a URL that starts with `http` or `https`.
+If you invoke the built in Karate function `karate.proceed(url)` - Karate will make an HTTP request to the URL using the current values of the [`request`](#request) and [`requestHeaders`](#requestheaders). Since the [request](#request-handling) is *mutable* this gives rise to some very interesting possibilities. For example, you can modify the request or decide to return a response without calling a downstream service.
 
-> Karate cannot act as an HTTPS proxy yet (do consider contributing !). But most teams are able to configure the "consumer" application to use HTTP and if you set the target URL for e.g. like this: `karate.proceed('https://myhost.com:8080')` Karate will proxy the current request to the server.
+A twist here is that if the parameter is `null` Karate will use the host in the incoming HTTP request as the target URL - which is what you want when you run Karate as an HTTP proxy.
 
-This is great because you have control before and after the actual call and you can modify the request or response or introduce time-delays.
+Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature) and also row (5) of the [Consumer-Provider example](#consumer-provider-example)
+
+If not-null, the parameter has to be a URL that starts with `http` or `https`.
+
+> Karate cannot act as an HTTPS proxy yet (do consider contributing !). But most teams are able to configure the "consumer" application to use HTTP and if you set the target URL for e.g. like this: `karate.proceed('https://myhost.com:8080')` Karate will proxy the current request to the server. For example, you can set up Karate to log all requests and responses - which is great for troubleshooting complex service interactions.
+
+After the execution of `karate.proceed()` completes, the values of [`response`](#response) and [`responseHeaders`](#responseheaders) would be ready for returning to the consumer. And you again have the option of mutating the [response](#response-building).
+
+So you have control before and after the actual call, and you can modify the request or response - or introduce a time-delay using [`afterScenario`](#afterscenario).
 
 # Stopping
 A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
