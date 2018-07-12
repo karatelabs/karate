@@ -28,8 +28,6 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 
 > For the last point above - Karate will have [Spring REST Docs](https://projects.spring.io/spring-restdocs/) support built-in in the future, please [help contribute](https://github.com/intuit/karate/issues/25) to completing this if you can !
 
-This documentation is work in progress while this project evolves. But here is an end-to-end demo that should provide sufficient detail for those interested.
-
 ## Using
 Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
 
@@ -79,7 +77,7 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 * Validate payloads if needed, using a [simpler alternative to JSON schema](https://twitter.com/KarateDSL/status/878984854012022784)
 * Karate is *all* about making HTTP calls, giving you the flexibility to call 'downstream' services if needed
 * In-memory JSON and JsonPath solves for ['state' and filtering](https://twitter.com/KarateDSL/status/946607931327266816) if needed
-* Mix custom JavaScript (or even Java code) if needed - for complex logic
+* Mix [custom JavaScript (or even Java code)](https://github.com/intuit/karate#karate-expressions) if needed - for complex logic
 * Easily 'seed' data or switch environment / config on start
 * Read initial 'state' from a JSON file if needed
 
@@ -224,6 +222,8 @@ The Karate 'server' life-cycle is simple and has only 2 phases - the `Background
 
 Refer to this example: [`demo-mock.feature`](../karate-demo/src/test/java/mock/proxy/demo-mock.feature).
 
+Also see [how to stop](#stopping) a running server.
+
 ## `Background`
 This is executed on start-up. You can read files and set-up common functions and 'global' state here. Note that unlike the life-cycle of ['normal' Karate](https://github.com/intuit/karate#script-structure), the `Background` is *not* executed before each `Scenario`.
 
@@ -235,48 +235,135 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 > It is good practice to have the last `Scenario` in the file with an empty description, (which will evaluate to `true`) so that it can act as a 'catch-all' and log or throw an error / `404 Not Found` in response.
 
 ## Request Matching
-
+Karate has a set of "built-in" variables or functions that activate in "server" or test-double mode. They have been carefully designed to solve for common incoming HTTP request matching needs.
 # Request 
-
 ## `request`
+This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
 ## `requestUrlBase`
+Holds the value of the "base URL". This will be in the form `http://somehost:8080` and will include the port number if needed. It may start with `https` if applicable.
 
 ## `requestUri`
+Everything on the right side of the "base URL" (see above). This will include query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `/bar?baz=ban`.
 
 ## `requestMethod`
+The HTTP method, for e.g. `GET`. It will be in capital letters.
 
 ## `requestHeaders`
+Note that this will be a Map of List-s. For request matching, the [`headerContains`](#headercontains) helper is what you would use most of the time.
 
 ## `requestParams`
-A map-like' object of all query-string parameters and the values will always be an array. Use the built-in convenience function [`paramValue(name)`](#paramValue) which will return a single (string) value (instead of an array) if the size of the parameter-list for that name is 1, which is what you need most of the time.
+A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramValue(name)`](#paramValue) is what you would use most of the time.
 
 ## `pathMatches`
+Helper function that makes it easy to match a URI pattern as well as set [path parameters](#pathparams) up for extraction later using curly-braces. For example:
+
+```cucumber
+Scenario: pathMatches('/v1/cats/{id}')
+    * def id = pathParams.id
+```
 
 ## `pathParams`
+JSON variable (not a function) allowing you to extract values by name. See [`pathMatches`](#pathmatches) above.
 
 ## `methodIs`
+Helper function that you will use a lot along with [`pathMatches`](#pathmatches). Lower-case is fine. For example:
+
+```cucumber
+Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
+    * def response = cats[pathParams.id]
+```
 
 ## `paramValue`
+Function (not a variable) designed to make it easier to work with query parameters instead of [`requestParams`](#requestparams). It will return a single (string) value (instead of an array) if the size of the parameter-list for that name is 1, which is what you need most of the time. For example:
 
-## `headerContains`
+```cucumber
+Scenario: pathMatches('/greeting') && paramValue('name') != null
+    * def content = 'Hello ' + paramValue('name') + '!'
+    * def response = { id: '#(nextId())', content: '#(content)' }
+```
 
 ## `typeContains`
+Function to make matching the `Content-Type` header easier. And it uses a string "contains" match so that `typeContains('xml')` will match both `text/xml` or `application/xml`. Note how using JavaScript expressions makes all kinds of complex matching possible.
+
+```cucumber
+Scenario: pathMatches('/cats') && methodIs('post') && typeContains('xml')
+```
 
 ## `acceptContains`
+Just like the above, to make matching the `Accept` header easier.
+
+```cucumber
+Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
+    * def cat = cats[pathParams.id]
+    * def response = <cat><id>#(cat.id)</id><name>#(cat.name)</name></cat>
+```
 
 ## `bodyPath`
+A very powerful helper function that can run JsonPath or XPath expressions agains the request body or payload.
+
+JSON example:
+
+```cucumber
+Scenario: pathMatches('/v1/body/json') && bodyPath('$.name') == 'Scooby'
+```
+
+XML example:
+```cucumber
+Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
+```
+
 Refer to this example: [`server.feature`](src/test/java/com/intuit/karate/netty/server.feature).
 
 # Response
+Shaping the HTTP response is very easy - you just set a bunch of variables. This is surprisingly effective, and gives you the flexibility to perform multiple steps as part of request processing. You don't need to build the whole response and "return" it on the last line.
 
 ## `responseStatus`
+This defaults to `200` for convenience. Here's an example of conditionally setting a `404`:
+
+```cucumber
+Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
+    * def response = cats[pathParams.id]
+    * def responseStatus = response ? 200 : 404
+```
 
 ## `response`
+The actual response body or payload. Can be any [Karate data-type](https://github.com/intuit/karate#native-data-types) such as JSON or XML.
+
+Since you can use [embedded-expressions](https://github.com/intuit/karate#embedded-expressions), you can create dynamic responses with a minimum of effort:
+
+```cucumber
+Scenario: pathMatches('/v1/cats')
+    * def responseStatus = 201
+    * def response = { id: '#(uuid())', name: 'Billie' }
+```
 
 ## `responseHeaders`
-### `configure responseHeaders`
-### `configure cors`
+You can easily set multiple headers as JSON in one step as follows:
+
+```cucumber
+Scenario: pathMatches('/v1/test')
+    * def responseHeaders = { 'Content-Type': 'application/octet-stream' }
+```
+
+## `configure responseHeaders`
+Many times you want a set of "common" headers to be returned for *every* end-point within a server-feature. You can use the [`Background`](#background) section to set this up as follows:
+
+```cucumber
+Background:
+    * configure responseHeaders = { 'Content-type': 'application/json' }
+```
+
+## `configure cors`
+This automatically adds the following headers to *every* response:
+
+```
+Allow: GET, HEAD, POST, PUT, DELETE, PATCH
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, HEAD, POST, PUT, DELETE, PATCH
+```
+
+And this allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). This is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.
 
 ## `afterScenario`
 Use this to add an artificial delay instead of calling `Thread.sleep()` directly which will block all other threads. For example:
@@ -308,4 +395,3 @@ This is great because you have control before and after the actual call and you 
 A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
 
 If you have started the server programmatically via Java, you can keep a reference to the `FeatureServer` instance and call the `stop()` method. Here is an example: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java).
-
