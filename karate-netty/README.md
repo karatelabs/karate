@@ -76,7 +76,7 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 * 'Native' support for expressing JSON and XML payloads
 * [Embedded Expressions](https://github.com/intuit/karate#embedded-expressions) are perfect for those parts of the payload that need to be dynamic, and JS functions can be 'in-lined' into the JSON or XML
 * Manipulate or even transform payloads
-* Validate payloads, using a [simpler alternative to JSON schema](https://twitter.com/KarateDSL/status/878984854012022784) if needed
+* Validate payloads if needed, using a [simpler alternative to JSON schema](https://twitter.com/KarateDSL/status/878984854012022784)
 * Karate is *all* about making HTTP calls, giving you the flexibility to call 'downstream' services if needed
 * In-memory JSON and JsonPath solves for ['state' and filtering](https://twitter.com/KarateDSL/status/946607931327266816) if needed
 * Mix custom JavaScript (or even Java code) if needed - for complex logic
@@ -249,7 +249,7 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 ## `requestHeaders`
 
 ## `requestParams`
-A map-like' object of all query-string parameters and the values will always be an array. Use the convenience built-in function [`paramValue(name)`](#paramValue) which is convenient as it will return a single (string) value if the size of the array is 1, which is what you need most of the time.
+A map-like' object of all query-string parameters and the values will always be an array. Use the built-in convenience function [`paramValue(name)`](#paramValue) which will return a single (string) value (instead of an array) if the size of the parameter-list for that name is 1, which is what you need most of the time.
 
 ## `pathMatches`
 
