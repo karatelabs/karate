@@ -84,10 +84,10 @@ It is worth calling out *why* Karate on the 'other side of the fence' (*handling
 If you think about it, all the above are *sufficient* to implement *any* micro-service. Karate's DSL syntax is *focused* on exactly these aspects, thus opening up interesting possibilities. It may be hard to believe that you can spin-up a 'usable' micro-service in minutes with Karate - but do try it and see !
 
 # Standalone JAR
-Karate-Netty is available as a single, executable JAR file, which includes even the [`karate-apache`](https://mvnrepository.com/artifact/com.intuit.karate/karate-apache) dependency. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. All you need is the [JRE](http://www.oracle.com/technetwork/java/javase/downloads/index.html) (at least version 1.8.0_112 or greater).
+*All* of Karate (core, parallel / HTML reports, the UI and mocks) is available as a single, executable JAR file, which includes even the [`karate-apache`](https://mvnrepository.com/artifact/com.intuit.karate/karate-apache) dependency. This is ideal for handing off to UI / web-dev teams for example, who don't want to mess around with a Java IDE. The only pre-requisite is the [JRE](http://www.oracle.com/technetwork/java/javase/downloads/index.html) (at least version 1.8.0_112 or greater).
 
 ## Quick Start
-It will take you only 2 minutes to see Karate's mock-server capabilities in action !
+It will take you only 2 minutes to see Karate's mock-server capabilities in action ! And you can run tests as well.
 
 > Tip: Rename the file to `karate.jar` to make the commands below easier to type !
 
@@ -97,6 +97,8 @@ It will take you only 2 minutes to see Karate's mock-server capabilities in acti
 * To see how this is capable of backing an HTML front-end, download this file: [`cats.html`](../karate-demo/src/test/java/mock/web/cats.html). Open it in a browser and you will be able to `POST` data. Browse to [`http://localhost:8080/cats`](http://localhost:8080/cats) - to see the saved data (state).
 * You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal): `java -jar karate.jar cats-test.feature`
 * You will see HTML reports in the `target/cucumber-html-reports` directory
+
+Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice) !
 
 ## Usage
 ### Mock Server
@@ -227,6 +229,37 @@ Also see [how to stop](#stopping) a running server.
 ## `Background`
 This is executed on start-up. You can read files and set-up common functions and 'global' state here. Note that unlike the life-cycle of ['normal' Karate](https://github.com/intuit/karate#script-structure), the `Background` is *not* executed before each `Scenario`.
 
+Here's an example of setting up a function to generate primary keys which can be invoked as `uuid()`:
+
+```cucumber
+Feature: stateful mock server
+
+Background:
+* configure cors = true
+* def uuid = function(){ return java.util.UUID.randomUUID() + '' }
+* def cats = {}
+
+Scenario: pathMatches('/cats') && methodIs('post')
+    * def cat = request
+    * def id = uuid()
+    * set cat.id = id
+    * eval cats[id] = cat
+    * def response = cat
+
+Scenario: pathMatches('/cats')
+    * def response = $cats.*
+
+Scenario: pathMatches('/cats/{id}')
+    * def response = cats[pathParams.id]
+
+Scenario:
+    def responseStatus = 404
+```
+
+The main [Karate](https://github.com/intuit/karate) documentation explains things like the [`def`](https://github.com/intuit/karate#def), [`set`](https://github.com/intuit/karate#set) and the [`eval`](https://github.com/intuit/karate#eval) keywords, [Karate expressions](https://github.com/intuit/karate#karate-expressions) and [JsonPath](https://github.com/intuit/karate#get-short-cut).
+
+The other parts of the simple example above are explained in the sections below. 
+
 ## `Scenario`
 A server-side `Feature` file can have multiple `Scenario` sections in it. Each Scenario is expected to have a JavaScript expression as the content of the `Scenario` description.
 
@@ -234,9 +267,9 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 
 > It is good practice to have the last `Scenario` in the file with an empty description, (which will evaluate to `true`) so that it can act as a 'catch-all' and log or throw an error / `404 Not Found` in response.
 
-## Request Matching
-Karate has a set of "built-in" variables or functions that activate in "server" or test-double mode. They have been carefully designed to solve for common incoming HTTP request matching needs.
-# Request 
+# Request
+The Karate "server-side" has a set of "built-in" variables or helper-functions. They have been carefully designed to solve for common matching and processing that you will need to perform against the incoming HTTP request.
+
 ## `request`
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
@@ -244,7 +277,7 @@ This variable holds the value of the request body. It will be a JSON or XML obje
 Holds the value of the "base URL". This will be in the form `http://somehost:8080` and will include the port number if needed. It may start with `https` if applicable.
 
 ## `requestUri`
-Everything on the right side of the "base URL" (see above). This will include query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `/bar?baz=ban`.
+Everything on the right side of the "base URL" (see above). This will include everything, including query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `/bar?baz=ban`.
 
 ## `requestMethod`
 The HTTP method, for e.g. `GET`. It will be in capital letters.
@@ -355,6 +388,15 @@ Background:
 ```
 
 ## `configure cors`
+This allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). And this is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.
+
+Like [`responseHeaders`](#responseheaders), this is also meant to be declared in the [`Background`](#background).
+
+```cucumber
+Background:
+    * configure cors = true
+````
+
 This automatically adds the following headers to *every* response:
 
 ```
@@ -362,8 +404,6 @@ Allow: GET, HEAD, POST, PUT, DELETE, PATCH
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, HEAD, POST, PUT, DELETE, PATCH
 ```
-
-And this allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). This is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.
 
 ## `afterScenario`
 Use this to add an artificial delay instead of calling `Thread.sleep()` directly which will block all other threads. For example:
@@ -395,3 +435,36 @@ This is great because you have control before and after the actual call and you 
 A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
 
 If you have started the server programmatically via Java, you can keep a reference to the `FeatureServer` instance and call the `stop()` method. Here is an example: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java).
+
+# Other Examples
+## The World's Smallest MicroService !
+
+Which at 276 characters - is small enough to fit within a single tweet ! It implements a '`POST`', '`GET` by id' and '`GET` all' for a `/cats` resource:
+
+```cucumber
+Feature:
+
+Background:
+* def id = 0
+* def m = {}
+
+Scenario: methodIs('post')
+* def c = request
+* def id = ~~(id + 1)
+* set c.id = id
+* eval m[id + ''] = c
+* def response = c
+
+Scenario: pathMatches('/cats/{id}')
+* def response = m[pathParams.id]
+
+Scenario:
+* def response = $m.*
+```
+
+To get an idea of how much functionality the above code packs, have a look at the integration test for this service: [`cats.feature`](../karate-demo/src/test/java/mock/micro/cats.feature).
+
+## BenTen
+The [BenTen](https://github.com/intuit/benten) project is a great example of the usage of Karate test-doubles. This team was able to create a mock-service that simulates almost the entire life-cycle of an [Atlassian JIRA](https://www.atlassian.com/software/jira) ticket.
+
+Here is the source code: [`benten-mock.feature`](https://github.com/intuit/benten/blob/master/benten-mock/src/main/resources/benten-mock.feature). Note how complex JSON payloads have been separated out into [files](https://github.com/intuit/benten/blob/master/benten-mock/src/main/resources/transitions.json) and elegantly loaded using the [`read`](https://github.com/intuit/karate#reading-files) function. State management *just works* and has been implemented in a few lines of extremely readable code.

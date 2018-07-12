@@ -1,7 +1,8 @@
 Feature: stateful mock server
 
 Background:
-* def nextId = call read('increment.js')
+* def curId = 0
+* def nextId = function(){ return ~~curId++ }
 * def cats = {}
 
 Scenario: pathMatches('/greeting') && paramValue('name') != null
