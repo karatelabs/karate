@@ -478,7 +478,11 @@ Scenario:
 * def response = $m.*
 ```
 
+> To understand what the `~~` is doing, refer to the main Karate documentation on [type conversion](https://github.com/intuit/karate#floats-and-integers).
+
 To get an idea of how much functionality the above code packs, have a look at the integration test for this service: [`cats.feature`](../karate-demo/src/test/java/mock/micro/cats.feature).
+
+Want to try this out now ? It takes only [2 minutes](#quick-start).
 
 ## BenTen
 The [BenTen](https://github.com/intuit/benten) project is a great example of the usage of Karate test-doubles. This team was able to create a mock-service that simulates almost the entire life-cycle of an [Atlassian JIRA](https://www.atlassian.com/software/jira) ticket.
