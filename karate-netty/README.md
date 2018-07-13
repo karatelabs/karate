@@ -268,11 +268,11 @@ On each incoming HTTP request, the `Scenario` expressions are evaluated in order
 > It is good practice to have the last `Scenario` in the file with an empty description, (which will evaluate to `true`) so that it can act as a 'catch-all' and log or throw an error / `404 Not Found` in response.
 
 # Request Handling
-The Karate "server-side" has a set of "built-in" variables or helper-functions. They have been carefully designed to solve for common matching and processing that you will need to perform against the incoming HTTP request.
+The Karate "server-side" has a set of "built-in" variables or helper-functions. They have been carefully designed to solve for matching and processing that you commonly need to do against the incoming HTTP request.
 
 You can use these in the "request matcher" described above. This is how you can "route" incoming HTTP requests to the blocks of code within the individual `Scenario`-s. And you can also use them in the `Scenario` body, to process the request, URL, and maybe the headers, and then form the [response](#response-building).
 
-> The [`pathParams`](#pathparams) is a special case. For each request, it will be initialized only if, and after you have used [`pathMatches`](#pathmatches). In other words you have to call `pathMatches` first - typically in the "request matcher" and then you will be able to unpack URL parameters in the `Scenario` body.
+> The [`pathParams`](#pathparams) is a special case. For each request, it will be initialized only if, and after you have used [`pathMatches()`](#pathmatches). In other words you have to call `pathMatches()` first - typically in the "request matcher" and then you will be able to unpack URL parameters in the `Scenario` body.
 
 ## `request`
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
@@ -284,15 +284,15 @@ Holds the value of the "base URL". This will be in the form `http://somehost:808
 Everything on the right side of the "base URL" (see above). This will include everything, including query string parameters if present. For example if the request URL was `http://foo/bar?baz=ban` the value of `requestUri` will be `/bar?baz=ban`.
 
 ## `requestMethod`
-The HTTP method, for e.g. `GET`. It will be in capital letters.
+The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing things like: `requestMethod == 'GET'` - "best practice" is to use the [`methodIs()`](#methodis) helper function for request matching.
 
 ## `requestHeaders`
-Note that this will be a Map of List-s. For request matching, the [`headerContains`](#headercontains) helper is what you would use most of the time.
+Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains) or [`acceptContains()`](#acceptcontains) helpers are what you would use most of the time.
 
 ## `requestParams`
-A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramValue(name)`](#paramValue) is what you would use most of the time.
+A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramValue()`](#paramValue) is what you would use most of the time.
 
-## `pathMatches`
+## `pathMatches()`
 Helper function that makes it easy to match a URI pattern as well as set [path parameters](#pathparams) up for extraction later using curly-braces. For example:
 
 ```cucumber
@@ -301,17 +301,17 @@ Scenario: pathMatches('/v1/cats/{id}')
 ```
 
 ## `pathParams`
-JSON variable (not a function) allowing you to extract values by name. See [`pathMatches`](#pathmatches) above.
+JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
 
-## `methodIs`
-Helper function that you will use a lot along with [`pathMatches`](#pathmatches). Lower-case is fine. For example:
+## `methodIs()`
+Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. For example:
 
 ```cucumber
 Scenario: pathMatches('/v1/cats/{id}') && methodIs('get')
     * def response = cats[pathParams.id]
 ```
 
-## `paramValue`
+## `paramValue()`
 Function (not a variable) designed to make it easier to work with query parameters instead of [`requestParams`](#requestparams). It will return a single (string) value (instead of an array) if the size of the parameter-list for that name is 1, which is what you need most of the time. For example:
 
 ```cucumber
@@ -320,14 +320,14 @@ Scenario: pathMatches('/greeting') && paramValue('name') != null
     * def response = { id: '#(nextId())', content: '#(content)' }
 ```
 
-## `typeContains`
+## `typeContains()`
 Function to make matching the `Content-Type` header easier. And it uses a string "contains" match so that `typeContains('xml')` will match both `text/xml` or `application/xml`. Note how using JavaScript expressions makes all kinds of complex matching possible.
 
 ```cucumber
 Scenario: pathMatches('/cats') && methodIs('post') && typeContains('xml')
 ```
 
-## `acceptContains`
+## `acceptContains()`
 Just like the above, to make matching the `Accept` header easier.
 
 ```cucumber
@@ -336,7 +336,7 @@ Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
     * def response = <cat><id>#(cat.id)</id><name>#(cat.name)</name></cat>
 ```
 
-## `bodyPath`
+## `bodyPath()`
 A very powerful helper function that can run JsonPath or XPath expressions agains the request body or payload.
 
 JSON example:
@@ -415,7 +415,7 @@ Access-Control-Allow-Methods: GET, HEAD, POST, PUT, DELETE, PATCH
 Use this to add an artificial delay instead of calling `Thread.sleep()` directly which will block all other threads. For example:
 
 ```cucumber
-* def afterScenario = function(){ java.lang.Thread.sleep(3000); }
+* def afterScenario = function(){ java.lang.Thread.sleep(3000) }
 ```
 
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
@@ -427,6 +427,7 @@ Stop evaluating any more steps in the `Scenario` and return the `response`. Usef
 Scenario: pathMatches('/v1/abort')
     * def response = { success: true }
     * eval if (response.success) karate.abort()
+    * print 'this will not be printed'
 ```
 
 # Proxy Mode

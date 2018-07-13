@@ -1675,11 +1675,17 @@ The configure key here is `report` and it takes a JSON value. For example:
 `logEnabled` | boolean | HTTP requests and responses (including headers) will appear in the HTML report, default `true`
 `showAllSteps` | boolean | Any step that starts with `*` instead of `Given`, `When`, `Then` etc. will *not* appear in the HTML report. The [`print`](#print) step is an exception.
 
-You can 'reset' by using the following short-cut:
+You can 'reset' default settings by using the following short-cut:
 
 ```cucumber
 # reset to defaults
 * configure report = true
+```
+
+And this short-cut is also supported which will disable all logs:
+
+```cucumber
+* configure report = false
 ```
 
 ### System Properties for SSL and HTTP proxy
