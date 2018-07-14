@@ -41,6 +41,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#ide-support">IDE Support</a>    
     | <a href="#cucumber-tags">Tags / Grouping</a>
     | <a href="#parallel-execution">Parallel Execution</a>
+    | <a href="#java-api">Java API</a>    
   </td>
 </tr>
 <tr>
@@ -118,7 +119,8 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#responseheaders"><code>responseHeaders</code></a>
     | <a href="#responsecookies"><code>responseCookies</code></a>
     | <a href="#responsetime"><code>responseTime</code></a>
-    | <a href="#requesttimestamp"><code>requestTimeStamp</code></a>  
+    | <a href="#requesttimestamp"><code>requestTimeStamp</code></a>
+    | <a href="#the-karate-object"><code>karate</code> JavaScript helper</a>
   </td>
 </tr>
 <tr>
@@ -153,13 +155,22 @@ And you don't need to create additional Java classes for any of the payloads tha
 <tr>
   <th>Advanced</th>
   <td>
-    <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
+    <a href="#polling">Polling</a>
+    | <a href="#conditional-logic">Conditional Logic</a>
+    | <a href="#hooks">Hooks</a>
+    | <a href="#commonly-needed-utilities">Commonly Needed Utilities</a>
+    | <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
     | <a href="#http-header-manipulation">Header Manipulation</a> 
-    | <a href="karate-mock-servlet">Mock Servlet</a>
+    | <a href="#text">GraphQL</a>    
+  </td>
+</tr>
+<tr>
+  <th>More</th>
+  <td>
+    <a href="karate-mock-servlet">Mock Servlet</a>
     | <a href="karate-netty">Test Doubles</a>
     | <a href="karate-gatling">Performance Testing</a>
     | <a href="https://github.com/intuit/karate/wiki/Karate-UI">Karate UI</a>
-    | <a href="#java-api">Java API</a> 
     | <a href="#comparison-with-rest-assured">Karate vs REST-assured</a>
     | <a href="#cucumber-vs-karate">Karate vs Cucumber</a>
     | <a href="karate-demo">Examples and Demos</a>
