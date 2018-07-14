@@ -22,9 +22,9 @@ And you don't need to create additional Java classes for any of the payloads tha
 
 <table>
 <tr>
-  <th>Getting Started</th>
+  <th>Start</th>
   <td>
-    <a href="#maven">Maven</a> 
+      <a href="#maven">Maven</a> 
     | <a href="#gradle">Gradle</a>
     | <a href="#quickstart">Quickstart</a>
     | <a href="#folder-structure">Folder Structure</a>
@@ -33,9 +33,9 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Running</th>
+  <th>Run</th>
   <td>
-    <a href="#running-with-junit">JUnit</a> 
+      <a href="#running-with-junit">JUnit</a> 
     | <a href="#running-with-testng">TestNG</a>
     | <a href="#command-line">Command Line</a>
     | <a href="#ide-support">IDE Support</a>    
@@ -45,9 +45,9 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Environments, Reports</th>
+  <th>Report</th>
   <td>
-    <a href="#configuration">Configuration</a> 
+      <a href="#configuration">Configuration</a> 
     | <a href="#switching-the-environment">Environment Switching</a>
     | <a href="#test-reports">Reports</a>
     | <a href="#junit-html-report">JUnit HTML Report</a>
@@ -55,9 +55,9 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Data / Payloads</th>
+  <th>Data</th>
   <td>
-    <a href="#json">JSON</a> 
+      <a href="#json">JSON</a> 
     | <a href="#xml">XML</a>
     | <a href="#javascript-functions">JavaScript Functions</a>
     | <a href="#reading-files">Reading Files</a>
@@ -66,37 +66,55 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#embedded-expressions">Embedded Expressions</a>
     | <a href="#jsonpath-filters">JsonPath</a>
     | <a href="#xpath-functions">XPath</a>
+    | <a href="#karate-expressions">Karate Expressions</a>
   </td>
 </tr>
 <tr>
-  <th>Variables, <a href="#karate-expressions">Expressions</a></th>
+  <th>Variables</th>
   <td>
-    <a href="#def"><code>def</code></a> 
-    | <a href="#assert"><code>assert</code></a>
-    | <a href="#print"><code>print</code></a>
-    | <a href="#eval"><code>eval</code></a>
+      <a href="#def"><code>def</code></a>
     | <a href="#text"><code>text</code></a>
-    | <a href="#replace"><code>replace</code></a>
     | <a href="#table"><code>table</code></a>
     | <a href="#yaml"><code>yaml</code></a>
+    | <a href="#type-string"><code>string</code></a>
+    | <a href="#type-json"><code>json</code></a>
+    | <a href="#type-xml"><code>xml</code></a>
+    | <a href="#type-xmlstring"><code>xmlstring</code></a>
+    | <a href="#type-copy"><code>copy</code></a>
   </td>
 </tr>
 <tr>
-  <th>HTTP Primary</th>
+  <th>Operations</th>
   <td>
-    <a href="#url"><code>url</code></a> 
+      <a href="#assert"><code>assert</code></a>
+    | <a href="#print"><code>print</code></a>
+    | <a href="#replace"><code>replace</code></a>
+    | <a href="#get"><code>get</code></a> 
+    | <a href="#set"><code>set</code></a>
+    | <a href="#remove"><code>remove</code></a>    
+    | <a href="#configure"><code>configure</code></a>
+    | <a href="#call"><code>call</code></a> 
+    | <a href="#callonce"><code>callonce</code></a>
+    | <a href="#eval"><code>eval</code></a>
+    | <a href="#reading-files"><code>read()</code></a>
+    | <a href="#the-karate-object"><code>karate</code> API</a>                
+  </td>
+</tr>
+<tr>
+  <th>HTTP Core</th>
+  <td>
+      <a href="#url"><code>url</code></a> 
     | <a href="#path"><code>path</code></a>
     | <a href="#request"><code>request</code></a>
     | <a href="#method"><code>method</code></a>
     | <a href="#status"><code>status</code></a>
     | <a href="#soap-action"><code>soap action</code></a>
-    | <a href="#configure"><code>configure</code></a>
   </td>
 </tr>
 <tr>
-  <th>HTTP Secondary</th>
+  <th>HTTP Data</th>
   <td>
-    <a href="#param"><code>param</code></a> 
+      <a href="#param"><code>param</code></a> 
     | <a href="#params"><code>params</code></a>
     | <a href="#header"><code>header</code></a>
     | <a href="#headers"><code>headers</code></a>
@@ -112,24 +130,20 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Special Variables</th>
+  <th>Built-In</th>
   <td>
-    <a href="#response"><code>response</code></a> 
+      <a href="#response"><code>response</code></a> 
     | <a href="#responsestatus"><code>responseStatus</code></a>
     | <a href="#responseheaders"><code>responseHeaders</code></a>
     | <a href="#responsecookies"><code>responseCookies</code></a>
     | <a href="#responsetime"><code>responseTime</code></a>
     | <a href="#requesttimestamp"><code>requestTimeStamp</code></a>
-    | <a href="#the-karate-object">The <code>karate</code> JavaScript API</a>
   </td>
 </tr>
 <tr>
-  <th>Prepare, Mutate, Assert</th>
+  <th>Assertions</th>
   <td>
-    <a href="#get"><code>get</code></a> 
-    | <a href="#set"><code>set</code></a>
-    | <a href="#remove"><code>remove</code></a>
-    | <a href="#match"><code>match ==</code></a>
+      <a href="#match"><code>match ==</code></a>
     | <a href="#match--not-equals"><code>match !=</code></a>
     | <a href="#match-contains"><code>match contains</code></a>
     | <a href="#match-contains-only"><code>match contains only</code></a>
@@ -142,23 +156,21 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Code Re-Use</th>
+  <th>Re-Use</th>
   <td>
-    <a href="#call"><code>call</code></a> 
-    | <a href="#callonce"><code>callonce</code></a>
-    | <a href="#calling-other-feature-files">Calling Other <code>*.feature</code> Files</a>
+      <a href="#calling-other-feature-files">Calling Other <code>*.feature</code> Files</a>
     | <a href="#calling-javascript-functions">Calling JavaScript Functions</a>
-    | <a href="#calling-java">Calling Java Code</a> 
+    | <a href="#calling-java">Calling Java Code</a>
+    | <a href="#commonly-needed-utilities">Commonly Needed Utilities</a>
     | <a href="#data-driven-tests">Data Driven Tests</a> 
   </td>
 </tr>
 <tr>
   <th>Advanced</th>
   <td>
-    <a href="#polling">Polling</a>
+      <a href="#polling">Polling</a>
     | <a href="#conditional-logic">Conditional Logic</a>
     | <a href="#hooks">Hooks</a>
-    | <a href="#commonly-needed-utilities">Commonly Needed Utilities</a>
     | <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
     | <a href="#http-header-manipulation">Header Manipulation</a> 
     | <a href="#text">GraphQL</a>    
@@ -167,7 +179,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 <tr>
   <th>More</th>
   <td>
-    <a href="karate-mock-servlet">Mock Servlet</a>
+      <a href="karate-mock-servlet">Mock Servlet</a>
     | <a href="karate-netty">Test Doubles</a>
     | <a href="karate-gatling">Performance Testing</a>
     | <a href="https://github.com/intuit/karate/wiki/Karate-UI">Karate UI</a>
@@ -1340,6 +1352,9 @@ The rarely used `file:` prefix is also supported. You could use it for 'hard-cod
 Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for validating HTTP responses, like this one: [`read-files.feature`](karate-demo/src/test/java/demo/read/read-files.feature).
 
 ## Type Conversion
+
+> Best practice is to stick to using only [`def`](#def) unless there is a very good reason to do otherwise.
+
 Internally, Karate will auto-convert JSON (and even XML) to Java `Map` objects. And JSON arrays would become Java `List`-s. But you will never need to worry about this internal data-representation most of the time.
 
 In some rare cases, for e.g. if you acquired a string from some external source, or if you generated JSON (or XML) by concatenating text or using [`replace`](#replace), you may want to convert a string to JSON and vice-versa. You can even perform a conversion from XML to JSON if you want.
@@ -1347,11 +1362,11 @@ In some rare cases, for e.g. if you acquired a string from some external source,
 One example of when you may want to convert JSON (or XML) to a string is when you are passing a payload to custom code via [Java interop](#calling-java). Do note that when passing JSON, the default `Map` and `List` representations should suffice for most needs ([see example](karate-demo/src/test/java/demo/java/cats-java.feature)), and using them would avoid un-necessary string-conversion.
 
 So you have the following type markers you can use instead of [`def`](#def) (or the rarely used [`text`](#text)):
-* `string` - convert JSON or any other data-type (except XML) to a string
-* `json` - convert XML, a map-like or list-like object, a string, or even a Java object into JSON
-* `xml` - convert JSON, a map-like object, a string, or even a Java object into XML
-* `xmlstring` - specifically for converting the map-like Karate internal representation of XML into a string
-* `copy` - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
+* <a name="type-string"><code>string</code></a> - convert JSON or any other data-type (except XML) to a string
+* <a name="type-json"><code>json</code></a> - convert XML, a map-like or list-like object, a string, or even a Java object into JSON
+* <a name="type-xml"><code>xml</code></a> - convert JSON, a map-like object, a string, or even a Java object into XML
+* <a name="type-xmlstring"><code>xmlstring</code></a> - specifically for converting the map-like Karate internal representation of XML into a string
+* <a name="type-copy"><code>copy</code></a> - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
 
 These are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
 
@@ -2870,7 +2885,7 @@ In real-life scripts, you would typically also use this capability of Karate to 
 > Also refer to the [`eval`](#eval) keyword for a simpler way to execute arbitrary JavaScript that can be useful in some situations.
 
 ### The `karate` object
-A JavaScript function or expression at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
+A JavaScript function or [Karate expression](#karate-expressions) at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
 
 Operation | Description
 --------- | -----------
@@ -3133,9 +3148,10 @@ Utility | Recipe
 | System Time | `function(){ return java.lang.System.currentTimeMillis() }`
 | UUID  | `function(){ return java.util.UUID.randomUUID() + '' }`
 | Random Number (`0` to `max-1`) | `function(max){ return Math.floor(Math.random() * max) }`
-| Equals Ignore Case | `function(a, b){ return a.equalsIgnoreCase(b) }`
+| Case Insensitive Comparison | `function(a, b){ return a.equalsIgnoreCase(b) }`
+| Sleep or Wait for `pause` milliseconds | `function(pause){ java.lang.Thread.sleep(pause) }`
 
-The above are good enough for the purposes of random string generation for most situations.
+The first three are good enough for random string generation for most situations.
 
 ## GraphQL / RegEx replacement example
 As a demonstration of Karate's power and flexibility, here is an example that reads a GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries and filter criteria.
