@@ -27,7 +27,7 @@ You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling
 ## Sample Project:
 Refer: https://github.com/ptrthomas/karate-gatling-demo
 
-This demo project happens to depend on `karate-netty` which already depends on `karate-apache`.
+This demo project happens to depend on [`karate-netty`](../karate-netty) which already depends on `karate-apache`. It is worth calling out that we are perf-testing [Karate test-doubles](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) here ! A truly self-contained demo.
 
 ## Limitations
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see below.

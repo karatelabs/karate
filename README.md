@@ -20,24 +20,152 @@ And you don't need to create additional Java classes for any of the payloads tha
 
 # Index 
 
-:white_small_square: | :white_small_square: | :white_small_square: | :white_small_square: | :white_small_square:  
------ | ---- | ---- | --- | ---
-**Getting Started** | [Maven / Quickstart](#maven) | [Gradle](#gradle) | [Folder](#folder-structure) / [Naming Conventions](#naming-conventions) | [Script Structure](#script-structure)
-.... | [JUnit](#running-with-junit) / [TestNG](#running-with-testng) | [Cucumber Options](#cucumber-options) | [Command Line](#command-line) | [Logging](#logging)
-.... | [Configuration](#configuration) | [Environment Switching](#switching-the-environment) | [Test Reports](#test-reports) | [Parallel Execution](#parallel-execution)
-**Data Types** | [JSON](#json) / [XML](#xml) | [JavaScript Functions](#javascript-functions) | [Reading Files](#reading-files) | [Type / String Conversion](#type-conversion)
-**Variables & Expressions** | [`def`](#def) | [`assert`](#assert) / [`print`](#print) / [`eval`](#eval) | [`text`](#text) / [`replace`](#replace) | [`table`](#table) / [`yaml`](#yaml)
-**Primary HTTP Keywords** | [`url`](#url) | [`path`](#path) | [`request`](#request) | [`method`](#method) 
-.... | [`status`](#status) | [`soap action`](#soap) | [`configure`](#configure)
-**Secondary HTTP Keywords** | [`param`](#param) / [`params`](#params) | [`header`](#header) / [`headers`](#headers) | [`cookie`](#cookie) / [`cookies`](#cookies) | [`form field`](#form-field) / [`form fields`](#form-fields)
-.... | [`multipart file`](#multipart-file) / [`files`](#multipart-files) | [`multipart field`](#multipart-field) | [`multipart entity`](#multipart-entity)
-**Prepare, Mutate, Assert** | [`get`](#get) / [`set`](#set) / [`remove`](#remove) | [`match ==`](#match) / [`!=`](#match--not-equals) | [`contains`](#match-contains) / [`only`](#match-contains-only) / [`any`](#match-contains-any) / [`!contains`](#not-contains) | [`match each`](#match-each)
-**Special Variables** | [`response`](#response) | [`responseStatus`](#responsestatus) | [`responseHeaders`](#responseheaders) / [`responseCookies`](#responsecookies) |  [`responseTime`](#responsetime) / [`requestTimeStamp`](#requesttimestamp)
- **Code Re-Use** | [`call`](#call) / [`callonce`](#callonce)| [Calling `*.feature` files](#calling-other-feature-files) | [Calling JS Functions](#calling-javascript-functions) | [Calling Java](#calling-java)
- **Misc / Examples** | [Embedded Expressions](#embedded-expressions) | [Polling / Conditional](#polling) | [XML and XPath](#xpath-functions) | [Tags / Grouping Tests](#cucumber-tags)
-.... | [Data Driven Tests](#data-driven-tests) | [Auth](#calling-other-feature-files) / [Headers](#http-basic-authentication-example) | [Fuzzy Matching](#fuzzy-matching) | [Examples and Demos](karate-demo)
-.... | [Mock HTTP Servlet](karate-mock-servlet) | [Test Doubles / Contract Tests](karate-netty) | [Performance Testing](karate-gatling) | [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) / [Postman Inport](https://github.com/intuit/karate/wiki/Karate-UI#postman-import)
-.... | [Java API](#java-api) | [Schema Validation](#schema-validation) | [Karate vs REST-assured](#comparison-with-rest-assured) | [Cucumber vs Karate](#cucumber-vs-karate)
+<table>
+<tr>
+  <th>Getting Started</th>
+  <td>
+    <a href="#maven">Maven</a> 
+    | <a href="#gradle">Gradle</a>
+    | <a href="#quickstart">Quickstart</a>
+    | <a href="#folder-structure">Folder Structure</a>
+    | <a href="#naming-conventions">Naming Conventions</a>
+    | <a href="#script-structure">Script Structure</a>
+  </td>
+</tr>
+<tr>
+  <th>Running</th>
+  <td>
+    <a href="#running-with-junit">JUnit</a> 
+    | <a href="#running-with-testng">TestNG</a>
+    | <a href="#command-line">Command Line</a>
+    | <a href="#ide-support">IDE Support</a>    
+    | <a href="#cucumber-tags">Tags / Grouping</a>
+    | <a href="#parallel-execution">Parallel Execution</a>
+  </td>
+</tr>
+<tr>
+  <th>Environments, Reports</th>
+  <td>
+    <a href="#configuration">Configuration</a> 
+    | <a href="#switching-the-environment">Environment Switching</a>
+    | <a href="#test-reports">Reports</a>
+    | <a href="#junit-html-report">JUnit HTML Report</a>
+    | <a href="#logging">Logging</a>
+  </td>
+</tr>
+<tr>
+  <th>Data / Payloads</th>
+  <td>
+    <a href="#json">JSON</a> 
+    | <a href="#xml">XML</a>
+    | <a href="#javascript-functions">JavaScript Functions</a>
+    | <a href="#reading-files">Reading Files</a>
+    | <a href="#type-conversion">Type / String Conversion</a>
+    | <a href="#floats-and-integers">Floats and Integers</a>
+    | <a href="#embedded-expressions">Embedded Expressions</a>
+    | <a href="#jsonpath-filters">JsonPath</a>
+    | <a href="#xpath-functions">XPath</a>
+  </td>
+</tr>
+<tr>
+  <th>Variables, <a href="#karate-expressions">Expressions</a></th>
+  <td>
+    <a href="#def"><code>def</code></a> 
+    | <a href="#assert"><code>assert</code></a>
+    | <a href="#print"><code>print</code></a>
+    | <a href="#eval"><code>eval</code></a>
+    | <a href="#text"><code>text</code></a>
+    | <a href="#replace"><code>replace</code></a>
+    | <a href="#table"><code>table</code></a>
+    | <a href="#yaml"><code>yaml</code></a>
+  </td>
+</tr>
+<tr>
+  <th>HTTP Primary</th>
+  <td>
+    <a href="#url"><code>url</code></a> 
+    | <a href="#path"><code>path</code></a>
+    | <a href="#request"><code>request</code></a>
+    | <a href="#method"><code>method</code></a>
+    | <a href="#status"><code>status</code></a>
+    | <a href="#soap-action"><code>soap action</code></a>
+    | <a href="#configure"><code>configure</code></a>
+  </td>
+</tr>
+<tr>
+  <th>HTTP Secondary</th>
+  <td>
+    <a href="#param"><code>param</code></a> 
+    | <a href="#params"><code>params</code></a>
+    | <a href="#header"><code>header</code></a>
+    | <a href="#headers"><code>headers</code></a>
+    | <a href="#cookie"><code>cookie</code></a>
+    | <a href="#cookies"><code>cookies</code></a>
+    | <a href="#form-field"><code>form field</code></a>
+    | <a href="#form-fields"><code>form fields</code></a>
+    | <a href="#multipart-file"><code>multipart file</code></a>
+    | <a href="#multipart-files"><code>multipart files</code></a>
+    | <a href="#multipart-field"><code>multipart field</code></a>
+    | <a href="#multipart-fields"><code>multipart fields</code></a>
+    | <a href="#multipart-entity"><code>multipart entity</code></a>    
+  </td>
+</tr>
+<tr>
+  <th>Special Variables</th>
+  <td>
+    <a href="#response"><code>response</code></a> 
+    | <a href="#responsestatus"><code>responseStatus</code></a>
+    | <a href="#responseheaders"><code>responseHeaders</code></a>
+    | <a href="#responsecookies"><code>responseCookies</code></a>
+    | <a href="#responsetime"><code>responseTime</code></a>
+    | <a href="#requesttimestamp"><code>requestTimeStamp</code></a>  
+  </td>
+</tr>
+<tr>
+  <th>Prepare, Mutate, Assert</th>
+  <td>
+    <a href="#get"><code>get</code></a> 
+    | <a href="#set"><code>set</code></a>
+    | <a href="#remove"><code>remove</code></a>
+    | <a href="#match"><code>match ==</code></a>
+    | <a href="#match--not-equals"><code>match !=</code></a>
+    | <a href="#match-contains"><code>match contains</code></a>
+    | <a href="#match-contains-only"><code>match contains only</code></a>
+    | <a href="#match-contains-any"><code>match contains any</code></a>
+    | <a href="#not-contains"><code>match !contains</code></a>
+    | <a href="#match-each"><code>match each</code></a>
+    | <a href="#fuzzy-matching">Fuzzy Matching</a>
+    | <a href="#contains-shortcuts"><code>contains</code> short-cuts</a>
+    | <a href="#schema-validation">Schema Validation</a> 
+  </td>
+</tr>
+<tr>
+  <th>Code Re-Use</th>
+  <td>
+    <a href="#call"><code>call</code></a> 
+    | <a href="#callonce"><code>callonce</code></a>
+    | <a href="#calling-other-feature-files">Calling Other <code>*.feature</code> Files</a>
+    | <a href="#calling-javascript-functions">Calling JavaScript Functions</a>
+    | <a href="#calling-java">Calling Java Code</a> 
+    | <a href="#data-driven-tests">Data Driven Tests</a> 
+  </td>
+</tr>
+<tr>
+  <th>Advanced</th>
+  <td>
+    <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
+    | <a href="#http-header-manipulation">Header Manipulation</a> 
+    | <a href="karate-mock-servlet">Mock Servlet</a>
+    | <a href="karate-netty">Test Doubles</a>
+    | <a href="karate-gatling">Performance Testing</a>
+    | <a href="https://github.com/intuit/karate/wiki/Karate-UI">Karate UI</a>
+    | <a href="#java-api">Java API</a> 
+    | <a href="#comparison-with-rest-assured">Karate vs REST-assured</a>
+    | <a href="#cucumber-vs-karate">Karate vs Cucumber</a>
+    | <a href="karate-demo">Examples and Demos</a>
+  </td>
+</tr>
+</table>
 
 # Features
 * Java knowledge is not required and even non-programmers can write tests
@@ -64,7 +192,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into existing Selenium / WebDriver test-suites](https://stackoverflow.com/q/47795762/143475).
-* ([Coming Soon](https://github.com/intuit/karate/issues/438)) Save significant effort by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that properly assert that server responses are OK under load
+* [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that deeply assert that server responses are OK under load
 * [API mock server](karate-netty) for test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:

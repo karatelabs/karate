@@ -67,6 +67,8 @@ KX | [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contrac
 
 > Karate mocking a Queue has not been implemented for the last two flows (5) but can easily be derived from the other examples. So in (5) the Consumer is using the *real* queue.
 
+Also see this [blog post](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) for an additional diagram explaining how a mock-service can be implemented.
+
 ### Server-Side Karate
 #### A perfect match !
 It is worth calling out *why* Karate on the 'other side of the fence' (*handling* HTTP requests instead of *making* them) - turns out to be remarkably effective, yet simple.
@@ -93,25 +95,29 @@ It will take you only 2 minutes to see Karate's mock-server capabilities in acti
 
 * Download the latest version of the JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-<version>.jar`
 * Download this file: [`cats-mock.feature`](../karate-demo/src/test/java/mock/web/cats-mock.feature) (or copy the text) to a local file next to the above JAR file
-* In the same directory, start the mock server with the command: `java -jar karate.jar -m cats-mock.feature -p 8080`
+* In the same directory, start the mock server with the command:
+  * `java -jar karate.jar -m cats-mock.feature -p 8080`
 * To see how this is capable of backing an HTML front-end, download this file: [`cats.html`](../karate-demo/src/test/java/mock/web/cats.html). Open it in a browser and you will be able to `POST` data. Browse to [`http://localhost:8080/cats`](http://localhost:8080/cats) - to see the saved data (state).
-* You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal): `java -jar karate.jar cats-test.feature`
+* You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal):
+  * `java -jar karate.jar cats-test.feature`
 * You will see HTML reports in the `target/cucumber-html-reports` directory
 
 Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
 ## Usage
-### Mock Server
+### Help
 You can view the command line help with the `-h` option:
 ```
 java -jar karate.jar -h
 ```
 
+### Mock Server
 To start a mock server, the 2 mandatory arguments are the path of the feature file 'mock' `-m` and the port `-p`
 
 ```
 java -jar karate.jar -m my-mock.feature -p 8080
 ```
+
 #### SSL
 For SSL, use the `-s` flag. If you don't provide a certificate and key (see next section), it will automatically create `cert.pem` and `key.pem` in the current working directory, and the next time you re-start the mock server - these will be re-used. This is convenient for web / UI developers because you then need to set the certificate 'exception' only once in the browser.
 
@@ -136,18 +142,21 @@ Feature files (or search paths) to be tested don't need command-line flags or op
 java -jar karate.jar my-test.feature
 ```
 
+#### Tags
 You can specify [Cucumber tags](https://github.com/intuit/karate#cucumber-tags) to include (or exclude) using the `-t` or `--tags`  option as follows:
 
 ```
 java -jar karate.jar -t @smoke,~@ignore my-test.feature
 ```
 
+#### `karate.env`
 If your test depends on the `karate.env` [environment 'switch'](https://github.com/intuit/karate#switching-the-environment), you can specify that using the `-e` (env) option:
 
 ```
 java -jar karate.jar -e e2e my-test.feature
 ```
 
+#### `karate-config.js`
 If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
@@ -160,19 +169,21 @@ And you can even set or over-ride variable values via the command line by using 
 java -jar karate.jar -a myKey1=myValue1 -a myKey2=myValue2 my-test.feature
 ```
 
+#### Parallel Execution
 If you provide a directory in which multiple feature files are present (even in sub-folders), they will be all run. You can even specify the number of threads to run in parallel using `-T` or `--threads` (not to be confused with `-t` for tags):
 
 ```
 java -jar karate.jar -T 5 -t ~@ignore src/features
 ```
 
+#### Output Directory
 The output directory where the `karate.log` file, JUnit XML and Cucumber report JSON files would be output will default to `target` in the current working directory. The Cucumber HTML report would be found in a folder called `cucumber-html-reports` within this "output" folder. You can change the output folder using the `-o` or `--output` option:
 
 ```
 java -jar karate.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
 ```
 
-### UI
+#### UI
 The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
 ```
 java -jar karate.jar
@@ -216,6 +227,21 @@ Here is the 'out-of-the-box' default which you can customize. Note that the defa
   
 </configuration>
 ```
+
+# Embedding
+Starting and stopping a Karate server can be done via the Java API and this easily allows you to mix Karate into Java code, JUnit tests and Continuous Integration pipelines.
+
+The `com.intuit.karate.netty.FeatureServer` class has a static `start()` method that takes 4 arguments:
+* `file`: a `java.io.File` reference to the `*.feature` file you want to run as a server
+* `port`: `int` value of the port you want to use. `0` means, Karate will dynamically choose a free port (the value of which you can retrieve later)
+* `ssl`: `boolean` flag that if true, starts an HTTPS server and auto-generates a certificate if it doesn't find one, see [SSL](#ssl)
+* `args`: `java.util.Map` of key-value pairs that can be used to pass custom [variables](https://github.com/intuit/karate#setting-and-using-variables) into the `*.feature` evaluation context - or `null` if not-applicable
+
+The static `start()` method returns a `FeatureServer` object on which you can call a `getPort()` method to get the port on which the server was started.
+
+And `FeatureServer` has a `stop()` method that will [stop](#stopping) the server.
+
+You can look at this demo example for reference: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) - note how the dynamic port number can be retrieved and passed to other elements in your test set-up.
 
 # Server Life Cycle
 Writing a mock can get complicated for real-life API interactions, and most other frameworks attempt to solve this using declarative approaches, such as expecting you to create a large, complicated JSON to model all requests and responses. You can think of Karate's approach as combining the best of both the worlds of declarative and imperative programming. Combined with the capability to maintain state in the form of JSON objects in memory, and Karate's native support for [Json-Path](https://github.com/intuit/karate#jsonpath-filters), XML and [`embedded expressions`](https://github.com/intuit/karate#embedded-expressions) - you have a very powerful toolkit at your disposal. And Karate's intelligent defaults keep things dead simple.
