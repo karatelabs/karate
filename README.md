@@ -18,7 +18,7 @@ It is worth pointing out that JSON is a 'first class citizen' of the syntax such
 
 And you don't need to create additional Java classes for any of the payloads that you need to work with.
 
-# Index 
+# Index
 
 <table>
 <tr>
@@ -97,7 +97,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#callonce"><code>callonce</code></a>
     | <a href="#eval"><code>eval</code></a>
     | <a href="#reading-files"><code>read()</code></a>
-    | <a href="#the-karate-object"><code>karate</code> API</a>                
+    | <a href="#the-karate-object"><code>karate</code> API</a>     
   </td>
 </tr>
 <tr>
@@ -115,22 +115,22 @@ And you don't need to create additional Java classes for any of the payloads tha
   <th>HTTP Data</th>
   <td>
       <a href="#param"><code>param</code></a> 
-    | <a href="#params"><code>params</code></a>
-    | <a href="#header"><code>header</code></a>
-    | <a href="#headers"><code>headers</code></a>
+    | <a href="#header"><code>header</code></a>    
     | <a href="#cookie"><code>cookie</code></a>
-    | <a href="#cookies"><code>cookies</code></a>
     | <a href="#form-field"><code>form field</code></a>
-    | <a href="#form-fields"><code>form fields</code></a>
     | <a href="#multipart-file"><code>multipart file</code></a>
-    | <a href="#multipart-files"><code>multipart files</code></a>
-    | <a href="#multipart-field"><code>multipart field</code></a>
-    | <a href="#multipart-fields"><code>multipart fields</code></a>
+    | <a href="#multipart-field"><code>multipart field</code></a>       
     | <a href="#multipart-entity"><code>multipart entity</code></a>    
+    | <a href="#params"><code>params</code></a>
+    | <a href="#headers"><code>headers</code></a>
+    | <a href="#cookies"><code>cookies</code></a>        
+    | <a href="#form-fields"><code>form fields</code></a>
+    | <a href="#multipart-files"><code>multipart files</code></a>
+    | <a href="#multipart-fields"><code>multipart fields</code></a>
   </td>
 </tr>
 <tr>
-  <th>Built-In</th>
+  <th>Response</th>
   <td>
       <a href="#response"><code>response</code></a> 
     | <a href="#responsestatus"><code>responseStatus</code></a>
@@ -159,10 +159,11 @@ And you don't need to create additional Java classes for any of the payloads tha
   <th>Re-Use</th>
   <td>
       <a href="#calling-other-feature-files">Calling Other <code>*.feature</code> Files</a>
+    | <a href="#data-driven-features">Data Driven Features</a>       
     | <a href="#calling-javascript-functions">Calling JavaScript Functions</a>
     | <a href="#calling-java">Calling Java Code</a>
     | <a href="#commonly-needed-utilities">Commonly Needed Utilities</a>
-    | <a href="#data-driven-tests">Data Driven Tests</a> 
+    | <a href="#data-driven-tests">Data Driven Scenarios</a>    
   </td>
 </tr>
 <tr>
@@ -170,7 +171,7 @@ And you don't need to create additional Java classes for any of the payloads tha
   <td>
       <a href="#polling">Polling</a>
     | <a href="#conditional-logic">Conditional Logic</a>
-    | <a href="#hooks">Hooks</a>
+    | <a href="#hooks">Before / After Hooks</a>
     | <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
     | <a href="#http-header-manipulation">Header Manipulation</a> 
     | <a href="#text">GraphQL</a>    
