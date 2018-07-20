@@ -6,7 +6,7 @@ Karate enables you to script a sequence of calls to any kind of web-service and 
 
 Karate is the only open-source tool that combines web-API testing and [test-doubles](karate-netty) into a single, *unified* test automation framework. And you can re-use API Functional Tests as [Performance Tests](karate-gatling) !
 
-Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But instead of Java - you write tests in a language designed to make dealing with HTTP, JSON or XML - **simple**.
+Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But there is also a [stand-alone executable](karate-netty#standalone-jar) for teams that are not comfortable with Java. And you can write tests in a language-neutral syntax designed to make dealing with HTTP, JSON or XML - **simple**. 
 
 ## Hello World
 
@@ -55,7 +55,7 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Data</th>
+  <th>Types</th>
   <td>
       <a href="#json">JSON</a> 
     | <a href="#xml">XML</a>
@@ -84,7 +84,7 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Operations</th>
+  <th>Actions</th>
   <td>
       <a href="#assert"><code>assert</code></a>
     | <a href="#print"><code>print</code></a>
@@ -101,7 +101,7 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>HTTP Core</th>
+  <th>HTTP</th>
   <td>
       <a href="#url"><code>url</code></a> 
     | <a href="#path"><code>path</code></a>
@@ -112,7 +112,7 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>HTTP Data</th>
+  <th>Request</th>
   <td>
       <a href="#param"><code>param</code></a> 
     | <a href="#header"><code>header</code></a>    
@@ -141,7 +141,7 @@ And you don't need to create additional Java classes for any of the payloads tha
   </td>
 </tr>
 <tr>
-  <th>Assertions</th>
+  <th>Assert</th>
   <td>
       <a href="#match"><code>match ==</code></a>
     | <a href="#match--not-equals"><code>match !=</code></a>
@@ -303,6 +303,8 @@ mvn archetype:generate \
 ```
 
 This will create a folder called `myproject` (or whatever you set the name to).
+
+> You can also try using Karate as a [stand-alone executable](karate-netty#standalone-jar) which is a good option if you have difficulties with the above process, or if you are not comfortable with Maven or Java.
 
 ### Eclipse Quickstart
 
