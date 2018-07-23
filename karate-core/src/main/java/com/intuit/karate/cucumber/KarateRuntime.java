@@ -75,12 +75,9 @@ public class KarateRuntime extends Runtime {
             Match match = Match.UNDEFINED;
             Result result = Result.SKIPPED;
             if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy
-                // @pthomas3^^ (please review and post your comment on this change)
                 // below call internally invokes reporter.match(match) and reporter.result(result) as
                 // KarateReporterBase.karateStep() -> karateStepProceed() -> result() / match()
-                // causing double invocation of reporter.match(match) and reporter.result(result)
-                // because they were invoked below this if.  To avoid this, we should moved them to else block
-                // TODO: remove this comment (meant to get clarification from pthomas3) before merging the PR
+                // the else clause is needed to compensate !
                 ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext(), backend.getStepDefs().getContext());
             } else {
                 reporter.match(match);
