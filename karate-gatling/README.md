@@ -10,12 +10,14 @@
 ## Demo Video
 Refer: https://twitter.com/ptrthomas/status/986463717465391104
 
+> Please note that there was a [bug-fix](https://twitter.com/KarateDSL/status/1021699519266926592) release 0.8.0.1
+
 ### Maven
 ```xml
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-gatling</artifactId>
-    <version>${karate.version}</version>
+    <version>0.8.0.1</version>
     <scope>test</scope>
 </dependency>  
 ```
