@@ -6,7 +6,7 @@ Karate enables you to script a sequence of calls to any kind of web-service and 
 
 Karate is the only open-source tool that combines web-API testing and [test-doubles](karate-netty) into a single, *unified* test automation framework. And you can re-use API Functional Tests as [Performance Tests](karate-gatling) !
 
-Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But there is also a [stand-alone executable](karate-netty#standalone-jar) for teams that are not comfortable with Java. And you can write tests in a language-neutral syntax designed to make dealing with HTTP, JSON or XML - **simple**. 
+Since Karate is built on top of [Cucumber-JVM](https://github.com/cucumber/cucumber-jvm), you can run tests and generate reports like any standard Java project. But there is also a [stand-alone executable](karate-netty#standalone-jar) for teams that are not comfortable with Java. And you can write tests in a language-neutral syntax designed to make dealing with HTTP, JSON, GraphQL or XML - **simple**. 
 
 ## Hello World
 
