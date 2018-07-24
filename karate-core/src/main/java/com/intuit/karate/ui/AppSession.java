@@ -42,16 +42,12 @@ import java.util.List;
 import java.util.Map;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class AppSession {
-
-    private static final Logger logger = LoggerFactory.getLogger(AppSession.class);
 
     public final File featureFile;
     private FeatureWrapper feature; // mutable, can be re-built
@@ -60,7 +56,7 @@ public class AppSession {
     public final FeaturePanel featurePanel;
     public final VarsPanel varsPanel;
     public final LogPanel logPanel;
-
+    
     public FeatureWrapper getFeature() {
         return feature;
     }
@@ -87,7 +83,7 @@ public class AppSession {
         try {
             featurePanel.action(AppAction.RUN);
         } catch (StepException se) {
-            logger.error("step execution paused.");
+            backend.getEnv().logger.error("step execution paused.");
         }
     }
 
@@ -102,7 +98,7 @@ public class AppSession {
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);
             varsPanel = new VarsPanel(this);
-            logPanel = new LogPanel(null);
+            logPanel = new LogPanel(backend.getEnv().logger);
         } else {
             headerPanel = null;
             featurePanel = null;
