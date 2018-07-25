@@ -216,6 +216,8 @@ public class KarateJunitFormatter implements Formatter, Reporter {
     public void endOfScenarioLifeCycle(Scenario scenario) {
         if (testCase.steps.isEmpty()) {
             testCase.handleEmptyTestCase(doc, currentElement);
+        } else {
+            testCase.updateElement(currentElement);
         }
     }
 
@@ -232,7 +234,7 @@ public class KarateJunitFormatter implements Formatter, Reporter {
     @Override
     public void result(Result result) {
         testCase.results.add(result);
-        testCase.updateElement(currentElement);
+        //testCase.updateElement(currentElement);
     }
 
     private double sumTimes(NodeList testCaseNodes) {
