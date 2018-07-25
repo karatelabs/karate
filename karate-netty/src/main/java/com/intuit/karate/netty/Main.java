@@ -129,7 +129,7 @@ public class Main implements Callable<Void> {
     public Void call() throws Exception {
         if (tests != null) {
             if (ui) {
-                App.main(new String[]{tests.get(0), env});
+                App.main(new String[]{new File(tests.get(0)).getAbsolutePath(), env});
             } else {
                 if (env != null) {
                     System.setProperty(ScriptBindings.KARATE_ENV, env);
