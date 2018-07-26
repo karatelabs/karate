@@ -83,6 +83,20 @@ public class FileUtils {
         int pos = text.indexOf(':');
         return pos == -1 ? text : text.substring(pos + 1);
     }
+    
+    private static StringUtils.Pair parsePathAndTags(String text) {
+        int pos = text.indexOf(':');
+        text = pos == -1 ? text : text.substring(pos + 1); // remove prefix
+        pos = text.indexOf('@'); 
+        if (pos == -1) {
+            text = StringUtils.trimToEmpty(text);
+            return new StringUtils.Pair(text, null);
+        } else {
+            String left = StringUtils.trimToEmpty(text.substring(0, pos));
+            String right = StringUtils.trimToEmpty(text.substring(pos));
+            return new StringUtils.Pair(left, right);
+        }
+    }    
 
     private static enum PathPrefix {
         NONE,
@@ -93,25 +107,25 @@ public class FileUtils {
     public static ScriptValue readFile(String text, ScriptContext context) {
         text = StringUtils.trimToEmpty(text);
         PathPrefix prefix = isClassPath(text) ? PathPrefix.CLASSPATH : (isFilePath(text) ? PathPrefix.FILE : PathPrefix.NONE);
-        String fileName = removePrefix(text);
-        fileName = StringUtils.trimToEmpty(fileName);
+        StringUtils.Pair pair = parsePathAndTags(text);
+        text = pair.left;
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
-            String contents = readFileAsString(fileName, prefix, context);
+            String contents = readFileAsString(text, prefix, context);
             ScriptValue temp = evalKarateExpression(contents, context);
             return new ScriptValue(temp.getValue(), text);
         } else if (isTextFile(text) || isGraphQlFile(text)) {
-            String contents = readFileAsString(fileName, prefix, context);
+            String contents = readFileAsString(text, prefix, context);
             return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {
-            String contents = readFileAsString(fileName, prefix, context);
-            FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env, text);
+            String contents = readFileAsString(text, prefix, context);
+            FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env, text, pair.right);
             return new ScriptValue(feature, text);
         } else if (isYamlFile(text)) {
-            String contents = readFileAsString(fileName, prefix, context);
+            String contents = readFileAsString(text, prefix, context);
             DocumentContext doc = JsonUtils.fromYaml(contents);
             return new ScriptValue(doc, text);
         } else {
-            InputStream is = getFileStream(fileName, prefix, context);
+            InputStream is = getFileStream(text, prefix, context);
             return new ScriptValue(is, text);
         }
     }

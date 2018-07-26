@@ -46,7 +46,7 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
     
     public FeatureServerInitializer(SslContext sslCtx, File featureFile, Map<String, Object> vars, Runnable stopFunction) {
         this.sslCtx = sslCtx;
-        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(featureFile);
+        FeatureWrapper featureWrapper = FeatureWrapper.fromFileAndTag(featureFile, null);
         provider = new FeatureProvider(featureWrapper, vars);
         this.stopFunction = stopFunction;
     }

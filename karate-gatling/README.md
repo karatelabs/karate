@@ -53,7 +53,7 @@ class CatsSimulation extends Simulation {
   )
 
   val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"))
-  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature"))
+  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
 
   setUp(
     create.inject(rampUsers(10) over (5 seconds)).protocols(protocol),
@@ -62,6 +62,14 @@ class CatsSimulation extends Simulation {
 
 }
 ```
+### `karateProtocol`
+This piece is needed because Karate is responsible for making HTTP requests while Gatling is only measuring the timings and managing threads. In order for HTTP requests to "aggregate" correctly in the Gatling report, you need to declare the URL patterns involved in your test. For example, in the example above, the `{id}` would be random - and Gatling would by default report each one as a different request. You also need to group requests by the HTTP method (`get`, `post` etc.) and you can also set a pause time (in milliseconds) if needed. We recommend you set that to `0` for everything unless you really need to artifically limit the requests per second. Make sure you wire up the `protocol` in the Gatling `setUp`.
 
-* `karateProtocol` - this piece is needed because Karate is responsible for making HTTP requests while Gatling is only measuring the timings and managing threads. In order for HTTP requests to "aggregate" correctly in the Gatling report, you need to declare the URL patterns involved in your test. For example, in the example above, the `{id}` would be random - and Gatling would by default report each one as a different request. You also need to group requests by the HTTP method (`get`, `post` etc.) and you can also set a pause time (in milliseconds) if needed. We recommend you set that to `0` for everything unless you really need to artifically limit the requests per second. Make sure you wire up the `protocol` in the Gatling `setUp`.
-* `karateFeature` - this executes a whole Karate feature as a "flow". Note how you can have concurrent flows in the same Gatling simulation.
+### `karateFeature`
+This executes a whole Karate feature as a "flow". Note how you can have concurrent flows in the same Gatling simulation.
+
+#### Tag Selector
+In the code above, note how a single `Scenario` (or multiple) can be "chosen" by appending the tag name to the `Feature` path. This allows you to re-use only selected tests out of your existing functional or regression test suites for composing a performance test-suite.
+
+> The tag does not need to be in the `@key=value` form and you can use the plain "`@foo`" form if you want to. But using the pattern `@name=someName` is arguably more readable when it comes to giving your various `Scenario`-s meaningful names.
+

@@ -64,7 +64,7 @@ public class KarateService {
         String sessionId = uuid.toString();
         WebSocketLogAppender appender = new WebSocketLogAppender(sessionId);
         ScriptEnv env = ScriptEnv.init(envString, new File("."), new String[]{"src/test/java"});
-        FeatureWrapper feature = FeatureWrapper.fromString(featureText, env, null);
+        FeatureWrapper feature = FeatureWrapper.fromString(featureText, env, null, null);
         return initSessionBackend(feature, appender);
     }    
     

@@ -50,7 +50,7 @@ public class FeatureProviderTest {
     @Test
     public void testServer() {
         File file = FileUtils.getFileRelativeTo(getClass(), "server.feature");
-        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file);
+        FeatureWrapper featureWrapper = FeatureWrapper.fromFileAndTag(file, null);
         FeatureProvider provider = new FeatureProvider(featureWrapper);
         ScriptValueMap vars = provider.handle(getRequest("Billie"));
         Match.equals(vars.get("response").getAsMap(), "{ id: 1, name: 'Billie' }");
