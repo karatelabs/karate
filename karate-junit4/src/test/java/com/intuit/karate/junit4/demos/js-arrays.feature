@@ -77,6 +77,22 @@ Scenario: karate filter operation, using array indexes
     * def res = karate.filter(list, fun)
     * match res == [1, 3]
 
+Scenario: karate find index of first match (primitive)
+    * def list = [1, 2, 3, 4]
+    * def searchFor = 3
+    * def foundAt = []
+    * def fun = function(x, i){ if (x == searchFor) foundAt.add(i) }
+    * eval karate.forEach(list, fun)
+    * match foundAt == [2]
+
+Scenario: karate find index of first match (complex)
+    * def list = [{ a: 1, b: 'x'}, { a: 2, b: 'y'}, { a: 3, b: 'z'}]
+    * def searchFor = { a: 2, b: '#string'}
+    * def foundAt = []
+    * def fun = function(x, i){ if (karate.match(x, searchFor).pass) foundAt.add(i) }
+    * eval karate.forEach(list, fun)
+    * match foundAt == [1]
+
 Scenario: get last array element (js)
     * def list = [1, 2, 3, 4]
     * def last = list[list.length-1]
