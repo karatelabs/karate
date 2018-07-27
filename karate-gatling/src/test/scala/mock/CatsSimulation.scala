@@ -9,7 +9,7 @@ class CatsSimulation extends Simulation {
   MockUtils.startServer()
 
   val protocol = karateProtocol(
-    "/cats/{id}" -> pauseFor("get" -> 10, "delete" -> 20),
+    "/cats/{id}" -> Nil,
     "/cats" -> pauseFor("get" -> 15, "post" -> 25)
   )
 
