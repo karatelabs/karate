@@ -52,11 +52,8 @@
         <module>karate-netty</module>
         <module>karate-gatling</module>             
         <module>karate-demo</module>
-        <module>karate-restdocs</module>
         <module>karate-mock-servlet</module>
-        <module>karate-jersey</module>
-        <module>karate-testng</module>
-        <module>karate-web</module>        
+        <module>karate-jersey</module>    
         <module>karate-archetype</module>    
   </modules>
 

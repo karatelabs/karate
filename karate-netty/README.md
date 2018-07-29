@@ -27,8 +27,6 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Provider service dev team can practice TDD using the mock + contract-test
 * The mock + contract-test serves as the ultimate form of documentation of the 'contract' including payload / schema details.
 
-> For the last point above - Karate will have [Spring REST Docs](https://projects.spring.io/spring-restdocs/) support built-in in the future, please [help contribute](https://github.com/intuit/karate/issues/25) to completing this if you can !
-
 ## Using
 Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
 
