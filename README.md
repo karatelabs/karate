@@ -35,8 +35,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 <tr>
   <th>Run</th>
   <td>
-      <a href="#running-with-junit">JUnit</a> 
-    | <a href="#running-with-testng">TestNG</a>
+      <a href="#running-with-junit">JUnit</a>
     | <a href="#command-line">Command Line</a>
     | <a href="#ide-support">IDE Support</a>    
     | <a href="#cucumber-tags">Tags / Grouping</a>
@@ -207,8 +206,8 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Embedded JavaScript engine that allows you to build a library of [re-usable functions](#calling-javascript-functions) that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is [so easy](#reading-files) - that it becomes a natural habit for the test-developer
 * Built-in support for [switching configuration](#switching-the-environment) across different environments (e.g. dev, QA, pre-prod)
-* Support for [data-driven tests](#data-driven-tests) and being able to [tag or group](#cucumber-tags) tests is built-in, no need to rely on TestNG or JUnit
-* Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - with both JUnit and TestNG being supported
+* Support for [data-driven tests](#data-driven-tests) and being able to [tag or group](#cucumber-tags) tests is built-in, no need to rely on an external framework
+* Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - and support for JUnit
 * Support for multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for HTTP integration tests
 * Built-in [test-reports](#test-reports) powered by Cucumber-JVM with the option of using third-party (open-source) maven-plugins for even [better-looking reports](karate-demo#example-report)
 * Reports include HTTP request and response [logs in-line](#test-reports), which makes [troubleshooting](https://twitter.com/KarateDSL/status/899671441221623809) and [debugging a test](https://twitter.com/KarateDSL/status/935029435140489216) a lot easier
@@ -280,11 +279,6 @@ Alternatively for Gradle you need these two entries:
     testCompile 'com.intuit.karate:karate-junit4:0.8.0'
     testCompile 'com.intuit.karate:karate-apache:0.8.0'
 ```
-
-### TestNG instead of JUnit
-If you want to use [TestNG](http://testng.org), use the artifactId [`karate-testng`](https://mvnrepository.com/artifact/com.intuit.karate/karate-testng). If you are starting a project from scratch, we strongly recommend that you use JUnit. Do note that [dynamic tables](#data-driven-features), [data-driven](#data-driven-tests) testing and [tag-groups](#cucumber-tags) are built-in to Karate, so that you don't need to depend on things like the TestNG [`@DataProvider`](http://testng.org/doc/documentation-main.html#parameters-dataproviders) anymore.
-
-Use the [TestNG test-runner](#running-with-testng) only when you are trying to add Karate tests side-by-side with an existing set of TestNG test-classes, possibly as a migration strategy. One of the things you would miss if you use TestNG is the [JUnit HTML report](#junit-html-report) that is very useful for troubleshooting tests in dev-mode.
 
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure and starter files would be created for you.
@@ -453,19 +447,6 @@ file:/projects/myproject/target/surefire-reports/TEST-mypackage.myfeature.html
 
 You can easily select (double-click), copy and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just re-fresh your browser window if you re-run the test.
 
-## Running With TestNG
-You extend a class from the [`karate-testng`](#maven) Maven artifact like so. All other behavior is the same as if using JUnit.
-
-```java
-package animals.cats;
-
-import com.intuit.karate.testng.KarateRunner;
-
-public class CatsRunner extends KarateRunner {
-    
-}
-```
-
 ## Cucumber Options
 To run only a specific feature file from a JUnit test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
 
@@ -500,8 +481,6 @@ And most convenient of all, you can even point to a directory (or package). Comb
 ```
 
 > Note that any `plugins` specified on the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm) annotation will be ignored when using `@RunWith(Karate.class)`, because Karate's execution life-cycle is not compatible with 'native' Cucumber reports. This is not a limitation of Karate at all - as for API tests, you will only ever need the [parallel report](#test-reports) (which also produces standard JUnit and Cucumber-JSON output) or the [HTML report](#junit-html-report).
-
-For TestNG, the `@CucumberOptions` annotation can be used the same way as for JUnit.
 
 ## Command Line
 Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.
@@ -597,7 +576,7 @@ The big drawback of the 'Cucumber-native' approach is that you cannot run tests 
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
 ## Parallel Execution
-Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, TestNG or even Maven / Gradle.
+Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle.
 
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit test class !
 
@@ -621,7 +600,7 @@ public class TestParallel {
 ```
 
 Things to note:
-* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could very well be TestNG or plain old Java) using the `CucumberRunner.parallel()` static method in `karate-core`.
+* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `CucumberRunner.parallel()` static method in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
 * The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@CucumberOptions` annotation, it will be processed (see below).
 * The second argument is the number of threads to use.
