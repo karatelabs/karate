@@ -22,6 +22,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import static com.intuit.karate.Script.evalKarateExpression;
+import java.nio.channels.FileChannel;
 import java.util.Properties;
 import org.slf4j.LoggerFactory;
 
@@ -386,6 +387,22 @@ public class FileUtils {
             return (String) props.get("karate.version");
         } catch (IOException e) {
             return UNKNOWN;
+        }
+    }
+    
+    public static void renameFileIfZeroBytes(String fileName) {
+        File file = new File(fileName);
+        if (!file.exists()) {
+            logger.warn("file not found, previous write operation may have failed: {}", fileName);
+        } else if (file.length() == 0) {
+            logger.warn("file size is zero bytes, previous write operation may have failed: {}", fileName);
+            try {
+                File dest = new File(fileName + ".fail");
+                file.renameTo(dest);
+                logger.warn("renamed zero length file to: {}", dest.getName());
+            } catch (Exception e) {
+                logger.warn("failed to rename zero length file: {}", e.getMessage());
+            }
         }
     }
 
