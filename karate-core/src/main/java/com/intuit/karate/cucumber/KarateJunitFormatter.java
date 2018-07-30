@@ -25,6 +25,7 @@ package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.exception.KarateException;
 import cucumber.runtime.CucumberException;
 import cucumber.runtime.io.URLOutputStream;
 import cucumber.runtime.io.UTF8OutputStreamWriter;
@@ -47,7 +48,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -189,8 +189,9 @@ public class KarateJunitFormatter implements Formatter, Reporter {
             StreamResult result = new StreamResult(out);
             DOMSource source = new DOMSource(doc);
             trans.transform(source, result);
-        } catch (TransformerException e) {
-            throw new CucumberException("Error while transforming.", e);
+            out.close(); // this should flush() as well
+        } catch (Exception e) {
+            throw new KarateException("error saving junit xml file", e);
         }
         logger.trace("<< {}", reportPath);
     }
