@@ -54,4 +54,14 @@ public class FileUtilsTest {
     	assertEquals("com.intuit.karate.cucumber.scenario", fixed);
     }
     
+    @Test
+    public void testRenameZeroLengthFile() {
+        long time = System.currentTimeMillis();
+        String name = "target/" + time + ".json";
+        FileUtils.writeToFile(new File(name), "");
+        FileUtils.renameFileIfZeroBytes(name);
+        File file = new File(name + ".fail");
+        assertTrue(file.exists());
+    }
+    
 }

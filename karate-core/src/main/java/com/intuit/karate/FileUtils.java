@@ -22,7 +22,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import static com.intuit.karate.Script.evalKarateExpression;
-import java.nio.channels.FileChannel;
 import java.util.Properties;
 import org.slf4j.LoggerFactory;
 
