@@ -23,15 +23,19 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
 import cucumber.api.DataTable;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -51,10 +55,22 @@ public class Feature extends KarateParserBaseListener {
 
     private final ParserErrorListener errorListener = new ParserErrorListener();
 
+    private final File file;
+    private final String featurePath;
+    private int line;
     private List<Tag> tags;
+    private String description;
     private Background background;
     private final List<FeatureSection> sections = new ArrayList();
 
+    public File getFile() {
+        return file;
+    }
+
+    public String getFeaturePath() {
+        return featurePath;
+    }    
+    
     public List<Tag> getTags() {
         return tags;
     }
@@ -117,11 +133,26 @@ public class Feature extends KarateParserBaseListener {
             }
         }
     }
+    
+    public Map<String, Object> toMap() {
+        String name = new File(featurePath).getName();
+        Map<String, Object> map = new HashMap();
+        map.put("line", line);
+        map.put("id", name);
+        map.put("name", featurePath);
+        map.put("uri", file.getPath());
+        map.put("description", description);
+        map.put("keyword", "Feature");
+        return map;
+    }
 
-    public Feature(InputStream is) {
+    public Feature(String featurePath) { 
+        this.featurePath = featurePath;
+        file = FileUtils.resolveIfClassPath(featurePath, Thread.currentThread().getContextClassLoader());        
         CharStream stream;
         try {
-            stream = CharStreams.fromStream(is, StandardCharsets.UTF_8);
+            FileInputStream fis = new FileInputStream(file);
+            stream = CharStreams.fromStream(fis, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -181,6 +212,17 @@ public class Feature extends KarateParserBaseListener {
         }
         return steps;
     }
+
+    @Override
+    public void enterFeatureSection(KarateParser.FeatureSectionContext ctx) {
+        if (ctx.FEATURE_TAGS() != null) {
+            tags = toTags(ctx.FEATURE_TAGS().getText());
+        }
+        line = ctx.FEATURE().getSymbol().getLine();
+        if (ctx.featureDescription() != null) {
+            description = ctx.featureDescription().getText();
+        }        
+    }    
 
     @Override
     public void enterBackground(KarateParser.BackgroundContext ctx) {

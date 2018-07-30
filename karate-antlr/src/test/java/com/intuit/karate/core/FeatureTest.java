@@ -24,11 +24,9 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import java.io.File;
-import java.io.FileInputStream;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,18 +41,28 @@ public class FeatureTest {
     
     private static int count;
     
+    private StepDefs getStepDefs(File file) {
+        ScriptEnv env = ScriptEnv.init(file.getParentFile(), file.getName(), Thread.currentThread().getContextClassLoader()); 
+        return new StepDefs(env, new CallContext(null, true));
+    }
+    
     @Test
     public void testParsingAllFeaturesInKarate() {
         recurse(new File(".."));
     }
     
     @Test
-    public void testSimple() throws Exception {
-        File file = FileUtils.getFileRelativeTo(getClass(), "test-simple.feature");
-        ScriptEnv env = ScriptEnv.init(file.getParentFile(), file.getName(), Thread.currentThread().getContextClassLoader());        
-        StepDefs stepDefs = new StepDefs(env, new CallContext(null, true));        
-        Feature feature = new Feature(new FileInputStream(file));
-        feature.execute(stepDefs);
+    public void testSimple() throws Exception {    
+        Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
+        feature.execute(getStepDefs(feature.getFile()));
+    }
+    
+    @Test
+    public void testJson() {
+        Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
+        JsonReporter reporter = new JsonReporter("target/test-simple.json");
+        reporter.addFeature(feature.toMap());
+        reporter.writeAndClose();
     }
     
     private static void recurse(File dir) {        
@@ -68,18 +76,13 @@ public class FeatureTest {
                     count++;
                     logger.debug("parsing: {} {}", count, file.getPath());
                     try {
-                        parse(file.getPath());
+                        new Feature(file.getPath()); 
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 }
             }
         }
-    }
-
-    public static Feature parse(String fileName) throws Exception {
-        FileInputStream fis = new FileInputStream(fileName);
-        return new Feature(fis);        
-    }    
+    }   
     
 }
