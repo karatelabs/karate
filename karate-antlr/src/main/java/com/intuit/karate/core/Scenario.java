@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.core;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -31,9 +33,28 @@ import java.util.List;
  */
 public class Scenario {
     
+    private int line;
     private List<Tag> tags;
     private String description;
     private List<Step> steps;
+    
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put("line", line);
+        map.put("name", description);
+        map.put("type", "scenario");
+        map.put("keyword", "Scenario");
+        map.put("steps", Step.toList(steps));
+        return map;        
+    }
+
+    public int getLine() {
+        return line;
+    }
+
+    public void setLine(int line) {
+        this.line = line;
+    }    
 
     public List<Tag> getTags() {
         return tags;

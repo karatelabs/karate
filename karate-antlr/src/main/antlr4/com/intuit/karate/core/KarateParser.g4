@@ -25,9 +25,9 @@ parser grammar KarateParser ;
 
 options { tokenVocab=KarateLexer; }
 
-feature: featureSection background? ( scenario | scenarioOutline )* NEWLINE? EOF ;
+feature: featureHeader background? ( scenario | scenarioOutline )* NEWLINE? EOF ;
 
-featureSection: FEATURE_TAGS? FEATURE featureDescription;
+featureHeader: FEATURE_TAGS? FEATURE featureDescription;
 
 featureDescription: ~(BACKGROUND | SCENARIO | SCENARIO_OUTLINE)* ;
 

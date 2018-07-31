@@ -143,6 +143,18 @@ public class Feature extends KarateParserBaseListener {
         map.put("uri", file.getPath());
         map.put("description", description);
         map.put("keyword", "Feature");
+        List<Map<String, Object>> list = new ArrayList();
+        map.put("elements", list);
+        if (background != null) {
+            list.add(background.toMap());
+        }
+        for (FeatureSection section : sections) {
+            if (section.isOutline()) {
+                list.add(section.getScenarioOutline().toMap());
+            } else {
+                list.add(section.getScenario().toMap());
+            }
+        }
         return map;
     }
 
@@ -200,6 +212,7 @@ public class Feature extends KarateParserBaseListener {
         for (KarateParser.StepContext sc : list) {
             Step step = new Step();
             steps.add(step);
+            step.setLine(sc.prefix().getStart().getLine());
             step.setPrefix(sc.prefix().getText().trim());
             step.setText(sc.line().getText());
             if (sc.docString() != null) {
@@ -214,7 +227,7 @@ public class Feature extends KarateParserBaseListener {
     }
 
     @Override
-    public void enterFeatureSection(KarateParser.FeatureSectionContext ctx) {
+    public void enterFeatureHeader(KarateParser.FeatureHeaderContext ctx) {
         if (ctx.FEATURE_TAGS() != null) {
             tags = toTags(ctx.FEATURE_TAGS().getText());
         }
@@ -227,6 +240,7 @@ public class Feature extends KarateParserBaseListener {
     @Override
     public void enterBackground(KarateParser.BackgroundContext ctx) {
         background = new Background();
+        background.setLine(ctx.BACKGROUND().getSymbol().getLine());
         List<Step> steps = toSteps(ctx.step());
         background.setSteps(steps);
         if (logger.isTraceEnabled()) {
@@ -237,9 +251,10 @@ public class Feature extends KarateParserBaseListener {
     @Override
     public void enterScenario(KarateParser.ScenarioContext ctx) {
         FeatureSection section = new FeatureSection();
-        Scenario scenario = new Scenario();
+        Scenario scenario = new Scenario();        
         section.setScenario(scenario);
         sections.add(section);
+        scenario.setLine(ctx.SCENARIO().getSymbol().getLine());
         if (ctx.tags() != null) {
             scenario.setTags(toTags(ctx.tags().getText()));
         }
@@ -256,9 +271,10 @@ public class Feature extends KarateParserBaseListener {
     @Override
     public void enterScenarioOutline(KarateParser.ScenarioOutlineContext ctx) {
         FeatureSection section = new FeatureSection();
-        ScenarioOutline outline = new ScenarioOutline();
+        ScenarioOutline outline = new ScenarioOutline();        
         section.setScenarioOutline(outline);
         sections.add(section);
+        outline.setLine(ctx.SCENARIO_OUTLINE().getSymbol().getLine());
         if (ctx.tags() != null) {
             outline.setTags(toTags(ctx.tags().getText()));
         }
