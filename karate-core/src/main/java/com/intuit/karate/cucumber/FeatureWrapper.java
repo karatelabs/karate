@@ -91,8 +91,8 @@ public class FeatureWrapper {
 
     public String joinLines(int startLine, int endLine) {
         StringBuilder sb = new StringBuilder();
-        if (endLine > lines.size() - 1) {
-            endLine = lines.size() - 1;
+        if (endLine > lines.size()) {
+            endLine = lines.size();
         }
         for (int i = startLine; i < endLine; i++) {
             String line = lines.get(i);
@@ -196,6 +196,10 @@ public class FeatureWrapper {
     public FeatureWrapper removeLine(int index) {
         lines.remove(index);
         return new FeatureWrapper(joinLines(), scriptEnv, path, callTag);
+    }
+
+    public FeatureWrapper replaceText(String newText) {
+        return new FeatureWrapper(newText, scriptEnv, path, callTag);
     }
 
     private FeatureWrapper(String text, ScriptEnv scriptEnv, String path, String callTag) {

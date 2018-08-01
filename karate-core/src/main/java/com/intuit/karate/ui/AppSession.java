@@ -142,6 +142,11 @@ public class AppSession {
         headerPanel.initTextContent();
     }
 
+    public void replaceFeature(String text) {
+        feature = feature.replaceText(text);
+        featurePanel.refresh();
+    }
+
     public ObservableList<Var> getVars() {
         if (backend.getStepDefs() == null) {
             return FXCollections.emptyObservableList();
