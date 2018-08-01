@@ -86,4 +86,10 @@ public class FeaturePanel extends BorderPane {
         }
     }    
 
+    public void refresh() {
+        sectionPanels.clear();
+        content.getChildren().clear();
+        addSections();
+    }
+
 }

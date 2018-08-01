@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.convert.ConvertUtils;
 import com.intuit.karate.convert.PostmanItem;
+import com.intuit.karate.cucumber.FeatureWrapper;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -50,9 +51,20 @@ public class App extends Application {
 
     private final FileChooser fileChooser = new FileChooser();
     
+    private boolean needsNameToSave = false;
     private File workingDir = new File(".");
     private final BorderPane rootPane = new BorderPane();
     
+    private static final String DEFAULT_FEATURE_NAME = "noname.feature";
+    private static final String DEFAULT_FEATURE_TEXT = "Feature: brief description of what is being tested\n\n" +
+            "Scenario: description of this scenario\n" +
+            "# steps for this scenario\n" +
+            "Given url 'https://duckduckgo.com'\n" +
+            "And param q = 'intuit karate'\n" +
+            "When method GET\nThen status 200\n\n" +
+            "Scenario: a different scenario\n" +
+            "# steps for this other scenario";
+
     public static Font getDefaultFont() {
     	return Font.font("Courier");
     }
@@ -61,8 +73,17 @@ public class App extends Application {
         fileChooser.setTitle("Choose Feature File");
         fileChooser.setInitialDirectory(workingDir);
         FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(description, extension);
-        fileChooser.getExtensionFilters().add(extFilter);
+        fileChooser.getExtensionFilters().setAll(extFilter);
         return fileChooser.showOpenDialog(stage);
+    }
+
+    private File chooseFileToSave(Stage stage, String description, String extension, String initialName) {
+        fileChooser.setTitle("Save Feature To File");
+        fileChooser.setInitialDirectory(workingDir);
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("*.feature files", "*.feature");
+        fileChooser.getExtensionFilters().setAll(extFilter);
+        fileChooser.setInitialFileName(initialName);
+        return fileChooser.showSaveDialog(stage);
     }
 
     void initUi(File file, String envString, Stage stage) {
@@ -71,7 +92,9 @@ public class App extends Application {
         rootPane.setCenter(session.featurePanel);
         rootPane.setRight(session.varsPanel);
         rootPane.setBottom(session.logPanel);
+        initNewFileAction(session.headerPanel, envString, stage);
         initFileOpenAction(session.headerPanel, envString, stage);
+        initFileSaveAction(session, envString, stage);
         initDirectoryOpenAction(session.headerPanel, envString, stage);
         initImportOpenAction(session.headerPanel, envString, stage);
         workingDir = file.getParentFile();        
@@ -79,11 +102,39 @@ public class App extends Application {
     
     private void initFileOpenAction(HeaderPanel header, String envString, Stage stage) {
         header.setFileOpenAction(e -> {
-            if(rootPane.getLeft() != null) {
+            if (rootPane.getLeft() != null) {
                 rootPane.setLeft(null);
             }
             File file = chooseFile(stage, "*.feature files", "*.feature");
             initUi(file, envString, stage);
+            needsNameToSave = false;
+        });
+    }
+
+    private void initNewFileAction(HeaderPanel header, String envString, Stage stage) {
+        header.setNewFileAction(e -> {
+            if (rootPane.getLeft() != null) {
+                rootPane.setLeft(null);
+            }
+            initUi(new File(initializeNoNameFeature()), envString, stage);
+        });
+    }
+
+    private void initFileSaveAction(AppSession session, String envString, Stage stage) {
+        session.headerPanel.setFileSaveAction(e -> {
+            File file;
+            FeatureWrapper feature = session.getFeature();
+            if (needsNameToSave) {
+                String suggestedName = feature.getFeature().getGherkinFeature().getName();
+                file = chooseFileToSave(stage, "*.feature files", "*.feature", suggestedName);
+            } else {
+                file = new File(feature.getPath());
+            }
+            FileUtils.writeToFile(file, feature.getText());
+            if (needsNameToSave) {
+                needsNameToSave = false;
+                initUi(file, envString, stage);
+            }
         });
     }
 
@@ -115,30 +166,34 @@ public class App extends Application {
             String json = FileUtils.toString(file);
             List<PostmanItem> items = ConvertUtils.readPostmanJson(json);
             String featureText = ConvertUtils.toKarateFeature(file.getName(), items);
-            String featurePath = FileUtils.replaceFileExtension(file.getPath(), "feature");
-            File featureFile = new File(featurePath);
-            FileUtils.writeToFile(featureFile, featureText);
-            initUi(featureFile, envString, stage);
+            File noNameFeature = new File(workingDir, DEFAULT_FEATURE_NAME);
+            FileUtils.writeToFile(noNameFeature, featureText);
+            needsNameToSave = true;
+            initUi(noNameFeature, envString, stage);
         });
+    }
+
+    private String initializeNoNameFeature() {
+        needsNameToSave = true;
+        File noNameFeature = new File(workingDir, DEFAULT_FEATURE_NAME);
+        FileUtils.writeToFile(noNameFeature, DEFAULT_FEATURE_TEXT);
+        return noNameFeature.getPath();
     }
     
     @Override
     public void start(Stage stage) throws Exception {        
+        String fileName = null;
         List<String> params = getParameters().getUnnamed();
         String envString = System.getProperty(ScriptBindings.KARATE_ENV);
         if (!params.isEmpty()) {
-            String fileName = params.get(0);
+            fileName = params.get(0);
             if (params.size() > 1) {
                 envString = params.get(1);
             }
-            initUi(new File(fileName), envString, stage);
         } else {
-            HeaderPanel header = new HeaderPanel();
-            rootPane.setTop(header);
-            initFileOpenAction(header, envString, stage);
-            initDirectoryOpenAction(header, envString, stage);
-            initImportOpenAction(header, envString, stage);
+            fileName = initializeNoNameFeature();
         }
+        initUi(new File(fileName), envString, stage);
 
         Scene scene = new Scene(rootPane, 900, 750);
         stage.setScene(scene);
