@@ -35,6 +35,7 @@ import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Scenario;
 import gherkin.formatter.model.ScenarioOutline;
 import gherkin.formatter.model.Step;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
@@ -74,6 +75,19 @@ public class KarateJunitAndJsonReporter extends KarateReporterBase {
         FileWriter fileWriter = new FileWriter(jsonReportPath);
         json = new CucumberJSONFormatter(fileWriter);
     }        
+    
+    public static KarateJunitAndJsonReporter getInstance(String featurePath, String reportDirPath) {
+        File reportDir = new File(reportDirPath);
+        String featurePackagePath = FileUtils.toPackageQualifiedName(featurePath);
+        try {
+            reportDir.mkdirs();
+            reportDirPath = reportDir.getPath() + File.separator;
+            String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";
+            return new KarateJunitAndJsonReporter(featurePackagePath, reportPath);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }        
+    }    
 
     @Override
     public void karateStepProceed(Step step, Match match, Result result, CallContext callContext) {

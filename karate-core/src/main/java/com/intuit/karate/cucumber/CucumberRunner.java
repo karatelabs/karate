@@ -95,7 +95,7 @@ public class CucumberRunner {
                     callables.add(() -> {
                         // we are now within a separate thread. the reporter filters logs by self thread
                         String threadName = Thread.currentThread().getName();
-                        KarateJunitAndJsonReporter reporter = karateFeature.getReporter(reportDir);
+                        KarateJunitAndJsonReporter reporter = KarateJunitAndJsonReporter.getInstance(feature.getPath(), reportDir);
                         KarateRuntime runtime = karateFeature.getRuntime(reporter);
                         try {
                             feature.run(reporter, reporter, runtime);

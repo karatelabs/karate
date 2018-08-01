@@ -23,47 +23,34 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepDefs;
-import cucumber.api.java.en.When;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class MethodUtils {
-
-    private static final Logger logger = LoggerFactory.getLogger(MethodUtils.class);
-
-    private static final List<MethodPattern> PATTERNS = new ArrayList();
-
-    static {
-        for (Method method : StepDefs.class.getMethods()) {
-            When when = method.getDeclaredAnnotation(When.class);
-            if (when != null) {
-                MethodPattern pattern = new MethodPattern(method, when);
-                PATTERNS.add(pattern);
-            }
-        }
+public class Result {
+        
+    private String status;
+    private long duration;
+    
+    public Result(String status, long duration) {
+        this.status = status;
+        this.duration = duration;
     }
 
-    private MethodUtils() {
-        // only static methods
+    public String getStatus() {
+        return status;
     }
 
-    public static List<MethodMatch> findMethodsMatching(String text) {
-        List<MethodMatch> matches = new ArrayList(1);
-        for (MethodPattern pattern : PATTERNS) {
-            List<String> args = pattern.match(text);
-            if (args != null) {
-                matches.add(new MethodMatch(pattern.method, args));
-            }
-        }
-        return matches;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
+    public long getDuration() {
+        return duration;
+    }
+
+    public void setDuration(long duration) {
+        this.duration = duration;
+    }        
+    
 }

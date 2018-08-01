@@ -23,30 +23,35 @@
  */
 package com.intuit.karate.core;
 
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public class Scenario {
+public class StepResult {
     
+   private static final Map<String, Object> DUMMY_MATCH;   
+
+    static {
+        DUMMY_MATCH = new HashMap();
+        DUMMY_MATCH.put("location", "StepDefs.dummy(int)");
+        DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);        
+    }    
+            
     private int line;
-    private List<Tag> tags;
+    private String keyword;
     private String name;
-    private String description;
-    private List<Step> steps;
+    private Map<String, Object> match = DUMMY_MATCH;
+    private Result result;       
     
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap();
-        map.put("line", line);
-        map.put("name", description);
-        map.put("type", "scenario");
-        map.put("keyword", "Scenario");
-        map.put("steps", Step.toList(steps));
-        return map;        
+    public StepResult(Step step, Result result) {
+        this.line = step.getLine();
+        this.keyword = step.getPrefix();
+        this.name = step.getText();
+        this.result = result;
     }
 
     public int getLine() {
@@ -55,14 +60,14 @@ public class Scenario {
 
     public void setLine(int line) {
         this.line = line;
-    }    
-
-    public List<Tag> getTags() {
-        return tags;
     }
 
-    public void setTags(List<Tag> tags) {
-        this.tags = tags;
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
     }
 
     public String getName() {
@@ -71,22 +76,22 @@ public class Scenario {
 
     public void setName(String name) {
         this.name = name;
-    }        
-
-    public String getDescription() {
-        return description;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public Map<String, Object> getMatch() {
+        return match;
     }
 
-    public List<Step> getSteps() {
-        return steps;
+    public void setMatch(Map<String, Object> match) {
+        this.match = match;
     }
 
-    public void setSteps(List<Step> steps) {
-        this.steps = steps;
-    }    
-    
+    public Result getResult() {
+        return result;
+    }
+
+    public void setResult(Result result) {
+        this.result = result;
+    }
+        
 }

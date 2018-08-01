@@ -1,4 +1,5 @@
-Feature:
+Feature: the first line
+    and the second
 
 Scenario:
   Given def a = 1

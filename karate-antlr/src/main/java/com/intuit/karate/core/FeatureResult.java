@@ -23,30 +23,37 @@
  */
 package com.intuit.karate.core;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public class Scenario {
+public class FeatureResult {
     
-    private int line;
-    private List<Tag> tags;
+    private int line;    
+    private String uri;
+    private String id;
     private String name;
     private String description;
-    private List<Step> steps;
+    private String keyword = "Feature";
+    private List<Object> elements = new ArrayList();
     
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap();
-        map.put("line", line);
-        map.put("name", description);
-        map.put("type", "scenario");
-        map.put("keyword", "Scenario");
-        map.put("steps", Step.toList(steps));
-        return map;        
+    public FeatureResult(Feature feature) {
+        line = feature.getLine();
+        uri = feature.getFeaturePath();
+        name = uri;
+        id = FeatureUtils.toIdString(feature.getName());
+        String temp = feature.getName() == null ? "" : feature.getName();
+        if (feature.getDescription() != null) {
+            temp = temp + "\n" + feature.getDescription();
+        }
+        description = temp.trim();
+    }    
+    
+    public void addResult(Object result) {
+        elements.add(result);
     }
 
     public int getLine() {
@@ -55,14 +62,22 @@ public class Scenario {
 
     public void setLine(int line) {
         this.line = line;
-    }    
-
-    public List<Tag> getTags() {
-        return tags;
     }
 
-    public void setTags(List<Tag> tags) {
-        this.tags = tags;
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -71,7 +86,7 @@ public class Scenario {
 
     public void setName(String name) {
         this.name = name;
-    }        
+    }
 
     public String getDescription() {
         return description;
@@ -81,12 +96,20 @@ public class Scenario {
         this.description = description;
     }
 
-    public List<Step> getSteps() {
-        return steps;
+    public String getKeyword() {
+        return keyword;
     }
 
-    public void setSteps(List<Step> steps) {
-        this.steps = steps;
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
+    }
+
+    public List<Object> getElements() {
+        return elements;
+    }
+
+    public void setElements(List<Object> elements) {
+        this.elements = elements;
     }    
     
 }

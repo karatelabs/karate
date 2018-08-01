@@ -33,9 +33,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -57,8 +55,10 @@ public class Feature extends KarateParserBaseListener {
 
     private final File file;
     private final String featurePath;
+    
     private int line;
     private List<Tag> tags;
+    private String name;
     private String description;
     private Background background;
     private final List<FeatureSection> sections = new ArrayList();
@@ -70,40 +70,56 @@ public class Feature extends KarateParserBaseListener {
     public String getFeaturePath() {
         return featurePath;
     }    
+
+    public int getLine() {
+        return line;
+    }        
     
     public List<Tag> getTags() {
         return tags;
+    }        
+
+    public String getName() {
+        return name;
     }
 
+    public String getDescription() {
+        return description;
+    }        
+    
     public List<FeatureSection> getSections() {
         return sections;
     }
 
-    public void execute(StepDefs stepDefs) {
+    public FeatureResult execute(StepDefs stepDefs) {
+        FeatureResult result = new FeatureResult(this);
         for (FeatureSection section : sections) {
             if (section.isOutline()) {
                 List<Scenario> scenarios = section.getScenarioOutline().getScenarios();
                 for (Scenario scenario : scenarios) {
-                    execute(scenario, stepDefs);
+                    execute(scenario, stepDefs, result);
                 }
             } else {
                 Scenario scenario = section.getScenario();
-                execute(scenario, stepDefs);
+                execute(scenario, stepDefs, result);
             }
         }
+        return result;
     }
 
-    private void execute(Scenario scenario, StepDefs stepDefs) {
+    private void execute(Scenario scenario, StepDefs stepDefs, FeatureResult result) {
         if (background != null) {
-            execute(background.getSteps(), stepDefs);
+            execute(background.getSteps(), stepDefs, null);
         }
-        execute(scenario.getSteps(), stepDefs);
+        ScenarioResult scenarioResult = new ScenarioResult(scenario);
+        result.addResult(scenarioResult);
+        execute(scenario.getSteps(), stepDefs, scenarioResult);        
     }
 
-    private void execute(List<Step> steps, StepDefs stepDefs) {
+    private void execute(List<Step> steps, StepDefs stepDefs, ScenarioResult scenarioResult) {
         for (Step step : steps) {
             String text = step.getText();
-            List<MethodMatch> matches = MethodUtils.findMethodsMatching(text);
+            List<MethodMatch> matches = FeatureUtils.findMethodsMatching(text);
             if (matches.isEmpty()) {
                 String message = "no method match found for: " + text;
                 logger.error(message);
@@ -131,31 +147,8 @@ public class Feature extends KarateParserBaseListener {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+            scenarioResult.addStepResult(new StepResult(step, new Result("passed", 5)));
         }
-    }
-    
-    public Map<String, Object> toMap() {
-        String name = new File(featurePath).getName();
-        Map<String, Object> map = new HashMap();
-        map.put("line", line);
-        map.put("id", name);
-        map.put("name", featurePath);
-        map.put("uri", file.getPath());
-        map.put("description", description);
-        map.put("keyword", "Feature");
-        List<Map<String, Object>> list = new ArrayList();
-        map.put("elements", list);
-        if (background != null) {
-            list.add(background.toMap());
-        }
-        for (FeatureSection section : sections) {
-            if (section.isOutline()) {
-                list.add(section.getScenarioOutline().toMap());
-            } else {
-                list.add(section.getScenario().toMap());
-            }
-        }
-        return map;
     }
 
     public Feature(String featurePath) { 
@@ -233,7 +226,9 @@ public class Feature extends KarateParserBaseListener {
         }
         line = ctx.FEATURE().getSymbol().getLine();
         if (ctx.featureDescription() != null) {
-            description = ctx.featureDescription().getText();
+            StringUtils.Pair pair = FeatureUtils.splitByFirstLineFeed(ctx.featureDescription().getText());
+            name = pair.left;
+            description = pair.right;
         }        
     }    
 
@@ -259,7 +254,9 @@ public class Feature extends KarateParserBaseListener {
             scenario.setTags(toTags(ctx.tags().getText()));
         }
         if (ctx.scenarioDescription() != null) {
-            scenario.setDescription(ctx.scenarioDescription().getText());
+            StringUtils.Pair pair = FeatureUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
+            scenario.setName(pair.left);
+            scenario.setDescription(pair.right);
         }
         List<Step> steps = toSteps(ctx.step());
         scenario.setSteps(steps);
@@ -280,6 +277,9 @@ public class Feature extends KarateParserBaseListener {
         }
         if (ctx.scenarioDescription() != null) {
             outline.setDescription(ctx.scenarioDescription().getText());
+            StringUtils.Pair pair = FeatureUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
+            outline.setName(pair.left);
+            outline.setDescription(pair.right);            
         }
         List<Step> steps = toSteps(ctx.step());
         outline.setSteps(steps);

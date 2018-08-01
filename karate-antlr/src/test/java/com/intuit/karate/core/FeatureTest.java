@@ -24,9 +24,12 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import java.io.File;
+import static org.junit.Assert.*;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +44,8 @@ public class FeatureTest {
     
     private static int count;
     
-    private StepDefs getStepDefs(File file) {
+    private StepDefs getStepDefs(Feature feature) {
+        File file = feature.getFile();
         ScriptEnv env = ScriptEnv.init(file.getParentFile(), file.getName(), Thread.currentThread().getContextClassLoader()); 
         return new StepDefs(env, new CallContext(null, true));
     }
@@ -54,15 +58,16 @@ public class FeatureTest {
     @Test
     public void testSimple() throws Exception {    
         Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
-        feature.execute(getStepDefs(feature.getFile()));
+        FeatureResult result = feature.execute(getStepDefs(feature));
+        String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(result));
+        FileUtils.writeToFile(new File("target/test-simple.json"), json);
     }
     
     @Test
     public void testJson() {
         Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
-        JsonReporter reporter = new JsonReporter("target/test-simple.json");
-        reporter.addFeature(feature.toMap());
-        reporter.writeAndClose();
+        assertEquals("the first line", feature.getName());
+        assertEquals("and the second", feature.getDescription());
     }
     
     private static void recurse(File dir) {        

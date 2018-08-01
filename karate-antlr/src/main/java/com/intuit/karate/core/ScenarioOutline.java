@@ -36,6 +36,7 @@ public class ScenarioOutline {
 
     private int line;
     private List<Tag> tags;
+    private String name;
     private String description;
     private List<Step> steps;
     private List<ExampleTable> exampleTables;
@@ -103,6 +104,14 @@ public class ScenarioOutline {
         this.tags = tags;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+        
     public String getDescription() {
         return description;
     }

@@ -23,30 +23,32 @@
  */
 package com.intuit.karate.core;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public class Scenario {
-    
+public class ScenarioResult {
+
     private int line;
-    private List<Tag> tags;
+    private String id;
     private String name;
     private String description;
-    private List<Step> steps;
+    private String type = "scenario";
+    private String keyword = "Scenario";
+    private List<StepResult> steps = new ArrayList();
     
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap();
-        map.put("line", line);
-        map.put("name", description);
-        map.put("type", "scenario");
-        map.put("keyword", "Scenario");
-        map.put("steps", Step.toList(steps));
-        return map;        
+    public ScenarioResult(Scenario scenario) {
+        line = scenario.getLine();
+        name = scenario.getName();
+        id = FeatureUtils.toIdString(name);
+        description = scenario.getDescription();
+    }    
+    
+    public void addStepResult(StepResult stepResult) {
+        steps.add(stepResult);
     }
 
     public int getLine() {
@@ -55,14 +57,14 @@ public class Scenario {
 
     public void setLine(int line) {
         this.line = line;
-    }    
-
-    public List<Tag> getTags() {
-        return tags;
     }
 
-    public void setTags(List<Tag> tags) {
-        this.tags = tags;
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -71,7 +73,7 @@ public class Scenario {
 
     public void setName(String name) {
         this.name = name;
-    }        
+    }
 
     public String getDescription() {
         return description;
@@ -81,12 +83,28 @@ public class Scenario {
         this.description = description;
     }
 
-    public List<Step> getSteps() {
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
+    }
+
+    public List<StepResult> getSteps() {
         return steps;
     }
 
-    public void setSteps(List<Step> steps) {
+    public void setSteps(List<StepResult> steps) {
         this.steps = steps;
-    }    
-    
+    }
+        
 }

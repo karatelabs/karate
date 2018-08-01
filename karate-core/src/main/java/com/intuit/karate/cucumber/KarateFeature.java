@@ -71,17 +71,4 @@ public class KarateFeature {
         return kr;
     }
     
-    public KarateJunitAndJsonReporter getReporter(String reportDirPath) {
-        File reportDir = new File(reportDirPath);
-        String featurePackagePath = FileUtils.toPackageQualifiedName(feature.getPath());
-        try {
-            reportDir.mkdirs();
-            reportDirPath = reportDir.getPath() + File.separator;
-            String reportPath = reportDirPath + "TEST-" + featurePackagePath + ".xml";
-            return new KarateJunitAndJsonReporter(featurePackagePath, reportPath);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }        
-    }
-    
 }
