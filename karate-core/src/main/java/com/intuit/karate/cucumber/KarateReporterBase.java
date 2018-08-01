@@ -86,7 +86,7 @@ public abstract class KarateReporterBase implements KarateReporter {
 
     @Override // see the step() method for an explanation of this hack
     public void karateStep(Step step, Match match, Result result, CallContext callContext, ScriptContext context) {
-        boolean isPrint = true; // TODO step.getName().startsWith("print ");
+        boolean isPrint = step.getName().startsWith("print ");
         boolean isNoise = false; // TODO step.getKeyword().charAt(0) == '*';
         boolean showAllSteps = true; // TODO context == null ? true : context.getConfig().isShowAllSteps();
         boolean logEnabled = context == null ? true : context.getConfig().isLogEnabled();        
