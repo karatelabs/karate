@@ -47,7 +47,9 @@ public class HeaderPanel extends BorderPane {
     
     private final HBox content;
     private final AppSession session;    
+    private final MenuItem newFileMenuItem;
     private final MenuItem openFileMenuItem;
+    private final MenuItem saveFileMenuItem;
     private final MenuItem openDirectoryMenuItem;
     private final MenuItem openImportMenuItem;
     private final TextArea textContent;
@@ -76,11 +78,12 @@ public class HeaderPanel extends BorderPane {
         });        
         MenuBar menuBar = new MenuBar();
         Menu fileMenu = new Menu("File");
+        newFileMenuItem = new MenuItem("New");
         openFileMenuItem = new MenuItem("Open");
-        fileMenu.getItems().addAll(openFileMenuItem);
-
+        saveFileMenuItem = new MenuItem("Save");
         openDirectoryMenuItem = new MenuItem("Load Directory");
-        fileMenu.getItems().addAll(openDirectoryMenuItem);
+        fileMenu.getItems().addAll(newFileMenuItem, openFileMenuItem,
+                openDirectoryMenuItem, saveFileMenuItem);
 
         Menu importMenu = new Menu("Import");
         openImportMenuItem = new MenuItem("Open");
@@ -113,9 +116,17 @@ public class HeaderPanel extends BorderPane {
     private String getContentButtonText(boolean visible) {
         return visible ? "Hide Raw" : "Show Raw";
     }
+
+    public void setNewFileAction(EventHandler<ActionEvent> handler) {
+        newFileMenuItem.setOnAction(handler);
+    }
     
     public void setFileOpenAction(EventHandler<ActionEvent> handler) {
         openFileMenuItem.setOnAction(handler);
+    }
+
+    public void setFileSaveAction(EventHandler<ActionEvent> handler) {
+        saveFileMenuItem.setOnAction(handler);
     }
 
     public void setDirectoryOpenAction(EventHandler<ActionEvent> handler) {
@@ -134,12 +145,11 @@ public class HeaderPanel extends BorderPane {
     public void rebuildFeatureIfTextChanged() {
         String newText = textContent.getText();
         if (!newText.equals(oldText)) {
-            Alert alert = new Alert(AlertType.INFORMATION);
-            alert.setHeaderText("Read Only");
-            alert.setTitle("Not Implemented");
-            alert.setContentText("Raw text editing is not supported.");
-            alert.show();
-            textContent.setText(oldText);
+            try {
+                session.replaceFeature(newText);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
     
