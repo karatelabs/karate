@@ -23,41 +23,59 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.JsonUtils;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
  * @author pthomas3
  */
-public class JsonReporter {
+public class BackgroundResult implements ResultCollector {
+    
+    private int line;
+    private String type = "background";
+    private String keyword = "Background";
+    private List<StepResult> steps = new ArrayList(); 
+    
+    public BackgroundResult(Background background) {
+        this.line = background.getLine();        
+    }
+    
+    @Override
+    public void addStepResult(StepResult stepResult) {
+        steps.add(stepResult);
+    }    
 
-    private final List<Map<String, Object>> featureMaps = new ArrayList();
-    private final String fileName;
-
-    public JsonReporter(String fileName) {
-        this.fileName = fileName;
+    public int getLine() {
+        return line;
     }
 
-    public void addFeature(Map<String, Object> featureMap) {
-        featureMaps.add(featureMap);
+    public void setLine(int line) {
+        this.line = line;
     }
 
-    public void writeAndClose() {
-        try (FileWriter writer = new FileWriter(fileName)) {
-            writer.append(JsonUtils.toJson(featureMaps));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public String getType() {
+        return type;
     }
 
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
+    }
+
+    public List<StepResult> getSteps() {
+        return steps;
+    }
+
+    public void setSteps(List<StepResult> steps) {
+        this.steps = steps;
+    }
+    
 }

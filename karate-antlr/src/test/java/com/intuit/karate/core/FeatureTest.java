@@ -29,6 +29,8 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -59,7 +61,8 @@ public class FeatureTest {
     public void testSimple() throws Exception {    
         Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
         FeatureResult result = feature.execute(getStepDefs(feature));
-        String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(result));
+        List<FeatureResult> results = Collections.singletonList(result);
+        String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(results));
         FileUtils.writeToFile(new File("target/test-simple.json"), json);
     }
     

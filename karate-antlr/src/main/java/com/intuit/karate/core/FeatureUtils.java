@@ -72,8 +72,8 @@ public class FeatureUtils {
     }
 
     public static StringUtils.Pair splitByFirstLineFeed(String text) {
-        String left = null;
-        String right = null;
+        String left = "";
+        String right = "";
         if (text != null) {
             int pos = text.indexOf('\n');
             if (pos != -1) {

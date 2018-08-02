@@ -36,10 +36,15 @@ import java.util.Set;
 public class Table {
     
     private final List<List<String>> rows;
-    private final Map<String,Integer> keyColumns;    
+    private final Map<String,Integer> keyColumns;  
+    private final List<Integer> lineNumbers;
     
     public Set<String> getKeys() {
         return keyColumns.keySet();
+    }
+    
+    public int getLineNumberForRow(int i) {
+        return lineNumbers.get(i);
     }
     
     public Table replace(String token, String value) {        
@@ -56,7 +61,7 @@ public class Table {
                 replaced.add(text);
             }
         }
-        return new Table(list);
+        return new Table(list, lineNumbers);
     }
     
     public String getValue(String key, int row) {
@@ -67,8 +72,9 @@ public class Table {
         return rows.get(row).get(col);
     }
     
-    public Table(List<List<String>> rows) {
+    public Table(List<List<String>> rows, List<Integer> lineNumbers) {
         this.rows = rows;
+        this.lineNumbers = lineNumbers;
         List<String> heads = rows.get(0);
         int columnCount = heads.size();
         keyColumns = new LinkedHashMap(columnCount);

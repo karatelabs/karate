@@ -24,9 +24,7 @@
 package com.intuit.karate.core;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
@@ -49,7 +47,11 @@ public class ScenarioOutline {
             for (int i = 1; i < rowCount; i++) { // don't include header row
                 Scenario s = new Scenario();
                 list.add(s);
+                s.setOutline(true);
+                s.setLine(t.getLineNumberForRow(i));
                 s.setTags(tags);
+                s.setName(name);
+                s.setDescription(description);
                 List<Step> replaced = new ArrayList(steps.size());
                 for (Step original : steps) {
                     String text = original.getText();
@@ -76,16 +78,6 @@ public class ScenarioOutline {
             }
         }
         return list;
-    }
-    
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap();
-        map.put("line", line);
-        map.put("name", description);
-        map.put("type", "scenario");
-        map.put("keyword", "Scenario Outline");
-        map.put("steps", Step.toList(steps));
-        return map;        
     }
 
     public int getLine() {

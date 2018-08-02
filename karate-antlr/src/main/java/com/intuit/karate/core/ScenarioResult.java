@@ -30,7 +30,7 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class ScenarioResult {
+public class ScenarioResult implements ResultCollector {
 
     private int line;
     private String id;
@@ -45,8 +45,12 @@ public class ScenarioResult {
         name = scenario.getName();
         id = FeatureUtils.toIdString(name);
         description = scenario.getDescription();
+        if (scenario.isOutline()) {
+            keyword = "Scenario Outline";
+        }
     }    
     
+    @Override
     public void addStepResult(StepResult stepResult) {
         steps.add(stepResult);
     }

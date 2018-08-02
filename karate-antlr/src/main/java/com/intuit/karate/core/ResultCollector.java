@@ -23,67 +23,12 @@
  */
 package com.intuit.karate.core;
 
-import java.util.List;
-
 /**
  *
  * @author pthomas3
  */
-public class Scenario {
+public interface ResultCollector {
     
-    private int line;
-    private List<Tag> tags;
-    private String name;
-    private String description;
-    private List<Step> steps;
-    private boolean outline;
-
-    public int getLine() {
-        return line;
-    }
-
-    public void setLine(int line) {
-        this.line = line;
-    }    
-
-    public List<Tag> getTags() {
-        return tags;
-    }
-
-    public void setTags(List<Tag> tags) {
-        this.tags = tags;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }        
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public List<Step> getSteps() {
-        return steps;
-    }
-
-    public void setSteps(List<Step> steps) {
-        this.steps = steps;
-    }    
-
-    public boolean isOutline() {
-        return outline;
-    }
-
-    public void setOutline(boolean outline) {
-        this.outline = outline;
-    }
+    void addStepResult(StepResult stepResult);
     
 }

@@ -107,16 +107,18 @@ public class Feature extends KarateParserBaseListener {
         return result;
     }
 
-    private void execute(Scenario scenario, StepDefs stepDefs, FeatureResult result) {
+    private void execute(Scenario scenario, StepDefs stepDefs, FeatureResult featureResult) {
         if (background != null) {
-            execute(background.getSteps(), stepDefs, null);
+            BackgroundResult backgroundResult = new BackgroundResult(background);
+            featureResult.addResult(backgroundResult);
+            execute(background.getSteps(), stepDefs, backgroundResult);            
         }
         ScenarioResult scenarioResult = new ScenarioResult(scenario);
-        result.addResult(scenarioResult);
+        featureResult.addResult(scenarioResult);
         execute(scenario.getSteps(), stepDefs, scenarioResult);        
     }
 
-    private void execute(List<Step> steps, StepDefs stepDefs, ScenarioResult scenarioResult) {
+    private void execute(List<Step> steps, StepDefs stepDefs, ResultCollector collector) {
         for (Step step : steps) {
             String text = step.getText();
             List<MethodMatch> matches = FeatureUtils.findMethodsMatching(text);
@@ -147,7 +149,7 @@ public class Feature extends KarateParserBaseListener {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-            scenarioResult.addStepResult(new StepResult(step, new Result("passed", 5)));
+            collector.addStepResult(new StepResult(step, new Result("passed", 5)));
         }
     }
 
@@ -187,7 +189,9 @@ public class Feature extends KarateParserBaseListener {
 
     private static Table toTable(KarateParser.TableContext ctx) {
         List<TerminalNode> nodes = ctx.TABLE_ROW();
-        List<List<String>> rows = new ArrayList(nodes.size());
+        int rowCount = nodes.size();
+        List<List<String>> rows = new ArrayList(rowCount);
+        List<Integer> lineNumbers = new ArrayList(rowCount);
         for (TerminalNode node : nodes) {
             List<String> tokens = StringUtils.split(node.getText(), '|'); // TODO escaped pipe characters "\|" ?            
             tokens.remove(0);
@@ -196,8 +200,9 @@ public class Feature extends KarateParserBaseListener {
                 tokens.set(i, tokens.get(i).trim());
             }
             rows.add(tokens);
+            lineNumbers.add(node.getSymbol().getLine());
         }
-        return new Table(rows);
+        return new Table(rows, lineNumbers);
     }
 
     private static List<Step> toSteps(List<KarateParser.StepContext> list) {
