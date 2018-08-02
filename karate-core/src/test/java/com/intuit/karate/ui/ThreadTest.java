@@ -43,7 +43,7 @@ public class ThreadTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ThreadTest.class);
 
-    @Test
+    //@Test
     public void testRunAll() {
         JavaFxRunnable runnable = new JavaFxRunnable();
         new Thread(runnable).start();
@@ -54,7 +54,7 @@ public class ThreadTest {
         runnable.stopFx();
     }
 
-    @Test
+    //@Test
     public void testRunUpto() {
         JavaFxRunnable runnable = new JavaFxRunnable();
         new Thread(runnable).start();
