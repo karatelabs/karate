@@ -39,11 +39,11 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author vmchukky
  */
-public class ThreadTest {
+public class ThreadTester {
 
-    private static final Logger logger = LoggerFactory.getLogger(ThreadTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ThreadTester.class);
 
-    //@Test
+    @Test
     public void testRunAll() {
         JavaFxRunnable runnable = new JavaFxRunnable();
         new Thread(runnable).start();
@@ -54,7 +54,7 @@ public class ThreadTest {
         runnable.stopFx();
     }
 
-    //@Test
+    @Test
     public void testRunUpto() {
         JavaFxRunnable runnable = new JavaFxRunnable();
         new Thread(runnable).start();
