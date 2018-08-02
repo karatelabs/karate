@@ -44,7 +44,7 @@ public class FeatureResult {
         line = feature.getLine();
         uri = feature.getFeaturePath();
         name = uri;
-        id = FeatureUtils.toIdString(feature.getName());
+        id = Engine.toIdString(feature.getName());
         String temp = feature.getName() == null ? "" : feature.getName();
         if (feature.getDescription() != null) {
             temp = temp + "\n" + feature.getDescription();

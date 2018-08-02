@@ -43,7 +43,7 @@ public class ScenarioResult implements ResultCollector {
     public ScenarioResult(Scenario scenario) {
         line = scenario.getLine();
         name = scenario.getName();
-        id = FeatureUtils.toIdString(name);
+        id = Engine.toIdString(name);
         description = scenario.getDescription();
         if (scenario.isOutline()) {
             keyword = "Scenario Outline";

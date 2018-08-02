@@ -23,50 +23,40 @@
  */
 package com.intuit.karate.core;
 
+import net.minidev.json.annotate.JsonIgnore;
+
 /**
  *
  * @author pthomas3
  */
-public class Result {
-
-    public static final String PASSED = "passed";
-    public static final String FAILED = "failed";
-    public static final String SKIPPED = "skipped";
-
-    private String status;
-    private long duration;
-
-    public Result(String status, long duration) {
-        this.status = status;
-        this.duration = duration;
+public class ResultError extends Result {
+    
+    private Throwable error;
+    private String error_message;
+    
+    public ResultError(String status, long duration, Throwable error) {
+        super(status, duration);
+        this.error = error;
+        String temp = error.getClass().getName();
+        error_message = temp + ": " + error.getMessage();        
     }
 
-    public static Result passed(long duration) {
-        return new Result(PASSED, duration);
+    @JsonIgnore
+    public Throwable getError() {
+        return error;
     }
 
-    public static Result failed( long duration, Throwable error) {
-        return new ResultError(FAILED, duration, error);
+    @JsonIgnore
+    public void setError(Throwable error) {
+        this.error = error;
     }
 
-    public static Result skipped() {
-        return new Result(SKIPPED, 0);
+    public String getError_message() {
+        return error_message;
     }
 
-    public String getStatus() {
-        return status;
+    public void setError_message(String error_message) {
+        this.error_message = error_message;
     }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public long getDuration() {
-        return duration;
-    }
-
-    public void setDuration(long duration) {
-        this.duration = duration;
-    }
-
+    
 }

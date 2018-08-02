@@ -60,7 +60,7 @@ public class FeatureTest {
     @Test
     public void testSimple() throws Exception {    
         Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
-        FeatureResult result = feature.execute(getStepDefs(feature));
+        FeatureResult result = Engine.execute(feature, getStepDefs(feature));
         List<FeatureResult> results = Collections.singletonList(result);
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(results));
         FileUtils.writeToFile(new File("target/test-simple.json"), json);

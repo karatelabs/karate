@@ -24,15 +24,12 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
-import cucumber.api.DataTable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -86,73 +83,15 @@ public class Feature extends KarateParserBaseListener {
     public String getDescription() {
         return description;
     }        
+
+    public Background getBackground() {
+        return background;
+    }        
     
     public List<FeatureSection> getSections() {
         return sections;
     }
-
-    public FeatureResult execute(StepDefs stepDefs) {
-        FeatureResult result = new FeatureResult(this);
-        for (FeatureSection section : sections) {
-            if (section.isOutline()) {
-                List<Scenario> scenarios = section.getScenarioOutline().getScenarios();
-                for (Scenario scenario : scenarios) {
-                    execute(scenario, stepDefs, result);
-                }
-            } else {
-                Scenario scenario = section.getScenario();
-                execute(scenario, stepDefs, result);
-            }
-        }
-        return result;
-    }
-
-    private void execute(Scenario scenario, StepDefs stepDefs, FeatureResult featureResult) {
-        if (background != null) {
-            BackgroundResult backgroundResult = new BackgroundResult(background);
-            featureResult.addResult(backgroundResult);
-            execute(background.getSteps(), stepDefs, backgroundResult);            
-        }
-        ScenarioResult scenarioResult = new ScenarioResult(scenario);
-        featureResult.addResult(scenarioResult);
-        execute(scenario.getSteps(), stepDefs, scenarioResult);        
-    }
-
-    private void execute(List<Step> steps, StepDefs stepDefs, ResultCollector collector) {
-        for (Step step : steps) {
-            String text = step.getText();
-            List<MethodMatch> matches = FeatureUtils.findMethodsMatching(text);
-            if (matches.isEmpty()) {
-                String message = "no method match found for: " + text;
-                logger.error(message);
-                throw new RuntimeException(message);
-            } else if (matches.size() > 1) {
-                String message = "more than one method matched: " + text + " - " + matches;
-                logger.error(message);
-                throw new RuntimeException(message);
-            }
-            MethodMatch match = matches.get(0);
-            Object last;
-            if (step.getDocString() != null) {
-                last = step.getDocString();
-            } else if (step.getTable() != null) {
-                last = DataTable.create(step.getTable().getRows());
-            } else {
-                last = null;
-            }
-            Object[] args = match.convertArgs(last);
-            if (logger.isTraceEnabled()) {
-                logger.debug("MATCH: {}, {}, {}", text, match, Arrays.asList(args));
-            }
-            try {
-                match.method.invoke(stepDefs, args);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            collector.addStepResult(new StepResult(step, new Result("passed", 5)));
-        }
-    }
-
+    
     public Feature(String featurePath) { 
         this.featurePath = featurePath;
         file = FileUtils.resolveIfClassPath(featurePath, Thread.currentThread().getContextClassLoader());        
@@ -231,7 +170,7 @@ public class Feature extends KarateParserBaseListener {
         }
         line = ctx.FEATURE().getSymbol().getLine();
         if (ctx.featureDescription() != null) {
-            StringUtils.Pair pair = FeatureUtils.splitByFirstLineFeed(ctx.featureDescription().getText());
+            StringUtils.Pair pair = Engine.splitByFirstLineFeed(ctx.featureDescription().getText());
             name = pair.left;
             description = pair.right;
         }        
@@ -259,7 +198,7 @@ public class Feature extends KarateParserBaseListener {
             scenario.setTags(toTags(ctx.tags().getText()));
         }
         if (ctx.scenarioDescription() != null) {
-            StringUtils.Pair pair = FeatureUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
+            StringUtils.Pair pair = Engine.splitByFirstLineFeed(ctx.scenarioDescription().getText());
             scenario.setName(pair.left);
             scenario.setDescription(pair.right);
         }
@@ -282,7 +221,7 @@ public class Feature extends KarateParserBaseListener {
         }
         if (ctx.scenarioDescription() != null) {
             outline.setDescription(ctx.scenarioDescription().getText());
-            StringUtils.Pair pair = FeatureUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
+            StringUtils.Pair pair = Engine.splitByFirstLineFeed(ctx.scenarioDescription().getText());
             outline.setName(pair.left);
             outline.setDescription(pair.right);            
         }
