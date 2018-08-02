@@ -40,6 +40,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
@@ -56,6 +60,10 @@ public class AppSession {
     public final FeaturePanel featurePanel;
     public final VarsPanel varsPanel;
     public final LogPanel logPanel;
+
+    RunService runner;
+    BooleanBinding runningNow;
+    BooleanProperty notRunning;
     
     public FeatureWrapper getFeature() {
         return feature;
@@ -80,10 +88,16 @@ public class AppSession {
     }
     
     public void runAll() {
-        try {
-            featurePanel.action(AppAction.RUN);
-        } catch (StepException se) {
-            backend.getEnv().logger.error("step execution paused.");
+        synchronized (notRunning) {
+            notRunning.setValue(false);
+            runner.runUptoStep(null);
+        }
+    }
+
+    public void runUpto(StepPanel stepPanel) {
+        synchronized (notRunning) {
+            notRunning.setValue(false);
+            runner.runUptoStep(stepPanel);
         }
     }
 
@@ -95,6 +109,9 @@ public class AppSession {
         CallContext callContext = new CallContext(null, true);
         backend = CucumberUtils.getBackendWithGlue(feature, callContext);
         if (!test) {
+            notRunning = new SimpleBooleanProperty(Boolean.TRUE);
+            runningNow = notRunning.not();
+            runner = new RunService(this);
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);
             varsPanel = new VarsPanel(this);
@@ -157,6 +174,16 @@ public class AppSession {
             list.add(new Var(entry.getKey(), entry.getValue()));
         }
         return FXCollections.observableList(list);
+    }
+
+    public BooleanBinding isRunningNow() {
+        return runningNow;
+    }
+
+    public void markRunStopped() {
+        synchronized (notRunning) {
+            notRunning.setValue(true);
+        }
     }
 
 }

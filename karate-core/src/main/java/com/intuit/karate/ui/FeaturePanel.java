@@ -92,4 +92,9 @@ public class FeaturePanel extends BorderPane {
         addSections();
     }
 
+    // only needed for our unit tests
+    SectionPanel getSectionAtIndex(int index) {
+        return sectionPanels.get(index);
+    }
+
 }

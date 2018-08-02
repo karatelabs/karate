@@ -89,5 +89,10 @@ public class SectionPanel extends TitledPane {
             scenarioPanel.action(action);
         }
     }
-    
+
+    // only needed for our unit tests
+    StepPanel getStepAtIndex(int index) {
+        return (section.isOutline() ? null : scenarioPanel.getStepAtIndex(index));
+    }
+
 }
