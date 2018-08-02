@@ -78,14 +78,15 @@ public class StepPanel extends AnchorPane {
         });
         this.step = step;
         initTextArea();
+        runButton.disableProperty().bind(session.isRunningNow());
         runButton.setOnAction(e -> run());
-        if(step.isHttpCall()) {
+        if (step.isHttpCall()) {
             BorderPane borderPane = new BorderPane();
             borderPane.setPadding(new Insets(5, 0, 0, 0));
             borderPane.setStyle(STYLE_HTTP_METHOD);
             AnchorPane anchorPane = new AnchorPane();
             setUpTextAndRunButtons(previousPanel, anchorPane.getChildren(), anchorPane);
-            rawRequestResponse =  Optional.of(new TextArea());
+            rawRequestResponse = Optional.of(new TextArea());
             TitledPane titledPane = new TitledPane("View raw Request/Response", rawRequestResponse.get());
             Accordion accordion = new Accordion();
             accordion.setPadding(new Insets(5, 5, 5, 5));
@@ -117,11 +118,12 @@ public class StepPanel extends AnchorPane {
     }
 
     private void setUpRunAllUptoButton(Optional<StepPanel> previousPanel, ObservableList<Node> children, AnchorPane anchorPane) {
-        if(previousPanel.isPresent()) {
+        if (previousPanel.isPresent()) {
             final Button button = new Button("►►");
+            button.disableProperty().bind(session.isRunningNow());
             runAllUptoButton = Optional.of(button);
             button.setTooltip(new Tooltip("Run all steps upto current step"));
-            button.setOnAction(e -> runAllUpto());
+            button.setOnAction(e -> session.runUpto(this));
             children.add(button);
             anchorPane.setRightAnchor(button, 32.0);
             anchorPane.setTopAnchor(button, 2.0);
@@ -142,7 +144,7 @@ public class StepPanel extends AnchorPane {
         pass = result.isPass();
         initStyleColor();
         session.refreshVarsTable();
-        rawRequestResponse.ifPresent( r -> updateRawRequestResponse(r));
+        rawRequestResponse.ifPresent(r -> updateRawRequestResponse(r));
         if (!pass) {
             throw new StepException(result);
         }
@@ -150,11 +152,11 @@ public class StepPanel extends AnchorPane {
 
     private void updateRawRequestResponse(TextArea textArea) {
         StringBuilder text = new StringBuilder();
-        text.append("Request "+System.lineSeparator());
+        text.append("Request " + System.lineSeparator());
         session.getVars().stream().filter(v -> v.getName().contains(ScriptValueMap.VAR_REQUEST))
                 .forEach(v -> text.append(getLine(v)));
         text.append(System.lineSeparator());
-        text.append("Response "+System.lineSeparator());
+        text.append("Response " + System.lineSeparator());
         session.getVars().stream().filter(v -> v.getName().contains(ScriptValueMap.VAR_RESPONSE))
                 .forEach(v -> text.append(getLine(v)));
         textArea.setText(text.toString());
@@ -164,7 +166,7 @@ public class StepPanel extends AnchorPane {
         return var.getName() + " : " + (var.getValue() != null ? var.getValue().getAsPrettyString() : "") + System.lineSeparator();
     }
 
-    private void runAllUpto() {
+    void runAllUpto() {
         previousPanel.ifPresent(p -> p.runAllUpto());
         run();
     }
@@ -227,6 +229,10 @@ public class StepPanel extends AnchorPane {
             textArea.setStyle(STYLE_BACKGROUND);
         }
         initStyleColor();
+    }
+
+    public int getStepIndex() {
+        return step.getIndex();
     }
 
 }

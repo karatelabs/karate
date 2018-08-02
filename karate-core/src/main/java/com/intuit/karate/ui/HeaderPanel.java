@@ -27,8 +27,6 @@ import com.intuit.karate.ScriptBindings;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -100,6 +98,7 @@ public class HeaderPanel extends BorderPane {
             Button envButton = new Button("Reset");
             envButton.setOnAction(e -> session.resetAll(envTextField.getText()));
             Button runAllButton = new Button("Run ►►");
+            runAllButton.disableProperty().bind(session.isRunningNow());
             runAllButton.setOnAction(e -> session.runAll());            
             Button showContentButton = new Button(getContentButtonText(false));
             initTextContent();
