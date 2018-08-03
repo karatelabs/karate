@@ -28,10 +28,19 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.http2.Http2SecurityUtil;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.ApplicationProtocolConfig;
+import io.netty.handler.ssl.ApplicationProtocolConfig.Protocol;
+import io.netty.handler.ssl.ApplicationProtocolConfig.SelectedListenerFailureBehavior;
+import io.netty.handler.ssl.ApplicationProtocolConfig.SelectorFailureBehavior;
+import io.netty.handler.ssl.ApplicationProtocolNames;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.ssl.SupportedCipherSuiteFilter;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.net.InetSocketAddress;
@@ -84,7 +93,17 @@ public class FeatureServer {
     private static SslContext getSelfSignedSslContext() {
         try {
             SelfSignedCertificate ssc = new SelfSignedCertificate();
-            return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
+            return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey())
+                    .sslProvider(OpenSsl.isAlpnSupported() ? SslProvider.OPENSSL : SslProvider.JDK)
+                    //.sslProvider(SslProvider.JDK)
+                    .ciphers(Http2SecurityUtil.CIPHERS, SupportedCipherSuiteFilter.INSTANCE)
+                    .applicationProtocolConfig(new ApplicationProtocolConfig(
+                            Protocol.ALPN,
+                            SelectorFailureBehavior.NO_ADVERTISE,
+                            SelectedListenerFailureBehavior.ACCEPT,
+                            ApplicationProtocolNames.HTTP_2,
+                            ApplicationProtocolNames.HTTP_1_1))
+                    .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -92,7 +111,32 @@ public class FeatureServer {
     
     private static SslContext getSslContextFromFiles(File sslCert, File sslPrivateKey) {
         try {
-            return SslContextBuilder.forServer(sslCert, sslPrivateKey).build();
+            // TODO - remove debug logs
+            if(OpenSsl.isAvailable()){
+                if(OpenSsl.isAlpnSupported()){
+                    logger.info("getSslContextFromFiles OpenSSL: ALPN IS SUPPORTED ");
+                }
+                else{
+                    logger.info("getSslContextFromFiles OpenSSL: ALPN IS NOT supported ");
+                    
+                }
+            }
+            else{
+                logger.info("getSslContextFromFiles OpenSSL: Not Available ");
+            }
+                
+            
+            return SslContextBuilder.forServer(sslCert, sslPrivateKey)
+                    .sslProvider(OpenSsl.isAlpnSupported() ? SslProvider.OPENSSL : SslProvider.JDK)
+                    //.sslProvider(SslProvider.OPENSSL)
+                    .ciphers(Http2SecurityUtil.CIPHERS, SupportedCipherSuiteFilter.INSTANCE)
+                    .applicationProtocolConfig(new ApplicationProtocolConfig(
+                            Protocol.ALPN,
+                            SelectorFailureBehavior.NO_ADVERTISE,
+                            SelectedListenerFailureBehavior.ACCEPT,
+                            ApplicationProtocolNames.HTTP_2,
+                            ApplicationProtocolNames.HTTP_1_1))
+                    .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
