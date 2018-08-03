@@ -51,6 +51,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -420,7 +421,8 @@ public class ScriptBridge implements PerfContext {
         if (headers == null) {
             return false;
         }
-        List<String> list = headers.get(name);
+
+        List<String> list = headers.get(name.toLowerCase());
         if (list == null) {
             return false;
         }
