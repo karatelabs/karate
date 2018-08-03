@@ -74,6 +74,9 @@ public class Config {
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
     private int retryCount = DEFAULT_RETRY_COUNT;
 
+    //Http Version
+    private double httpVersion = 1.1;
+
     // report config
     private boolean showLog = true;
     private boolean showAllSteps = true;
@@ -242,6 +245,7 @@ public class Config {
         showAllSteps = parent.showAllSteps;
         retryInterval = parent.retryInterval;
         retryCount = parent.retryCount;
+        httpVersion = parent.httpVersion;
     }
         
     public void setCookies(ScriptValue cookies) {
@@ -422,4 +426,11 @@ public class Config {
         this.retryCount = retryCount;
     }
 
+    public double getHttpVersion() {
+        return httpVersion;
+    }
+
+    public void setHttpVersion(double httpVersion) {
+        this.httpVersion = httpVersion;
+    }
 }
