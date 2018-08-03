@@ -90,7 +90,7 @@ public class Engine {
         execute(scenario.getSteps(), stepDefs, scenarioResult, stopped);        
     }
 
-    private static boolean execute(List<Step> steps, StepDefs stepDefs, ResultCollector collector, boolean stopped) {
+    private static boolean execute(List<Step> steps, StepDefs stepDefs, ResultElement collector, boolean stopped) {
         for (Step step : steps) {
             if (stopped) {
                 collector.addStepResult(new StepResult(step, Result.skipped()));

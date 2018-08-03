@@ -30,7 +30,7 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class ScenarioResult implements ResultCollector {
+public class ScenarioResult implements ResultElement {
 
     private int line;
     private String id;

@@ -22,7 +22,16 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import static com.intuit.karate.Script.evalKarateExpression;
+import java.net.URI;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Properties;
+import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -83,11 +92,11 @@ public class FileUtils {
         int pos = text.indexOf(':');
         return pos == -1 ? text : text.substring(pos + 1);
     }
-    
+
     private static StringUtils.Pair parsePathAndTags(String text) {
         int pos = text.indexOf(':');
         text = pos == -1 ? text : text.substring(pos + 1); // remove prefix
-        pos = text.indexOf('@'); 
+        pos = text.indexOf('@');
         if (pos == -1) {
             text = StringUtils.trimToEmpty(text);
             return new StringUtils.Pair(text, null);
@@ -96,7 +105,7 @@ public class FileUtils {
             String right = StringUtils.trimToEmpty(text.substring(pos));
             return new StringUtils.Pair(left, right);
         }
-    }    
+    }
 
     private static enum PathPrefix {
         NONE,
@@ -371,7 +380,7 @@ public class FileUtils {
             return path.substring(0, pos + 1) + extension;
         }
     }
-    
+
     private static final String UNKNOWN = "(unknown)";
 
     public static String getKarateVersion() {
@@ -388,7 +397,7 @@ public class FileUtils {
             return UNKNOWN;
         }
     }
-    
+
     public static void renameFileIfZeroBytes(String fileName) {
         File file = new File(fileName);
         if (!file.exists()) {
@@ -403,6 +412,51 @@ public class FileUtils {
                 logger.warn("failed to rename zero length file: {}", e.getMessage());
             }
         }
+    }
+
+    private static Path getClassPathRoot() {
+        String rootPathString = "/";
+        try {
+            URI uri = FileUtils.class.getResource(rootPathString).toURI();
+            if (uri.getScheme().equals("jar")) {
+                FileSystem fileSystem = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
+                return fileSystem.getPath(rootPathString);
+            } else {
+                return Paths.get(uri);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    public static String toRelativeClassPath(File file) {
+        Path rootPath = getClassPathRoot();
+        return rootPath.relativize(Paths.get(file.getAbsolutePath())).toString();
+    }
+
+    public static File fromRelativeClassPath(String relativePath) {
+        Path rootPath = getClassPathRoot();
+        return rootPath.resolve(relativePath).toFile();
+    }
+
+    public static List<FileResource> scanForFeatureFiles() {
+        Path rootPath = getClassPathRoot();
+        List<FileResource> files = new ArrayList();
+        Stream<Path> stream;
+        try {
+            stream = Files.walk(rootPath);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
+            Path path = paths.next();
+            if (path.getFileName().toString().endsWith(".feature")) {
+                File file = path.toFile();
+                Path relativePath = rootPath.relativize(path);
+                files.add(new FileResource(file, relativePath.toString()));
+            }
+        }
+        return files;
     }
 
 }

@@ -30,7 +30,13 @@
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-demo</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>               
     </dependencies>
     
     <build>

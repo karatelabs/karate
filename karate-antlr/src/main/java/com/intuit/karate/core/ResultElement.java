@@ -27,7 +27,7 @@ package com.intuit.karate.core;
  *
  * @author pthomas3
  */
-public interface ResultCollector {
+public interface ResultElement {
     
     void addStepResult(StepResult stepResult);
     

@@ -51,7 +51,7 @@ public class Feature extends KarateParserBaseListener {
     private final ParserErrorListener errorListener = new ParserErrorListener();
 
     private final File file;
-    private final String featurePath;
+    private final String relativePath;
     
     private int line;
     private List<Tag> tags;
@@ -64,9 +64,9 @@ public class Feature extends KarateParserBaseListener {
         return file;
     }
 
-    public String getFeaturePath() {
-        return featurePath;
-    }    
+    public String getRelativePath() {
+        return relativePath;
+    }   
 
     public int getLine() {
         return line;
@@ -92,9 +92,17 @@ public class Feature extends KarateParserBaseListener {
         return sections;
     }
     
-    public Feature(String featurePath) { 
-        this.featurePath = featurePath;
-        file = FileUtils.resolveIfClassPath(featurePath, Thread.currentThread().getContextClassLoader());        
+    public Feature(File file) {
+        this(file, FileUtils.toRelativeClassPath(file));
+    }
+    
+    public Feature(String relativePath) {
+        this(FileUtils.fromRelativeClassPath(relativePath), relativePath);
+    }
+    
+    public Feature(File file, String relativePath) { 
+        this.file = file;
+        this.relativePath = relativePath;        
         CharStream stream;
         try {
             FileInputStream fis = new FileInputStream(file);

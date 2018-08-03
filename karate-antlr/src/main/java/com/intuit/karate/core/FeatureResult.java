@@ -38,11 +38,11 @@ public class FeatureResult {
     private String name;
     private String description;
     private String keyword = "Feature";
-    private List<Object> elements = new ArrayList();
+    private List<ResultElement> elements = new ArrayList();
     
     public FeatureResult(Feature feature) {
         line = feature.getLine();
-        uri = feature.getFeaturePath();
+        uri = feature.getRelativePath();
         name = uri;
         id = Engine.toIdString(feature.getName());
         String temp = feature.getName() == null ? "" : feature.getName();
@@ -52,8 +52,8 @@ public class FeatureResult {
         description = temp.trim();
     }    
     
-    public void addResult(Object result) {
-        elements.add(result);
+    public void addResult(ResultElement element) {
+        elements.add(element);
     }
 
     public int getLine() {
@@ -104,11 +104,11 @@ public class FeatureResult {
         this.keyword = keyword;
     }
 
-    public List<Object> getElements() {
+    public List<ResultElement> getElements() {
         return elements;
     }
 
-    public void setElements(List<Object> elements) {
+    public void setElements(List<ResultElement> elements) {
         this.elements = elements;
     }    
     

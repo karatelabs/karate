@@ -4,6 +4,7 @@ import com.intuit.karate.cucumber.FeatureFilePath;
 import java.io.File;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -62,6 +63,24 @@ public class FileUtilsTest {
         FileUtils.renameFileIfZeroBytes(name);
         File file = new File(name + ".fail");
         assertTrue(file.exists());
+    }
+    
+    @Test
+    public void testScanFiles() {
+        String relativePath = "com/intuit/karate/ui/test.feature";
+        List<FileResource> files = FileUtils.scanForFeatureFiles();
+        boolean found = false;
+        for (FileResource file : files) {
+            if (file.relativePath.equals(relativePath)) {
+                File tempFile = FileUtils.fromRelativeClassPath(relativePath);                
+                assertEquals(tempFile, file.file);
+                String temp = FileUtils.toRelativeClassPath(file.file);
+                assertEquals(temp, file.relativePath);
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found);
     }
     
 }

@@ -21,61 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package com.intuit.karate;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
 
 /**
  *
  * @author pthomas3
  */
-public class BackgroundResult implements ResultElement {
+public class FileResource {
     
-    private int line;
-    private String type = "background";
-    private String keyword = "Background";
-    private List<StepResult> steps = new ArrayList(); 
-    
-    public BackgroundResult(Background background) {
-        this.line = background.getLine();        
-    }
-    
-    @Override
-    public void addStepResult(StepResult stepResult) {
-        steps.add(stepResult);
-    }    
+    public final File file;
+    public final String relativePath;    
 
-    public int getLine() {
-        return line;
-    }
-
-    public void setLine(int line) {
-        this.line = line;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public String getKeyword() {
-        return keyword;
-    }
-
-    public void setKeyword(String keyword) {
-        this.keyword = keyword;
-    }
-
-    public List<StepResult> getSteps() {
-        return steps;
-    }
-
-    public void setSteps(List<StepResult> steps) {
-        this.steps = steps;
+    public FileResource(File file, String relativePath) {
+        this.file = file;
+        this.relativePath = relativePath;
     }
     
 }

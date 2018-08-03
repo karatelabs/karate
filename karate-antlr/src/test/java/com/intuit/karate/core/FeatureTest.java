@@ -84,8 +84,9 @@ public class FeatureTest {
                     count++;
                     logger.debug("parsing: {} {}", count, file.getPath());
                     try {
-                        new Feature(file.getPath()); 
+                        new Feature(file); 
                     } catch (Exception e) {
+                        logger.error("bad file: {}", file);
                         throw new RuntimeException(e);
                     }
                 }
