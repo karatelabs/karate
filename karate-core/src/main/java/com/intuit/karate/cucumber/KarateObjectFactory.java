@@ -75,7 +75,7 @@ public class KarateObjectFactory implements ObjectFactory {
     @Override
     public <T> T getInstance(Class<T> glueClass) {
         if (stepDefs == null) {
-            // the lazy init gives users the chance to over-ride the env
+            // the lazy forEnv gives users the chance to over-ride the env
             // for example using a JUnit @BeforeClass hook
             stepDefs = new StepDefs(scriptEnv, callContext);
         }

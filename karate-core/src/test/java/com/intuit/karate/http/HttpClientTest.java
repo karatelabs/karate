@@ -40,8 +40,7 @@ import static org.junit.Assert.*;
 public class HttpClientTest {
     
     private ScriptContext getContext() {
-        String featureDir = FileUtils.getDirContaining(getClass()).getPath();
-        ScriptEnv env = ScriptEnv.init("dev", new File(featureDir));
+        ScriptEnv env = ScriptEnv.forEnv("dev");
         CallContext callContext = new CallContext(null, true);
         return new ScriptContext(env, callContext);
     }    

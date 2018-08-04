@@ -48,7 +48,7 @@ public class ScriptBindings implements Bindings {
 
     // all threads will share this ! thread isolation is via Bindings (this class)
     private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
-
+    
     protected final ScriptBridge bridge;
 
     private final ScriptValueMap vars;
@@ -63,6 +63,8 @@ public class ScriptBindings implements Bindings {
     public static final String KARATE_CONFIG_JS = KARATE_DASH_CONFIG + DOT_JS;
     private static final String KARATE_BASE_JS = KARATE_DASH_BASE + DOT_JS;
     public static final String READ = "read";
+    
+    // netty / test-doubles
     public static final String PATH_MATCHES = "pathMatches";
     public static final String METHOD_IS = "methodIs";
     public static final String TYPE_CONTAINS = "typeContains";
@@ -134,7 +136,7 @@ public class ScriptBindings implements Bindings {
         return eval(exp, this);
     }
 
-    private static ScriptValue eval(String exp, Bindings bindings) {
+    public static ScriptValue eval(String exp, Bindings bindings) {
         try {
             Object o = bindings == null ? NASHORN.eval(exp) : NASHORN.eval(exp, bindings);
             return new ScriptValue(o);
@@ -144,7 +146,11 @@ public class ScriptBindings implements Bindings {
             throw new RuntimeException("javascript evaluation failed: " + exp + ", " + e.getMessage(), e);
         }
     }
-
+    
+    public static Bindings createBindings() {
+        return NASHORN.createBindings();
+    }
+    
     @Override
     public Object get(Object key) {
         ScriptValue sv = vars.get(key);

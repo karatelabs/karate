@@ -58,15 +58,13 @@ public class StepDefs {
             String cwd = new File("").getAbsoluteFile().getPath();
             String javaCommand = System.getProperty("sun.java.command");
             String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             if (featurePath == null) {
-                File file = new File("");
-                LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", file.getAbsolutePath());
-                ideScriptEnv = ScriptEnv.init(file, null, classLoader);
+                LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", cwd);
+                ideScriptEnv = ScriptEnv.forEnv(null);
             } else {
                 File file = new File(featurePath);
                 LOGGER.info("IDE runner - init karate env: {}", file);
-                ideScriptEnv = ScriptEnv.init(file.getParentFile(), file.getName(), classLoader);
+                ideScriptEnv = ScriptEnv.forEnvAndFeatureFile(null, file);
             }
         } else {
             LOGGER.info("IDE runner - reusing karate env: {}", ideScriptEnv);

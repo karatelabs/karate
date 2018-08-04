@@ -71,7 +71,7 @@ public class FeatureWrapper {
 
     public static FeatureWrapper fromFile(File file, String callTag, ClassLoader classLoader, KarateReporter reporter) {
         String text = FileUtils.toString(file);
-        ScriptEnv env = new ScriptEnv(null, file.getParentFile(), file.getName(), classLoader, reporter);
+        ScriptEnv env = new ScriptEnv(null, null, file.getParentFile(), file.getName(), classLoader, reporter);
         return new FeatureWrapper(text, env, file.getPath(), callTag);
     }
 

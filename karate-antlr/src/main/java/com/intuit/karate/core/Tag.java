@@ -23,6 +23,9 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.StringUtils;
+import java.util.List;
+
 /**
  *
  * @author pthomas3
@@ -31,14 +34,14 @@ public class Tag {
     
     private String text;
     private String name;
-    private String value;
+    private List<String> values;
     
     public Tag(String text) {
         this.text = text;
         int pos = text.indexOf('=');
         if (pos != -1) {
             name = text.substring(1, pos);
-            value = text.substring(pos + 1);
+            values = StringUtils.split(text.substring(pos + 1), ',');
         } else {
             name = text;
         }
@@ -60,12 +63,12 @@ public class Tag {
         this.name = name;
     }
 
-    public String getValue() {
-        return value;
+    public List<String> getValues() {
+        return values;
     }
 
-    public void setValue(String value) {
-        this.value = value;
+    public void setValues(List<String> values) {
+        this.values = values;
     }
     
     @Override

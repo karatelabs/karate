@@ -48,7 +48,7 @@ public class FeatureTest {
     
     private StepDefs getStepDefs(Feature feature) {
         File file = feature.getFile();
-        ScriptEnv env = ScriptEnv.init(file.getParentFile(), file.getName(), Thread.currentThread().getContextClassLoader()); 
+        ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, file); 
         return new StepDefs(env, new CallContext(null, true));
     }
     

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +45,7 @@ public class FeatureResult {
         line = feature.getLine();
         uri = feature.getRelativePath();
         name = uri;
-        id = Engine.toIdString(feature.getName());
+        id = StringUtils.toIdString(feature.getName());
         String temp = feature.getName() == null ? "" : feature.getName();
         if (feature.getDescription() != null) {
             temp = temp + "\n" + feature.getDescription();

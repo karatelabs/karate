@@ -104,7 +104,7 @@ public class AppSession {
     public AppSession(File featureFile, String envString, boolean test) {
         this.featureFile = featureFile;
         FeatureFilePath ffp = FileUtils.parseFeaturePath(featureFile);
-        ScriptEnv env = ScriptEnv.init(envString, ffp.file, ffp.searchPaths);
+        ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(envString, ffp.file, ffp.searchPaths);
         feature = FeatureWrapper.fromFile(ffp.file, env);
         CallContext callContext = new CallContext(null, true);
         backend = CucumberUtils.getBackendWithGlue(feature, callContext);

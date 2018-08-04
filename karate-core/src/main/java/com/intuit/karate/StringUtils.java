@@ -138,4 +138,23 @@ public class StringUtils {
         return trimToNull(s) == null;
     }
     
+    public static String toIdString(String name) {
+        return name.replaceAll("[\\s_]", "-").toLowerCase();
+    }
+
+    public static StringUtils.Pair splitByFirstLineFeed(String text) {
+        String left = "";
+        String right = "";
+        if (text != null) {
+            int pos = text.indexOf('\n');
+            if (pos != -1) {
+                left = text.substring(0, pos).trim();
+                right = text.substring(pos).trim();                
+            } else {
+                left = text.trim();
+            }
+        }
+        return StringUtils.pair(left, right);
+    }    
+    
 }

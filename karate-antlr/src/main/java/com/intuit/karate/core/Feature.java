@@ -178,7 +178,7 @@ public class Feature extends KarateParserBaseListener {
         }
         line = ctx.FEATURE().getSymbol().getLine();
         if (ctx.featureDescription() != null) {
-            StringUtils.Pair pair = Engine.splitByFirstLineFeed(ctx.featureDescription().getText());
+            StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.featureDescription().getText());
             name = pair.left;
             description = pair.right;
         }        
@@ -206,7 +206,7 @@ public class Feature extends KarateParserBaseListener {
             scenario.setTags(toTags(ctx.tags().getText()));
         }
         if (ctx.scenarioDescription() != null) {
-            StringUtils.Pair pair = Engine.splitByFirstLineFeed(ctx.scenarioDescription().getText());
+            StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
             scenario.setName(pair.left);
             scenario.setDescription(pair.right);
         }
@@ -229,7 +229,7 @@ public class Feature extends KarateParserBaseListener {
         }
         if (ctx.scenarioDescription() != null) {
             outline.setDescription(ctx.scenarioDescription().getText());
-            StringUtils.Pair pair = Engine.splitByFirstLineFeed(ctx.scenarioDescription().getText());
+            StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
             outline.setName(pair.left);
             outline.setDescription(pair.right);            
         }

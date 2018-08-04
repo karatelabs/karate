@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class ScenarioResult implements ResultElement {
     public ScenarioResult(Scenario scenario) {
         line = scenario.getLine();
         name = scenario.getName();
-        id = Engine.toIdString(name);
+        id = StringUtils.toIdString(name);
         description = scenario.getDescription();
         if (scenario.isOutline()) {
             keyword = "Scenario Outline";
