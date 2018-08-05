@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ParserErrorListener implements ANTLRErrorListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(Feature.class);
+    private static final Logger logger = LoggerFactory.getLogger(FeatureParser.class);
 
     private String message;
     private int line = -1;

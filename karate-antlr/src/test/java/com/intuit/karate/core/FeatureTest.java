@@ -48,7 +48,7 @@ public class FeatureTest {
     
     private StepDefs getStepDefs(Feature feature) {
         File file = feature.getFile();
-        ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, file); 
+        ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(null, "not('@ignore')", file); 
         return new StepDefs(env, new CallContext(null, true));
     }
     
@@ -59,7 +59,7 @@ public class FeatureTest {
     
     @Test
     public void testSimple() throws Exception {    
-        Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
+        Feature feature = FeatureParser.parse("com/intuit/karate/core/test-simple.feature");
         FeatureResult result = Engine.execute(feature, getStepDefs(feature));
         List<FeatureResult> results = Collections.singletonList(result);
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(results));
@@ -68,7 +68,7 @@ public class FeatureTest {
     
     @Test
     public void testJson() {
-        Feature feature = new Feature("com/intuit/karate/core/test-simple.feature");
+        Feature feature = FeatureParser.parse("com/intuit/karate/core/test-simple.feature");
         assertEquals("the first line", feature.getName());
         assertEquals("and the second", feature.getDescription());
     }
@@ -84,7 +84,7 @@ public class FeatureTest {
                     count++;
                     logger.debug("parsing: {} {}", count, file.getPath());
                     try {
-                        new Feature(file); 
+                        FeatureParser.parse(file); 
                     } catch (Exception e) {
                         logger.error("bad file: {}", file);
                         throw new RuntimeException(e);

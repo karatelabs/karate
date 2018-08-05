@@ -23,235 +23,92 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.StringUtils;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.RuleContext;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.antlr.v4.runtime.tree.TerminalNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class Feature extends KarateParserBaseListener {
-
-    private static final Logger logger = LoggerFactory.getLogger(Feature.class);
-
-    private final ParserErrorListener errorListener = new ParserErrorListener();
-
-    private final File file;
-    private final String relativePath;
+public class Feature {
+    
+    private File file;
+    private String relativePath;
     
     private int line;
     private List<Tag> tags;
     private String name;
     private String description;
     private Background background;
-    private final List<FeatureSection> sections = new ArrayList();
+    private List<FeatureSection> sections = new ArrayList();
+    
+    public void addSection(FeatureSection section) {
+        sections.add(section);
+    }
 
     public File getFile() {
         return file;
     }
 
+    public void setFile(File file) {
+        this.file = file;
+    }
+
     public String getRelativePath() {
         return relativePath;
-    }   
+    }
+
+    public void setRelativePath(String relativePath) {
+        this.relativePath = relativePath;
+    }
 
     public int getLine() {
         return line;
-    }        
-    
+    }
+
+    public void setLine(int line) {
+        this.line = line;
+    }
+
     public List<Tag> getTags() {
         return tags;
-    }        
+    }
+
+    public void setTags(List<Tag> tags) {
+        this.tags = tags;
+    }
 
     public String getName() {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getDescription() {
         return description;
-    }        
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
     public Background getBackground() {
         return background;
-    }        
-    
+    }
+
+    public void setBackground(Background background) {
+        this.background = background;
+    }
+
     public List<FeatureSection> getSections() {
         return sections;
     }
-    
-    public Feature(File file) {
-        this(file, FileUtils.toRelativeClassPath(file));
-    }
-    
-    public Feature(String relativePath) {
-        this(FileUtils.fromRelativeClassPath(relativePath), relativePath);
+
+    public void setSections(List<FeatureSection> sections) {
+        this.sections = sections;
     }
     
-    public Feature(File file, String relativePath) { 
-        this.file = file;
-        this.relativePath = relativePath;        
-        CharStream stream;
-        try {
-            FileInputStream fis = new FileInputStream(file);
-            stream = CharStreams.fromStream(fis, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        KarateLexer lexer = new KarateLexer(stream);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        KarateParser parser = new KarateParser(tokens);
-        parser.addErrorListener(errorListener);
-        RuleContext tree = parser.feature();
-        if (logger.isTraceEnabled()) {
-            logger.debug(tree.toStringTree(parser));
-        }
-        ParseTreeWalker walker = new ParseTreeWalker();
-        walker.walk(this, tree);
-        if (errorListener.isFail()) {
-            throw new RuntimeException(errorListener.getMessage());
-        }
-    }
-
-    private static List<Tag> toTags(String text) {
-        String[] tokens = text.split("\\s+"); // handles spaces and tabs also
-        List<Tag> tags = new ArrayList(tokens.length);
-        for (String t : tokens) {
-            tags.add(new Tag(t));
-        }
-        return tags;
-    }
-
-    private static Table toTable(KarateParser.TableContext ctx) {
-        List<TerminalNode> nodes = ctx.TABLE_ROW();
-        int rowCount = nodes.size();
-        List<List<String>> rows = new ArrayList(rowCount);
-        List<Integer> lineNumbers = new ArrayList(rowCount);
-        for (TerminalNode node : nodes) {
-            List<String> tokens = StringUtils.split(node.getText(), '|'); // TODO escaped pipe characters "\|" ?            
-            tokens.remove(0);
-            int count = tokens.size();
-            for (int i = 0; i < count; i++) {
-                tokens.set(i, tokens.get(i).trim());
-            }
-            rows.add(tokens);
-            lineNumbers.add(node.getSymbol().getLine());
-        }
-        return new Table(rows, lineNumbers);
-    }
-
-    private static List<Step> toSteps(List<KarateParser.StepContext> list) {
-        List<Step> steps = new ArrayList(list.size());
-        for (KarateParser.StepContext sc : list) {
-            Step step = new Step();
-            steps.add(step);
-            step.setLine(sc.prefix().getStart().getLine());
-            step.setPrefix(sc.prefix().getText().trim());
-            step.setText(sc.line().getText());
-            if (sc.docString() != null) {
-                String temp = sc.docString().getText().trim();
-                step.setDocString(temp.substring(3, temp.length() - 3));
-            } else if (sc.table() != null) {
-                Table table = toTable(sc.table());
-                step.setTable(table);
-            }
-        }
-        return steps;
-    }
-
-    @Override
-    public void enterFeatureHeader(KarateParser.FeatureHeaderContext ctx) {
-        if (ctx.FEATURE_TAGS() != null) {
-            tags = toTags(ctx.FEATURE_TAGS().getText());
-        }
-        line = ctx.FEATURE().getSymbol().getLine();
-        if (ctx.featureDescription() != null) {
-            StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.featureDescription().getText());
-            name = pair.left;
-            description = pair.right;
-        }        
-    }    
-
-    @Override
-    public void enterBackground(KarateParser.BackgroundContext ctx) {
-        background = new Background();
-        background.setLine(ctx.BACKGROUND().getSymbol().getLine());
-        List<Step> steps = toSteps(ctx.step());
-        background.setSteps(steps);
-        if (logger.isTraceEnabled()) {
-            logger.trace("background steps: {}", steps);
-        }
-    }
-
-    @Override
-    public void enterScenario(KarateParser.ScenarioContext ctx) {
-        FeatureSection section = new FeatureSection();
-        Scenario scenario = new Scenario();        
-        section.setScenario(scenario);
-        sections.add(section);
-        scenario.setLine(ctx.SCENARIO().getSymbol().getLine());
-        if (ctx.tags() != null) {
-            scenario.setTags(toTags(ctx.tags().getText()));
-        }
-        if (ctx.scenarioDescription() != null) {
-            StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
-            scenario.setName(pair.left);
-            scenario.setDescription(pair.right);
-        }
-        List<Step> steps = toSteps(ctx.step());
-        scenario.setSteps(steps);
-        if (logger.isTraceEnabled()) {
-            logger.trace("scenario steps: {}", steps);
-        }
-    }
-
-    @Override
-    public void enterScenarioOutline(KarateParser.ScenarioOutlineContext ctx) {
-        FeatureSection section = new FeatureSection();
-        ScenarioOutline outline = new ScenarioOutline();        
-        section.setScenarioOutline(outline);
-        sections.add(section);
-        outline.setLine(ctx.SCENARIO_OUTLINE().getSymbol().getLine());
-        if (ctx.tags() != null) {
-            outline.setTags(toTags(ctx.tags().getText()));
-        }
-        if (ctx.scenarioDescription() != null) {
-            outline.setDescription(ctx.scenarioDescription().getText());
-            StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
-            outline.setName(pair.left);
-            outline.setDescription(pair.right);            
-        }
-        List<Step> steps = toSteps(ctx.step());
-        outline.setSteps(steps);
-        if (logger.isTraceEnabled()) {
-            logger.trace("outline steps: {}", steps);
-        }
-        List<ExampleTable> examples = new ArrayList(ctx.examples().size());
-        outline.setExampleTables(examples);
-        for (KarateParser.ExamplesContext ec : ctx.examples()) {
-            ExampleTable example = new ExampleTable();
-            examples.add(example);
-            if (ec.tags() != null) {
-                example.setTags(toTags(ec.tags().getText()));
-            }
-            Table table = toTable(ec.table());
-            example.setTable(table);
-            if (logger.isTraceEnabled()) {
-                logger.trace("example rows: {}", table.getRows());
-            }
-        }
-    }
-
 }

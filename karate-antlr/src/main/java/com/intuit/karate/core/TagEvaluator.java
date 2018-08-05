@@ -40,7 +40,7 @@ public class TagEvaluator {
     private final List<String> tags;
     private final Bindings bindings;
     
-    public static boolean process(String tagSelector, List<Tag> tags) {
+    public static boolean evaluate(String tagSelector, List<Tag> tags) {
         if (tagSelector == null) {
             return true;
         }

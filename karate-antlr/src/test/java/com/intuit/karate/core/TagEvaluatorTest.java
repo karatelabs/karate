@@ -39,7 +39,7 @@ public class TagEvaluatorTest {
         for (String s : strs) {
             tags.add(new Tag(s));
         }
-        return TagEvaluator.process(tagSelector, tags);
+        return TagEvaluator.evaluate(tagSelector, tags);
     }
     
     @Test
