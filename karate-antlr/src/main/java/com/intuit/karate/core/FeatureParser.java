@@ -99,9 +99,9 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     private static List<Tag> toTags(String text) {
-        String[] tokens = text.split("\\s+"); // handles spaces and tabs also
+        String[] tokens = text.trim().split("\\s+"); // handles spaces and tabs also
         List<Tag> tags = new ArrayList(tokens.length);
-        for (String t : tokens) {
+        for (String t : tokens) {            
             tags.add(new Tag(t));
         }
         return tags;
@@ -172,7 +172,7 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterScenario(KarateParser.ScenarioContext ctx) {
         FeatureSection section = new FeatureSection();
-        Scenario scenario = new Scenario();        
+        Scenario scenario = new Scenario(feature);        
         section.setScenario(scenario);
         feature.addSection(section);
         scenario.setLine(ctx.SCENARIO().getSymbol().getLine());
@@ -194,7 +194,7 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterScenarioOutline(KarateParser.ScenarioOutlineContext ctx) {
         FeatureSection section = new FeatureSection();
-        ScenarioOutline outline = new ScenarioOutline();        
+        ScenarioOutline outline = new ScenarioOutline(feature);        
         section.setScenarioOutline(outline);
         feature.addSection(section);
         outline.setLine(ctx.SCENARIO_OUTLINE().getSymbol().getLine());
@@ -215,7 +215,7 @@ public class FeatureParser extends KarateParserBaseListener {
         List<ExampleTable> examples = new ArrayList(ctx.examples().size());
         outline.setExampleTables(examples);
         for (KarateParser.ExamplesContext ec : ctx.examples()) {
-            ExampleTable example = new ExampleTable();
+            ExampleTable example = new ExampleTable(outline);
             examples.add(example);
             if (ec.tags() != null) {
                 example.setTags(toTags(ec.tags().getText()));

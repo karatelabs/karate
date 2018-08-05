@@ -32,12 +32,17 @@ import java.util.List;
  */
 public class ScenarioOutline {
 
+    private final Feature feature;
     private int line;
     private List<Tag> tags;
     private String name;
     private String description;
     private List<Step> steps;
     private List<ExampleTable> exampleTables;
+    
+    public ScenarioOutline(Feature feature) {
+        this.feature = feature;
+    }
 
     public List<Scenario> getScenarios() {
         List<Scenario> list = new ArrayList();
@@ -45,11 +50,20 @@ public class ScenarioOutline {
             Table t = et.getTable();
             int rowCount = t.getRows().size();
             for (int i = 1; i < rowCount; i++) { // don't include header row
-                Scenario s = new Scenario();
+                Scenario s = new Scenario(feature);
                 list.add(s);
                 s.setOutline(true);
                 s.setLine(t.getLineNumberForRow(i));
-                s.setTags(tags);
+                if (tags != null || et.getTags() != null) {
+                    List<Tag> temp = new ArrayList();
+                    if (tags != null) {
+                        temp.addAll(tags);
+                    }
+                    if (et.getTags() != null) {
+                        temp.addAll(et.getTags());
+                    }
+                    s.setTags(temp);
+                }                                
                 s.setName(name);
                 s.setDescription(description);
                 List<Step> replaced = new ArrayList(steps.size());

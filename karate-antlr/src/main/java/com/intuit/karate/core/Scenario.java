@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.core;
 
+import java.util.Collection;
 import java.util.List;
+
 
 /**
  *
@@ -31,12 +33,21 @@ import java.util.List;
  */
 public class Scenario {
     
-    private int line;
+    private final Feature feature;
     private List<Tag> tags;
+    private int line;    
     private String name;
     private String description;
     private List<Step> steps;
     private boolean outline;
+    
+    public Scenario(Feature feature) {
+        this.feature = feature;
+    }    
+    
+    public Collection<Tag> getTagsEffective() {
+        return Tags.merge(feature.getTags(), tags);
+    }
 
     public int getLine() {
         return line;

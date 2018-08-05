@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
@@ -32,6 +33,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +79,14 @@ public class Engine {
     }
 
     private static void execute(Feature feature, Scenario scenario, StepDefs stepDefs, FeatureResult featureResult) {
+        ScriptEnv env = stepDefs.getContext().getEnv();
+        Collection<Tag> tagsEffective = scenario.getTagsEffective();
+        if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
+            }
+            return;
+        }
         boolean stopped = false;
         Background background = feature.getBackground();
         if (background != null) {

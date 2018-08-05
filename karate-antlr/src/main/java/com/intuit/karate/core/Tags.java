@@ -26,8 +26,11 @@ package com.intuit.karate.core;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptValue;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.script.Bindings;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
@@ -35,16 +38,26 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  *
  * @author pthomas3
  */
-public class TagEvaluator {
+public class Tags {
     
     private final List<String> tags;
     private final Bindings bindings;
     
-    public static boolean evaluate(String tagSelector, List<Tag> tags) {
+    public static Collection<Tag> merge(List<Tag> ... lists) {
+        Set<Tag> tags = new HashSet();
+        for (List<Tag> list : lists) {
+            if (list != null) {
+                tags.addAll(list);
+            }
+        }
+        return tags;
+    }    
+    
+    public static boolean evaluate(String tagSelector, Collection<Tag> tags) {
         if (tagSelector == null) {
             return true;
         }
-        TagEvaluator bridge = new TagEvaluator(tags);
+        Tags bridge = new Tags(tags);
         return bridge.evaluate(tagSelector);
     }
     
@@ -53,13 +66,13 @@ public class TagEvaluator {
         return sv.isBooleanTrue();
     }
     
-    private TagEvaluator(List<Tag> in) {
+    private Tags(Collection<Tag> in) {
         if (in == null) {
             tags = Collections.EMPTY_LIST;
         } else {
             tags = new ArrayList(in.size());
             for (Tag t : in) {
-                tags.add(t.getText());
+                tags.add('@' + t.getText());
             }
         }
         bindings = ScriptBindings.createBindings();

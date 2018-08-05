@@ -31,8 +31,13 @@ import java.util.List;
  */
 public class ExampleTable {
     
+    private final ScenarioOutline outline;
     private List<Tag> tags;   
     private Table table;
+    
+    public ExampleTable(ScenarioOutline outline) {
+        this.outline = outline;
+    }
 
     public List<Tag> getTags() {
         return tags;
