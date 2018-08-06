@@ -167,7 +167,7 @@ public class ScriptContext {
                     Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
                 } catch (Exception e) {
                     if (e instanceof KarateFileNotFoundException) {
-                        logger.debug("skipping bootstrap configuration for env: {} - {}", env.env, e.getMessage());
+                        logger.trace("skipping bootstrap configuration for env: {} - {}", env.env, e.getMessage());
                     } else {
                         throw new RuntimeException("evaluation of 'karate-config-" + env.env + ".js' failed", e);
                     }

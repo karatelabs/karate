@@ -68,7 +68,7 @@ public class FileUtilsTest {
     @Test
     public void testScanFiles() {
         String relativePath = "com/intuit/karate/ui/test.feature";
-        List<FileResource> files = FileUtils.scanForFeatureFiles();
+        List<FileResource> files = FileUtils.scanForFeatureFilesOnClassPath();
         boolean found = false;
         for (FileResource file : files) {
             if (file.relativePath.equals(relativePath)) {

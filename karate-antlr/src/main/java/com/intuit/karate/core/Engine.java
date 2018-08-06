@@ -55,13 +55,13 @@ public class Engine {
                 MethodPattern pattern = new MethodPattern(method, when);
                 PATTERNS.add(pattern);
             }
-        }     
+        }
     }
 
     private Engine() {
         // only static methods
     }
-    
+
     public static FeatureResult execute(Feature feature, StepDefs stepDefs) {
         FeatureResult result = new FeatureResult(feature);
         for (FeatureSection section : feature.getSections()) {
@@ -92,11 +92,11 @@ public class Engine {
         if (background != null) {
             BackgroundResult backgroundResult = new BackgroundResult(background);
             featureResult.addResult(backgroundResult);
-            stopped = execute(background.getSteps(), stepDefs, backgroundResult, stopped);            
+            stopped = execute(background.getSteps(), stepDefs, backgroundResult, stopped);
         }
         ScenarioResult scenarioResult = new ScenarioResult(scenario);
         featureResult.addResult(scenarioResult);
-        execute(scenario.getSteps(), stepDefs, scenarioResult, stopped);        
+        execute(scenario.getSteps(), stepDefs, scenarioResult, stopped);
     }
 
     private static boolean execute(List<Step> steps, StepDefs stepDefs, ResultElement collector, boolean stopped) {
@@ -157,7 +157,7 @@ public class Engine {
 
     private static long getElapsedTime(long startTime) {
         return System.nanoTime() - startTime;
-    }    
+    }
 
     public static List<MethodMatch> findMethodsMatching(String text) {
         List<MethodMatch> matches = new ArrayList(1);
@@ -169,7 +169,5 @@ public class Engine {
         }
         return matches;
     }
-
-
 
 }

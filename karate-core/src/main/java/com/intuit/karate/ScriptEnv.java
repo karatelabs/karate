@@ -94,7 +94,7 @@ public class ScriptEnv {
                 karateEnv = StringUtils.trimToNull(System.getProperty(ScriptBindings.KARATE_ENV));
             }
         }
-        return new ScriptEnv(karateEnv, null, featureDir, featureName, fileClassLoader, callCache, logger, reporter);
+        return new ScriptEnv(karateEnv, tagSelector, featureDir, featureName, fileClassLoader, callCache, logger, reporter);
     }
     
     @Override

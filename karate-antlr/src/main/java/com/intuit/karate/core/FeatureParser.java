@@ -56,8 +56,16 @@ public class FeatureParser extends KarateParserBaseListener {
         return new FeatureParser(file).feature;
     }
     
-    public static Feature parse(String relativePath) {
-        return new FeatureParser(relativePath).feature;
+    public static Feature parse(String path) {
+        if (FileUtils.isClassPath(path)) {
+            path = FileUtils.removePrefix(path);
+            return new FeatureParser(path).feature;
+        } else {
+            if (FileUtils.isFilePath(path)) {
+                path = FileUtils.removePrefix(path);
+            }
+            return new FeatureParser(new File(path)).feature;
+        }        
     }  
     
     public static Feature parse(File file, String relativePath) {
@@ -113,7 +121,7 @@ public class FeatureParser extends KarateParserBaseListener {
         List<List<String>> rows = new ArrayList(rowCount);
         List<Integer> lineNumbers = new ArrayList(rowCount);
         for (TerminalNode node : nodes) {
-            List<String> tokens = StringUtils.split(node.getText(), '|'); // TODO escaped pipe characters "\|" ?            
+            List<String> tokens = StringUtils.split(node.getText().trim(), '|'); // TODO escaped pipe characters "\|" ?            
             tokens.remove(0);
             int count = tokens.size();
             for (int i = 0; i < count; i++) {

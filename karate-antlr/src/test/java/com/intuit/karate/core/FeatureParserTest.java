@@ -40,58 +40,45 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FeatureTest {
-    
-    private static final Logger logger = LoggerFactory.getLogger(FeatureTest.class);
-    
-    private static int count;
-    
-    private StepDefs getStepDefs(Feature feature) {
+public class FeatureParserTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(FeatureParserTest.class);
+
+    private static StepDefs stepDefs(Feature feature) {
         File file = feature.getFile();
-        ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(null, "not('@ignore')", file); 
+        ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile("mock", "not('@ignore')", file);
         return new StepDefs(env, new CallContext(null, true));
     }
     
-    @Test
-    public void testParsingAllFeaturesInKarate() {
-        recurse(new File(".."));
+    private static Feature feature(String name) {
+        return FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
     }
     
+    private static FeatureResult execute(String name) {
+        Feature feature = feature(name);
+        return Engine.execute(feature, stepDefs(feature));
+    }
+
     @Test
-    public void testSimple() throws Exception {    
-        Feature feature = FeatureParser.parse("com/intuit/karate/core/test-simple.feature");
-        FeatureResult result = Engine.execute(feature, getStepDefs(feature));
+    public void testEngineForSimpleFeature() {
+        FeatureResult result = execute("test-simple.feature");
+        assertEquals(1, result.getElements().size());
         List<FeatureResult> results = Collections.singletonList(result);
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(results));
         FileUtils.writeToFile(new File("target/test-simple.json"), json);
     }
-    
+
     @Test
-    public void testJson() {
-        Feature feature = FeatureParser.parse("com/intuit/karate/core/test-simple.feature");
+    public void testParsingFeatureDescription() {
+        Feature feature = feature("test-simple.feature");
         assertEquals("the first line", feature.getName());
         assertEquals("and the second", feature.getDescription());
     }
     
-    private static void recurse(File dir) {        
-        File[] files = dir.listFiles();
-        for (File file : files) {
-            if (file.isDirectory()) {
-                recurse(file);
-            } else {
-                String name = file.getName().toLowerCase();
-                if (name.endsWith(".feature")) {
-                    count++;
-                    logger.debug("parsing: {} {}", count, file.getPath());
-                    try {
-                        FeatureParser.parse(file); 
-                    } catch (Exception e) {
-                        logger.error("bad file: {}", file);
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-        }
-    }   
-    
+    @Test
+    public void testFeatureWithIgnore() {
+        FeatureResult result = execute("test-ignore-feature.feature");
+        assertEquals(0, result.getElements().size());
+    }    
+
 }
