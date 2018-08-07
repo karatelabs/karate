@@ -23,17 +23,21 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,6 +157,13 @@ public class Engine {
             collector.addStepResult(new StepResult(step, result));
         }
         return stopped;
+    }
+    
+    public static void saveResultJson(String targetDir, FeatureResult result) {
+        String baseName = FileUtils.toPackageQualifiedName(result.getUri());
+        List<FeatureResult> single = Collections.singletonList(result);
+        String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(single));
+        FileUtils.writeToFile(new File(targetDir + "/" + baseName + ".json"), json);
     }
 
     private static long getElapsedTime(long startTime) {

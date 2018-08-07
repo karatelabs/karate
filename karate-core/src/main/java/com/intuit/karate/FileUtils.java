@@ -461,7 +461,8 @@ public class FileUtils {
         return scanForFeatureFiles(CLASSPATH_COLON_SLASH);
     }
 
-    public static List<FileResource> scanForFeatureFiles(String pathString) {
+    public static List<FileResource> scanForFeatureFiles(String pathString) {        
+        Path classPathRoot = getClassPathRoot();
         Path rootPath = getRootPathFor(pathString);
         List<FileResource> files = new ArrayList();
         Stream<Path> stream;
@@ -474,7 +475,7 @@ public class FileUtils {
             Path path = paths.next();
             if (path.getFileName().toString().endsWith(".feature")) {
                 File file = path.toFile();
-                Path relativePath = rootPath.relativize(path);
+                Path relativePath = classPathRoot.relativize(path);
                 files.add(new FileResource(file, relativePath.toString()));
             }
         }

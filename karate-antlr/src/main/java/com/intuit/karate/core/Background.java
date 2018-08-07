@@ -23,26 +23,24 @@
  */
 package com.intuit.karate.core;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
 public class Background {
-    
+
     private int line;
     private List<Step> steps;
 
     public int getLine() {
         return line;
-    }    
-    
+    }
+
     public void setLine(int line) {
         this.line = line;
-    }       
+    }
 
     public List<Step> getSteps() {
         return steps;
@@ -50,20 +48,11 @@ public class Background {
 
     public void setSteps(List<Step> steps) {
         this.steps = steps;
-    }    
-    
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap();
-        map.put("line", line);
-        map.put("type", "background");
-        map.put("keyword", "Background");
-        map.put("steps", Step.toList(steps));
-        return map;
     }
-    
+
     @Override
     public String toString() {
         return steps == null ? null : steps.toString();
-    }    
-    
+    }
+
 }
