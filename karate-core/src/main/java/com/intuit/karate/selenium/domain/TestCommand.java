@@ -67,6 +67,9 @@ public class TestCommand {
         } else if ("clickat".equals(command) || "click".equals(command) || "clickandwait".equals(command)) {
             getFetchElementId(sb, target);
             appendclickElementRequest(sb).append("And request {}\n");
+        } else if ("echo".equals(command)) {
+            // TODO handle variable substitution and colors?#!@%^X
+            sb.append("* print '").append(target).append("' + '").append(value).append("'\n");
         } else {
             //till we incrementally add support for all commands
             //TODO needs fix
