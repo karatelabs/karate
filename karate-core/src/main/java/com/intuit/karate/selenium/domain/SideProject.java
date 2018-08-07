@@ -43,7 +43,6 @@ public class SideProject extends TestBase {
     List<String> urls; //??? TODO: figure out url -vs- urls
     // List<String> plugins;
     List<TestSuite> suites;
-    //without any associated test-suite
 
     public SideProject(DocumentContext doc) {
         super(doc.read("id"), doc.read("name"));
@@ -93,26 +92,30 @@ public class SideProject extends TestBase {
         return suites;
     }
 
-    public String convert(File dir, String configFilePath) {
+    public String convert(File dir, String configJson) {
         StringBuilder sb = new StringBuilder("Feature: Selenium IDE Project - ")
                 .append(name).append("\n\tid = ").append(id).append("\n\tconfig = ")
-                .append(configFilePath).append("\n\n")
+                .append(configJson).append("\n\n")
                 .append("Scenario: Wrapper for Project\n")
-                .append("* def SideConfig = Java.type('com.intuit.karate.selenium.domian.SideConfig')\n")
+                //.append("* def SideConfig = Java.type('com.intuit.karate.selenium.domain.SideConfig')\n")
                 .append("* json ").append(DRIVER_CONFIG_VAR)
-                .append(" = SideConfig.getCleanJson('")
-                .append(configFilePath).append("')\n")
+                //.append(" = SideConfig.getCleanJson('")
+                //.append(configFilePath).append("')\n")
+                .append(" = ").append(configJson).append('\n')
                 .append("* string ").append(DRIVER_URL_VAR).append(" = ")
                 .append(DRIVER_CONFIG_VAR).append(".driverUrl + '/session'\n")
                 .append("Given url ").append(DRIVER_URL_VAR).append("\n")
-                .append("And request { desiredCapabilities: { caps: {browserName: '#")
-                .append(DRIVER_CONFIG_VAR).append(".browser'} } }\n")
+                .append("And request { desiredCapabilities: { caps: {browserName: '#(")
+                .append(DRIVER_CONFIG_VAR).append(".browser)'} } }\n")
                 .append("When method POST \n").append("Then status 200\n")
                 .append("And assert response.status == 0\n").append("* print response\n");
 
         sb.append("* string ").append(DRIVER_SESSION_ID_VAR).append(" = response.sessionId\n")
                 .append("* string ").append(DRIVER_SESSION_URL_VAR).append(" = ")
-                .append(DRIVER_URL_VAR).append(" '/' + ").append(DRIVER_SESSION_ID_VAR).append("\n");
+                .append(DRIVER_URL_VAR).append(" + '/' + ").append(DRIVER_SESSION_ID_VAR).append("\n")
+                .append("* json driverParams = {")
+                .append(DRIVER_SESSION_ID_VAR).append(":'#(").append(DRIVER_SESSION_ID_VAR).append(")',")
+                .append(DRIVER_SESSION_URL_VAR).append(":'#(").append(DRIVER_SESSION_URL_VAR).append(")'}");
 
         String testUrl;
         int index = 0;
@@ -123,9 +126,11 @@ public class SideProject extends TestBase {
             testUrl = (index < urls.size()) ? urls.get(index++) : url;
             FileUtils.writeToFile(new File(dir, featureName), suite.convert(testUrl));
             sb.append("\n# calling testsuite ").append(suite.name);
-            sb.append("\ncall read('./").append(featureName).append("')\n");
+            sb.append("\n* json featureResponse = call read('./").append(featureName).append("') ");
+            sb.append("driverParams\n");
         }
 
         return sb.toString();
     }
+
 }

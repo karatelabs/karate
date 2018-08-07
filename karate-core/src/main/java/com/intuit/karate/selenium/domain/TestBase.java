@@ -30,17 +30,18 @@ import java.util.Map;
  */
 public abstract class TestBase {
 
-    static final String DRIVER_URL_VAR = "webdriver-url";
-    static final String DRIVER_CONFIG_VAR = "webdriver-config";
-    static final String DRIVER_SESSION_ID_VAR = "webdriver-session-id";
-    static final String DRIVER_SESSION_URL_VAR = "webdriver-session-url";
+    static final String DRIVER_URL_VAR = "webdriverUrl";
+    static final String DRIVER_CONFIG_VAR = "webdriverConfig";
+    static final String DRIVER_SESSION_ID_VAR = "webdriverSessionId";
+    static final String DRIVER_SESSION_URL_VAR = "webdriverSessionUrl";
+    static final String DRIVER_ELEMENT_ID_VAR = "webdriverElementId";
 
     protected final String id;
     protected final String name;
 
     public TestBase(String id, String name) {
         this.id = id;
-        this.name = name;
+        this.name = name.trim().replace(" ", "_");
     }
 
     public TestBase(Map<String, Object> json) {

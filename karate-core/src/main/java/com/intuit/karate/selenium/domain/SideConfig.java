@@ -46,6 +46,7 @@ public class SideConfig {
         File file = new File(configFilePath);
         String jsonString = FileUtils.toString(file);
         this.jsonDoc = JsonPath.parse(jsonString);
+        sanitize();
     }
 
     public Object get(String key) {

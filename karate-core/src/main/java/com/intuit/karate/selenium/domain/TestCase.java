@@ -44,12 +44,12 @@ public class TestCase extends TestBase {
         }
     }
 
-    public String convert() {
+    public String convert(String url) {
         StringBuffer sb = new StringBuffer("\nScenario: ")
                 .append(getIdentifierName());
 
         for (TestCommand command : commands) {
-            sb.append("\n# ").append(command.convert());
+            sb.append(command.convert(url));
         }
 
         return sb.toString();

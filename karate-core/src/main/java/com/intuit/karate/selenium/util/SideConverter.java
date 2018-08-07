@@ -49,8 +49,8 @@ public class SideConverter {
         return new SideProject(doc);
     }
 
-    public static String toKarateFeature(SideProject sideProject, String configFilePath, File dir) {
-        String featureText = sideProject.convert(dir, configFilePath);
+    public static String toKarateFeature(SideProject sideProject, String configJson, File dir) {
+        String featureText = sideProject.convert(dir, configJson);
         File file = new File(dir, sideProject.getIdentifierName() + ".feature");
         FileUtils.writeToFile(file, featureText);
         return featureText;

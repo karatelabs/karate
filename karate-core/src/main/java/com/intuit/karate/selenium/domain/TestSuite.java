@@ -73,12 +73,12 @@ public class TestSuite extends TestBase {
     }
 
     public String convert(String url) {
-        StringBuffer sb = new StringBuffer("Feature: ").append(getIdentifierName())
+        StringBuffer sb = new StringBuffer("@ignore\nFeature: ").append(getIdentifierName())
                 .append("\n\turl = ").append(url).append("\n\twith parameters\n\t\t")
                 .append(DRIVER_SESSION_ID_VAR).append(", ").append(DRIVER_SESSION_URL_VAR);
 
         for (TestCase test : tests) {
-            sb.append("\n").append(test.convert());
+            sb.append("\n").append(test.convert(url));
         }
         return sb.toString();
     }

@@ -50,18 +50,19 @@ public class SideConverterTest {
         Assert.assertTrue(suites.get(1).getTests().size() == 1);
 
         File dir = file.getParentFile();
-        String featureText = SideConverter.toKarateFeature(project, "src/test/java/com/intuit/karate/selenium/util/side-driver-config.json", dir);
+        String configJson = "{'browser':'chrome','driverUrl':'http://localhost:9515'}";
+        String featureText = SideConverter.toKarateFeature(project, configJson, dir);
         String contents = FileUtils.toString(new File(dir, project.getIdentifierName() + ".feature"));
         Assert.assertEquals(contents, featureText);
 
         contents = FileUtils.toString(new File(dir, suites.get(0).getIdentifierName() + ".feature"));
-        Assert.assertTrue(contents.startsWith("Feature: Suite-1-d30a2cb2-69ca-4f43-8e9a-17853c84ede0"));
+        Assert.assertTrue(contents.startsWith("@ignore\nFeature: Suite-1-d30a2cb2-69ca-4f43-8e9a-17853c84ede0"));
 
         contents = FileUtils.toString(new File(dir, suites.get(1).getIdentifierName() + ".feature"));
-        Assert.assertTrue(contents.startsWith("Feature: Suite-2-6420ca81-e4c4-400e-a67f-8d592368d206"));
+        Assert.assertTrue(contents.startsWith("@ignore\nFeature: Suite-2-6420ca81-e4c4-400e-a67f-8d592368d206"));
 
         contents = FileUtils.toString(new File(dir, suites.get(2).getIdentifierName() + ".feature"));
-        Assert.assertTrue(contents.startsWith("Feature: no-name-default-test-suite"));
+        Assert.assertTrue(contents.startsWith("@ignore\nFeature: no-name-default-test-suite"));
 
     }
 }
