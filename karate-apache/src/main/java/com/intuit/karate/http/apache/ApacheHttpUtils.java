@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
@@ -143,7 +143,12 @@ public class ApacheHttpUtils {
             if (cs == null) {
                 cs = charset;
             }            
-            return new UrlEncodedFormEntity(list, cs);
+            String raw = URLEncodedUtils.format(list, cs);
+            int pos = mediaType.indexOf(';');
+            if (pos != -1) { // strip out charset param from content-type
+                mediaType = mediaType.substring(0, pos);
+            }
+            return new StringEntity(raw, ContentType.create(mediaType, cs));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
