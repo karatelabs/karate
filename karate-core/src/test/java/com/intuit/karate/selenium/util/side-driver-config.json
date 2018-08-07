@@ -1,0 +1,4 @@
+{
+  "browser": "chrome",
+  "driverUrl": "http://localhost:9515"
+}
