@@ -163,7 +163,13 @@ public class JerseyHttpClient extends HttpClient<Entity> {
         for (Entry<String, List> entry : fields.entrySet()) {
             map.put(entry.getKey(), entry.getValue());
         }
-        return Entity.entity(map, getMediaType(mediaType));
+        // special handling, charset is not valid in content-type header here
+        int pos = mediaType.indexOf(';');
+        if (pos != -1) {
+            mediaType = mediaType.substring(0, pos);
+        }
+        MediaType mt = MediaType.valueOf(mediaType);
+        return Entity.entity(map, mt);
     }
 
     @Override
@@ -181,15 +187,6 @@ public class JerseyHttpClient extends HttpClient<Entity> {
                 ct = HttpUtils.getContentType(sv);
             }
             MediaType itemType = MediaType.valueOf(ct);
-            if (HttpUtils.isPrintable(ct)) {
-                Charset cs = HttpUtils.parseContentTypeCharset(mediaType);
-                if (cs == null) {
-                    cs = charset;
-                }
-                if (cs != null) {
-                    itemType = itemType.withCharset(cs.name());
-                }
-            }
             if (name == null) { // most likely multipart/mixed
                 BodyPart bp = new BodyPart().entity(sv.getAsString()).type(itemType);
                 multiPart.bodyPart(bp);
