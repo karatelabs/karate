@@ -48,7 +48,8 @@
 
     <modules>
         <module>karate-core</module>
-        <module>karate-apache</module>              
+        <module>karate-apache</module>
+        <module>karate-apache-async</module>              
         <module>karate-junit4</module>
         <module>karate-junit5</module>
         <module>karate-netty</module>
@@ -57,7 +58,7 @@
         <module>karate-mock-servlet</module>
         <module>karate-jersey</module>    
         <module>karate-archetype</module>    
-  </modules>
+    </modules>
 
     <dependencies>
         <dependency>
