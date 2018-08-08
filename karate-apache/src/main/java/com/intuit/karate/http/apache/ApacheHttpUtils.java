@@ -96,7 +96,7 @@ public class ApacheHttpUtils {
     
     public static HttpEntity getEntity(InputStream is, String mediaType, Charset charset) {
         try {
-            return new InputStreamEntity(is, getContentType(mediaType, charset));
+            return new InputStreamEntity(is, is.available(), getContentType(mediaType, charset));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }         
