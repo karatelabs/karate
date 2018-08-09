@@ -29,7 +29,7 @@ feature: featureHeader background? ( scenario | scenarioOutline )* NEWLINE? EOF 
 
 featureHeader: FEATURE_TAGS? FEATURE featureDescription;
 
-featureDescription: ~(BACKGROUND | SCENARIO | SCENARIO_OUTLINE)* ;
+featureDescription: ~(BACKGROUND | SCENARIO | SCENARIO_OUTLINE | TAGS)* ;
 
 background: BACKGROUND step* ;
 

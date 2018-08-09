@@ -1,4 +1,4 @@
-/*
+ /*
  * The MIT License
  *
  * Copyright 2018 Intuit Inc.
@@ -79,6 +79,12 @@ public class FeatureParserTest {
     public void testFeatureWithIgnore() {
         FeatureResult result = execute("test-ignore-feature.feature");
         assertEquals(0, result.getElements().size());
+    } 
+    
+    @Test
+    public void testScenarioWithIgnore() {
+        FeatureResult result = execute("test-ignore-scenario.feature");
+        assertEquals(1, result.getElements().size());
     }    
 
 }
