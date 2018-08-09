@@ -62,7 +62,14 @@ public class FeatureParserTest {
     @Test
     public void testEngineForSimpleFeature() {
         FeatureResult result = execute("test-simple.feature");
+        TagResult tag = result.getTags().get(0);
+        assertEquals("@foo", tag.getName());
+        assertEquals(1, tag.getLine());
         assertEquals(1, result.getElements().size());
+        ScenarioResult sr = (ScenarioResult) result.getElements().get(0);
+        tag = sr.getTags().get(0);
+        assertEquals("@bar", tag.getName());
+        assertEquals(5, tag.getLine());        
         List<FeatureResult> results = Collections.singletonList(result);
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(results));
         FileUtils.writeToFile(new File("target/test-simple.json"), json);

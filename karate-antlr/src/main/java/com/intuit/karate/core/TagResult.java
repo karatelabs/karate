@@ -23,73 +23,34 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StringUtils;
-import java.util.Collections;
-import java.util.List;
-
 /**
  *
  * @author pthomas3
  */
-public class Tag {
-
-    private final int line;
-    private final String text;
-    private final String name;
-    private final List<String> values;    
-
-    public Tag(int line, String text) {
-        this.line = line;
-        this.text = text.substring(1);
-        int pos = text.indexOf('=');
-        if (pos != -1) {
-            name = text.substring(1, pos);
-            values = StringUtils.split(text.substring(pos + 1), ',');
-        } else {
-            name = this.text;
-            values = Collections.EMPTY_LIST;
-        }
-    }
+public class TagResult {
+    
+    private int line;
+    private String name;
+    
+    public TagResult(Tag tag) {
+        this.line = tag.getLine();
+        this.name = '@' + tag.getName();
+    }    
 
     public int getLine() {
         return line;
-    }        
+    }
 
-    public String getText() {
-        return text;
+    public void setLine(int line) {
+        this.line = line;
     }
 
     public String getName() {
         return name;
     }
 
-    public List<String> getValues() {
-        return values;
+    public void setName(String name) {
+        this.name = name;
     }
-
-    @Override
-    public String toString() {
-        return '@' + text;
-    }
-
-    @Override
-    public int hashCode() {
-        return text.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Tag other = (Tag) obj;
-        return text.equals(other.text);
-    }
-
+    
 }

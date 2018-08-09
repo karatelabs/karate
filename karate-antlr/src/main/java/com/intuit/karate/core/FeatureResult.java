@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -40,6 +41,7 @@ public class FeatureResult {
     private String description;
     private String keyword = "Feature";
     private List<ResultElement> elements = new ArrayList();
+    private List<TagResult> tags = Collections.EMPTY_LIST;
     
     public FeatureResult(Feature feature) {
         line = feature.getLine();
@@ -51,7 +53,22 @@ public class FeatureResult {
             temp = temp + "\n" + feature.getDescription();
         }
         description = temp.trim();
+        List<Tag> list = feature.getTags();
+        if (list != null) {
+            tags = new ArrayList(list.size());
+            for (Tag tag : list) {
+                tags.add(new TagResult(tag));                
+            }
+        }
     }    
+
+    public List<TagResult> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<TagResult> tags) {
+        this.tags = tags;
+    }
     
     public void addResult(ResultElement element) {
         elements.add(element);

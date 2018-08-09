@@ -105,12 +105,28 @@ public class FeatureParser extends KarateParserBaseListener {
             throw new RuntimeException(errorListener.getMessage());
         }        
     }
+    
+    private static int getActualLine(TerminalNode node) {
+        int count = 0;
+        for (char c : node.getText().toCharArray()) {
+            if (c == '\n') {
+                count++;
+            } else if (!Character.isWhitespace(c)) {
+                break;
+            }            
+        }
+        return node.getSymbol().getLine() + count;
+    }
 
-    private static List<Tag> toTags(String text) {
+    private static List<Tag> toTags(int line, TerminalNode node) {
+        String text = node.getText();
+        if (line == -1) {            
+            line = getActualLine(node);
+        }
         String[] tokens = text.trim().split("\\s+"); // handles spaces and tabs also
         List<Tag> tags = new ArrayList(tokens.length);
         for (String t : tokens) {            
-            tags.add(new Tag(t));
+            tags.add(new Tag(line, t));
         }
         return tags;
     }
@@ -128,7 +144,7 @@ public class FeatureParser extends KarateParserBaseListener {
                 tokens.set(i, tokens.get(i).trim());
             }
             rows.add(tokens);
-            lineNumbers.add(node.getSymbol().getLine());
+            lineNumbers.add(getActualLine(node));
         }
         return new Table(rows, lineNumbers);
     }
@@ -138,7 +154,7 @@ public class FeatureParser extends KarateParserBaseListener {
         for (KarateParser.StepContext sc : list) {
             Step step = new Step();
             steps.add(step);
-            step.setLine(sc.prefix().getStart().getLine());
+            step.setLine(sc.line().getStart().getLine());
             step.setPrefix(sc.prefix().getText().trim());
             step.setText(sc.line().getText().trim());
             if (sc.docString() != null) {
@@ -155,7 +171,7 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterFeatureHeader(KarateParser.FeatureHeaderContext ctx) {
         if (ctx.FEATURE_TAGS() != null) {
-            feature.setTags(toTags(ctx.FEATURE_TAGS().getText()));
+            feature.setTags(toTags(ctx.FEATURE_TAGS().getSymbol().getLine(), ctx.FEATURE_TAGS()));
         }
         feature.setLine(ctx.FEATURE().getSymbol().getLine());
         if (ctx.featureDescription() != null) {
@@ -169,7 +185,7 @@ public class FeatureParser extends KarateParserBaseListener {
     public void enterBackground(KarateParser.BackgroundContext ctx) {
         Background background = new Background();
         feature.setBackground(background);
-        background.setLine(ctx.BACKGROUND().getSymbol().getLine());
+        background.setLine(getActualLine(ctx.BACKGROUND()));
         List<Step> steps = toSteps(ctx.step());
         background.setSteps(steps);
         if (logger.isTraceEnabled()) {
@@ -183,9 +199,9 @@ public class FeatureParser extends KarateParserBaseListener {
         Scenario scenario = new Scenario(feature);        
         section.setScenario(scenario);
         feature.addSection(section);
-        scenario.setLine(ctx.SCENARIO().getSymbol().getLine());
+        scenario.setLine(getActualLine(ctx.SCENARIO()));
         if (ctx.tags() != null) {
-            scenario.setTags(toTags(ctx.tags().getText()));
+            scenario.setTags(toTags(-1, ctx.tags().TAGS()));
         }
         if (ctx.scenarioDescription() != null) {
             StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
@@ -205,9 +221,9 @@ public class FeatureParser extends KarateParserBaseListener {
         ScenarioOutline outline = new ScenarioOutline(feature);        
         section.setScenarioOutline(outline);
         feature.addSection(section);
-        outline.setLine(ctx.SCENARIO_OUTLINE().getSymbol().getLine());
+        outline.setLine(getActualLine(ctx.SCENARIO_OUTLINE()));
         if (ctx.tags() != null) {
-            outline.setTags(toTags(ctx.tags().getText()));
+            outline.setTags(toTags(-1, ctx.tags().TAGS()));
         }
         if (ctx.scenarioDescription() != null) {
             outline.setDescription(ctx.scenarioDescription().getText());
@@ -226,7 +242,7 @@ public class FeatureParser extends KarateParserBaseListener {
             ExampleTable example = new ExampleTable(outline);
             examples.add(example);
             if (ec.tags() != null) {
-                example.setTags(toTags(ec.tags().getText()));
+                example.setTags(toTags(-1, ec.tags().TAGS()));
             }
             Table table = toTable(ec.table());
             example.setTable(table);

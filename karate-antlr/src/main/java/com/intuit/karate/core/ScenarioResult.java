@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -40,6 +41,7 @@ public class ScenarioResult implements ResultElement {
     private String type = "scenario";
     private String keyword = "Scenario";
     private List<StepResult> steps = new ArrayList();
+    private List<TagResult> tags = Collections.EMPTY_LIST;
     
     public ScenarioResult(Scenario scenario) {
         line = scenario.getLine();
@@ -49,6 +51,13 @@ public class ScenarioResult implements ResultElement {
         if (scenario.isOutline()) {
             keyword = "Scenario Outline";
         }
+        List<Tag> list = scenario.getTags();
+        if (list != null) {
+            tags = new ArrayList(list.size());
+            for (Tag tag : list) {
+                tags.add(new TagResult(tag));                
+            }
+        }        
     }    
     
     @Override
@@ -111,6 +120,14 @@ public class ScenarioResult implements ResultElement {
 
     public void setSteps(List<StepResult> steps) {
         this.steps = steps;
+    }
+
+    public List<TagResult> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<TagResult> tags) {
+        this.tags = tags;
     }
         
 }

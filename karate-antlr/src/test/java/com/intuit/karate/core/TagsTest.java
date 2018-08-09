@@ -37,7 +37,7 @@ public class TagsTest {
     private boolean evaluate(String tagSelector, String ... strs) {
         List<Tag> tags = new ArrayList(strs.length);
         for (String s : strs) {
-            tags.add(new Tag(s));
+            tags.add(new Tag(0, s));
         }
         return Tags.evaluate(tagSelector, tags);
     }

@@ -33,6 +33,8 @@ import java.util.List;
 public class BackgroundResult implements ResultElement {
     
     private int line;
+    private String name = "";
+    private String description = "";
     private String type = "background";
     private String keyword = "Background";
     private List<StepResult> steps = new ArrayList(); 
@@ -77,6 +79,22 @@ public class BackgroundResult implements ResultElement {
 
     public void setSteps(List<StepResult> steps) {
         this.steps = steps;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
     
 }
