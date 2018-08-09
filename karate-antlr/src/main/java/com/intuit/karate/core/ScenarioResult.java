@@ -104,6 +104,7 @@ public class ScenarioResult implements ResultElement {
         this.keyword = keyword;
     }
 
+    @Override
     public List<StepResult> getSteps() {
         return steps;
     }

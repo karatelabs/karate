@@ -1,4 +1,4 @@
- /*
+/*
  * The MIT License
  *
  * Copyright 2018 Intuit Inc.
@@ -49,11 +49,11 @@ public class FeatureParserTest {
         ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile("mock", "not('@ignore')", file);
         return new StepDefs(env, new CallContext(null, true));
     }
-    
+
     private static Feature feature(String name) {
         return FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
     }
-    
+
     private static FeatureResult execute(String name) {
         Feature feature = feature(name);
         return Engine.execute(feature, stepDefs(feature));
@@ -74,17 +74,26 @@ public class FeatureParserTest {
         assertEquals("the first line", feature.getName());
         assertEquals("and the second", feature.getDescription());
     }
-    
+
     @Test
     public void testFeatureWithIgnore() {
         FeatureResult result = execute("test-ignore-feature.feature");
         assertEquals(0, result.getElements().size());
-    } 
-    
+    }
+
     @Test
     public void testScenarioWithIgnore() {
         FeatureResult result = execute("test-ignore-scenario.feature");
         assertEquals(1, result.getElements().size());
-    }    
+    }
+
+    @Test
+    public void testDefDocString() {
+        FeatureResult result = execute("test-def-docstring.feature");
+        for (StepResult step : result.getElements().get(0).getSteps()) {
+            assertEquals("passed", step.getResult().getStatus());
+        }
+
+    }
 
 }

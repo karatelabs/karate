@@ -58,5 +58,10 @@ public class ResultError extends Result {
     public void setError_message(String error_message) {
         this.error_message = error_message;
     }
+
+    @Override
+    public String toString() {
+        return getStatus() + " - " + error_message;
+    }        
     
 }

@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.core;
 
+import java.util.List;
+
 /**
  *
  * @author pthomas3
@@ -30,5 +32,7 @@ package com.intuit.karate.core;
 public interface ResultElement {
     
     void addStepResult(StepResult stepResult);
+    
+    List<StepResult> getSteps();
     
 }

@@ -140,7 +140,7 @@ public class FeatureParser extends KarateParserBaseListener {
             steps.add(step);
             step.setLine(sc.prefix().getStart().getLine());
             step.setPrefix(sc.prefix().getText().trim());
-            step.setText(sc.line().getText());
+            step.setText(sc.line().getText().trim());
             if (sc.docString() != null) {
                 String temp = sc.docString().getText().trim();
                 step.setDocString(temp.substring(3, temp.length() - 3));

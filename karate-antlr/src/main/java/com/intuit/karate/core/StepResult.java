@@ -93,5 +93,10 @@ public class StepResult {
     public void setResult(Result result) {
         this.result = result;
     }
+
+    @Override
+    public String toString() {
+        return "line: " + line + ", " + result.toString();
+    }        
         
 }

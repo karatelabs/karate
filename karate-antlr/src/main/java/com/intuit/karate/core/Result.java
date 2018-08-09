@@ -69,4 +69,9 @@ public class Result {
         this.duration = duration;
     }
 
+    @Override
+    public String toString() {
+        return status;
+    }        
+
 }
