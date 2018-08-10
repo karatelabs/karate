@@ -58,12 +58,12 @@ public class ScriptEnv {
                 new Logger(), reporter);
     }    
     
-    public static ScriptEnv forEnv(String env) {
-        return forEnvAndWorkingDir(env, new File("."));
+    public static ScriptEnv forEnvAndCurrentWorkingDir(String env) {
+        return ScriptEnv.forEnvAndWorkingDir(env, new File("."));
     }
     
     public static ScriptEnv forEnvAndClass(String env, Class clazz) {
-        return forEnvAndWorkingDir(env, FileUtils.getDirContaining(clazz));
+        return ScriptEnv.forEnvAndWorkingDir(env, FileUtils.getDirContaining(clazz));
     }     
     
     private static ScriptEnv forEnvAndWorkingDir(String env, File workingDir) {

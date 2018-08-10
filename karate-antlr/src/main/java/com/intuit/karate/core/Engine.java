@@ -23,10 +23,13 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
 import cucumber.api.DataTable;
@@ -67,22 +70,25 @@ public class Engine {
     }
 
     public static FeatureResult execute(Feature feature, StepDefs stepDefs) {
+        String relativePath = feature.getRelativePath();
+        String basePath = FileUtils.toPackageQualifiedName(relativePath);
+        LogAppender appender = new FileLogAppender("target/surefire-reports/"  + basePath + ".log", stepDefs.getContext().logger);        
         FeatureResult result = new FeatureResult(feature);
         for (FeatureSection section : feature.getSections()) {
             if (section.isOutline()) {
                 List<Scenario> scenarios = section.getScenarioOutline().getScenarios();
                 for (Scenario scenario : scenarios) {
-                    execute(feature, scenario, stepDefs, result);
+                    execute(feature, scenario, stepDefs, result, appender);
                 }
             } else {
                 Scenario scenario = section.getScenario();
-                execute(feature, scenario, stepDefs, result);
+                execute(feature, scenario, stepDefs, result, appender);
             }
         }
         return result;
     }
 
-    private static void execute(Feature feature, Scenario scenario, StepDefs stepDefs, FeatureResult featureResult) {
+    private static void execute(Feature feature, Scenario scenario, StepDefs stepDefs, FeatureResult featureResult, LogAppender appender) {
         ScriptEnv env = stepDefs.getContext().getEnv();
         Collection<Tag> tagsEffective = scenario.getTagsEffective();
         if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
@@ -96,21 +102,21 @@ public class Engine {
         if (background != null) {
             BackgroundResult backgroundResult = new BackgroundResult(background);
             featureResult.addResult(backgroundResult);
-            stopped = execute(background.getSteps(), stepDefs, backgroundResult, stopped);
+            stopped = execute(background.getSteps(), stepDefs, backgroundResult, stopped, appender);
         }
         ScenarioResult scenarioResult = new ScenarioResult(scenario);
         featureResult.addResult(scenarioResult);
-        execute(scenario.getSteps(), stepDefs, scenarioResult, stopped);
+        execute(scenario.getSteps(), stepDefs, scenarioResult, stopped, appender);
     }
 
-    private static boolean execute(List<Step> steps, StepDefs stepDefs, ResultElement collector, boolean stopped) {
+    private static boolean execute(List<Step> steps, StepDefs stepDefs, ResultElement collector, boolean stopped, LogAppender appender) {
         for (Step step : steps) {
             if (stopped) {
                 collector.addStepResult(new StepResult(step, Result.skipped()));
                 continue;
             }
             String text = step.getText();
-            List<MethodMatch> matches = Engine.findMethodsMatching(text);
+            List<MethodMatch> matches = findMethodsMatching(text);
             if (matches.isEmpty()) {
                 String message = "no step-definition method match found for: " + text;
                 stepDefs.getContext().logger.error(message);
@@ -154,7 +160,14 @@ public class Engine {
                 result = Result.failed(getElapsedTime(startTime), e);
                 stopped = true;
             }
-            collector.addStepResult(new StepResult(step, result));
+            StepResult stepResult = new StepResult(step, result);
+            if (step.getDocString() == null) {
+                String log = StringUtils.trimToNull(appender.collect());
+                if (log != null) {
+                    stepResult.putDocString(log);
+                }
+            }
+            collector.addStepResult(stepResult);
         }
         return stopped;
     }
@@ -170,7 +183,7 @@ public class Engine {
         return System.nanoTime() - startTime;
     }
 
-    public static List<MethodMatch> findMethodsMatching(String text) {
+    private static List<MethodMatch> findMethodsMatching(String text) {
         List<MethodMatch> matches = new ArrayList(1);
         for (MethodPattern pattern : PATTERNS) {
             List<String> args = pattern.match(text);

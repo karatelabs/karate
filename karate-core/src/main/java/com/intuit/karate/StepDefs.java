@@ -60,7 +60,7 @@ public class StepDefs {
             String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
             if (featurePath == null) {
                 LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", cwd);
-                ideScriptEnv = ScriptEnv.forEnv(null);
+                ideScriptEnv = ScriptEnv.forEnvAndCurrentWorkingDir(null);
             } else {
                 File file = new File(featurePath);
                 LOGGER.info("IDE runner - init karate env: {}", file);

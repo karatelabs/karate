@@ -31,72 +31,38 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class StepResult {
-    
-   private static final Map<String, Object> DUMMY_MATCH;   
+public class StepResult extends HashMap<String, Object> {
+
+    private static final Map<String, Object> DUMMY_MATCH;
 
     static {
         DUMMY_MATCH = new HashMap();
         DUMMY_MATCH.put("location", "StepDefs.dummy(int)");
-        DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);        
-    }    
-            
-    private int line;
-    private String keyword;
-    private String name;
-    private Map<String, Object> match = DUMMY_MATCH;
-    private Result result;       
-    
+        DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);
+    }
+
+    public void putDocString(String text) {
+        if (text == null) {
+            return;
+        }
+        Map<String, Object> map = new HashMap(3);
+        map.put("content_type", "");
+        map.put("line", get("line"));
+        map.put("value", text);
+        put("doc_string", map);
+    }
+
     public StepResult(Step step, Result result) {
-        this.line = step.getLine();
-        this.keyword = step.getPrefix();
-        this.name = step.getText();
-        this.result = result;
+        put("line", step.getLine());
+        put("keyword", step.getPrefix());
+        put("name", step.getText());
+        put("result", result);
+        put("match", DUMMY_MATCH);
+        putDocString(step.getDocString());
     }
-
-    public int getLine() {
-        return line;
-    }
-
-    public void setLine(int line) {
-        this.line = line;
-    }
-
-    public String getKeyword() {
-        return keyword;
-    }
-
-    public void setKeyword(String keyword) {
-        this.keyword = keyword;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Map<String, Object> getMatch() {
-        return match;
-    }
-
-    public void setMatch(Map<String, Object> match) {
-        this.match = match;
-    }
-
+    
     public Result getResult() {
-        return result;
+        return (Result) get("result");
     }
 
-    public void setResult(Result result) {
-        this.result = result;
-    }
-
-    @Override
-    public String toString() {
-        return "line: " + line + ", " + result.toString();
-    }        
-        
 }

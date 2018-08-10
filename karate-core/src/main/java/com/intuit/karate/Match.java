@@ -63,7 +63,7 @@ public class Match {
     }
     
     private Match() {
-        ScriptEnv env = ScriptEnv.forEnv(null);
+        ScriptEnv env = ScriptEnv.forEnvAndCurrentWorkingDir(null);
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, 
                 DummyHttpClient.class.getName(), null, null, null);
         context = new ScriptContext(env, callContext);

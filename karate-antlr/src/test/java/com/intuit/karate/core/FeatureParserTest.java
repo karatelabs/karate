@@ -24,8 +24,10 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import java.io.File;
@@ -56,7 +58,8 @@ public class FeatureParserTest {
 
     private static FeatureResult execute(String name) {
         Feature feature = feature(name);
-        return Engine.execute(feature, stepDefs(feature));
+        StepDefs stepDefs = stepDefs(feature);
+        return Engine.execute(feature, stepDefs);
     }
 
     @Test
