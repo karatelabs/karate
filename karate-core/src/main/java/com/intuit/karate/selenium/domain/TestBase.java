@@ -29,12 +29,16 @@ import java.util.Map;
  * @author vmchukky
  */
 public abstract class TestBase {
-
-    static final String DRIVER_URL_VAR = "webdriverUrl";
-    static final String DRIVER_CONFIG_VAR = "webdriverConfig";
-    static final String DRIVER_SESSION_ID_VAR = "webdriverSessionId";
-    static final String DRIVER_SESSION_URL_VAR = "webdriverSessionUrl";
+    static final String PAGE_TITLE_VAR = "pageTitle";
     static final String DRIVER_ELEMENT_ID_VAR = "webdriverElementId";
+
+    static final String DRIVER = "webDriver";
+    static final String DRIVER_URL = DRIVER + '.' + "url";
+    static final String DRIVER_BROWSER = DRIVER + '.' + "browser";
+    static final String DRIVER_SESSION = "session";
+    static final String DRIVER_SESSION_ID = DRIVER_SESSION + '.' + "id";
+    static final String DRIVER_SESSION_URL = DRIVER_SESSION + '.' + "url";
+
 
     protected final String id;
     protected final String name;
@@ -61,4 +65,5 @@ public abstract class TestBase {
     public String getIdentifierName() {
         return name.trim() + '-' + id.trim();
     }
+
 }

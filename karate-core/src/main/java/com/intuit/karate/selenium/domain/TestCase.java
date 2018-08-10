@@ -24,6 +24,7 @@
 package com.intuit.karate.selenium.domain;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,12 +45,12 @@ public class TestCase extends TestBase {
         }
     }
 
-    public String convert(String url) {
+    public String convert(String url, HashMap<String, String> variables) {
         StringBuffer sb = new StringBuffer("\nScenario: ")
                 .append(getIdentifierName());
 
         for (TestCommand command : commands) {
-            sb.append(command.convert(url));
+            sb.append(command.convert(url, variables));
         }
 
         return sb.toString();

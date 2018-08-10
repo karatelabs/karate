@@ -26,6 +26,7 @@ package com.intuit.karate.selenium.domain;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.validator.RegexValidator;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -34,27 +35,27 @@ import java.util.Map;
 
 // TestCommand <-> Step
 public class TestCommand {
-    String id; // we may not need this
-    String comment;
-    String command;
-    String target;
-    String value;
+    private String id;
+    private String comment;
+    private String command;
+    private String target;
+    private String value;
 
     private static final RegexValidator urlValidator = new RegexValidator("^(https?|file)://*");
 
-    //static final
-
-    public TestCommand(Map<String, Object> commandJson) {
-        this.id = getLower("id", commandJson);
-        this.comment = getLower("comment", commandJson);
-        this.command = getLower("command", commandJson);
-        this.target = getLower("target", commandJson);
-        this.value = getLower("value", commandJson);
+    TestCommand(Map<String, Object> commandJson) {
+        this.id = get("id", commandJson);
+        this.comment = get("comment", commandJson);
+        this.command = get("command", commandJson);
+        this.target = get("target", commandJson);
+        this.value = get("value", commandJson);
     }
 
     // https://github.com/SeleniumHQ/selenium-ide/blob/master/packages/selianize/src/command.js
-    public String convert(String url) {
-        StringBuffer sb = new StringBuffer("\n# ").append(id).append("\n");
+    public String convert(String url, HashMap<String, String> variables) {
+        target = preProcess(target, variables);
+        command = preProcess(command, variables);
+        StringBuilder sb = new StringBuilder("\n# ").append(toString()).append("\n");
         if ("open".equals(command)) {
             String commandUrl = url;
             if (urlValidator.validate(new ScriptValue(target)).isPass()) {
@@ -62,21 +63,26 @@ public class TestCommand {
             } else {
                 commandUrl = getUrlFromBaseAndPath(commandUrl, target);
             }
-            appendOpenRequest(sb, commandUrl);
-
-        } else if ("clickat".equals(command) || "click".equals(command) || "clickandwait".equals(command)) {
-            getFetchElementId(sb, target);
-            appendclickElementRequest(sb).append("And request {}\n");
+            emitOpen(sb, commandUrl);
+        } else if ("clickAt".equals(command) || "click".equals(command) || "clickAndWait".equals(command)) {
+            emitClick(sb);
+        } else if ("verifyText".equals(command) || "assertText".equals(command)) {
+            emitVerifyText(sb);
+        } else if ("verifyTitle".equals(command) || "assertTitle".equals(command)) {
+            emitVerifyTitle(sb);
+        }  else if ("type".equals(command) || "sendKeys".equals(command)) {
+            emitSendKeys(sb);
+        } else if ("store".equals(command)) {
+            variables.put("${" + value + '}', target);
         } else if ("echo".equals(command)) {
-            // TODO handle variable substitution and colors?#!@%^X
-            sb.append("* print '").append(target).append("' + '").append(value).append("'\n");
+            emitEcho(sb);
+        } else if ("pause".equals(command)) {
+            emitPause(sb);
         } else {
             //till we incrementally add support for all commands
             //TODO needs fix
-            sb.append(toString());
         }
 
-        appendFooter(sb);
         return sb.toString();
     }
 
@@ -91,67 +97,12 @@ public class TestCommand {
                 '}';
     }
 
-    private String getLower(String key, Map<String, Object> map) {
+    private String get(String key, Map<String, Object> map) {
         String val = (String) map.get(key);
         if (val != null) {
-            val = val.trim().toLowerCase();
+            val = val.trim(); //.toLowerCase();
         }
         return val;
-    }
-
-    private StringBuffer appendFooter(StringBuffer sb) {
-        return sb.append("When method POST\nThen status 200\n")
-                .append("And assert response.status == 0\n");
-    }
-
-    private StringBuffer appendOpenRequest(StringBuffer sb, String url) {
-        return appendRequestParams(appendGivenUrl(sb, "url"), "url", url);
-    }
-
-    private StringBuffer appendclickElementRequest(StringBuffer sb) {
-        return appendGivenUrl(sb,
-                "element/' + " + TestBase.DRIVER_ELEMENT_ID_VAR + " + '/click");
-    }
-
-    private StringBuffer appendElementRequest(StringBuffer sb, String using, String value) {
-        return appendRequestParams(appendGivenUrl(sb, "element"),
-                "using", using, "value", value);
-    }
-
-    private StringBuffer appendGivenUrl(StringBuffer sb, String path) {
-        return sb.append("Given url ").append(TestBase.DRIVER_SESSION_URL_VAR)
-                .append(" + '/").append(path).append("'\n");
-    }
-
-    private StringBuffer appendRequestParams(StringBuffer sb, String key, String value) {
-        value = value.replace("'", "\"");
-        return sb.append("And request {").append(key).append(":'")
-                .append(value).append("'}\n");
-    }
-
-    private StringBuffer appendRequestParams(StringBuffer sb, String key1, String value1,
-                                             String key2, String value2) {
-        value1 = value1.replace("'", "\"");
-        value2 = value2.replace("'", "\"");
-        return sb.append("And request {")
-                .append(key1).append(":'").append(value1).append("', ")
-                .append(key2).append(":'").append(value2).append("'}\n");
-    }
-
-    private StringBuffer getFetchElementId(StringBuffer sb, String target) {
-        String[] tokens = target.split("=");
-        String using = tokens[0];
-        String value = tokens[1];
-        // TODO: xpath is failing (can't find matching element(s)) as of now, need to debug
-        if (target.startsWith("//")) {
-            using = "xpath";
-            value = target;
-        }
-        appendFooter(appendElementRequest(sb, using, value));
-
-        return sb.append("* def ").append(TestBase.DRIVER_ELEMENT_ID_VAR)
-                .append(" = response.value.ELEMENT\n")
-                .append("* print 'Element ID is '" + TestBase.DRIVER_ELEMENT_ID_VAR).append("\n");
     }
 
     // just to avoid the base//path (lets add it to HttpUtil)
@@ -161,4 +112,131 @@ public class TestCommand {
         }
         return (path.startsWith("/") ? (base + path) : (base + '/' + path));
     }
+
+    private void emitOpen(StringBuilder sb, String url) {
+        appendGivenUrl(sb, "url");
+        appendRequestParams(sb, "url", url);
+        appendWhenThen(sb);
+    }
+
+    private void emitEcho(StringBuilder sb) {
+        sb.append("* print ").append(target).append('\n');
+    }
+
+    private void emitPause(StringBuilder sb) {
+        sb.append("* def sleep = function(pause){ java.lang.Thread.sleep(pause) }\n")
+                .append("* sleep(").append(target).append(")\n");
+    }
+
+    private void emitClick(StringBuilder sb) {
+        emitFindElement(sb);
+        appendGivenUrl(sb, "element/' + " + TestBase.DRIVER_ELEMENT_ID_VAR + " + '/click");
+        sb.append("And request {}\n");
+        appendWhenThen(sb);
+    }
+
+    private void emitVerifyText(StringBuilder sb) {
+        emitFindElement(sb);
+        appendGivenUrl(sb, "element/' + " + TestBase.DRIVER_ELEMENT_ID_VAR + " + '/text");
+        appendWhenThen(sb, "GET");
+        sb.append("* def ").append(TestBase.PAGE_TITLE_VAR)
+                .append(" = response.value\n")
+                .append("* print 'Page Title is '" + TestBase.PAGE_TITLE_VAR).append('\n')
+                .append(getAssertion(TestBase.PAGE_TITLE_VAR, target));
+    }
+
+    private void emitVerifyTitle(StringBuilder sb) {
+        appendGivenUrl(sb, "title");
+        appendWhenThen(sb, "GET");
+        sb.append("* def ").append(TestBase.PAGE_TITLE_VAR)
+                .append(" = response.value\n")
+                .append("* print 'Page Title is '" + TestBase.PAGE_TITLE_VAR).append('\n')
+                .append(getAssertion(TestBase.PAGE_TITLE_VAR,target));
+    }
+
+    private void emitSendKeys(StringBuilder sb) {
+        emitFindElement(sb);
+        appendGivenUrl(sb, "element/' + " + TestBase.DRIVER_ELEMENT_ID_VAR + " + '/value");
+        appendRequestParamsAsArray(sb,"value", value);
+        appendWhenThen(sb);
+    }
+
+    private void emitFindElement(StringBuilder sb) {
+        String[] tokens = target.split("=");
+        String using = tokens[0];
+        String value = tokens[1];
+        // TODO: xpath is failing (can't find matching element(s)) as of now, need to debug
+        if (target.startsWith("//")) {
+            using = "xpath";
+            value = target;
+        } else {
+            using = getLocateBy(using);
+        }
+        appendGivenUrl(sb, "element");
+        appendRequestParams(sb, "using", using, "value", value);
+        appendWhenThen(sb);
+
+        sb.append("* def ").append(TestBase.DRIVER_ELEMENT_ID_VAR)
+                .append(" = response.value.ELEMENT\n")
+                .append("* print 'Element ID is '" + TestBase.DRIVER_ELEMENT_ID_VAR).append("\n");
+    }
+
+    private void appendGivenUrl(StringBuilder sb, String path) {
+        sb.append("Given url ").append(TestBase.DRIVER_SESSION_URL)
+                .append(" + '/").append(path).append("'\n");
+    }
+
+    private void appendWhenThen(StringBuilder sb) {
+        appendWhenThen(sb, "POST"); // default is POST
+    }
+
+    private void appendWhenThen(StringBuilder sb, String method) {
+        sb.append("When method ").append(method).append("\nThen status 200\n")
+                .append("And assert response.status == 0\n");
+    }
+
+    private void appendRequestParams(StringBuilder sb, String key, String value) {
+        value = value.replace("'", "\"");
+        sb.append("And request {").append(key).append(":'")
+                .append(value).append("'}\n");
+    }
+
+    private void appendRequestParamsAsArray(StringBuilder sb, String key, String value) {
+        value = value.replace("'", "\"");
+        sb.append("And request {").append(key).append(":['")
+                .append(value).append("']}\n");
+    }
+
+    private void appendRequestParams(StringBuilder sb, String key1, String value1,
+                                     String key2, String value2) {
+        value1 = value1.replace("'", "\"");
+        value2 = value2.replace("'", "\"");
+        sb.append("And request {")
+                .append(key1).append(":'").append(value1).append("', ")
+                .append(key2).append(":'").append(value2).append("'}\n");
+    }
+
+    private String preProcess(String param, HashMap<String, String> variables) {
+        if (param != null) {
+            int index;
+            StringBuilder sb = new StringBuilder(param);
+            for (String var : variables.keySet()) {
+                if ((index = sb.indexOf(var)) >= 0) {
+                    sb.replace(index, index + var.length(), variables.get(var));
+                }
+            }
+            param = sb.toString();
+        }
+        return param;
+    }
+
+    // should consider glob:, regexp: and exact:
+    private String getAssertion(String varName, String expectedValue) {
+        return "* assert " + varName + " == " + expectedValue;
+    }
+
+    private String getLocateBy(String locator) {
+        return locator; // TODO: css -> css selector etc
+    }
+
 }

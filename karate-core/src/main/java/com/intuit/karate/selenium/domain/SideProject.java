@@ -28,6 +28,7 @@ import com.jayway.jsonpath.DocumentContext;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +44,7 @@ public class SideProject extends TestBase {
     List<String> urls; //??? TODO: figure out url -vs- urls
     // List<String> plugins;
     List<TestSuite> suites;
+    final HashMap<String, String> variables;
 
     public SideProject(DocumentContext doc) {
         super(doc.read("id"), doc.read("name"));
@@ -50,6 +52,7 @@ public class SideProject extends TestBase {
         this.url = doc.read("$.url");
         this.version = doc.read("$.version");
         this.urls = doc.read("$.urls");
+        this.variables = new HashMap<>();
         List<Map<String, Object>> suiteList = doc.read("$.suites");
         for (Map<String, Object> suite : suiteList) {
             this.suites.add(new TestSuite(suite, doc));
@@ -93,15 +96,13 @@ public class SideProject extends TestBase {
     }
 
     public String convert(File dir, String configJson) {
-        StringBuffer sb = new StringBuffer("Feature: Selenium IDE Project - ")
+        StringBuilder sb = new StringBuilder("Feature: Selenium IDE Project - ")
                 .append(name).append("\n\tid = ").append(id).append("\n\tconfig = ")
                 .append(configJson).append("\n\n");
 
         appendScenario(sb, configJson, true); //header -> setUp session
 
-        sb.append("* json driverParams = {")
-                .append(DRIVER_SESSION_ID_VAR).append(":'#(").append(DRIVER_SESSION_ID_VAR).append(")',")
-                .append(DRIVER_SESSION_URL_VAR).append(":'#(").append(DRIVER_SESSION_URL_VAR).append(")'}\n");
+        sb.append("* def driverParams = {session: #(").append(DRIVER_SESSION).append(")}\n");
 
         String testUrl;
         int index = 0;
@@ -110,7 +111,7 @@ public class SideProject extends TestBase {
             featureName = suite.getIdentifierName() + ".feature";
             // need to double check this logic
             testUrl = (index < urls.size()) ? urls.get(index++) : url;
-            FileUtils.writeToFile(new File(dir, featureName), suite.convert(testUrl));
+            FileUtils.writeToFile(new File(dir, featureName), suite.convert(testUrl, variables));
             sb.append("\n# calling testsuite ").append(suite.name)
                     .append("\n* json featureResponse = call read('./")
                     .append(featureName).append("') ").append("driverParams\n");
@@ -118,13 +119,13 @@ public class SideProject extends TestBase {
 
         sb.append("\n");
         appendScenario(sb, configJson, false); //footer -> tearDown session
-        sb.append("Given url ").append(DRIVER_SESSION_URL_VAR)
+        sb.append("Given url ").append(DRIVER_SESSION_URL)
                 .append("\nWhen method DELETE\nThen status 200\n");
 
         return sb.toString();
     }
 
-    private StringBuffer appendScenario(StringBuffer sb, String configJson, boolean isHeader) {
+    private StringBuilder appendScenario(StringBuilder sb, String configJson, boolean isHeader) {
         String name = "Header";
         String method = "POST";
         String sessionId = "response.sessionId";
@@ -134,19 +135,18 @@ public class SideProject extends TestBase {
             sessionId = "response.value[0].id";
         }
         return sb.append("Scenario: ").append(name).append(" for Project\n")
-                .append("* json ").append(DRIVER_CONFIG_VAR)
+                .append("* copy ").append(DRIVER)
                 .append(" = ").append(configJson).append('\n')
-                .append("* string ").append(DRIVER_URL_VAR).append(" = ")
-                .append(DRIVER_CONFIG_VAR).append(".driverUrl + '/session'\n")
-                .append("Given url ").append(DRIVER_URL_VAR)
+                .append("Given url ").append(DRIVER_URL).append(" + '/session'")
                 .append(isHeader ? "\n" : " + 's'\n") // append sessions for footer
                 .append("And request { desiredCapabilities: { caps: {browserName: '#(")
-                .append(DRIVER_CONFIG_VAR).append(".browser)'} } }\n")
+                .append(DRIVER_BROWSER).append(")'} } }\n")
                 .append("When method ").append(method).append("\nThen status 200\n")
                 .append("And assert response.status == 0\n")
-                .append("* string ").append(DRIVER_SESSION_ID_VAR).append(" = ").append(sessionId)
-                .append("\n* string ").append(DRIVER_SESSION_URL_VAR).append(" = ")
-                .append(DRIVER_URL_VAR).append(" + '/' + ").append(DRIVER_SESSION_ID_VAR).append("\n");
+                .append("* json ").append(DRIVER_SESSION).append(" = {}\n")
+                .append("* set ").append(DRIVER_SESSION_ID).append(" = ").append(sessionId)
+                .append("\n* set ").append(DRIVER_SESSION_URL).append(" = ")
+                .append(DRIVER_URL).append(" + '/session/' + ").append(DRIVER_SESSION_ID).append("\n");
     }
 
 }

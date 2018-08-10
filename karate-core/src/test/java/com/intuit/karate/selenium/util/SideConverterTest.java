@@ -50,7 +50,7 @@ public class SideConverterTest {
         Assert.assertTrue(suites.get(1).getTests().size() == 1);
 
         File dir = file.getParentFile();
-        String configJson = "{'browser':'chrome','driverUrl':'http://localhost:9515'}";
+        String configJson = "{'browser':'chrome','url':'http://localhost:9515'}";
         String featureText = SideConverter.toKarateFeature(project, configJson, dir);
         String contents = FileUtils.toString(new File(dir, project.getIdentifierName() + ".feature"));
         Assert.assertEquals(contents, featureText);

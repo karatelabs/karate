@@ -26,6 +26,7 @@ package com.intuit.karate.selenium.domain;
 import com.jayway.jsonpath.DocumentContext;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,13 +73,13 @@ public class TestSuite extends TestBase {
         return tests;
     }
 
-    public String convert(String url) {
-        StringBuffer sb = new StringBuffer("@ignore\nFeature: ").append(getIdentifierName())
+    public String convert(String url, HashMap<String, String> variables) {
+        StringBuilder sb = new StringBuilder("@ignore\nFeature: ").append(getIdentifierName())
                 .append("\n\turl = ").append(url).append("\n\twith parameters\n\t\t")
-                .append(DRIVER_SESSION_ID_VAR).append(", ").append(DRIVER_SESSION_URL_VAR);
+                .append(DRIVER_SESSION_ID).append(", ").append(DRIVER_SESSION_URL);
 
         for (TestCase test : tests) {
-            sb.append("\n").append(test.convert(url));
+            sb.append("\n").append(test.convert(url, variables));
         }
         return sb.toString();
     }
