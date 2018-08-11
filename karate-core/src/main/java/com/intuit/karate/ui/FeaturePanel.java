@@ -86,4 +86,15 @@ public class FeaturePanel extends BorderPane {
         }
     }    
 
+    public void refresh() {
+        sectionPanels.clear();
+        content.getChildren().clear();
+        addSections();
+    }
+
+    // only needed for our unit tests
+    SectionPanel getSectionAtIndex(int index) {
+        return sectionPanels.get(index);
+    }
+
 }

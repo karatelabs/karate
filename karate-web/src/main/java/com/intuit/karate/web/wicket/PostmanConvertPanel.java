@@ -24,7 +24,7 @@
 package com.intuit.karate.web.wicket;
 
 import com.intuit.karate.convert.ConvertUtils;
-import com.intuit.karate.convert.PostmanRequest;
+import com.intuit.karate.convert.PostmanItem;
 import com.intuit.karate.web.service.KarateService;
 import com.intuit.karate.web.service.KarateSession;
 import org.apache.wicket.markup.html.form.Form;
@@ -54,8 +54,8 @@ public class PostmanConvertPanel extends Panel {
             @Override
             protected void onSubmit() {
                 logger.debug("text is: {}", text);
-                List<PostmanRequest> requests = ConvertUtils.readPostmanJson(text);
-                String feature = ConvertUtils.toKarateFeature(requests);
+                List<PostmanItem> items = ConvertUtils.readPostmanJson(text);
+                String feature = ConvertUtils.toKarateFeature(items);
                 KarateSession session = service.createSession("dev", feature);
                 setResponsePage(new FeaturePage(session.getId()));
             }

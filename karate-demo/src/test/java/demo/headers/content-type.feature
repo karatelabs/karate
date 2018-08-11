@@ -20,8 +20,7 @@ Scenario: form post with charset
     When method post
     Then status 200
     * def temp = response['content-type'][0].toLowerCase()
-    * assert temp.contains('application/x-www-form-urlencoded;')
-    * assert temp.contains('charset=utf-8')
+    * assert temp.contains('application/x-www-form-urlencoded')
 
 Scenario: json post with with charset and version
     Given path 'search', 'headers'

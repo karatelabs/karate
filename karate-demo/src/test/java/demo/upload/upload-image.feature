@@ -34,3 +34,13 @@ Scenario: upload image - binary request body
     Then status 200
     And match response == read('karate-logo.jpg')
     And match header Content-Disposition contains 'karate-logo.jpg'
+
+@mock-servlet-todo
+Scenario: upload stream - content-length should be sent correctly
+    Given path 'search', 'headers'
+    And param name = 'karate-logo.jpg'
+    And request read('karate-logo.jpg')
+    When method post
+    Then status 200
+    And match response['content-length'][0] == '13575'
+

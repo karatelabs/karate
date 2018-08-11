@@ -24,76 +24,58 @@
 package com.intuit.karate.convert;
 
 import com.intuit.karate.StringUtils;
+
 import java.util.Map;
 
 /**
  * Created by rkumar32 on 5/24/17.
  */
-public class FeatureBuilder {
+public class RequestBuilder {
 
-    private String name;
     private String url;
     private String method;
     private String headers;
     private String body;
 
-    private final String SCENARIO_TEMPLATE = "Scenario: %s" +  // Scenario Description
-            "Given url " + "%s" +                              // url
-            "%s" +                                             // Headers
-            "%s" +                                             // Body
-            "When method %s" + System.lineSeparator();         // Method
+    private final String REQUEST_TEMPLATE = "Given url " + "%s" + // url
+            "%s" +                                                // Headers
+            "%s" +                                                // Body
+            "When method %s" + System.lineSeparator();            // Method
 
-    public FeatureBuilder addName(String name) {
-        if (name != null) {
-            this.name = name + System.lineSeparator();
-        }
-        else {
-            this.name = "";
-        }
-        return this;
-    }
-
-    public FeatureBuilder addUrl(String url) {
+    public RequestBuilder addUrl(String url) {
         if (url != null) {
             this.url = "'" + url + "'" + System.lineSeparator();
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("Url is null");
         }
         return this;
     }
 
-    public FeatureBuilder addMethod(String method) {
+    public RequestBuilder addMethod(String method) {
         if (url != null) {
             this.method = method + System.lineSeparator();
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("Method is null");
         }
         return this;
     }
 
-    public FeatureBuilder addHeaders(Map<String, String > headers) {
+    public RequestBuilder addHeaders(Map<String, String> headers) {
         this.headers = "";
-        for (Map.Entry<String, String> entry: headers.entrySet()) {
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
             this.headers += "And header " + entry.getKey() + " = " + "'" +
                     entry.getValue() + "'" + System.lineSeparator();
         }
         return this;
     }
 
-    public FeatureBuilder addBody(String body) {
+    public RequestBuilder addBody(String body) {
         if (body != null) {
             this.body = "And request " + body + System.lineSeparator();
-        }
-        else {
+        } else {
             this.body = "";
         }
         return this;
-    }
-
-    public String getName() {
-        return name;
     }
 
     public String getUrl() {
@@ -116,12 +98,10 @@ public class FeatureBuilder {
         if ("POST".equals(method) && StringUtils.isBlank(body)) {
             throw new IllegalArgumentException("Body can't be null if method is POST");
         }
-        return String.format(SCENARIO_TEMPLATE,  name,
-                url,
+        return String.format(REQUEST_TEMPLATE, url,
                 headers,
                 body,
                 method);
     }
-    
-}
 
+}

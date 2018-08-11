@@ -64,7 +64,7 @@ Scenario: french & german form field
     Given url demoBaseUrl
     And path 'echo', 'message'
     And form field text = 'oliàèôç Müller'
-    And header Content-Type = 'application/x-www-form-urlencoded; charset=utf-8'
+    And header Content-Type = 'application/x-www-form-urlencoded'
     When method post
     Then status 200
     And match response == 'oliàèôç Müller'

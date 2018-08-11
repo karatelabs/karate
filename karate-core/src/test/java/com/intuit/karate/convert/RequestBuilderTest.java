@@ -13,21 +13,21 @@ import static org.junit.Assert.assertEquals;
 /**
  * Created by rkumar32 on 7/5/17.
  */
-public class FeatureBuilderTest {
+public class RequestBuilderTest {
     
-    private static final Logger logger = LoggerFactory.getLogger(FeatureBuilderTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(RequestBuilderTest.class);
 
     @Test
     public void testConverting() {
         InputStream is = getClass().getResourceAsStream("postman-echo-single.postman_collection");
         String json = FileUtils.toString(is);
-        List<PostmanRequest> requests = ConvertUtils.readPostmanJson(json);
-        logger.debug("list: {}", requests);
-        assertEquals(1, requests.size());
-        PostmanRequest request = requests.get(0);
-        FeatureBuilder builder = new FeatureBuilder();
-        builder.addName(request.getName());
-        assertEquals("OAuth1.0 Verify Signature", builder.getName().trim());
+        List<PostmanItem> items = ConvertUtils.readPostmanJson(json);
+        logger.debug("list: {}", items);
+        assertEquals(1, items.size());
+        PostmanItem item = items.get(0);
+        PostmanRequest request = item.getRequest();
+        RequestBuilder builder = new RequestBuilder();
+        assertEquals("OAuth1.0 Verify Signature", item.getName().trim());
         builder.addUrl(request.getUrl());
         assertEquals("'https://echo.getpostman.com/oauth1'", builder.getUrl().trim());
         builder.addHeaders(request.getHeaders());

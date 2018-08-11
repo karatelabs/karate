@@ -52,7 +52,6 @@ public class KarateRuntime extends Runtime {
     private final CucumberStats stats;
     private CucumberScenarioImpl scenarioResult;
     private boolean stopped;
-    private boolean aborted;
     private ScriptContext prevContext;
 
     public KarateRuntime(KarateRuntimeOptions kro, KarateBackend backend, RuntimeGlue glue) {
@@ -74,13 +73,17 @@ public class KarateRuntime extends Runtime {
     public void runStep(String featurePath, Step step, Reporter reporter, I18n i18n) {
         if (stopped) {
             Match match = Match.UNDEFINED;
-            Result result = aborted ? StepResult.PASSED : Result.SKIPPED;
-            if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy                
+            Result result = Result.SKIPPED;
+            if (reporter instanceof KarateReporter) { // simulate cucumber flow to keep json-formatter happy
+                // below call internally invokes reporter.match(match) and reporter.result(result) as
+                // KarateReporterBase.karateStep() -> karateStepProceed() -> result() / match()
+                // the else clause is needed to compensate !
                 ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext(), backend.getStepDefs().getContext());
+            } else {
+                reporter.match(match);
+                reporter.result(result);
             }
-            reporter.match(match);
             addStepToCounterAndResult(result);
-            reporter.result(result);
             return;
         }
         StepResult result = CucumberUtils.runStep(step, reporter, i18n, backend);
@@ -91,7 +94,6 @@ public class KarateRuntime extends Runtime {
             }
             prevContext = backend.getStepDefs().getContext();
             stopped = true; // skip remaining steps
-            aborted = result.isAbort(); // if skipped steps are to be marked as PASSED
         }
         addStepToCounterAndResult(result.getResult());
     }
