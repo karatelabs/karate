@@ -60,6 +60,7 @@ public class AppSession {
     public final FeaturePanel featurePanel;
     public final VarsPanel varsPanel;
     public final LogPanel logPanel;
+    public final HttpPanel httpPanel;
 
     RunService runner;
     BooleanBinding runningNow;
@@ -114,13 +115,15 @@ public class AppSession {
             runner = new RunService(this);
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);
-            varsPanel = new VarsPanel(this);
+            varsPanel = new VarsPanel(this, FXCollections.emptyObservableList());
             logPanel = new LogPanel(backend.getEnv().logger);
+            httpPanel = new HttpPanel();
         } else {
             headerPanel = null;
             featurePanel = null;
             varsPanel = null;
             logPanel = null;
+            httpPanel = null;
         }
     }
 
@@ -131,7 +134,13 @@ public class AppSession {
     }
 
     public void refreshVarsTable() {
-        varsPanel.refresh();
+        // show session vars (last executed step)
+        refreshVarsTable(getVars());
+    }
+
+    public void refreshVarsTable(VarLists stepVarLists) {
+        varsPanel.refresh(stepVarLists);
+        httpPanel.refresh(stepVarLists);
     }
 
     public FeatureSection refresh(FeatureSection section) {
@@ -164,16 +173,8 @@ public class AppSession {
         featurePanel.refresh();
     }
 
-    public ObservableList<Var> getVars() {
-        if (backend.getStepDefs() == null) {
-            return FXCollections.emptyObservableList();
-        }
-        ScriptValueMap map = backend.getStepDefs().getContext().getVars();
-        List<Var> list = new ArrayList(map.size());
-        for (Map.Entry<String, ScriptValue> entry : map.entrySet()) {
-            list.add(new Var(entry.getKey(), entry.getValue()));
-        }
-        return FXCollections.observableList(list);
+    public VarLists getVars() {
+        return new VarLists(backend.getStepDefs());
     }
 
     public BooleanBinding isRunningNow() {
@@ -186,4 +187,7 @@ public class AppSession {
         }
     }
 
+    public void stepIntoFeature(StepPanel stepPanel) {
+        logPanel.append("TODO: stepIntoFeature coming soon to karate-ui");
+    }
 }

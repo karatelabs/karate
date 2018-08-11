@@ -156,10 +156,10 @@ java -jar karate.jar -e e2e my-test.feature
 ```
 
 #### `karate-config.js`
-If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
+If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config.dir`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
-java -jar -Dkarate.config=somedir/my-config.js karate.jar my-test.feature
+java -jar -Dkarate.config.dir=somedir/my-config.js karate.jar my-test.feature
 ```
 
 And you can even set or over-ride variable values via the command line by using the `-a` (args) option:
