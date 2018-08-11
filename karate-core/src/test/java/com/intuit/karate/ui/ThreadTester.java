@@ -74,7 +74,7 @@ public class ThreadTester {
                 e.printStackTrace();
             }
         }
-        ObservableList<Var> vars = session.getVars();
+        ObservableList<Var> vars = session.getVars().getVarList();
         String threadName = null;
         for (Var var : vars) {
             if ("threadName".equals(var.getName())) {
