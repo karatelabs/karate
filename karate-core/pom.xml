@@ -9,8 +9,17 @@
     </parent>
     <artifactId>karate-core</artifactId>
     <packaging>jar</packaging>   
+    
+    <properties>
+        <antlr.version>4.7.1</antlr.version>
+    </properties>    
 
-    <dependencies>                         
+    <dependencies>
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+            <version>${antlr.version}</version>
+        </dependency>                                 
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
@@ -62,6 +71,28 @@
                 <directory>src/test/resources</directory>
             </testResource>
         </testResources>
+        <plugins>           
+            <plugin>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-maven-plugin</artifactId>
+                <version>${antlr.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>${nexus.staging.plugin.version}</version>
+                <configuration>
+                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+                </configuration>
+            </plugin>            
+        </plugins>        
     </build>           
     
 </project>
