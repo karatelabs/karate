@@ -23,12 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  *
  * @author pthomas3
@@ -40,25 +34,6 @@ public class Step {
     private String text;
     private String docString;
     private Table table;
-    
-    public static List<Map<String, Object>> toList(List<Step> steps) {
-        if (steps == null) {
-            return Collections.EMPTY_LIST;
-        }
-        List<Map<String, Object>> list = new ArrayList(steps.size());
-        for (Step step : steps) {
-            list.add(step.toMap());
-        }
-        return list;
-    }
-    
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap();
-        map.put("line", line);
-        map.put("keyword", prefix);
-        map.put("name", text);
-        return map;        
-    }
 
     public int getLine() {
         return line;

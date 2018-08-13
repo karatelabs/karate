@@ -23,55 +23,74 @@
  */
 package com.intuit.karate.core;
 
+import java.util.HashMap;
+
 /**
  *
  * @author pthomas3
  */
-public class Result {
+public class Result extends HashMap<String, Object> {
 
-    public static final String PASSED = "passed";
-    public static final String FAILED = "failed";
-    public static final String SKIPPED = "skipped";
+    private static final String PASSED = "passed";
+    private static final String FAILED = "failed";
+    private static final String SKIPPED = "skipped";
 
-    private String status;
-    private long duration;
+    private final String status;
+    private final long duration;
+    private final boolean aborted;
+    private final Throwable error;
 
-    public Result(String status, long duration) {
+    private Result(String status, long duration, Throwable error, boolean aborted) {
         this.status = status;
         this.duration = duration;
+        this.error = error;
+        this.aborted = aborted;
+        put("status", status);
+        put("duration", duration);
+        if (error != null) {
+            put("error_message", error.getClass().getName() + ": " + error.getMessage());
+        }        
+    }
+
+    public boolean isFailed() {
+        return error != null;
+    }
+
+    public boolean isAborted() {
+        return aborted;
+    }
+
+    public Throwable getError() {
+        return error;
     }
 
     public static Result passed(long duration) {
-        return new Result(PASSED, duration);
+        return new Result(PASSED, duration, null, false);
     }
 
-    public static Result failed( long duration, Throwable error) {
-        return new ResultError(FAILED, duration, error);
+    public static Result failed(long duration, Throwable error) {
+        return new Result(FAILED, duration, error, false);
     }
 
     public static Result skipped() {
-        return new Result(SKIPPED, 0);
+        return new Result(SKIPPED, 0, null, false);
+    }
+
+    public static Result aborted(long duration) {
+        return new Result(PASSED, duration, null, true);
     }
 
     public String getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public long getDuration() {
         return duration;
-    }
-
-    public void setDuration(long duration) {
-        this.duration = duration;
     }
 
     @Override
     public String toString() {
         return status;
-    }        
+    }
 
 }

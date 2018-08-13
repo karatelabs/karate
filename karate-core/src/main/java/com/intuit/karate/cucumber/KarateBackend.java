@@ -69,7 +69,7 @@ public class KarateBackend implements Backend {
     }
 
     public void setScenarioError(Throwable error) {
-        objectFactory.getStepDefs().getContext().setScenarioError(error);
+        objectFactory.getStepDefs().context.setScenarioError(error);
     }
 
     public boolean isCalled() {
@@ -85,7 +85,7 @@ public class KarateBackend implements Backend {
     }
 
     public ScriptValueMap getVars() {
-        return getStepDefs().getContext().getVars();
+        return getStepDefs().context.getVars();
     }
 
     public KarateBackend(FeatureWrapper feature, CallContext callContext) {

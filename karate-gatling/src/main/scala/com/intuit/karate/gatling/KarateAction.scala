@@ -68,7 +68,7 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
         val isHttpMethod = step.getStep.getName.startsWith("method")
         if (isHttpMethod) {
           val method = step.getStep.getName.substring(6).trim
-          val ctx = backend.getStepDefs.getContext
+          val ctx = backend.getStepDefs.context
           logPrevRequestIfDefined(ctx, true, None)
           val request = backend.getStepDefs.getRequest
           val pauseTime = protocol.pauseFor(request.getUrlAndPath, method)
@@ -80,7 +80,7 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
 
       override def afterStep(result: StepResult, backend: KarateBackend): Unit = {
         val isHttpMethod = result.getStep.getName.startsWith("method")
-        val ctx = backend.getStepDefs.getContext
+        val ctx = backend.getStepDefs.context
         if (isHttpMethod) {
           prevRequest = Option(ctx.getPrevRequest)
           startTime = ctx.getVars.get(ScriptValueMap.VAR_REQUEST_TIME_STAMP).getValue(classOf[Long])
@@ -91,7 +91,7 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
       }
 
       override def afterScenario(scenario: ScenarioWrapper, backend: KarateBackend): Unit = {
-        logPrevRequestIfDefined(backend.getStepDefs.getContext, true, None)
+        logPrevRequestIfDefined(backend.getStepDefs.context, true, None)
       }
 
     }

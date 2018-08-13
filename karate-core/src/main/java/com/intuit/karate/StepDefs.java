@@ -77,13 +77,10 @@ public class StepDefs {
         request = new HttpRequestBuilder();
     }
 
-    private final ScriptContext context;
+    public final ScriptContext context;
     private HttpRequestBuilder request;
     private HttpResponse response;
 
-    public ScriptContext getContext() {
-        return context;
-    }
 
     public HttpRequestBuilder getRequest() {
         return request;

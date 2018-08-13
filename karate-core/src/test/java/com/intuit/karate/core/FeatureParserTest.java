@@ -51,6 +51,12 @@ public class FeatureParserTest {
         ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile("mock", "not('@ignore')", file);
         return new StepDefs(env, new CallContext(null, true));
     }
+    
+    private static LogAppender appender(Feature feature, StepDefs stepDefs) {
+        String relativePath = feature.getRelativePath();
+        String basePath = FileUtils.toPackageQualifiedName(relativePath);
+        return new FileLogAppender("target/surefire-reports/" + basePath + ".log", stepDefs.context.logger);        
+    }
 
     private static Feature feature(String name) {
         return FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
@@ -59,7 +65,7 @@ public class FeatureParserTest {
     private static FeatureResult execute(String name) {
         Feature feature = feature(name);
         StepDefs stepDefs = stepDefs(feature);
-        return Engine.execute(feature, stepDefs);
+        return Engine.execute(feature, stepDefs, appender(feature, stepDefs));
     }
 
     @Test

@@ -213,7 +213,7 @@ public class CucumberUtils {
     private static StepResult afterStep(Reporter reporter, Step step, Match match, Result result, KarateBackend backend) {
         boolean isKarateReporter = reporter instanceof KarateReporter;
         CallContext callContext = backend.getCallContext();
-        ScriptContext context = backend.getStepDefs().getContext();
+        ScriptContext context = backend.getStepDefs().context;
         if (isKarateReporter) { // report all the things !           
             KarateReporter karateReporter = (KarateReporter) reporter;
             karateReporter.karateStep(step, match, result, callContext, context);

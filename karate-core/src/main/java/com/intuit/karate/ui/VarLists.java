@@ -23,7 +23,7 @@ public class VarLists {
         if (stepDefs == null) {
             varList = requestVarList = responseVarList = FXCollections.emptyObservableList();
         } else {
-            ScriptValueMap map = stepDefs.getContext().getVars();
+            ScriptValueMap map = stepDefs.context.getVars();
             Var var;
             List<Var> vars = new ArrayList();
             List<Var> requestVars = new ArrayList();

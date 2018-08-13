@@ -34,6 +34,8 @@ import java.util.Map;
 public class StepResult extends HashMap<String, Object> {
 
     private static final Map<String, Object> DUMMY_MATCH;
+    
+    private final Result result;
 
     static {
         DUMMY_MATCH = new HashMap();
@@ -59,10 +61,11 @@ public class StepResult extends HashMap<String, Object> {
         put("result", result);
         put("match", DUMMY_MATCH);
         putDocString(step.getDocString());
+        this.result = result;
     }
     
     public Result getResult() {
-        return (Result) get("result");
+        return result;
     }
-
+    
 }

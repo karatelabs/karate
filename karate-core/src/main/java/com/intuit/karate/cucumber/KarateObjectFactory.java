@@ -51,7 +51,7 @@ public class KarateObjectFactory implements ObjectFactory {
 
     public ScriptEnv getEnv() {
         if (stepDefs != null) { // get the latest, just in case it was clobbered
-            return stepDefs.getContext().getEnv();
+            return stepDefs.context.getEnv();
         } else {
             return scriptEnv;
         }

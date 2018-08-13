@@ -44,6 +44,10 @@ public class Scenario {
     public Scenario(Feature feature) {
         this.feature = feature;
     }    
+
+    public Feature getFeature() {
+        return feature;
+    }        
     
     public Collection<Tag> getTagsEffective() {
         return Tags.merge(feature.getTags(), tags);

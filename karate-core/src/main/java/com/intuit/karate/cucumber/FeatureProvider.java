@@ -61,7 +61,7 @@ public class FeatureProvider {
     }
 
     public final ScriptContext getContext() {
-        return backend.getStepDefs().getContext();
+        return backend.getStepDefs().context;
     }
 
     private static void putBinding(String name, ScriptContext context) {
@@ -121,12 +121,12 @@ public class FeatureProvider {
         if (!matched) {
             backend.getEnv().logger.warn("no scenarios matched");
         }
-        return backend.getStepDefs().getContext().getVars();
+        return backend.getStepDefs().context.getVars();
     }
 
     private static boolean isMatchingScenario(ScenarioWrapper scenario, KarateBackend backend) {
         String expression = StringUtils.trimToNull(scenario.getNameAndDescription());
-        ScriptContext context = backend.getStepDefs().getContext();
+        ScriptContext context = backend.getStepDefs().context;
         if (expression == null) {
             context.logger.debug("scenario matched: (empty)");
             return true;

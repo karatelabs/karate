@@ -78,7 +78,7 @@ public class KarateRuntime extends Runtime {
                 // below call internally invokes reporter.match(match) and reporter.result(result) as
                 // KarateReporterBase.karateStep() -> karateStepProceed() -> result() / match()
                 // the else clause is needed to compensate !
-                ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext(), backend.getStepDefs().getContext());
+                ((KarateReporter) reporter).karateStep(step, match, result, backend.getCallContext(), backend.getStepDefs().context);
             } else {
                 reporter.match(match);
                 reporter.result(result);
@@ -92,7 +92,7 @@ public class KarateRuntime extends Runtime {
                 addError(result.getError());
                 backend.setScenarioError(result.getError());
             }
-            prevContext = backend.getStepDefs().getContext();
+            prevContext = backend.getStepDefs().context;
             stopped = true; // skip remaining steps
         }
         addStepToCounterAndResult(result.getResult());
@@ -111,7 +111,7 @@ public class KarateRuntime extends Runtime {
     @Override
     public void disposeBackendWorlds(String scenarioDesignation) {
         stats.addScenario(scenarioResult.getStatus(), scenarioDesignation);
-        prevContext = backend.getStepDefs().getContext();
+        prevContext = backend.getStepDefs().context;
         invokeAfterHookIfConfigured(false);
         backend.disposeWorld();
         stopped = false; // else a failed scenario results in all remaining ones in the feature being skipped !

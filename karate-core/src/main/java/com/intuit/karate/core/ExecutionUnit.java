@@ -23,45 +23,16 @@
  */
 package com.intuit.karate.core;
 
-import net.minidev.json.annotate.JsonIgnore;
+import com.intuit.karate.exception.KarateException;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  *
  * @author pthomas3
  */
-public class ResultError extends Result {
+public interface ExecutionUnit<T> {
     
-    private Throwable error;
-    private String error_message;
-    
-    public ResultError(String status, long duration, Throwable error) {
-        super(status, duration);
-        this.error = error;
-        String temp = error.getClass().getName();
-        error_message = temp + ": " + error.getMessage();        
-    }
-
-    @JsonIgnore
-    public Throwable getError() {
-        return error;
-    }
-
-    @JsonIgnore
-    public void setError(Throwable error) {
-        this.error = error;
-    }
-
-    public String getError_message() {
-        return error_message;
-    }
-
-    public void setError_message(String error_message) {
-        this.error_message = error_message;
-    }
-
-    @Override
-    public String toString() {
-        return getStatus() + " - " + error_message;
-    }        
+    void submit(Consumer<Runnable> system, BiConsumer<T, KarateException> next);
     
 }

@@ -23,13 +23,10 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
 import cucumber.api.DataTable;
@@ -38,12 +35,9 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.Consumer;
 
 /**
  *
@@ -51,9 +45,9 @@ import org.slf4j.LoggerFactory;
  */
 public class Engine {
 
-    private static final Logger logger = LoggerFactory.getLogger(Engine.class);
-
     private static final List<MethodPattern> PATTERNS = new ArrayList();
+    
+    private static final Consumer<Runnable> DEFAULT_SYNC = r -> r.run();
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -69,109 +63,43 @@ public class Engine {
         // only static methods
     }
 
-    public static FeatureResult execute(Feature feature, StepDefs stepDefs) {
-        String relativePath = feature.getRelativePath();
-        String basePath = FileUtils.toPackageQualifiedName(relativePath);
-        LogAppender appender = new FileLogAppender("target/surefire-reports/"  + basePath + ".log", stepDefs.getContext().logger);        
-        FeatureResult result = new FeatureResult(feature);
-        for (FeatureSection section : feature.getSections()) {
-            if (section.isOutline()) {
-                List<Scenario> scenarios = section.getScenarioOutline().getScenarios();
-                for (Scenario scenario : scenarios) {
-                    execute(feature, scenario, stepDefs, result, appender);
-                }
-            } else {
-                Scenario scenario = section.getScenario();
-                execute(feature, scenario, stepDefs, result, appender);
-            }
-        }
-        return result;
+    public static FeatureResult execute(Feature feature, StepDefs stepDefs, LogAppender appender) {
+        FeatureExecutionUnit unit = new FeatureExecutionUnit(feature, stepDefs, appender);
+        unit.submit(DEFAULT_SYNC, (r, e) -> {});
+        return unit.getFeatureResult();
     }
 
-    private static void execute(Feature feature, Scenario scenario, StepDefs stepDefs, FeatureResult featureResult, LogAppender appender) {
-        ScriptEnv env = stepDefs.getContext().getEnv();
-        Collection<Tag> tagsEffective = scenario.getTagsEffective();
-        if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
-            if (logger.isTraceEnabled()) {
-                logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
-            }
-            return;
+    public static Result execute(Step step, StepDefs stepDefs) {
+        String text = step.getText();
+        List<MethodMatch> matches = findMethodsMatching(text);
+        if (matches.isEmpty()) {
+            return Result.failed(0, new KarateException("no step-definition method match found for: " + text));
+        } else if (matches.size() > 1) {
+            return Result.failed(0, new KarateException("more than one step-definition method matched: " + text + " - " + matches));
         }
-        boolean stopped = false;
-        Background background = feature.getBackground();
-        if (background != null) {
-            BackgroundResult backgroundResult = new BackgroundResult(background);
-            featureResult.addResult(backgroundResult);
-            stopped = execute(background.getSteps(), stepDefs, backgroundResult, stopped, appender);
+        MethodMatch match = matches.get(0);
+        Object last;
+        if (step.getDocString() != null) {
+            last = step.getDocString();
+        } else if (step.getTable() != null) {
+            last = DataTable.create(step.getTable().getRows());
+        } else {
+            last = null;
         }
-        ScenarioResult scenarioResult = new ScenarioResult(scenario);
-        featureResult.addResult(scenarioResult);
-        execute(scenario.getSteps(), stepDefs, scenarioResult, stopped, appender);
+        Object[] args = match.convertArgs(last);
+        long startTime = System.nanoTime();
+        try {
+            match.method.invoke(stepDefs, args);
+            return Result.passed(getElapsedTime(startTime));
+        } catch (KarateAbortException ke) {
+            return Result.aborted(getElapsedTime(startTime));
+        } catch (InvocationTargetException e) { // target will be KarateException
+            return Result.failed(getElapsedTime(startTime), e.getTargetException());
+        } catch (Exception e) {
+            return Result.failed(getElapsedTime(startTime), e);
+        }
     }
 
-    private static boolean execute(List<Step> steps, StepDefs stepDefs, ResultElement collector, boolean stopped, LogAppender appender) {
-        for (Step step : steps) {
-            if (stopped) {
-                collector.addStepResult(new StepResult(step, Result.skipped()));
-                continue;
-            }
-            String text = step.getText();
-            List<MethodMatch> matches = findMethodsMatching(text);
-            if (matches.isEmpty()) {
-                String message = "no step-definition method match found for: " + text;
-                stepDefs.getContext().logger.error(message);
-                Result result = Result.failed(0, new KarateException(message));
-                collector.addStepResult(new StepResult(step, result));
-                stopped = true;
-                continue;
-            } else if (matches.size() > 1) {
-                String message = "more than one step-definition method matched: " + text + " - " + matches;
-                stepDefs.getContext().logger.error(message);
-                Result result = Result.failed(0, new KarateException(message));
-                collector.addStepResult(new StepResult(step, result));
-                stopped = true;
-                continue;
-            }
-            MethodMatch match = matches.get(0);
-            Object last;
-            if (step.getDocString() != null) {
-                last = step.getDocString();
-            } else if (step.getTable() != null) {
-                last = DataTable.create(step.getTable().getRows());
-            } else {
-                last = null;
-            }
-            Object[] args = match.convertArgs(last);
-            if (logger.isTraceEnabled()) {
-                logger.debug("MATCH: {}, {}, {}", text, match, Arrays.asList(args));
-            }
-            Result result;
-            long startTime = System.nanoTime();
-            try {
-                match.method.invoke(stepDefs, args);
-                result = Result.passed(getElapsedTime(startTime));
-            } catch (KarateAbortException ke) {
-                result = Result.passed(getElapsedTime(startTime));
-                stopped = true;
-            } catch (InvocationTargetException e) { // will be KarateException
-                result = Result.failed(getElapsedTime(startTime), e.getTargetException());
-                stopped = true;
-            } catch (Exception e) {
-                result = Result.failed(getElapsedTime(startTime), e);
-                stopped = true;
-            }
-            StepResult stepResult = new StepResult(step, result);
-            if (step.getDocString() == null) {
-                String log = StringUtils.trimToNull(appender.collect());
-                if (log != null) {
-                    stepResult.putDocString(log);
-                }
-            }
-            collector.addStepResult(stepResult);
-        }
-        return stopped;
-    }
-    
     public static void saveResultJson(String targetDir, FeatureResult result) {
         String baseName = FileUtils.toPackageQualifiedName(result.getUri());
         List<FeatureResult> single = Collections.singletonList(result);
