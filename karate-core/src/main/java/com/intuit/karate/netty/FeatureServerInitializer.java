@@ -109,7 +109,7 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
         // HTTP/1 requests fall-through or HTTP/2 requests are converted 
         // and pushed through to the feature server request handling
         p.addLast(new HttpObjectAggregator(1048576));
-        p.addLast(new FeatureServerHandlerHttp1(provider, stopFunction));
+        p.addLast(new FeatureServerRequestHandler(provider, stopFunction));
 	}
 
 	private void setupForSSL(SocketChannel ch) {

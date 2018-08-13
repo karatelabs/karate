@@ -55,12 +55,12 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class FeatureServerHandlerHttp1 extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final FeatureProvider provider;
     private final Runnable stopFunction;
 
-    public FeatureServerHandlerHttp1(FeatureProvider provider, Runnable stopFunction) {
+    public FeatureServerRequestHandler(FeatureProvider provider, Runnable stopFunction) {
         this.provider = provider;
         this.stopFunction = stopFunction;
     }

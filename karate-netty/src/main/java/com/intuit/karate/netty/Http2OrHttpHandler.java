@@ -64,13 +64,13 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
 	    logger.info("configureHttp2");
 	    
         ctx.pipeline().addLast(new Http2ConnectionHandlerBuilder().build());
-        ctx.pipeline().addLast(new FeatureServerHandlerHttp1(provider, stopFunction));
+        ctx.pipeline().addLast(new FeatureServerRequestHandler(provider, stopFunction));
     }
 
     private void configureHttp1(ChannelHandlerContext ctx) throws Exception {
 	    logger.info("configureHttp1");
         ctx.pipeline().addLast(new HttpServerCodec(),
                                new HttpObjectAggregator(MAX_CONTENT_LENGTH),
-                               new FeatureServerHandlerHttp1(provider, stopFunction));
+                               new FeatureServerRequestHandler(provider, stopFunction));
     }
 }
