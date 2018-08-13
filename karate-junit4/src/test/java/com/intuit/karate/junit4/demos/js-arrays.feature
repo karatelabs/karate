@@ -93,6 +93,12 @@ Scenario: karate find index of first match (complex)
     * eval karate.forEach(list, fun)
     * match foundAt == [1]
 
+Scenario: simplest way to get the size of a json object
+    * def json = { a: 1, b: 2, c: 3 }
+    * def map = karate.toBean(json, 'java.util.HashMap')
+    * def count = map.size()
+    * match count == 3
+
 Scenario: get last array element (js)
     * def list = [1, 2, 3, 4]
     * def last = list[list.length-1]
