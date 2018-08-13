@@ -33,13 +33,8 @@ public final class Http2ConnectionHandlerBuilder
         extends AbstractHttp2ConnectionHandlerBuilder<FeatureServerHttp2ConnectionHandler, Http2ConnectionHandlerBuilder> {
 
     private static final Http2FrameLogger logger = new Http2FrameLogger(INFO, FeatureServerHttp2ConnectionHandler.class);
-    private final FeatureProvider provider;
-    private final Runnable stopFunction;
-
-    public Http2ConnectionHandlerBuilder(FeatureProvider provider, Runnable stopFunction) {
+    public Http2ConnectionHandlerBuilder() {
         frameLogger(logger);
-        this.provider = provider;
-        this.stopFunction = stopFunction;
     }
 
     @Override
@@ -50,7 +45,7 @@ public final class Http2ConnectionHandlerBuilder
     @Override
     protected FeatureServerHttp2ConnectionHandler build(Http2ConnectionDecoder decoder, Http2ConnectionEncoder encoder,
                                            Http2Settings initialSettings) {
-        FeatureServerHttp2ConnectionHandler handler = new FeatureServerHttp2ConnectionHandler(provider, stopFunction, decoder, encoder, initialSettings);
+        FeatureServerHttp2ConnectionHandler handler = new FeatureServerHttp2ConnectionHandler(decoder, encoder, initialSettings);
         InboundHttp2ToHttpAdapter listener = new InboundHttp2ToHttpAdapterBuilder(handler.connection())
         		.maxContentLength(1048576)
         		.validateHttpHeaders(false)

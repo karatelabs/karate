@@ -66,19 +66,10 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
     private final Runnable stopFunction;
     
     private class FeatureServerUpgradeCodecFactory implements UpgradeCodecFactory {
-        private FeatureProvider provider;
-        private Runnable stopFunction;
-    	
-        public UpgradeCodecFactory featureInit(FeatureProvider provider, Runnable stopFunction) {
-        	this.provider = provider;
-        	this.stopFunction = stopFunction; 
-			return this;
-        }
-
 		@Override
 		public UpgradeCodec newUpgradeCodec(CharSequence protocol) {
             if (AsciiString.contentEquals(Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME, protocol)) {
-          	    return new Http2ServerUpgradeCodec(new Http2ConnectionHandlerBuilder(provider, stopFunction).build());
+          	    return new Http2ServerUpgradeCodec(new Http2ConnectionHandlerBuilder().build());
             } else {
                 return null;
             }
@@ -108,8 +99,8 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
 		logger.info("server setup for ClearText");
 		
         final HttpServerCodec sourceCodec = new HttpServerCodec();
-        final HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(sourceCodec, new FeatureServerUpgradeCodecFactory().featureInit(provider, stopFunction), UPGRADE_REQ_LENGTH_MAX);
-        final ChannelHandler featureServerConnectionHandler = new Http2ConnectionHandlerBuilder(provider, stopFunction).build();
+        final HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(sourceCodec, new FeatureServerUpgradeCodecFactory(), UPGRADE_REQ_LENGTH_MAX);
+        final ChannelHandler featureServerConnectionHandler = new Http2ConnectionHandlerBuilder().build();
         final CleartextHttp2ServerUpgradeHandler cleartextHttp2ServerUpgradeHandler =
                 new CleartextHttp2ServerUpgradeHandler(sourceCodec, upgradeHandler, featureServerConnectionHandler);
 
