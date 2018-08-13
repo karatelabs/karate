@@ -64,7 +64,7 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
 	    logger.info("configureHttp2");
 	    
         ctx.pipeline().addLast(new Http2ConnectionHandlerBuilder(provider, stopFunction).build());
-        ctx.pipeline().addLast(new FeatureServerHttp2RequestHandler(provider, stopFunction));
+        ctx.pipeline().addLast(new FeatureServerHandlerHttp1(provider, stopFunction));
     }
 
     private void configureHttp1(ChannelHandlerContext ctx) throws Exception {

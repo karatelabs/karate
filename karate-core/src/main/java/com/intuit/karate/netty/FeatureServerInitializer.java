@@ -106,15 +106,6 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
 
 	private void setupForClearText(ChannelPipeline p) {
 		logger.info("server setup for ClearText");
-//        DefaultHttp2Connection connection = new DefaultHttp2Connection(true);
-//        InboundHttp2ToHttpAdapter listener = new InboundHttp2ToHttpAdapterBuilder(connection)
-//                .propagateSettings(true).validateHttpHeaders(true)
-//                .maxContentLength(1048576).build();
-//
-//        p.addLast(new HttpToHttp2ConnectionHandlerBuilder()
-//                .frameListener(listener)
-//                // .frameLogger(TilesHttp2ToHttpHandler.logger)
-//                .connection(connection).build());
 		
         final HttpServerCodec sourceCodec = new HttpServerCodec();
         final HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(sourceCodec, new FeatureServerUpgradeCodecFactory().featureInit(provider, stopFunction), UPGRADE_REQ_LENGTH_MAX);
@@ -123,10 +114,9 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
                 new CleartextHttp2ServerUpgradeHandler(sourceCodec, upgradeHandler, featureServerConnectionHandler);
 
         // First in the pipeline is the cleartext upgrade handler
-        // Followed by a HTTP/2 request handler
         p.addLast(cleartextHttp2ServerUpgradeHandler);
-        p.addLast(new FeatureServerHttp2RequestHandler(provider, stopFunction));
-        // HTTP/1 requests fall-through to the HTTP/1 handler
+        // HTTP/1 requests fall-through or HTTP/2 requests are converted 
+        // and pushed through to the feature server request handling
         p.addLast(new HttpObjectAggregator(1048576));
         p.addLast(new FeatureServerHandlerHttp1(provider, stopFunction));
 	}
