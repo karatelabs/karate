@@ -24,14 +24,8 @@ import com.intuit.karate.cucumber.FeatureProvider;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http2.DefaultHttp2Connection;
-import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandlerBuilder;
-import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapter;
-import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 /**
  * Used during protocol negotiation, the main function of this handler is to
@@ -49,31 +43,7 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
         this.provider = provider;
         this.stopFunction = stopFunction;        
     }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-    	logger.info("userEventTriggered: {} ", evt);
-        if (evt instanceof SslHandshakeCompletionEvent) {
-
-        	SslHandshakeCompletionEvent handshakeEvent = (SslHandshakeCompletionEvent) evt;
-        	logger.info("userEventTriggered: {} ", handshakeEvent);
-            if (handshakeEvent.isSuccess()) {
-            	logger.info("userEventTriggered: Success ");
-            	SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);
-                if (sslHandler != null) {
-                	logger.info("userEventTriggered: sslHandler{} ", sslHandler);
-                }
-                String protocol = sslHandler.applicationProtocol();
-                logger.info("userEventTriggered: protocol = {} ", protocol);
-            } else {
-            	logger.info("userEventTriggered: Failed " );
-            }
-        }
-
-        super.userEventTriggered(ctx, evt);
-    }
-    
-    
+  
     @Override
     protected void configurePipeline(ChannelHandlerContext ctx, String protocol) throws Exception {
 	    logger.info("configurePipeline: {} ", protocol);
@@ -93,17 +63,8 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
     private void configureHttp2(ChannelHandlerContext ctx) {
 	    logger.info("configureHttp2");
 	    
-        DefaultHttp2Connection connection = new DefaultHttp2Connection(true);
-        InboundHttp2ToHttpAdapter listener = new InboundHttp2ToHttpAdapterBuilder(connection)
-                .propagateSettings(true).validateHttpHeaders(false)
-                .maxContentLength(MAX_CONTENT_LENGTH).build();
-
-        ctx.pipeline().addLast(new HttpToHttp2ConnectionHandlerBuilder()
-                .frameListener(listener)
-                .connection(connection).build());
-
+        ctx.pipeline().addLast(new Http2ConnectionHandlerBuilder(provider, stopFunction).build());
         ctx.pipeline().addLast(new FeatureServerHttp2RequestHandler(provider, stopFunction));
-        //ctx.pipeline().addLast(new FeatureServerHttp2Handler2(provider, stopFunction));
     }
 
     private void configureHttp1(ChannelHandlerContext ctx) throws Exception {
