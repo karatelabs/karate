@@ -54,7 +54,7 @@ public class TestCommand {
     // https://github.com/SeleniumHQ/selenium-ide/blob/master/packages/selianize/src/command.js
     public String convert(String url, HashMap<String, String> variables) {
         target = preProcess(target, variables);
-        command = preProcess(command, variables);
+        value = preProcess(value, variables);
         StringBuilder sb = new StringBuilder("\n# ").append(toString()).append("\n");
         if ("open".equals(command)) {
             String commandUrl = url;
