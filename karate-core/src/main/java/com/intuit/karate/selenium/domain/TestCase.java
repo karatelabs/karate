@@ -46,7 +46,7 @@ public class TestCase extends TestBase {
     }
 
     public String convert(String url, HashMap<String, String> variables) {
-        StringBuffer sb = new StringBuffer("\nScenario: ")
+        StringBuilder sb = new StringBuilder("\nScenario: ")
                 .append(getIdentifierName());
 
         for (TestCommand command : commands) {
