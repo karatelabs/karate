@@ -6,6 +6,7 @@ Background:
 
 Scenario: create cat
     Given path 'cats'
+    And param foo = 'bar'
     And request { name: 'Billie' }
     When method post
     Then status 200
@@ -19,7 +20,7 @@ Scenario: create cat
     * match contentType contains 'application/json'
     * match contentType contains 'charset=UTF-8'
     * def requestUri = temp.uri
-    * match requestUri == demoBaseUrl + '/cats'
+    * match requestUri == demoBaseUrl + '/cats?foo=bar'
     # this will be of java type byte[]
     * def requestBody = temp.body
     # convert byte array to  string
