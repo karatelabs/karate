@@ -23,85 +23,23 @@
  */
 package com.intuit.karate.core;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  *
  * @author pthomas3
  */
-public class BackgroundResult implements ResultElement {
-    
-    private int line;
-    private String name = "";
-    private String description = "";
-    private Type type = Type.BACKGROUND;
-    private String keyword = "Background";
-    private List<StepResult> steps = new ArrayList(); 
-    
+public class BackgroundResult extends ResultElement {
+
     public BackgroundResult(Background background) {
-        this.line = background.getLine();        
-    }
-    
-    @Override
-    public void addStepResult(StepResult stepResult) {
-        steps.add(stepResult);
-    }    
-
-    public int getLine() {
-        return line;
-    }
-
-    public void setLine(int line) {
-        this.line = line;
+        super(""); // name
+        put("line", background.getLine());
+        put("description", "");
+        put("type", "background");
+        put("keyword", "Background");
     }
 
     @Override
-    public Type getType() {
-        return type;
+    public boolean isBackground() {
+        return true;
     }
 
-    public void setType(Type type) {
-        this.type = type;
-    }
-
-    public String getKeyword() {
-        return keyword;
-    }
-
-    public void setKeyword(String keyword) {
-        this.keyword = keyword;
-    }
-
-    @Override
-    public boolean isFailed() {
-        return false;
-    }        
-
-    @Override
-    public List<StepResult> getSteps() {
-        return steps;
-    }
-
-    public void setSteps(List<StepResult> steps) {
-        this.steps = steps;
-    }
-
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-    
 }

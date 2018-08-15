@@ -76,7 +76,7 @@ public class FeatureParserTest {
         assertEquals(1, tag.getLine());
         assertEquals(1, result.getElements().size());
         ScenarioResult sr = (ScenarioResult) result.getElements().get(0);
-        tag = sr.getTags().get(0);
+        tag = ((List<TagResult>) sr.get("tags")).get(0);
         assertEquals("@bar", tag.getName());
         assertEquals(5, tag.getLine());
         Engine.saveResultJson("target", result);
@@ -87,11 +87,16 @@ public class FeatureParserTest {
     public void testEngineForSimpleFeatureWithBackground() {
         FeatureResult result = execute("test-simple-background.feature");
         assertEquals(2, result.getElements().size());
-        BackgroundResult br = (BackgroundResult) result.getElements().get(0);
-        ScenarioResult sr = (ScenarioResult) result.getElements().get(1);
         Engine.saveResultJson("target", result);
         Engine.saveResultXml("target", result);
     }
+    
+    @Test
+    public void testEngineForError() {
+        FeatureResult result = execute("test-error.feature");
+        Engine.saveResultJson("target", result);
+        Engine.saveResultXml("target", result);
+    }    
 
     @Test
     public void testParsingFeatureDescription() {

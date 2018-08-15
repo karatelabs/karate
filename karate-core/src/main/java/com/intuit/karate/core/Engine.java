@@ -29,17 +29,22 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.core.ResultElement.Type;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.w3c.dom.Document;
@@ -52,9 +57,10 @@ import org.w3c.dom.Element;
 public class Engine {
 
     private static final List<MethodPattern> PATTERNS = new ArrayList();
-    
+
     private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
-    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {};
+    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {
+    };
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -76,13 +82,15 @@ public class Engine {
         return unit.getFeatureResult();
     }
 
-    public static Result execute(Step step, StepDefs stepDefs) {
+    public static Result execute(Scenario scenario, Step step, StepDefs stepDefs) {
         String text = step.getText();
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
-            return Result.failed(0, new KarateException("no step-definition method match found for: " + text));
+            KarateException e = new KarateException("no step-definition method match found for: " + text);
+            return Result.failed(0, e, scenario, step);
         } else if (matches.size() > 1) {
-            return Result.failed(0, new KarateException("more than one step-definition method matched: " + text + " - " + matches));
+            KarateException e = new KarateException("more than one step-definition method matched: " + text + " - " + matches);
+            return Result.failed(0, e, scenario, step);
         }
         MethodMatch match = matches.get(0);
         Object last;
@@ -101,12 +109,12 @@ public class Engine {
         } catch (KarateAbortException ke) {
             return Result.aborted(getElapsedTime(startTime));
         } catch (InvocationTargetException e) { // target will be KarateException
-            return Result.failed(getElapsedTime(startTime), e.getTargetException());
+            return Result.failed(getElapsedTime(startTime), e.getTargetException(), scenario, step);
         } catch (Exception e) {
-            return Result.failed(getElapsedTime(startTime), e);
+            return Result.failed(getElapsedTime(startTime), e, scenario, step);
         }
     }
-    
+
     private static String getBaseName(FeatureResult result) {
         return FileUtils.toPackageQualifiedName(result.getUri());
     }
@@ -116,8 +124,41 @@ public class Engine {
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(single));
         FileUtils.writeToFile(new File(targetDir + "/" + getBaseName(result) + ".json"), json);
     }
-    
+
+    private static String formatNanos(long nanos, DecimalFormat formatter) {
+        double seconds = (double) nanos / 1000000000;
+        return formatter.format(seconds);
+    }
+
+    private static Throwable appendSteps(List<StepResult> steps, StringBuilder sb) {
+        Throwable error = null;
+        for (StepResult sr : steps) {
+            int length = sb.length();
+            sb.append(sr.getKeyword());
+            sb.append(' ');
+            sb.append(sr.getName());
+            sb.append(' ');
+            do {
+                sb.append('.');
+            } while (sb.length() - length < 75);
+            sb.append(' ');
+            sb.append(sr.getResult().getStatus());
+            sb.append('\n');
+            if (sr.getResult().isFailed()) {
+                sb.append("\nStack Trace:\n");
+                StringWriter sw = new StringWriter();
+                error = sr.getResult().getError();
+                error.printStackTrace(new PrintWriter(sw));
+                sb.append(sw.toString());
+                sb.append('\n');
+            }
+        }
+        return error;
+    }
+
     public static void saveResultXml(String targetDir, FeatureResult result) {
+        DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
+        formatter.applyPattern("0.######");
         Document doc = XmlUtils.newDocument();
         Element root = doc.createElement("testsuite");
         doc.appendChild(root);
@@ -126,25 +167,54 @@ public class Engine {
         String baseName = getBaseName(result);
         int testCount = 0;
         int failureCount = 0;
-        for (ResultElement re : result.getElements()) {
-            if (re.getType() == Type.SCENARIO) {
-                testCount++;
-                if (re.isFailed()) {
-                    failureCount++;
-                }                
+        long totalDuration = 0;
+        Iterator<ResultElement> iterator = result.getElements().iterator();
+        ResultElement prev = null;
+        StringBuilder sb = new StringBuilder();
+        while (iterator.hasNext()) {
+            ResultElement element = iterator.next();
+            totalDuration += element.getDuration();
+            if (element.isFailed()) {
+                failureCount++;
+            }
+            Throwable error;
+            if (element.isBackground()) {
+                sb.setLength(0);
+                prev = element;
+                appendSteps(element.getSteps(), sb);
+            } else {
                 Element testCase = doc.createElement("testcase");
                 root.appendChild(testCase);
                 testCase.setAttribute("classname", baseName);
-                String name = re.getName();
+                testCount++;
+                long duration = element.getDuration();
+                if (prev != null) {
+                    duration += prev.getDuration();
+                } else {
+                    sb.setLength(0);
+                }
+                error = appendSteps(element.getSteps(), sb);
+                String name = element.getName();
                 if (StringUtils.isBlank(name)) {
                     name = testCount + "";
                 }
-                testCase.setAttribute("name", name);                
+                testCase.setAttribute("name", name);
+                testCase.setAttribute("time", formatNanos(duration, formatter));
+                Element stepsHolder;
+                if (error != null) {
+                    stepsHolder = doc.createElement("failure");
+                    stepsHolder.setAttribute("message", error.getMessage());
+                } else {
+                    stepsHolder = doc.createElement("system-out");
+                }
+                testCase.appendChild(stepsHolder);
+                stepsHolder.setTextContent(sb.toString());
+                prev = null;
             }
-        }        
+        }
         root.setAttribute("tests", testCount + "");
         root.setAttribute("failures", failureCount + "");
-        root.setAttribute("time", "0");
+        root.setAttribute("time", formatNanos(totalDuration, formatter));
         String xml = XmlUtils.toString(doc, true);
         FileUtils.writeToFile(new File(targetDir + "/" + getBaseName(result) + ".xml"), xml);
     }

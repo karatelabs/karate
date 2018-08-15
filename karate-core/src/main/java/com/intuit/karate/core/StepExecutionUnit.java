@@ -48,7 +48,7 @@ public class StepExecutionUnit implements ExecutionUnit<Result> {
     @Override
     public void submit(Consumer<Runnable> system, BiConsumer<Result, KarateException> next) {
         system.accept(() -> {
-            Result result = Engine.execute(step, stepDefs);
+            Result result = Engine.execute(scenario, step, stepDefs);
             if (result.isAborted()) {
                 stepDefs.context.logger.debug("abort at {}:{}", scenario.getFeature().getRelativePath(), step.getLine());
                 next.accept(result, null); // same flow as passed
@@ -60,7 +60,7 @@ public class StepExecutionUnit implements ExecutionUnit<Result> {
                 }
                 message = message + ", line: " + step.getLine();
                 KarateException error = new KarateException(message, result.getError());
-                next.accept(null, error);
+                next.accept(result, error);
             } else { // passed
                 next.accept(result, null);
             }

@@ -23,39 +23,53 @@
  */
 package com.intuit.karate.core;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public interface ResultElement {
+abstract class ResultElement extends HashMap<String, Object> {
 
-    void addStepResult(StepResult stepResult);
+    private final String name;
+    private final List<StepResult> steps = new ArrayList();
     
-    String getName();
-
-    List<StepResult> getSteps();
-
-    boolean isFailed();
+    private boolean failed;
+    private long duration;
     
-    Type getType();
-
-    public static enum Type {
-
-        BACKGROUND("background"), SCENARIO("scenario");
-
-        public final String value;
-
-        private Type(String value) {
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return value;
-        }                
-
+    public ResultElement(String name) {
+        this.name = name;
+        put("name", name);
+        put("steps", steps);
     }
+    
+    public void addStepResult(StepResult stepResult) {
+        steps.add(stepResult);
+        Result result = stepResult.getResult();
+        duration += result.getDuration();
+        if (result.isFailed()) {
+            failed = true;
+        }
+    }    
+
+    public String getName() {
+        return name;
+    }
+        
+    public long getDuration() {
+        return duration;
+    }
+
+    public List<StepResult> getSteps() {
+        return steps;
+    }
+
+    public boolean isFailed() {
+        return failed;
+    }        
+    
+    abstract boolean isBackground();
 
 }

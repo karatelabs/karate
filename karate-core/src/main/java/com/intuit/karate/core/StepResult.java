@@ -36,6 +36,8 @@ public class StepResult extends HashMap<String, Object> {
     private static final Map<String, Object> DUMMY_MATCH;
     
     private final Result result;
+    private final String keyword;
+    private final String name;
 
     static {
         DUMMY_MATCH = new HashMap();
@@ -56,8 +58,10 @@ public class StepResult extends HashMap<String, Object> {
 
     public StepResult(Step step, Result result) {
         put("line", step.getLine());
-        put("keyword", step.getPrefix());
-        put("name", step.getText());
+        keyword = step.getPrefix();
+        put("keyword", keyword);
+        name = step.getText();
+        put("name", name);
         put("result", result);
         put("match", DUMMY_MATCH);
         putDocString(step.getDocString());
@@ -67,5 +71,13 @@ public class StepResult extends HashMap<String, Object> {
     public Result getResult() {
         return result;
     }
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public String getName() {
+        return name;
+    }        
     
 }

@@ -25,122 +25,34 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import net.minidev.json.annotate.JsonIgnore;
 
 /**
  *
  * @author pthomas3
  */
-public class ScenarioResult implements ResultElement {
+public class ScenarioResult extends ResultElement {
 
-    private int line;
-    private String id;
-    private String name;
-    private String description;
-    private Type type = Type.SCENARIO;
-    private String keyword = "Scenario";
-    private List<StepResult> steps = new ArrayList();
-    private List<TagResult> tags = Collections.EMPTY_LIST;
-    
     public ScenarioResult(Scenario scenario) {
-        line = scenario.getLine();
-        name = scenario.getName();
-        id = StringUtils.toIdString(name);
-        description = scenario.getDescription();
-        if (scenario.isOutline()) {
-            keyword = "Scenario Outline";
-        }
+        super(scenario.getName());
+        put("line", scenario.getLine());
+        put("id", StringUtils.toIdString(scenario.getName()));
+        put("description", scenario.getDescription());
+        put("type", "scenario");
+        put("keyword", scenario.isOutline() ? "Scenario Outline" : "Scenario");
         List<Tag> list = scenario.getTags();
         if (list != null) {
-            tags = new ArrayList(list.size());
+            List<TagResult> tags = new ArrayList(list.size());
+            put("tags", tags);
             for (Tag tag : list) {
-                tags.add(new TagResult(tag));                
+                tags.add(new TagResult(tag));
             }
         }        
+    }
+
+    @Override
+    public boolean isBackground() {
+        return false;
     }    
-    
-    private boolean failed = false;
-    
-    @JsonIgnore
-    public boolean isFailed() {
-        return failed;
-    }
-    
-    @Override
-    public void addStepResult(StepResult stepResult) {
-        steps.add(stepResult);
-        if (stepResult.getResult().isFailed()) {
-            failed = true;
-        }
-    }
 
-    public int getLine() {
-        return line;
-    }
-
-    public void setLine(int line) {
-        this.line = line;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    @Override
-    public Type getType() {
-        return type;
-    }
-
-    public void setType(Type type) {
-        this.type = type;
-    }
-
-    public String getKeyword() {
-        return keyword;
-    }
-
-    public void setKeyword(String keyword) {
-        this.keyword = keyword;
-    }
-
-    @Override
-    public List<StepResult> getSteps() {
-        return steps;
-    }
-
-    public void setSteps(List<StepResult> steps) {
-        this.steps = steps;
-    }
-
-    public List<TagResult> getTags() {
-        return tags;
-    }
-
-    public void setTags(List<TagResult> tags) {
-        this.tags = tags;
-    }
-        
 }
