@@ -35,7 +35,7 @@ public class BackgroundResult implements ResultElement {
     private int line;
     private String name = "";
     private String description = "";
-    private String type = "background";
+    private Type type = Type.BACKGROUND;
     private String keyword = "Background";
     private List<StepResult> steps = new ArrayList(); 
     
@@ -56,11 +56,12 @@ public class BackgroundResult implements ResultElement {
         this.line = line;
     }
 
-    public String getType() {
+    @Override
+    public Type getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(Type type) {
         this.type = type;
     }
 
@@ -73,6 +74,11 @@ public class BackgroundResult implements ResultElement {
     }
 
     @Override
+    public boolean isFailed() {
+        return false;
+    }        
+
+    @Override
     public List<StepResult> getSteps() {
         return steps;
     }
@@ -81,6 +87,7 @@ public class BackgroundResult implements ResultElement {
         this.steps = steps;
     }
 
+    @Override
     public String getName() {
         return name;
     }

@@ -51,11 +51,11 @@ public class FeatureParserTest {
         ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile("mock", "not('@ignore')", file);
         return new StepDefs(env, new CallContext(null, true));
     }
-    
+
     private static LogAppender appender(Feature feature, StepDefs stepDefs) {
         String relativePath = feature.getRelativePath();
         String basePath = FileUtils.toPackageQualifiedName(relativePath);
-        return new FileLogAppender("target/surefire-reports/" + basePath + ".log", stepDefs.context.logger);        
+        return new FileLogAppender("target/surefire-reports/" + basePath + ".log", stepDefs.context.logger);
     }
 
     private static Feature feature(String name) {
@@ -65,7 +65,7 @@ public class FeatureParserTest {
     private static FeatureResult execute(String name) {
         Feature feature = feature(name);
         StepDefs stepDefs = stepDefs(feature);
-        return Engine.execute(feature, stepDefs, appender(feature, stepDefs));
+        return Engine.executeSync(feature, stepDefs, appender(feature, stepDefs));
     }
 
     @Test
@@ -78,10 +78,19 @@ public class FeatureParserTest {
         ScenarioResult sr = (ScenarioResult) result.getElements().get(0);
         tag = sr.getTags().get(0);
         assertEquals("@bar", tag.getName());
-        assertEquals(5, tag.getLine());        
-        List<FeatureResult> results = Collections.singletonList(result);
-        String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(results));
-        FileUtils.writeToFile(new File("target/test-simple.json"), json);
+        assertEquals(5, tag.getLine());
+        Engine.saveResultJson("target", result);
+        Engine.saveResultXml("target", result);
+    }
+
+    @Test
+    public void testEngineForSimpleFeatureWithBackground() {
+        FeatureResult result = execute("test-simple-background.feature");
+        assertEquals(2, result.getElements().size());
+        BackgroundResult br = (BackgroundResult) result.getElements().get(0);
+        ScenarioResult sr = (ScenarioResult) result.getElements().get(1);
+        Engine.saveResultJson("target", result);
+        Engine.saveResultXml("target", result);
     }
 
     @Test

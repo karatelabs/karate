@@ -30,9 +30,32 @@ import java.util.List;
  * @author pthomas3
  */
 public interface ResultElement {
-    
+
     void addStepResult(StepResult stepResult);
     
+    String getName();
+
     List<StepResult> getSteps();
+
+    boolean isFailed();
     
+    Type getType();
+
+    public static enum Type {
+
+        BACKGROUND("background"), SCENARIO("scenario");
+
+        public final String value;
+
+        private Type(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }                
+
+    }
+
 }

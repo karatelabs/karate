@@ -39,7 +39,7 @@ public class StepResult extends HashMap<String, Object> {
 
     static {
         DUMMY_MATCH = new HashMap();
-        DUMMY_MATCH.put("location", "StepDefs.dummy(int)");
+        DUMMY_MATCH.put("location", "karate");
         DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);
     }
 

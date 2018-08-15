@@ -27,6 +27,7 @@ import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import net.minidev.json.annotate.JsonIgnore;
 
 /**
  *
@@ -38,7 +39,7 @@ public class ScenarioResult implements ResultElement {
     private String id;
     private String name;
     private String description;
-    private String type = "scenario";
+    private Type type = Type.SCENARIO;
     private String keyword = "Scenario";
     private List<StepResult> steps = new ArrayList();
     private List<TagResult> tags = Collections.EMPTY_LIST;
@@ -60,9 +61,19 @@ public class ScenarioResult implements ResultElement {
         }        
     }    
     
+    private boolean failed = false;
+    
+    @JsonIgnore
+    public boolean isFailed() {
+        return failed;
+    }
+    
     @Override
     public void addStepResult(StepResult stepResult) {
         steps.add(stepResult);
+        if (stepResult.getResult().isFailed()) {
+            failed = true;
+        }
     }
 
     public int getLine() {
@@ -81,6 +92,7 @@ public class ScenarioResult implements ResultElement {
         this.id = id;
     }
 
+    @Override
     public String getName() {
         return name;
     }
@@ -97,11 +109,12 @@ public class ScenarioResult implements ResultElement {
         this.description = description;
     }
 
-    public String getType() {
+    @Override
+    public Type getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(Type type) {
         this.type = type;
     }
 

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -56,7 +57,8 @@ public class ScriptValue {
         JS_FUNCTION,
         BYTE_ARRAY,
         INPUT_STREAM,
-        FEATURE_WRAPPER
+        FEATURE_WRAPPER,
+        FEATURE
     }
 
     private final Object value;
@@ -96,6 +98,7 @@ public class ScriptValue {
             case INPUT_STREAM:
                 return "stream";
             case FEATURE_WRAPPER:
+            case FEATURE:
                 return "feature";
             default:
                 return "???";
@@ -184,6 +187,7 @@ public class ScriptValue {
             case BYTE_ARRAY:
             case INPUT_STREAM:
             case FEATURE_WRAPPER:
+            case FEATURE:
             case JS_FUNCTION:                
                 return this;
             case XML:
@@ -401,6 +405,8 @@ public class ScriptValue {
             type = Type.PRIMITIVE;
         } else if (value instanceof FeatureWrapper) {
             type = Type.FEATURE_WRAPPER;
+        } else if (value instanceof Feature) {
+            type = Type.FEATURE;
         } else {
             type = Type.UNKNOWN;
         }

@@ -27,6 +27,9 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.StepDefs;
+import com.intuit.karate.StringUtils;
+import com.intuit.karate.XmlUtils;
+import com.intuit.karate.core.ResultElement.Type;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
 import cucumber.api.DataTable;
@@ -37,7 +40,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 /**
  *
@@ -47,7 +53,8 @@ public class Engine {
 
     private static final List<MethodPattern> PATTERNS = new ArrayList();
     
-    private static final Consumer<Runnable> DEFAULT_SYNC = r -> r.run();
+    private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
+    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {};
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -63,9 +70,9 @@ public class Engine {
         // only static methods
     }
 
-    public static FeatureResult execute(Feature feature, StepDefs stepDefs, LogAppender appender) {
+    public static FeatureResult executeSync(Feature feature, StepDefs stepDefs, LogAppender appender) {
         FeatureExecutionUnit unit = new FeatureExecutionUnit(feature, stepDefs, appender);
-        unit.submit(DEFAULT_SYNC, (r, e) -> {});
+        unit.submit(SYNC_EXECUTOR, NO_OP);
         return unit.getFeatureResult();
     }
 
@@ -99,12 +106,47 @@ public class Engine {
             return Result.failed(getElapsedTime(startTime), e);
         }
     }
+    
+    private static String getBaseName(FeatureResult result) {
+        return FileUtils.toPackageQualifiedName(result.getUri());
+    }
 
     public static void saveResultJson(String targetDir, FeatureResult result) {
-        String baseName = FileUtils.toPackageQualifiedName(result.getUri());
         List<FeatureResult> single = Collections.singletonList(result);
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(single));
-        FileUtils.writeToFile(new File(targetDir + "/" + baseName + ".json"), json);
+        FileUtils.writeToFile(new File(targetDir + "/" + getBaseName(result) + ".json"), json);
+    }
+    
+    public static void saveResultXml(String targetDir, FeatureResult result) {
+        Document doc = XmlUtils.newDocument();
+        Element root = doc.createElement("testsuite");
+        doc.appendChild(root);
+        root.setAttribute("name", result.getName()); // will be uri
+        root.setAttribute("skipped", "0");
+        String baseName = getBaseName(result);
+        int testCount = 0;
+        int failureCount = 0;
+        for (ResultElement re : result.getElements()) {
+            if (re.getType() == Type.SCENARIO) {
+                testCount++;
+                if (re.isFailed()) {
+                    failureCount++;
+                }                
+                Element testCase = doc.createElement("testcase");
+                root.appendChild(testCase);
+                testCase.setAttribute("classname", baseName);
+                String name = re.getName();
+                if (StringUtils.isBlank(name)) {
+                    name = testCount + "";
+                }
+                testCase.setAttribute("name", name);                
+            }
+        }        
+        root.setAttribute("tests", testCount + "");
+        root.setAttribute("failures", failureCount + "");
+        root.setAttribute("time", "0");
+        String xml = XmlUtils.toString(doc, true);
+        FileUtils.writeToFile(new File(targetDir + "/" + getBaseName(result) + ".xml"), xml);
     }
 
     private static long getElapsedTime(long startTime) {
