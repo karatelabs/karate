@@ -5,11 +5,10 @@
     <parent>
         <groupId>com.intuit.karate</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>0.8.0</version>
+        <version>0.9.0-SNAPSHOT</version>
     </parent>
     <artifactId>karate-apache-async</artifactId>
     <packaging>jar</packaging>
-    <version>0.9.0-SNAPSHOT</version>
     <properties>
         <apache.httpcomponents.version>4.5.5</apache.httpcomponents.version>
     </properties>                              
@@ -19,7 +18,7 @@
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-core</artifactId>
-            <version>0.9.0-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         
         <dependency>
