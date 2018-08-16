@@ -31,7 +31,7 @@ import java.util.List;
  *
  * @author pthomas3
  */
-abstract class ResultElement extends HashMap<String, Object> {
+public abstract class ResultElement extends HashMap<String, Object> {
 
     private final String name;
     private final List<StepResult> steps = new ArrayList();

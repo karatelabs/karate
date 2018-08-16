@@ -59,8 +59,7 @@ public class Engine {
     private static final List<MethodPattern> PATTERNS = new ArrayList();
 
     private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
-    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {
-    };
+    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {};
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -115,14 +114,10 @@ public class Engine {
         }
     }
 
-    private static String getBaseName(FeatureResult result) {
-        return FileUtils.toPackageQualifiedName(result.getUri());
-    }
-
     public static void saveResultJson(String targetDir, FeatureResult result) {
         List<FeatureResult> single = Collections.singletonList(result);
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(single));
-        FileUtils.writeToFile(new File(targetDir + "/" + getBaseName(result) + ".json"), json);
+        FileUtils.writeToFile(new File(targetDir + "/" + result.getPackageQualifiedName() + ".json"), json);
     }
 
     private static String formatNanos(long nanos, DecimalFormat formatter) {
@@ -164,7 +159,7 @@ public class Engine {
         doc.appendChild(root);
         root.setAttribute("name", result.getName()); // will be uri
         root.setAttribute("skipped", "0");
-        String baseName = getBaseName(result);
+        String baseName = result.getPackageQualifiedName();
         int testCount = 0;
         int failureCount = 0;
         long totalDuration = 0;
@@ -216,7 +211,7 @@ public class Engine {
         root.setAttribute("failures", failureCount + "");
         root.setAttribute("time", formatNanos(totalDuration, formatter));
         String xml = XmlUtils.toString(doc, true);
-        FileUtils.writeToFile(new File(targetDir + "/" + getBaseName(result) + ".xml"), xml);
+        FileUtils.writeToFile(new File(targetDir + "/" + baseName + ".xml"), xml);
     }
 
     private static long getElapsedTime(long startTime) {

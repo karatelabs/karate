@@ -28,9 +28,11 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.exception.KarateException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -44,15 +46,21 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
     private final FeatureResult featureResult;
     private final LogAppender appender;
 
+    private final boolean outline;
     private final Iterator<Scenario> iterator;
+
+    private int index = 0;
+    private List<String> errors;
 
     public SectionExecutionUnit(FeatureSection section, StepDefs stepDefs, FeatureResult featureResult, LogAppender appender) {
         this.stepDefs = stepDefs;
         this.featureResult = featureResult;
         this.appender = appender;
         if (section.isOutline()) {
+            outline = true;
             iterator = section.getScenarioOutline().getScenarios().iterator();
         } else {
+            outline = false;
             iterator = Collections.singletonList(section.getScenario()).iterator();
         }
     }
@@ -61,6 +69,7 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
     public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
+            index++;
             ScriptEnv env = stepDefs.context.getEnv();
             Collection<Tag> tagsEffective = scenario.getTagsEffective();
             if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
@@ -71,12 +80,37 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
                 ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, featureResult, appender);
                 system.accept(() -> {
                     unit.submit(system, (r, e) -> {
-                        SectionExecutionUnit.this.submit(system, next);
+                        if (outline) {
+                            if (e != null) {
+                                if (errors == null) {
+                                    errors = new ArrayList();
+                                }
+                                errors.add("row " + index + ": " + e.getMessage());
+                            }
+                            // continue even if one example row failed                            
+                            SectionExecutionUnit.this.submit(system, next);
+                        } else {
+                            if (e != null) {
+                                next.accept(null, e);
+                            } else {
+                                SectionExecutionUnit.this.submit(system, next);
+                            }
+                        }
                     });
                 });
             }
         } else {
-            next.accept(featureResult, null);
+            KarateException ke;
+            if (errors != null) {
+                String message = "scenario outline failed:";
+                for (String s : errors) {
+                    message = message + "\n------\n" + s;
+                }
+                ke = new KarateException(message);
+            } else {
+                ke = null;
+            }            
+            next.accept(featureResult, ke);
         }
     }
 

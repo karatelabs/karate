@@ -23,111 +23,69 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureResult {
+public class FeatureResult extends HashMap<String, Object> {
     
-    private int line;    
-    private String uri;
-    private String id;
-    private String name;
-    private String description;
-    private String keyword = "Feature";
-    private List<ResultElement> elements = new ArrayList();
-    private List<TagResult> tags = Collections.EMPTY_LIST;
+    private final String name;
+    private final List<ResultElement> elements = new ArrayList();
+    private final List<TagResult> tags;
+    private final String packageQualifiedName;
     
     public FeatureResult(Feature feature) {
-        line = feature.getLine();
-        uri = feature.getRelativePath();
-        name = uri;
-        id = StringUtils.toIdString(feature.getName());
+        put("elements", elements);
+        put("keyword", "Feature");
+        put("line", feature.getLine());
+        String relativePath = feature.getRelativePath();
+        put("uri", relativePath);
+        put("name", relativePath); // hack for json / html report
+        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+        name = feature.getName();
+        put("id", StringUtils.toIdString(feature.getName()));
         String temp = feature.getName() == null ? "" : feature.getName();
         if (feature.getDescription() != null) {
             temp = temp + "\n" + feature.getDescription();
         }
-        description = temp.trim();
+        put("description", temp.trim());       
         List<Tag> list = feature.getTags();
         if (list != null) {
             tags = new ArrayList(list.size());
+            put("tags", tags);
             for (Tag tag : list) {
                 tags.add(new TagResult(tag));                
             }
+        } else {
+           tags = Collections.EMPTY_LIST;
         }
     }    
 
+    public String getPackageQualifiedName() {
+        return packageQualifiedName;
+    }        
+
     public List<TagResult> getTags() {
         return tags;
-    }
-
-    public void setTags(List<TagResult> tags) {
-        this.tags = tags;
     }
     
     public void addResult(ResultElement element) {
         elements.add(element);
     }
 
-    public int getLine() {
-        return line;
-    }
-
-    public void setLine(int line) {
-        this.line = line;
-    }
-
-    public String getUri() {
-        return uri;
-    }
-
-    public void setUri(String uri) {
-        this.uri = uri;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getKeyword() {
-        return keyword;
-    }
-
-    public void setKeyword(String keyword) {
-        this.keyword = keyword;
     }
 
     public List<ResultElement> getElements() {
         return elements;
     }
-
-    public void setElements(List<ResultElement> elements) {
-        this.elements = elements;
-    }    
     
 }
