@@ -49,7 +49,7 @@ public class SideConverterTest {
         Assert.assertTrue(suites.get(1).getTests().size() == 1);
         Assert.assertTrue(suites.get(1).getTests().size() == 1);
 
-        File dir = file.getParentFile();
+        File dir = new File("target");
         String configJson = "{'browser':'chrome','url':'http://localhost:9515'}";
         String featureText = SideConverter.toKarateFeature(project, configJson, dir);
         String contents = FileUtils.toString(new File(dir, project.getIdentifierName() + ".feature"));
