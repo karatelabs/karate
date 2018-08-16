@@ -736,7 +736,8 @@ public class ScriptTest {
         assertTrue(Script.matchXml(MatchType.EQUALS, xml, "/", "<hello foo=\"bar\">world</hello>", ctx).pass);
         AssertionResult ar = Script.matchXml(MatchType.EQUALS, xml, "/", "<hello foo=\"baz\">world</hello>", ctx);
         assertFalse(ar.pass);
-        assertTrue(ar.message.contains("/hello/@foo"));
+        // assertTrue(ar.message.contains("/hello/@foo"));
+        assertTrue(ar.message.contains("all key-values did not match"));
     }
 
     @Test
@@ -1090,6 +1091,14 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ baz: [1, 2, 3] }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ foo: 'bar' }", ctx).pass);
     }
+    
+    @Test
+    public void testMatchJsonObjectPartialNotContains() {
+        ScriptContext ctx = getContext();
+        Script.assign("json", "{ a: 1, b: 2}", ctx);
+        assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: 1, b: 3 }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: 1, b: '#string' }", ctx).pass);
+    }    
 
     @Test
     public void testMatchJsonArrayContains() {
@@ -1125,7 +1134,7 @@ public class ScriptTest {
         Script.assign("json", "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]", ctx);
         AssertionResult ar = Script.matchNamed(MatchType.EQUALS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);
         assertFalse(ar.pass);
-        assertTrue(ar.message.contains("$[2].foo"));
+        assertTrue(ar.message.contains("all key-values did not match"));
         ar = Script.matchNamed(MatchType.CONTAINS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);
         assertFalse(ar.pass);
         assertTrue(ar.message.contains("$[*]"));
