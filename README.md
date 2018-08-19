@@ -149,6 +149,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#match-contains-any"><code>match contains any</code></a>
     | <a href="#not-contains"><code>match !contains</code></a>
     | <a href="#match-each"><code>match each</code></a>
+    | <a href="#match-header"><code>match header</code></a>    
     | <a href="#fuzzy-matching">Fuzzy Matching</a>
     | <a href="#schema-validation">Schema Validation</a>
     | <a href="#contains-short-cuts"><code>contains</code> short-cuts</a>

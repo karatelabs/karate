@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +34,9 @@ import java.util.List;
  */
 public class Feature {
     
-    private File file;
-    private String relativePath;
+    private final File file;
+    private final String relativePath;
+    private final String packageQualifiedName;
     
     private int line;
     private List<Tag> tags;
@@ -42,6 +44,22 @@ public class Feature {
     private String description;
     private Background background;
     private List<FeatureSection> sections = new ArrayList();
+    
+    private String callTag;
+    
+    public Feature(File file, String relativePath) {
+        this.file = file;
+        this.relativePath = relativePath;
+        this.packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+    }
+
+    public String getCallTag() {
+        return callTag;
+    }
+
+    public void setCallTag(String callTag) {
+        this.callTag = callTag;
+    }
     
     public void addSection(FeatureSection section) {
         sections.add(section);
@@ -51,18 +69,14 @@ public class Feature {
         return file;
     }
 
-    public void setFile(File file) {
-        this.file = file;
-    }
-
     public String getRelativePath() {
         return relativePath;
     }
 
-    public void setRelativePath(String relativePath) {
-        this.relativePath = relativePath;
+    public String getPackageQualifiedName() {
+        return packageQualifiedName;
     }
-
+        
     public int getLine() {
         return line;
     }

@@ -72,7 +72,7 @@ public class Result extends HashMap<String, Object> {
             StackTraceElement[] originalTrace = error.getStackTrace();            
             String featurePath = scenario.getFeature().getRelativePath();
             StackTraceElement[] newTrace = new StackTraceElement[]{
-                new StackTraceElement("✽", step.getText(), featurePath, step.getLine()),
+                new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText(), featurePath, step.getLine()),
                 originalTrace[0]
             };
             error.setStackTrace(newTrace);        

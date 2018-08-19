@@ -81,9 +81,7 @@ public class FeatureParser extends KarateParserBaseListener {
     }
     
     private FeatureParser(File file, String relativePath) {
-        feature = new Feature();
-        feature.setFile(file);
-        feature.setRelativePath(relativePath);
+        feature = new Feature(file, relativePath);
         CharStream stream;
         try {
             FileInputStream fis = new FileInputStream(file);
@@ -138,7 +136,7 @@ public class FeatureParser extends KarateParserBaseListener {
         List<Integer> lineNumbers = new ArrayList(rowCount);
         for (TerminalNode node : nodes) {
             List<String> tokens = StringUtils.split(node.getText().trim(), '|'); // TODO escaped pipe characters "\|" ?            
-            tokens.remove(0);
+            // tokens.remove(0);
             int count = tokens.size();
             for (int i = 0; i < count; i++) {
                 tokens.set(i, tokens.get(i).trim());

@@ -23,9 +23,12 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.CallContext;
+import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.LogAppender;
+import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
@@ -41,6 +44,7 @@ import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -74,11 +78,26 @@ public class Engine {
     private Engine() {
         // only static methods
     }
+    
+    public static String getBuildDir() {
+        String command = System.getProperty("sun.java.command", "");
+        return command.contains("org.gradle.") ? "build" : "target";        
+    }
 
-    public static FeatureResult executeSync(Feature feature, StepDefs stepDefs, LogAppender appender) {
+    public static FeatureResult executeSync(String envString, Feature feature, String tagSelector, CallContext callContext) {
+        File file = feature.getFile();
+        ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(envString, tagSelector, file);
+        if (callContext == null) {
+            callContext = new CallContext(null, true);
+        }
+        StepDefs stepDefs =  new StepDefs(env, callContext);
+        String basePath = feature.getPackageQualifiedName();
+        LogAppender appender = new FileLogAppender(getBuildDir() + "/surefire-reports/" + basePath + ".log", stepDefs.context.logger);        
         FeatureExecutionUnit unit = new FeatureExecutionUnit(feature, stepDefs, appender);
-        unit.submit(SYNC_EXECUTOR, NO_OP);
-        return unit.getFeatureResult();
+        unit.submit(SYNC_EXECUTOR, NO_OP);        
+        FeatureResult result = unit.getFeatureResult();        
+        result.setResultVars(stepDefs.context.getVars());
+        return result;
     }
 
     public static Result execute(Scenario scenario, Step step, StepDefs stepDefs) {
@@ -96,6 +115,8 @@ public class Engine {
         if (step.getDocString() != null) {
             last = step.getDocString();
         } else if (step.getTable() != null) {
+            List<String> keys = new ArrayList(step.getTable().getKeys());
+            String[] columnNames = keys.toArray(new String[]{});
             last = DataTable.create(step.getTable().getRows());
         } else {
             last = null;
@@ -227,6 +248,28 @@ public class Engine {
             }
         }
         return matches;
+    }
+    
+    public static String fromCucumberOptionsTags(String ... tags) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < tags.length; i++) {            
+            String and = tags[i];
+            if (and.startsWith("~")) {
+                sb.append("not('").append(and.substring(1)).append("')");
+            } else {
+                sb.append("anyOf(");
+                List<String> or = StringUtils.split(and, ',');
+                for (String tag : or) {
+                    sb.append('\'').append(tag).append('\'').append(',');
+                }
+                sb.setLength(sb.length() - 1);
+                sb.append(')');
+            }
+            if (i < (tags.length-1)) {
+                sb.append(" && ");
+            }
+        }
+        return sb.toString();
     }
 
 }

@@ -24,6 +24,10 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeatureResult;
 import java.io.File;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -40,11 +44,10 @@ public class FeatureReuseTest {
     
     @Test
     public void testFailureInCalledShouldFailTest() throws Exception {
-        String reportPath = "target/fail.xml";
-        File file = new File("src/test/java/com/intuit/karate/cucumber/caller.feature");
-        KarateJunitAndJsonReporter reporter = CucumberRunnerTest.run(file, reportPath);
-        assertEquals(1, reporter.getJunitFormatter().getFailCount());
-        String contents = FileUtils.toString(new File(reportPath));
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/cucumber/caller.feature");
+        FeatureResult result = Engine.executeSync(null, feature, null, null);
+        Engine.saveResultXml("target", result);
+        String contents = FileUtils.toString(new File("target/" + result.getPackageQualifiedName() + ".xml"));
         assertTrue(contents.contains("assert evaluated to false: input != 4"));
     }
     

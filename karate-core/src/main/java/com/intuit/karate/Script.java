@@ -25,8 +25,9 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import static com.intuit.karate.ScriptValue.Type.*;
-import com.intuit.karate.cucumber.CucumberUtils;
-import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.validator.ArrayValidator;
 import com.intuit.karate.validator.RegexValidator;
 import com.intuit.karate.validator.ValidationResult;
@@ -1584,7 +1585,7 @@ public class Script {
                 }
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
                 return evalFunctionCall(som, argValue.getValue(), context);
-            case FEATURE_WRAPPER:
+            case FEATURE:
                 Object callArg = null;
                 switch (argValue.getType()) {
                     case LIST:
@@ -1608,7 +1609,7 @@ public class Script {
                     default:
                         throw new RuntimeException("only json, list/array or map allowed as feature call argument");
                 }
-                FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
+                Feature feature = sv.getValue(Feature.class);
                 return evalFeatureCall(feature, callArg, context, reuseParentConfig);
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", name, sv);
@@ -1636,7 +1637,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(FeatureWrapper feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {
+    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScriptContext context, boolean reuseParentConfig) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1651,7 +1652,7 @@ public class Script {
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
                         String message = "feature call (loop) failed at index: " + i + "\ncaller: "
-                                + feature.getEnv().featureName + "\narg: " + rowArg + "\n" + ke.getMessage();
+                                + feature.getRelativePath() + "\narg: " + rowArg + "\n" + ke.getMessage();
                         errors.add(message);
                         // log but don't stop (yet)
                         context.logger.error("{}", message);
@@ -1661,8 +1662,8 @@ public class Script {
                 }
             }
             if (!errors.isEmpty()) {
-                String message = "feature call (loop) failed: " + feature.getPath()
-                        + "\ncaller: " + feature.getEnv().featureName + "\nitems: " + items + "\nerrors:";
+                String message = "feature call (loop) failed: " + feature.getRelativePath()
+                        + "\ncaller: " + context.env.featureName + "\nitems: " + items + "\nerrors:";
                 for (String s : errors) {
                     message = message + "\n-------\n" + s;
                 }
@@ -1674,7 +1675,7 @@ public class Script {
             try {
                 return evalFeatureCall(feature, context, argAsMap, -1, reuseParentConfig);
             } catch (KarateException ke) {
-                String message = "feature call failed: " + feature.getPath()
+                String message = "feature call failed: " + feature.getRelativePath()
                         + "\narg: " + callArg + "\n" + ke.getMessage();
                 context.logger.error("{}", message);
                 throw new KarateException(message, ke);
@@ -1684,14 +1685,24 @@ public class Script {
         }
     }
 
-    private static ScriptValue evalFeatureCall(FeatureWrapper feature, ScriptContext context,
+    private static ScriptValue evalFeatureCall(Feature feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex,
                 reuseParentConfig, false, null, context.asyncSystem, null, context.stepInterceptor);
-        if (context.env.reporter != null) {
-            context.env.reporter.callBegin(feature, callContext);
+//        if (context.env.reporter != null) {
+//            context.env.reporter.callBegin(feature, callContext);
+//        }
+        FeatureResult result = Engine.executeSync(null, feature, null, callContext);
+        if (result.isFailed()) {
+            Throwable error = result.getErrors().get(0);
+            if (error instanceof KarateException) {
+                throw (KarateException) error;
+            } else {
+                throw new KarateException("call feature failed", error);
+            }
         }
-        ScriptValueMap svm = CucumberUtils.callSync(feature, callContext);
+        // ScriptValueMap svm = CucumberUtils.callSync(feature, callContext);
+        ScriptValueMap svm = result.getResultVars();
         return new ScriptValue(svm.toPrimitiveMap());
     }
 

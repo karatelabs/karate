@@ -7,7 +7,6 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import com.intuit.karate.cucumber.FeatureFilePath;
-import com.intuit.karate.cucumber.FeatureWrapper;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.BufferedReader;
@@ -22,6 +21,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import static com.intuit.karate.Script.evalKarateExpression;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -126,8 +127,16 @@ public class FileUtils {
             String contents = readFileAsString(text, prefix, context);
             return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {
-            String contents = readFileAsString(text, prefix, context);
-            FeatureWrapper feature = FeatureWrapper.fromString(contents, context.env, text, pair.right);
+            String featurePath;
+            if (prefix == PathPrefix.CLASSPATH) {
+                featurePath = "classpath:" + text;
+            } else if (prefix == PathPrefix.NONE) {
+                featurePath = context.env.featureDir.getPath() + "/" + text;
+            } else { // FILE
+                featurePath = text;
+            }
+            Feature feature = FeatureParser.parse(featurePath);
+            feature.setCallTag(pair.right);
             return new ScriptValue(feature, text);
         } else if (isYamlFile(text)) {
             String contents = readFileAsString(text, prefix, context);

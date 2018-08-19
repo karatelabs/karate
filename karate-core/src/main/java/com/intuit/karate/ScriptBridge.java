@@ -23,7 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
@@ -235,8 +235,8 @@ public class ScriptBridge {
     public Object call(String fileName, Object arg) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
         switch(sv.getType()) {
-            case FEATURE_WRAPPER:
-                FeatureWrapper feature = sv.getValue(FeatureWrapper.class);
+            case FEATURE:
+                Feature feature = sv.getValue(Feature.class);
                 return Script.evalFeatureCall(feature, arg, context, false).getValue();
             case JS_FUNCTION:
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);

@@ -87,7 +87,7 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
                                 }
                                 errors.add("row " + index + ": " + e.getMessage());
                             }
-                            // continue even if one example row failed                            
+                            // continue even if this example row failed                            
                             SectionExecutionUnit.this.submit(system, next);
                         } else {
                             if (e != null) {

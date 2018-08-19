@@ -33,4 +33,6 @@ public interface LogAppender {
     
     void append(String text);
     
+    void close();
+    
 }

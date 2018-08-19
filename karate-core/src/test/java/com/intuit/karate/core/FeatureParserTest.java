@@ -23,16 +23,9 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.FileLogAppender;
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.StepDefs;
-import java.io.File;
-import java.util.Collections;
+import com.intuit.karate.Match;
 import java.util.List;
+import java.util.Map;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -46,26 +39,9 @@ public class FeatureParserTest {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureParserTest.class);
 
-    private static StepDefs stepDefs(Feature feature) {
-        File file = feature.getFile();
-        ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile("mock", "not('@ignore')", file);
-        return new StepDefs(env, new CallContext(null, true));
-    }
-
-    private static LogAppender appender(Feature feature, StepDefs stepDefs) {
-        String relativePath = feature.getRelativePath();
-        String basePath = FileUtils.toPackageQualifiedName(relativePath);
-        return new FileLogAppender("target/surefire-reports/" + basePath + ".log", stepDefs.context.logger);
-    }
-
-    private static Feature feature(String name) {
-        return FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-    }
-
     private static FeatureResult execute(String name) {
-        Feature feature = feature(name);
-        StepDefs stepDefs = stepDefs(feature);
-        return Engine.executeSync(feature, stepDefs, appender(feature, stepDefs));
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
+        return Engine.executeSync("mock", feature, "not('@ignore')", null);
     }
 
     @Test
@@ -100,7 +76,7 @@ public class FeatureParserTest {
 
     @Test
     public void testParsingFeatureDescription() {
-        Feature feature = feature("test-simple.feature");
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/test-simple.feature");
         assertEquals("the first line", feature.getName());
         assertEquals("and the second", feature.getDescription());
     }
@@ -125,5 +101,12 @@ public class FeatureParserTest {
         }
 
     }
+    
+    @Test
+    public void testSetTable() {
+        FeatureResult result = execute("test-set-table.feature");
+        Map<String, Object> map = result.getResultVars().toPrimitiveMap();
+        Match.equals(map.get("output"), "{ name: 'Bob', age: 2 }");
+    }    
 
 }

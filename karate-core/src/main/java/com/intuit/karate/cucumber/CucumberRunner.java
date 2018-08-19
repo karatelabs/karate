@@ -26,6 +26,10 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.filter.TagFilter;
 import com.intuit.karate.filter.TagFilterException;
 import cucumber.runtime.model.CucumberFeature;
@@ -163,13 +167,16 @@ public class CucumberRunner {
 
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {
         CallContext callContext = new CallContext(vars, evalKarateConfig);
-        return runFeature(file, callContext, null);
+        return runFeature(file, callContext);
     }
 
-    public static Map<String, Object> runFeature(File file, CallContext callContext, KarateReporter reporter) {
-        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, null, reporter);
+    public static Map<String, Object> runFeature(File file, CallContext callContext) {
+        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, null, null);
         ScriptValueMap scriptValueMap = CucumberUtils.callSync(featureWrapper, callContext);
         return scriptValueMap.toPrimitiveMap();
+//        Feature feature = FeatureParser.parse(file);
+//        FeatureResult result = Engine.executeSync(null, feature, null, callContext);
+//        return result.getResultVars().toPrimitiveMap();        
     }
 
     public static Map<String, Object> runFeature(Class relativeTo, String path, Map<String, Object> vars, boolean evalKarateConfig) {

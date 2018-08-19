@@ -58,21 +58,28 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
         if (!backgroundDone) {
             backgroundDone = true;
             Background background = scenario.getFeature().getBackground();
-            BackgroundResult backgroundResult = new BackgroundResult(background);
-            featureResult.addResult(backgroundResult);
+            BackgroundResult backgroundResult = new BackgroundResult(background);            
             system.accept(() -> {
                 StepListExecutionUnit unit = new StepListExecutionUnit(background.getSteps(), scenario, stepDefs, backgroundResult, appender, stopped);
                 unit.submit(system, (r, e) -> {
-                    stopped = r;
-                    ScenarioExecutionUnit.this.submit(system, next);
+                    // the timing of this line below is important, it collects errors in the feature-result
+                    featureResult.addResult(backgroundResult);
+                    if (e != null) {
+                        // we failed in the Background itself !
+                        next.accept(featureResult, e);
+                    } else {
+                        stopped = r; // unlikely we ever abort in a Background, but still
+                        ScenarioExecutionUnit.this.submit(system, next);
+                    }
                 });
             });
         } else {
-            ScenarioResult scenarioResult = new ScenarioResult(scenario);
-            featureResult.addResult(scenarioResult);
-            system.accept(() -> {
+            ScenarioResult scenarioResult = new ScenarioResult(scenario);            
+            system.accept(() -> {                
                 StepListExecutionUnit unit = new StepListExecutionUnit(scenario.getSteps(), scenario, stepDefs, scenarioResult, appender, stopped);
-                unit.submit(system, (r, e) -> {                    
+                unit.submit(system, (r, e) -> {
+                    // the timing of this line below is important, it collects errors in the feature-result
+                    featureResult.addResult(scenarioResult);
                     next.accept(featureResult, e);
                 });
             });

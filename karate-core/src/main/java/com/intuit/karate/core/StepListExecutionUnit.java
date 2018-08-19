@@ -43,8 +43,9 @@ public class StepListExecutionUnit implements ExecutionUnit<Boolean> {
     private final StepDefs stepDefs;
     private final ResultElement collector;
     private final LogAppender appender;
-
+    
     private boolean stopped;
+    private KarateException error;
 
     public StepListExecutionUnit(List<Step> list, Scenario scenario, StepDefs stepDefs, ResultElement collector, LogAppender appender, boolean stopped) {
         this.iterator = list.iterator();
@@ -77,15 +78,19 @@ public class StepListExecutionUnit implements ExecutionUnit<Boolean> {
                             }
                         }
                         collector.addStepResult(stepResult);
-                        if (r.isAborted() || r.isFailed()) {
+                        if (r.isAborted()) {
                             stopped = true;
+                        }
+                        if (e != null) { // failed
+                            stopped = true;
+                            error = e;
                         }
                         StepListExecutionUnit.this.submit(system, next);
                     });
                 });
             }
         } else {
-            next.accept(stopped, null);
+            next.accept(stopped, error);
         }
     }
 

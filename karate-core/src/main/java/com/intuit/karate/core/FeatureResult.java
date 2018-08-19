@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,6 +41,10 @@ public class FeatureResult extends HashMap<String, Object> {
     private final List<ResultElement> elements = new ArrayList();
     private final List<TagResult> tags;
     private final String packageQualifiedName;
+    
+    private List<Throwable> errors;
+    
+    private ScriptValueMap resultVars;
     
     public FeatureResult(Feature feature) {
         put("elements", elements);
@@ -68,6 +73,22 @@ public class FeatureResult extends HashMap<String, Object> {
         }
     }    
 
+    public boolean isFailed() {
+        return errors != null && !errors.isEmpty();
+    }        
+
+    public List<Throwable> getErrors() {
+        return errors;
+    }        
+
+    public ScriptValueMap getResultVars() {
+        return resultVars;
+    }
+
+    public void setResultVars(ScriptValueMap resultVars) {
+        this.resultVars = resultVars;
+    }
+
     public String getPackageQualifiedName() {
         return packageQualifiedName;
     }        
@@ -78,6 +99,12 @@ public class FeatureResult extends HashMap<String, Object> {
     
     public void addResult(ResultElement element) {
         elements.add(element);
+        if (element.isFailed()) {
+            if (errors == null) {
+                errors = new ArrayList();
+            }
+            errors.add(element.getError());
+        }
     }
 
     public String getName() {

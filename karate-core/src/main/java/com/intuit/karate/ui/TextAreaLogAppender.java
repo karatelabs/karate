@@ -52,4 +52,9 @@ public class TextAreaLogAppender implements LogAppender {
         textArea.appendText(text);
     }
 
+    @Override
+    public void close() {
+
+    }    
+
 }

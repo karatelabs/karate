@@ -65,6 +65,7 @@ public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
                 });
             });
         } else {
+            appender.close();
             next.accept(featureResult, null);
         }
     }

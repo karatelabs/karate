@@ -33,11 +33,13 @@ import java.nio.channels.FileChannel;
  * @author pthomas3
  */
 public class FileLogAppender implements LogAppender {
-        
+
     private final FileChannel file;
+    private final Logger logger;
     private int prevPos;
 
     public FileLogAppender(String tempFilePath, Logger logger) {
+        this.logger = logger;
         try {
             if (tempFilePath == null) {
                 File temp = File.createTempFile("karate", "tmp");
@@ -51,7 +53,7 @@ public class FileLogAppender implements LogAppender {
         }
         logger.setLogAppender(this);
     }
-    
+
     @Override
     public String collect() {
         try {
@@ -64,8 +66,8 @@ public class FileLogAppender implements LogAppender {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
-    
+    }
+
     @Override
     public void append(String text) {
         try {
@@ -74,5 +76,14 @@ public class FileLogAppender implements LogAppender {
             throw new RuntimeException(e);
         }
     }
-    
+
+    @Override
+    public void close() {
+        try {
+            file.close();
+        } catch (Exception e) {
+            logger.warn("log appender close failed: {}", e.getMessage());
+        }
+    }
+
 }

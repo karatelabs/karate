@@ -23,59 +23,25 @@
  */
 package com.intuit.karate.core;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import org.junit.Test;
+import static org.junit.Assert.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public abstract class ResultElement extends HashMap<String, Object> {
-
-    private final String name;
-    private final List<StepResult> steps = new ArrayList();
+public class EngineTest {
     
-    private boolean failed;
-    private Throwable error;
-    private long duration;
+    private static final Logger logger = LoggerFactory.getLogger(EngineTest.class);
     
-    public ResultElement(String name) {
-        this.name = name;
-        put("name", name);
-        put("steps", steps);
+    @Test
+    public void testCucumberOptionsTagsConversion() {
+        assertEquals("anyOf('@foo')", Engine.fromCucumberOptionsTags("@foo"));
+        assertEquals("anyOf('@foo','@bar')", Engine.fromCucumberOptionsTags("@foo,@bar"));
+        assertEquals("anyOf('@foo') && anyOf('@bar')", Engine.fromCucumberOptionsTags("@foo", "@bar"));
+        assertEquals("anyOf('@foo') && not('@bar')", Engine.fromCucumberOptionsTags("@foo", "~@bar"));
     }
     
-    public void addStepResult(StepResult stepResult) {
-        steps.add(stepResult);
-        Result result = stepResult.getResult();
-        duration += result.getDuration();
-        if (result.isFailed()) {
-            failed = true;
-            error = result.getError();
-        }
-    }   
-
-    public Throwable getError() {
-        return error;
-    }        
-
-    public String getName() {
-        return name;
-    }
-        
-    public long getDuration() {
-        return duration;
-    }
-
-    public List<StepResult> getSteps() {
-        return steps;
-    }
-
-    public boolean isFailed() {
-        return failed;
-    }        
-    
-    abstract boolean isBackground();
-
 }
