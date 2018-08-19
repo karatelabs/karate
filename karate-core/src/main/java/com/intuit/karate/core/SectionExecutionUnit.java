@@ -23,10 +23,9 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
+import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,9 +41,7 @@ import java.util.function.Consumer;
  */
 public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
 
-    private final StepDefs stepDefs;
-    private final FeatureResult featureResult;
-    private final LogAppender appender;
+    private final ExecutionContext exec;
 
     private final boolean outline;
     private final Iterator<Scenario> iterator;
@@ -52,10 +49,8 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
     private int index = 0;
     private List<String> errors;
 
-    public SectionExecutionUnit(FeatureSection section, StepDefs stepDefs, FeatureResult featureResult, LogAppender appender) {
-        this.stepDefs = stepDefs;
-        this.featureResult = featureResult;
-        this.appender = appender;
+    public SectionExecutionUnit(FeatureSection section, ExecutionContext exec) {
+        this.exec = exec;
         if (section.isOutline()) {
             outline = true;
             iterator = section.getScenarioOutline().getScenarios().iterator();
@@ -70,14 +65,20 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
             index++;
-            ScriptEnv env = stepDefs.context.getEnv();
+            ScriptEnv env = exec.env;
             Collection<Tag> tagsEffective = scenario.getTagsEffective();
             if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
-                Logger logger = stepDefs.context.logger;
-                logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
+                env.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
                 SectionExecutionUnit.this.submit(system, next);
             } else {
-                ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, featureResult, appender);
+                // this is where the script-context and vars are inited for a scenario
+                // karate-config.js will be processed here
+                exec.callContext.setScenarioInfo(getScenarioInfo(scenario, env));
+                StepDefs stepDefs = new StepDefs(env, exec.callContext);
+                // we hold a reference to the LAST scenario executed
+                // for cases where the caller needs a result
+                exec.result.setResultVars(stepDefs.context.getVars());
+                ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
                 system.accept(() -> {
                     unit.submit(system, (r, e) -> {
                         if (outline) {
@@ -110,8 +111,18 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
             } else {
                 ke = null;
             }            
-            next.accept(featureResult, ke);
+            next.accept(exec.result, ke);
         }
     }
+    
+    private static ScenarioInfo getScenarioInfo(Scenario scenario, ScriptEnv env) {
+        ScenarioInfo info = new ScenarioInfo();
+        info.setFeatureDir(env.featureDir.getPath());
+        info.setFeatureFileName(env.featureName);
+        info.setScenarioName(scenario.getName());
+        info.setScenarioDescription(scenario.getDescription());
+        info.setScenarioType(scenario.isOutline() ? "Scenario Outline" : "Scenario");
+        return info;
+    }    
 
 }

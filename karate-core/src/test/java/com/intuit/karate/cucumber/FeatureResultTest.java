@@ -24,6 +24,10 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeatureResult;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,53 +43,57 @@ import static org.junit.Assert.assertTrue;
 public class FeatureResultTest {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureResultTest.class);
+    
+    private static FeatureResult result(String name) {
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/cucumber/" + name);
+        return Engine.executeSync(null, feature, null, null);     
+    }     
+    
+    private static String xml(FeatureResult result) {
+        File file = Engine.saveResultXml("target", result);
+        return FileUtils.toString(file);           
+    }
 
     @Test
     public void testFailureMultiScenarioFeature() throws Exception {
-        String reportPath = "target/failed-feature-result.xml";
-        File file = new File("src/test/java/com/intuit/karate/cucumber/failed.feature");
-        KarateJunitAndJsonReporter reporter = CucumberRunnerTest.run(file, reportPath);
-        KarateJunitFormatter formatter = reporter.getJunitFormatter();
-        assertEquals(2, formatter.getFailCount());
-        assertEquals(3, formatter.getTestCount());
-        String contents = FileUtils.toString(new File(reportPath));
+        FeatureResult result = result("failed.feature");
+        assertEquals(2, result.getFailedCount());
+        assertEquals(3, result.getScenarioCount());
+        String contents = xml(result);
         assertTrue(contents.contains("assert evaluated to false: a != 1"));
         assertTrue(contents.contains("assert evaluated to false: a == 3"));
 
         // failure1 should have first step as failure, and second step as skipped
         // TODO: generate the expected content string, below code puts a hard dependency
         // with KarateJunitFormatter$TestCase.addStepAndResultListing()
-        assertTrue(contents.contains("Then assert a != 1..........................................................failed"));
-        assertTrue(contents.contains("And assert a == 2...........................................................skipped"));
+        assertTrue(contents.contains("Then assert a != 1 ........................................................ failed"));
+        assertTrue(contents.contains("And assert a == 2 ......................................................... skipped"));
 
         // failure2 should have first step as passed, and second step as failed
-        assertTrue(contents.contains("Then assert a != 2..........................................................passed"));
-        assertTrue(contents.contains("And assert a == 3...........................................................failed"));
+        assertTrue(contents.contains("Then assert a != 2 ........................................................ passed"));
+        assertTrue(contents.contains("And assert a == 3 ......................................................... failed"));
 
         // pass1 should have both steps as passed
-        assertTrue(contents.contains("Then assert a != 4..........................................................passed"));
-        assertTrue(contents.contains("And assert a != 5...........................................................passed"));
+        assertTrue(contents.contains("Then assert a != 4 ........................................................ passed"));
+        assertTrue(contents.contains("And assert a != 5 ......................................................... passed"));
     }
 
     @Test
-    public void testAbortMultiScenarioFeature() throws Exception {
-        String reportPath = "target/aborted-feature-result.xml";
-        File file = new File("src/test/java/com/intuit/karate/cucumber/aborted.feature");
-        KarateJunitAndJsonReporter reporter = CucumberRunnerTest.run(file, reportPath);
-        KarateJunitFormatter formatter = reporter.getJunitFormatter();
-        assertEquals(0, formatter.getFailCount());
-        assertEquals(3, formatter.getTestCount());
-        String contents = FileUtils.toString(new File(reportPath));
+    public void testAbortMultiScenarioFeature() throws Exception {        
+        FeatureResult result = result("aborted.feature");
+        assertEquals(0, result.getFailedCount());
+        assertEquals(3, result.getScenarioCount());
+        String contents = xml(result);
 
         // skip-pass and skip-fail both should have all steps as skipped
         // TODO: generate the expected content string, below code puts a hard dependency
         // with KarateJunitFormatter$TestCase.addStepAndResultListing()
-        assertTrue(contents.contains("* eval karate.abort().......................................................skipped"));
-        assertTrue(contents.contains("* assert a == 1.............................................................skipped"));
-        assertTrue(contents.contains("* assert a == 2.............................................................skipped"));
+        assertTrue(contents.contains("* eval karate.abort() ..................................................... skipped"));
+        assertTrue(contents.contains("* assert a == 1 ........................................................... skipped"));
+        assertTrue(contents.contains("* assert a == 2 ........................................................... skipped"));
 
         // noskip should have both steps as passed
-        assertTrue(contents.contains("Then assert a != 3..........................................................passed"));
-        assertTrue(contents.contains("And assert a != 4...........................................................passed"));
+        assertTrue(contents.contains("Then assert a != 3 ........................................................ passed"));
+        assertTrue(contents.contains("And assert a != 4 ......................................................... passed"));
     }
 }

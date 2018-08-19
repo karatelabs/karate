@@ -23,40 +23,33 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.exception.KarateException;
-import java.util.Iterator;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.cucumber.KarateStats;
+import java.util.Collections;
+import static org.junit.Assert.*;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
-
-    private final ExecutionContext exec;
+public class ScenarioHookTest {
     
-    private final Iterator<FeatureSection> iterator;
-
-    public FeatureExecutionUnit(ExecutionContext exec) {
-        this.exec = exec;
-        iterator = exec.feature.getSections().iterator();
-    }      
-
-    @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
-        if (iterator.hasNext()) {
-            FeatureSection section = iterator.next();
-            SectionExecutionUnit unit = new SectionExecutionUnit(section, exec);
-            system.accept(() -> {
-                unit.submit(system, (r, e) -> {
-                    FeatureExecutionUnit.this.submit(system, next);
-                });
-            });
-        } else {
-            exec.appender.close();
-            next.accept(exec.result, null);
-        }
+    @Test
+    public void testStopIfScenarioHasNoTags() {
+        String path = "classpath:com/intuit/karate/core/test-hook-notags.feature";
+        KarateStats stats = CucumberRunner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
+        assertEquals(0, stats.getFeatureCount());
+        assertEquals(1, stats.getFailCount());
     }
-
+    
+    @Test
+    public void testHookForExamplesWithTags() {
+        String path = "classpath:com/intuit/karate/core/test-hook-multiexample.feature";
+        KarateStats stats = CucumberRunner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
+        assertEquals(1, stats.getFeatureCount());
+        assertEquals(7, stats.getTestCount());
+        assertEquals(0, stats.getFailCount());
+    }    
+    
 }

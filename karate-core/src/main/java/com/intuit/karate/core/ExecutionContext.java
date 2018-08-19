@@ -23,40 +23,31 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.exception.KarateException;
-import java.util.Iterator;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import com.intuit.karate.CallContext;
+import com.intuit.karate.FileLogAppender;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.ScriptEnv;
+import static com.intuit.karate.core.Engine.getBuildDir;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
-
-    private final ExecutionContext exec;
+public class ExecutionContext {
     
-    private final Iterator<FeatureSection> iterator;
-
-    public FeatureExecutionUnit(ExecutionContext exec) {
-        this.exec = exec;
-        iterator = exec.feature.getSections().iterator();
-    }      
-
-    @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
-        if (iterator.hasNext()) {
-            FeatureSection section = iterator.next();
-            SectionExecutionUnit unit = new SectionExecutionUnit(section, exec);
-            system.accept(() -> {
-                unit.submit(system, (r, e) -> {
-                    FeatureExecutionUnit.this.submit(system, next);
-                });
-            });
-        } else {
-            exec.appender.close();
-            next.accept(exec.result, null);
-        }
-    }
-
+    public final Feature feature;
+    public final ScriptEnv env;
+    public final CallContext callContext;    
+    public final FeatureResult result;
+    public final LogAppender appender;
+    
+    public ExecutionContext(Feature feature, ScriptEnv env, CallContext callContext) {
+        this.feature = feature;
+        result = new FeatureResult(feature);
+        this.env = env;
+        this.callContext = callContext;
+        String basePath = feature.getPackageQualifiedName();
+        this.appender = new FileLogAppender(getBuildDir() + "/surefire-reports/" + basePath + ".log", env.logger);
+    }            
+    
 }

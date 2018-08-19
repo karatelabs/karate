@@ -57,15 +57,8 @@ public class FeatureParser extends KarateParserBaseListener {
     }
     
     public static Feature parse(String path) {
-        if (FileUtils.isClassPath(path)) {
-            path = FileUtils.removePrefix(path);
-            return new FeatureParser(path).feature;
-        } else {
-            if (FileUtils.isFilePath(path)) {
-                path = FileUtils.removePrefix(path);
-            }
-            return new FeatureParser(new File(path)).feature;
-        }        
+        File file = FileUtils.fromRelativeClassPath(path);
+        return parse(file, path);
     }  
     
     public static Feature parse(File file, String relativePath) {
@@ -74,10 +67,6 @@ public class FeatureParser extends KarateParserBaseListener {
     
     private FeatureParser(File file) {
         this(file, FileUtils.toRelativeClassPath(file));
-    }
-    
-    private FeatureParser(String relativePath) {
-        this(FileUtils.fromRelativeClassPath(relativePath), relativePath);
     }
     
     private FeatureParser(File file, String relativePath) {

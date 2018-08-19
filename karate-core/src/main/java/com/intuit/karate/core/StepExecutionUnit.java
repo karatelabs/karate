@@ -35,14 +35,14 @@ import java.util.function.Consumer;
  */
 public class StepExecutionUnit implements ExecutionUnit<Result> {
 
-    private final Step step;
-    private final StepDefs stepDefs;
+    private final Step step;    
     private final Scenario scenario;
+    private final StepDefs stepDefs;
 
-    public StepExecutionUnit(Step step, StepDefs stepDefs, Scenario scenario) {
-        this.step = step;
-        this.stepDefs = stepDefs;
+    public StepExecutionUnit(Step step, Scenario scenario, StepDefs stepDefs) {
+        this.step = step;        
         this.scenario = scenario;
+        this.stepDefs = stepDefs;
     }
 
     @Override

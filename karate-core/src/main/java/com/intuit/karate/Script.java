@@ -1688,8 +1688,8 @@ public class Script {
     private static ScriptValue evalFeatureCall(Feature feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex,
-                reuseParentConfig, false, null, context.asyncSystem, null, context.stepInterceptor);
-//        if (context.env.reporter != null) {
+                reuseParentConfig, false, null, context.asyncSystem, null, context.stepInterceptor, null);
+//        if (context.env.reporter != null) { TODO call reporting
 //            context.env.reporter.callBegin(feature, callContext);
 //        }
         FeatureResult result = Engine.executeSync(null, feature, null, callContext);

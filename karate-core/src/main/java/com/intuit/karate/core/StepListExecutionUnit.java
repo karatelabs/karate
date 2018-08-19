@@ -67,7 +67,7 @@ public class StepListExecutionUnit implements ExecutionUnit<Boolean> {
                 });
             } else {
                 system.accept(() -> {
-                    StepExecutionUnit unit = new StepExecutionUnit(step, stepDefs, scenario);
+                    StepExecutionUnit unit = new StepExecutionUnit(step, scenario, stepDefs);
                     unit.submit(system, (r, e) -> {
                         // log appender collection for each step happens here
                         StepResult stepResult = new StepResult(step, r);

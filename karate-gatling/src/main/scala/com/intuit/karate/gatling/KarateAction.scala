@@ -98,7 +98,7 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
-    val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, stepInterceptor)
+    val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, stepInterceptor, null)
 
     CucumberUtils.callAsync(name, callTag, callContext)
 

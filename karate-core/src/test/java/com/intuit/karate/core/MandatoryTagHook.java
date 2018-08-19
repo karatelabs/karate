@@ -23,40 +23,34 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.exception.KarateException;
-import java.util.Iterator;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.Collection;
+import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
-
-    private final ExecutionContext exec;
-    
-    private final Iterator<FeatureSection> iterator;
-
-    public FeatureExecutionUnit(ExecutionContext exec) {
-        this.exec = exec;
-        iterator = exec.feature.getSections().iterator();
-    }      
+public class MandatoryTagHook implements ScenarioHook {
 
     @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
-        if (iterator.hasNext()) {
-            FeatureSection section = iterator.next();
-            SectionExecutionUnit unit = new SectionExecutionUnit(section, exec);
-            system.accept(() -> {
-                unit.submit(system, (r, e) -> {
-                    FeatureExecutionUnit.this.submit(system, next);
-                });
-            });
-        } else {
-            exec.appender.close();
-            next.accept(exec.result, null);
+    public boolean beforeScenario(Scenario scenario) {
+        Collection<Tag> tags = scenario.getTagsEffective();
+        boolean found = false;
+        for (Tag tag : tags) {
+            if ("testId".equals(tag.getName())) {
+                found = true;
+                break;
+            }
         }
+        if (!found) {
+            throw new RuntimeException("testId tag not present at line: " + scenario.getLine());
+        }
+        return true;
     }
 
+    @Override
+    public void afterScenario(ScenarioResult result) {
+        
+    }    
+    
 }

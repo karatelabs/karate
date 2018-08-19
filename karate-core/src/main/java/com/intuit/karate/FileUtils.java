@@ -127,9 +127,9 @@ public class FileUtils {
             String contents = readFileAsString(text, prefix, context);
             return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {
-            String featurePath;
+            String featurePath; // TODO switch case and optimize
             if (prefix == PathPrefix.CLASSPATH) {
-                featurePath = "classpath:" + text;
+                featurePath = CLASSPATH_COLON + text;
             } else if (prefix == PathPrefix.NONE) {
                 featurePath = context.env.featureDir.getPath() + "/" + text;
             } else { // FILE
@@ -236,6 +236,7 @@ public class FileUtils {
     }
 
     public static String toPackageQualifiedName(String path) {
+        path = removePrefix(path);
         String packagePath = path.replace("/", "."); // assumed to be already in non-windows form
         if (packagePath.endsWith(".feature")) {
             packagePath = packagePath.substring(0, packagePath.length() - 8);
@@ -423,7 +424,7 @@ public class FileUtils {
         }
     }
 
-    private static Path getRootPathFor(String pathString) {
+    private static Path getPathFor(String pathString) {
         pathString = pathString == null ? "." : pathString.trim();
         try {
             URI uri;
@@ -453,30 +454,50 @@ public class FileUtils {
     private static final String CLASSPATH_COLON_SLASH = CLASSPATH_COLON + "/";
 
     private static Path getClassPathRoot() {
-        return getRootPathFor(CLASSPATH_COLON_SLASH);
+        return getPathFor(CLASSPATH_COLON_SLASH);
     }
 
     public static String toRelativeClassPath(File file) {
         Path rootPath = getClassPathRoot();
-        return rootPath.relativize(Paths.get(file.getAbsolutePath())).toString();
+        return CLASSPATH_COLON + rootPath.relativize(Paths.get(file.getAbsolutePath())).toString();
+    }
+    
+    public static String toRelativeClassPath(Class clazz) {
+        File dir = getDirContaining(clazz);
+        return toRelativeClassPath(dir);        
     }
 
     public static File fromRelativeClassPath(String relativePath) {
         Path rootPath = getClassPathRoot();
-        return rootPath.resolve(relativePath).toFile();
+        boolean classpath = isClassPath(relativePath);
+        relativePath = removePrefix(relativePath);
+        if (classpath) {
+            return rootPath.resolve(relativePath).toFile();
+        } else {
+            return new File(relativePath);
+        }        
     }
     
     public static List<FileResource> scanForFeatureFilesOnClassPath() {
         return scanForFeatureFiles(CLASSPATH_COLON_SLASH);
     }
 
-    public static List<FileResource> scanForFeatureFiles(String pathString) {        
-        Path classPathRoot = getClassPathRoot();
-        Path rootPath = getRootPathFor(pathString);
+    public static List<FileResource> scanForFeatureFiles(List<String> paths) {
+        List<FileResource> list = new ArrayList();
+        for (String path : paths) {
+            list.addAll(scanForFeatureFiles(path));
+        }
+        return list;
+    }
+    
+    public static List<FileResource> scanForFeatureFiles(String pathString) {
+        boolean classpath = isClassPath(pathString);        
+        Path rootPath = classpath ? getClassPathRoot() : getPathFor(null);
+        Path thisPath = getPathFor(pathString);
         List<FileResource> files = new ArrayList();
         Stream<Path> stream;
         try {
-            stream = Files.walk(rootPath);
+            stream = Files.walk(thisPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -484,8 +505,9 @@ public class FileUtils {
             Path path = paths.next();
             if (path.getFileName().toString().endsWith(".feature")) {
                 File file = path.toFile();
-                Path relativePath = classPathRoot.relativize(path);
-                files.add(new FileResource(file, relativePath.toString()));
+                Path relativePath = rootPath.relativize(path);
+                String prefix = classpath ? CLASSPATH_COLON : "";
+                files.add(new FileResource(file, prefix + relativePath.toString()));
             }
         }
         return files;

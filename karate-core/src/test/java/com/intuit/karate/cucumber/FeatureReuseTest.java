@@ -42,32 +42,28 @@ public class FeatureReuseTest {
     
     private static final Logger logger = LoggerFactory.getLogger(FeatureReuseTest.class);
     
+    private static String resultXml(String name) {
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/cucumber/" + name);
+        FeatureResult result = Engine.executeSync(null, feature, null, null);
+        File file = Engine.saveResultXml("target", result);
+        return FileUtils.toString(file);        
+    }
+    
     @Test
     public void testFailureInCalledShouldFailTest() throws Exception {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/cucumber/caller.feature");
-        FeatureResult result = Engine.executeSync(null, feature, null, null);
-        Engine.saveResultXml("target", result);
-        String contents = FileUtils.toString(new File("target/" + result.getPackageQualifiedName() + ".xml"));
+        String contents = resultXml("caller.feature");
         assertTrue(contents.contains("assert evaluated to false: input != 4"));
     }
     
     @Test
     public void testArgumentsPassedForSharedScope() throws Exception {
-        String reportPath = "target/pass.xml";
-        File file = new File("src/test/java/com/intuit/karate/cucumber/caller-shared.feature");
-        KarateJunitAndJsonReporter reporter = CucumberRunnerTest.run(file, reportPath);
-        assertEquals(0, reporter.getJunitFormatter().getFailCount());
-        String contents = FileUtils.toString(new File(reportPath));
+        String contents = resultXml("caller-shared.feature");
         assertTrue(contents.contains("passed"));
     }    
     
     @Test
     public void testCallerTwo() throws Exception {
-        String reportPath = "target/pass2.xml";
-        File file = new File("src/test/java/com/intuit/karate/cucumber/caller_2.feature");
-        KarateJunitAndJsonReporter reporter = CucumberRunnerTest.run(file, reportPath);
-        assertEquals(0, reporter.getJunitFormatter().getFailCount());
-        String contents = FileUtils.toString(new File(reportPath));
+        String contents = resultXml("caller_2.feature");
         assertTrue(contents.contains("passed"));
     } 
     

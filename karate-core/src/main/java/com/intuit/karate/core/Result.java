@@ -84,7 +84,7 @@ public class Result extends HashMap<String, Object> {
     }
 
     public static Result aborted(long duration) {
-        return new Result(PASSED, duration, null, true);
+        return new Result(SKIPPED, duration, null, true);
     }
 
     public String getStatus() {

@@ -29,6 +29,7 @@ import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -36,16 +37,19 @@ import java.util.List;
  * @author pthomas3
  */
 public class FeatureResult extends HashMap<String, Object> {
-    
+
     private final String name;
     private final List<ResultElement> elements = new ArrayList();
     private final List<TagResult> tags;
     private final String packageQualifiedName;
-    
+
+    private int scenarioCount;
+    private int failedCount;
     private List<Throwable> errors;
-    
+    private long duration;
+
     private ScriptValueMap resultVars;
-    
+
     public FeatureResult(Feature feature) {
         put("elements", elements);
         put("keyword", "Feature");
@@ -60,26 +64,54 @@ public class FeatureResult extends HashMap<String, Object> {
         if (feature.getDescription() != null) {
             temp = temp + "\n" + feature.getDescription();
         }
-        put("description", temp.trim());       
+        put("description", temp.trim());
         List<Tag> list = feature.getTags();
         if (list != null) {
             tags = new ArrayList(list.size());
             put("tags", tags);
             for (Tag tag : list) {
-                tags.add(new TagResult(tag));                
+                tags.add(new TagResult(tag));
             }
         } else {
-           tags = Collections.EMPTY_LIST;
+            tags = Collections.EMPTY_LIST;
         }
-    }    
+    }
+    
+    public String getErrorMessages() {
+        if (errors == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        Iterator<Throwable> iterator = errors.iterator();
+        while (iterator.hasNext()) {
+            Throwable error = iterator.next();
+            sb.append(error.getMessage());
+            if (iterator.hasNext()) {
+                sb.append(',');
+            }
+        }
+        return sb.toString();
+    }
+
+    public long getDuration() {
+        return duration;
+    }        
+
+    public int getFailedCount() {
+        return failedCount;
+    }
+
+    public int getScenarioCount() {
+        return scenarioCount;
+    }
 
     public boolean isFailed() {
         return errors != null && !errors.isEmpty();
-    }        
+    }
 
     public List<Throwable> getErrors() {
         return errors;
-    }        
+    }
 
     public ScriptValueMap getResultVars() {
         return resultVars;
@@ -91,19 +123,31 @@ public class FeatureResult extends HashMap<String, Object> {
 
     public String getPackageQualifiedName() {
         return packageQualifiedName;
-    }        
+    }
 
     public List<TagResult> getTags() {
         return tags;
     }
-    
+
+    public void addError(Throwable error) {
+        failedCount++;
+        if (errors == null) {
+            errors = new ArrayList();
+        }
+        errors.add(error);
+    }
+
     public void addResult(ResultElement element) {
         elements.add(element);
-        if (element.isFailed()) {
-            if (errors == null) {
-                errors = new ArrayList();
+        duration += element.getDuration();
+        if (element.isFailed()) {            
+            if (element.isBackground()) {
+                scenarioCount++; // since we will never enter the scenario
             }
-            errors.add(element.getError());
+            addError(element.getError());
+        }
+        if (!element.isBackground()) {
+            scenarioCount++;
         }
     }
 
@@ -114,5 +158,5 @@ public class FeatureResult extends HashMap<String, Object> {
     public List<ResultElement> getElements() {
         return elements;
     }
-    
+
 }

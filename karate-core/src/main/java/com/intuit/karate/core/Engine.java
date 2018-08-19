@@ -89,15 +89,11 @@ public class Engine {
         ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(envString, tagSelector, file);
         if (callContext == null) {
             callContext = new CallContext(null, true);
-        }
-        StepDefs stepDefs =  new StepDefs(env, callContext);
-        String basePath = feature.getPackageQualifiedName();
-        LogAppender appender = new FileLogAppender(getBuildDir() + "/surefire-reports/" + basePath + ".log", stepDefs.context.logger);        
-        FeatureExecutionUnit unit = new FeatureExecutionUnit(feature, stepDefs, appender);
-        unit.submit(SYNC_EXECUTOR, NO_OP);        
-        FeatureResult result = unit.getFeatureResult();        
-        result.setResultVars(stepDefs.context.getVars());
-        return result;
+        }                        
+        ExecutionContext exec = new ExecutionContext(feature, env, callContext);
+        FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
+        unit.submit(SYNC_EXECUTOR, NO_OP);       
+        return exec.result;
     }
 
     public static Result execute(Scenario scenario, Step step, StepDefs stepDefs) {
@@ -126,19 +122,23 @@ public class Engine {
         try {
             match.method.invoke(stepDefs, args);
             return Result.passed(getElapsedTime(startTime));
-        } catch (KarateAbortException ke) {
-            return Result.aborted(getElapsedTime(startTime));
         } catch (InvocationTargetException e) { // target will be KarateException
-            return Result.failed(getElapsedTime(startTime), e.getTargetException(), scenario, step);
+            if (e.getTargetException() instanceof KarateAbortException) {
+                return Result.aborted(getElapsedTime(startTime));
+            } else {
+                return Result.failed(getElapsedTime(startTime), e.getTargetException(), scenario, step);
+            }
         } catch (Exception e) {
             return Result.failed(getElapsedTime(startTime), e, scenario, step);
         }
     }
 
-    public static void saveResultJson(String targetDir, FeatureResult result) {
+    public static File saveResultJson(String targetDir, FeatureResult result) {
         List<FeatureResult> single = Collections.singletonList(result);
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(single));
-        FileUtils.writeToFile(new File(targetDir + "/" + result.getPackageQualifiedName() + ".json"), json);
+        File file = new File(targetDir + "/" + result.getPackageQualifiedName() + ".json");
+        FileUtils.writeToFile(file, json);
+        return file;
     }
 
     private static String formatNanos(long nanos, DecimalFormat formatter) {
@@ -172,7 +172,7 @@ public class Engine {
         return error;
     }
 
-    public static void saveResultXml(String targetDir, FeatureResult result) {
+    public static File saveResultXml(String targetDir, FeatureResult result) {
         DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
         Document doc = XmlUtils.newDocument();
@@ -232,7 +232,9 @@ public class Engine {
         root.setAttribute("failures", failureCount + "");
         root.setAttribute("time", formatNanos(totalDuration, formatter));
         String xml = XmlUtils.toString(doc, true);
-        FileUtils.writeToFile(new File(targetDir + "/" + baseName + ".xml"), xml);
+        File file = new File(targetDir + "/" + baseName + ".xml");
+        FileUtils.writeToFile(file, xml);
+        return file;
     }
 
     private static long getElapsedTime(long startTime) {
@@ -251,6 +253,9 @@ public class Engine {
     }
     
     public static String fromCucumberOptionsTags(String ... tags) {
+        if (tags == null) {
+            return null;
+        }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < tags.length; i++) {            
             String and = tags[i];

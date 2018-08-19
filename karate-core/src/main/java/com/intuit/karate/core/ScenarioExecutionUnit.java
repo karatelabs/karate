@@ -24,7 +24,9 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.LogAppender;
+import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
+import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -43,11 +45,11 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
     private boolean backgroundDone = false;
     private boolean stopped = false;
 
-    public ScenarioExecutionUnit(Scenario scenario, StepDefs stepDefs, FeatureResult featureResult, LogAppender appender) {
+    public ScenarioExecutionUnit(Scenario scenario, StepDefs stepDefs, ExecutionContext exec) {
         this.scenario = scenario;
         this.stepDefs = stepDefs;
-        this.featureResult = featureResult;
-        this.appender = appender;
+        this.featureResult = exec.result;
+        this.appender = exec.appender;
         if (scenario.getFeature().getBackground() == null) {
             backgroundDone = true;
         }
@@ -55,10 +57,21 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
 
     @Override
     public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
+        if (stepDefs.callContext.scenarioHook != null) {
+            try {
+                stepDefs.callContext.scenarioHook.beforeScenario(scenario);
+            } catch (Exception e) {
+                String message = "scenario hook threw fatal error: " + e.getMessage();
+                stepDefs.context.logger.error(message);
+                featureResult.addError(e);
+                next.accept(featureResult, new KarateException(message, e));
+                return;
+            }
+        }
         if (!backgroundDone) {
             backgroundDone = true;
             Background background = scenario.getFeature().getBackground();
-            BackgroundResult backgroundResult = new BackgroundResult(background);            
+            BackgroundResult backgroundResult = new BackgroundResult(background);
             system.accept(() -> {
                 StepListExecutionUnit unit = new StepListExecutionUnit(background.getSteps(), scenario, stepDefs, backgroundResult, appender, stopped);
                 unit.submit(system, (r, e) -> {
@@ -66,6 +79,7 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
                     featureResult.addResult(backgroundResult);
                     if (e != null) {
                         // we failed in the Background itself !
+                        stepDefs.context.setScenarioError(e);
                         next.accept(featureResult, e);
                     } else {
                         stopped = r; // unlikely we ever abort in a Background, but still
@@ -74,12 +88,15 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
                 });
             });
         } else {
-            ScenarioResult scenarioResult = new ScenarioResult(scenario);            
-            system.accept(() -> {                
+            ScenarioResult scenarioResult = new ScenarioResult(scenario);
+            system.accept(() -> {
                 StepListExecutionUnit unit = new StepListExecutionUnit(scenario.getSteps(), scenario, stepDefs, scenarioResult, appender, stopped);
                 unit.submit(system, (r, e) -> {
                     // the timing of this line below is important, it collects errors in the feature-result
                     featureResult.addResult(scenarioResult);
+                    if (e != null) {
+                        stepDefs.context.setScenarioError(e);
+                    }
                     next.accept(featureResult, e);
                 });
             });

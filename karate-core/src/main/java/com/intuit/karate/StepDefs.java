@@ -72,12 +72,15 @@ public class StepDefs {
         return ideScriptEnv;
     }
 
-    public StepDefs(ScriptEnv scriptEnv, CallContext call) {
-        context = new ScriptContext(scriptEnv, call);
+    public StepDefs(ScriptEnv scriptEnv, CallContext callContext) {
+        this.callContext = callContext;
+        context = new ScriptContext(scriptEnv, callContext);        
         request = new HttpRequestBuilder();
     }
 
     public final ScriptContext context;
+    public final CallContext callContext;
+    
     private HttpRequestBuilder request;
     private HttpResponse response;
 
