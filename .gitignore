@@ -7,4 +7,4 @@ target/
 *.iml
 karate-demo/activemq-data/
 karate-netty/dependency-reduced-pom.xml
-
+karate-dropwizard-demo/dependency-reduced-pom.xml
