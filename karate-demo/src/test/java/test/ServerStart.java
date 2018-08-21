@@ -23,8 +23,9 @@
  */
 package test;
 
+import java.util.Objects;
+
 import com.intuit.karate.demo.Application;
-import com.intuit.karate.demo.config.ServerStartedInitializingBean;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +53,7 @@ public class ServerStart {
             }
         }
         context = Application.run(args);
-        ServerStartedInitializingBean ss = context.getBean(ServerStartedInitializingBean.class);
-        port = ss.getLocalPort();
+        port = Integer.parseInt(Objects.requireNonNull(context.getEnvironment().getProperty("local.server.port")));
         logger.info("started server on port: {}", port);
         if (wait) {
             int stopPort = port + 1;
