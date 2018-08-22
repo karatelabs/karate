@@ -32,21 +32,17 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 /**
+ *
  * @author pthomas3
  */
 @Component
-public class ServerStartedInitializingBean implements ApplicationRunner {
+public class ServerStartedInitializingBean implements ApplicationRunner{
 
     private static final Logger logger = LoggerFactory.getLogger(ServerStartedInitializingBean.class);
-
-    private int localPort;
-
-    public int getLocalPort() {
-        return localPort;
-    }
 
     @Override
     public void run(ApplicationArguments aa) throws Exception {
         logger.info("server started with args: {}", Arrays.toString(aa.getSourceArgs()));
     }
+
 }
