@@ -174,6 +174,9 @@ public abstract class HttpClient<T> {
         }
         if (methodRequiresBody) {
             String mediaType = request.getContentType();
+            if (configHeaders != null && configHeaders.containsKey(HttpUtils.HEADER_CONTENT_TYPE)) { // edge case if config headers had Content-Type
+                mediaType = (String) configHeaders.get(HttpUtils.HEADER_CONTENT_TYPE);
+            }
             if (request.getMultiPartItems() != null) {
                 if (mediaType == null) {
                     mediaType = MULTIPART_FORM_DATA;
