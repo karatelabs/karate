@@ -1,5 +1,7 @@
 package ssl;
 
+import java.util.Objects;
+
 import com.intuit.karate.demo.config.ServerStartedInitializingBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +12,9 @@ import org.springframework.boot.autoconfigure.security.SecurityAutoConfiguration
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  *
@@ -48,8 +52,7 @@ public class TestService {
     }
 
     public static int getPort(ConfigurableApplicationContext context) {
-        ServerStartedInitializingBean ss = context.getBean(ServerStartedInitializingBean.class);
-        return ss.getLocalPort();
+        return Integer.parseInt(Objects.requireNonNull(context.getEnvironment().getProperty("local.server.port")));
     }
 
     @Bean
