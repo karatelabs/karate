@@ -27,7 +27,6 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.ScriptEnv;
-import static com.intuit.karate.core.Engine.getBuildDir;
 
 /**
  *
@@ -47,7 +46,7 @@ public class ExecutionContext {
         this.env = env;
         this.callContext = callContext;
         String basePath = feature.getPackageQualifiedName();
-        this.appender = new FileLogAppender(getBuildDir() + "/surefire-reports/" + basePath + ".log", env.logger);
+        this.appender = new FileLogAppender(Engine.getBuildDir() + "/surefire-reports/" + basePath + ".log", env.logger);
     }            
     
 }
