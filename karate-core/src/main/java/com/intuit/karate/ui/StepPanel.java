@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.StepResult;
 import com.intuit.karate.cucumber.StepWrapper;
@@ -31,11 +30,9 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.BorderPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

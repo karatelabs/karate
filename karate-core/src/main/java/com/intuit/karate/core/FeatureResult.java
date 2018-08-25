@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -113,8 +114,11 @@ public class FeatureResult extends HashMap<String, Object> {
         return errors;
     }
 
-    public ScriptValueMap getResultVars() {
-        return resultVars;
+    public Map<String, Object> getResultAsPrimitiveMap() {
+        if (resultVars == null) {
+            return Collections.EMPTY_MAP;
+        }
+        return resultVars.toPrimitiveMap();
     }
 
     public void setResultVars(ScriptValueMap resultVars) {

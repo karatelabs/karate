@@ -455,9 +455,8 @@ public class StepDefs {
             sb.append("[print]");
             for (String exp : exps) {
                 if (!prev.isEmpty()) {
-                    exp = prev + exp;
-                }
-                exp = StringUtils.trimToNull(exp);
+                    exp = prev + StringUtils.trimToNull(exp);
+                }                
                 if (exp == null) {
                     sb.append("null");
                 } else {

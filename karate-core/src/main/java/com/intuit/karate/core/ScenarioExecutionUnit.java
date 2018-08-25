@@ -24,9 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
-import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -54,7 +52,7 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
             backgroundDone = true;
         }
     }
-
+    
     @Override
     public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
         if (stepDefs.callContext.scenarioHook != null) {

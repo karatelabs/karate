@@ -77,5 +77,9 @@ public abstract class ResultElement extends HashMap<String, Object> {
     }        
     
     abstract boolean isBackground();
+    
+    abstract boolean isOutline();
+    
+    abstract String getKeyword();
 
 }

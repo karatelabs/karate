@@ -24,7 +24,6 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
-import com.intuit.karate.cucumber.FeatureWrapper;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.ByteArrayInputStream;
@@ -403,8 +402,6 @@ public class ScriptValue {
             type = Type.INPUT_STREAM;
         } else if (Script.isPrimitive(value.getClass())) {
             type = Type.PRIMITIVE;
-        } else if (value instanceof FeatureWrapper) {
-            type = Type.FEATURE_WRAPPER;
         } else if (value instanceof Feature) {
             type = Type.FEATURE;
         } else {

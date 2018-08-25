@@ -27,7 +27,7 @@ public class CucumberUtilsTest {
     }
     
     private ScriptEnv getEnv() {
-        return new ScriptEnv("dev", null, new File("."), null, getClass().getClassLoader(), null);
+        return ScriptEnv.forEnvAndCurrentWorkingDir("dev");
     }
     
     @Test

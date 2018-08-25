@@ -28,8 +28,10 @@ import com.intuit.karate.ScriptValue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.script.Bindings;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -100,6 +102,22 @@ public class Tags {
     
     public boolean not(ScriptObjectMirror som) {
         return !anyOf(som);
+    }    
+    
+    public static List<String> toListOfStrings(Collection<Tag> tags) {
+        List<String> values = new ArrayList(tags.size());
+        for (Tag tag : tags) {
+            values.add(tag.getText());
+        }
+        return values;
+    }
+    
+    public static Map<String, List<String>> toMapOfNameValues(Collection<Tag> tags) {
+        Map<String, List<String>> map = new HashMap(tags.size());
+        for (Tag tag : tags) {
+            map.put(tag.getName(), tag.getValues());
+        }
+        return map;
     }    
     
 }

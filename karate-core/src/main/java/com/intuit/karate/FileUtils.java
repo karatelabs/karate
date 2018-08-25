@@ -20,7 +20,6 @@ import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
-import static com.intuit.karate.Script.evalKarateExpression;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import java.net.URI;
@@ -114,6 +113,17 @@ public class FileUtils {
         FILE
     }
 
+    private static String resolvePath(String path, PathPrefix prefix, ScriptContext context) {
+        switch (prefix) {
+            case CLASSPATH:
+                return CLASSPATH_COLON + path;
+            case NONE:
+                return context.env.featureDir.getPath() + "/" + path;
+            default:
+                return path;
+        }
+    }
+
     public static ScriptValue readFile(String text, ScriptContext context) {
         text = StringUtils.trimToEmpty(text);
         PathPrefix prefix = isClassPath(text) ? PathPrefix.CLASSPATH : (isFilePath(text) ? PathPrefix.FILE : PathPrefix.NONE);
@@ -121,20 +131,13 @@ public class FileUtils {
         text = pair.left;
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(text, prefix, context);
-            ScriptValue temp = evalKarateExpression(contents, context);
+            ScriptValue temp = Script.evalKarateExpression(contents, context);
             return new ScriptValue(temp.getValue(), text);
         } else if (isTextFile(text) || isGraphQlFile(text)) {
             String contents = readFileAsString(text, prefix, context);
             return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {
-            String featurePath; // TODO switch case and optimize
-            if (prefix == PathPrefix.CLASSPATH) {
-                featurePath = CLASSPATH_COLON + text;
-            } else if (prefix == PathPrefix.NONE) {
-                featurePath = context.env.featureDir.getPath() + "/" + text;
-            } else { // FILE
-                featurePath = text;
-            }
+            String featurePath = resolvePath(text, prefix, context);
             Feature feature = FeatureParser.parse(featurePath);
             feature.setCallTag(pair.right);
             return new ScriptValue(feature, text);
@@ -450,7 +453,7 @@ public class FileUtils {
             throw new RuntimeException(e);
         }
     }
-    
+
     private static final String CLASSPATH_COLON_SLASH = CLASSPATH_COLON + "/";
 
     private static Path getClassPathRoot() {
@@ -461,10 +464,10 @@ public class FileUtils {
         Path rootPath = getClassPathRoot();
         return CLASSPATH_COLON + rootPath.relativize(Paths.get(file.getAbsolutePath())).toString();
     }
-    
+
     public static String toRelativeClassPath(Class clazz) {
         File dir = getDirContaining(clazz);
-        return toRelativeClassPath(dir);        
+        return toRelativeClassPath(dir);
     }
 
     public static File fromRelativeClassPath(String relativePath) {
@@ -475,9 +478,9 @@ public class FileUtils {
             return rootPath.resolve(relativePath).toFile();
         } else {
             return new File(relativePath);
-        }        
+        }
     }
-    
+
     public static List<FileResource> scanForFeatureFilesOnClassPath() {
         return scanForFeatureFiles(CLASSPATH_COLON_SLASH);
     }
@@ -489,9 +492,9 @@ public class FileUtils {
         }
         return list;
     }
-    
+
     public static List<FileResource> scanForFeatureFiles(String pathString) {
-        boolean classpath = isClassPath(pathString);        
+        boolean classpath = isClassPath(pathString);
         Path rootPath = classpath ? getClassPathRoot() : getPathFor(null);
         Path thisPath = getPathFor(pathString);
         List<FileResource> files = new ArrayList();

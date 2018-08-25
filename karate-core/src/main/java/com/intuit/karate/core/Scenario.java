@@ -33,6 +33,8 @@ import java.util.List;
  */
 public class Scenario {
     
+    public static final String KEYWORD = "Scenario";
+    
     private final Feature feature;
     private List<Tag> tags;
     private int line;    

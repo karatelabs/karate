@@ -27,14 +27,14 @@ package com.intuit.karate.core;
  *
  * @author pthomas3
  */
-public class BackgroundResult extends ResultElement {
+public class BackgroundResult extends ResultElement {   
 
     public BackgroundResult(Background background) {
         super(""); // name
         put("line", background.getLine());
         put("description", "");
         put("type", "background");
-        put("keyword", "Background");
+        put("keyword", Background.KEYWORD);
     }
 
     @Override
@@ -42,4 +42,14 @@ public class BackgroundResult extends ResultElement {
         return true;
     }
 
+    @Override
+    boolean isOutline() {
+        return false;
+    }        
+
+    @Override
+    String getKeyword() {
+        return Background.KEYWORD;
+    }
+    
 }

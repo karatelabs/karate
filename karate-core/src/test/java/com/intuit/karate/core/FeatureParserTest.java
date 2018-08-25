@@ -105,7 +105,7 @@ public class FeatureParserTest {
     @Test
     public void testSetTable() {
         FeatureResult result = execute("test-set-table.feature");
-        Map<String, Object> map = result.getResultVars().toPrimitiveMap();
+        Map<String, Object> map = result.getResultAsPrimitiveMap();
         Match.equals(map.get("output"), "{ name: 'Bob', age: 2 }");
     }    
 

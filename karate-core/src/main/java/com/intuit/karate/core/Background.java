@@ -31,6 +31,8 @@ import java.util.List;
  */
 public class Background {
 
+    public static final String KEYWORD = "Background";
+
     private int line;
     private List<Step> steps;
 

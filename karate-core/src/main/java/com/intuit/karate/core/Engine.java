@@ -24,10 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
@@ -44,7 +42,6 @@ import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -53,6 +50,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -63,7 +61,8 @@ public class Engine {
     private static final List<MethodPattern> PATTERNS = new ArrayList();
 
     private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
-    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {};
+    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {
+    };
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -78,10 +77,10 @@ public class Engine {
     private Engine() {
         // only static methods
     }
-    
+
     public static String getBuildDir() {
         String command = System.getProperty("sun.java.command", "");
-        return command.contains("org.gradle.") ? "build" : "target";        
+        return command.contains("org.gradle.") ? "build" : "target";
     }
 
     public static FeatureResult executeSync(String envString, Feature feature, String tagSelector, CallContext callContext) {
@@ -89,10 +88,10 @@ public class Engine {
         ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(envString, tagSelector, file);
         if (callContext == null) {
             callContext = new CallContext(null, true);
-        }                        
+        }
         ExecutionContext exec = new ExecutionContext(feature, env, callContext);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
-        unit.submit(SYNC_EXECUTOR, NO_OP);       
+        unit.submit(SYNC_EXECUTOR, NO_OP);
         return exec.result;
     }
 
@@ -237,6 +236,89 @@ public class Engine {
         return file;
     }
 
+    private static String getFile(String name) {
+        return FileUtils.toString(Engine.class.getClassLoader().getResourceAsStream(name));
+    }
+
+    private static void set(Document doc, String path, String value) {
+        XmlUtils.setByPath(doc, path, value);
+    }
+
+    private static void append(Document doc, String path, Node node) {
+        Node temp = XmlUtils.getNodeByPath(doc, path, true);
+        temp.appendChild(node);
+    }
+
+    private static Node div(Document doc, String clazz, String value) {
+        return node(doc, "div", clazz, value);
+    }
+
+    private static Node div(Document doc, String clazz, Node... childNodes) {
+        Node parent = node(doc, "div", clazz);
+        for (Node child : childNodes) {
+            parent.appendChild(child);
+        }
+        return parent;
+    }
+
+    private static Node node(Document doc, String name, String clazz, String text) {
+        return XmlUtils.createElement(doc, name, text, clazz == null ? null : Collections.singletonMap("class", clazz));
+    }
+
+    private static Node node(Document doc, String name, String clazz) {
+        return node(doc, name, clazz, null);
+    }
+
+    private static void appendLog(Document doc, Node parent, String log) {
+        if (!log.isEmpty()) {
+            Node pre = node(doc, "div", "preformatted");
+            pre.setTextContent(log);
+            parent.appendChild(pre);
+        }
+    }
+
+    public static File saveResultHtml(String targetDir, FeatureResult result) {
+        DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
+        formatter.applyPattern("0.######");
+        String html = getFile("report-template.html");
+        String img = getFile("karate-logo.svg");
+        Node svg = XmlUtils.toXmlDoc(img);
+        String js = getFile("report-template.js");
+        Document doc = XmlUtils.toXmlDoc(html);
+        XmlUtils.setByPath(doc, "/html/body/img", svg);
+        String baseName = result.getPackageQualifiedName();
+        set(doc, "/html/head/title", baseName);
+        set(doc, "/html/head/script", js);
+        Iterator<ResultElement> iterator = result.getElements().iterator();
+        ResultElement prev = null;
+        while (iterator.hasNext()) {
+            ResultElement element = iterator.next();           
+            if (element.isBackground()) {                
+                prev = element;
+            } else {
+                Node scenarioDiv = div(doc, "scenario");
+                append(doc, "/html/body/div", scenarioDiv);                    
+                Node scenarioHeadingDiv = div(doc, "scenario-heading",
+                        node(doc, "span", "scenario-keyword", element.getKeyword() + ": "),
+                        node(doc, "span", "scenario-name", element.getName()));
+                scenarioDiv.appendChild(scenarioHeadingDiv); 
+                prev = null;
+            }
+        }
+        File file = new File(targetDir + "/" + baseName + ".html");
+        String xml = XmlUtils.toString(doc, true);
+        try {
+            FileUtils.writeToFile(file, xml);
+            System.out.println("Karate version: " + FileUtils.getKarateVersion());
+            System.out.println("html report: (paste into browser to view)\n"
+                    + "-----------------------------------------\n"
+                    + file.toURI() + '\n');
+        } catch (Exception e) {
+            System.out.println("html report output failed: " + e.getMessage());
+        }
+        return file;
+    }
+
     private static long getElapsedTime(long startTime) {
         return System.nanoTime() - startTime;
     }
@@ -252,12 +334,19 @@ public class Engine {
         return matches;
     }
     
-    public static String fromCucumberOptionsTags(String ... tags) {
-        if (tags == null) {
+    public static String fromCucumberOptionsTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return null;
+        }
+        return fromCucumberOptionsTags(tags.toArray(new String[]{}));
+    }
+
+    public static String fromCucumberOptionsTags(String... tags) {
+        if (tags == null || tags.length == 0) {
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < tags.length; i++) {            
+        for (int i = 0; i < tags.length; i++) {
             String and = tags[i];
             if (and.startsWith("~")) {
                 sb.append("not('").append(and.substring(1)).append("')");
@@ -270,7 +359,7 @@ public class Engine {
                 sb.setLength(sb.length() - 1);
                 sb.append(')');
             }
-            if (i < (tags.length-1)) {
+            if (i < (tags.length - 1)) {
                 sb.append(" && ");
             }
         }

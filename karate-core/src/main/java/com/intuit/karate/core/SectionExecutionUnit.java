@@ -70,36 +70,51 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
             if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
                 env.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
                 SectionExecutionUnit.this.submit(system, next);
-            } else {
-                // this is where the script-context and vars are inited for a scenario
-                // karate-config.js will be processed here
-                exec.callContext.setScenarioInfo(getScenarioInfo(scenario, env));
-                StepDefs stepDefs = new StepDefs(env, exec.callContext);
-                // we hold a reference to the LAST scenario executed
-                // for cases where the caller needs a result
-                exec.result.setResultVars(stepDefs.context.getVars());
-                ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
-                system.accept(() -> {
-                    unit.submit(system, (r, e) -> {
-                        if (outline) {
-                            if (e != null) {
-                                if (errors == null) {
-                                    errors = new ArrayList();
-                                }
-                                errors.add("row " + index + ": " + e.getMessage());
-                            }
-                            // continue even if this example row failed                            
-                            SectionExecutionUnit.this.submit(system, next);
-                        } else {
-                            if (e != null) {
-                                next.accept(null, e);
-                            } else {
-                                SectionExecutionUnit.this.submit(system, next);
-                            }
-                        }
-                    });
-                });
+                return;
             }
+            String callTag = scenario.getFeature().getCallTag();
+            if (callTag != null) {
+                Tag temp = new Tag(0, callTag);
+                if (!tagsEffective.contains(temp)) {
+                    env.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                    SectionExecutionUnit.this.submit(system, next);
+                    return;                    
+                }
+                env.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+            }
+            // this is where the script-context and vars are inited for a scenario
+            // first we set the scenario metadata
+            exec.callContext.setScenarioInfo(getScenarioInfo(scenario, env));
+            // then the tags metadata
+            exec.callContext.setTags(Tags.toListOfStrings(tagsEffective)); // TODO optimize
+            exec.callContext.setTagValues(Tags.toMapOfNameValues(tagsEffective));
+            // karate-config.js will be processed here 
+            // when the script-context constructor is called
+            StepDefs stepDefs = new StepDefs(env, exec.callContext);
+            // we also hold a reference to the LAST scenario executed
+            // for cases where the caller needs a result
+            exec.result.setResultVars(stepDefs.context.getVars());
+            ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
+            system.accept(() -> {
+                unit.submit(system, (r, e) -> {
+                    if (outline) {
+                        if (e != null) {
+                            if (errors == null) {
+                                errors = new ArrayList();
+                            }
+                            errors.add("row " + index + ": " + e.getMessage());
+                        }
+                        // continue even if this example row failed                            
+                        SectionExecutionUnit.this.submit(system, next);
+                    } else {
+                        if (e != null) {
+                            next.accept(null, e);
+                        } else {
+                            SectionExecutionUnit.this.submit(system, next);
+                        }
+                    }
+                });
+            });
         } else {
             KarateException ke;
             if (errors != null) {
@@ -110,11 +125,11 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
                 ke = new KarateException(message);
             } else {
                 ke = null;
-            }            
+            }
             next.accept(exec.result, ke);
         }
     }
-    
+
     private static ScenarioInfo getScenarioInfo(Scenario scenario, ScriptEnv env) {
         ScenarioInfo info = new ScenarioInfo();
         info.setFeatureDir(env.featureDir.getPath());
@@ -123,6 +138,6 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
         info.setScenarioDescription(scenario.getDescription());
         info.setScenarioType(scenario.isOutline() ? "Scenario Outline" : "Scenario");
         return info;
-    }    
+    }
 
 }

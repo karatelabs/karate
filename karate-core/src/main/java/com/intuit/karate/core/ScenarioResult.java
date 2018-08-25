@@ -32,6 +32,10 @@ import java.util.List;
  * @author pthomas3
  */
 public class ScenarioResult extends ResultElement {
+    
+    
+    private final boolean outline;
+    private final String keyword;
 
     public ScenarioResult(Scenario scenario) {
         super(scenario.getName());
@@ -39,7 +43,9 @@ public class ScenarioResult extends ResultElement {
         put("id", StringUtils.toIdString(scenario.getName()));
         put("description", scenario.getDescription());
         put("type", "scenario");
-        put("keyword", scenario.isOutline() ? "Scenario Outline" : "Scenario");
+        outline = scenario.isOutline();
+        keyword = outline ? ScenarioOutline.KEYWORD : Scenario.KEYWORD;
+        put("keyword", keyword);
         List<Tag> list = scenario.getTags();
         if (list != null) {
             List<TagResult> tags = new ArrayList(list.size());
@@ -53,6 +59,16 @@ public class ScenarioResult extends ResultElement {
     @Override
     public boolean isBackground() {
         return false;
-    }    
+    } 
+
+    @Override
+    String getKeyword() {
+        return keyword;
+    }
+
+    @Override
+    public boolean isOutline() {
+        return outline;
+    }        
 
 }

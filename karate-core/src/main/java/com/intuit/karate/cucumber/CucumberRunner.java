@@ -84,7 +84,7 @@ public class CucumberRunner {
     }    
     
     public static KarateStats parallel(List<String> tags, List<String> paths, ScenarioHook hook, int threadCount, String reportDir) {
-        String tagSelector = tags == null ? null : Engine.fromCucumberOptionsTags(tags.toArray(new String[]{}));
+        String tagSelector = tags == null ? null : Engine.fromCucumberOptionsTags(tags);
         List<FileResource> files = FileUtils.scanForFeatureFiles(paths);
         return parallel(tagSelector, files, hook, threadCount, reportDir);
     }
@@ -149,7 +149,7 @@ public class CucumberRunner {
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         CallContext callContext = new CallContext(vars, evalKarateConfig);
         FeatureResult result = Engine.executeSync(null, feature, null, callContext);
-        return result.getResultVars().toPrimitiveMap();
+        return result.getResultAsPrimitiveMap();
     }
 
     public static Map<String, Object> runFeature(File file, Map<String, Object> vars, boolean evalKarateConfig) {

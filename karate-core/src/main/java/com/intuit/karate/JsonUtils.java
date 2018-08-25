@@ -23,7 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.core.Feature;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import net.minidev.json.JSONObject;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.reader.JsonWriter;
@@ -77,10 +76,10 @@ public class JsonUtils {
 
     }
 
-    private static class FeatureWrapperJsonWriter implements JsonWriterI<FeatureWrapper> {
+    private static class FeatureJsonWriter implements JsonWriterI<Feature> {
 
         @Override
-        public <E extends FeatureWrapper> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
+        public <E extends Feature> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
             JsonWriter.toStringWriter.writeJSONString("\"#feature\"", out, compression);
         }
 
@@ -89,7 +88,7 @@ public class JsonUtils {
     static { 
         // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
         JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
-        JSONValue.registerWriter(FeatureWrapper.class, new FeatureWrapperJsonWriter());
+        JSONValue.registerWriter(Feature.class, new FeatureJsonWriter());
         // ensure that even if jackson (databind?) is on the classpath, don't switch provider
         Configuration.setDefaults(new Configuration.Defaults() {
 

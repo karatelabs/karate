@@ -30,6 +30,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -49,26 +50,26 @@ public class FeatureParser extends KarateParserBaseListener {
     private static final Logger logger = LoggerFactory.getLogger(FeatureParser.class);
 
     private final ParserErrorListener errorListener = new ParserErrorListener();
-    
+
     private final Feature feature;
-    
+
     public static Feature parse(File file) {
         return new FeatureParser(file).feature;
     }
-    
+
     public static Feature parse(String path) {
         File file = FileUtils.fromRelativeClassPath(path);
         return parse(file, path);
-    }  
-    
+    }
+
     public static Feature parse(File file, String relativePath) {
         return new FeatureParser(file, relativePath).feature;
-    }     
-    
+    }
+
     private FeatureParser(File file) {
         this(file, FileUtils.toRelativeClassPath(file));
     }
-    
+
     private FeatureParser(File file, String relativePath) {
         feature = new Feature(file, relativePath);
         CharStream stream;
@@ -90,9 +91,9 @@ public class FeatureParser extends KarateParserBaseListener {
         walker.walk(this, tree);
         if (errorListener.isFail()) {
             throw new RuntimeException(errorListener.getMessage());
-        }        
+        }
     }
-    
+
     private static int getActualLine(TerminalNode node) {
         int count = 0;
         for (char c : node.getText().toCharArray()) {
@@ -100,19 +101,19 @@ public class FeatureParser extends KarateParserBaseListener {
                 count++;
             } else if (!Character.isWhitespace(c)) {
                 break;
-            }            
+            }
         }
         return node.getSymbol().getLine() + count;
     }
 
     private static List<Tag> toTags(int line, TerminalNode node) {
         String text = node.getText();
-        if (line == -1) {            
+        if (line == -1) {
             line = getActualLine(node);
         }
         String[] tokens = text.trim().split("\\s+"); // handles spaces and tabs also
         List<Tag> tags = new ArrayList(tokens.length);
-        for (String t : tokens) {            
+        for (String t : tokens) {
             tags.add(new Tag(line, t));
         }
         return tags;
@@ -136,6 +137,44 @@ public class FeatureParser extends KarateParserBaseListener {
         return new Table(rows, lineNumbers);
     }
 
+    private static final String TRIPLE_QUOTES = "\"\"\"";
+
+    private static int indexOfFirstText(String s) {
+        int pos = 0;
+        for (char c : s.toCharArray()) {
+            if (!Character.isWhitespace(c)) {
+                return pos;
+            }
+            pos++;
+        }
+        return 0; // defensive coding
+    }
+
+    private static String fixDocString(String temp) {
+        int quotePos = temp.indexOf(TRIPLE_QUOTES);
+        int endPos = temp.lastIndexOf(TRIPLE_QUOTES);
+        String raw = temp.substring(quotePos + 3, endPos);
+        List<String> lines = StringUtils.split(raw, '\n');
+        StringBuilder sb = new StringBuilder();
+        int marginPos = -1;
+        Iterator<String> iterator = lines.iterator();
+        while (iterator.hasNext()) {
+            String line = iterator.next();
+            if (marginPos == -1) {
+                marginPos = indexOfFirstText(line);
+            }
+            if (marginPos < line.length()) {
+                line = line.substring(marginPos);
+            }
+            if (iterator.hasNext()) {
+                sb.append(line).append('\n');
+            } else {
+                sb.append(line);
+            }
+        }
+        return sb.toString().trim();
+    }
+
     private static List<Step> toSteps(List<KarateParser.StepContext> list) {
         List<Step> steps = new ArrayList(list.size());
         for (KarateParser.StepContext sc : list) {
@@ -145,8 +184,7 @@ public class FeatureParser extends KarateParserBaseListener {
             step.setPrefix(sc.prefix().getText().trim());
             step.setText(sc.line().getText().trim());
             if (sc.docString() != null) {
-                String temp = sc.docString().getText().trim();
-                step.setDocString(temp.substring(3, temp.length() - 3));
+                step.setDocString(fixDocString(sc.docString().getText()));
             } else if (sc.table() != null) {
                 Table table = toTable(sc.table());
                 step.setTable(table);
@@ -165,8 +203,8 @@ public class FeatureParser extends KarateParserBaseListener {
             StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.featureDescription().getText());
             feature.setName(pair.left);
             feature.setDescription(pair.right);
-        }        
-    }    
+        }
+    }
 
     @Override
     public void enterBackground(KarateParser.BackgroundContext ctx) {
@@ -183,7 +221,7 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterScenario(KarateParser.ScenarioContext ctx) {
         FeatureSection section = new FeatureSection();
-        Scenario scenario = new Scenario(feature);        
+        Scenario scenario = new Scenario(feature);
         section.setScenario(scenario);
         feature.addSection(section);
         scenario.setLine(getActualLine(ctx.SCENARIO()));
@@ -205,7 +243,7 @@ public class FeatureParser extends KarateParserBaseListener {
     @Override
     public void enterScenarioOutline(KarateParser.ScenarioOutlineContext ctx) {
         FeatureSection section = new FeatureSection();
-        ScenarioOutline outline = new ScenarioOutline(feature);        
+        ScenarioOutline outline = new ScenarioOutline(feature);
         section.setScenarioOutline(outline);
         feature.addSection(section);
         outline.setLine(getActualLine(ctx.SCENARIO_OUTLINE()));
@@ -216,7 +254,7 @@ public class FeatureParser extends KarateParserBaseListener {
             outline.setDescription(ctx.scenarioDescription().getText());
             StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.scenarioDescription().getText());
             outline.setName(pair.left);
-            outline.setDescription(pair.right);            
+            outline.setDescription(pair.right);
         }
         List<Step> steps = toSteps(ctx.step());
         outline.setSteps(steps);

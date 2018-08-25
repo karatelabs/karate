@@ -1701,9 +1701,7 @@ public class Script {
                 throw new KarateException("call feature failed", error);
             }
         }
-        // ScriptValueMap svm = CucumberUtils.callSync(feature, callContext);
-        ScriptValueMap svm = result.getResultVars();
-        return new ScriptValue(svm.toPrimitiveMap());
+        return new ScriptValue(result.getResultAsPrimitiveMap());
     }
 
     public static void callAndUpdateConfigAndAlsoVarsIfMapReturned(boolean callOnce, String name, String arg, ScriptContext context) {

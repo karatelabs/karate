@@ -32,6 +32,8 @@ import java.util.List;
  */
 public class ScenarioOutline {
 
+    public static final String KEYWORD = "Scenario Outline";
+
     private final Feature feature;
     private int line;
     private List<Tag> tags;
@@ -39,7 +41,7 @@ public class ScenarioOutline {
     private String description;
     private List<Step> steps;
     private List<ExampleTable> exampleTables;
-    
+
     public ScenarioOutline(Feature feature) {
         this.feature = feature;
     }
@@ -63,7 +65,7 @@ public class ScenarioOutline {
                         temp.addAll(et.getTags());
                     }
                     s.setTags(temp);
-                }                                
+                }
                 s.setName(name);
                 s.setDescription(description);
                 List<Step> replaced = new ArrayList(steps.size());
@@ -101,7 +103,7 @@ public class ScenarioOutline {
     public void setLine(int line) {
         this.line = line;
     }
-        
+
     public List<Tag> getTags() {
         return tags;
     }
@@ -117,7 +119,7 @@ public class ScenarioOutline {
     public void setName(String name) {
         this.name = name;
     }
-        
+
     public String getDescription() {
         return description;
     }
