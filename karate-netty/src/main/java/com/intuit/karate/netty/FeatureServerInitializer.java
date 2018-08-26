@@ -23,8 +23,9 @@
  */
 package com.intuit.karate.netty;
 
-import com.intuit.karate.cucumber.FeatureProvider;
-import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureBackend;
+import com.intuit.karate.core.FeatureParser;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -41,13 +42,13 @@ import java.util.Map;
 public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> {
     
     private final SslContext sslCtx;
-    private final FeatureProvider provider;
+    private final FeatureBackend backend;
     private final Runnable stopFunction;
     
     public FeatureServerInitializer(SslContext sslCtx, File featureFile, Map<String, Object> vars, Runnable stopFunction) {
         this.sslCtx = sslCtx;
-        FeatureWrapper featureWrapper = FeatureWrapper.fromFileAndTag(featureFile, null);
-        provider = new FeatureProvider(featureWrapper, vars);
+        Feature feature = FeatureParser.parse(featureFile);
+        backend = new FeatureBackend(feature, vars);
         this.stopFunction = stopFunction;
     }
     
@@ -59,7 +60,7 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
         }
         p.addLast(new HttpServerCodec());
         p.addLast(new HttpObjectAggregator(1048576));
-        p.addLast(new FeatureServerHandler(provider, stopFunction));
+        p.addLast(new FeatureServerHandler(backend, stopFunction));
     }    
     
 }

@@ -29,7 +29,7 @@ import com.intuit.karate.ScriptContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.cucumber.FeatureProvider;
+import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
 import io.netty.buffer.ByteBuf;
@@ -57,11 +57,11 @@ import java.util.Map;
  */
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private final FeatureProvider provider;
+    private final FeatureBackend backend;
     private final Runnable stopFunction;
 
-    public FeatureServerHandler(FeatureProvider provider, Runnable stopFunction) {
-        this.provider = provider;
+    public FeatureServerHandler(FeatureBackend backend, Runnable stopFunction) {
+        this.backend = backend;
         this.stopFunction = stopFunction;
     }
 
@@ -75,16 +75,16 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
-        provider.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
+        backend.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
         if (msg.uri().startsWith(STOP_URI)) {
-            provider.getContext().logger.info("stop uri invoked, shutting down");
+            backend.getContext().logger.info("stop uri invoked, shutting down");
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);            
             ctx.write(response);
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             stopFunction.run();
         }
-        if (provider.isCorsEnabled() && msg.method().equals(HttpMethod.OPTIONS)) {
+        if (backend.isCorsEnabled() && msg.method().equals(HttpMethod.OPTIONS)) {
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
             HttpHeaders responseHeaders = response.headers();
             responseHeaders.set(HttpUtils.HEADER_ALLOW, ALLOWED_METHODS);
@@ -99,7 +99,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
             HttpRequest request = new HttpRequest();
             if (url.left == null) {
-                String requestScheme = provider.isSsl() ? "https" : "http";
+                String requestScheme = backend.isSsl() ? "https" : "http";
                 String host = msg.headers().get(HttpUtils.HEADER_HOST);
                 request.setUrlBase(requestScheme + "://" + host);
             } else {
@@ -140,9 +140,9 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         Map<String, Object> responseHeadersMap, configResponseHeadersMap;
         // this is a sledgehammer approach to concurrency !
         // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
-        synchronized (provider) { // BEGIN TRANSACTION !
-            ScriptValueMap result = provider.handle(match.vars());
-            ScriptContext context = provider.getContext();
+        synchronized (backend) { // BEGIN TRANSACTION !
+            ScriptValueMap result = backend.handle(match.vars());
+            ScriptContext context = backend.getContext();
             ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
             responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
             responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
@@ -196,21 +196,20 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         if (responseValue != null && (headers == null || !headers.containsKey(HttpUtils.HEADER_CONTENT_TYPE))) {
             response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
         }
-        if (provider.isCorsEnabled()) {
+        if (backend.isCorsEnabled()) {
             response.headers().set(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
         }
         // functions here are outside of the 'transaction' and should not mutate global state !
         // typically this is where users can set up an artificial delay or sleep
         if (afterScenario != null && afterScenario.isFunction()) {
-            afterScenario.invokeFunction(provider.getContext());
+            afterScenario.invokeFunction(backend.getContext());
         }
         ctx.write(response);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        provider.getContext().logger.error("server error, {}", cause.getMessage());
-        cause.printStackTrace();
+        backend.getContext().logger.error("error, closing connection: {}", cause.getMessage());
         ctx.close();
     }
 

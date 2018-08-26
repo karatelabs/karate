@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
@@ -37,9 +37,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class FeatureProviderTest {
+public class FeatureBackendTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(FeatureProviderTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(FeatureBackendTest.class);
 
     private ScriptValueMap getRequest(String name) {
         return Match.init()
@@ -50,11 +50,11 @@ public class FeatureProviderTest {
     @Test
     public void testServer() {
         File file = FileUtils.getFileRelativeTo(getClass(), "server.feature");
-        FeatureWrapper featureWrapper = FeatureWrapper.fromFileAndTag(file, null);
-        FeatureProvider provider = new FeatureProvider(featureWrapper);
-        ScriptValueMap vars = provider.handle(getRequest("Billie"));
+        Feature feature = FeatureParser.parse(file);
+        FeatureBackend backend = new FeatureBackend(feature);
+        ScriptValueMap vars = backend.handle(getRequest("Billie"));
         Match.equals(vars.get("response").getAsMap(), "{ id: 1, name: 'Billie' }");
-        vars = provider.handle(getRequest("Wild"));
+        vars = backend.handle(getRequest("Wild"));
         Match.equals(vars.get("response").getAsMap(), "{ id: 2, name: 'Wild' }");
         List<Map> list = vars.get("cats").getAsList();
         Match.equals(list, "[{ id: 1, name: 'Billie' }, { id: 2, name: 'Wild' }]");

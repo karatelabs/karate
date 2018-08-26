@@ -68,9 +68,8 @@ public class Result extends HashMap<String, Object> {
         return new Result(PASSED, duration, null, false);
     }
 
-    public static Result failed(long duration, Throwable error, Scenario scenario, Step step) {
-            StackTraceElement[] originalTrace = error.getStackTrace();            
-            String featurePath = scenario.getFeature().getRelativePath();
+    public static Result failed(long duration, Throwable error, String featurePath, Step step) {
+            StackTraceElement[] originalTrace = error.getStackTrace();
             StackTraceElement[] newTrace = new StackTraceElement[]{
                 new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText(), featurePath, step.getLine()),
                 originalTrace[0]

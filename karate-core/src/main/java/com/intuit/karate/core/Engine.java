@@ -95,23 +95,21 @@ public class Engine {
         return exec.result;
     }
 
-    public static Result execute(Scenario scenario, Step step, StepDefs stepDefs) {
+    public static Result execute(String featurePath, Step step, StepDefs stepDefs) {
         String text = step.getText();
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
             KarateException e = new KarateException("no step-definition method match found for: " + text);
-            return Result.failed(0, e, scenario, step);
+            return Result.failed(0, e, featurePath, step);
         } else if (matches.size() > 1) {
             KarateException e = new KarateException("more than one step-definition method matched: " + text + " - " + matches);
-            return Result.failed(0, e, scenario, step);
+            return Result.failed(0, e, featurePath, step);
         }
         MethodMatch match = matches.get(0);
         Object last;
         if (step.getDocString() != null) {
             last = step.getDocString();
         } else if (step.getTable() != null) {
-            List<String> keys = new ArrayList(step.getTable().getKeys());
-            String[] columnNames = keys.toArray(new String[]{});
             last = DataTable.create(step.getTable().getRows());
         } else {
             last = null;
@@ -125,10 +123,10 @@ public class Engine {
             if (e.getTargetException() instanceof KarateAbortException) {
                 return Result.aborted(getElapsedTime(startTime));
             } else {
-                return Result.failed(getElapsedTime(startTime), e.getTargetException(), scenario, step);
+                return Result.failed(getElapsedTime(startTime), e.getTargetException(), featurePath, step);
             }
         } catch (Exception e) {
-            return Result.failed(getElapsedTime(startTime), e, scenario, step);
+            return Result.failed(getElapsedTime(startTime), e, featurePath, step);
         }
     }
 

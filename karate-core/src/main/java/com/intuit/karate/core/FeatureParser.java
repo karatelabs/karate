@@ -1,4 +1,4 @@
-/*
+ /*
  * The MIT License
  *
  * Copyright 2018 Intuit Inc.
