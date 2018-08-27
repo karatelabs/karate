@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
-import com.intuit.karate.cucumber.ScenarioWrapper;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioOutline;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.scene.layout.BorderPane;
@@ -39,10 +39,10 @@ public class ScenarioOutlinePanel extends BorderPane {
     private final VBox content;
     private final AppSession session;
     
-    private ScenarioOutlineWrapper outline;
+    private ScenarioOutline outline;
     private final List<ExamplesPanel> examplesPanels;
     
-    public ScenarioOutlinePanel(AppSession session, ScenarioOutlineWrapper outline) {
+    public ScenarioOutlinePanel(AppSession session, ScenarioOutline outline) {
         super();
         this.session = session;
         this.outline = outline;
@@ -53,7 +53,7 @@ public class ScenarioOutlinePanel extends BorderPane {
     }
     
     private void initTitleAndContent() {
-        for (ScenarioWrapper scenario : outline.getScenarios()) {
+        for (Scenario scenario : outline.getScenarios()) {
             ExamplesPanel examplePanel = new ExamplesPanel(session, scenario);
             content.getChildren().add(examplePanel);
             if (!examplesPanels.isEmpty()) {

@@ -23,12 +23,11 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.ScenarioHook;
 import com.intuit.karate.cucumber.ScenarioInfo;
-import com.intuit.karate.cucumber.StepInterceptor;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import com.intuit.karate.core.ExecutionHook;
 
 /**
  *
@@ -45,8 +44,7 @@ public class CallContext {
     public final String httpClientClass;
     public final Consumer<Runnable> asyncSystem;
     public final Runnable asyncNext;
-    public final StepInterceptor stepInterceptor;
-    public final ScenarioHook scenarioHook;
+    public final ExecutionHook executionHook;
     
     private List<String> tags;
     private Map<String, List<String>> tagValues;    
@@ -81,16 +79,16 @@ public class CallContext {
     }
     
     public CallContext(Map<String, Object> callArg, boolean evalKarateConfig) {
-        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, null, null, null);
+        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, null, null);
     }
     
-    public CallContext(ScenarioHook scenarioHook) {
-        this(null, 0, null, -1, false, true, null, null, null, null, scenarioHook);
+    public CallContext(ExecutionHook scenarioHook) {
+        this(null, 0, null, -1, false, true, null, null, null, scenarioHook);
     }    
     
     public CallContext(ScriptContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
         boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass, 
-            Consumer<Runnable> asyncSystem, Runnable asyncNext, StepInterceptor stepInterceptor, ScenarioHook scenarioHook) {
+            Consumer<Runnable> asyncSystem, Runnable asyncNext, ExecutionHook scenarioHook) {
         this.parentContext = parentContext;
         this.callDepth = callDepth;
         this.callArg = callArg;
@@ -100,8 +98,7 @@ public class CallContext {
         this.httpClientClass = httpClientClass;
         this.asyncSystem = asyncSystem;
         this.asyncNext = asyncNext;
-        this.stepInterceptor = stepInterceptor;
-        this.scenarioHook = scenarioHook;
+        this.executionHook = scenarioHook;
     }
     
 }

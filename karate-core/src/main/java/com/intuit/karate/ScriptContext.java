@@ -23,8 +23,8 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.cucumber.ScenarioInfo;
-import com.intuit.karate.cucumber.StepInterceptor;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
@@ -56,7 +56,7 @@ public class ScriptContext {
     protected final ScriptEnv env;
     protected final Consumer<Runnable> asyncSystem;
     protected final Runnable asyncNext;
-    protected final StepInterceptor stepInterceptor;
+    protected final ExecutionHook executionHook;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -118,7 +118,7 @@ public class ScriptContext {
         logger = env.logger;
         callDepth = call.callDepth;
         asyncSystem = call.asyncSystem;
-        stepInterceptor = call.stepInterceptor;
+        executionHook = call.executionHook;
         asyncNext = call.asyncNext;
         tags = call.getTags();
         tagValues = call.getTagValues();

@@ -4,10 +4,10 @@ import java.io.File
 import java.util.function.Consumer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import com.intuit.karate.{CallContext, ScriptContext, ScriptValueMap}
-import com.intuit.karate.cucumber._
+import com.intuit.karate.{CallContext, ScriptContext, ScriptValueMap, StepDefs}
+import com.intuit.karate.core._
+import com.intuit.karate.cucumber.CucumberRunner
 import com.intuit.karate.http.{HttpRequest, HttpUtils}
-import gherkin.formatter.model.Step
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
@@ -41,7 +41,7 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
       statsEngine.logResponse(session, key, timings, okOrNot, Option(statusCode + ""), message)
     }
 
-    val stepInterceptor = new StepInterceptor {
+    val executionHook = new ExecutionHook {
 
       var prevRequest: Option[HttpRequest] = None
       var startTime: Long = 0
@@ -57,20 +57,19 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
       }
 
       def handleResultIfFail(feature: String, result: StepResult, step: Step, ctx: ScriptContext) = {
-        if (!result.isPass) { // if a step failed, assume that the last http request is a fail
-          val fileName = new File(feature).getName
-          val message = fileName + ":" + step.getLine + " " + result.getStep.getName
+        if (result.getResult.isFailed) { // if a step failed, assume that the last http request is a fail
+          val message = feature + ":" + step.getLine + " " + result.getStep.getText
           logPrevRequestIfDefined(ctx, false, Option(message))
         }
       }
 
-      override def beforeStep(step: StepWrapper, backend: KarateBackend) = {
-        val isHttpMethod = step.getStep.getName.startsWith("method")
+      override def beforeStep(step: Step, stepDefs: StepDefs): Unit = {
+        val stepText = step.getText;
+        val isHttpMethod = stepText.startsWith("method")
         if (isHttpMethod) {
-          val method = step.getStep.getName.substring(6).trim
-          val ctx = backend.getStepDefs.context
-          logPrevRequestIfDefined(ctx, true, None)
-          val request = backend.getStepDefs.getRequest
+          val method = stepText.substring(6).trim
+          logPrevRequestIfDefined(stepDefs.context, true, None)
+          val request = stepDefs.getRequest
           val pauseTime = protocol.pauseFor(request.getUrlAndPath, method)
           if (pauseTime > 0) {
             Thread.sleep(pauseTime) // TODO use actors here as well
@@ -78,29 +77,33 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
         }
       }
 
-      override def afterStep(result: StepResult, backend: KarateBackend): Unit = {
-        val isHttpMethod = result.getStep.getName.startsWith("method")
-        val ctx = backend.getStepDefs.context
+      override def afterStep(result: StepResult, stepDefs: StepDefs): Unit = {
+        val stepText = result.getStep.getText;
+        val isHttpMethod = stepText.startsWith("method")
+        val ctx = stepDefs.context
         if (isHttpMethod) {
           prevRequest = Option(ctx.getPrevRequest)
           startTime = ctx.getVars.get(ScriptValueMap.VAR_REQUEST_TIME_STAMP).getValue(classOf[Long])
           responseTime = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_TIME).getValue(classOf[Long])
           responseStatus = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_STATUS).getValue(classOf[Int])
         }
-        handleResultIfFail(backend.getFeaturePath, result, result.getStep, ctx)
+        val featureName = ctx.getEnv.featureName
+        handleResultIfFail(featureName, result, result.getStep, ctx)
       }
 
-      override def afterScenario(scenario: ScenarioWrapper, backend: KarateBackend): Unit = {
-        logPrevRequestIfDefined(backend.getStepDefs.context, true, None)
+      override def afterScenario(scenarioResult: ScenarioResult, stepDefs: StepDefs): Unit = {
+        logPrevRequestIfDefined(stepDefs.context, true, None)
       }
+
+      override def beforeScenario(scenario: Scenario, stepDefs: StepDefs): Boolean = true
 
     }
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
-    val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, stepInterceptor, null)
+    val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, executionHook)
 
-    CucumberUtils.callAsync(name, callTag, callContext)
+    CucumberRunner.callAsync(name, callTag, callContext)
 
   }
 

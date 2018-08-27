@@ -83,13 +83,14 @@ public class Engine {
         return command.contains("org.gradle.") ? "build" : "target";
     }
 
-    public static FeatureResult executeSync(String envString, Feature feature, String tagSelector, CallContext callContext) {
+    public static FeatureResult execute(String envString, Feature feature, String tagSelector, CallContext callContext) {
         File file = feature.getFile();
         ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(envString, tagSelector, file);
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
-        ExecutionContext exec = new ExecutionContext(feature, env, callContext);
+        boolean enableFileLogAppender = callContext.asyncSystem == null;
+        ExecutionContext exec = new ExecutionContext(feature, env, callContext, enableFileLogAppender);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
         unit.submit(SYNC_EXECUTOR, NO_OP);
         return exec.result;
@@ -290,16 +291,16 @@ public class Engine {
         Iterator<ResultElement> iterator = result.getElements().iterator();
         ResultElement prev = null;
         while (iterator.hasNext()) {
-            ResultElement element = iterator.next();           
-            if (element.isBackground()) {                
+            ResultElement element = iterator.next();
+            if (element.isBackground()) {
                 prev = element;
             } else {
                 Node scenarioDiv = div(doc, "scenario");
-                append(doc, "/html/body/div", scenarioDiv);                    
+                append(doc, "/html/body/div", scenarioDiv);
                 Node scenarioHeadingDiv = div(doc, "scenario-heading",
                         node(doc, "span", "scenario-keyword", element.getKeyword() + ": "),
                         node(doc, "span", "scenario-name", element.getName()));
-                scenarioDiv.appendChild(scenarioHeadingDiv); 
+                scenarioDiv.appendChild(scenarioHeadingDiv);
                 prev = null;
             }
         }
@@ -331,7 +332,7 @@ public class Engine {
         }
         return matches;
     }
-    
+
     public static String fromCucumberOptionsTags(List<String> tags) {
         if (tags == null || tags.isEmpty()) {
             return null;

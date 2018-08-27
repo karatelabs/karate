@@ -23,9 +23,10 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.CucumberUtils;
-import com.intuit.karate.cucumber.StepResult;
-import com.intuit.karate.cucumber.StepWrapper;
+import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.Result;
+import com.intuit.karate.core.Step;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -54,7 +55,7 @@ public class StepPanel extends AnchorPane {
     private Optional<Button> runAllUptoButton = Optional.empty();
     private final Optional<StepPanel> previousPanel;
     private String oldText;
-    private StepWrapper step;
+    private Step step;
     private Boolean pass = null;
     private BooleanProperty nonFeature = new SimpleBooleanProperty(Boolean.TRUE);
     private BooleanBinding featureCall = nonFeature.not();
@@ -67,7 +68,7 @@ public class StepPanel extends AnchorPane {
     private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
     private static final Pattern callPattern = Pattern.compile("\\s*\\*\\s*(def\\s*\\w+\\s*=)?\\s*call\\s*read.*");
 
-    public StepPanel(AppSession session, StepWrapper step, Optional<StepPanel> previousPanel) {
+    public StepPanel(AppSession session, Step step, Optional<StepPanel> previousPanel) {
         this.session = session;
         this.previousPanel = previousPanel;
         runButton = new Button("►");
@@ -131,8 +132,9 @@ public class StepPanel extends AnchorPane {
     
     private void run() {
         rebuildFeatureIfTextChanged();
-        StepResult result = CucumberUtils.runCalledStep(step, session.backend);
-        pass = result.isPass();
+        Feature feature = session.getFeature();
+        Result result = Engine.execute(feature.getRelativePath(), step, session.getStepDefs());
+        pass = !result.isFailed();
         initStyleColor();
         stepVarLists = session.getVars();
         session.refreshVarsTable(stepVarLists);
@@ -198,7 +200,9 @@ public class StepPanel extends AnchorPane {
             }
         }
         textArea.setPrefRowCount(lineCount);
-        if (step.isHttpCall()) {
+        String stepText = step.getText();
+        boolean isMethod = stepText.startsWith("method") || stepText.startsWith("soap");
+        if (isMethod) {
             setStyle(STYLE_METHOD);
             textArea.setStyle(STYLE_METHOD);
         } else {

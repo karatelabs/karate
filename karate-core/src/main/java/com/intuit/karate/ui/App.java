@@ -27,7 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.convert.ConvertUtils;
 import com.intuit.karate.convert.PostmanItem;
-import com.intuit.karate.cucumber.FeatureWrapper;
+import com.intuit.karate.core.Feature;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -47,6 +47,7 @@ import java.util.List;
  * @author pthomas3
  */
 public class App extends Application {
+    
     public static final double PADDING = 3.0;
     public static final Insets PADDING_INSET = new Insets(App.PADDING, App.PADDING, App.PADDING, App.PADDING);
 
@@ -129,12 +130,12 @@ public class App extends Application {
     private void initFileSaveAction(AppSession session, String envString, Stage stage) {
         session.headerPanel.setFileSaveAction(e -> {
             File file;
-            FeatureWrapper feature = session.getFeature();
+            Feature feature = session.getFeature();
             if (needsNameToSave) {
-                String suggestedName = feature.getFeature().getGherkinFeature().getName();
+                String suggestedName = "noname.feature";
                 file = chooseFileToSave(stage, "*.feature files", "*.feature", suggestedName);
             } else {
-                file = new File(feature.getPath());
+                file = feature.getFile();
             }
             FileUtils.writeToFile(file, feature.getText());
             if (needsNameToSave) {

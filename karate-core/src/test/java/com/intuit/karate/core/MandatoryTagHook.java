@@ -23,17 +23,17 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.StepDefs;
 import java.util.Collection;
-import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public class MandatoryTagHook implements ScenarioHook {
+public class MandatoryTagHook implements ExecutionHook {
 
     @Override
-    public boolean beforeScenario(Scenario scenario) {
+    public boolean beforeScenario(Scenario scenario, StepDefs stepDefs) {
         Collection<Tag> tags = scenario.getTagsEffective();
         boolean found = false;
         for (Tag tag : tags) {
@@ -49,8 +49,18 @@ public class MandatoryTagHook implements ScenarioHook {
     }
 
     @Override
-    public void afterScenario(ScenarioResult result) {
+    public void afterScenario(ScenarioResult result, StepDefs stepDefs) {
         
     }    
+
+    @Override
+    public void beforeStep(Step step, StepDefs stepDefs) {
+
+    }
+
+    @Override
+    public void afterStep(StepResult result, StepDefs stepDefs) {
+
+    }
     
 }

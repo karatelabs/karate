@@ -49,7 +49,13 @@ public class StepExecutionUnit implements ExecutionUnit<Result> {
     public void submit(Consumer<Runnable> system, BiConsumer<Result, KarateException> next) {
         system.accept(() -> {
             String relativePath = scenario.getFeature().getRelativePath();
+            if (stepDefs.callContext.executionHook != null) {
+                stepDefs.callContext.executionHook.beforeStep(step, stepDefs);
+            }
             Result result = Engine.execute(relativePath, step, stepDefs);
+            if (stepDefs.callContext.executionHook != null) {
+                stepDefs.callContext.executionHook.afterStep(new StepResult(step, result), stepDefs);
+            }            
             if (result.isAborted()) {
                 stepDefs.context.logger.debug("abort at {}:{}", relativePath, step.getLine());
                 next.accept(result, null); // same flow as passed

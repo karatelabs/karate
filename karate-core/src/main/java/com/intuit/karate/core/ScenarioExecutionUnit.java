@@ -52,12 +52,12 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
             backgroundDone = true;
         }
     }
-    
+
     @Override
     public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
-        if (stepDefs.callContext.scenarioHook != null) {
+        if (stepDefs.callContext.executionHook != null) {
             try {
-                stepDefs.callContext.scenarioHook.beforeScenario(scenario);
+                stepDefs.callContext.executionHook.beforeScenario(scenario, stepDefs);
             } catch (Exception e) {
                 String message = "scenario hook threw fatal error: " + e.getMessage();
                 stepDefs.context.logger.error(message);
@@ -94,6 +94,9 @@ public class ScenarioExecutionUnit implements ExecutionUnit<FeatureResult> {
                     featureResult.addResult(scenarioResult);
                     if (e != null) {
                         stepDefs.context.setScenarioError(e);
+                    }
+                    if (stepDefs.callContext.executionHook != null) {
+                        stepDefs.callContext.executionHook.afterScenario(scenarioResult, stepDefs);
                     }
                     next.accept(featureResult, e);
                 });

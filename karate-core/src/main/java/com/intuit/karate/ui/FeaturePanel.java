@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.FeatureSection;
-import gherkin.formatter.model.Feature;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureSection;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
@@ -59,19 +59,17 @@ public class FeaturePanel extends BorderPane {
         addSections();
         this.setCenter(scrollPane);
     }
-    
+
     private void addSections() {
-        final Feature gherkinFeature = session.getFeature().getFeature().getGherkinFeature();
-
+        final Feature feature = session.getFeature();
         TextFlow flow = new TextFlow();
-        Text keyword=new Text(gherkinFeature.getKeyword()+" : ");
-        Text name=new Text(gherkinFeature.getName());
+        Text keyword = new Text("Feature: ");
+        Text name = new Text(feature.getName());
         flow.getChildren().addAll(keyword, name);
-
         flow.setMaxHeight(8);
         content.getChildren().add(flow);
         for (FeatureSection section : session.getFeature().getSections()) {
-            SectionPanel sectionPanel = new SectionPanel(session, section);            
+            SectionPanel sectionPanel = new SectionPanel(session, section);
             content.getChildren().add(sectionPanel);
             if (!sectionPanels.isEmpty()) {
                 sectionPanel.setExpanded(false);
@@ -79,12 +77,12 @@ public class FeaturePanel extends BorderPane {
             sectionPanels.add(sectionPanel);
         }
     }
-    
+
     public void action(AppAction action) {
         for (SectionPanel panel : sectionPanels) {
             panel.action(action);
         }
-    }    
+    }
 
     public void refresh() {
         sectionPanels.clear();

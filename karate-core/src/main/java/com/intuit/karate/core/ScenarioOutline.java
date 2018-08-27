@@ -35,6 +35,8 @@ public class ScenarioOutline {
     public static final String KEYWORD = "Scenario Outline";
 
     private final Feature feature;
+    private final FeatureSection section;
+
     private int line;
     private List<Tag> tags;
     private String name;
@@ -42,8 +44,9 @@ public class ScenarioOutline {
     private List<Step> steps;
     private List<ExampleTable> exampleTables;
 
-    public ScenarioOutline(Feature feature) {
+    public ScenarioOutline(Feature feature, FeatureSection section) {
         this.feature = feature;
+        this.section = section;
     }
 
     public List<Scenario> getScenarios() {
@@ -52,7 +55,7 @@ public class ScenarioOutline {
             Table t = et.getTable();
             int rowCount = t.getRows().size();
             for (int i = 1; i < rowCount; i++) { // don't include header row
-                Scenario s = new Scenario(feature);
+                Scenario s = new Scenario(feature, section, i - 1);
                 list.add(s);
                 s.setOutline(true);
                 s.setLine(t.getLineNumberForRow(i));
@@ -83,7 +86,7 @@ public class ScenarioOutline {
                             table = table.replace(token, value);
                         }
                     }
-                    Step step = new Step();
+                    Step step = new Step(s, original.getIndex());
                     step.setPrefix(original.getPrefix());
                     step.setText(text);
                     step.setDocString(docString);
@@ -95,6 +98,10 @@ public class ScenarioOutline {
         }
         return list;
     }
+
+    public FeatureSection getSection() {
+        return section;
+    }        
 
     public int getLine() {
         return line;

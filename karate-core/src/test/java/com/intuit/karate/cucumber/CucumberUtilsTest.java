@@ -1,8 +1,12 @@
 package com.intuit.karate.cucumber;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.ScriptEnv;
-import java.io.File;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.core.Background;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioOutline;
+import com.intuit.karate.core.Step;
 import java.io.InputStream;
 import java.util.List;
 import org.junit.Test;
@@ -18,134 +22,112 @@ public class CucumberUtilsTest {
 
     private static final Logger logger = LoggerFactory.getLogger(CucumberUtilsTest.class);
     
+    private Feature parse(String name) {
+        InputStream is = getClass().getResourceAsStream(name);
+        String text = FileUtils.toString(is);
+        return FeatureParser.parseText(new Feature(null, null), text);
+    }
+    
     private void printLines(List<String> lines) {
         int count = lines.size();
         for (int i = 0; i < count; i++) {
             String line = lines.get(i);
-            logger.trace("{}: {}", i + 1, line);
-        }        
-    }
-    
-    private ScriptEnv getEnv() {
-        return ScriptEnv.forEnvAndCurrentWorkingDir("dev");
+            logger.debug("{}: {}", i + 1, line);   
+        }
     }
     
     @Test
     public void testScenario() {
-        ScriptEnv env = getEnv();
-        String filename = "scenario.feature";
-        InputStream is = getClass().getResourceAsStream(filename);
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
-        List<String> lines = fw.getLines();
-        printLines(lines);
+        Feature feature = parse("scenario.feature");
+        List<String> lines = feature.getLines();
         assertEquals(16, lines.size());
-        assertEquals(1, fw.getSections().size());
-        ScenarioWrapper sw = fw.getSections().get(0).getScenario();
-        assertFalse(sw.isChild());    
-        assertEquals(8, sw.getLine()); // scenario on line 8
-        List<StepWrapper> steps = sw.getSteps();
-        assertEquals(4, steps.size());
-        StepWrapper step = steps.get(0);
-        assertTrue(step.isBackground());
-        String stepText = step.getPriorText();
-        assertEquals("Feature: simple feature file\n\n# some comment\n\nBackground:", stepText);
-        assertEquals(5, step.getStartLine());
-        CallContext callContext = new CallContext(null, true);
-        KarateBackend backend = CucumberUtils.getBackendWithGlue(fw, callContext);
-        assertTrue(CucumberUtils.runCalledStep(step, backend).isPass());
+        assertEquals(1, feature.getSections().size());
+        Background background = feature.getBackground();
+        Step step = background.getSteps().get(0);
+        assertEquals("def a = 1", step.getText());
         
-        step = steps.get(1); // first scenario (non-background) step
-        assertFalse(step.isBackground());
-        stepText = step.getPriorText();
-        assertEquals("Scenario: test", stepText);
-        assertEquals(8, step.getStartLine());        
-        assertTrue(CucumberUtils.runCalledStep(step, backend).isPass());
-        
-        step = steps.get(2);
-        stepText = step.getPriorText();
-        assertEquals(1, step.getPriorTextLineCount());
-        assertTrue(step.isPriorTextPresent()); 
-        assertEquals("# another comment", stepText);      
-        
-        step = steps.get(3);
-        stepText = step.getPriorText();
-        assertNull(stepText);
-        assertEquals(0, step.getPriorTextLineCount());
-        assertFalse(step.isPriorTextPresent());      
+        Scenario scenario = feature.getSections().get(0).getScenario();
+        assertFalse(scenario.isOutline());    
+        assertEquals(8, scenario.getLine()); // scenario on line 8
+        List<Step> steps = scenario.getSteps();
+        assertEquals(3, steps.size());
+        step = steps.get(0);
+        assertEquals(9, step.getLine()); 
+        step = steps.get(1); 
+        assertEquals(11, step.getLine());      
     }
     
     @Test
     public void testScenarioOutline() {
-        String filename = "outline.feature";
-        InputStream is = getClass().getResourceAsStream(filename);
-        ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
-        List<String> lines = fw.getLines();
-        printLines(lines);
+        Feature feature = parse("outline.feature");
+        List<String> lines = feature.getLines();
         assertEquals(13, lines.size());
-        assertEquals(1, fw.getSections().size());
-        ScenarioOutlineWrapper sow = fw.getSections().get(0).getScenarioOutline();
-        assertEquals(4, sow.getScenarios().size());
-        ScenarioWrapper sw = sow.getScenarios().get(0);
-        assertTrue(sw.isChild());
+        assertEquals(1, feature.getSections().size());
+        ScenarioOutline so = feature.getSections().get(0).getScenarioOutline();
+        assertEquals(4, so.getScenarios().size());
+        Scenario scenario = so.getScenarios().get(0);
+        assertTrue(scenario.isOutline());
     } 
     
     @Test
     public void testInsert() {
-        String filename = "scenario.feature";
-        InputStream is = getClass().getResourceAsStream(filename);
-        ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
-        fw = fw.addLine(9, "Then assert 2 == 2");
-        List<String> lines = fw.getLines();
-        printLines(lines);
+        Feature feature = parse("scenario.feature");
+        feature = feature.addLine(9, "Then assert 2 == 2");
+        List<String> lines = feature.getLines();
         assertEquals(17, lines.size());
-        assertEquals(1, fw.getSections().size());
+        assertEquals(1, feature.getSections().size());
     }
     
     @Test
     public void testEdit() {
-        String filename = "scenario.feature";
-        InputStream is = getClass().getResourceAsStream(filename);
-        ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
-        printLines(fw.getLines());
-        StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(0);
-        int line = step.getStartLine();        
-        fw = fw.replaceLines(line, line, "Then assert 2 == 2");
-        List<String> lines = fw.getLines();
-        printLines(lines);
-        assertEquals(16, lines.size());
-        assertEquals(1, fw.getSections().size());
+        Feature feature = parse("scenario.feature");
+        Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
+        int line = step.getLine();        
+        feature = feature.replaceLines(line, line, "Then assert 2 == 2");
+        assertEquals(1, feature.getSections().size());
     }
 
     @Test
-    public void testMultiLineEdit() {
-        String filename = "scenario.feature";
-        InputStream is = getClass().getResourceAsStream(filename);
-        ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromStream(is, env, filename);
-        printLines(fw.getLines());
-        StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(2);        
-        fw = fw.replaceStep(step, "Then assert 2 == 2");
-        List<String> lines = fw.getLines();
+    public void testMultiLineEditDocString() {
+        Feature feature = parse("scenario.feature");
+        printLines(feature.getLines());
+        Step step = feature.getSections().get(0).getScenario().getSteps().get(1);
+        assertEquals("def b =", step.getText());
+        assertEquals(11, step.getLine());
+        assertEquals(14, step.getEndLine());
+        feature = feature.replaceStep(step, "Then assert 2 == 2");
+        List<String> lines = feature.getLines();
         printLines(lines);
         assertEquals(13, lines.size());
-        assertEquals("# another comment", fw.getLines().get(9));
-        assertEquals("Then assert 2 == 2", fw.getLines().get(10));
-        assertEquals("Then match b == { foo: 'bar'}", fw.getLines().get(11));
-        assertEquals(1, fw.getSections().size());
-    }  
+        assertEquals("# another comment", feature.getLines().get(9));
+        assertEquals("Then assert 2 == 2", feature.getLines().get(10));
+        assertEquals("Then match b == { foo: 'bar'}", feature.getLines().get(11));
+        assertEquals(1, feature.getSections().size());
+    } 
+    
+    @Test
+    public void testMultiLineEditTable() {
+        Feature feature = parse("table.feature");
+        printLines(feature.getLines());
+        Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
+        assertEquals("table cats", step.getText());
+        assertEquals(4, step.getLine());
+        assertEquals(8, step.getEndLine());
+        feature = feature.replaceStep(step, "Then assert 2 == 2");
+        List<String> lines = feature.getLines();
+        printLines(lines);
+        assertEquals(7, lines.size());
+        assertEquals("Then assert 2 == 2", feature.getLines().get(3));
+        assertEquals("* match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]", feature.getLines().get(5));
+    }    
     
     @Test
     public void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
-        ScriptEnv env = getEnv();
-        FeatureWrapper fw = FeatureWrapper.fromString(text, env, "dummy.feature", null);
-        printLines(fw.getLines());
-        StepWrapper step = fw.getSections().get(0).getScenario().getSteps().get(0);
-        logger.debug("step name: '{}'", step.getStep().getName());
-        assertTrue(step.isHttpCall());
+        Feature feature = FeatureParser.parseText(new Feature(null, null), text);
+        Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
+        logger.debug("step name: '{}'", step.getText());
+        assertTrue(step.getText().startsWith("method"));
     }
 
 }

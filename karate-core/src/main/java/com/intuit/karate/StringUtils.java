@@ -23,11 +23,14 @@
  */
 package com.intuit.karate;
 
+import java.io.BufferedReader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -155,6 +158,10 @@ public class StringUtils {
             }
         }
         return StringUtils.pair(left, right);
+    }    
+
+    public static List<String> toStringLines(String text) {
+        return new BufferedReader(new StringReader(text)).lines().collect(Collectors.toList());
     }    
     
 }

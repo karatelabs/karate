@@ -23,13 +23,12 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 
 import static com.intuit.karate.ui.App.PADDING_INSET;
 
@@ -44,6 +43,7 @@ public class LogPanel extends BorderPane {
     public LogPanel(Logger logger) {
         setPadding(PADDING_INSET);
         textArea = new TextArea();
+        LogAppender appender = new TextAreaLogAppender(logger, textArea);
         textArea.setPrefRowCount(40);
         textArea.setPrefColumnCount(120);
         textArea.setFont(App.getDefaultFont());

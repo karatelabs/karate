@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.cucumber.KarateReporter;
 import java.io.File;
 
 /**
@@ -39,10 +38,9 @@ public class ScriptEnv {
     public final String featureName;
     public final ClassLoader fileClassLoader;
     public final CallCache callCache;
-    public final KarateReporter reporter;
     
     public ScriptEnv(String env, String tagSelector, File featureDir, String featureName, ClassLoader fileClassLoader, 
-            CallCache callCache, Logger logger, KarateReporter reporter) {
+            CallCache callCache, Logger logger) {
         this.env = env;
         this.tagSelector = tagSelector;
         this.featureDir = featureDir;
@@ -50,12 +48,11 @@ public class ScriptEnv {
         this.fileClassLoader = fileClassLoader;
         this.callCache = callCache;
         this.logger = logger;
-        this.reporter = reporter;
     }
     
-    public ScriptEnv(String env, String tagSelector, File featureDir, String featureName, ClassLoader fileClassLoader, KarateReporter reporter) {
+    public ScriptEnv(String env, String tagSelector, File featureDir, String featureName, ClassLoader fileClassLoader) {
         this(env, tagSelector, featureDir, featureName, fileClassLoader, new CallCache(), 
-                new Logger(), reporter);
+                new Logger());
     }    
     
     public static ScriptEnv forEnvAndCurrentWorkingDir(String env) {
@@ -67,12 +64,17 @@ public class ScriptEnv {
     }     
     
     private static ScriptEnv forEnvAndWorkingDir(String env, File workingDir) {
-        return new ScriptEnv(env, null, workingDir, null, Thread.currentThread().getContextClassLoader(), null);
+        return new ScriptEnv(env, null, workingDir, null, Thread.currentThread().getContextClassLoader());
     }    
     
     public static ScriptEnv forEnvAndFeatureFile(String env, File featureFile) {
         return forFeatureFile(env, null, featureFile, Thread.currentThread().getContextClassLoader());
     }  
+    
+    public static ScriptEnv forEnvFeatureFileAndLogger(String env, File featureFile, Logger logger) {
+        return new ScriptEnv(env, null, featureFile.getParentFile(), featureFile.getName(), 
+                Thread.currentThread().getContextClassLoader(), new CallCache(), logger);
+    }     
     
     public static ScriptEnv forEnvTagsAndFeatureFile(String env, String tagSelector, File featureFile) {
         return forFeatureFile(env, tagSelector, featureFile, Thread.currentThread().getContextClassLoader());
@@ -83,7 +85,7 @@ public class ScriptEnv {
     }
     
     private static ScriptEnv forFeatureFile(String env, String tagSelector, File featureFile, ClassLoader classLoader) {
-        return new ScriptEnv(env, tagSelector, featureFile.getParentFile(), featureFile.getName(), classLoader, null);
+        return new ScriptEnv(env, tagSelector, featureFile.getParentFile(), featureFile.getName(), classLoader);
     }   
     
     public ScriptEnv refresh(String in) { // immutable
@@ -94,7 +96,7 @@ public class ScriptEnv {
                 karateEnv = StringUtils.trimToNull(System.getProperty(ScriptBindings.KARATE_ENV));
             }
         }
-        return new ScriptEnv(karateEnv, tagSelector, featureDir, featureName, fileClassLoader, callCache, logger, reporter);
+        return new ScriptEnv(karateEnv, tagSelector, featureDir, featureName, fileClassLoader, callCache, logger);
     }
     
     @Override

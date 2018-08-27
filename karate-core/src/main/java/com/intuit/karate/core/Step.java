@@ -28,12 +28,37 @@ package com.intuit.karate.core;
  * @author pthomas3
  */
 public class Step {
-    
+        
+    private final Scenario scenario;
+    private final int index;
+            
     private int line;
+    private int endLine;
     private String prefix;
     private String text;
     private String docString;
     private Table table;
+    
+    public Step(Scenario scenario, int index) {
+        this.scenario = scenario;
+        this.index = index;
+    }
+    
+    public boolean isBackground() {
+        return scenario == null;
+    }
+    
+    public boolean isOutline() {
+        return scenario != null && scenario.isOutline();
+    }
+
+    public Scenario getScenario() {
+        return scenario;
+    }
+
+    public int getIndex() {
+        return index;
+    }    
 
     public int getLine() {
         return line;
@@ -42,6 +67,18 @@ public class Step {
     public void setLine(int line) {
         this.line = line;
     }
+    
+    public int getLineCount() {
+        return endLine - line + 1;
+    }
+
+    public int getEndLine() {
+        return endLine;
+    }
+
+    public void setEndLine(int endLine) {
+        this.endLine = endLine;
+    }        
 
     public String getPrefix() {
         return prefix;

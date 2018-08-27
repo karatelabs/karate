@@ -24,28 +24,21 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.ScriptValue;
-import com.intuit.karate.ScriptValueMap;
-import com.intuit.karate.cucumber.CucumberUtils;
-import com.intuit.karate.cucumber.FeatureFilePath;
-import com.intuit.karate.cucumber.FeatureSection;
-import com.intuit.karate.cucumber.FeatureWrapper;
-import com.intuit.karate.cucumber.KarateBackend;
-import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
-import com.intuit.karate.cucumber.ScenarioWrapper;
-import com.intuit.karate.cucumber.StepWrapper;
+import com.intuit.karate.StepDefs;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeatureSection;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioOutline;
+import com.intuit.karate.core.Step;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 
 /**
  *
@@ -54,19 +47,21 @@ import javafx.collections.ObservableList;
 public class AppSession {
 
     public final File featureFile;
-    private FeatureWrapper feature; // mutable, can be re-built
-    public final KarateBackend backend;
+    private Feature feature; // mutable, can be re-built    
     public final HeaderPanel headerPanel;
     public final FeaturePanel featurePanel;
     public final VarsPanel varsPanel;
     public final LogPanel logPanel;
     public final HttpPanel httpPanel;
-
+    public final Logger logger = new Logger();
+    
+    private StepDefs stepDefs;
+    
     RunService runner;
     BooleanBinding runningNow;
     BooleanProperty notRunning;
     
-    public FeatureWrapper getFeature() {
+    public Feature getFeature() {
         return feature;
     }
 
@@ -74,12 +69,21 @@ public class AppSession {
         this(featureFile, envString, false);
     }
 
+    public StepDefs getStepDefs() {
+        return stepDefs;
+    }        
+
     public ScriptEnv getEnv() {
-        return backend.getEnv();
+        return stepDefs.context.getEnv();
     }
     
-    public void resetBackendAndVarsTable(String env) {
-        backend.getObjectFactory().reset(env);
+    public ScriptEnv getEnv(String envString) {
+        return ScriptEnv.forEnvFeatureFileAndLogger(envString, featureFile, logger);
+    }
+    
+    public void resetBackendAndVarsTable(String envString) {
+        ScriptEnv env = getEnv(envString);
+        stepDefs = new StepDefs(env, new CallContext(null, true));
         refreshVarsTable();        
     }
 
@@ -104,11 +108,8 @@ public class AppSession {
 
     public AppSession(File featureFile, String envString, boolean test) {
         this.featureFile = featureFile;
-        FeatureFilePath ffp = FileUtils.parseFeaturePath(featureFile);
-        ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(envString, ffp.file, ffp.searchPaths);
-        feature = FeatureWrapper.fromFile(ffp.file, env);
-        CallContext callContext = new CallContext(null, true);
-        backend = CucumberUtils.getBackendWithGlue(feature, callContext);
+        feature = FeatureParser.parse(featureFile);
+        resetBackendAndVarsTable(envString);
         if (!test) {
             notRunning = new SimpleBooleanProperty(Boolean.TRUE);
             runningNow = notRunning.not();
@@ -116,7 +117,7 @@ public class AppSession {
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);
             varsPanel = new VarsPanel(this, FXCollections.emptyObservableList());
-            logPanel = new LogPanel(backend.getEnv().logger);
+            logPanel = new LogPanel(logger);
             httpPanel = new HttpPanel();
         } else {
             headerPanel = null;
@@ -139,30 +140,32 @@ public class AppSession {
     }
 
     public void refreshVarsTable(VarLists stepVarLists) {
-        varsPanel.refresh(stepVarLists);
-        httpPanel.refresh(stepVarLists);
+        if (varsPanel != null) { // just in case called from constructor
+            varsPanel.refresh(stepVarLists);
+            httpPanel.refresh(stepVarLists);
+        }
     }
 
     public FeatureSection refresh(FeatureSection section) {
         return feature.getSection(section.getIndex());
     }
 
-    public ScenarioOutlineWrapper refresh(ScenarioOutlineWrapper outline) {
+    public ScenarioOutline refresh(ScenarioOutline outline) {
         return feature.getSection(outline.getSection().getIndex()).getScenarioOutline();
     }
 
-    public ScenarioWrapper refresh(ScenarioWrapper scenario) {
+    public Scenario refresh(Scenario scenario) {
         return feature.getScenario(scenario.getSection().getIndex(), scenario.getIndex());
     }
 
-    public StepWrapper refresh(StepWrapper step) {
+    public Step refresh(Step step) {
         int stepIndex = step.getIndex();
         int scenarioIndex = step.getScenario().getIndex();
         int sectionIndex = step.getScenario().getSection().getIndex();
         return feature.getStep(sectionIndex, scenarioIndex, stepIndex);
     }
 
-    public void replace(StepWrapper step, String text) {
+    public void replace(Step step, String text) {
         feature = feature.replaceStep(step, text);
         featurePanel.action(AppAction.REFRESH);
         headerPanel.initTextContent();
@@ -174,7 +177,7 @@ public class AppSession {
     }
 
     public VarLists getVars() {
-        return new VarLists(backend.getStepDefs());
+        return new VarLists(stepDefs);
     }
 
     public BooleanBinding isRunningNow() {

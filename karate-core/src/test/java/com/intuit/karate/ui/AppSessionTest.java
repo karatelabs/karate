@@ -23,11 +23,13 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.AsyncScenario;
-import com.intuit.karate.cucumber.FeatureSection;
-import com.intuit.karate.cucumber.KarateBackend;
-import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
-import com.intuit.karate.cucumber.ScenarioWrapper;
+import com.intuit.karate.CallContext;
+import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.core.FeatureSection;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioExecutionUnit;
+import com.intuit.karate.core.ScenarioOutline;
 import java.io.File;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -45,21 +47,22 @@ public class AppSessionTest {
     public void testRunning() {
         File tempFile = new File("src/test/java/com/intuit/karate/ui/test.feature");
         AppSession session = new AppSession(tempFile, null, true);
+        ExecutionContext ec = new ExecutionContext(session.getFeature(), session.getEnv(), new CallContext(null, true), false);
         for (FeatureSection section : session.getFeature().getSections()) {
             if (section.isOutline()) {
-                ScenarioOutlineWrapper outline = section.getScenarioOutline();
-                for (ScenarioWrapper scenario : outline.getScenarios()) {
-                    call(scenario, session.backend);
+                ScenarioOutline outline = section.getScenarioOutline();
+                for (Scenario scenario : outline.getScenarios()) {
+                    call(scenario, session, ec);
                 }
             } else {
-                call(section.getScenario(), session.backend);
+                call(section.getScenario(), session, ec);
             }
         }        
     }
     
-    private static void call(ScenarioWrapper scenario, KarateBackend backend) {
-        AsyncScenario as = new AsyncScenario(scenario, backend);
-        as.submit(r -> r.run(), (r, e) -> {});
+    private static void call(Scenario scenario, AppSession session, ExecutionContext ec) {
+        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, session.getStepDefs(), ec);
+        exec.submit(r -> r.run(), (r, e) -> {});
     }    
     
 }

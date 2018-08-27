@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.ScenarioWrapper;
-import com.intuit.karate.cucumber.StepWrapper;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.Step;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -42,10 +42,10 @@ public class ExamplesPanel extends TitledPane {
     private final VBox content;    
     private final AppSession session;
 
-    private ScenarioWrapper scenario;
+    private Scenario scenario;
     private final List<StepPanel> stepPanels;
     
-    public ExamplesPanel(AppSession session, ScenarioWrapper scenario) {
+    public ExamplesPanel(AppSession session, Scenario scenario) {
         super();
         content = new VBox(0);
         setContent(content);
@@ -57,9 +57,9 @@ public class ExamplesPanel extends TitledPane {
     }
     
     private void initTitleAndContent() {
-        setText(scenario.getScenario().getVisualName());
+        setText(scenario.getName());
         Optional<StepPanel> previousStep = Optional.empty();
-        for (StepWrapper step : scenario.getSteps()) {
+        for (Step step : scenario.getSteps()) {
             StepPanel stepPanel = new StepPanel(session, step, previousStep);
             content.getChildren().add(stepPanel);
             stepPanels.add(stepPanel);

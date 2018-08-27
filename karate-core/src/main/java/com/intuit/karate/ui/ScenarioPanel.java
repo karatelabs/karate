@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.ScenarioWrapper;
-import com.intuit.karate.cucumber.StepWrapper;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.Step;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,33 +37,43 @@ import javafx.scene.layout.VBox;
  * @author pthomas3
  */
 public class ScenarioPanel extends BorderPane {
-    
-    private final VBox content;    
+
+    private final VBox content;
     private final AppSession session;
 
-    private ScenarioWrapper scenario;
+    private Scenario scenario;
     private final List<StepPanel> stepPanels;
-    
-    public ScenarioPanel(AppSession session, ScenarioWrapper scenario) {
+
+    public ScenarioPanel(AppSession session, Scenario scenario) {
         super();
         content = new VBox(0);
         setCenter(content);
         this.session = session;
         this.scenario = scenario;
         stepPanels = new ArrayList(scenario.getSteps().size());
-        initTitleAndContent();        
+        initTitleAndContent();
     }
     
+    private Optional<StepPanel> previousStep = Optional.empty();
+
+    private void addStep(Step step) {
+        StepPanel stepPanel = new StepPanel(session, step, previousStep);
+        content.getChildren().add(stepPanel);
+        stepPanels.add(stepPanel);
+        previousStep = Optional.of(stepPanel);
+    }
+
     private void initTitleAndContent() {
-        Optional<StepPanel> previousStep = Optional.empty();
-        for (StepWrapper step : scenario.getSteps()) {
-            StepPanel stepPanel = new StepPanel(session, step, previousStep);
-            content.getChildren().add(stepPanel);
-            stepPanels.add(stepPanel);
-            previousStep = Optional.of(stepPanel);
+        if (scenario.getFeature().getBackground() != null) {
+            for (Step step : scenario.getFeature().getBackground().getSteps()) {
+                addStep(step);
+            }
+        }
+        for (Step step : scenario.getSteps()) {
+            addStep(step);
         }
     }
-    
+
     public void action(AppAction action) {
         scenario = session.refresh(scenario);
         for (StepPanel panel : stepPanels) {
@@ -75,5 +85,5 @@ public class ScenarioPanel extends BorderPane {
     StepPanel getStepAtIndex(int index) {
         return stepPanels.get(index);
     }
-    
+
 }

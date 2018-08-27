@@ -1688,11 +1688,13 @@ public class Script {
     private static ScriptValue evalFeatureCall(Feature feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         CallContext callContext = new CallContext(context, context.callDepth + 1, callArg, loopIndex,
-                reuseParentConfig, false, null, context.asyncSystem, null, context.stepInterceptor, null);
+                reuseParentConfig, false, null, context.asyncSystem, null, context.executionHook);
 //        if (context.env.reporter != null) { TODO call reporting
 //            context.env.reporter.callBegin(feature, callContext);
 //        }
-        FeatureResult result = Engine.executeSync(null, feature, null, callContext);
+        // the call is going to execute synchronously ! TODO improve
+        // which is why the context.asyncSystem, context.asyncNext is not really needed
+        FeatureResult result = Engine.execute(null, feature, null, callContext);
         if (result.isFailed()) {
             Throwable error = result.getErrors().get(0);
             if (error instanceof KarateException) {

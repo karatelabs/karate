@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.FeatureSection;
-import com.intuit.karate.cucumber.ScenarioOutlineWrapper;
-import com.intuit.karate.cucumber.ScenarioWrapper;
+import com.intuit.karate.core.FeatureSection;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioOutline;
 import javafx.geometry.Insets;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
@@ -55,14 +55,14 @@ public class SectionPanel extends TitledPane {
     
     private void initTitleAndContent() {
         if (section.isOutline()) {
-            ScenarioOutlineWrapper outline = section.getScenarioOutline();
-            setText(outline.getScenarioOutline().getVisualName());
+            ScenarioOutline outline = section.getScenarioOutline();
+            setText(outline.getName());
             outlinePanel = new ScenarioOutlinePanel(session, outline);           
             content.setPadding(new Insets(5, 5, 5, 5));
             content.getChildren().add(outlinePanel);
         } else {
-            ScenarioWrapper scenario = section.getScenario();
-            setText(scenario.getScenario().getVisualName());
+            Scenario scenario = section.getScenario();
+            setText(scenario.getName());
             scenarioPanel = new ScenarioPanel(session, scenario);
             content.getChildren().add(scenarioPanel);
         }

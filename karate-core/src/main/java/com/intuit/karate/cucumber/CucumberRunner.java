@@ -26,11 +26,12 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileResource;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.ScenarioHook;
 import cucumber.api.CucumberOptions;
 import java.io.File;
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.intuit.karate.core.ExecutionHook;
+import com.intuit.karate.core.FeatureExecutionUnit;
 
 /**
  *
@@ -83,7 +86,7 @@ public class CucumberRunner {
         return parallel(tags, paths, null, threadCount, reportDir);
     }    
     
-    public static KarateStats parallel(List<String> tags, List<String> paths, ScenarioHook hook, int threadCount, String reportDir) {
+    public static KarateStats parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
         String tagSelector = tags == null ? null : Engine.fromCucumberOptionsTags(tags);
         List<FileResource> files = FileUtils.scanForFeatureFiles(paths);
         return parallel(tagSelector, files, hook, threadCount, reportDir);
@@ -93,7 +96,7 @@ public class CucumberRunner {
         return parallel(tagSelector, resources, null, threadCount, reportDir);
     }     
     
-    public static KarateStats parallel(String tagSelector, List<FileResource> resources, ScenarioHook hook, int threadCount, String reportDir) {
+    public static KarateStats parallel(String tagSelector, List<FileResource> resources, ExecutionHook hook, int threadCount, String reportDir) {
         if (reportDir == null) {
             reportDir = Engine.getBuildDir() + "/surefire-reports";
         }
@@ -113,7 +116,7 @@ public class CucumberRunner {
                 callables.add(() -> {
                     // we are now within a separate thread. the reporter filters logs by self thread
                     String threadName = Thread.currentThread().getName();
-                    FeatureResult result = Engine.executeSync(null, feature, tagSelector, new CallContext(hook));
+                    FeatureResult result = Engine.execute(null, feature, tagSelector, new CallContext(hook));
                     logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, feature.getRelativePath());
                     Engine.saveResultJson(finalReportDir, result);
                     Engine.saveResultXml(finalReportDir, result);
@@ -148,7 +151,7 @@ public class CucumberRunner {
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         CallContext callContext = new CallContext(vars, evalKarateConfig);
-        FeatureResult result = Engine.executeSync(null, feature, null, callContext);
+        FeatureResult result = Engine.execute(null, feature, null, callContext);
         return result.getResultAsPrimitiveMap();
     }
 
@@ -166,5 +169,20 @@ public class CucumberRunner {
         Feature feature = FeatureParser.parse(path);
         return runFeature(feature, vars, evalKarateConfig);
     }
+    
+    // this is called by karate-gatling !
+    public static void callAsync(String filePath, String callTag, CallContext callContext) { 
+        File file = FileUtils.getFeatureFile(filePath);
+        Feature feature = FeatureParser.parse(file);
+        feature.setCallTag(callTag);
+        callAsync(feature, callContext);
+    }    
+    
+    public static void callAsync(Feature feature, CallContext callContext) {
+        ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, feature.getFile());
+        ExecutionContext ec = new ExecutionContext(feature, env, callContext, false);
+        FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);
+        exec.submit(callContext.asyncSystem, (r, e) -> callContext.asyncNext.run());
+    }    
 
 }

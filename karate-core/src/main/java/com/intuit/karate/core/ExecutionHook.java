@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,31 +21,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate.core;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptContext;
-import gherkin.formatter.Formatter;
-import gherkin.formatter.Reporter;
-import gherkin.formatter.model.Match;
-import gherkin.formatter.model.Result;
-import gherkin.formatter.model.Step;
+import com.intuit.karate.StepDefs;
 
 /**
  *
  * @author pthomas3
  */
-public interface KarateReporter extends Formatter, Reporter {
+public interface ExecutionHook {
     
-    public void callBegin(FeatureWrapper feature, CallContext callContext);
+    /**
+     * 
+     * @param scenario
+     * @param stepDefs 
+     * @return false if the scenario should be excluded from the test-run
+     * @throws RuntimeException (any) to abort the test run
+     */
+    boolean beforeScenario(Scenario scenario, StepDefs stepDefs);
     
-    public void exampleBegin(ScenarioWrapper feature, CallContext callContext);
+    void afterScenario(ScenarioResult result, StepDefs stepDefs);
     
-    public void karateStep(Step step, Match match, Result result, CallContext call, ScriptContext context);
+    void beforeStep(Step step, StepDefs stepDefs);
     
-    public void karateStepProceed(Step step, Match match, Result result, CallContext call);
-    
-    public void setLogger(Logger logger);
+    void afterStep(StepResult result, StepDefs stepDefs);    
     
 }

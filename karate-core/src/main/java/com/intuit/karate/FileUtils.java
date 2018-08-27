@@ -6,20 +6,16 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
-import com.intuit.karate.cucumber.FeatureFilePath;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.stream.Collectors;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import java.net.URI;
@@ -239,6 +235,9 @@ public class FileUtils {
     }
 
     public static String toPackageQualifiedName(String path) {
+        if (path == null) {
+            return "(in memory)";
+        }
         path = removePrefix(path);
         String packagePath = path.replace("/", "."); // assumed to be already in non-windows form
         if (packagePath.endsWith(".feature")) {
@@ -258,40 +257,6 @@ public class FileUtils {
             return null;
         }
         return commandLine.substring(start, end + 8);
-    }
-
-    private static String searchPattern(String one, String two, char c) {
-        return c + "src" + c + one + c + two + c;
-    }
-
-    private static final String[] SEARCH_PATTERNS = {
-        searchPattern("test", "java", '/'),
-        searchPattern("test", "resources", '/'),
-        searchPattern("main", "java", '/'),
-        searchPattern("main", "resources", '/')
-    };
-
-    private static String[] getSearchPaths(String rootPath) {
-        String[] res = new String[SEARCH_PATTERNS.length];
-        for (int i = 0; i < SEARCH_PATTERNS.length; i++) {
-            res[i] = new File(rootPath + SEARCH_PATTERNS[i]).getPath();
-        }
-        return res;
-    }
-
-    public static FeatureFilePath parseFeaturePath(File file) {
-        String path = file.getAbsolutePath();
-        path = path.replace('\\', '/'); // normalize windows
-        for (String pattern : SEARCH_PATTERNS) {
-            int pos = path.lastIndexOf(pattern);
-            if (pos != -1) { // found
-                String rootPath = path.substring(0, pos);
-                String[] searchPaths = getSearchPaths(rootPath);
-                return new FeatureFilePath(file, searchPaths);
-            }
-        }
-        String[] searchPaths = {file.getParentFile().getPath()};
-        return new FeatureFilePath(file, searchPaths);
     }
 
     public static String toString(File file) {
@@ -379,10 +344,6 @@ public class FileUtils {
 
     public static InputStream toInputStream(String text) {
         return new ByteArrayInputStream(text.getBytes(UTF8));
-    }
-
-    public static List<String> toStringLines(String text) {
-        return new BufferedReader(new StringReader(text)).lines().collect(Collectors.toList());
     }
 
     public static String replaceFileExtension(String path, String extension) {

@@ -36,6 +36,9 @@ public class Scenario {
     public static final String KEYWORD = "Scenario";
     
     private final Feature feature;
+    private final FeatureSection section;    
+    private final int index;
+    
     private List<Tag> tags;
     private int line;    
     private String name;
@@ -43,9 +46,15 @@ public class Scenario {
     private List<Step> steps;
     private boolean outline;
     
-    public Scenario(Feature feature) {
+    public Scenario(Feature feature, FeatureSection section, int index) {
         this.feature = feature;
+        this.section = section;
+        this.index = index;
     }    
+
+    public FeatureSection getSection() {
+        return section;
+    }        
 
     public Feature getFeature() {
         return feature;
@@ -54,6 +63,10 @@ public class Scenario {
     public Collection<Tag> getTagsEffective() {
         return Tags.merge(feature.getTags(), tags);
     }
+
+    public int getIndex() {
+        return index;
+    }     
 
     public int getLine() {
         return line;

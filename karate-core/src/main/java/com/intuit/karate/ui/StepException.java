@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.cucumber.StepResult;
+import com.intuit.karate.core.Result;
 
 /**
  *
@@ -31,9 +31,9 @@ import com.intuit.karate.cucumber.StepResult;
  */
 public class StepException extends RuntimeException {
     
-    public final StepResult result;
+    public final Result result;
     
-    public StepException(StepResult result) {        
+    public StepException(Result result) {        
         super(result.getError());
         this.result = result;
     }

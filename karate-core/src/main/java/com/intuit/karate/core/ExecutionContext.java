@@ -40,13 +40,32 @@ public class ExecutionContext {
     public final FeatureResult result;
     public final LogAppender appender;
     
-    public ExecutionContext(Feature feature, ScriptEnv env, CallContext callContext) {
+    public ExecutionContext(Feature feature, ScriptEnv env, CallContext callContext, boolean enableFileLogAppender) {
         this.feature = feature;
         result = new FeatureResult(feature);
         this.env = env;
         this.callContext = callContext;
-        String basePath = feature.getPackageQualifiedName();
-        this.appender = new FileLogAppender(Engine.getBuildDir() + "/surefire-reports/" + basePath + ".log", env.logger);
+        if (enableFileLogAppender) {
+            String basePath = feature.getPackageQualifiedName();
+            appender = new FileLogAppender(Engine.getBuildDir() + "/surefire-reports/" + basePath + ".log", env.logger);
+        } else {
+            appender = new LogAppender() {
+                @Override
+                public String collect() {
+                    return "";
+                }
+
+                @Override
+                public void append(String text) {
+                    
+                }
+
+                @Override
+                public void close() {
+                    
+                }
+            };
+        }
     }            
     
 }

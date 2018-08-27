@@ -29,8 +29,17 @@ package com.intuit.karate.core;
  */
 public class FeatureSection {
     
+    private int index;
     private Scenario scenario;
     private ScenarioOutline scenarioOutline;
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int index) {
+        this.index = index;
+    }        
     
     public boolean isOutline() {
         return scenarioOutline != null;

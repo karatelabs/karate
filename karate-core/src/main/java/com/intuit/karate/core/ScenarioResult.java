@@ -32,13 +32,14 @@ import java.util.List;
  * @author pthomas3
  */
 public class ScenarioResult extends ResultElement {
-    
-    
+
     private final boolean outline;
     private final String keyword;
+    private final Scenario scenario;
 
     public ScenarioResult(Scenario scenario) {
         super(scenario.getName());
+        this.scenario = scenario;
         put("line", scenario.getLine());
         put("id", StringUtils.toIdString(scenario.getName()));
         put("description", scenario.getDescription());
@@ -53,13 +54,17 @@ public class ScenarioResult extends ResultElement {
             for (Tag tag : list) {
                 tags.add(new TagResult(tag));
             }
-        }        
+        }
     }
+
+    public Scenario getScenario() {
+        return scenario;
+    }        
 
     @Override
     public boolean isBackground() {
         return false;
-    } 
+    }
 
     @Override
     String getKeyword() {
@@ -69,6 +74,6 @@ public class ScenarioResult extends ResultElement {
     @Override
     public boolean isOutline() {
         return outline;
-    }        
+    }
 
 }

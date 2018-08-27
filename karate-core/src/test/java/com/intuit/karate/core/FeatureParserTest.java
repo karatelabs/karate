@@ -41,7 +41,7 @@ public class FeatureParserTest {
 
     private static FeatureResult execute(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        return Engine.executeSync("mock", feature, "not('@ignore')", null);
+        return Engine.execute("mock", feature, "not('@ignore')", null);
     }
 
     @Test

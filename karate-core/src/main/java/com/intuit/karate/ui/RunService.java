@@ -80,7 +80,7 @@ public class RunService extends Service<Void> {
                     session.featurePanel.action(AppAction.RUN);
                 }
             } catch (Exception e) {
-                session.backend.getEnv().logger.error("step execution paused.");
+                session.getStepDefs().context.logger.error("step execution paused.");
             }
             session.markRunStopped();
             return null;
