@@ -23,7 +23,11 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.StepDefs;
+import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateException;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -35,28 +39,84 @@ import java.util.function.Consumer;
 public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
 
     private final ExecutionContext exec;
-    
-    private final Iterator<FeatureSection> iterator;
+
+    private final Iterator<Scenario> iterator;
 
     public FeatureExecutionUnit(ExecutionContext exec) {
         this.exec = exec;
-        iterator = exec.feature.getSections().iterator();
-    }      
+        iterator = exec.feature.getScenarios().iterator();
+    }
 
     @Override
     public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
         if (iterator.hasNext()) {
-            FeatureSection section = iterator.next();
-            SectionExecutionUnit unit = new SectionExecutionUnit(section, exec);
+            Scenario scenario = iterator.next();
+            ScriptEnv env = exec.env;
+            Collection<Tag> tagsEffective = scenario.getTagsEffective();
+            if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
+                env.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
+                FeatureExecutionUnit.this.submit(system, next);
+                return;
+            }
+            String callTag = scenario.getFeature().getCallTag();
+            if (callTag != null) {
+                Tag temp = new Tag(0, callTag);
+                if (!tagsEffective.contains(temp)) {
+                    env.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                    FeatureExecutionUnit.this.submit(system, next);
+                    return;
+                }
+                env.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+            }
+            // this is where the script-context and vars are inited for a scenario
+            // first we set the scenario metadata
+            exec.callContext.setScenarioInfo(getScenarioInfo(scenario, env));
+            // then the tags metadata
+            exec.callContext.setTags(Tags.toListOfStrings(tagsEffective)); // TODO optimize
+            exec.callContext.setTagValues(Tags.toMapOfNameValues(tagsEffective));
+            // karate-config.js will be processed here 
+            // when the script-context constructor is called
+            StepDefs stepDefs = new StepDefs(env, exec.callContext);
+            // we also hold a reference to the LAST scenario executed
+            // for cases where the caller needs a result
+            exec.result.setResultVars(stepDefs.context.getVars());
+            // before-scenario hook
+            if (stepDefs.callContext.executionHook != null) {
+                try {
+                    stepDefs.callContext.executionHook.beforeScenario(scenario, stepDefs);
+                } catch (Exception e) {
+                    String message = "scenario hook threw fatal error: " + e.getMessage();
+                    stepDefs.context.logger.error(message);
+                    exec.result.addError(e);
+                    FeatureExecutionUnit.this.submit(system, next);
+                    return;
+                }
+            }
+            ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
             system.accept(() -> {
-                unit.submit(system, (r, e) -> {
+                unit.submit(system, (scenarioResult, e) -> {
+                    // after-scenario hook
+                    if (stepDefs.callContext.executionHook != null) {
+                        stepDefs.callContext.executionHook.afterScenario(scenarioResult, stepDefs);
+                    }
+                    // continue even if this scenario or example row failed                            
                     FeatureExecutionUnit.this.submit(system, next);
                 });
             });
         } else {
             exec.appender.close();
-            next.accept(exec.result, null);
+            next.accept(null, null);
         }
+    }
+
+    private static ScenarioInfo getScenarioInfo(Scenario scenario, ScriptEnv env) {
+        ScenarioInfo info = new ScenarioInfo();
+        info.setFeatureDir(env.featureDir.getPath());
+        info.setFeatureFileName(env.featureName);
+        info.setScenarioName(scenario.getName());
+        info.setScenarioDescription(scenario.getDescription());
+        info.setScenarioType(scenario.isOutline() ? ScenarioOutline.KEYWORD : Scenario.KEYWORD);
+        return info;
     }
 
 }

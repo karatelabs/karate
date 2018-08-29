@@ -35,7 +35,7 @@ import java.util.function.Consumer;
  *
  * @author pthomas3
  */
-public class ScenarioExecutionUnit implements ExecutionUnit<Void> {
+public class ScenarioExecutionUnit implements ExecutionUnit<ScenarioResult> {
 
     private final Scenario scenario;
     private final StepDefs stepDefs;
@@ -73,19 +73,7 @@ public class ScenarioExecutionUnit implements ExecutionUnit<Void> {
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<Void, KarateException> next) {
-        // before-scenario hook
-        if (stepDefs.callContext.executionHook != null) {
-            try {
-                stepDefs.callContext.executionHook.beforeScenario(scenario, stepDefs);
-            } catch (Exception e) {
-                String message = "scenario hook threw fatal error: " + e.getMessage();
-                stepDefs.context.logger.error(message);
-                featureResult.addError(e);
-                next.accept(null, new KarateException(message, e));
-                return;
-            }
-        }
+    public void submit(Consumer<Runnable> system, BiConsumer<ScenarioResult, KarateException> next) {
         if (iterator.hasNext()) {
             Step step = iterator.next();
             if (stopped) {
@@ -122,12 +110,8 @@ public class ScenarioExecutionUnit implements ExecutionUnit<Void> {
             }
             if (scenarioResult != null) {
                 featureResult.addResult(scenarioResult);
-            }
-            // after-scenario hook
-            if (stepDefs.callContext.executionHook != null) {
-                stepDefs.callContext.executionHook.afterScenario(scenarioResult, stepDefs);
-            }            
-            next.accept(null, error);
+            }           
+            next.accept(scenarioResult, error);
         }
     }
 

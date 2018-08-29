@@ -56,6 +56,18 @@ public class Feature {
         this.packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
     }
     
+    public List<Scenario> getScenarios() {
+        List<Scenario> scenarios = new ArrayList();
+        for (FeatureSection section : sections) {
+            if (section.isOutline()) {
+                scenarios.addAll(section.getScenarioOutline().getScenarios());
+            } else {
+                scenarios.add(section.getScenario());
+            }
+        }
+        return scenarios;
+    }
+    
     public void addSection(FeatureSection section) {
         section.setIndex(sections.size());
         sections.add(section);
