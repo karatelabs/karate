@@ -23,50 +23,61 @@
  */
 package com.intuit.karate.core;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
 
 /**
  *
  * @author pthomas3
  */
 public class Scenario {
-    
+
     public static final String KEYWORD = "Scenario";
-    
+
     private final Feature feature;
-    private final FeatureSection section;    
+    private final FeatureSection section;
     private final int index;
-    
+
     private List<Tag> tags;
-    private int line;    
+    private int line;
     private String name;
     private String description;
     private List<Step> steps;
     private boolean outline;
-    
+
     public Scenario(Feature feature, FeatureSection section, int index) {
         this.feature = feature;
         this.section = section;
         this.index = index;
-    }    
+    }
+
+    public List<Step> getStepsIncludingBackground() { 
+        List<Step> background = feature.getBackground() == null ? null : feature.getBackground().getSteps();
+        int count = background == null ? steps.size() : steps.size() + background.size();
+        List<Step> temp = new ArrayList(count);
+        if (background != null) {
+            temp.addAll(background);
+        }
+        temp.addAll(steps);
+        return temp;
+    }
 
     public FeatureSection getSection() {
         return section;
-    }        
+    }
 
     public Feature getFeature() {
         return feature;
-    }        
-    
+    }
+
     public Collection<Tag> getTagsEffective() {
         return Tags.merge(feature.getTags(), tags);
     }
 
     public int getIndex() {
         return index;
-    }     
+    }
 
     public int getLine() {
         return line;
@@ -74,7 +85,7 @@ public class Scenario {
 
     public void setLine(int line) {
         this.line = line;
-    }    
+    }
 
     public List<Tag> getTags() {
         return tags;
@@ -90,7 +101,7 @@ public class Scenario {
 
     public void setName(String name) {
         this.name = name;
-    }        
+    }
 
     public String getDescription() {
         return description;
@@ -106,7 +117,7 @@ public class Scenario {
 
     public void setSteps(List<Step> steps) {
         this.steps = steps;
-    }    
+    }
 
     public boolean isOutline() {
         return outline;
@@ -115,5 +126,5 @@ public class Scenario {
     public void setOutline(boolean outline) {
         this.outline = outline;
     }
-    
+
 }

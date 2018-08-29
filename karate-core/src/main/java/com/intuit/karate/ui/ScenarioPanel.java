@@ -53,24 +53,14 @@ public class ScenarioPanel extends BorderPane {
         stepPanels = new ArrayList(scenario.getSteps().size());
         initTitleAndContent();
     }
-    
-    private Optional<StepPanel> previousStep = Optional.empty();
-
-    private void addStep(Step step) {
-        StepPanel stepPanel = new StepPanel(session, step, previousStep);
-        content.getChildren().add(stepPanel);
-        stepPanels.add(stepPanel);
-        previousStep = Optional.of(stepPanel);
-    }
 
     private void initTitleAndContent() {
-        if (scenario.getFeature().getBackground() != null) {
-            for (Step step : scenario.getFeature().getBackground().getSteps()) {
-                addStep(step);
-            }
-        }
-        for (Step step : scenario.getSteps()) {
-            addStep(step);
+        Optional<StepPanel> previousStep = Optional.empty();
+        for (Step step : scenario.getStepsIncludingBackground()) {
+            StepPanel stepPanel = new StepPanel(session, step, previousStep);
+            content.getChildren().add(stepPanel);
+            stepPanels.add(stepPanel);
+            previousStep = Optional.of(stepPanel);
         }
     }
 

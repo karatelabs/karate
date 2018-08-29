@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  *
  * @author pthomas3
  */
-public class StepExecutionUnit implements ExecutionUnit<Result> {
+public class StepExecutionUnit implements ExecutionUnit<StepResult> {
 
     private final Step step;    
     private final Scenario scenario;
@@ -46,19 +46,20 @@ public class StepExecutionUnit implements ExecutionUnit<Result> {
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<Result, KarateException> next) {
+    public void submit(Consumer<Runnable> system, BiConsumer<StepResult, KarateException> next) {
         system.accept(() -> {
             String relativePath = scenario.getFeature().getRelativePath();
             if (stepDefs.callContext.executionHook != null) {
                 stepDefs.callContext.executionHook.beforeStep(step, stepDefs);
             }
             Result result = Engine.execute(relativePath, step, stepDefs);
+            StepResult stepResult = new StepResult(step, result);
             if (stepDefs.callContext.executionHook != null) {
                 stepDefs.callContext.executionHook.afterStep(new StepResult(step, result), stepDefs);
             }            
             if (result.isAborted()) {
                 stepDefs.context.logger.debug("abort at {}:{}", relativePath, step.getLine());
-                next.accept(result, null); // same flow as passed
+                next.accept(stepResult, null); // same flow as passed
             } else if (result.isFailed()) {
                 String scenarioName = StringUtils.trimToNull(scenario.getName());
                 String message = "called: " + relativePath;
@@ -67,9 +68,9 @@ public class StepExecutionUnit implements ExecutionUnit<Result> {
                 }
                 message = message + ", line: " + step.getLine();
                 KarateException error = new KarateException(message, result.getError());
-                next.accept(result, error);
+                next.accept(stepResult, error);
             } else { // passed
-                next.accept(result, null);
+                next.accept(stepResult, null);
             }
         });
     }

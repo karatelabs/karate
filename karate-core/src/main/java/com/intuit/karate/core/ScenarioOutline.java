@@ -55,10 +55,10 @@ public class ScenarioOutline {
             Table t = et.getTable();
             int rowCount = t.getRows().size();
             for (int i = 1; i < rowCount; i++) { // don't include header row
-                Scenario s = new Scenario(feature, section, i - 1);
-                list.add(s);
-                s.setOutline(true);
-                s.setLine(t.getLineNumberForRow(i));
+                Scenario scenario = new Scenario(feature, section, i - 1);
+                list.add(scenario);
+                scenario.setOutline(true);
+                scenario.setLine(t.getLineNumberForRow(i));
                 if (tags != null || et.getTags() != null) {
                     List<Tag> temp = new ArrayList();
                     if (tags != null) {
@@ -67,10 +67,10 @@ public class ScenarioOutline {
                     if (et.getTags() != null) {
                         temp.addAll(et.getTags());
                     }
-                    s.setTags(temp);
+                    scenario.setTags(temp);
                 }
-                s.setName(name);
-                s.setDescription(description);
+                scenario.setName(name);
+                scenario.setDescription(description);
                 List<Step> replaced = new ArrayList(steps.size());
                 for (Step original : steps) {
                     String text = original.getText();
@@ -86,14 +86,14 @@ public class ScenarioOutline {
                             table = table.replace(token, value);
                         }
                     }
-                    Step step = new Step(s, original.getIndex());
+                    Step step = new Step(scenario, original.getIndex());
                     step.setPrefix(original.getPrefix());
                     step.setText(text);
                     step.setDocString(docString);
                     step.setTable(table);
                     replaced.add(step);
                 }
-                s.setSteps(replaced);
+                scenario.setSteps(replaced);
             }
         }
         return list;

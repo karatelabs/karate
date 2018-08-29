@@ -27,11 +27,9 @@ import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -39,32 +37,24 @@ import java.util.function.Consumer;
  *
  * @author pthomas3
  */
-public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
+public class SectionExecutionUnit implements ExecutionUnit<Void> {
 
     private final ExecutionContext exec;
-
-    private final boolean outline;
     private final Iterator<Scenario> iterator;
-
-    private int index = 0;
-    private List<String> errors;
 
     public SectionExecutionUnit(FeatureSection section, ExecutionContext exec) {
         this.exec = exec;
         if (section.isOutline()) {
-            outline = true;
             iterator = section.getScenarioOutline().getScenarios().iterator();
         } else {
-            outline = false;
             iterator = Collections.singletonList(section.getScenario()).iterator();
         }
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
+    public void submit(Consumer<Runnable> system, BiConsumer<Void, KarateException> next) {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
-            index++;
             ScriptEnv env = exec.env;
             Collection<Tag> tagsEffective = scenario.getTagsEffective();
             if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
@@ -78,10 +68,11 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
                 if (!tagsEffective.contains(temp)) {
                     env.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
                     SectionExecutionUnit.this.submit(system, next);
-                    return;                    
+                    return;
                 }
                 env.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
+
             // this is where the script-context and vars are inited for a scenario
             // first we set the scenario metadata
             exec.callContext.setScenarioInfo(getScenarioInfo(scenario, env));
@@ -97,36 +88,12 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
             ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
             system.accept(() -> {
                 unit.submit(system, (r, e) -> {
-                    if (outline) {
-                        if (e != null) {
-                            if (errors == null) {
-                                errors = new ArrayList();
-                            }
-                            errors.add("row " + index + ": " + e.getMessage());
-                        }
-                        // continue even if this example row failed                            
-                        SectionExecutionUnit.this.submit(system, next);
-                    } else {
-                        if (e != null) {
-                            next.accept(null, e);
-                        } else {
-                            SectionExecutionUnit.this.submit(system, next);
-                        }
-                    }
+                    // continue even if this scenario or example row failed                            
+                    SectionExecutionUnit.this.submit(system, next);
                 });
             });
         } else {
-            KarateException ke;
-            if (errors != null) {
-                String message = "scenario outline failed:";
-                for (String s : errors) {
-                    message = message + "\n------\n" + s;
-                }
-                ke = new KarateException(message);
-            } else {
-                ke = null;
-            }
-            next.accept(exec.result, ke);
+            next.accept(null, null);
         }
     }
 
@@ -136,7 +103,7 @@ public class SectionExecutionUnit implements ExecutionUnit<FeatureResult> {
         info.setFeatureFileName(env.featureName);
         info.setScenarioName(scenario.getName());
         info.setScenarioDescription(scenario.getDescription());
-        info.setScenarioType(scenario.isOutline() ? "Scenario Outline" : "Scenario");
+        info.setScenarioType(scenario.isOutline() ? ScenarioOutline.KEYWORD : Scenario.KEYWORD);
         return info;
     }
 
