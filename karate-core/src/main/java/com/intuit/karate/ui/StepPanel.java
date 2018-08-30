@@ -66,7 +66,7 @@ public class StepPanel extends AnchorPane {
     private static final String STYLE_METHOD = "-fx-base: #34BFFF";
     private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
     private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
-    private static final Pattern callPattern = Pattern.compile("\\s*\\*\\s*(def\\s*\\w+\\s*=)?\\s*call\\s*read.*");
+    private static final Pattern callPattern = Pattern.compile("\\s*(.*=)?\\s*call\\s*read.*");
 
     public StepPanel(AppSession session, Step step, Optional<StepPanel> previousPanel) {
         this.session = session;
