@@ -167,7 +167,7 @@ public class CucumberRunner {
     }
 
     public static Map<String, Object> runFeature(File file, CallContext callContext, KarateReporter reporter) {
-        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, reporter);
+        FeatureWrapper featureWrapper = FeatureWrapper.fromFile(file, null, reporter);
         ScriptValueMap scriptValueMap = CucumberUtils.callSync(featureWrapper, callContext);
         return scriptValueMap.toPrimitiveMap();
     }

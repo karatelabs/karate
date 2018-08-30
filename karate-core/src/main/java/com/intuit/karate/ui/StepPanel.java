@@ -27,6 +27,9 @@ import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.cucumber.CucumberUtils;
 import com.intuit.karate.cucumber.StepResult;
 import com.intuit.karate.cucumber.StepWrapper;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -37,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -49,19 +53,22 @@ public class StepPanel extends AnchorPane {
     private final AppSession session;
     private final TextArea textArea;
     private final Button runButton;
+    private Button stepIntoFeatureButton;
     private Optional<Button> runAllUptoButton = Optional.empty();
     private final Optional<StepPanel> previousPanel;
-    private final Optional<TextArea> rawRequestResponse;
     private String oldText;
     private StepWrapper step;
     private Boolean pass = null;
+    private BooleanProperty nonFeature = new SimpleBooleanProperty(Boolean.TRUE);
+    private BooleanBinding featureCall = nonFeature.not();
+    private VarLists stepVarLists;
 
     private static final String STYLE_PASS = "-fx-base: #53B700";
     private static final String STYLE_FAIL = "-fx-base: #D52B1E";
     private static final String STYLE_METHOD = "-fx-base: #34BFFF";
     private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
     private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
-    public static final String STYLE_HTTP_METHOD = "-fx-border-color: #D1D1D1";
+    private static final Pattern callPattern = Pattern.compile("\\s*\\*\\s*(def\\s*\\w+\\s*=)?\\s*call\\s*read.*");
 
     public StepPanel(AppSession session, StepWrapper step, Optional<StepPanel> previousPanel) {
         this.session = session;
@@ -74,64 +81,53 @@ public class StepPanel extends AnchorPane {
         textArea.focusedProperty().addListener((val, before, after) -> {
             if (!after) { // if we lost focus
                 rebuildFeatureIfTextChanged();
+            } else {
+                session.refreshVarsTable(stepVarLists);
             }
         });
         this.step = step;
         initTextArea();
+        runButton.disableProperty().bind(session.isRunningNow());
         runButton.setOnAction(e -> run());
-        if(step.isHttpCall()) {
-            BorderPane borderPane = new BorderPane();
-            borderPane.setPadding(new Insets(5, 0, 0, 0));
-            borderPane.setStyle(STYLE_HTTP_METHOD);
-            AnchorPane anchorPane = new AnchorPane();
-            setUpTextAndRunButtons(previousPanel, anchorPane.getChildren(), anchorPane);
-            rawRequestResponse =  Optional.of(new TextArea());
-            TitledPane titledPane = new TitledPane("View raw Request/Response", rawRequestResponse.get());
-            Accordion accordion = new Accordion();
-            accordion.setPadding(new Insets(5, 5, 5, 5));
-            accordion.setStyle(STYLE_DEFAULT);
-            accordion.getPanes().addAll(titledPane);
-
-            borderPane.setTop(anchorPane);
-            borderPane.setBottom(accordion);
-            getChildren().add(borderPane);
-            setLeftAnchor(borderPane, 0.0);
-            setRightAnchor(borderPane, 0.0);
-            setTopAnchor(borderPane, 0.0);
-            setBottomAnchor(borderPane, 0.0);
-        } else {
-            rawRequestResponse = Optional.empty();
-            setUpTextAndRunButtons(previousPanel, getChildren(), this);
-        }
+        stepIntoFeatureButton = new Button("⇲");
+        stepIntoFeatureButton.visibleProperty().bind(featureCall);
+        stepIntoFeatureButton.setTooltip(new Tooltip("Step into feature"));
+        stepIntoFeatureButton.setOnAction(e -> session.stepIntoFeature(this));
+        setUpTextAndRunButtons(previousPanel, getChildren());
     }
 
-    private void setUpTextAndRunButtons(Optional<StepPanel> previousPanel, ObservableList<Node> children, AnchorPane anchorPane) {
-        children.addAll(textArea, runButton);
-        setUpRunAllUptoButton(previousPanel, children, anchorPane);
-        anchorPane.setLeftAnchor(textArea, 0.0);
-        anchorPane.setRightAnchor(textArea, 72.0);
-        anchorPane.setBottomAnchor(textArea, 0.0);
-        anchorPane.setRightAnchor(runButton, 0.0);
-        anchorPane.setTopAnchor(runButton, 2.0);
-        anchorPane.setBottomAnchor(runButton, 0.0);
+    private void setUpTextAndRunButtons(Optional<StepPanel> previousPanel, ObservableList<Node> children) {
+        children.addAll(textArea, runButton, stepIntoFeatureButton);
+        setUpRunAllUptoButton(previousPanel, children);
+        setLeftAnchor(textArea, 0.0);
+        setRightAnchor(textArea, 104.0);
+        setBottomAnchor(textArea, 0.0);
+        setRightAnchor(runButton, 32.0);
+        setTopAnchor(runButton, 2.0);
+        setBottomAnchor(runButton, 0.0);
+        setRightAnchor(stepIntoFeatureButton, 0.0);
+        setTopAnchor(stepIntoFeatureButton, 2.0);
+        setBottomAnchor(stepIntoFeatureButton, 0.0);
     }
 
-    private void setUpRunAllUptoButton(Optional<StepPanel> previousPanel, ObservableList<Node> children, AnchorPane anchorPane) {
-        if(previousPanel.isPresent()) {
+    private void setUpRunAllUptoButton(Optional<StepPanel> previousPanel, ObservableList<Node> children) {
+        if (previousPanel.isPresent()) {
             final Button button = new Button("►►");
+            button.disableProperty().bind(session.isRunningNow());
             runAllUptoButton = Optional.of(button);
             button.setTooltip(new Tooltip("Run all steps upto current step"));
-            button.setOnAction(e -> runAllUpto());
+            button.setOnAction(e -> session.runUpto(this));
             children.add(button);
-            anchorPane.setRightAnchor(button, 32.0);
-            anchorPane.setTopAnchor(button, 2.0);
-            anchorPane.setBottomAnchor(button, 0.0);
+            setRightAnchor(button, 64.0);
+            setTopAnchor(button, 2.0);
+            setBottomAnchor(button, 0.0);
         }
     }
     
     private void rebuildFeatureIfTextChanged() {
         String newText = textArea.getText();
         if (!newText.equals(oldText)) {
+            nonFeature.setValue(callPattern.matcher(oldText).matches() ? false : true);
             session.replace(step, newText);
         }        
     }
@@ -141,32 +137,18 @@ public class StepPanel extends AnchorPane {
         StepResult result = CucumberUtils.runCalledStep(step, session.backend);
         pass = result.isPass();
         initStyleColor();
-        session.refreshVarsTable();
-        rawRequestResponse.ifPresent( r -> updateRawRequestResponse(r));
+        stepVarLists = session.getVars();
+        session.refreshVarsTable(stepVarLists);
         if (!pass) {
             throw new StepException(result);
         }
     }
 
-    private void updateRawRequestResponse(TextArea textArea) {
-        StringBuilder text = new StringBuilder();
-        text.append("Request "+System.lineSeparator());
-        session.getVars().stream().filter(v -> v.getName().contains(ScriptValueMap.VAR_REQUEST))
-                .forEach(v -> text.append(getLine(v)));
-        text.append(System.lineSeparator());
-        text.append("Response "+System.lineSeparator());
-        session.getVars().stream().filter(v -> v.getName().contains(ScriptValueMap.VAR_RESPONSE))
-                .forEach(v -> text.append(getLine(v)));
-        textArea.setText(text.toString());
-    }
-
-    private String getLine(Var var) {
-        return var.getName() + " : " + (var.getValue() != null ? var.getValue().getAsPrettyString() : "") + System.lineSeparator();
-    }
-
-    private void runAllUpto() {
+    void runAllUpto() {
         previousPanel.ifPresent(p -> p.runAllUpto());
-        run();
+        if (pass == null) {
+            run();
+        }
     }
 
     private void setStyleForRunAllUptoButton(String style) {
@@ -181,6 +163,7 @@ public class StepPanel extends AnchorPane {
                 break;
             case RESET:
                 pass = null;
+                stepVarLists = null;
                 initStyleColor();
                 break;
             case RUN:
@@ -206,6 +189,7 @@ public class StepPanel extends AnchorPane {
 
     private void initTextArea() {
         oldText = step.getText();
+        nonFeature.setValue(callPattern.matcher(oldText).matches() ? false : true);
         textArea.setText(oldText);
         int lineCount = step.getLineCount();
         if (lineCount == 1) {
@@ -227,6 +211,10 @@ public class StepPanel extends AnchorPane {
             textArea.setStyle(STYLE_BACKGROUND);
         }
         initStyleColor();
+    }
+
+    public int getStepIndex() {
+        return step.getIndex();
     }
 
 }

@@ -23,17 +23,21 @@
  */
 package com.intuit.karate.cucumber;
 
+import gherkin.formatter.model.Tag;
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  *
  * @author pthomas3
  */
 public class FeatureSection {
-    
+
     private final int index;
     private final FeatureWrapper feature;
     private final ScenarioWrapper scenario;
-    private final ScenarioOutlineWrapper scenarioOutline;    
-    
+    private final ScenarioOutlineWrapper scenarioOutline;
+
     public FeatureSection(int index, FeatureWrapper feature, ScenarioWrapper scenario, ScenarioOutlineWrapper scenarioOutline) {
         this.index = index;
         this.feature = feature;
@@ -46,13 +50,23 @@ public class FeatureSection {
         }
     }
 
+    public List<String> getTags() {
+        List<Tag> tags;
+        if (isOutline()) {
+            tags = scenarioOutline.getScenarioOutline().getGherkinModel().getTags();
+        } else {
+            tags = scenario.getScenario().getGherkinModel().getTags();
+        }
+        return tags.stream().map(t -> t.getName()).collect(Collectors.toList());
+    }
+
     public int getIndex() {
         return index;
-    }        
+    }
 
     public FeatureWrapper getFeature() {
         return feature;
-    }   
+    }
 
     public ScenarioWrapper getScenario() {
         return scenario;
@@ -61,11 +75,11 @@ public class FeatureSection {
     public ScenarioOutlineWrapper getScenarioOutline() {
         return scenarioOutline;
     }
-    
+
     public boolean isOutline() {
         return scenarioOutline != null;
     }
-    
+
     public int getLine() {
         if (isOutline()) {
             return scenarioOutline.getLine();
@@ -73,5 +87,5 @@ public class FeatureSection {
             return scenario.getLine();
         }
     }
-    
+
 }

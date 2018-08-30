@@ -70,5 +70,10 @@ public class ScenarioPanel extends BorderPane {
             panel.action(action);
         }
     }
+
+    // only needed for our unit tests
+    StepPanel getStepAtIndex(int index) {
+        return stepPanels.get(index);
+    }
     
 }

@@ -24,6 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.StringUtils;
 import cucumber.runtime.formatter.CucumberJSONFormatter;
 import gherkin.formatter.model.Background;
@@ -46,6 +47,8 @@ public class KarateJunitAndJsonReporter extends KarateReporterBase {
 
     private final KarateJunitFormatter junit;
     private final CucumberJSONFormatter json;
+    private final String xmlReportPath;
+    private final String jsonReportPath;
     
     private Exception failureReason;
 
@@ -62,10 +65,11 @@ public class KarateJunitAndJsonReporter extends KarateReporterBase {
     }
 
     public KarateJunitAndJsonReporter(String featurePath, String reportPath) throws IOException {
+        this.xmlReportPath = reportPath;
         junit = new KarateJunitFormatter(featurePath, reportPath);
         int pos = reportPath.lastIndexOf('.'); // foo/bar.xml
         String basePath = reportPath.substring(0, pos);
-        String jsonReportPath = basePath + ".json";
+        jsonReportPath = basePath + ".json";
         tempFilePath = basePath + ".log";
         FileWriter fileWriter = new FileWriter(jsonReportPath);
         json = new CucumberJSONFormatter(fileWriter);
@@ -160,6 +164,8 @@ public class KarateJunitAndJsonReporter extends KarateReporterBase {
     public void close() {
         junit.close();
         json.close();
+        FileUtils.renameFileIfZeroBytes(xmlReportPath);
+        FileUtils.renameFileIfZeroBytes(jsonReportPath);
     }
 
     @Override

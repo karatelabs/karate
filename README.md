@@ -151,8 +151,8 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#not-contains"><code>match !contains</code></a>
     | <a href="#match-each"><code>match each</code></a>
     | <a href="#fuzzy-matching">Fuzzy Matching</a>
-    | <a href="#contains-shortcuts"><code>contains</code> short-cuts</a>
-    | <a href="#schema-validation">Schema Validation</a> 
+    | <a href="#schema-validation">Schema Validation</a>
+    | <a href="#contains-short-cuts"><code>contains</code> short-cuts</a>
   </td>
 </tr>
 <tr>
@@ -201,7 +201,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Tests are super-readable - as scenario data can be expressed in-line, in human-friendly [JSON](#json), [XML](#xml), Cucumber [Scenario](#the-cucumber-way) Outline [tables](#table), or a [payload builder](#set-multiple) approach [unique to Karate](https://gist.github.com/ptrthomas/d6beb17e92a43220d254af942e3ed3d9)
 * Express expected results as readable, well-formed JSON or XML, and [assert in a single step](#match) that the entire response payload (no matter how complex or deeply nested) - is as expected
 * Comprehensive [assertion capabilities](https://github.com/intuit/karate#fuzzy-matching) - and failures clearly report which data element (and path) is not as expected, for easy troubleshooting of even large payloads
-* [Embedded UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through a script in debug mode where you can even re-play a step while editing it - a huge time-saver
+* [Embedded UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through a script in debug mode where you can even [re-play a step while editing it](https://twitter.com/ptrthomas/status/889356965461217281) - a huge time-saver
 * Simpler and more [powerful alternative](https://twitter.com/KarateDSL/status/878984854012022784) to JSON-schema for [validating payload structure](#schema-validation) and format that even supports cross-field / domain validation logic
 * Scripts can [call other scripts](#calling-other-feature-files) - which means that you can easily re-use and maintain authentication and 'set up' flows efficiently, across multiple tests
 * Embedded JavaScript engine that allows you to build a library of [re-usable functions](#calling-javascript-functions) that suit your specific environment or organization
@@ -2822,6 +2822,17 @@ So you get the picture, any kind of complicated 'sign-in' flow can be scripted a
 > If the second HTTP call above expects headers to be set by `my-headers.js` - which in turn depends on the `authToken` variable being updated, you will need to duplicate the line `* configure headers = read('classpath:my-headers.js')` from the 'caller' feature here as well. The above example does **not** use [shared scope](#shared-scope), which means that the variables in the 'calling' (parent) feature are *not* shared by the 'called' `my-signin.feature`. The above example can be made more simpler with the use of `call` (or [`callonce`](#callonce)) *without* a [`def`](#def)-assignment to a variable, and is the [recommended pattern](#shared-scope) for implementing re-usable authentication setup flows.
 
 Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
+
+### Call Tag Selector
+You can "select" a single `Scenario` (or `Scenario`-s or `Scenario Outline`-s) by appending a "tag selector" at the end of the feature-file you are calling. For example:
+
+```cucumber
+call read('classpath:my-signin.feature@name=someScenarioName')
+```
+
+While the tag does not need to be in the `@key=value` form, it is recommended for readability when you start getting into the business of giving meaningful names to your `Scenario`-s.
+
+This "tag selection" capability is designed for you to be able to "compose" flows out of existing test-suites when using the [Karate Gatling integration](karate-gatling). Normally we recommend that you keep your "re-usable" features lightweight - by limiting them to just one `Scenario`.
 
 ### Data-Driven Features
 If the argument passed to the [call of a `*.feature` file](#calling-other-feature-files) is a JSON array, something interesting happens. The feature is invoked for each item in the array. Each array element is expected to be a JSON object, and for each object - the behavior will be as described above.

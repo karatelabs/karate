@@ -148,9 +148,9 @@ public class CucumberUtils {
         return result.vars;
     }
     
-    public static void callAsync(String filePath, CallContext callContext) {
+    public static void callAsync(String filePath, String callTag, CallContext callContext) {        
         File file = FileUtils.getFeatureFile(filePath);
-        FeatureWrapper feature = FeatureWrapper.fromFile(file);
+        FeatureWrapper feature = FeatureWrapper.fromFileAndTag(file, callTag);
         callAsync(feature, callContext);
     }    
     

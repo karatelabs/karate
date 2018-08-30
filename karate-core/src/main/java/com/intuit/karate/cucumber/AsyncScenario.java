@@ -43,6 +43,13 @@ public class AsyncScenario implements AsyncAction<Object> {
         this.backend = backend;
         this.iterator = scenario.getSteps().iterator();
     }
+    
+    private void afterScenario() {
+        StepInterceptor interceptor = backend.getCallContext().stepInterceptor;
+        if (interceptor != null) {
+            interceptor.afterScenario(scenario, backend);
+        }
+    }
 
     @Override
     public void submit(Consumer<Runnable> system, BiConsumer<Object, KarateException> next) {
@@ -52,8 +59,10 @@ public class AsyncScenario implements AsyncAction<Object> {
                 AsyncStep as = new AsyncStep(step, backend);
                 as.submit(system, (r, e) -> {
                     if (r != null && r.isAbort()) {
+                        afterScenario();
                         next.accept(null, null); // abort: exit early
                     } else if (e != null) {
+                        afterScenario();
                         next.accept(null, e); // exit with error
                     } else {
                         AsyncScenario.this.submit(system, next);
@@ -61,6 +70,7 @@ public class AsyncScenario implements AsyncAction<Object> {
                 });
             });
         } else {
+            afterScenario();
             next.accept(null, null);
         }        
     }

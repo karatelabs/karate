@@ -42,7 +42,7 @@ public class AsyncFeature implements AsyncAction<ScriptValueMap> {
     public AsyncFeature(FeatureWrapper feature, KarateBackend backend) {
         this.feature = feature;
         this.backend = backend;
-        this.iterator = feature.getSections().iterator();
+        this.iterator = feature.getSectionsByCallTag().iterator();
     }
 
     @Override

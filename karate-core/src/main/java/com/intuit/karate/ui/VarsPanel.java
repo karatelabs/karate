@@ -25,6 +25,8 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.ScriptValue;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -38,11 +40,11 @@ import static com.intuit.karate.ui.App.PADDING_INSET;
  * @author pthomas3
  */
 public class VarsPanel extends BorderPane {
-    
+
     private final AppSession session;
     private final TableView<Var> table;
 
-    public VarsPanel(AppSession session) {
+    public VarsPanel(AppSession session, ObservableList<Var> vars) {
         this.session = session;
         this.setPadding(PADDING_INSET);
         table = new TableView();
@@ -62,7 +64,7 @@ public class VarsPanel extends BorderPane {
         valueCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper(c.getValue().getValue()));        
         valueCol.setCellFactory(c -> new VarValueCell());
         table.getColumns().addAll(nameCol, typeCol, valueCol);
-        table.setItems(session.getVars());
+        table.setItems(vars);
         table.setRowFactory(tv -> {
             TableRow<Var> row = new TableRow<>();
             row.setOnMouseClicked(e -> {
@@ -73,10 +75,15 @@ public class VarsPanel extends BorderPane {
             });
             return row ;
         });
+        DragResizer.makeResizable(table, false, true, true, true);
     }
     
-    public void refresh() {
-        table.setItems(session.getVars());
+    public void refresh(VarLists varLists) {
+        ObservableList<Var> items = FXCollections.emptyObservableList();
+        if (varLists != null) {
+            items = varLists.getVarList();
+        }
+        table.setItems(items);
         table.refresh();
     }
     

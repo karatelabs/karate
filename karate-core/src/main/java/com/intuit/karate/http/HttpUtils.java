@@ -10,7 +10,6 @@ import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import static com.intuit.karate.http.HttpClient.*;
-import com.jayway.jsonpath.DocumentContext;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpCookie;
@@ -30,7 +29,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
-import org.w3c.dom.Document;
 
 /**
  *

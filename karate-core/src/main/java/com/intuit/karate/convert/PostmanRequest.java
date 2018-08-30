@@ -30,8 +30,7 @@ import java.util.Map;
  * @author pthomas3
  */
 public class PostmanRequest {
-    
-    private String name;
+
     private String url;
     private String method;
     private Map<String, String> headers;
@@ -68,20 +67,11 @@ public class PostmanRequest {
     public void setUrl(String url) {
         this.url = url;
     }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
     
    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("[name: ").append(name);
-        sb.append(", url: ").append(url);
+        sb.append("[url: ").append(url);
         sb.append(", method: ").append(method);
         sb.append(", headers: ").append(headers);
         sb.append(", body: ").append(body);
@@ -89,10 +79,8 @@ public class PostmanRequest {
         return sb.toString();
     }
 
-
     public String convert() {
-        return new FeatureBuilder()
-                .addName(name)
+        return new RequestBuilder()
                 .addUrl(url)
                 .addHeaders(headers)
                 .addBody(body)

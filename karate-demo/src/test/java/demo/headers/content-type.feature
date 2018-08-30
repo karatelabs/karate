@@ -20,8 +20,7 @@ Scenario: form post with charset
     When method post
     Then status 200
     * def temp = response['content-type'][0].toLowerCase()
-    * assert temp.contains('application/x-www-form-urlencoded;')
-    * assert temp.contains('charset=utf-8')
+    * assert temp.contains('application/x-www-form-urlencoded')
 
 Scenario: json post with with charset and version
     Given path 'search', 'headers'
@@ -38,6 +37,18 @@ Scenario: json post with with charset and version
 Scenario: json post with with unusual content-type and parameter
     Given path 'search', 'headers'
     And header Content-Type = 'application/vnd.app.test+json;ton-version=1'
+    And request { foo: 'bar' }
+    When method post
+    Then status 200
+    * def temp = response['content-type'][0].toLowerCase()
+    * assert temp.contains('application/vnd.app.test+json;')
+    * assert temp.contains('charset=utf-8')
+    * assert temp.contains('ton-version=1')
+
+@mock-servlet-todo
+Scenario: json post with with unusual content-type and configure-headers
+    * configure headers = function(){ return {'Content-Type': 'application/vnd.app.test+json;ton-version=1'} }
+    Given path 'search', 'headers'
     And request { foo: 'bar' }
     When method post
     Then status 200

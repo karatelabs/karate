@@ -40,18 +40,18 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class AppSession {
-
-    private static final Logger logger = LoggerFactory.getLogger(AppSession.class);
 
     public final File featureFile;
     private FeatureWrapper feature; // mutable, can be re-built
@@ -60,7 +60,12 @@ public class AppSession {
     public final FeaturePanel featurePanel;
     public final VarsPanel varsPanel;
     public final LogPanel logPanel;
+    public final HttpPanel httpPanel;
 
+    RunService runner;
+    BooleanBinding runningNow;
+    BooleanProperty notRunning;
+    
     public FeatureWrapper getFeature() {
         return feature;
     }
@@ -84,10 +89,16 @@ public class AppSession {
     }
     
     public void runAll() {
-        try {
-            featurePanel.action(AppAction.RUN);
-        } catch (StepException se) {
-            logger.error("step execution paused.");
+        synchronized (notRunning) {
+            notRunning.setValue(false);
+            runner.runUptoStep(null);
+        }
+    }
+
+    public void runUpto(StepPanel stepPanel) {
+        synchronized (notRunning) {
+            notRunning.setValue(false);
+            runner.runUptoStep(stepPanel);
         }
     }
 
@@ -99,15 +110,20 @@ public class AppSession {
         CallContext callContext = new CallContext(null, true);
         backend = CucumberUtils.getBackendWithGlue(feature, callContext);
         if (!test) {
+            notRunning = new SimpleBooleanProperty(Boolean.TRUE);
+            runningNow = notRunning.not();
+            runner = new RunService(this);
             headerPanel = new HeaderPanel(this);
             featurePanel = new FeaturePanel(this);
-            varsPanel = new VarsPanel(this);
-            logPanel = new LogPanel(null);
+            varsPanel = new VarsPanel(this, FXCollections.emptyObservableList());
+            logPanel = new LogPanel(backend.getEnv().logger);
+            httpPanel = new HttpPanel();
         } else {
             headerPanel = null;
             featurePanel = null;
             varsPanel = null;
             logPanel = null;
+            httpPanel = null;
         }
     }
 
@@ -118,7 +134,13 @@ public class AppSession {
     }
 
     public void refreshVarsTable() {
-        varsPanel.refresh();
+        // show session vars (last executed step)
+        refreshVarsTable(getVars());
+    }
+
+    public void refreshVarsTable(VarLists stepVarLists) {
+        varsPanel.refresh(stepVarLists);
+        httpPanel.refresh(stepVarLists);
     }
 
     public FeatureSection refresh(FeatureSection section) {
@@ -146,16 +168,26 @@ public class AppSession {
         headerPanel.initTextContent();
     }
 
-    public ObservableList<Var> getVars() {
-        if (backend.getStepDefs() == null) {
-            return FXCollections.emptyObservableList();
-        }
-        ScriptValueMap map = backend.getStepDefs().getContext().getVars();
-        List<Var> list = new ArrayList(map.size());
-        for (Map.Entry<String, ScriptValue> entry : map.entrySet()) {
-            list.add(new Var(entry.getKey(), entry.getValue()));
-        }
-        return FXCollections.observableList(list);
+    public void replaceFeature(String text) {
+        feature = feature.replaceText(text);
+        featurePanel.refresh();
     }
 
+    public VarLists getVars() {
+        return new VarLists(backend.getStepDefs());
+    }
+
+    public BooleanBinding isRunningNow() {
+        return runningNow;
+    }
+
+    public void markRunStopped() {
+        synchronized (notRunning) {
+            notRunning.setValue(true);
+        }
+    }
+
+    public void stepIntoFeature(StepPanel stepPanel) {
+        logPanel.append("TODO: stepIntoFeature coming soon to karate-ui");
+    }
 }

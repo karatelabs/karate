@@ -1174,8 +1174,10 @@ public class Script {
             Object actObject, Object expObject, String reason) {
         if (path.startsWith("/")) {
             String leafName = getLeafNameFromXmlPath(path);
-            actObject = toXmlString(leafName, actObject);
-            expObject = toXmlString(leafName, expObject);
+            if (!"@".equals(leafName)) {
+                actObject = toXmlString(leafName, actObject);
+                expObject = toXmlString(leafName, expObject);
+            }
             path = path.replace("/@/", "/@");
         }
         String message = String.format("path: %s, actual: %s, %sexpected: %s, reason: %s",
@@ -1230,6 +1232,7 @@ public class Script {
                     return AssertionResult.PASS; // exit early
                 }
             }
+            int matchedCount = 0;
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
                 Object childExp = expEntry.getValue();
@@ -1245,17 +1248,15 @@ public class Script {
                                 return matchFailed(matchType, childPath, "(not present)", childExp, "actual value contains expected");
                             }
                             equal = true;
+                            matchedCount++;
                         }
                     }
                     if (!equal) {
                         if (matchType == MatchType.NOT_EQUALS) {
                             return AssertionResult.PASS; // exit early
                         }
-                        if (matchType == MatchType.CONTAINS_ANY) {
-                            continue; // keep trying
-                        }
-                        if (matchType != MatchType.NOT_CONTAINS) {
-                            return matchFailed(matchType, childPath, "(not present)", childExp, "actual value does not contain expected");
+                        if (matchType == MatchType.NOT_CONTAINS) {
+                            return AssertionResult.PASS; // exit early
                         }
                     } else { // we found one
                         if (matchType == MatchType.CONTAINS_ANY) {
@@ -1267,9 +1268,7 @@ public class Script {
                 Object childAct = actMap.get(key);
                 AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match
-                    if (matchType == MatchType.NOT_CONTAINS) {
-                        return matchFailed(matchType, childPath, childAct, childExp, "actual value contains expected");
-                    }
+                    matchedCount++;
                     if (matchType == MatchType.CONTAINS_ANY) {
                         return AssertionResult.PASS; // exit early
                     }
@@ -1277,11 +1276,8 @@ public class Script {
                     if (matchType == MatchType.NOT_EQUALS) {
                         return AssertionResult.PASS; // exit early
                     }
-                    if (matchType == MatchType.CONTAINS_ANY) {
-                        continue; // keep trying
-                    }
-                    if (matchType != MatchType.NOT_CONTAINS) {
-                        return ar; // fail early
+                    if (matchType == MatchType.NOT_CONTAINS) {
+                        return AssertionResult.PASS; // exit early
                     }
                 }
             }
@@ -1289,11 +1285,28 @@ public class Script {
                 // if any were found, we would have exited early
                 return matchFailed(matchType, path, actObject, expObject, "no key-values matched");
             }
-            // if we reached here, all map entries matched
-            if (matchType == MatchType.NOT_EQUALS) {
-                return matchFailed(matchType, path, actObject, expObject, "all key-values matched");
+            if (matchedCount < expMap.size()) {
+                // all map entries did not match, (matchedCount can be greater because of #ignore)
+                if (matchType == MatchType.NOT_CONTAINS) {
+                    return AssertionResult.PASS;
+                }
+                if (matchType == MatchType.NOT_EQUALS) {
+                    return AssertionResult.PASS;
+                }
+                return matchFailed(matchType, path, actObject, expObject, "all key-values did not match");
+            } else {
+                // if we reached here, all map-entries matched
+                if (matchType == MatchType.NOT_CONTAINS) {
+                    if (expMap.isEmpty()) { // special case, does not make sense to "!contains {}"
+                        return AssertionResult.PASS;
+                    }
+                    return matchFailed(matchType, path, actObject, expObject, "actual contains all expected key-values");
+                }
+                if (matchType == MatchType.NOT_EQUALS) {
+                    return matchFailed(matchType, path, actObject, expObject, "all key-values matched");
+                }
+                return AssertionResult.PASS;
             }
-            return AssertionResult.PASS;
         } else if (expObject instanceof List) {
             if (!(actObject instanceof List)) {
                 if (matchType == MatchType.NOT_EQUALS) {
