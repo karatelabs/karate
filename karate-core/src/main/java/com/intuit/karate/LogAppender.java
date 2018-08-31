@@ -28,11 +28,28 @@ package com.intuit.karate;
  * @author pthomas3
  */
 public interface LogAppender {
-    
+
     String collect();
-    
+
     void append(String text);
-    
+
     void close();
     
+    public static LogAppender NO_OP = new LogAppender() {
+        @Override
+        public String collect() {
+            return "";
+        }
+
+        @Override
+        public void append(String text) {
+
+        }
+
+        @Override
+        public void close() {
+
+        }
+    };    
+
 }

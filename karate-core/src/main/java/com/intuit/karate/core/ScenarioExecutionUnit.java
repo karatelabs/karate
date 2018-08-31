@@ -23,12 +23,8 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.LogAppender;
 import com.intuit.karate.StepDefs;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
 import java.util.Iterator;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -39,8 +35,7 @@ public class ScenarioExecutionUnit implements ExecutionUnit<ScenarioResult> {
 
     private final Scenario scenario;
     private final StepDefs stepDefs;
-    private final FeatureResult featureResult;
-    private final LogAppender appender;
+    private final ExecutionContext exec;
 
     private final Iterator<Step> iterator;
 
@@ -48,13 +43,11 @@ public class ScenarioExecutionUnit implements ExecutionUnit<ScenarioResult> {
     private ScenarioResult scenarioResult;
 
     private boolean stopped = false;
-    private KarateException error;
 
     public ScenarioExecutionUnit(Scenario scenario, StepDefs stepDefs, ExecutionContext exec) {
         this.scenario = scenario;
         this.stepDefs = stepDefs;
-        this.featureResult = exec.result;
-        this.appender = exec.appender;
+        this.exec = exec;
         iterator = scenario.getStepsIncludingBackground().iterator();
     }
 
@@ -73,7 +66,7 @@ public class ScenarioExecutionUnit implements ExecutionUnit<ScenarioResult> {
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<ScenarioResult, KarateException> next) {
+    public void submit(Consumer<Runnable> system, Consumer<ScenarioResult> next) {
         if (iterator.hasNext()) {
             Step step = iterator.next();
             if (stopped) {
@@ -81,22 +74,12 @@ public class ScenarioExecutionUnit implements ExecutionUnit<ScenarioResult> {
                 ScenarioExecutionUnit.this.submit(system, next);
             } else {
                 system.accept(() -> {
-                    StepExecutionUnit unit = new StepExecutionUnit(step, scenario, stepDefs);
-                    unit.submit(system, (stepResult, e) -> {
+                    StepExecutionUnit unit = new StepExecutionUnit(step, stepDefs, exec);
+                    unit.submit(system, stepResult -> {
                         addStepResult(stepResult);
-                        // log appender collection for each step happens here
-                        if (step.getDocString() == null) {
-                            String log = StringUtils.trimToNull(appender.collect());
-                            if (log != null) {
-                                stepResult.putDocString(log);
-                            }
-                        }
-                        if (stepResult.getResult().isAborted()) {
+                        Result result = stepResult.getResult();
+                        if (result.isFailed() || result.isAborted()) {
                             stopped = true;
-                        }
-                        if (e != null) { // failed 
-                            stopped = true;
-                            error = e;
                         }
                         ScenarioExecutionUnit.this.submit(system, next);
                     });
@@ -106,12 +89,12 @@ public class ScenarioExecutionUnit implements ExecutionUnit<ScenarioResult> {
             // these have to be done at the end after they are fully populated
             // else the feature-result will not "collect" stats correctly
             if (backgroundResult != null) {
-                featureResult.addResult(backgroundResult);                
+                exec.result.addResult(backgroundResult);                
             }
             if (scenarioResult != null) {
-                featureResult.addResult(scenarioResult);
+                exec.result.addResult(scenarioResult);
             }           
-            next.accept(scenarioResult, error);
+            next.accept(scenarioResult);
         }
     }
 

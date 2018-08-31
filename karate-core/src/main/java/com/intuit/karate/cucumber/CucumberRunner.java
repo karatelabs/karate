@@ -182,7 +182,7 @@ public class CucumberRunner {
         ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, feature.getFile());
         ExecutionContext ec = new ExecutionContext(feature, env, callContext, false);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);
-        exec.submit(callContext.asyncSystem, (r, e) -> callContext.asyncNext.run());
+        exec.submit(callContext.asyncSystem, r -> callContext.asyncNext.run());
     }    
 
 }

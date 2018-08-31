@@ -152,8 +152,7 @@ public class FileUtils {
             InputStream is = getFileStream(path, prefix, context);
             return toString(is);
         } catch (Exception e) {
-            String message = String.format("could not find or read file: %s, prefix: %s", path, prefix);
-            // context.logger.error(message);
+            String message = String.format("could not find or read file [%s]: %s", prefix, path);
             throw new KarateFileNotFoundException(message);
         }
     }
@@ -179,17 +178,6 @@ public class FileUtils {
             return new FileInputStream(path);
         } catch (FileNotFoundException e) {
             throw new KarateFileNotFoundException(e.getMessage());
-        }
-    }
-
-    public static File resolveIfClassPath(String path, ClassLoader classLoader) {
-        File file = new File(path);
-        if (file.exists()) { // loaded by karate
-            return file;
-        } else { // was loaded by cucumber-jvm, is relative to classpath
-            String temp = file.getPath().replace('\\', '/'); // fix for windows            
-            String actualPath = classLoader.getResource(temp).getFile();
-            return new File(actualPath);
         }
     }
 

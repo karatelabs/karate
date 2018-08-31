@@ -68,7 +68,7 @@ public class StepResult extends HashMap<String, Object> {
         put("match", DUMMY_MATCH);
         putDocString(step.getDocString());
         this.result = result;
-    }
+    }   
 
     public Step getStep() {
         return step;

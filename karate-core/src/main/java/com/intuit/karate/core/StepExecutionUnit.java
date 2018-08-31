@@ -25,8 +25,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.exception.KarateException;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -35,43 +33,38 @@ import java.util.function.Consumer;
  */
 public class StepExecutionUnit implements ExecutionUnit<StepResult> {
 
-    private final Step step;    
-    private final Scenario scenario;
+    private final Step step;
     private final StepDefs stepDefs;
+    private final ExecutionContext exec;
 
-    public StepExecutionUnit(Step step, Scenario scenario, StepDefs stepDefs) {
-        this.step = step;        
-        this.scenario = scenario;
+    public StepExecutionUnit(Step step, StepDefs stepDefs, ExecutionContext exec) {
+        this.step = step;
         this.stepDefs = stepDefs;
+        this.exec = exec;
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<StepResult, KarateException> next) {
+    public void submit(Consumer<Runnable> system, Consumer<StepResult> next) {
         system.accept(() -> {
-            String relativePath = scenario.getFeature().getRelativePath();
             if (stepDefs.callContext.executionHook != null) {
                 stepDefs.callContext.executionHook.beforeStep(step, stepDefs);
             }
-            Result result = Engine.execute(relativePath, step, stepDefs);
+            Result result = Engine.execute(step, stepDefs);
             StepResult stepResult = new StepResult(step, result);
-            if (stepDefs.callContext.executionHook != null) {
-                stepDefs.callContext.executionHook.afterStep(new StepResult(step, result), stepDefs);
-            }            
-            if (result.isAborted()) {
-                stepDefs.context.logger.debug("abort at {}:{}", relativePath, step.getLine());
-                next.accept(stepResult, null); // same flow as passed
-            } else if (result.isFailed()) {
-                String scenarioName = StringUtils.trimToNull(scenario.getName());
-                String message = "called: " + relativePath;
-                if (scenarioName != null) {
-                    message = message + ", scenario: " + scenarioName;
+            // log appender collection for each step happens here
+            if (step.getDocString() == null) {
+                String log = StringUtils.trimToNull(exec.appender.collect());
+                if (log != null) {
+                    stepResult.putDocString(log);
                 }
-                message = message + ", line: " + step.getLine();
-                KarateException error = new KarateException(message, result.getError());
-                next.accept(stepResult, error);
-            } else { // passed
-                next.accept(stepResult, null);
             }
+            if (result.isAborted()) { // we log only aborts for visibility
+                stepDefs.context.logger.debug("abort at {}", step.getDebugInfo());
+            }
+            if (stepDefs.callContext.executionHook != null) {
+                stepDefs.callContext.executionHook.afterStep(stepResult, stepDefs);
+            }            
+            next.accept(stepResult);
         });
     }
 

@@ -61,8 +61,7 @@ public class Engine {
     private static final List<MethodPattern> PATTERNS = new ArrayList();
 
     private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
-    private static final BiConsumer<FeatureResult, KarateException> NO_OP = (r, e) -> {
-    };
+    private static final Consumer<Void> NO_OP = r -> {};
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -96,8 +95,9 @@ public class Engine {
         return exec.result;
     }
 
-    public static Result execute(String featurePath, Step step, StepDefs stepDefs) {
+    public static Result execute(Step step, StepDefs stepDefs) {
         String text = step.getText();
+        String featurePath = step.getScenario() == null ? "(unknown)" : step.getScenario().getFeature().getRelativePath();
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
             KarateException e = new KarateException("no step-definition method match found for: " + text);

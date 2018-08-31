@@ -37,7 +37,7 @@ public class Result extends HashMap<String, Object> {
 
     private final String status;
     private final long duration;
-    private final boolean aborted;
+    private final boolean aborted;    
     private final Throwable error;
 
     private Result(String status, long duration, Throwable error, boolean aborted) {
@@ -49,8 +49,8 @@ public class Result extends HashMap<String, Object> {
         put("duration", duration);
         if (error != null) {
             put("error_message", error.getClass().getName() + ": " + error.getMessage());
-        }        
-    }
+        }
+    }    
 
     public boolean isFailed() {
         return error != null;
@@ -69,12 +69,10 @@ public class Result extends HashMap<String, Object> {
     }
 
     public static Result failed(long duration, Throwable error, String featurePath, Step step) {
-            StackTraceElement[] originalTrace = error.getStackTrace();
-            StackTraceElement[] newTrace = new StackTraceElement[]{
-                new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText(), featurePath, step.getLine()),
-                originalTrace[0]
-            };
-            error.setStackTrace(newTrace);        
+        StackTraceElement[] newTrace = new StackTraceElement[]{
+            new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText(), featurePath, step.getLine())
+        };
+        error.setStackTrace(newTrace);
         return new Result(FAILED, duration, error, false);
     }
 

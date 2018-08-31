@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.StringUtils;
+
 /**
  *
  * @author pthomas3
@@ -38,6 +40,15 @@ public class Step {
     private String text;
     private String docString;
     private Table table;
+    
+    public String getDebugInfo() {
+        String scenarioName = StringUtils.trimToNull(scenario.getName());
+        String message = "feature: " + scenario.getFeature().getRelativePath();
+        if (scenarioName != null) {
+            message = message + ", scenario: " + scenarioName;
+        }
+        return message + ", line: " + line;        
+    }
     
     public Step(Scenario scenario, int index) {
         this.scenario = scenario;

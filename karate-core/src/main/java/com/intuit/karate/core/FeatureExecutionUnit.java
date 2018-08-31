@@ -26,20 +26,17 @@ package com.intuit.karate.core;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.cucumber.ScenarioInfo;
-import com.intuit.karate.exception.KarateException;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
+public class FeatureExecutionUnit implements ExecutionUnit<Void> {
 
     private final ExecutionContext exec;
-
     private final Iterator<Scenario> iterator;
 
     public FeatureExecutionUnit(ExecutionContext exec) {
@@ -48,7 +45,7 @@ public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, BiConsumer<FeatureResult, KarateException> next) {
+    public void submit(Consumer<Runnable> system, Consumer<Void> next) {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
             ScriptEnv env = exec.env;
@@ -94,7 +91,7 @@ public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
             }
             ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
             system.accept(() -> {
-                unit.submit(system, (scenarioResult, e) -> {
+                unit.submit(system, scenarioResult -> {
                     // after-scenario hook
                     if (stepDefs.callContext.executionHook != null) {
                         stepDefs.callContext.executionHook.afterScenario(scenarioResult, stepDefs);
@@ -105,7 +102,7 @@ public class FeatureExecutionUnit implements ExecutionUnit<FeatureResult> {
             });
         } else {
             exec.appender.close();
-            next.accept(null, null);
+            next.accept(null);
         }
     }
 

@@ -23,8 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.exception.KarateException;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -33,6 +31,6 @@ import java.util.function.Consumer;
  */
 public interface ExecutionUnit<T> {
     
-    void submit(Consumer<Runnable> system, BiConsumer<T, KarateException> next);
+    void submit(Consumer<Runnable> system, Consumer<T> next);
     
 }

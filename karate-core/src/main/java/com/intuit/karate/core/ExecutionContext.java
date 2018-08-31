@@ -33,13 +33,13 @@ import com.intuit.karate.ScriptEnv;
  * @author pthomas3
  */
 public class ExecutionContext {
-    
+
     public final Feature feature;
     public final ScriptEnv env;
-    public final CallContext callContext;    
+    public final CallContext callContext;
     public final FeatureResult result;
     public final LogAppender appender;
-    
+
     public ExecutionContext(Feature feature, ScriptEnv env, CallContext callContext, boolean enableFileLogAppender) {
         this.feature = feature;
         result = new FeatureResult(feature);
@@ -49,23 +49,8 @@ public class ExecutionContext {
             String basePath = feature.getPackageQualifiedName();
             appender = new FileLogAppender(Engine.getBuildDir() + "/surefire-reports/" + basePath + ".log", env.logger);
         } else {
-            appender = new LogAppender() {
-                @Override
-                public String collect() {
-                    return "";
-                }
-
-                @Override
-                public void append(String text) {
-                    
-                }
-
-                @Override
-                public void close() {
-                    
-                }
-            };
+            appender = LogAppender.NO_OP;
         }
-    }            
-    
+    }
+
 }

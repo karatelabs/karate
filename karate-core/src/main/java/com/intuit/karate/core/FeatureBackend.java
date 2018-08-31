@@ -95,7 +95,7 @@ public class FeatureBackend {
         // the background is evaluated one-time
         if (feature.getBackground() != null) {
             for (Step step : feature.getBackground().getSteps()) {
-                Result result = Engine.execute(feature.getRelativePath(), step, stepDefs);
+                Result result = Engine.execute(step, stepDefs);
                 if (result.isFailed()) {
 
                     String message = "server-side background init failed - " + featureName + ":" + step.getLine();
@@ -122,7 +122,7 @@ public class FeatureBackend {
             if (isMatchingScenario(scenario)) {
                 matched = true;
                 for (Step step : scenario.getSteps()) {
-                    Result result = Engine.execute(feature.getRelativePath(), step, stepDefs);
+                    Result result = Engine.execute(step, stepDefs);
                     if (result.isAborted()) {
                         stepDefs.context.logger.debug("abort at {}:{}", featureName, step.getLine());
                         break;
