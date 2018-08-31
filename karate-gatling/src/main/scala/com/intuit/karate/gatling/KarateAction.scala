@@ -23,10 +23,10 @@ class KarateActor extends Actor {
   }
 }
 
-class KarateAction(val name: String, val callTag: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val next: Action) extends ExitableAction {
+class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val next: Action) extends ExitableAction {
 
   def getActor(): ActorRef = {
-    val actorName = new File(name).getName + "-" + protocol.actorCount.incrementAndGet()
+    val actorName = "karate-" + protocol.actorCount.incrementAndGet()
     system.actorOf(Props[KarateActor], actorName)
   }
 
@@ -101,9 +101,9 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
-    val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, executionHook)
+    val callContext = new CallContext(false, executionHook)
 
-    CucumberRunner.callAsync(name, callTag, callContext)
+    CucumberRunner.callAsync(name, callContext, asyncSystem, asyncNext)
 
   }
 

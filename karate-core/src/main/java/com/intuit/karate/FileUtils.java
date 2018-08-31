@@ -2,8 +2,6 @@ package com.intuit.karate;
 
 import java.io.File;
 import java.io.InputStream;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import com.intuit.karate.exception.KarateFileNotFoundException;
@@ -84,15 +82,38 @@ public class FileUtils {
         return text.endsWith(".feature");
     }
 
-    public static String removePrefix(String text) {
+    public static ScriptValue readFile(String text, ScriptContext context) {
+        StringUtils.Pair pair = parsePathAndTags(text);
+        text = pair.left;
+        if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
+            String contents = readFileAsString(text, context);
+            ScriptValue temp = Script.evalKarateExpression(contents, context);
+            return new ScriptValue(temp.getValue(), text);
+        } else if (isTextFile(text) || isGraphQlFile(text)) {
+            String contents = readFileAsString(text, context);
+            return new ScriptValue(contents, text);
+        } else if (isFeatureFile(text)) {
+            FileResource fr = resolvePath(text, context);
+            Feature feature = FeatureParser.parse(fr.file, fr.relativePath);
+            feature.setCallTag(pair.right);
+            return new ScriptValue(feature, text);
+        } else if (isYamlFile(text)) {
+            String contents = readFileAsString(text, context);
+            DocumentContext doc = JsonUtils.fromYaml(contents);
+            return new ScriptValue(doc, text);
+        } else {
+            InputStream is = getFileStream(text, context);
+            return new ScriptValue(is, text);
+        }
+    }
+
+    private static String removePrefix(String text) {
         int pos = text.indexOf(':');
         return pos == -1 ? text : text.substring(pos + 1);
     }
 
     private static StringUtils.Pair parsePathAndTags(String text) {
-        int pos = text.indexOf(':');
-        text = pos == -1 ? text : text.substring(pos + 1); // remove prefix
-        pos = text.indexOf('@');
+        int pos = text.indexOf('@');
         if (pos == -1) {
             text = StringUtils.trimToEmpty(text);
             return new StringUtils.Pair(text, null);
@@ -101,125 +122,49 @@ public class FileUtils {
             String right = StringUtils.trimToEmpty(text.substring(pos));
             return new StringUtils.Pair(left, right);
         }
+    }    
+    
+    public static Feature resolveFeature(String path) {
+        StringUtils.Pair pair = parsePathAndTags(path);
+        Feature feature = FeatureParser.parse(pair.left);
+        feature.setCallTag(pair.right);
+        return feature;
     }
 
-    private static enum PathPrefix {
-        NONE,
-        CLASSPATH,
-        FILE
-    }
-
-    private static String resolvePath(String path, PathPrefix prefix, ScriptContext context) {
-        switch (prefix) {
-            case CLASSPATH:
-                return CLASSPATH_COLON + path;
-            case NONE:
-                return context.env.featureDir.getPath() + "/" + path;
-            default:
-                return path;
-        }
-    }
-
-    public static ScriptValue readFile(String text, ScriptContext context) {
-        text = StringUtils.trimToEmpty(text);
-        PathPrefix prefix = isClassPath(text) ? PathPrefix.CLASSPATH : (isFilePath(text) ? PathPrefix.FILE : PathPrefix.NONE);
-        StringUtils.Pair pair = parsePathAndTags(text);
-        text = pair.left;
-        if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
-            String contents = readFileAsString(text, prefix, context);
-            ScriptValue temp = Script.evalKarateExpression(contents, context);
-            return new ScriptValue(temp.getValue(), text);
-        } else if (isTextFile(text) || isGraphQlFile(text)) {
-            String contents = readFileAsString(text, prefix, context);
-            return new ScriptValue(contents, text);
-        } else if (isFeatureFile(text)) {
-            String featurePath = resolvePath(text, prefix, context);
-            Feature feature = FeatureParser.parse(featurePath);
-            feature.setCallTag(pair.right);
-            return new ScriptValue(feature, text);
-        } else if (isYamlFile(text)) {
-            String contents = readFileAsString(text, prefix, context);
-            DocumentContext doc = JsonUtils.fromYaml(contents);
-            return new ScriptValue(doc, text);
+    private static FileResource resolvePath(String path, ScriptContext context) {
+        if (isClassPath(path) || isFilePath(path)) {
+            return new FileResource(fromRelativeClassPath(path), path);
         } else {
-            InputStream is = getFileStream(text, prefix, context);
-            return new ScriptValue(is, text);
+            try {
+                return new FileResource(new File(context.env.featureDir.getPath() + "/" + path), path);
+            } catch (Exception e) {
+                logger.error("feature relative path resolution failed: {}", e.getMessage());
+                throw e;
+            }
         }
     }
 
-    private static String readFileAsString(String path, PathPrefix prefix, ScriptContext context) {
+    private static String readFileAsString(String path, ScriptContext context) {
         try {
-            InputStream is = getFileStream(path, prefix, context);
+            InputStream is = getFileStream(path, context);
             return toString(is);
         } catch (Exception e) {
-            String message = String.format("could not find or read file [%s]: %s", prefix, path);
+            String message = String.format("could not find or read file: %s", path);
             throw new KarateFileNotFoundException(message);
         }
     }
 
-    public static InputStream getFileStream(String text, ScriptContext context) {
-        text = StringUtils.trimToEmpty(text);
-        PathPrefix prefix = isClassPath(text) ? PathPrefix.CLASSPATH : (isFilePath(text) ? PathPrefix.FILE : PathPrefix.NONE);
-        String fileName = removePrefix(text);
-        fileName = StringUtils.trimToEmpty(fileName);
-        return getFileStream(fileName, prefix, context);
+    public static InputStream getFileStream(String path, ScriptContext context) {
+        FileResource fr = resolvePath(path, context);
+        return getStream(fr.file);
     }
 
-    private static InputStream getFileStream(String path, PathPrefix prefix, ScriptContext context) {
-        switch (prefix) {
-            case CLASSPATH:
-                return context.env.fileClassLoader.getResourceAsStream(path);
-            case NONE: // relative to feature dir
-                path = context.env.featureDir + File.separator + path;
-                break;
-            default: // as-is
-        }
+    private static InputStream getStream(File file) {
         try {
-            return new FileInputStream(path);
+            return new FileInputStream(file);
         } catch (FileNotFoundException e) {
             throw new KarateFileNotFoundException(e.getMessage());
         }
-    }
-
-    public static File getDirContaining(Class clazz) {
-        String resourcePath = clazz.getResource(clazz.getSimpleName() + ".class").getFile();
-        return new File(resourcePath).getParentFile();
-    }
-
-    public static File getFileRelativeTo(Class clazz, String path) {
-        File dir = FileUtils.getDirContaining(clazz);
-        return new File(dir.getPath() + File.separator + path);
-    }
-
-    public static URL toFileUrl(String path) {
-        path = StringUtils.trimToEmpty(path);
-        File file = new File(path);
-        try {
-            return file.getAbsoluteFile().toURI().toURL();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static File getFeatureFile(String path) {
-        PathPrefix prefix = isClassPath(path) ? PathPrefix.CLASSPATH : (isFilePath(path) ? PathPrefix.FILE : PathPrefix.NONE);
-        path = removePrefix(path);
-        switch (prefix) {
-            case CLASSPATH:
-                ClassLoader cl = Thread.currentThread().getContextClassLoader();
-                String actualPath = cl.getResource(path).getFile();
-                return new File(actualPath);
-            default:
-                return new File(path);
-        }
-    }
-
-    public static ClassLoader createClassLoader(String... paths) {
-        List<URL> urls = new ArrayList<>(paths.length);
-        for (String path : paths) {
-            urls.add(toFileUrl(path));
-        }
-        return new URLClassLoader(urls.toArray(new URL[]{}));
     }
 
     public static String toPackageQualifiedName(String path) {
@@ -414,17 +359,27 @@ public class FileUtils {
         return CLASSPATH_COLON + rootPath.relativize(Paths.get(file.getAbsolutePath())).toString();
     }
 
+    public static File getDirContaining(Class clazz) {
+        String relativePath = clazz.getPackage().getName().replace('.', '/');
+        return fromRelativeClassPath(CLASSPATH_COLON + relativePath);
+    }
+
+    public static File getFileRelativeTo(Class clazz, String path) {
+        File dir = getDirContaining(clazz);
+        return new File(dir.getPath() + File.separator + path);
+    }
+
     public static String toRelativeClassPath(Class clazz) {
         File dir = getDirContaining(clazz);
         return toRelativeClassPath(dir);
     }
 
     public static File fromRelativeClassPath(String relativePath) {
-        Path rootPath = getClassPathRoot();
         boolean classpath = isClassPath(relativePath);
         relativePath = removePrefix(relativePath);
-        if (classpath) {
-            return rootPath.resolve(relativePath).toFile();
+        if (classpath) { // use class-loader resolution
+            String filePath = Thread.currentThread().getContextClassLoader().getResource(relativePath).getFile();
+            return new File(filePath);
         } else {
             return new File(relativePath);
         }

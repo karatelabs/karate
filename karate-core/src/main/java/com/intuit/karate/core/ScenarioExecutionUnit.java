@@ -66,22 +66,22 @@ public class ScenarioExecutionUnit implements ExecutionUnit<ScenarioResult> {
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, Consumer<ScenarioResult> next) {
+    public void submit(Consumer<ScenarioResult> next) {
         if (iterator.hasNext()) {
             Step step = iterator.next();
             if (stopped) {
                 addStepResult(new StepResult(step, Result.skipped()));
-                ScenarioExecutionUnit.this.submit(system, next);
+                ScenarioExecutionUnit.this.submit(next);
             } else {
-                system.accept(() -> {
+                exec.system.accept(() -> {
                     StepExecutionUnit unit = new StepExecutionUnit(step, stepDefs, exec);
-                    unit.submit(system, stepResult -> {
+                    unit.submit(stepResult -> {
                         addStepResult(stepResult);
                         Result result = stepResult.getResult();
                         if (result.isFailed() || result.isAborted()) {
                             stopped = true;
                         }
-                        ScenarioExecutionUnit.this.submit(system, next);
+                        ScenarioExecutionUnit.this.submit(next);
                     });
                 });
             }

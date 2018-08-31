@@ -1,7 +1,6 @@
 package com.intuit.karate;
 
 import java.io.File;
-import java.io.InputStream;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -16,14 +15,6 @@ import org.slf4j.LoggerFactory;
 public class FileUtilsTest {
     
     private static final Logger logger = LoggerFactory.getLogger(FileUtilsTest.class);
-    
-    @Test
-    public void testClassLoading() throws Exception {
-        ClassLoader cl = FileUtils.createClassLoader("src/main/java/com/intuit/karate");
-        InputStream is = cl.getResourceAsStream("StepDefs.java");
-        String s = FileUtils.toString(is);
-        assertTrue(s.trim().startsWith("/*"));
-    }
 
     @Test
     public void testExtractingFeaturePathFromCommandLine() {

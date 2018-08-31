@@ -45,14 +45,14 @@ public class FeatureExecutionUnit implements ExecutionUnit<Void> {
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, Consumer<Void> next) {
+    public void submit(Consumer<Void> next) {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
             ScriptEnv env = exec.env;
             Collection<Tag> tagsEffective = scenario.getTagsEffective();
             if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
                 env.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
-                FeatureExecutionUnit.this.submit(system, next);
+                FeatureExecutionUnit.this.submit(next);
                 return;
             }
             String callTag = scenario.getFeature().getCallTag();
@@ -60,7 +60,7 @@ public class FeatureExecutionUnit implements ExecutionUnit<Void> {
                 Tag temp = new Tag(0, callTag);
                 if (!tagsEffective.contains(temp)) {
                     env.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
-                    FeatureExecutionUnit.this.submit(system, next);
+                    FeatureExecutionUnit.this.submit(next);
                     return;
                 }
                 env.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
@@ -85,19 +85,19 @@ public class FeatureExecutionUnit implements ExecutionUnit<Void> {
                     String message = "scenario hook threw fatal error: " + e.getMessage();
                     stepDefs.context.logger.error(message);
                     exec.result.addError(e);
-                    FeatureExecutionUnit.this.submit(system, next);
+                    FeatureExecutionUnit.this.submit(next);
                     return;
                 }
             }
             ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
-            system.accept(() -> {
-                unit.submit(system, scenarioResult -> {
+            exec.system.accept(() -> {
+                unit.submit(scenarioResult -> {
                     // after-scenario hook
                     if (stepDefs.callContext.executionHook != null) {
                         stepDefs.callContext.executionHook.afterScenario(scenarioResult, stepDefs);
                     }
                     // continue even if this scenario or example row failed                            
-                    FeatureExecutionUnit.this.submit(system, next);
+                    FeatureExecutionUnit.this.submit(next);
                 });
             });
         } else {

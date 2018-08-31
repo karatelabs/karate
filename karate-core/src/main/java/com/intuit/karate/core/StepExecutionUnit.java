@@ -44,8 +44,8 @@ public class StepExecutionUnit implements ExecutionUnit<StepResult> {
     }
 
     @Override
-    public void submit(Consumer<Runnable> system, Consumer<StepResult> next) {
-        system.accept(() -> {
+    public void submit(Consumer<StepResult> next) {
+        exec.system.accept(() -> {
             if (stepDefs.callContext.executionHook != null) {
                 stepDefs.callContext.executionHook.beforeStep(step, stepDefs);
             }

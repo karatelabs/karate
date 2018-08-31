@@ -30,7 +30,7 @@ import java.util.function.Consumer;
  * @author pthomas3
  */
 public interface ExecutionUnit<T> {
-    
-    void submit(Consumer<Runnable> system, Consumer<T> next);
-    
+
+    void submit(Consumer<T> next);
+
 }

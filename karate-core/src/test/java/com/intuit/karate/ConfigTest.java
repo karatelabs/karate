@@ -13,7 +13,7 @@ public class ConfigTest {
     @Test
     public void testSettingVariableViaKarateConfig() {
         File featureDir = FileUtils.getDirContaining(getClass());
-        ScriptEnv env = new ScriptEnv("dev", null, featureDir, null, getClass().getClassLoader());
+        ScriptEnv env = new ScriptEnv("dev", null, featureDir, null);
         CallContext callContext = new CallContext(null, true);
         ScriptContext ctx = new ScriptContext(env, callContext);        
         ScriptValue value = Script.evalJsExpression("someConfig", ctx);

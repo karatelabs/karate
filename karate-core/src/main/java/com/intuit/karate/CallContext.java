@@ -41,14 +41,17 @@ public class CallContext {
     public final boolean reuseParentContext;
     public final boolean evalKarateConfig;
     public final int loopIndex;
-    public final String httpClientClass;
-    public final Consumer<Runnable> asyncSystem;
-    public final Runnable asyncNext;
+    public final String httpClientClass;    
     public final ExecutionHook executionHook;
+    public final boolean useLogAppenderFile;
     
     private List<String> tags;
     private Map<String, List<String>> tagValues;    
     private ScenarioInfo scenarioInfo;
+    
+    public static CallContext forCall(ScriptContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
+        return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.useLogAppenderFile);
+    }
 
     public List<String> getTags() {
         return tags;
@@ -79,16 +82,16 @@ public class CallContext {
     }
     
     public CallContext(Map<String, Object> callArg, boolean evalKarateConfig) {
-        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, null, null);
+        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, true);
     }
     
-    public CallContext(ExecutionHook scenarioHook) {
-        this(null, 0, null, -1, false, true, null, null, null, scenarioHook);
+    public CallContext(boolean useLogAppenderFile, ExecutionHook executionHook) {
+        this(null, 0, null, -1, false, true, null, executionHook, useLogAppenderFile);
     }    
     
     public CallContext(ScriptContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
         boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass, 
-            Consumer<Runnable> asyncSystem, Runnable asyncNext, ExecutionHook scenarioHook) {
+        ExecutionHook executionHook, boolean useLogAppenderFile) {
         this.parentContext = parentContext;
         this.callDepth = callDepth;
         this.callArg = callArg;
@@ -96,9 +99,8 @@ public class CallContext {
         this.reuseParentContext = reuseParentContext;
         this.evalKarateConfig = evalKarateConfig;
         this.httpClientClass = httpClientClass;
-        this.asyncSystem = asyncSystem;
-        this.asyncNext = asyncNext;
-        this.executionHook = scenarioHook;
+        this.executionHook = executionHook;
+        this.useLogAppenderFile = useLogAppenderFile;
     }
     
 }

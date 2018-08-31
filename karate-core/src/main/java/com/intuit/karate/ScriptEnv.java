@@ -30,63 +30,51 @@ import java.io.File;
  * @author pthomas3
  */
 public class ScriptEnv {    
-
-    public final Logger logger;
+    
     public final String env;
     public final String tagSelector;
     public final File featureDir;
     public final String featureName;
-    public final ClassLoader fileClassLoader;
     public final CallCache callCache;
+    public final Logger logger;
     
-    public ScriptEnv(String env, String tagSelector, File featureDir, String featureName, ClassLoader fileClassLoader, 
+    public ScriptEnv(String env, String tagSelector, File featureDir, String featureName, 
             CallCache callCache, Logger logger) {
         this.env = env;
         this.tagSelector = tagSelector;
         this.featureDir = featureDir;
         this.featureName = featureName;
-        this.fileClassLoader = fileClassLoader;
         this.callCache = callCache;
         this.logger = logger;
     }
     
-    public ScriptEnv(String env, String tagSelector, File featureDir, String featureName, ClassLoader fileClassLoader) {
-        this(env, tagSelector, featureDir, featureName, fileClassLoader, new CallCache(), 
-                new Logger());
+    public ScriptEnv(String env, String tagSelector, File featureDir, String featureName) {
+        this(env, tagSelector, featureDir, featureName, new CallCache(), new Logger());
     }    
     
     public static ScriptEnv forEnvAndCurrentWorkingDir(String env) {
-        return ScriptEnv.forEnvAndWorkingDir(env, new File("."));
+        return forEnvAndWorkingDir(env, new File("."));
     }
     
     public static ScriptEnv forEnvAndClass(String env, Class clazz) {
-        return ScriptEnv.forEnvAndWorkingDir(env, FileUtils.getDirContaining(clazz));
+        return forEnvAndWorkingDir(env, FileUtils.getDirContaining(clazz));
     }     
     
     private static ScriptEnv forEnvAndWorkingDir(String env, File workingDir) {
-        return new ScriptEnv(env, null, workingDir, null, Thread.currentThread().getContextClassLoader());
+        return new ScriptEnv(env, null, workingDir, null);
     }    
     
     public static ScriptEnv forEnvAndFeatureFile(String env, File featureFile) {
-        return forFeatureFile(env, null, featureFile, Thread.currentThread().getContextClassLoader());
+        return forEnvTagsAndFeatureFile(env, null, featureFile);
     }  
     
     public static ScriptEnv forEnvFeatureFileAndLogger(String env, File featureFile, Logger logger) {
-        return new ScriptEnv(env, null, featureFile.getParentFile(), featureFile.getName(), 
-                Thread.currentThread().getContextClassLoader(), new CallCache(), logger);
+        return new ScriptEnv(env, null, featureFile.getParentFile(), featureFile.getName(), new CallCache(), logger);
     }     
     
     public static ScriptEnv forEnvTagsAndFeatureFile(String env, String tagSelector, File featureFile) {
-        return forFeatureFile(env, tagSelector, featureFile, Thread.currentThread().getContextClassLoader());
-    }    
-
-    public static ScriptEnv forEnvAndFeatureFile(String env, File featureFile, String[] searchPaths) {
-        return forFeatureFile(env, null, featureFile, FileUtils.createClassLoader(searchPaths));
-    }
-    
-    private static ScriptEnv forFeatureFile(String env, String tagSelector, File featureFile, ClassLoader classLoader) {
-        return new ScriptEnv(env, tagSelector, featureFile.getParentFile(), featureFile.getName(), classLoader);
-    }   
+        return new ScriptEnv(env, tagSelector, featureFile.getParentFile(), featureFile.getName());
+    }  
     
     public ScriptEnv refresh(String in) { // immutable
         String karateEnv = StringUtils.trimToNull(in);
@@ -96,7 +84,7 @@ public class ScriptEnv {
                 karateEnv = StringUtils.trimToNull(System.getProperty(ScriptBindings.KARATE_ENV));
             }
         }
-        return new ScriptEnv(karateEnv, tagSelector, featureDir, featureName, fileClassLoader, callCache, logger);
+        return new ScriptEnv(karateEnv, tagSelector, featureDir, featureName, callCache, logger);
     }
     
     @Override

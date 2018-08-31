@@ -56,7 +56,6 @@ public class ScriptValue {
         JS_FUNCTION,
         BYTE_ARRAY,
         INPUT_STREAM,
-        FEATURE_WRAPPER,
         FEATURE
     }
 
@@ -96,7 +95,6 @@ public class ScriptValue {
                 return "byte[]";
             case INPUT_STREAM:
                 return "stream";
-            case FEATURE_WRAPPER:
             case FEATURE:
                 return "feature";
             default:
@@ -185,7 +183,6 @@ public class ScriptValue {
             case STRING:
             case BYTE_ARRAY:
             case INPUT_STREAM:
-            case FEATURE_WRAPPER:
             case FEATURE:
             case JS_FUNCTION:                
                 return this;

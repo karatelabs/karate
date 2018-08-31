@@ -58,7 +58,7 @@ public class FeatureResult extends HashMap<String, Object> {
         String relativePath = feature.getRelativePath();
         put("uri", relativePath);
         put("name", relativePath); // hack for json / html report
-        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+        packageQualifiedName = feature.getPackageQualifiedName();
         name = feature.getName();
         put("id", StringUtils.toIdString(feature.getName()));
         String temp = feature.getName() == null ? "" : feature.getName();

@@ -47,7 +47,7 @@ public class AppSessionTest {
     public void testRunning() {
         File tempFile = new File("src/test/java/com/intuit/karate/ui/test.feature");
         AppSession session = new AppSession(tempFile, null, true);
-        ExecutionContext ec = new ExecutionContext(session.getFeature(), session.getEnv(), new CallContext(null, true), false);
+        ExecutionContext ec = new ExecutionContext(session.getFeature(), session.getEnv(), new CallContext(null, true), null);
         for (FeatureSection section : session.getFeature().getSections()) {
             if (section.isOutline()) {
                 ScenarioOutline outline = section.getScenarioOutline();
@@ -62,7 +62,7 @@ public class AppSessionTest {
     
     private static void call(Scenario scenario, AppSession session, ExecutionContext ec) {
         ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, session.getStepDefs(), ec);
-        exec.submit(r -> r.run(), r -> {});
+        exec.submit(r -> {});
     }    
     
 }

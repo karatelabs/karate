@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.FeatureExecutionUnit;
+import java.util.function.Consumer;
 
 /**
  *
@@ -116,7 +117,7 @@ public class CucumberRunner {
                 callables.add(() -> {
                     // we are now within a separate thread. the reporter filters logs by self thread
                     String threadName = Thread.currentThread().getName();
-                    FeatureResult result = Engine.execute(null, feature, tagSelector, new CallContext(hook));
+                    FeatureResult result = Engine.execute(null, feature, tagSelector, new CallContext(true, hook));
                     logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, feature.getRelativePath());
                     Engine.saveResultJson(finalReportDir, result);
                     Engine.saveResultXml(finalReportDir, result);
@@ -171,18 +172,12 @@ public class CucumberRunner {
     }
     
     // this is called by karate-gatling !
-    public static void callAsync(String filePath, String callTag, CallContext callContext) { 
-        File file = FileUtils.getFeatureFile(filePath);
-        Feature feature = FeatureParser.parse(file);
-        feature.setCallTag(callTag);
-        callAsync(feature, callContext);
-    }    
-    
-    public static void callAsync(Feature feature, CallContext callContext) {
+    public static void callAsync(String path, CallContext callContext, Consumer<Runnable> system, Runnable next) { 
+        Feature feature = FileUtils.resolveFeature(path);
         ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, feature.getFile());
-        ExecutionContext ec = new ExecutionContext(feature, env, callContext, false);
+        ExecutionContext ec = new ExecutionContext(feature, env, callContext, system);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);
-        exec.submit(callContext.asyncSystem, r -> callContext.asyncNext.run());
-    }    
+        exec.submit(r -> next.run());
+    }  
 
 }

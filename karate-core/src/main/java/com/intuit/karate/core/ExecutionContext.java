@@ -27,6 +27,8 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.ScriptEnv;
+import java.io.File;
+import java.util.function.Consumer;
 
 /**
  *
@@ -39,15 +41,27 @@ public class ExecutionContext {
     public final CallContext callContext;
     public final FeatureResult result;
     public final LogAppender appender;
+    public final Consumer<Runnable> system;
 
-    public ExecutionContext(Feature feature, ScriptEnv env, CallContext callContext, boolean enableFileLogAppender) {
+    private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
+
+    public ExecutionContext(Feature feature, ScriptEnv env, CallContext callContext, Consumer<Runnable> system) {
         this.feature = feature;
         result = new FeatureResult(feature);
         this.env = env;
         this.callContext = callContext;
-        if (enableFileLogAppender) {
+        if (system == null) {
+            this.system = SYNC_EXECUTOR;
+        } else {
+            this.system = system;
+        }
+        if (callContext.useLogAppenderFile) {
+            File logFileDir = new File(Engine.getBuildDir() + "/surefire-reports/");
+            if (!logFileDir.exists()) {
+                logFileDir.mkdirs();
+            }
             String basePath = feature.getPackageQualifiedName();
-            appender = new FileLogAppender(Engine.getBuildDir() + "/surefire-reports/" + basePath + ".log", env.logger);
+            appender = new FileLogAppender(logFileDir.getPath() + "/" + basePath + ".log", env.logger);
         } else {
             appender = LogAppender.NO_OP;
         }

@@ -34,7 +34,6 @@ import com.intuit.karate.validator.Validator;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
@@ -54,9 +53,8 @@ public class ScriptContext {
     protected final ScriptValueMap vars;
     protected final Map<String, Validator> validators;
     protected final ScriptEnv env;
-    protected final Consumer<Runnable> asyncSystem;
-    protected final Runnable asyncNext;
     protected final ExecutionHook executionHook;
+    protected final boolean useLogAppenderFile;
 
     protected final ScenarioInfo scenarioInfo;
 
@@ -117,9 +115,8 @@ public class ScriptContext {
         this.env = env; // make sure references below to env.env use the updated one
         logger = env.logger;
         callDepth = call.callDepth;
-        asyncSystem = call.asyncSystem;
         executionHook = call.executionHook;
-        asyncNext = call.asyncNext;
+        useLogAppenderFile = call.useLogAppenderFile;
         tags = call.getTags();
         tagValues = call.getTagValues();
         scenarioInfo = call.getScenarioInfo();

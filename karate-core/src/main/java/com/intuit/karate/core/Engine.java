@@ -46,8 +46,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -59,9 +57,6 @@ import org.w3c.dom.Node;
 public class Engine {
 
     private static final List<MethodPattern> PATTERNS = new ArrayList();
-
-    private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
-    private static final Consumer<Void> NO_OP = r -> {};
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -88,10 +83,9 @@ public class Engine {
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
-        boolean enableFileLogAppender = callContext.asyncSystem == null;
-        ExecutionContext exec = new ExecutionContext(feature, env, callContext, enableFileLogAppender);
+        ExecutionContext exec = new ExecutionContext(feature, env, callContext, null);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
-        unit.submit(SYNC_EXECUTOR, NO_OP);
+        unit.submit(r -> {});
         return exec.result;
     }
 
@@ -125,7 +119,7 @@ public class Engine {
                 return Result.aborted(getElapsedTime(startTime));
             } else {
                 return Result.failed(getElapsedTime(startTime), e.getTargetException(), featurePath, step);
-            }
+            }            
         } catch (Exception e) {
             return Result.failed(getElapsedTime(startTime), e, featurePath, step);
         }
