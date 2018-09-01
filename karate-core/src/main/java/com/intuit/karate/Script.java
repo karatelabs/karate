@@ -1687,8 +1687,7 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(Feature feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        // the call is going to execute synchronously ! TODO improve
-        // which is why the context.asyncSystem, context.asyncNext are set to null here        
+        // the call is going to execute synchronously ! TODO improve       
         CallContext callContext = CallContext.forCall(context, callArg, loopIndex, reuseParentConfig);
 //        if (context.env.reporter != null) { TODO call reporting
 //            context.env.reporter.callBegin(feature, callContext);

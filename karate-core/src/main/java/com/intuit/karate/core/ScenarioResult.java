@@ -25,55 +25,91 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public class ScenarioResult extends ResultElement {
+public class ScenarioResult {
 
-    private final boolean outline;
-    private final String keyword;
+    private final List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
+    
+    private boolean failed;
+    private Throwable error;
+    private long duration;
+    
+    public void addStepResult(StepResult stepResult) {
+        stepResults.add(stepResult);
+        Result result = stepResult.getResult();
+        duration += result.getDuration();
+        if (result.isFailed()) {
+            failed = true;
+            error = result.getError();
+        }
+    }    
+    
+    private List<Map> getStepResults(boolean background) {
+        List<Map> list = new ArrayList(stepResults.size());
+        for (StepResult sr : stepResults) {
+            if (background == sr.getStep().isBackground()) {
+                list.add(sr.toMap());
+            }            
+        }
+        return list;
+    }
+    
+    public Map<String, Object> backgroundToMap() {
+        Map<String, Object> map = new HashMap();
+        map.put("name", "");
+        map.put("steps", getStepResults(true));
+        map.put("line", scenario.getFeature().getBackground().getLine());
+        map.put("description", "");
+        map.put("type", Background.TYPE);
+        map.put("keyword", Background.KEYWORD);
+        return map;        
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put("name", scenario.getName());
+        map.put("steps", getStepResults(false));
+        map.put("line", scenario.getLine());
+        map.put("id", StringUtils.toIdString(scenario.getName()));
+        map.put("description", scenario.getDescription());
+        map.put("type", Scenario.TYPE);
+        map.put("keyword", scenario.getKeyword());
+        if (scenario.getTags() != null) {
+            map.put("tags", Tags.toResultList(scenario.getTags()));
+        }
+        return map;
+    }
 
     public ScenarioResult(Scenario scenario) {
-        super(scenario.getName());
         this.scenario = scenario;
-        put("line", scenario.getLine());
-        put("id", StringUtils.toIdString(scenario.getName()));
-        put("description", scenario.getDescription());
-        put("type", "scenario");
-        outline = scenario.isOutline();
-        keyword = outline ? ScenarioOutline.KEYWORD : Scenario.KEYWORD;
-        put("keyword", keyword);
-        List<Tag> list = scenario.getTags();
-        if (list != null) {
-            List<TagResult> tags = new ArrayList(list.size());
-            put("tags", tags);
-            for (Tag tag : list) {
-                tags.add(new TagResult(tag));
-            }
-        }
     }
 
     public Scenario getScenario() {
         return scenario;
-    }        
-
-    @Override
-    public boolean isBackground() {
-        return false;
     }
 
-    @Override
-    String getKeyword() {
-        return keyword;
+    public List<StepResult> getStepResults() {
+        return stepResults;
+    }  
+    
+    public boolean isFailed() {
+        return failed;
+    } 
+
+    public Throwable getError() {
+        return error;
     }
 
-    @Override
-    public boolean isOutline() {
-        return outline;
-    }
+    public long getDuration() {
+        return duration;
+    } 
 
 }

@@ -35,6 +35,8 @@ import java.util.List;
  */
 public class Feature {
     
+    public static final String KEYWORD = "Feature";
+    
     private final File file;
     private final String relativePath;
     private final String packageQualifiedName;
@@ -54,6 +56,10 @@ public class Feature {
         this.file = file;
         this.relativePath = relativePath;
         this.packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+    }
+    
+    public boolean isBackgroundPresent() {
+        return background != null && background.getSteps() != null;
     }
     
     public List<Scenario> getScenarios() {

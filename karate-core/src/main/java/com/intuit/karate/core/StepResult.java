@@ -31,43 +31,49 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class StepResult extends HashMap<String, Object> {
+public class StepResult  {
 
     private static final Map<String, Object> DUMMY_MATCH;
     
     private final Step step;
     private final Result result;
-    private final String keyword;
-    private final String name;
+    private final String stepLog;
 
     static {
-        DUMMY_MATCH = new HashMap();
+        DUMMY_MATCH = new HashMap(2);
         DUMMY_MATCH.put("location", "karate");
         DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);
     }
 
-    public void putDocString(String text) {
-        if (text == null) {
-            return;
-        }
+    private static Map<String, Object> docStringToMap(int line, String stepLog) {
         Map<String, Object> map = new HashMap(3);
         map.put("content_type", "");
-        map.put("line", get("line"));
-        map.put("value", text);
-        put("doc_string", map);
+        map.put("line", line);
+        map.put("value", stepLog);
+        return map;
     }
+    
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap(6);
+        map.put("line", step.getLine());
+        map.put("keyword", step.getPrefix());
+        map.put("name", step.getText());
+        map.put("result", result.toMap());
+        map.put("match", DUMMY_MATCH);
+        if (stepLog != null) {
+            map.put("doc_string", docStringToMap(step.getLine(), stepLog));
+        }
+        return map;
+    }
+        
+    public boolean isStopped() {
+        return result.isFailed() || result.isAborted();
+    }    
 
-    public StepResult(Step step, Result result) {
+    public StepResult(Step step, Result result, String stepLog) {
         this.step = step;
-        put("line", step.getLine());
-        keyword = step.getPrefix();
-        put("keyword", keyword);
-        name = step.getText();
-        put("name", name);
-        put("result", result);
-        put("match", DUMMY_MATCH);
-        putDocString(step.getDocString());
         this.result = result;
+        this.stepLog = stepLog;
     }   
 
     public Step getStep() {
@@ -78,12 +84,8 @@ public class StepResult extends HashMap<String, Object> {
         return result;
     }
 
-    public String getKeyword() {
-        return keyword;
+    public String getStepLog() {
+        return stepLog;
     }
-
-    public String getName() {
-        return name;
-    }        
     
 }

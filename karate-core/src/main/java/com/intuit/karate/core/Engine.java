@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -57,6 +58,9 @@ import org.w3c.dom.Node;
 public class Engine {
 
     private static final List<MethodPattern> PATTERNS = new ArrayList();
+
+    private static final Runnable NO_OP = () -> {
+    };
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -85,7 +89,7 @@ public class Engine {
         }
         ExecutionContext exec = new ExecutionContext(feature, env, callContext, null);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
-        unit.submit(r -> {});
+        unit.submit(NO_OP);
         return exec.result;
     }
 
@@ -119,16 +123,16 @@ public class Engine {
                 return Result.aborted(getElapsedTime(startTime));
             } else {
                 return Result.failed(getElapsedTime(startTime), e.getTargetException(), featurePath, step);
-            }            
+            }
         } catch (Exception e) {
             return Result.failed(getElapsedTime(startTime), e, featurePath, step);
         }
     }
 
     public static File saveResultJson(String targetDir, FeatureResult result) {
-        List<FeatureResult> single = Collections.singletonList(result);
+        List<Map> single = Collections.singletonList(result.toMap());
         String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(single));
-        File file = new File(targetDir + "/" + result.getPackageQualifiedName() + ".json");
+        File file = new File(targetDir + File.separator + result.getFeature().getPackageQualifiedName() + ".json");
         FileUtils.writeToFile(file, json);
         return file;
     }
@@ -142,9 +146,9 @@ public class Engine {
         Throwable error = null;
         for (StepResult sr : steps) {
             int length = sb.length();
-            sb.append(sr.getKeyword());
+            sb.append(sr.getStep().getPrefix());
             sb.append(' ');
-            sb.append(sr.getName());
+            sb.append(sr.getStep().getText());
             sb.append(' ');
             do {
                 sb.append('.');
@@ -170,55 +174,42 @@ public class Engine {
         Document doc = XmlUtils.newDocument();
         Element root = doc.createElement("testsuite");
         doc.appendChild(root);
-        root.setAttribute("name", result.getName()); // will be uri
+        root.setAttribute("name", result.getDisplayName()); // will be uri
         root.setAttribute("skipped", "0");
-        String baseName = result.getPackageQualifiedName();
+        String baseName = result.getFeature().getPackageQualifiedName();
         int testCount = 0;
         int failureCount = 0;
         long totalDuration = 0;
-        Iterator<ResultElement> iterator = result.getElements().iterator();
-        ResultElement prev = null;
+        Throwable error;
+        Iterator<ScenarioResult> iterator = result.getScenarioResults().iterator();
         StringBuilder sb = new StringBuilder();
         while (iterator.hasNext()) {
-            ResultElement element = iterator.next();
-            totalDuration += element.getDuration();
-            if (element.isFailed()) {
+            ScenarioResult sr = iterator.next();
+            totalDuration += sr.getDuration();
+            if (sr.isFailed()) {
                 failureCount++;
             }
-            Throwable error;
-            if (element.isBackground()) {
-                sb.setLength(0);
-                prev = element;
-                appendSteps(element.getSteps(), sb);
-            } else {
-                Element testCase = doc.createElement("testcase");
-                root.appendChild(testCase);
-                testCase.setAttribute("classname", baseName);
-                testCount++;
-                long duration = element.getDuration();
-                if (prev != null) {
-                    duration += prev.getDuration();
-                } else {
-                    sb.setLength(0);
-                }
-                error = appendSteps(element.getSteps(), sb);
-                String name = element.getName();
-                if (StringUtils.isBlank(name)) {
-                    name = testCount + "";
-                }
-                testCase.setAttribute("name", name);
-                testCase.setAttribute("time", formatNanos(duration, formatter));
-                Element stepsHolder;
-                if (error != null) {
-                    stepsHolder = doc.createElement("failure");
-                    stepsHolder.setAttribute("message", error.getMessage());
-                } else {
-                    stepsHolder = doc.createElement("system-out");
-                }
-                testCase.appendChild(stepsHolder);
-                stepsHolder.setTextContent(sb.toString());
-                prev = null;
+            Element testCase = doc.createElement("testcase");
+            root.appendChild(testCase);
+            testCase.setAttribute("classname", baseName);
+            testCount++;
+            long duration = sr.getDuration();
+            error = appendSteps(sr.getStepResults(), sb);
+            String name = sr.getScenario().getName();
+            if (StringUtils.isBlank(name)) {
+                name = testCount + "";
             }
+            testCase.setAttribute("name", name);
+            testCase.setAttribute("time", formatNanos(duration, formatter));
+            Element stepsHolder;
+            if (error != null) {
+                stepsHolder = doc.createElement("failure");
+                stepsHolder.setAttribute("message", error.getMessage());
+            } else {
+                stepsHolder = doc.createElement("system-out");
+            }
+            testCase.appendChild(stepsHolder);
+            stepsHolder.setTextContent(sb.toString());
         }
         root.setAttribute("tests", testCount + "");
         root.setAttribute("failures", failureCount + "");
@@ -279,24 +270,18 @@ public class Engine {
         String js = getFile("report-template.js");
         Document doc = XmlUtils.toXmlDoc(html);
         XmlUtils.setByPath(doc, "/html/body/img", svg);
-        String baseName = result.getPackageQualifiedName();
+        String baseName = result.getFeature().getPackageQualifiedName();
         set(doc, "/html/head/title", baseName);
         set(doc, "/html/head/script", js);
-        Iterator<ResultElement> iterator = result.getElements().iterator();
-        ResultElement prev = null;
+        Iterator<ScenarioResult> iterator = result.getScenarioResults().iterator();
         while (iterator.hasNext()) {
-            ResultElement element = iterator.next();
-            if (element.isBackground()) {
-                prev = element;
-            } else {
-                Node scenarioDiv = div(doc, "scenario");
-                append(doc, "/html/body/div", scenarioDiv);
-                Node scenarioHeadingDiv = div(doc, "scenario-heading",
-                        node(doc, "span", "scenario-keyword", element.getKeyword() + ": "),
-                        node(doc, "span", "scenario-name", element.getName()));
-                scenarioDiv.appendChild(scenarioHeadingDiv);
-                prev = null;
-            }
+            ScenarioResult sr = iterator.next();
+            Node scenarioDiv = div(doc, "scenario");
+            append(doc, "/html/body/div", scenarioDiv);
+            Node scenarioHeadingDiv = div(doc, "scenario-heading",
+                    node(doc, "span", "scenario-keyword", sr.getScenario().getKeyword()),
+                    node(doc, "span", "scenario-name", sr.getScenario().getName()));
+            scenarioDiv.appendChild(scenarioHeadingDiv);
         }
         File file = new File(targetDir + "/" + baseName + ".html");
         String xml = XmlUtils.toString(doc, true);

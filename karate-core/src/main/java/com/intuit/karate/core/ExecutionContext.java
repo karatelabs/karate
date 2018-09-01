@@ -56,12 +56,12 @@ public class ExecutionContext {
             this.system = system;
         }
         if (callContext.useLogAppenderFile) {
-            File logFileDir = new File(Engine.getBuildDir() + "/surefire-reports/");
+            File logFileDir = new File(Engine.getBuildDir() + File.separator + "surefire-reports");
             if (!logFileDir.exists()) {
                 logFileDir.mkdirs();
             }
             String basePath = feature.getPackageQualifiedName();
-            appender = new FileLogAppender(logFileDir.getPath() + "/" + basePath + ".log", env.logger);
+            appender = new FileLogAppender(logFileDir.getPath() + File.separator + basePath + ".log", env.logger);
         } else {
             appender = LogAppender.NO_OP;
         }

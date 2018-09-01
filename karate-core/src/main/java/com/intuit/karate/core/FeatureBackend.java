@@ -93,7 +93,7 @@ public class FeatureBackend {
             vars.forEach((k, v) -> backendVars.put(k, v));
         }
         // the background is evaluated one-time
-        if (feature.getBackground() != null) {
+        if (feature.isBackgroundPresent()) {
             for (Step step : feature.getBackground().getSteps()) {
                 Result result = Engine.execute(step, stepDefs);
                 if (result.isFailed()) {

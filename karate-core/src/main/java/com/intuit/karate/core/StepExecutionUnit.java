@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  *
  * @author pthomas3
  */
-public class StepExecutionUnit implements ExecutionUnit<StepResult> {
+public class StepExecutionUnit {
 
     private final Step step;
     private final StepDefs stepDefs;
@@ -43,21 +43,20 @@ public class StepExecutionUnit implements ExecutionUnit<StepResult> {
         this.exec = exec;
     }
 
-    @Override
     public void submit(Consumer<StepResult> next) {
         exec.system.accept(() -> {
             if (stepDefs.callContext.executionHook != null) {
                 stepDefs.callContext.executionHook.beforeStep(step, stepDefs);
             }
             Result result = Engine.execute(step, stepDefs);
-            StepResult stepResult = new StepResult(step, result);
-            // log appender collection for each step happens here
+            String stepLog;
             if (step.getDocString() == null) {
-                String log = StringUtils.trimToNull(exec.appender.collect());
-                if (log != null) {
-                    stepResult.putDocString(log);
-                }
-            }
+                // log appender collection for each step happens here
+                stepLog = StringUtils.trimToNull(exec.appender.collect());
+            } else {
+                stepLog = null;
+            }           
+            StepResult stepResult = new StepResult(step, result, stepLog);            
             if (result.isAborted()) { // we log only aborts for visibility
                 stepDefs.context.logger.debug("abort at {}", step.getDebugInfo());
             }

@@ -107,7 +107,7 @@ public class FileUtils {
         }
     }
 
-    private static String removePrefix(String text) {
+    public static String removePrefix(String text) {
         int pos = text.indexOf(':');
         return pos == -1 ? text : text.substring(pos + 1);
     }

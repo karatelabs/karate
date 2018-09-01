@@ -41,11 +41,11 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  * @author pthomas3
  */
 public class Tags {
-    
+
     private final List<String> tags;
     private final Bindings bindings;
-    
-    public static Collection<Tag> merge(List<Tag> ... lists) {
+
+    public static Collection<Tag> merge(List<Tag>... lists) {
         Set<Tag> tags = new HashSet();
         for (List<Tag> list : lists) {
             if (list != null) {
@@ -53,8 +53,8 @@ public class Tags {
             }
         }
         return tags;
-    }    
-    
+    }
+
     public static boolean evaluate(String tagSelector, Collection<Tag> tags) {
         if (tagSelector == null) {
             return true;
@@ -62,12 +62,12 @@ public class Tags {
         Tags bridge = new Tags(tags);
         return bridge.evaluate(tagSelector);
     }
-    
+
     private boolean evaluate(String tagSelector) {
         ScriptValue sv = ScriptBindings.eval(tagSelector, bindings);
         return sv.isBooleanTrue();
     }
-    
+
     private Tags(Collection<Tag> in) {
         if (in == null) {
             tags = Collections.EMPTY_LIST;
@@ -79,14 +79,14 @@ public class Tags {
         }
         bindings = ScriptBindings.createBindings();
         bindings.put("bridge", this);
-        ScriptValue anyOfFun = ScriptBindings.eval("function(){ return bridge.anyOf(arguments) }", bindings);        
+        ScriptValue anyOfFun = ScriptBindings.eval("function(){ return bridge.anyOf(arguments) }", bindings);
         ScriptValue allOfFun = ScriptBindings.eval("function(){ return bridge.allOf(arguments) }", bindings);
         ScriptValue notFun = ScriptBindings.eval("function(){ return bridge.not(arguments) }", bindings);
         bindings.put("anyOf", anyOfFun.getValue());
         bindings.put("allOf", allOfFun.getValue());
         bindings.put("not", notFun.getValue());
     }
-    
+
     public boolean anyOf(ScriptObjectMirror som) {
         for (Object s : som.values()) {
             if (tags.contains(s.toString())) {
@@ -95,15 +95,15 @@ public class Tags {
         }
         return false;
     }
-    
+
     public boolean allOf(ScriptObjectMirror som) {
         return tags.containsAll(som.values());
     }
-    
+
     public boolean not(ScriptObjectMirror som) {
         return !anyOf(som);
-    }    
-    
+    }
+
     public static List<String> toListOfStrings(Collection<Tag> tags) {
         List<String> values = new ArrayList(tags.size());
         for (Tag tag : tags) {
@@ -111,13 +111,24 @@ public class Tags {
         }
         return values;
     }
-    
+
     public static Map<String, List<String>> toMapOfNameValues(Collection<Tag> tags) {
         Map<String, List<String>> map = new HashMap(tags.size());
         for (Tag tag : tags) {
             map.put(tag.getName(), tag.getValues());
         }
         return map;
-    }    
-    
+    }
+
+    public static List<Map> toResultList(List<Tag> tags) {
+        List<Map> list = new ArrayList(tags.size());
+        for (Tag tag : tags) {
+            Map<String, Object> tagMap = new HashMap(2);
+            tagMap.put("line", tag.getLine());
+            tagMap.put("name", '@' + tag.getName());
+            list.add(tagMap);
+        }
+        return list;
+    }
+
 }

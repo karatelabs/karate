@@ -136,7 +136,7 @@ public class CucumberRunner {
                 stats.addToFailCount(result.getFailedCount());
                 stats.addToTimeTaken(result.getDuration());
                 if (result.isFailed()) {                    
-                    stats.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
+                    stats.addToFailedList(result.getFeature().getPackageQualifiedName(), result.getErrorMessages());
                 }
             }
         } catch (Exception e) {
@@ -177,7 +177,7 @@ public class CucumberRunner {
         ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, feature.getFile());
         ExecutionContext ec = new ExecutionContext(feature, env, callContext, system);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);
-        exec.submit(r -> next.run());
+        exec.submit(next);
     }  
 
 }

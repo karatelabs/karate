@@ -26,12 +26,13 @@ package com.intuit.karate.core;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public abstract class ResultElement extends HashMap<String, Object> {
+public abstract class ResultElement {
 
     private final String name;
     private final List<StepResult> steps = new ArrayList();
@@ -40,10 +41,19 @@ public abstract class ResultElement extends HashMap<String, Object> {
     private Throwable error;
     private long duration;
     
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put("name", name);
+        List<Map> list = new ArrayList(steps.size());
+        map.put("steps", list);
+        for (StepResult sr : steps) {
+            list.add(sr.toMap());
+        }
+        return map;
+    }
+    
     public ResultElement(String name) {
         this.name = name;
-        put("name", name);
-        put("steps", steps);
     }
     
     public void addStepResult(StepResult stepResult) {

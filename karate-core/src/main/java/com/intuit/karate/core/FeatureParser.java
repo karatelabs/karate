@@ -249,7 +249,9 @@ public class FeatureParser extends KarateParserBaseListener {
         feature.setBackground(background);
         background.setLine(getActualLine(ctx.BACKGROUND()));
         List<Step> steps = toSteps(null, ctx.step());
-        background.setSteps(steps);
+        if (!steps.isEmpty()) {
+            background.setSteps(steps);
+        }
         if (logger.isTraceEnabled()) {
             logger.trace("background steps: {}", steps);
         }

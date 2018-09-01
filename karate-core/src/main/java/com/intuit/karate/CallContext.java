@@ -26,7 +26,6 @@ package com.intuit.karate;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import com.intuit.karate.core.ExecutionHook;
 
 /**

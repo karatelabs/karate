@@ -31,6 +31,7 @@ import java.util.List;
  */
 public class Background {
 
+    public static final String TYPE = "background";
     public static final String KEYWORD = "Background";
 
     private int line;

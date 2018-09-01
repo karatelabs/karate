@@ -24,12 +24,13 @@
 package com.intuit.karate.core;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public class Result extends HashMap<String, Object> {
+public class Result {
 
     private static final String PASSED = "passed";
     private static final String FAILED = "failed";
@@ -39,17 +40,22 @@ public class Result extends HashMap<String, Object> {
     private final long duration;
     private final boolean aborted;    
     private final Throwable error;
+    
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap(error == null ? 2 : 3);
+        map.put("status", status);
+        map.put("duration", duration);
+        if (error != null) {
+            map.put("error_message", error.getClass().getName() + ": " + error.getMessage());
+        }
+        return map;
+    }
 
     private Result(String status, long duration, Throwable error, boolean aborted) {
         this.status = status;
         this.duration = duration;
         this.error = error;
         this.aborted = aborted;
-        put("status", status);
-        put("duration", duration);
-        if (error != null) {
-            put("error_message", error.getClass().getName() + ": " + error.getMessage());
-        }
     }    
 
     public boolean isFailed() {

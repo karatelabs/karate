@@ -33,6 +33,7 @@ import java.util.List;
  */
 public class Scenario {
 
+    public static final String TYPE = "scenario";
     public static final String KEYWORD = "Scenario";
 
     private final Feature feature;
@@ -53,7 +54,7 @@ public class Scenario {
     }
 
     public List<Step> getStepsIncludingBackground() { 
-        List<Step> background = feature.getBackground() == null ? null : feature.getBackground().getSteps();
+        List<Step> background = feature.isBackgroundPresent() ? feature.getBackground().getSteps() : null;
         int count = background == null ? steps.size() : steps.size() + background.size();
         List<Step> temp = new ArrayList(count);
         if (background != null) {
@@ -61,6 +62,10 @@ public class Scenario {
         }
         temp.addAll(steps);
         return temp;
+    }
+    
+    public String getKeyword() {
+        return outline ? ScenarioOutline.KEYWORD : KEYWORD;
     }
 
     public FeatureSection getSection() {

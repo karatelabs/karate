@@ -37,12 +37,11 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class FeatureResult extends HashMap<String, Object> {
+public class FeatureResult {
 
-    private final String name;
-    private final List<ResultElement> elements = new ArrayList();
-    private final List<TagResult> tags;
-    private final String packageQualifiedName;
+    private final Feature feature;
+    private final String displayName;
+    private final List<ScenarioResult> scenarioResults = new ArrayList();
 
     private int scenarioCount;
     private int failedCount;
@@ -50,33 +49,45 @@ public class FeatureResult extends HashMap<String, Object> {
     private long duration;
 
     private ScriptValueMap resultVars;
-
-    public FeatureResult(Feature feature) {
-        put("elements", elements);
-        put("keyword", "Feature");
-        put("line", feature.getLine());
-        String relativePath = feature.getRelativePath();
-        put("uri", relativePath);
-        put("name", relativePath); // hack for json / html report
-        packageQualifiedName = feature.getPackageQualifiedName();
-        name = feature.getName();
-        put("id", StringUtils.toIdString(feature.getName()));
+    
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap(8);
+        List<Map> list = new ArrayList(scenarioResults.size());
+        map.put("elements", list);
+        for (ScenarioResult re : scenarioResults) {
+            if (re.getScenario().getFeature().isBackgroundPresent()) {
+                list.add(re.backgroundToMap());
+            }
+            list.add(re.toMap());
+        }
+        map.put("keyword", Feature.KEYWORD);
+        map.put("line", feature.getLine());        
+        map.put("uri", displayName);        
+        map.put("name", displayName);
+        map.put("id", StringUtils.toIdString(feature.getName()));
         String temp = feature.getName() == null ? "" : feature.getName();
         if (feature.getDescription() != null) {
             temp = temp + "\n" + feature.getDescription();
-        }
-        put("description", temp.trim());
-        List<Tag> list = feature.getTags();
-        if (list != null) {
-            tags = new ArrayList(list.size());
-            put("tags", tags);
-            for (Tag tag : list) {
-                tags.add(new TagResult(tag));
-            }
-        } else {
-            tags = Collections.EMPTY_LIST;
-        }
+        }        
+        map.put("description", temp.trim());
+        if (feature.getTags() != null) {
+            map.put("tags", Tags.toResultList(feature.getTags()));
+        }   
+        return map;
     }
+
+    public FeatureResult(Feature feature) {
+        this.feature = feature;
+        displayName = FileUtils.removePrefix(feature.getRelativePath());
+    }
+
+    public Feature getFeature() {
+        return feature;
+    }        
+
+    public String getDisplayName() {
+        return displayName;
+    }        
     
     public String getErrorMessages() {
         if (errors == null) {
@@ -125,14 +136,6 @@ public class FeatureResult extends HashMap<String, Object> {
         this.resultVars = resultVars;
     }
 
-    public String getPackageQualifiedName() {
-        return packageQualifiedName;
-    }
-
-    public List<TagResult> getTags() {
-        return tags;
-    }
-
     public void addError(Throwable error) {
         failedCount++;
         if (errors == null) {
@@ -141,26 +144,17 @@ public class FeatureResult extends HashMap<String, Object> {
         errors.add(error);
     }
 
-    public void addResult(ResultElement element) {
-        elements.add(element);
-        duration += element.getDuration();
-        if (element.isFailed()) {            
-            if (element.isBackground()) {
-                scenarioCount++; // since we will never enter the scenario
-            }
-            addError(element.getError());
-        }
-        if (!element.isBackground()) {
-            scenarioCount++;
+    public void addResult(ScenarioResult result) {
+        scenarioResults.add(result);
+        duration += result.getDuration();
+        scenarioCount++;
+        if (result.isFailed()) {            
+            addError(result.getError());
         }
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public List<ResultElement> getElements() {
-        return elements;
+    public List<ScenarioResult> getScenarioResults() {
+        return scenarioResults;
     }
 
 }

@@ -28,13 +28,12 @@ import com.intuit.karate.StepDefs;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.function.Consumer;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureExecutionUnit implements ExecutionUnit<Void> {
+public class FeatureExecutionUnit {
 
     private final ExecutionContext exec;
     private final Iterator<Scenario> iterator;
@@ -44,8 +43,7 @@ public class FeatureExecutionUnit implements ExecutionUnit<Void> {
         iterator = exec.feature.getScenarios().iterator();
     }
 
-    @Override
-    public void submit(Consumer<Void> next) {
+    public void submit(Runnable next) {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
             ScriptEnv env = exec.env;
@@ -102,7 +100,7 @@ public class FeatureExecutionUnit implements ExecutionUnit<Void> {
             });
         } else {
             exec.appender.close();
-            next.accept(null);
+            next.run();
         }
     }
 

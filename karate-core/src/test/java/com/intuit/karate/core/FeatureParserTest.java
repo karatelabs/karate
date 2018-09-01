@@ -47,14 +47,11 @@ public class FeatureParserTest {
     @Test
     public void testEngineForSimpleFeature() {
         FeatureResult result = execute("test-simple.feature");
-        TagResult tag = result.getTags().get(0);
-        assertEquals("@foo", tag.getName());
-        assertEquals(1, tag.getLine());
-        assertEquals(1, result.getElements().size());
-        ScenarioResult sr = (ScenarioResult) result.getElements().get(0);
-        tag = ((List<TagResult>) sr.get("tags")).get(0);
-        assertEquals("@bar", tag.getName());
-        assertEquals(5, tag.getLine());
+        Map<String, Object> map = result.toMap();
+        Match.equals(map.get("tags"), "[{ name: '@foo', line: 1 }]");        
+        ScenarioResult sr = (ScenarioResult) result.getScenarioResults().get(0);
+        map = sr.toMap();
+        Match.equals(map.get("tags"), "[{ name: '@bar', line: 5 }]");
         Engine.saveResultJson("target", result);
         Engine.saveResultXml("target", result);
     }
@@ -62,7 +59,7 @@ public class FeatureParserTest {
     @Test
     public void testEngineForSimpleFeatureWithBackground() {
         FeatureResult result = execute("test-simple-background.feature");
-        assertEquals(2, result.getElements().size());
+        assertEquals(1, result.getScenarioResults().size());
         Engine.saveResultJson("target", result);
         Engine.saveResultXml("target", result);
     }
@@ -84,19 +81,19 @@ public class FeatureParserTest {
     @Test
     public void testFeatureWithIgnore() {
         FeatureResult result = execute("test-ignore-feature.feature");
-        assertEquals(0, result.getElements().size());
+        assertEquals(0, result.getScenarioResults().size());
     }
 
     @Test
     public void testScenarioWithIgnore() {
         FeatureResult result = execute("test-ignore-scenario.feature");
-        assertEquals(1, result.getElements().size());
+        assertEquals(1, result.getScenarioResults().size());
     }
 
     @Test
     public void testDefDocString() {
         FeatureResult result = execute("test-def-docstring.feature");
-        for (StepResult step : result.getElements().get(0).getSteps()) {
+        for (StepResult step : result.getScenarioResults().get(0).getStepResults()) {
             assertEquals("passed", step.getResult().getStatus());
         }
 
