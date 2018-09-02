@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -48,7 +49,9 @@ public class StepExecutionUnit {
             if (stepDefs.callContext.executionHook != null) {
                 stepDefs.callContext.executionHook.beforeStep(step, stepDefs);
             }
-            Result result = Engine.execute(step, stepDefs);
+            Result result = Engine.executeStep(step, stepDefs);
+            List<FeatureResult> callResults = stepDefs.context.getCallResults();
+            stepDefs.context.setCallResults(null); // clear
             String stepLog;
             if (step.getDocString() == null) {
                 // log appender collection for each step happens here
@@ -56,7 +59,7 @@ public class StepExecutionUnit {
             } else {
                 stepLog = null;
             }           
-            StepResult stepResult = new StepResult(step, result, stepLog);            
+            StepResult stepResult = new StepResult(step, result, stepLog, callResults);            
             if (result.isAborted()) { // we log only aborts for visibility
                 stepDefs.context.logger.debug("abort at {}", step.getDebugInfo());
             }

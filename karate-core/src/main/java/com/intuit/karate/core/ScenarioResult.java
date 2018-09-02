@@ -42,6 +42,15 @@ public class ScenarioResult {
     private Throwable error;
     private long duration;
     
+    public void addError(Throwable error) {
+        Step step = new Step(scenario, -1);
+        step.setLine(scenario.getLine());
+        step.setPrefix("*");
+        step.setText("scenario hook failed");
+        StepResult sr = new StepResult(step, Result.failed(0, error, scenario.getFeature().getRelativePath(), step), null, null);
+        addStepResult(sr);
+    }
+    
     public void addStepResult(StepResult stepResult) {
         stepResults.add(stepResult);
         Result result = stepResult.getResult();
@@ -91,7 +100,17 @@ public class ScenarioResult {
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
     }
-
+    
+    public String getDisplayMeta() {
+        int index = scenario.getSection().getIndex() + 1;
+        int example = scenario.getIndex();
+        String meta = "[#" + index + ", line: " + scenario.getLine();
+        if (example != -1) {
+            meta = meta + ", eg: " + (example + 1);
+        }
+        return meta + "]";
+    }
+    
     public Scenario getScenario() {
         return scenario;
     }

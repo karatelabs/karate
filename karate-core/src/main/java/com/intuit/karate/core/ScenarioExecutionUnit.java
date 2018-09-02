@@ -24,8 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StepDefs;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.function.Consumer;
 
 /**
  *
@@ -43,15 +43,25 @@ public class ScenarioExecutionUnit {
     public ScenarioExecutionUnit(Scenario scenario, StepDefs stepDefs, ExecutionContext exec) {
         this.stepDefs = stepDefs;
         this.exec = exec;
-        this.result = new ScenarioResult(scenario);
-        iterator = scenario.getStepsIncludingBackground().iterator();
+        result = new ScenarioResult(scenario);
+        // before-scenario hook
+        boolean hookFailed = false;
+        if (stepDefs.callContext.executionHook != null) {
+            try {
+                stepDefs.callContext.executionHook.beforeScenario(scenario, stepDefs);
+            } catch (Exception e) {
+                hookFailed = true;
+                result.addError(e);
+            }
+        }
+        iterator = hookFailed ? Collections.emptyIterator() : scenario.getStepsIncludingBackground().iterator();
     }
 
-    public void submit(Consumer<ScenarioResult> next) {
+    public void submit(Runnable next) {
         if (iterator.hasNext()) {
             Step step = iterator.next();
             if (stopped) {
-                result.addStepResult(new StepResult(step, Result.skipped(), null));
+                result.addStepResult(new StepResult(step, Result.skipped(), null, null));
                 ScenarioExecutionUnit.this.submit(next);
             } else {
                 exec.system.accept(() -> {
@@ -69,7 +79,11 @@ public class ScenarioExecutionUnit {
             // this has to be done at the end after they are fully populated
             // else the feature-result will not "collect" stats correctly 
             exec.result.addResult(result);
-            next.accept(result);
+            // after-scenario hook
+            if (stepDefs.callContext.executionHook != null) {
+                stepDefs.callContext.executionHook.afterScenario(result, stepDefs);
+            }
+            next.run();
         }
     }
 

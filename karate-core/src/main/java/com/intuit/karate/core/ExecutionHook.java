@@ -36,7 +36,7 @@ public interface ExecutionHook {
      * @param scenario
      * @param stepDefs 
      * @return false if the scenario should be excluded from the test-run
-     * @throws RuntimeException (any) to abort the test run
+     * @throws RuntimeException (any) to abort the scenario
      */
     boolean beforeScenario(Scenario scenario, StepDefs stepDefs);
     

@@ -80,7 +80,7 @@ public class Karate extends ParentRunner<Feature> {
     protected void runChild(Feature child, RunNotifier notifier) {
         Description description = describeChild(child);
         notifier.fireTestStarted(description);
-        FeatureResult result = Engine.execute(null, child, tagSelector, null);        
+        FeatureResult result = Engine.executeFeatureSync(null, child, tagSelector, null);        
         if (result.isFailed()) {
             notifier.fireTestFailure(new Failure(description, result.getErrors().get(0)));
         } 

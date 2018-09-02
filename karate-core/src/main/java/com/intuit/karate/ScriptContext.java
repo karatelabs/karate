@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.ExecutionHook;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
@@ -32,6 +33,7 @@ import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.validator.Validator;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -64,6 +66,24 @@ public class ScriptContext {
 
     // the actual http request last sent on the wire
     protected HttpRequest prevRequest;
+    
+    // pass call result to engine via this variable (hack)
+    private List<FeatureResult> callResults;
+
+    public List<FeatureResult> getCallResults() {
+        return callResults;
+    }
+
+    public void setCallResults(List<FeatureResult> callResults) {
+        this.callResults = callResults;
+    }
+    
+    public void addCallResult(FeatureResult callResult) {
+        if (callResults == null) {
+            callResults = new ArrayList();
+        }
+        callResults.add(callResult);
+    }
 
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());

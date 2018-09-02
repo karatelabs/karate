@@ -67,6 +67,15 @@ public class Scenario {
     public String getKeyword() {
         return outline ? ScenarioOutline.KEYWORD : KEYWORD;
     }
+    
+    private Collection<Tag> tagsEffective; // cache
+
+    public Collection<Tag> getTagsEffective() {
+        if (tagsEffective == null) {
+            tagsEffective = Tags.merge(feature.getTags(), tags);
+        }
+        return tagsEffective;
+    }    
 
     public FeatureSection getSection() {
         return section;
@@ -75,11 +84,7 @@ public class Scenario {
     public Feature getFeature() {
         return feature;
     }
-
-    public Collection<Tag> getTagsEffective() {
-        return Tags.merge(feature.getTags(), tags);
-    }
-
+   
     public int getIndex() {
         return index;
     }

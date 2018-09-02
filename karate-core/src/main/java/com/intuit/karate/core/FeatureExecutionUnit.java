@@ -74,27 +74,10 @@ public class FeatureExecutionUnit {
             StepDefs stepDefs = new StepDefs(env, exec.callContext);
             // we also hold a reference to the LAST scenario executed
             // for cases where the caller needs a result
-            exec.result.setResultVars(stepDefs.context.getVars());
-            // before-scenario hook
-            if (stepDefs.callContext.executionHook != null) {
-                try {
-                    stepDefs.callContext.executionHook.beforeScenario(scenario, stepDefs);
-                } catch (Exception e) {
-                    String message = "scenario hook threw fatal error: " + e.getMessage();
-                    stepDefs.context.logger.error(message);
-                    exec.result.addError(e);
-                    FeatureExecutionUnit.this.submit(next);
-                    return;
-                }
-            }
-            ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
+            exec.result.setResultVars(stepDefs.context.getVars());            
             exec.system.accept(() -> {
-                unit.submit(scenarioResult -> {
-                    // after-scenario hook
-                    if (stepDefs.callContext.executionHook != null) {
-                        stepDefs.callContext.executionHook.afterScenario(scenarioResult, stepDefs);
-                    }
-                    // continue even if this scenario or example row failed                            
+                ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, stepDefs, exec);
+                unit.submit(() -> {                           
                     FeatureExecutionUnit.this.submit(next);
                 });
             });

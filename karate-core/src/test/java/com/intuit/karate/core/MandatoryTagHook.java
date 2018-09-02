@@ -34,6 +34,9 @@ public class MandatoryTagHook implements ExecutionHook {
 
     @Override
     public boolean beforeScenario(Scenario scenario, StepDefs stepDefs) {
+        if (stepDefs.context.getCallDepth() > 0) {
+            return true; // only enforce tags for top-level scenarios (not called ones)
+        }
         Collection<Tag> tags = scenario.getTagsEffective();
         boolean found = false;
         for (Tag tag : tags) {

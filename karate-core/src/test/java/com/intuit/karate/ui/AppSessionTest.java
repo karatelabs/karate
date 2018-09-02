@@ -62,7 +62,7 @@ public class AppSessionTest {
     
     private static void call(Scenario scenario, AppSession session, ExecutionContext ec) {
         ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, session.getStepDefs(), ec);
-        exec.submit(r -> {});
+        exec.submit(() -> {});
     }    
     
 }

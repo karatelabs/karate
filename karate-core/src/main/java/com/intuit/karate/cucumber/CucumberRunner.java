@@ -99,7 +99,7 @@ public class CucumberRunner {
     
     public static KarateStats parallel(String tagSelector, List<FileResource> resources, ExecutionHook hook, int threadCount, String reportDir) {
         if (reportDir == null) {
-            reportDir = Engine.getBuildDir() + "/surefire-reports";
+            reportDir = Engine.getBuildDir() + File.separator + "surefire-reports";
         }
         final String finalReportDir = reportDir;
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
@@ -113,14 +113,19 @@ public class CucumberRunner {
                 FileResource resource = resources.get(i);
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource.file, resource.relativePath);
-                // filterOnTags(feature);
                 callables.add(() -> {
                     // we are now within a separate thread. the reporter filters logs by self thread
                     String threadName = Thread.currentThread().getName();
-                    FeatureResult result = Engine.execute(null, feature, tagSelector, new CallContext(true, hook));
-                    logger.info("<<<< feature {} of {} on thread {}: {}", index, count, threadName, feature.getRelativePath());
-                    Engine.saveResultJson(finalReportDir, result);
-                    Engine.saveResultXml(finalReportDir, result);
+                    FeatureResult result = Engine.executeFeatureSync(null, feature, tagSelector, new CallContext(true, hook));                                        
+                    if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
+                        File file = Engine.saveResultJson(finalReportDir, result);
+                        Engine.saveResultXml(finalReportDir, result);
+                        String status = result.isFailed() ? "fail" : "pass";
+                        logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
+                        result.printStats(feature.getRelativePath(), file.getPath());                        
+                    } else {
+                        logger.info("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
+                    }
                     return result;
                 });
             }
@@ -152,7 +157,7 @@ public class CucumberRunner {
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         CallContext callContext = new CallContext(vars, evalKarateConfig);
-        FeatureResult result = Engine.execute(null, feature, null, callContext);
+        FeatureResult result = Engine.executeFeatureSync(null, feature, null, callContext);
         return result.getResultAsPrimitiveMap();
     }
 

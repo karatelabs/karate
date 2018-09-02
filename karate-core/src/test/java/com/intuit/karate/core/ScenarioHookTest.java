@@ -39,7 +39,7 @@ public class ScenarioHookTest {
     public void testStopIfScenarioHasNoTags() {
         String path = "classpath:com/intuit/karate/core/test-hook-notags.feature";
         KarateStats stats = CucumberRunner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
-        assertEquals(0, stats.getFeatureCount());
+        assertEquals(1, stats.getFeatureCount());
         assertEquals(1, stats.getFailCount());
     }
     

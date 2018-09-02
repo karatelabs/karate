@@ -41,7 +41,7 @@ public class FeatureParserTest {
 
     private static FeatureResult execute(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        return Engine.execute("mock", feature, "not('@ignore')", null);
+        return Engine.executeFeatureSync("mock", feature, "not('@ignore')", null);
     }
 
     @Test
@@ -96,7 +96,6 @@ public class FeatureParserTest {
         for (StepResult step : result.getScenarioResults().get(0).getStepResults()) {
             assertEquals("passed", step.getResult().getStatus());
         }
-
     }
     
     @Test

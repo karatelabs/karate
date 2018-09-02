@@ -44,7 +44,7 @@ public class FeatureReuseTest {
     
     private static String resultXml(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/cucumber/" + name);
-        FeatureResult result = Engine.execute(null, feature, null, null);
+        FeatureResult result = Engine.executeFeatureSync(null, feature, null, null);
         File file = Engine.saveResultXml("target", result);
         return FileUtils.toString(file);        
     }

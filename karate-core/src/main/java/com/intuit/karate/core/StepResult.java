@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,6 +39,7 @@ public class StepResult  {
     private final Step step;
     private final Result result;
     private final String stepLog;
+    private final List<FeatureResult> callResults;
 
     static {
         DUMMY_MATCH = new HashMap(2);
@@ -70,10 +72,11 @@ public class StepResult  {
         return result.isFailed() || result.isAborted();
     }    
 
-    public StepResult(Step step, Result result, String stepLog) {
+    public StepResult(Step step, Result result, String stepLog, List<FeatureResult> callResults) {
         this.step = step;
         this.result = result;
         this.stepLog = stepLog;
+        this.callResults = callResults;
     }   
 
     public Step getStep() {
@@ -87,5 +90,9 @@ public class StepResult  {
     public String getStepLog() {
         return stepLog;
     }
+
+    public List<FeatureResult> getCallResults() {
+        return callResults;
+    }        
     
 }

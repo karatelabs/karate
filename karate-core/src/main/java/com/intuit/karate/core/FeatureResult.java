@@ -24,8 +24,10 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.exception.KarateException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,9 +48,21 @@ public class FeatureResult {
     private int scenarioCount;
     private int failedCount;
     private List<Throwable> errors;
-    private long duration;
+    private double duration;
 
     private ScriptValueMap resultVars;
+    private Map<String, Object> callArg;
+    private int loopIndex;
+    
+    public void printStats(String featurePath, String reportPath) {
+        StringBuilder sb = new StringBuilder();        
+        sb.append("---------------------------------------------------------\n");
+        sb.append("feature: ").append(featurePath).append('\n');
+        sb.append("report: ").append(reportPath).append('\n');
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.2f\n", scenarioCount, scenarioCount - failedCount, failedCount, duration));
+        sb.append("---------------------------------------------------------\n");
+        System.out.println(sb);
+    }    
     
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(8);
@@ -76,6 +90,14 @@ public class FeatureResult {
         return map;
     }
 
+    public List<StepResult> getStepResults() {
+        List<StepResult> list = new ArrayList();
+        for (ScenarioResult sr : scenarioResults) {
+            list.addAll(sr.getStepResults());
+        }
+        return list;
+    }
+    
     public FeatureResult(Feature feature) {
         this.feature = feature;
         displayName = FileUtils.removePrefix(feature.getRelativePath());
@@ -89,10 +111,22 @@ public class FeatureResult {
         return displayName;
     }        
     
-    public String getErrorMessages() {
+    public KarateException getErrorsCombined() {
         if (errors == null) {
-            return "";
+            return null;
         }
+        if (errors.size() == 1) {
+            Throwable error = errors.get(0);
+            if (error instanceof KarateException) {
+                return (KarateException) error;
+            } else {
+                return new KarateException("call failed", error);
+            }
+        }
+        return new KarateException(getErrorMessages());
+    }
+    
+    public String getErrorMessages() {
         StringBuilder sb = new StringBuilder();
         Iterator<Throwable> iterator = errors.iterator();
         while (iterator.hasNext()) {
@@ -104,8 +138,31 @@ public class FeatureResult {
         }
         return sb.toString();
     }
+    
+    public String getCallArgPretty() {
+        if (callArg == null) {
+            return null;
+        }
+        return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(callArg));
+    }
 
-    public long getDuration() {
+    public Map<String, Object> getCallArg() {
+        return callArg;
+    }
+
+    public void setCallArg(Map<String, Object> callArg) {
+        this.callArg = callArg;
+    }
+
+    public int getLoopIndex() {
+        return loopIndex;
+    }
+
+    public void setLoopIndex(int loopIndex) {
+        this.loopIndex = loopIndex;
+    }
+    
+    public double getDuration() {
         return duration;
     }        
 
@@ -136,7 +193,7 @@ public class FeatureResult {
         this.resultVars = resultVars;
     }
 
-    public void addError(Throwable error) {
+    private void addError(Throwable error) {
         failedCount++;
         if (errors == null) {
             errors = new ArrayList();
@@ -146,7 +203,7 @@ public class FeatureResult {
 
     public void addResult(ScenarioResult result) {
         scenarioResults.add(result);
-        duration += result.getDuration();
+        duration += Engine.nanosToSeconds(result.getDuration());
         scenarioCount++;
         if (result.isFailed()) {            
             addError(result.getError());

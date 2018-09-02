@@ -1687,20 +1687,16 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(Feature feature, ScriptContext context,
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        // the call is going to execute synchronously ! TODO improve       
+        // the call is always going to execute synchronously ! TODO improve       
         CallContext callContext = CallContext.forCall(context, callArg, loopIndex, reuseParentConfig);
-//        if (context.env.reporter != null) { TODO call reporting
-//            context.env.reporter.callBegin(feature, callContext);
-//        } 
-        FeatureResult result = Engine.execute(null, feature, null, callContext);
+        FeatureResult result = Engine.executeFeatureSync(null, feature, null, callContext);
+        // hack to pass call result back to caller step
+        context.addCallResult(result);
+        result.setCallArg(callArg);
+        result.setLoopIndex(loopIndex);
         if (result.isFailed()) {
-            Throwable error = result.getErrors().get(0);
-            if (error instanceof KarateException) {
-                throw (KarateException) error;
-            } else {
-                throw new KarateException("call feature failed", error);
-            }
-        }
+            throw result.getErrorsCombined();
+        }        
         return new ScriptValue(result.getResultAsPrimitiveMap());
     }
 

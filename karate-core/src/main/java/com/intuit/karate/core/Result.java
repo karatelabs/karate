@@ -38,7 +38,7 @@ public class Result {
 
     private final String status;
     private final long duration;
-    private final boolean aborted;    
+    private final boolean aborted;
     private final Throwable error;
     
     public Map<String, Object> toMap() {
@@ -57,6 +57,10 @@ public class Result {
         this.error = error;
         this.aborted = aborted;
     }    
+    
+    public boolean isSkipped() {
+        return SKIPPED.equals(status);
+    }
 
     public boolean isFailed() {
         return error != null;

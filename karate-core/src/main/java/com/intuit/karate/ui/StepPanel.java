@@ -133,7 +133,7 @@ public class StepPanel extends AnchorPane {
     private void run() {
         rebuildFeatureIfTextChanged();
         Feature feature = session.getFeature();
-        Result result = Engine.execute(step, session.getStepDefs());
+        Result result = Engine.executeStep(step, session.getStepDefs());
         pass = !result.isFailed();
         initStyleColor();
         stepVarLists = session.getVars();

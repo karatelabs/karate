@@ -57,10 +57,11 @@ import org.w3c.dom.Node;
  */
 public class Engine {
 
-    private static final List<MethodPattern> PATTERNS = new ArrayList();
+    private Engine() {
+        // only static methods
+    }
 
-    private static final Runnable NO_OP = () -> {
-    };
+    private static final List<MethodPattern> PATTERNS = new ArrayList();
 
     static {
         for (Method method : StepDefs.class.getMethods()) {
@@ -72,8 +73,12 @@ public class Engine {
         }
     }
 
-    private Engine() {
-        // only static methods
+    private static final Runnable NO_OP = () -> {
+        // no op
+    };
+
+    public static double nanosToSeconds(long nanos) {
+        return (double) nanos / 1000000000;
     }
 
     public static String getBuildDir() {
@@ -81,7 +86,7 @@ public class Engine {
         return command.contains("org.gradle.") ? "build" : "target";
     }
 
-    public static FeatureResult execute(String envString, Feature feature, String tagSelector, CallContext callContext) {
+    public static FeatureResult executeFeatureSync(String envString, Feature feature, String tagSelector, CallContext callContext) {
         File file = feature.getFile();
         ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(envString, tagSelector, file);
         if (callContext == null) {
@@ -93,7 +98,7 @@ public class Engine {
         return exec.result;
     }
 
-    public static Result execute(Step step, StepDefs stepDefs) {
+    public static Result executeStep(Step step, StepDefs stepDefs) {
         String text = step.getText();
         String featurePath = step.getScenario() == null ? "(unknown)" : step.getScenario().getFeature().getRelativePath();
         List<MethodMatch> matches = findMethodsMatching(text);
@@ -138,9 +143,12 @@ public class Engine {
     }
 
     private static String formatNanos(long nanos, DecimalFormat formatter) {
-        double seconds = (double) nanos / 1000000000;
-        return formatter.format(seconds);
+        return formatter.format(nanosToSeconds(nanos));
     }
+    
+    private static String formatSeconds(double seconds, DecimalFormat formatter) {
+        return formatter.format(seconds);
+    }    
 
     private static Throwable appendSteps(List<StepResult> steps, StringBuilder sb) {
         Throwable error = null;
@@ -215,7 +223,7 @@ public class Engine {
         root.setAttribute("failures", failureCount + "");
         root.setAttribute("time", formatNanos(totalDuration, formatter));
         String xml = XmlUtils.toString(doc, true);
-        File file = new File(targetDir + "/" + baseName + ".xml");
+        File file = new File(targetDir + File.separator + baseName + ".xml");
         FileUtils.writeToFile(file, xml);
         return file;
     }
@@ -252,13 +260,68 @@ public class Engine {
     private static Node node(Document doc, String name, String clazz) {
         return node(doc, name, clazz, null);
     }
-
-    private static void appendLog(Document doc, Node parent, String log) {
-        if (!log.isEmpty()) {
-            Node pre = node(doc, "div", "preformatted");
-            pre.setTextContent(log);
-            parent.appendChild(pre);
+    
+    private static void callHtml(Document doc, DecimalFormat formatter, FeatureResult featureResult, Node parent) {
+        String extraClass = featureResult.isFailed() ? "failed" : "passed";
+        String append = featureResult.getLoopIndex() == -1 ? "" : "[" + featureResult.getLoopIndex() + "] ";
+        Node stepRow = div(doc, "step-row",
+                div(doc, "step-cell " + extraClass, append + featureResult.getDisplayName()),
+                div(doc, "time-cell " + extraClass, formatSeconds(featureResult.getDuration(), formatter)));
+        parent.appendChild(stepRow);
+        String callArg = featureResult.getCallArgPretty();
+        if (callArg != null) {
+            parent.appendChild(node(doc, "div", "preformatted", callArg));
         }
+    }
+
+    private static void stepHtml(Document doc, DecimalFormat formatter, StepResult stepResult, Node parent) {
+        Step step = stepResult.getStep();
+        Result result = stepResult.getResult();
+        String extraClass;
+        if (result.isFailed()) {
+            extraClass = "failed";
+        } else if (result.isSkipped()) {
+            extraClass = "skipped";
+        } else {
+            extraClass = "passed";
+        }
+        Node stepRow = div(doc, "step-row",
+                div(doc, "step-cell " + extraClass, step.getPrefix() + ' ' + step.getText()),
+                div(doc, "time-cell " + extraClass, formatNanos(result.getDuration(), formatter)));
+        parent.appendChild(stepRow);
+        if (step.getTable() != null) {
+            Node table = node(doc, "table", null);
+            parent.appendChild(table);
+            for (List<String> row : step.getTable().getRows()) {
+                Node tr = node(doc, "tr", null);
+                table.appendChild(tr);
+                for (String cell : row) {
+                    tr.appendChild(node(doc, "td", null, cell));
+                }
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        if (step.getDocString() != null) {
+            sb.append(step.getDocString()).append('\n');
+        }
+        if (result.isFailed()) {
+            sb.append(result.getError().getMessage()).append('\n');
+        }
+        if (sb.length() > 0) {
+            parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
+        }
+        List<FeatureResult> callResults = stepResult.getCallResults();
+        if (callResults != null) { // this is a 'call'
+            for (FeatureResult callResult : callResults) {
+                callHtml(doc, formatter, callResult, parent);
+                Node calledStepsDiv = div(doc, "scenario-steps-nested");
+                parent.appendChild(calledStepsDiv);
+                for (StepResult sr : callResult.getStepResults()) {
+                    stepHtml(doc, formatter, sr, calledStepsDiv);
+                }
+            }
+        }
+
     }
 
     public static File saveResultHtml(String targetDir, FeatureResult result) {
@@ -273,18 +336,19 @@ public class Engine {
         String baseName = result.getFeature().getPackageQualifiedName();
         set(doc, "/html/head/title", baseName);
         set(doc, "/html/head/script", js);
-        Iterator<ScenarioResult> iterator = result.getScenarioResults().iterator();
-        while (iterator.hasNext()) {
-            ScenarioResult sr = iterator.next();
+        for (ScenarioResult sr : result.getScenarioResults()) {
             Node scenarioDiv = div(doc, "scenario");
             append(doc, "/html/body/div", scenarioDiv);
             Node scenarioHeadingDiv = div(doc, "scenario-heading",
-                    node(doc, "span", "scenario-keyword", sr.getScenario().getKeyword()),
+                    node(doc, "span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + sr.getDisplayMeta()),
                     node(doc, "span", "scenario-name", sr.getScenario().getName()));
             scenarioDiv.appendChild(scenarioHeadingDiv);
+            for (StepResult stepResult : sr.getStepResults()) {
+                stepHtml(doc, formatter, stepResult, scenarioDiv);
+            }
         }
-        File file = new File(targetDir + "/" + baseName + ".html");
-        String xml = XmlUtils.toString(doc, true);
+        File file = new File(targetDir + File.separator + baseName + ".html");
+        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, true);
         try {
             FileUtils.writeToFile(file, xml);
             System.out.println("Karate version: " + FileUtils.getKarateVersion());
