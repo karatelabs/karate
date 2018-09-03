@@ -97,17 +97,29 @@ public class Engine {
         unit.submit(NO_OP);
         return exec.result;
     }
+    
+    private static final String UNKNOWN = "-unknown-";
+    
+    public static String getFeatureName(Step step) {
+        if (step.getScenario() == null) {
+            return UNKNOWN;
+        }
+        File file = step.getScenario().getFeature().getFile();
+        if (file == null) {
+            return UNKNOWN;
+        }
+        return file.getName();
+    }
 
     public static Result executeStep(Step step, StepDefs stepDefs) {
         String text = step.getText();
-        String featurePath = step.getScenario() == null ? "(unknown)" : step.getScenario().getFeature().getRelativePath();
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
             KarateException e = new KarateException("no step-definition method match found for: " + text);
-            return Result.failed(0, e, featurePath, step);
+            return Result.failed(0, e, step);
         } else if (matches.size() > 1) {
             KarateException e = new KarateException("more than one step-definition method matched: " + text + " - " + matches);
-            return Result.failed(0, e, featurePath, step);
+            return Result.failed(0, e, step);
         }
         MethodMatch match = matches.get(0);
         Object last;
@@ -127,10 +139,10 @@ public class Engine {
             if (e.getTargetException() instanceof KarateAbortException) {
                 return Result.aborted(getElapsedTime(startTime));
             } else {
-                return Result.failed(getElapsedTime(startTime), e.getTargetException(), featurePath, step);
+                return Result.failed(getElapsedTime(startTime), e.getTargetException(), step);
             }
         } catch (Exception e) {
-            return Result.failed(getElapsedTime(startTime), e, featurePath, step);
+            return Result.failed(getElapsedTime(startTime), e, step);
         }
     }
 
@@ -301,10 +313,19 @@ public class Engine {
         }
         StringBuilder sb = new StringBuilder();
         if (step.getDocString() != null) {
-            sb.append(step.getDocString()).append('\n');
+            sb.append(step.getDocString());
+        }
+        if (stepResult.getStepLog() != null) {
+            if (sb.length() > 0) {
+                sb.append('\n');
+            }            
+            sb.append(stepResult.getStepLog());
         }
         if (result.isFailed()) {
-            sb.append(result.getError().getMessage()).append('\n');
+            if (sb.length() > 0) {
+                sb.append('\n');
+            }
+            sb.append(result.getError().getMessage());
         }
         if (sb.length() > 0) {
             parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
@@ -339,7 +360,7 @@ public class Engine {
             Node scenarioDiv = div(doc, "scenario");
             append(doc, "/html/body/div", scenarioDiv);
             Node scenarioHeadingDiv = div(doc, "scenario-heading",
-                    node(doc, "span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + sr.getDisplayMeta()),
+                    node(doc, "span", "scenario-keyword", sr.getScenario().getKeyword() + ": " + sr.getScenario().getDisplayMeta()),
                     node(doc, "span", "scenario-name", sr.getScenario().getName()));
             scenarioDiv.appendChild(scenarioHeadingDiv);
             for (StepResult stepResult : sr.getStepResults()) {
@@ -347,7 +368,7 @@ public class Engine {
             }
         }
         File file = new File(targetDir + File.separator + baseName + ".html");
-        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, true);
+        String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
             FileUtils.writeToFile(file, xml);
             System.out.println("Karate version: " + FileUtils.getKarateVersion());

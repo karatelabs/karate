@@ -40,6 +40,7 @@ public class Result {
     private final long duration;
     private final boolean aborted;
     private final Throwable error;
+    private final boolean skipped;
     
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(error == null ? 2 : 3);
@@ -56,10 +57,11 @@ public class Result {
         this.duration = duration;
         this.error = error;
         this.aborted = aborted;
+        skipped = SKIPPED.equals(status);
     }    
     
     public boolean isSkipped() {
-        return SKIPPED.equals(status);
+        return skipped;
     }
 
     public boolean isFailed() {
@@ -78,9 +80,10 @@ public class Result {
         return new Result(PASSED, duration, null, false);
     }
 
-    public static Result failed(long duration, Throwable error, String featurePath, Step step) {
+    public static Result failed(long duration, Throwable error, Step step) {
+        String featureName = Engine.getFeatureName(step);
         StackTraceElement[] newTrace = new StackTraceElement[]{
-            new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText(), featurePath, step.getLine())
+            new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', featureName, step.getLine())
         };
         error.setStackTrace(newTrace);
         return new Result(FAILED, duration, error, false);
