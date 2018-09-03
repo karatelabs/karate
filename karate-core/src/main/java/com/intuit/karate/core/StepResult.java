@@ -47,11 +47,11 @@ public class StepResult  {
         DUMMY_MATCH.put("arguments", Collections.EMPTY_LIST);
     }
 
-    private static Map<String, Object> docStringToMap(int line, String stepLog) {
+    private static Map<String, Object> docStringToMap(int line, String text) {
         Map<String, Object> map = new HashMap(3);
         map.put("content_type", "");
         map.put("line", line);
-        map.put("value", stepLog);
+        map.put("value", text);
         return map;
     }
     
@@ -62,8 +62,18 @@ public class StepResult  {
         map.put("name", step.getText());
         map.put("result", result.toMap());
         map.put("match", DUMMY_MATCH);
+        StringBuilder sb = new StringBuilder();
+        if (step.getDocString() != null) {
+            sb.append(step.getDocString());
+        }
         if (stepLog != null) {
-            map.put("doc_string", docStringToMap(step.getLine(), stepLog));
+            if (sb.length() > 0) {
+                sb.append('\n');
+            }
+            sb.append(stepLog);
+        }
+        if (sb.length() > 0) {
+            map.put("doc_string", docStringToMap(step.getLine(), sb.toString()));
         }
         return map;
     }

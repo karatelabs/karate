@@ -37,11 +37,11 @@ public class ScenarioResult {
 
     private final List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
-    
+
     private boolean failed;
     private Throwable error;
     private long duration;
-    
+
     public void addError(Throwable error) {
         Step step = new Step(scenario, -1);
         step.setLine(scenario.getLine());
@@ -50,7 +50,7 @@ public class ScenarioResult {
         StepResult sr = new StepResult(step, Result.failed(0, error, scenario.getFeature().getRelativePath(), step), null, null);
         addStepResult(sr);
     }
-    
+
     public void addStepResult(StepResult stepResult) {
         stepResults.add(stepResult);
         Result result = stepResult.getResult();
@@ -59,18 +59,40 @@ public class ScenarioResult {
             failed = true;
             error = result.getError();
         }
-    }    
-    
+    }
+
+    private static void recurse(List<Map> list, StepResult stepResult, int depth) {        
+        if (stepResult.getCallResults() != null) {            
+            for (FeatureResult fr : stepResult.getCallResults()) {
+                Step call = new Step(stepResult.getStep().getScenario(), -1);
+                call.setLine(stepResult.getStep().getLine());
+                call.setPrefix(StringUtils.repeat('>', depth));
+                call.setText(fr.getCallName());
+                call.setDocString(fr.getCallArgPretty());                     
+                StepResult callResult = new StepResult(call, Result.passed(0), null, null);
+                list.add(callResult.toMap());
+                for (StepResult sr : fr.getStepResults()) { // flattened
+                    Map<String, Object> map = sr.toMap();
+                    String temp = (String) map.get("keyword");
+                    map.put("keyword", StringUtils.repeat('>', depth + 1) + ' ' + temp);
+                    list.add(map);
+                    recurse(list, sr, depth + 1);
+                }
+            }
+        }
+    }
+
     private List<Map> getStepResults(boolean background) {
         List<Map> list = new ArrayList(stepResults.size());
-        for (StepResult sr : stepResults) {
-            if (background == sr.getStep().isBackground()) {
-                list.add(sr.toMap());
-            }            
+        for (StepResult stepResult : stepResults) {
+            if (background == stepResult.getStep().isBackground()) {
+                list.add(stepResult.toMap());
+                recurse(list, stepResult, 0);
+            }
         }
         return list;
     }
-    
+
     public Map<String, Object> backgroundToMap() {
         Map<String, Object> map = new HashMap();
         map.put("name", "");
@@ -79,7 +101,7 @@ public class ScenarioResult {
         map.put("description", "");
         map.put("type", Background.TYPE);
         map.put("keyword", Background.KEYWORD);
-        return map;        
+        return map;
     }
 
     public Map<String, Object> toMap() {
@@ -100,7 +122,7 @@ public class ScenarioResult {
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
     }
-    
+
     public String getDisplayMeta() {
         int index = scenario.getSection().getIndex() + 1;
         int example = scenario.getIndex();
@@ -110,18 +132,18 @@ public class ScenarioResult {
         }
         return meta + "]";
     }
-    
+
     public Scenario getScenario() {
         return scenario;
     }
 
     public List<StepResult> getStepResults() {
         return stepResults;
-    }  
-    
+    }
+
     public boolean isFailed() {
         return failed;
-    } 
+    }
 
     public Throwable getError() {
         return error;
@@ -129,6 +151,6 @@ public class ScenarioResult {
 
     public long getDuration() {
         return duration;
-    } 
+    }
 
 }

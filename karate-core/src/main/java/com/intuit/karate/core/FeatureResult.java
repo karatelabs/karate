@@ -90,6 +90,7 @@ public class FeatureResult {
         return map;
     }
 
+    // this "flattens" all steps from all scenarios
     public List<StepResult> getStepResults() {
         List<StepResult> list = new ArrayList();
         for (ScenarioResult sr : scenarioResults) {
@@ -137,6 +138,11 @@ public class FeatureResult {
             }
         }
         return sb.toString();
+    }
+    
+    public String getCallName() {
+        String append = loopIndex == -1 ? "" : "[" + loopIndex + "] ";
+        return append + displayName;
     }
     
     public String getCallArgPretty() {

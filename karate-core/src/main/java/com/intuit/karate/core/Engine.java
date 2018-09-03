@@ -263,9 +263,8 @@ public class Engine {
     
     private static void callHtml(Document doc, DecimalFormat formatter, FeatureResult featureResult, Node parent) {
         String extraClass = featureResult.isFailed() ? "failed" : "passed";
-        String append = featureResult.getLoopIndex() == -1 ? "" : "[" + featureResult.getLoopIndex() + "] ";
         Node stepRow = div(doc, "step-row",
-                div(doc, "step-cell " + extraClass, append + featureResult.getDisplayName()),
+                div(doc, "step-cell " + extraClass, featureResult.getCallName()),
                 div(doc, "time-cell " + extraClass, formatSeconds(featureResult.getDuration(), formatter)));
         parent.appendChild(stepRow);
         String callArg = featureResult.getCallArgPretty();
@@ -316,7 +315,7 @@ public class Engine {
                 callHtml(doc, formatter, callResult, parent);
                 Node calledStepsDiv = div(doc, "scenario-steps-nested");
                 parent.appendChild(calledStepsDiv);
-                for (StepResult sr : callResult.getStepResults()) {
+                for (StepResult sr : callResult.getStepResults()) { // flattens all steps in called feature
                     stepHtml(doc, formatter, sr, calledStepsDiv);
                 }
             }
