@@ -82,7 +82,7 @@ public class FileUtils {
         return text.endsWith(".feature");
     }
 
-    public static ScriptValue readFile(String text, ScriptContext context) {
+    public static ScriptValue readFile(String text, ScenarioContext context) {
         StringUtils.Pair pair = parsePathAndTags(text);
         text = pair.left;
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
@@ -131,7 +131,7 @@ public class FileUtils {
         return feature;
     }
 
-    private static FileResource resolvePath(String path, ScriptContext context) {
+    private static FileResource resolvePath(String path, ScenarioContext context) {
         if (isClassPath(path) || isFilePath(path)) {
             return new FileResource(fromRelativeClassPath(path), path);
         } else {
@@ -144,7 +144,7 @@ public class FileUtils {
         }
     }
 
-    private static String readFileAsString(String path, ScriptContext context) {
+    private static String readFileAsString(String path, ScenarioContext context) {
         try {
             InputStream is = getFileStream(path, context);
             return toString(is);
@@ -154,7 +154,7 @@ public class FileUtils {
         }
     }
 
-    public static InputStream getFileStream(String path, ScriptContext context) {
+    public static InputStream getFileStream(String path, ScenarioContext context) {
         FileResource fr = resolvePath(path, context);
         return getStream(fr.file);
     }

@@ -1,5 +1,6 @@
 package com.intuit.karate.ui;
 
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepDefs;
@@ -19,11 +20,11 @@ public class VarLists {
     private final ObservableList<Var> requestVarList;
     private final ObservableList<Var> responseVarList;
 
-    public VarLists(StepDefs stepDefs) {
-        if (stepDefs == null) {
+    public VarLists(ScenarioContext context) {
+        if (context == null) {
             varList = requestVarList = responseVarList = FXCollections.emptyObservableList();
         } else {
-            ScriptValueMap map = stepDefs.context.getVars();
+            ScriptValueMap map = context.getVars();
             Var var;
             List<Var> vars = new ArrayList();
             List<Var> requestVars = new ArrayList();

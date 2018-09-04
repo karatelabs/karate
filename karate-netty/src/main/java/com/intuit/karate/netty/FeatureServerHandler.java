@@ -25,7 +25,7 @@ package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
@@ -142,7 +142,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
         synchronized (backend) { // BEGIN TRANSACTION !
             ScriptValueMap result = backend.handle(match.vars());
-            ScriptContext context = backend.getContext();
+            ScenarioContext context = backend.getContext();
             ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
             responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
             responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);

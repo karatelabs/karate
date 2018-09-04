@@ -14,6 +14,9 @@ function(x) {
       karate.log('condition satisfied, exiting');
       return;
     }
+    if (10 < greeting.id) { // infinite wait protection >
+      throw 'waited for too long, reached: ' + greeting.id
+    } 
     karate.log('sleeping');
     // uncomment / modify the sleep time as per your wish
     // java.lang.Thread.sleep(1000);

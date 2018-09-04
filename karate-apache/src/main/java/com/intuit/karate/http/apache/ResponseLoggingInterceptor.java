@@ -24,7 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import java.io.IOException;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
@@ -38,10 +38,10 @@ import org.apache.http.protocol.HttpContext;
  */
 public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
 
-    private final ScriptContext context;
+    private final ScenarioContext context;
     private final RequestLoggingInterceptor requestInterceptor;
 
-    public ResponseLoggingInterceptor(RequestLoggingInterceptor requestInterceptor, ScriptContext context) {
+    public ResponseLoggingInterceptor(RequestLoggingInterceptor requestInterceptor, ScenarioContext context) {
         this.requestInterceptor = requestInterceptor;
         this.context = context;
     }

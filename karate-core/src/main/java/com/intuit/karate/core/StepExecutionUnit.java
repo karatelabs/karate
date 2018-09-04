@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepDefs;
+import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.util.List;
 import java.util.function.Consumer;
@@ -35,36 +35,31 @@ import java.util.function.Consumer;
 public class StepExecutionUnit {
 
     private final Step step;
-    private final StepDefs stepDefs;
+    private final StepActions actions;
     private final ExecutionContext exec;
 
-    public StepExecutionUnit(Step step, StepDefs stepDefs, ExecutionContext exec) {
+    public StepExecutionUnit(Step step, StepActions actions, ExecutionContext exec) {
         this.step = step;
-        this.stepDefs = stepDefs;
+        this.actions = actions;
         this.exec = exec;
     }
 
     public void submit(Consumer<StepResult> next) {
         exec.system.accept(() -> {
-            if (stepDefs.callContext.executionHook != null) {
-                stepDefs.callContext.executionHook.beforeStep(step, stepDefs);
+            if (actions.callContext.executionHook != null) {
+                actions.callContext.executionHook.beforeStep(step, actions.context);
             }
-            Result result = Engine.executeStep(step, stepDefs);
-            List<FeatureResult> callResults = stepDefs.context.getCallResults();
-            stepDefs.context.setCallResults(null); // clear
-            String stepLog;
-            if (step.getDocString() == null) {
-                // log appender collection for each step happens here
-                stepLog = StringUtils.trimToNull(exec.appender.collect());
-            } else {
-                stepLog = null;
-            }           
+            Result result = Engine.executeStep(step, actions);
+            List<FeatureResult> callResults = actions.context.getCallResults();
+            actions.context.setCallResults(null); // clear
+            // log appender collection for each step happens here
+            String stepLog = StringUtils.trimToNull(exec.appender.collect());           
             StepResult stepResult = new StepResult(step, result, stepLog, callResults);            
             if (result.isAborted()) { // we log only aborts for visibility
-                stepDefs.context.logger.debug("abort at {}", step.getDebugInfo());
+                actions.context.logger.debug("abort at {}", step.getDebugInfo());
             }
-            if (stepDefs.callContext.executionHook != null) {
-                stepDefs.callContext.executionHook.afterStep(stepResult, stepDefs);
+            if (actions.callContext.executionHook != null) {
+                actions.callContext.executionHook.afterStep(stepResult, actions.context);
             }            
             next.accept(stepResult);
         });

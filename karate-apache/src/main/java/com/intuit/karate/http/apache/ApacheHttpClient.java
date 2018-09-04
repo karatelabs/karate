@@ -24,7 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
 
 import static com.intuit.karate.http.Cookie.*;
@@ -105,7 +105,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    public void configure(HttpConfig config, ScriptContext context) {
+    public void configure(HttpConfig config, ScenarioContext context) {
         clientBuilder = HttpClientBuilder.create();
         charset = config.getCharset();
         if (!config.isFollowRedirects()) {
@@ -276,7 +276,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpResponse makeHttpRequest(HttpEntity entity, ScriptContext context) {
+    protected HttpResponse makeHttpRequest(HttpEntity entity, ScenarioContext context) {
         if (entity != null) {
             requestBuilder.setEntity(entity);
             requestBuilder.setHeader(entity.getContentType());

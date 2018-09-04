@@ -24,13 +24,13 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.StepActions;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptEnv;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
-import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateException;
 import java.util.Map;
@@ -42,14 +42,14 @@ import java.util.Map;
 public class FeatureBackend {
 
     private final Feature feature;
-    private final StepDefs stepDefs;
+    private final StepActions actions;
     private final boolean ssl;
     private final boolean corsEnabled;
     
-    private final ScriptContext context;
+    private final ScenarioContext context;
     private final String featureName;
 
-    private static void putBinding(String name, ScriptContext context) {
+    private static void putBinding(String name, ScenarioContext context) {
         String function = "function(s){ return " + ScriptBindings.KARATE + "." + name + "(s) }";
         context.getVars().put(name, Script.evalJsExpression(function, context));
     }
@@ -62,7 +62,7 @@ public class FeatureBackend {
         return ssl;
     }
 
-    public ScriptContext getContext() {
+    public ScenarioContext getContext() {
         return context;
     }
 
@@ -80,8 +80,8 @@ public class FeatureBackend {
         this.ssl = ssl;
         CallContext callContext = new CallContext(null, false);
         ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, feature.getFile());
-        stepDefs = new StepDefs(env, callContext);
-        context = stepDefs.context;
+        actions = new StepActions(env, callContext);
+        context = actions.context;
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);
         putBinding(ScriptBindings.PARAM_VALUE, context);
@@ -95,11 +95,11 @@ public class FeatureBackend {
         // the background is evaluated one-time
         if (feature.isBackgroundPresent()) {
             for (Step step : feature.getBackground().getSteps()) {
-                Result result = Engine.executeStep(step, stepDefs);
+                Result result = Engine.executeStep(step, actions);
                 if (result.isFailed()) {
 
                     String message = "server-side background init failed - " + featureName + ":" + step.getLine();
-                    stepDefs.context.logger.error(message);
+                    actions.context.logger.error(message);
                     throw new KarateException(message, result.getError());
                 }
             }
@@ -111,25 +111,25 @@ public class FeatureBackend {
 
     public ScriptValueMap handle(ScriptValueMap args) {
         boolean matched = false;
-        ScriptValueMap vars = stepDefs.context.getVars();
+        ScriptValueMap vars = actions.context.getVars();
         vars.putAll(args);
         for (FeatureSection fs : feature.getSections()) {            
             if (fs.isOutline()) {
-                stepDefs.context.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
+                actions.context.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
                 break;
             }
             Scenario scenario = fs.getScenario();
             if (isMatchingScenario(scenario)) {
                 matched = true;
                 for (Step step : scenario.getSteps()) {
-                    Result result = Engine.executeStep(step, stepDefs);
+                    Result result = Engine.executeStep(step, actions);
                     if (result.isAborted()) {
-                        stepDefs.context.logger.debug("abort at {}:{}", featureName, step.getLine());
+                        actions.context.logger.debug("abort at {}:{}", featureName, step.getLine());
                         break;
                     }
                     if (result.isFailed()) {
                         String message = "server-side scenario failed - " + featureName + ":" + step.getLine();
-                        stepDefs.context.logger.error(message);
+                        actions.context.logger.error(message);
                         throw new KarateException(message, result.getError());
                     }
                 }

@@ -24,7 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.http.HttpRequest;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,12 +40,12 @@ import org.apache.http.protocol.HttpContext;
  */
 public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
-    private final ScriptContext context;
+    private final ScenarioContext context;
     private final AtomicInteger counter = new AtomicInteger();
 
     private long startTime;
 
-    public RequestLoggingInterceptor(ScriptContext context) {
+    public RequestLoggingInterceptor(ScenarioContext context) {
         this.context = context;
     }
 

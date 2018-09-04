@@ -23,17 +23,16 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Action;
 import com.intuit.karate.CallContext;
+import com.intuit.karate.StepActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptEnv;
-import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateException;
-import cucumber.api.DataTable;
-import cucumber.api.java.en.When;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -50,6 +49,7 @@ import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
+import com.intuit.karate.Actions;
 
 /**
  *
@@ -64,10 +64,10 @@ public class Engine {
     private static final List<MethodPattern> PATTERNS = new ArrayList();
 
     static {
-        for (Method method : StepDefs.class.getMethods()) {
-            When when = method.getDeclaredAnnotation(When.class);
-            if (when != null) {
-                MethodPattern pattern = new MethodPattern(method, when);
+        for (Method method : Actions.class.getMethods()) {
+            Action action = method.getDeclaredAnnotation(Action.class);
+            if (action != null) {
+                MethodPattern pattern = new MethodPattern(method, action);
                 PATTERNS.add(pattern);
             }
         }
@@ -111,7 +111,7 @@ public class Engine {
         return file.getName();
     }
 
-    public static Result executeStep(Step step, StepDefs stepDefs) {
+    public static Result executeStep(Step step, StepActions actions) {
         String text = step.getText();
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
@@ -126,14 +126,14 @@ public class Engine {
         if (step.getDocString() != null) {
             last = step.getDocString();
         } else if (step.getTable() != null) {
-            last = DataTable.create(step.getTable().getRows());
+            last = step.getTable().getRowsAsMaps();
         } else {
             last = null;
         }
         Object[] args = match.convertArgs(last);
         long startTime = System.nanoTime();
         try {
-            match.method.invoke(stepDefs, args);
+            match.method.invoke(actions, args);
             return Result.passed(getElapsedTime(startTime));
         } catch (InvocationTargetException e) { // target will be KarateException
             if (e.getTargetException() instanceof KarateAbortException) {
@@ -148,7 +148,7 @@ public class Engine {
 
     public static File saveResultJson(String targetDir, FeatureResult result) {
         List<Map> single = Collections.singletonList(result.toMap());
-        String json = JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(single));
+        String json = JsonUtils.toJson(single);
         File file = new File(targetDir + File.separator + result.getFeature().getPackageQualifiedName() + ".json");
         FileUtils.writeToFile(file, json);
         return file;

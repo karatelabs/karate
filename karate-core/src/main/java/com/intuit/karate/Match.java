@@ -35,7 +35,7 @@ import net.minidev.json.JSONObject;
  */
 public class Match {
     
-    private final ScriptContext context;
+    private final ScenarioContext context;
     private ScriptValue prevValue = ScriptValue.NULL;
     
     public static Match init() {
@@ -66,7 +66,7 @@ public class Match {
         ScriptEnv env = ScriptEnv.forEnvAndCurrentWorkingDir(null);
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, 
                 DummyHttpClient.class.getName(), null, false);
-        context = new ScriptContext(env, callContext);
+        context = new ScenarioContext(env, callContext);
     }
     
     private void handleFailure(AssertionResult ar) {
@@ -77,7 +77,7 @@ public class Match {
     }    
     
     public Match defText(String name, String exp) {
-        prevValue = Script.assignText(name, exp, context, false);
+        prevValue = Script.assign(AssignType.TEXT, name, exp, context, false);
         return this;
     }
     
@@ -94,7 +94,7 @@ public class Match {
     }   
     
     public Match def(String name, String exp) {
-        prevValue = Script.assign(name, exp, context, false);
+        prevValue = Script.assign(AssignType.AUTO, name, exp, context, false);
         return this;
     }
     

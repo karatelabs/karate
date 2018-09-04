@@ -24,7 +24,7 @@
 package com.intuit.karate.http.jersey;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.LoggingFilterOutputStream;
@@ -48,9 +48,9 @@ import javax.ws.rs.core.MultivaluedMap;
  */
 public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFilter {
 
-    private final ScriptContext context;
+    private final ScenarioContext context;
 
-    public LoggingInterceptor(ScriptContext context) {
+    public LoggingInterceptor(ScenarioContext context) {
         this.context = context;
     }
 

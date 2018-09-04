@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,36 +35,37 @@ import java.util.Set;
  * @author pthomas3
  */
 public class Table {
-    
+
     private final List<List<String>> rows;
-    private final Map<String,Integer> keyColumns;  
+    private final Map<String, Integer> keyColumns;
     private final List<Integer> lineNumbers;
-    
-    public Set<String> getKeys() {
-        return keyColumns.keySet();
+
+    public List<String> getKeys() {
+        return rows.get(0);
     }
-    
+
     public int getLineNumberForRow(int i) {
         return lineNumbers.get(i);
     }
-    
-    public Table replace(String token, String value) {        
+
+    public Table replace(String token, String value) {
         int rowCount = rows.size();
-        int colCount = getKeys().size();
+        List<String> keys = rows.get(0);
+        int colCount = keys.size();
         List<List<String>> list = new ArrayList(rowCount);
-        list.add(new ArrayList(getKeys())); // header row
+        list.add(keys); // header row
         for (int i = 1; i < rowCount; i++) { // don't include header row    
             List<String> row = rows.get(i);
             List<String> replaced = new ArrayList(colCount);
             list.add(replaced);
-            for (int j = 0; j < colCount; j++) {                
+            for (int j = 0; j < colCount; j++) {
                 String text = row.get(j).replace(token, value);
                 replaced.add(text);
             }
         }
         return new Table(list, lineNumbers);
     }
-    
+
     public String getValue(String key, int row) {
         Integer col = keyColumns.get(key);
         if (col == null) {
@@ -71,26 +73,40 @@ public class Table {
         }
         return rows.get(row).get(col);
     }
-    
+
     public Table(List<List<String>> rows, List<Integer> lineNumbers) {
         this.rows = rows;
         this.lineNumbers = lineNumbers;
-        List<String> heads = rows.get(0);
-        int columnCount = heads.size();
-        keyColumns = new LinkedHashMap(columnCount);
-        for (int i = 0; i < columnCount; i++) {
-            String text = heads.get(i);
-            keyColumns.put(text, i);
+        List<String> keys = rows.get(0);
+        int colCount = keys.size();
+        keyColumns = new LinkedHashMap(colCount);
+        for (int i = 0; i < colCount; i++) {
+            keyColumns.put(keys.get(i), i);
         }
     }
 
     public List<List<String>> getRows() {
         return rows;
     }
-    
+
+    public List<Map<String, String>> getRowsAsMaps() {
+        List<String> keys = rows.get(0);
+        int colCount = keys.size();
+        int rowCount = rows.size();
+        List<Map<String, String>> list = new ArrayList(rowCount - 1);
+        for (int i = 1; i < rowCount; i++) { // don't include header row    
+            Map<String, String> map = new LinkedHashMap(colCount);
+            list.add(map);
+            for (int j = 0; j < colCount; j++) {
+                map.put(keys.get(j), rows.get(i).get(j));
+            }
+        }
+        return list;
+    }
+
     @Override
     public String toString() {
         return rows.toString();
-    }        
-    
+    }
+
 }

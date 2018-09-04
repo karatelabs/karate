@@ -23,27 +23,17 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.http.Cookie;
-import com.intuit.karate.http.HttpRequestBuilder;
-import com.intuit.karate.http.HttpResponse;
-import com.intuit.karate.http.HttpUtils;
-import com.intuit.karate.http.MultiPartItem;
-import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.JsonPath;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StepDefs {
+public class StepDefs implements Actions {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
 
@@ -72,533 +62,310 @@ public class StepDefs {
         return ideScriptEnv;
     }
 
+    private final Actions actions;
+
     public StepDefs(ScriptEnv scriptEnv, CallContext callContext) {
-        this.callContext = callContext;
-        context = new ScriptContext(scriptEnv, callContext);        
-        request = new HttpRequestBuilder();
+        actions = new StepActions(scriptEnv, callContext);
     }
 
-    public final ScriptContext context;
-    public final CallContext callContext;
-    
-    private HttpRequestBuilder request;
-    private HttpResponse response;
-
-
-    public HttpRequestBuilder getRequest() {
-        return request;
-    }        
-
-    @When("^configure ([^\\s]+) =$")
-    public void configureDocString(String key, String exp) {
-        configure(key, exp);
+    @When(CONFIGURE_DOCSTRING)
+    @Override
+    public void configureDocstring(String key, String exp) {
+        actions.configure(key, exp);
     }
 
-    @When("^configure ([^\\s]+) = (.+)")
+    @When(CONFIGURE)
+    @Override
     public void configure(String key, String exp) {
-        context.configure(key, exp);
+        actions.configure(key, exp);
     }
 
-    @When("^url (.+)")
+    @When(URL)
+    @Override
     public void url(String expression) {
-        String temp = Script.evalKarateExpression(expression, context).getAsString();
-        request.setUrl(temp);
+        actions.url(expression);
     }
 
-    @When("^path (.+)")
+    @When(PATH)
+    @Override
     public void path(List<String> paths) {
-        for (String path : paths) {
-            ScriptValue temp = Script.evalKarateExpression(path, context);
-            if (temp.isListLike()) {
-                List list = temp.getAsList();
-                for (Object o : list) {
-                    if (o == null) {
-                        continue;
-                    }
-                    request.addPath(o.toString());
-                }
-            } else {
-                request.addPath(temp.getAsString());
-            }
-        }
+        actions.path(paths);
     }
 
-    private List<String> evalList(List<String> values) {
-        List<String> list = new ArrayList(values.size());
-        try {
-            for (String value : values) {
-                ScriptValue temp = Script.evalKarateExpression(value, context);
-                list.add(temp.getAsString());
-            }
-        } catch (Exception e) { // hack. for e.g. json with commas would land here
-            String joined = StringUtils.join(values, ',');
-            ScriptValue temp = Script.evalKarateExpression(joined, context);
-            if (temp.isListLike()) {
-                return temp.getAsList();
-            } else {
-                return Collections.singletonList(temp.getAsString());
-            }
-        }
-        return list;
-    }
-
-    @When("^param ([^\\s]+) = (.+)")
+    @When(PARAM)
+    @Override
     public void param(String name, List<String> values) {
-        List<String> list = evalList(values);
-        request.setParam(name, list);
+        actions.param(name, values);
     }
 
-    public Map<String, Object> evalMapExpr(String expr) {
-        ScriptValue value = Script.evalKarateExpression(expr, context);
-        if (!value.isMapLike()) {
-            throw new KarateException("cannot convert to map: " + expr);
-        }
-        return value.getAsMap();
-    }
-
-    @When("^params (.+)")
+    @When(PARAMS)
+    @Override
     public void params(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = entry.getKey();
-            Object temp = entry.getValue();
-            if (temp == null) {
-                request.removeParam(key);
-            } else {
-                if (temp instanceof List) {
-                    request.setParam(key, (List) temp);
-                } else {
-                    request.setParam(key, temp.toString());
-                }
-            }
-        }
+        actions.params(expr);
     }
 
-    @When("^cookie ([^\\s]+) = (.+)")
+    @When(COOKIE)
+    @Override
     public void cookie(String name, String value) {
-        ScriptValue sv = Script.evalKarateExpression(value, context);
-        Cookie cookie;
-        if (sv.isMapLike()) {
-            cookie = new Cookie((Map) sv.getAsMap());
-            cookie.put(Cookie.NAME, name);
-        } else {
-            cookie = new Cookie(name, sv.getAsString());
-        }
-        request.setCookie(cookie);
+        actions.cookie(name, value);
     }
 
-    @When("^cookies (.+)")
+    @When(COOKIES)
+    @Override
     public void cookies(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = entry.getKey();
-            Object temp = entry.getValue();
-            if (temp == null) {
-                request.removeCookie(key);
-            } else {
-                request.setCookie(new Cookie(key, temp.toString()));
-            }
-        }
+        actions.cookies(expr);
     }
 
-    @When("^header ([^\\s]+) = (.+)")
+    @When(HEADER)
+    @Override
     public void header(String name, List<String> values) {
-        List<String> list = evalList(values);
-        request.setHeader(name, list);
+        actions.header(name, values);
     }
 
-    @When("^headers (.+)")
+    @When(HEADERS)
+    @Override
     public void headers(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = entry.getKey();
-            Object temp = entry.getValue();
-            if (temp == null) {
-                request.removeHeader(key);
-            } else {
-                if (temp instanceof List) {
-                    request.setHeader(key, (List) temp);
-                } else {
-                    request.setHeader(key, temp.toString());
-                }
-            }
-        }
+        actions.headers(expr);
     }
 
-    @When("^form field ([^\\s]+) = (.+)")
+    @When(FORM_FIELD)
+    @Override
     public void formField(String name, List<String> values) {
-        List<String> list = evalList(values);
-        request.setFormField(name, list);
+        actions.formField(name, values);
     }
 
-    @When("^form fields (.+)")
+    @When(FORM_FIELDS)
+    @Override
     public void formFields(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = entry.getKey();
-            Object temp = entry.getValue();
-            if (temp == null) {
-                request.removeFormField(key);
-            } else {
-                if (temp instanceof List) {
-                    request.setFormField(key, (List) temp);
-                } else {
-                    request.setFormField(key, temp.toString());
-                }
-            }
-        }
+        actions.formFields(expr);
     }
 
-    @When("^request$")
-    public void requestDocString(String requestBody) {
-        request(requestBody);
+    @When(REQUEST_DOCSTRING)
+    @Override
+    public void requestDocstring(String body) {
+        actions.requestDocstring(body);
     }
 
-    @When("^request (.+)")
-    public void request(String requestBody) {
-        ScriptValue temp = Script.evalKarateExpression(requestBody, context);
-        request.setBody(temp);
+    @When(REQUEST)
+    @Override
+    public void request(String body) {
+        actions.request(body);
     }
 
-    @When("^table (.+)")
+    @When(TABLE) // ** data-table **
     public void table(String name, DataTable table) {
-        int pos = name.indexOf('='); // backward compatibility, we used to require this till v0.5.0
-        if (pos != -1) {
-            name = name.substring(0, pos);
-        }
-        List<Map<String, Object>> list = table.asMaps(String.class, Object.class);
-        list = Script.evalTable(list, context);
-        DocumentContext doc = JsonPath.parse(list);
-        context.vars.put(name.trim(), doc);
+        table(name, table.asMaps(String.class, String.class));
     }
 
-    private String getVarAsString(String name) {
-        ScriptValue sv = context.vars.get(name);
-        if (sv == null) {
-            throw new RuntimeException("no variable found with name: " + name);
-        }
-        return sv.getAsString();
+    @Override
+    public void table(String name, List<Map<String, String>> table) {
+        actions.table(name, table);
     }
 
-    @When("^replace (\\w+)$")
+    @When(REPLACE_TABLE) // ** data-table **
     public void replace(String name, DataTable table) {
-        name = name.trim();
-        String text = getVarAsString(name);
-        List<Map<String, String>> list = table.asMaps(String.class, String.class);
-        String replaced = Script.replacePlaceholders(text, list, context);
-        context.vars.put(name, replaced);
+        replace(name, table.asMaps(String.class, String.class));
     }
 
-    @When("^replace (\\w+).([^\\s]+) = (.+)")
+    @Override
+    public void replace(String name, List<Map<String, String>> table) {
+        actions.replace(name, table);
+    }
+
+    @When(REPLACE)
+    @Override
     public void replace(String name, String token, String value) {
-        name = name.trim();
-        String text = getVarAsString(name);
-        String replaced = Script.replacePlaceholderText(text, token, value, context);
-        context.vars.put(name, replaced);
-    }
-    
-    @When("^def (.+) =$")
-    public void defDocString(String name, String expression) {
-        def(name, expression);
+        actions.replace(name, token, value);
     }
 
-    @When("^def (\\w+) = (.+)")
+    @When(DEF_DOCSTRING)
+    @Override
+    public void defDocstring(String name, String expression) {
+        actions.defDocstring(name, expression);
+    }
+
+    @When(DEF)
+    @Override
     public void def(String name, String expression) {
-        Script.assign(name, expression, context, true);
-    }    
-
-    @When("^text (.+) =$")
-    public void textDocString(String name, String expression) {
-        Script.assignText(name, expression, context, true);
+        actions.def(name, expression);
     }
 
-    @When("^yaml (.+) =$")
-    public void yamlDocString(String name, String expression) {
-        Script.assignYaml(name, expression, context, true);
+    @When(TEXT)
+    @Override
+    public void text(String name, String expression) {
+        actions.text(name, expression);
     }
-    
-    @When("^copy (.+) = (.+)")
+
+    @When(YAML)
+    @Override
+    public void yaml(String name, String expression) {
+        actions.yaml(name, expression);
+    }
+
+    @When(COPY)
+    @Override
     public void copy(String name, String expression) {
-        Script.copy(name, expression, context, true);
-    }    
-
-    @When("^json (.+) = (.+)")
-    public void castToJson(String name, String expression) {
-        Script.assignJson(name, expression, context, true);
+        actions.copy(name, expression);
     }
 
-    @When("^string (.+) = (.+)")
-    public void castToString(String name, String expression) {
-        Script.assignString(name, expression, context, true);
+    @When(JSON)
+    @Override
+    public void json(String name, String expression) {
+        actions.json(name, expression);
     }
 
-    @When("^xml (.+) = (.+)")
-    public void castToXml(String name, String expression) {
-        Script.assignXml(name, expression, context, true);
+    @When(STRING)
+    @Override
+    public void string(String name, String expression) {
+        actions.string(name, expression);
     }
 
-    @When("^xmlstring (.+) = (.+)")
-    public void castToXmlString(String name, String expression) {
-        Script.assignXmlString(name, expression, context, true);
+    @When(XML)
+    @Override
+    public void xml(String name, String expression) {
+        actions.xml(name, expression);
     }
 
-    @When("^assert (.+)")
-    public void asssertBoolean(String expression) {
-        try {
-            AssertionResult ar = Script.assertBoolean(expression, context);
-            handleFailure(ar);
-        } catch (Exception e) {
-            throw new KarateException(e.getMessage());
-        }
+    @When(XMLSTRING)
+    @Override
+    public void xmlstring(String name, String expression) {
+        actions.xmlstring(name, expression);
     }
 
-    @When("^method (\\w+)")
+    @When(ASSERT)
+    @Override
+    public void assertTrue(String expression) {
+        actions.assertTrue(expression);
+    }
+
+    @When(METHOD)
+    @Override
     public void method(String method) {
-        if (!HttpUtils.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
-            method = Script.evalKarateExpression(method, context).getAsString();
-        }
-        request.setMethod(method);
-        try {
-            response = context.client.invoke(request, context);
-        } catch (Exception e) {
-            String message = e.getMessage();
-            context.logger.error("http request failed: {}", message);
-            throw new KarateException(message); // reduce log verbosity
-        }
-        HttpUtils.updateRequestVars(request, context.vars, context);
-        HttpUtils.updateResponseVars(response, context.vars, context);
-        String prevUrl = request.getUrl();
-        request = new HttpRequestBuilder();
-        request.setUrl(prevUrl);
+        actions.method(method);
     }
 
-    @When("^soap action( .+)?")
+    @When(SOAP_ACTION)
+    @Override
     public void soapAction(String action) {
-        action = Script.evalKarateExpression(action, context).getAsString();
-        if (action == null) {
-            action = "";
-        }
-        request.setHeader("SOAPAction", action);
-        request.setHeader("Content-Type", "text/xml");
-        method("post");
+        actions.soapAction(action);
     }
 
-    @When("^multipart entity (.+)")
-    public void multiPartEntity(String value) {
-        multiPart(null, value);
+    @When(MULTIPART_ENTITY)
+    @Override
+    public void multipartEntity(String value) {
+        actions.multipartEntity(value);
     }
 
-    @When("^multipart field (.+) = (.+)")
-    public void multiPartFormField(String name, String value) {
-        multiPart(name, value);
-    }
-    
-    @When("^multipart fields (.+)")
-    public void multiPartFormFields(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        map.forEach((k, v)-> {
-            ScriptValue sv = new ScriptValue(v);
-            request.addMultiPartItem(k, sv);             
-        });
-    }    
-
-    private static String asString(Map<String, Object> map, String key) {
-        Object o = map.get(key);
-        return o == null ? null : o.toString();
+    @When(MULTIPART_FIELD)
+    @Override
+    public void multipartField(String name, String value) {
+        actions.multipartField(name, value);
     }
 
-    @When("^multipart file (.+) = (.+)")
-    public void multiPartFile(String name, String value) {
-        name = name.trim();
-        ScriptValue sv = Script.evalKarateExpression(value, context);
-        if (!sv.isMapLike()) {
-            throw new RuntimeException("mutipart file value should be json");
-        }
-        Map<String, Object> map = sv.getAsMap();
-        String read = asString(map, "read");
-        if (read == null) {
-            throw new RuntimeException("mutipart file json should have a value for 'read'");
-        }
-        ScriptValue fileValue = FileUtils.readFile(read, context);
-        MultiPartItem item = new MultiPartItem(name, fileValue);
-        String filename = asString(map, "filename");
-        if (filename == null) {
-            filename = name;
-        }
-        item.setFilename(filename);
-        String contentType = asString(map, "contentType");
-        if (contentType != null) {
-            item.setContentType(contentType);
-        }
-        request.addMultiPartItem(item);
+    @When(MULTIPART_FIELDS)
+    @Override
+    public void multipartFields(String expr) {
+        actions.multipartFields(expr);
     }
 
-    @When("^multipart files (.+)")
-     public void multiPartFiles(String expr) {
-        Map<String, Object> map = evalMapExpr(expr);
-        map.forEach((k, v)-> {
-            ScriptValue sv = new ScriptValue(v);
-            multiPartFile(k, sv.getAsString());            
-        });
+    @When(MULTIPART_FILE)
+    @Override
+    public void multipartFile(String name, String value) {
+        actions.multipartFile(name, value);
     }
 
-    public void multiPart(String name, String value) {
-        ScriptValue sv = Script.evalKarateExpression(value, context);
-        request.addMultiPartItem(name, sv);
+    @When(MULTIPART_FILES)
+    @Override
+    public void multipartFiles(String expr) {
+        actions.multipartFiles(expr);
     }
 
-    @When("^print (.+)")
+    @When(PRINT)
+    @Override
     public void print(List<String> exps) {
-        if (context.isPrintEnabled()) {
-            String prev = ""; // handle rogue commas embedded in string literals
-            StringBuilder sb = new StringBuilder();
-            sb.append("[print]");
-            for (String exp : exps) {
-                if (!prev.isEmpty()) {
-                    exp = prev + StringUtils.trimToNull(exp);
-                }                
-                if (exp == null) {
-                    sb.append("null");
-                } else {
-                    ScriptValue sv = Script.getIfVariableReference(exp, context);
-                    if (sv == null) {
-                        try {
-                            sv = Script.evalJsExpression(exp, context);
-                            prev = ""; // evalKarateExpression success, reset rogue comma detector
-                        } catch (Exception e) {
-                            prev = exp + ", ";
-                            continue;
-                        }
-                    }
-                    sb.append(' ').append(sv.getAsPrettyString());
-                }
-            }
-            context.logger.info("{}", sb);
-        }
+        actions.print(exps);
     }
 
-    @When("^status (\\d+)")
+    @When(STATUS)
+    @Override
     public void status(int status) {
-        if (status != response.getStatus()) {
-            String rawResponse = context.vars.get(ScriptValueMap.VAR_RESPONSE).getAsString();
-            String responseTime = context.vars.get(ScriptValueMap.VAR_RESPONSE_TIME).getAsString();
-            String message = "status code was: " + response.getStatus() + ", expected: " + status
-                    + ", response time: " + responseTime + ", url: " + response.getUri() + ", response: " + rawResponse;
-            context.logger.error(message);
-            throw new KarateException(message);
-        }
+        actions.status(status);
     }
 
-    private static MatchType toMatchType(String eqSymbol, String each, String notContains, String only, boolean contains) {
-        boolean notEquals = eqSymbol.startsWith("!");
-        if (each == null) {
-            if (notContains != null) {
-                return MatchType.NOT_CONTAINS;
-            }
-            if (only != null) {
-                return only.contains("only") ? MatchType.CONTAINS_ONLY: MatchType.CONTAINS_ANY;
-            }
-            return contains ? MatchType.CONTAINS : notEquals ? MatchType.NOT_EQUALS : MatchType.EQUALS;
-        } else {
-            if (notContains != null) {
-                return MatchType.EACH_NOT_CONTAINS;
-            }
-            if (only != null) {
-                return only.contains("only") ? MatchType.EACH_CONTAINS_ONLY: MatchType.EACH_CONTAINS_ANY;
-            }
-            return contains ? MatchType.EACH_CONTAINS : notEquals ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
-        }
+    @When(MATCH_EQUALS_DOCSTRING)
+    @Override
+    public void matchEqualsDocstring(String each, String name, String path, String eqSymbol, String expected) {
+        actions.matchEqualsDocstring(each, name, path, eqSymbol, expected);
     }
 
-    private static void validateEqualsSign(String eqSymbol) {
-        if (eqSymbol.equals("=")) {
-            throw new RuntimeException("use '==' for match (not '=')");
-        }
+    @When(MATCH_CONTAINS_DOCSTRING)
+    @Override
+    public void matchContainsDocstring(String each, String name, String path, String not, String only, String expected) {
+        actions.matchContainsDocstring(each, name, path, not, only, expected);
     }
 
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=)$")
-    public void matchEqualsDocString(String each, String name, String path, String eqSymbol, String expected) {
-        validateEqualsSign(eqSymbol);
-        matchEquals(each, name, path, eqSymbol, expected);
-    }
-
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only| any)?$")
-    public void matchContainsDocString(String each, String name, String path, String not, String only, String expected) {
-        matchContains(each, name, path, not, only, expected);
-    }
-
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=) (.+)")
+    @When(MATCH_EQUALS)
+    @Override
     public void matchEquals(String each, String name, String path, String eqSymbol, String expected) {
-        validateEqualsSign(eqSymbol);
-        MatchType mt = toMatchType(eqSymbol, each, null, null, false);
-        matchNamed(mt, name, path, expected);
+        actions.matchEquals(each, name, path, eqSymbol, expected);
     }
 
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only| any)?(.+)")
+    @When(MATCH_CONTAINS)
+    @Override
     public void matchContains(String each, String name, String path, String not, String only, String expected) {
-        MatchType mt = toMatchType("==", each, not, only, true);
-        matchNamed(mt, name, path, expected);
+        actions.matchContains(each, name, path, not, only, expected);
     }
 
-    public void matchNamed(MatchType matchType, String name, String path, String expected) {
-        try {
-            AssertionResult ar = Script.matchNamed(matchType, name, path, expected, context);
-            handleFailure(ar);
-        } catch (Exception e) {
-            throw new KarateException(e.getMessage());
-        }
+    @When(SET_DOCSTRING)
+    @Override
+    public void setDocstring(String name, String path, String value) {
+        actions.setDocstring(name, path, value);
     }
 
-    @When("^set ([^\\s]+)( .+)? =$")
-    public void setByPathDocString(String name, String path, String value) {
-        setNamedByPath(name, path, value);
+    @When(SET)
+    @Override
+    public void set(String name, String path, String value) {
+        actions.set(name, path, value);
     }
 
-    @When("^set ([^\\s]+)( .+)? = (.+)")
-    public void setByPath(String name, String path, String value) {
-        setNamedByPath(name, path, value);
+    @When(SET_TABLE) // ** data-table **
+    public void set(String name, String path, DataTable table) {
+        set(name, path, table.asMaps(String.class, String.class));
     }
 
-    @When("^set ([^\\s]+)( [^=]+)?$")
-    public void setByPathTable(String name, String path, DataTable table) {
-        List<Map<String, String>> list = table.asMaps(String.class, String.class);
-        Script.setByPathTable(name, path, list, context);
+    @Override
+    public void set(String name, String path, List<Map<String, String>> table) {
+        actions.set(name, path, table);
     }
 
-    public void setNamedByPath(String name, String path, String value) {
-        Script.setValueByPath(name, path, value, context);
+    @When(REMOVE)
+    @Override
+    public void remove(String name, String path) {
+        actions.remove(name, path);
     }
 
-    @When("^remove ([^\\s]+)( .+)?")
-    public void removeByPath(String name, String path) {
-        Script.removeValueByPath(name, path, context);
+    @When(CALL)
+    @Override
+    public void call(String name, String arg) {
+        actions.call(name, arg);
     }
 
-    @When("^call ([^\\s]+)( .*)?")
-    public void callAndUpdateConfigAndVars(String name, String arg) {
-        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, name, arg, context);
+    @When(CALLONCE)
+    @Override
+    public void callonce(String name, String arg) {
+        actions.callonce(name, arg);
     }
 
-    @When("^callonce ([^\\s]+)( .*)?")
-    public void callOnceAndUpdateConfigAndVars(String name, String arg) {
-        Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(true, name, arg, context);
+    @When(EVAL)
+    @Override
+    public void eval(String exp) {
+        actions.eval(exp);
     }
 
-    @When("^eval (.+)")
-    public final void eval(String exp) {
-        Script.evalJsExpression(exp, context);
-    }
-    
-    @When("^eval$")
-    public void evalDocString(String exp) {
-        eval(exp);
-    }    
-    
-    private void handleFailure(AssertionResult ar) {
-        if (!ar.pass) {
-            context.logger.error("{}", ar);
-            throw new KarateException(ar.message);
-        }
+    @When(EVAL_DOCSTRING)
+    @Override
+    public void evalDocstring(String exp) {
+        actions.evalDocstring(exp);
     }
 
 }

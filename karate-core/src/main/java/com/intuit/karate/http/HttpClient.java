@@ -24,7 +24,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
 import com.jayway.jsonpath.DocumentContext;
@@ -59,7 +59,7 @@ public abstract class HttpClient<T> {
      * @param config
      * @param context
      */
-    public abstract void configure(HttpConfig config, ScriptContext context);
+    public abstract void configure(HttpConfig config, ScenarioContext context);
 
     protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);
 
@@ -79,7 +79,7 @@ public abstract class HttpClient<T> {
 
     protected abstract void buildCookie(Cookie cookie);
 
-    protected abstract HttpResponse makeHttpRequest(T entity, ScriptContext context);
+    protected abstract HttpResponse makeHttpRequest(T entity, ScenarioContext context);
 
     protected abstract String getRequestUri();
 
@@ -110,7 +110,7 @@ public abstract class HttpClient<T> {
         }
     }
 
-    private T buildRequestInternal(HttpRequestBuilder request, ScriptContext context) {
+    private T buildRequestInternal(HttpRequestBuilder request, ScenarioContext context) {
         String method = request.getMethod();
         if (method == null) {
             String msg = "'method' is required to make an http call";
@@ -204,7 +204,7 @@ public abstract class HttpClient<T> {
         }
     }
 
-    public HttpResponse invoke(HttpRequestBuilder request, ScriptContext context) {
+    public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {
         T body = buildRequestInternal(request, context);        
         try {
             HttpResponse response = makeHttpRequest(body, context);
@@ -228,7 +228,7 @@ public abstract class HttpClient<T> {
         }
     }
 
-    public static HttpClient construct(HttpConfig config, ScriptContext context) {
+    public static HttpClient construct(HttpConfig config, ScenarioContext context) {
         if (config.getClientInstance() != null) {
             return config.getClientInstance();
         }

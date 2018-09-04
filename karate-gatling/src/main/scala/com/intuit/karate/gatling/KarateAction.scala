@@ -4,7 +4,7 @@ import java.io.File
 import java.util.function.Consumer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import com.intuit.karate.{CallContext, ScriptContext, ScriptValueMap, StepDefs}
+import com.intuit.karate.{CallContext, ScenarioContext, ScriptValueMap}
 import com.intuit.karate.core._
 import com.intuit.karate.cucumber.CucumberRunner
 import com.intuit.karate.http.{HttpRequest, HttpUtils}
@@ -48,7 +48,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
       var responseTime: Long = 0
       var responseStatus: Int = 0
 
-      def logPrevRequestIfDefined(ctx: ScriptContext, pass: Boolean, message: Option[String]) = {
+      def logPrevRequestIfDefined(ctx: ScenarioContext, pass: Boolean, message: Option[String]) = {
         if (prevRequest.isDefined) {
           val responseTimings = ResponseTimings(startTime, startTime + responseTime);
           logRequestStats(prevRequest.get, responseTimings, pass, responseStatus, message)
@@ -56,20 +56,20 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         }
       }
 
-      def handleResultIfFail(feature: String, result: StepResult, step: Step, ctx: ScriptContext) = {
+      def handleResultIfFail(feature: String, result: StepResult, step: Step, ctx: ScenarioContext) = {
         if (result.getResult.isFailed) { // if a step failed, assume that the last http request is a fail
           val message = feature + ":" + step.getLine + " " + result.getStep.getText
           logPrevRequestIfDefined(ctx, false, Option(message))
         }
       }
 
-      override def beforeStep(step: Step, stepDefs: StepDefs): Unit = {
+      override def beforeStep(step: Step, ctx: ScenarioContext): Unit = {
         val stepText = step.getText;
         val isHttpMethod = stepText.startsWith("method")
         if (isHttpMethod) {
           val method = stepText.substring(6).trim
-          logPrevRequestIfDefined(stepDefs.context, true, None)
-          val request = stepDefs.getRequest
+          logPrevRequestIfDefined(ctx, true, None)
+          val request = ctx.getRequest
           val pauseTime = protocol.pauseFor(request.getUrlAndPath, method)
           if (pauseTime > 0) {
             Thread.sleep(pauseTime) // TODO use actors here as well
@@ -77,10 +77,9 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         }
       }
 
-      override def afterStep(result: StepResult, stepDefs: StepDefs): Unit = {
+      override def afterStep(result: StepResult, ctx: ScenarioContext): Unit = {
         val stepText = result.getStep.getText;
         val isHttpMethod = stepText.startsWith("method")
-        val ctx = stepDefs.context
         if (isHttpMethod) {
           prevRequest = Option(ctx.getPrevRequest)
           startTime = ctx.getVars.get(ScriptValueMap.VAR_REQUEST_TIME_STAMP).getValue(classOf[Long])
@@ -91,11 +90,11 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         handleResultIfFail(featureName, result, result.getStep, ctx)
       }
 
-      override def afterScenario(scenarioResult: ScenarioResult, stepDefs: StepDefs): Unit = {
-        logPrevRequestIfDefined(stepDefs.context, true, None)
+      override def afterScenario(scenarioResult: ScenarioResult, ctx: ScenarioContext): Unit = {
+        logPrevRequestIfDefined(ctx, true, None)
       }
 
-      override def beforeScenario(scenario: Scenario, stepDefs: StepDefs): Boolean = true
+      override def beforeScenario(scenario: Scenario, ctx: ScenarioContext): Boolean = true
 
     }
 

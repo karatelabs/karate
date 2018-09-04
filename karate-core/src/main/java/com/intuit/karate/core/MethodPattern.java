@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import cucumber.api.java.en.When;
+import com.intuit.karate.Action;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,10 +39,10 @@ public class MethodPattern {
     public final Method method;
     private final Pattern pattern;
 
-    MethodPattern(Method method, When when) {
+    MethodPattern(Method method, Action action) {
         this.method = method;
         try {
-            String regexpString = when.value();
+            String regexpString = action.value();
             pattern = Pattern.compile(regexpString);
         } catch (Exception e) {
             throw new RuntimeException(e);

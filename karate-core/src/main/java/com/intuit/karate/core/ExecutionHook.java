@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepDefs;
+import com.intuit.karate.ScenarioContext;
 
 /**
  *
@@ -34,16 +34,16 @@ public interface ExecutionHook {
     /**
      * 
      * @param scenario
-     * @param stepDefs 
+     * @param context 
      * @return false if the scenario should be excluded from the test-run
      * @throws RuntimeException (any) to abort the scenario
      */
-    boolean beforeScenario(Scenario scenario, StepDefs stepDefs);
+    boolean beforeScenario(Scenario scenario, ScenarioContext context);
     
-    void afterScenario(ScenarioResult result, StepDefs stepDefs);
+    void afterScenario(ScenarioResult result, ScenarioContext context);
     
-    void beforeStep(Step step, StepDefs stepDefs);
+    void beforeStep(Step step, ScenarioContext context);
     
-    void afterStep(StepResult result, StepDefs stepDefs);    
+    void afterStep(StepResult result, ScenarioContext context);    
     
 }

@@ -15,7 +15,7 @@ public class ConfigTest {
         File featureDir = FileUtils.getDirContaining(getClass());
         ScriptEnv env = new ScriptEnv("dev", null, featureDir, null);
         CallContext callContext = new CallContext(null, true);
-        ScriptContext ctx = new ScriptContext(env, callContext);        
+        ScenarioContext ctx = new ScenarioContext(env, callContext);        
         ScriptValue value = Script.evalJsExpression("someConfig", ctx);
         assertEquals("someValue", value.getValue());
     }

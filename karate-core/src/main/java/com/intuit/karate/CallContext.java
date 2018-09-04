@@ -34,7 +34,7 @@ import com.intuit.karate.core.ExecutionHook;
  */
 public class CallContext {
     
-    public final ScriptContext parentContext;
+    public final ScenarioContext parentContext;
     public final int callDepth;
     public final Map<String, Object> callArg;
     public final boolean reuseParentContext;
@@ -48,7 +48,7 @@ public class CallContext {
     private Map<String, List<String>> tagValues;    
     private ScenarioInfo scenarioInfo;
     
-    public static CallContext forCall(ScriptContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
+    public static CallContext forCall(ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.useLogAppenderFile);
     }
 
@@ -88,7 +88,7 @@ public class CallContext {
         this(null, 0, null, -1, false, true, null, executionHook, useLogAppenderFile);
     }    
     
-    public CallContext(ScriptContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
+    public CallContext(ScenarioContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
         boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass, 
         ExecutionHook executionHook, boolean useLogAppenderFile) {
         this.parentContext = parentContext;

@@ -2882,6 +2882,7 @@ A JavaScript function or [Karate expression](#karate-expressions) at runtime has
 
 Operation | Description
 --------- | -----------
+<a name="karate-abort"><code>karate.abort()</code></a> | you can prematurely exit a `Scenario` by combining this with [conditional logic](#conditional-logic) like so: `* eval if (condition) karate.abort()` - please use only if [un-avoidable](https://martinfowler.com/articles/nonDeterminism.html) !
 <a name="karate-call"><code>karate.call(fileName, [arg])</code></a> | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
 <a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guranteed to run **only once** even across multiple features *and* parallel threads (recommended only for advanced users) - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js) / [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
 <a name="karate-configure"><code>karate.configure(key, value)</code></a> | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
@@ -3094,13 +3095,13 @@ That said, if you really need to implement 'conditional' checks, this can be one
 And this is another, using [`karate.call()`](#karate-call). Here we want to [`call`](#call) a file only if a condition is satisfied:
 
 ```cucumber
-* def result = (responseStatus == 404 ? {} : karate.call('delete-user.feature'))
+* def result = responseStatus == 404 ? {} : karate.call('delete-user.feature')
 ```
 
 Or if we don't care about the result, we can use [`eval`](#eval):
 
 ```cucumber
-* eval if (responseStatus == 404) karate.call('delete-user.feature')
+* eval if (responseStatus == 200) karate.call('delete-user.feature')
 ```
 
 And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) or [call Java](#calling-java) for more complex logic.
@@ -3108,6 +3109,12 @@ And this may give you more ideas. You can always use a [JavaScript function](#ja
 ```cucumber
 * def expected = (zone == 'zone1' ? { foo: '#string' } : { bar: '#number' })
 * match response == expected
+```
+
+In some rare cases you need to exit a `Scenario` based on some condition. You can use [`karate.abort()`](#karate-abort) like so:
+
+```cucumber
+* eval if (responseStatus == 404) karate.abort()
 ```
 
 Also refer to [polling](#polling) for more ideas.

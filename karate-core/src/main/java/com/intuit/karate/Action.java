@@ -21,49 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package com.intuit.karate;
 
-import com.intuit.karate.ScenarioContext;
-import java.util.Collection;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  *
  * @author pthomas3
  */
-public class MandatoryTagHook implements ExecutionHook {
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface Action {
 
-    @Override
-    public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
-        if (context.getCallDepth() > 0) {
-            return true; // only enforce tags for top-level scenarios (not called ones)
-        }
-        Collection<Tag> tags = scenario.getTagsEffective();
-        boolean found = false;
-        for (Tag tag : tags) {
-            if ("testId".equals(tag.getName())) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            throw new RuntimeException("testId tag not present at line: " + scenario.getLine());
-        }
-        return true;
-    }
+    String value();
 
-    @Override
-    public void afterScenario(ScenarioResult result, ScenarioContext context) {
-        
-    }    
-
-    @Override
-    public void beforeStep(Step step, ScenarioContext context) {
-
-    }
-
-    @Override
-    public void afterStep(StepResult result, ScenarioContext context) {
-
-    }
-    
 }

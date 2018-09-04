@@ -3,7 +3,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Script;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.ScriptValueMap;
@@ -59,7 +59,7 @@ public class HttpUtils {
         // only static methods
     }
 
-    public static void updateResponseVars(HttpResponse response, ScriptValueMap vars, ScriptContext context) {
+    public static void updateResponseVars(HttpResponse response, ScriptValueMap vars, ScenarioContext context) {
         vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
         vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, response.getStartTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getResponseTime());
@@ -85,7 +85,7 @@ public class HttpUtils {
         vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
     }
 
-    public static void updateRequestVars(HttpRequestBuilder request, ScriptValueMap vars, ScriptContext context) {
+    public static void updateRequestVars(HttpRequestBuilder request, ScriptValueMap vars, ScenarioContext context) {
         vars.put(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod());
         vars.put(ScriptValueMap.VAR_REQUEST_URI, request.getUrl());
         vars.put(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
@@ -93,7 +93,7 @@ public class HttpUtils {
         vars.put(ScriptValueMap.VAR_REQUEST_BODY, request.getBody());
     }
 
-    private static Object convertResponseBody(byte[] bytes, ScriptContext context) {
+    private static Object convertResponseBody(byte[] bytes, ScenarioContext context) {
         if (bytes == null) {
             return null;
         }
@@ -126,7 +126,7 @@ public class HttpUtils {
         return ctx;
     }
 
-    public static KeyStore getKeyStore(ScriptContext context, String trustStoreFile, String password, String type) {
+    public static KeyStore getKeyStore(ScenarioContext context, String trustStoreFile, String password, String type) {
         if (trustStoreFile == null) {
             return null;
         }

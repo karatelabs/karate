@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.http.jersey;
 
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
@@ -72,7 +72,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     private Charset charset;
 
     @Override
-    public void configure(HttpConfig config, ScriptContext context) {
+    public void configure(HttpConfig config, ScenarioContext context) {
         ClientConfig cc = new ClientConfig();
         // support request body for DELETE (non-standard)
         cc.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true);
@@ -211,7 +211,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     }
 
     @Override
-    public HttpResponse makeHttpRequest(Entity entity, ScriptContext context) {
+    public HttpResponse makeHttpRequest(Entity entity, ScenarioContext context) {
         String method = request.getMethod();
         if ("PATCH".equals(method)) { // http://danofhisword.com/dev/2015/09/04/Jersey-Client-Http-Patch.html
             builder.property(HttpUrlConnectorProvider.SET_METHOD_WORKAROUND, true);

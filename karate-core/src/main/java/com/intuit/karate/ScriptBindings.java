@@ -75,7 +75,7 @@ public class ScriptBindings implements Bindings {
 
     private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
 
-    public ScriptBindings(ScriptContext context) {
+    public ScriptBindings(ScenarioContext context) {
         this.vars = context.vars;
         this.adds = new HashMap(6); // read, karate, self, root, parent, nashorn.global
         bridge = new ScriptBridge(context);
@@ -114,7 +114,7 @@ public class ScriptBindings implements Bindings {
         }
     }
 
-    public static ScriptValue evalInNashorn(String exp, ScriptContext context, ScriptEvalContext evalContext) {
+    public static ScriptValue evalInNashorn(String exp, ScenarioContext context, ScriptEvalContext evalContext) {
         if (context == null) {
             return eval(exp, null);
         } else {

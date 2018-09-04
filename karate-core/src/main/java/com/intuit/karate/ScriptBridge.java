@@ -51,13 +51,13 @@ public class ScriptBridge {
     private static final Object GLOBALS_LOCK = new Object();
     private static final Map<String, Object> GLOBALS = new HashMap();
     
-    public final ScriptContext context;
+    public final ScenarioContext context;
     
-    public ScriptBridge(ScriptContext context) {
+    public ScriptBridge(ScenarioContext context) {
         this.context = context;       
     }
 
-    public ScriptContext getContext() {
+    public ScenarioContext getContext() {
         return context;
     }        
     
@@ -274,7 +274,7 @@ public class ScriptBridge {
     }
     
     public HttpRequest getPrevRequest() {
-        return context.prevRequest;
+        return context.getPrevRequest();
     }
     
     public Object eval(String exp) {
@@ -309,7 +309,7 @@ public class ScriptBridge {
         request.setHeaders(getValue(ScriptValueMap.VAR_REQUEST_HEADERS).getValue(MultiValuedMap.class));
         request.removeHeader(HttpUtils.HEADER_CONTENT_LENGTH);
         request.setBody(getValue(ScriptValueMap.VAR_REQUEST));
-        HttpResponse response = context.client.invoke(request, context);
+        HttpResponse response = context.getHttpClient().invoke(request, context);
         HttpUtils.updateResponseVars(response, context.vars, context);
     }    
     

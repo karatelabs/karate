@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepDefs;
+import com.intuit.karate.StepActions;
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -33,22 +33,22 @@ import java.util.Iterator;
  */
 public class ScenarioExecutionUnit {
 
-    private final StepDefs stepDefs;
+    private final StepActions actions;
     private final ExecutionContext exec;
     private final Iterator<Step> iterator;
     private final ScenarioResult result;
 
     private boolean stopped = false;
 
-    public ScenarioExecutionUnit(Scenario scenario, StepDefs stepDefs, ExecutionContext exec) {
-        this.stepDefs = stepDefs;
+    public ScenarioExecutionUnit(Scenario scenario, StepActions actions, ExecutionContext exec) {
+        this.actions = actions;
         this.exec = exec;
         result = new ScenarioResult(scenario);
         // before-scenario hook
         boolean hookFailed = false;
-        if (stepDefs.callContext.executionHook != null) {
+        if (actions.callContext.executionHook != null) {
             try {
-                stepDefs.callContext.executionHook.beforeScenario(scenario, stepDefs);
+                actions.callContext.executionHook.beforeScenario(scenario, actions.context);
             } catch (Exception e) {
                 hookFailed = true;
                 result.addError(e);
@@ -65,7 +65,7 @@ public class ScenarioExecutionUnit {
                 ScenarioExecutionUnit.this.submit(next);
             } else {
                 exec.system.accept(() -> {
-                    StepExecutionUnit unit = new StepExecutionUnit(step, stepDefs, exec);
+                    StepExecutionUnit unit = new StepExecutionUnit(step, actions, exec);
                     unit.submit(stepResult -> {
                         result.addStepResult(stepResult);
                         if (stepResult.isStopped()) {
@@ -80,8 +80,8 @@ public class ScenarioExecutionUnit {
             // else the feature-result will not "collect" stats correctly 
             exec.result.addResult(result);
             // after-scenario hook
-            if (stepDefs.callContext.executionHook != null) {
-                stepDefs.callContext.executionHook.afterScenario(result, stepDefs);
+            if (actions.callContext.executionHook != null) {
+                actions.callContext.executionHook.afterScenario(result, actions.context);
             }
             next.run();
         }
