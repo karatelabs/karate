@@ -67,8 +67,7 @@ public class FeatureExecutionUnit {
             // first we set the scenario metadata
             exec.callContext.setScenarioInfo(getScenarioInfo(scenario, env));
             // then the tags metadata
-            exec.callContext.setTags(Tags.toListOfStrings(tagsEffective)); // TODO optimize
-            exec.callContext.setTagValues(Tags.toMapOfNameValues(tagsEffective));
+            exec.callContext.setTagsEffective(tagsEffective);
             // karate-config.js will be processed here 
             // when the script-context constructor is called
             StepActions actions = new StepActions(env, exec.callContext);

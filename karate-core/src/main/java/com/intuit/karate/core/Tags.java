@@ -104,22 +104,6 @@ public class Tags {
         return !anyOf(som);
     }
 
-    public static List<String> toListOfStrings(Collection<Tag> tags) {
-        List<String> values = new ArrayList(tags.size());
-        for (Tag tag : tags) {
-            values.add(tag.getText());
-        }
-        return values;
-    }
-
-    public static Map<String, List<String>> toMapOfNameValues(Collection<Tag> tags) {
-        Map<String, List<String>> map = new HashMap(tags.size());
-        for (Tag tag : tags) {
-            map.put(tag.getName(), tag.getValues());
-        }
-        return map;
-    }
-
     public static List<Map> toResultList(List<Tag> tags) {
         List<Map> list = new ArrayList(tags.size());
         for (Tag tag : tags) {

@@ -27,27 +27,31 @@ import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.List;
 import java.util.Map;
 import com.intuit.karate.core.ExecutionHook;
+import com.intuit.karate.core.Tag;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 
 /**
  *
  * @author pthomas3
  */
 public class CallContext {
-    
+
     public final ScenarioContext parentContext;
     public final int callDepth;
     public final Map<String, Object> callArg;
     public final boolean reuseParentContext;
     public final boolean evalKarateConfig;
     public final int loopIndex;
-    public final String httpClientClass;    
+    public final String httpClientClass;
     public final ExecutionHook executionHook;
     public final boolean useLogAppenderFile;
-    
+
     private List<String> tags;
-    private Map<String, List<String>> tagValues;    
+    private Map<String, List<String>> tagValues;
     private ScenarioInfo scenarioInfo;
-    
+
     public static CallContext forCall(ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.useLogAppenderFile);
     }
@@ -56,17 +60,18 @@ public class CallContext {
         return tags;
     }
 
-    public void setTags(List<String> tags) {
-        this.tags = tags;
-    }
-
-    public void setTagValues(Map<String, List<String>> tagValues) {
-        this.tagValues = tagValues;
+    public void setTagsEffective(Collection<Tag> in) {
+        tags = new ArrayList(in.size());
+        tagValues = new HashMap(in.size());
+        for (Tag tag : in) {
+            tags.add(tag.getText());
+            tagValues.put(tag.getName(), tag.getValues());
+        }
     }
 
     public Map<String, List<String>> getTagValues() {
         return tagValues;
-    }        
+    }
 
     public void setScenarioInfo(ScenarioInfo scenarioInfo) {
         this.scenarioInfo = scenarioInfo;
@@ -74,23 +79,23 @@ public class CallContext {
 
     public ScenarioInfo getScenarioInfo() {
         return scenarioInfo;
-    }    
-    
+    }
+
     public boolean isCalled() {
         return callDepth > 0;
     }
-    
+
     public CallContext(Map<String, Object> callArg, boolean evalKarateConfig) {
         this(null, 0, callArg, -1, false, evalKarateConfig, null, null, true);
     }
-    
+
     public CallContext(boolean useLogAppenderFile, ExecutionHook executionHook) {
         this(null, 0, null, -1, false, true, null, executionHook, useLogAppenderFile);
-    }    
-    
+    }
+
     public CallContext(ScenarioContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
-        boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass, 
-        ExecutionHook executionHook, boolean useLogAppenderFile) {
+            boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass,
+            ExecutionHook executionHook, boolean useLogAppenderFile) {
         this.parentContext = parentContext;
         this.callDepth = callDepth;
         this.callArg = callArg;
@@ -101,5 +106,5 @@ public class CallContext {
         this.executionHook = executionHook;
         this.useLogAppenderFile = useLogAppenderFile;
     }
-    
+
 }
