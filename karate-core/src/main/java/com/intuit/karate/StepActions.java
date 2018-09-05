@@ -35,7 +35,7 @@ public class StepActions implements Actions {
     public final ScenarioContext context;
     public final CallContext callContext;
 
-    public StepActions(ScriptEnv scriptEnv, CallContext callContext) {
+    public StepActions(FeatureContext scriptEnv, CallContext callContext) {
         this.callContext = callContext;
         context = new ScenarioContext(scriptEnv, callContext);
     }

@@ -41,20 +41,20 @@ public class StepDefs implements Actions {
         this(getFeatureEnv(), new CallContext(null, true));
     }
 
-    private static ScriptEnv ideScriptEnv;
+    private static FeatureContext ideScriptEnv;
 
-    private static ScriptEnv getFeatureEnv() {
+    private static FeatureContext getFeatureEnv() {
         if (ideScriptEnv == null) {
             String cwd = new File("").getAbsoluteFile().getPath();
             String javaCommand = System.getProperty("sun.java.command");
             String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
             if (featurePath == null) {
                 LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", cwd);
-                ideScriptEnv = ScriptEnv.forEnvAndCurrentWorkingDir(null);
+                ideScriptEnv = FeatureContext.forEnv();
             } else {
                 File file = new File(featurePath);
                 LOGGER.info("IDE runner - init karate env: {}", file);
-                ideScriptEnv = ScriptEnv.forEnvAndFeatureFile(null, file);
+                ideScriptEnv = FeatureContext.forWorkingDir(file);
             }
         } else {
             LOGGER.info("IDE runner - reusing karate env: {}", ideScriptEnv);
@@ -64,7 +64,7 @@ public class StepDefs implements Actions {
 
     private final Actions actions;
 
-    public StepDefs(ScriptEnv scriptEnv, CallContext callContext) {
+    public StepDefs(FeatureContext scriptEnv, CallContext callContext) {
         actions = new StepActions(scriptEnv, callContext);
     }
 

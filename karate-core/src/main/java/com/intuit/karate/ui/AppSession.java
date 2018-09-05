@@ -26,7 +26,7 @@ package com.intuit.karate.ui;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.FeatureContext;
 import com.intuit.karate.StepDefs;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
@@ -74,16 +74,12 @@ public class AppSession {
         return actions;
     }    
 
-    public ScriptEnv getEnv() {
-        return actions.context.getEnv();
-    }
-    
-    public ScriptEnv getEnv(String envString) {
-        return ScriptEnv.forEnvFeatureFileAndLogger(envString, featureFile, logger);
+    public FeatureContext getEnv() {
+        return actions.context.getFeatureContext();
     }
     
     public void resetBackendAndVarsTable(String envString) {
-        ScriptEnv env = getEnv(envString);
+        FeatureContext env = new FeatureContext(envString, feature, null, logger);
         actions = new StepActions(env, new CallContext(null, true));
         refreshVarsTable();        
     }

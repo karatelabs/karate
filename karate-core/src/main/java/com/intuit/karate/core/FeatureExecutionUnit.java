@@ -24,7 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StepActions;
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.FeatureContext;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.Collection;
 import java.util.Iterator;
@@ -46,7 +46,7 @@ public class FeatureExecutionUnit {
     public void submit(Runnable next) {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
-            ScriptEnv env = exec.env;
+            FeatureContext env = exec.env;
             Collection<Tag> tagsEffective = scenario.getTagsEffective();
             if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
                 env.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
@@ -87,10 +87,10 @@ public class FeatureExecutionUnit {
         }
     }
 
-    private static ScenarioInfo getScenarioInfo(Scenario scenario, ScriptEnv env) {
+    private static ScenarioInfo getScenarioInfo(Scenario scenario, FeatureContext env) {
         ScenarioInfo info = new ScenarioInfo();
-        info.setFeatureDir(env.featureDir.getPath());
-        info.setFeatureFileName(env.featureName);
+        info.setFeatureDir(env.feature.getFile().getParent());
+        info.setFeatureFileName(env.feature.getFile().getName());
         info.setScenarioName(scenario.getName());
         info.setScenarioDescription(scenario.getDescription());
         info.setScenarioType(scenario.isOutline() ? ScenarioOutline.KEYWORD : Scenario.KEYWORD);

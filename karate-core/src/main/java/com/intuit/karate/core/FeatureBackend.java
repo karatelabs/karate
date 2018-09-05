@@ -28,7 +28,7 @@ import com.intuit.karate.StepActions;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScenarioContext;
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.FeatureContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
@@ -79,7 +79,7 @@ public class FeatureBackend {
         featureName = feature.getFile().getName();
         this.ssl = ssl;
         CallContext callContext = new CallContext(null, false);
-        ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, feature.getFile());
+        FeatureContext env = new FeatureContext(feature, null);
         actions = new StepActions(env, callContext);
         context = actions.context;
         putBinding(ScriptBindings.PATH_MATCHES, context);

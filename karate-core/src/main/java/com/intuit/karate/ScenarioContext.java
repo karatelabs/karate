@@ -52,14 +52,14 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  * @author pthomas3
  */
 public class ScenarioContext {
-
+    
     public final Logger logger;
     public final ScriptBindings bindings;
     public final int callDepth;
     public final List<String> tags;
     public final Map<String, List<String>> tagValues;
     public final ScriptValueMap vars;
-    public final ScriptEnv env;
+    public final FeatureContext featureContext;
     public final ExecutionHook executionHook;
     public final boolean useLogAppenderFile;
     public final ScenarioInfo scenarioInfo;
@@ -116,8 +116,8 @@ public class ScenarioContext {
         return callDepth;
     }
 
-    public ScriptEnv getEnv() {
-        return env;
+    public FeatureContext getFeatureContext() {
+        return featureContext;
     }
 
     public ScriptValueMap getVars() {
@@ -145,10 +145,9 @@ public class ScenarioContext {
         return config.isPrintEnabled();
     }
 
-    public ScenarioContext(ScriptEnv env, CallContext call) {
-        env = env.refresh(null);
-        this.env = env; // make sure references below to env.env use the updated one
-        logger = env.logger;
+    public ScenarioContext(FeatureContext featureContext, CallContext call) {
+        this.featureContext = featureContext; // make sure references below to env.env use the updated one
+        logger = featureContext.logger;
         callDepth = call.callDepth;
         executionHook = call.executionHook;
         useLogAppenderFile = call.useLogAppenderFile;
@@ -190,15 +189,15 @@ public class ScenarioContext {
                     throw new RuntimeException("evaluation of '" + ScriptBindings.KARATE_CONFIG_JS + "' failed", e);
                 }
             }
-            if (env.env != null) {
-                configScript = ScriptBindings.readKarateConfigForEnv(false, configDir, env.env);
+            if (featureContext.env != null) {
+                configScript = ScriptBindings.readKarateConfigForEnv(false, configDir, featureContext.env);
                 try {
                     Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, configScript, null, this);
                 } catch (Exception e) {
                     if (e instanceof KarateFileNotFoundException) {
-                        logger.trace("skipping bootstrap configuration for env: {} - {}", env.env, e.getMessage());
+                        logger.trace("skipping bootstrap configuration for env: {} - {}", featureContext.env, e.getMessage());
                     } else {
-                        throw new RuntimeException("evaluation of 'karate-config-" + env.env + ".js' failed", e);
+                        throw new RuntimeException("evaluation of 'karate-config-" + featureContext.env + ".js' failed", e);
                     }
                 }
             }

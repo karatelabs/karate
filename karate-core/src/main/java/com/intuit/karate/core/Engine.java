@@ -28,7 +28,7 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.FeatureContext;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
@@ -86,9 +86,8 @@ public class Engine {
         return command.contains("org.gradle.") ? "build" : "target";
     }
 
-    public static FeatureResult executeFeatureSync(String envString, Feature feature, String tagSelector, CallContext callContext) {
-        File file = feature.getFile();
-        ScriptEnv env = ScriptEnv.forEnvTagsAndFeatureFile(envString, tagSelector, file);
+    public static FeatureResult executeFeatureSync(Feature feature, String tagSelector, CallContext callContext) {
+        FeatureContext env = new FeatureContext(feature, tagSelector);
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }

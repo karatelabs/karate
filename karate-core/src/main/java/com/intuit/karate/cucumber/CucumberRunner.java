@@ -26,7 +26,7 @@ package com.intuit.karate.cucumber;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileResource;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.FeatureContext;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
@@ -116,7 +116,7 @@ public class CucumberRunner {
                 callables.add(() -> {
                     // we are now within a separate thread. the reporter filters logs by self thread
                     String threadName = Thread.currentThread().getName();
-                    FeatureResult result = Engine.executeFeatureSync(null, feature, tagSelector, new CallContext(true, hook));                                        
+                    FeatureResult result = Engine.executeFeatureSync(feature, tagSelector, new CallContext(true, hook));                                        
                     if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
                         File file = Engine.saveResultJson(finalReportDir, result);
                         Engine.saveResultXml(finalReportDir, result);
@@ -157,7 +157,7 @@ public class CucumberRunner {
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         CallContext callContext = new CallContext(vars, evalKarateConfig);
-        FeatureResult result = Engine.executeFeatureSync(null, feature, null, callContext);
+        FeatureResult result = Engine.executeFeatureSync(feature, null, callContext);
         return result.getResultAsPrimitiveMap();
     }
 
@@ -179,7 +179,7 @@ public class CucumberRunner {
     // this is called by karate-gatling !
     public static void callAsync(String path, CallContext callContext, Consumer<Runnable> system, Runnable next) { 
         Feature feature = FileUtils.resolveFeature(path);
-        ScriptEnv env = ScriptEnv.forEnvAndFeatureFile(null, feature.getFile());
+        FeatureContext env = new FeatureContext(feature, null);
         ExecutionContext ec = new ExecutionContext(feature, env, callContext, system);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);
         exec.submit(next);

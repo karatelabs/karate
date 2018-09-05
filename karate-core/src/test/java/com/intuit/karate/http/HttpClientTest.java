@@ -26,7 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScenarioContext;
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.FeatureContext;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +40,7 @@ import static org.junit.Assert.*;
 public class HttpClientTest {
     
     private ScenarioContext getContext() {
-        ScriptEnv env = ScriptEnv.forEnvAndCurrentWorkingDir("dev");
+        FeatureContext env = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, true);
         return new ScenarioContext(env, callContext);
     }    

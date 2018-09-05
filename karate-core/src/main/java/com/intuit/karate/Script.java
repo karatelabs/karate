@@ -198,7 +198,7 @@ public class Script {
     }
 
     private static ScriptValue callWithCache(String text, String arg, ScenarioContext context, boolean reuseParentConfig) {
-        CallResult result = context.env.callCache.get(text);
+        CallResult result = context.featureContext.callCache.get(text);
         if (result != null) {
             context.logger.debug("callonce cache hit for: {}", text);
             if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
@@ -207,7 +207,7 @@ public class Script {
             return result.value;
         }
         ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
-        context.env.callCache.put(text, resultValue, context.getConfig());
+        context.featureContext.callCache.put(text, new CallResult(resultValue, context.getConfig()));
         context.logger.debug("cached callonce: {}", text);
         return resultValue;
     }
@@ -1659,8 +1659,9 @@ public class Script {
                 }
             }
             if (!errors.isEmpty()) {
+                String caller = context.featureContext.feature.getRelativePath();
                 String message = "feature call (loop) failed: " + feature.getRelativePath()
-                        + "\ncaller: " + context.env.featureName + "\nitems: " + items + "\nerrors:";
+                        + "\ncaller: " + caller + "\nitems: " + items + "\nerrors:";
                 for (String s : errors) {
                     message = message + "\n-------\n" + s;
                 }
@@ -1686,7 +1687,7 @@ public class Script {
             Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         // the call is always going to execute synchronously ! TODO improve       
         CallContext callContext = CallContext.forCall(context, callArg, loopIndex, reuseParentConfig);
-        FeatureResult result = Engine.executeFeatureSync(null, feature, null, callContext);
+        FeatureResult result = Engine.executeFeatureSync(feature, null, callContext);
         // hack to pass call result back to caller step
         context.addCallResult(result);
         result.setCallArg(callArg);

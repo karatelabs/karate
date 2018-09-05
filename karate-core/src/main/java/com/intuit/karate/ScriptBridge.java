@@ -391,7 +391,7 @@ public class ScriptBridge {
     }
     
     public String getEnv() {
-        return context.env.env;
+        return context.featureContext.env;
     }
     
     public Properties getProperties() {

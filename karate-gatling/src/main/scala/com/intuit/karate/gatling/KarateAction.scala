@@ -86,7 +86,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
           responseTime = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_TIME).getValue(classOf[Long])
           responseStatus = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_STATUS).getValue(classOf[Int])
         }
-        val featureName = ctx.getEnv.featureName
+        val featureName = ctx.getFeatureContext.feature.getRelativePath
         handleResultIfFail(featureName, result, result.getStep, ctx)
       }
 

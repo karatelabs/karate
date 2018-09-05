@@ -136,7 +136,8 @@ public class FileUtils {
             return new FileResource(fromRelativeClassPath(path), path);
         } else {
             try {
-                return new FileResource(new File(context.env.featureDir.getPath() + File.separator + path), path);
+                File file = new File(context.featureContext.workingDir + File.separator + path);
+                return new FileResource(file, path);
             } catch (Exception e) {
                 logger.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;

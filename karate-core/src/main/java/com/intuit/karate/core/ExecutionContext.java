@@ -26,7 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileLogAppender;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.ScriptEnv;
+import com.intuit.karate.FeatureContext;
 import java.io.File;
 import java.util.function.Consumer;
 
@@ -37,7 +37,7 @@ import java.util.function.Consumer;
 public class ExecutionContext {
 
     public final Feature feature;
-    public final ScriptEnv env;
+    public final FeatureContext env;
     public final CallContext callContext;
     public final FeatureResult result;
     public final LogAppender appender;
@@ -45,7 +45,7 @@ public class ExecutionContext {
 
     private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
 
-    public ExecutionContext(Feature feature, ScriptEnv env, CallContext callContext, Consumer<Runnable> system) {
+    public ExecutionContext(Feature feature, FeatureContext env, CallContext callContext, Consumer<Runnable> system) {
         this.feature = feature;
         result = new FeatureResult(feature);
         this.env = env;

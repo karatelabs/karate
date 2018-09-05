@@ -24,7 +24,8 @@ public class ScriptTest {
     private static final Logger logger = LoggerFactory.getLogger(ScriptTest.class);
 
     private ScenarioContext getContext() {
-        ScriptEnv env = ScriptEnv.forEnvAndClass("dev", getClass());
+        File featureDir = FileUtils.getDirContaining(getClass());
+        FeatureContext env = FeatureContext.forWorkingDir("dev", featureDir);
         CallContext callContext = new CallContext(null, true);
         return new ScenarioContext(env, callContext);
     }
@@ -1164,7 +1165,7 @@ public class ScriptTest {
 
     @Test
     public void testKarateEnvAccessFromScript() {
-        ScriptEnv env = ScriptEnv.forEnvAndClass("baz", getClass());
+        FeatureContext env = FeatureContext.forEnv("baz");
         CallContext callContext = new CallContext(null, true);
         ScenarioContext ctx = new ScenarioContext(env, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
@@ -1172,7 +1173,7 @@ public class ScriptTest {
         ScriptValue bar = ctx.vars.get("bar");
         assertEquals("baz", bar.getValue());
         // null
-        env = ScriptEnv.forEnvAndClass(null, getClass());
+        env = FeatureContext.forEnv();
         ctx = new ScenarioContext(env, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);

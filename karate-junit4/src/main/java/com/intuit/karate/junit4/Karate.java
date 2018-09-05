@@ -88,7 +88,7 @@ public class Karate extends ParentRunner<Feature> {
 
     @Override
     protected void runChild(Feature child, RunNotifier notifier) {
-        FeatureResult result = Engine.executeFeatureSync(null, child, tagSelector, null);
+        FeatureResult result = Engine.executeFeatureSync(child, tagSelector, null);
         for (ScenarioResult sr : result.getScenarioResults()) {
             Description scenarioDescription = getScenarioDescription(getFeatureName(child), sr.getScenario());
             notifier.fireTestStarted(scenarioDescription);

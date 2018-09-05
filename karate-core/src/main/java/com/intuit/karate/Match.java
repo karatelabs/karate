@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.DummyHttpClient;
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import net.minidev.json.JSONObject;
@@ -63,7 +64,7 @@ public class Match {
     }
     
     private Match() {
-        ScriptEnv env = ScriptEnv.forEnvAndCurrentWorkingDir(null);
+        FeatureContext env = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, 
                 DummyHttpClient.class.getName(), null, false);
         context = new ScenarioContext(env, callContext);
