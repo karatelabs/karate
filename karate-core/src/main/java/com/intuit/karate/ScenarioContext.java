@@ -59,7 +59,6 @@ public class ScenarioContext {
     public final List<String> tags;
     public final Map<String, List<String>> tagValues;
     public final ScriptValueMap vars;
-    public final Map<String, Validator> validators;
     public final ScriptEnv env;
     public final ExecutionHook executionHook;
     public final boolean useLogAppenderFile;
@@ -158,15 +157,12 @@ public class ScenarioContext {
         scenarioInfo = call.getScenarioInfo();
         if (call.reuseParentContext) {
             vars = call.parentContext.vars; // shared context !
-            validators = call.parentContext.validators;
             config = call.parentContext.config;
         } else if (call.parentContext != null) {
             vars = call.parentContext.vars.copy();
-            validators = call.parentContext.validators;
             config = new HttpConfig(call.parentContext.config);
         } else {
             vars = new ScriptValueMap();
-            validators = Validator.getDefaults();
             config = new HttpConfig();
             config.setClientClass(call.httpClientClass);
         }

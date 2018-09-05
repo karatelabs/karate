@@ -29,7 +29,15 @@ import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.validator.ArrayValidator;
+import com.intuit.karate.validator.BooleanValidator;
+import com.intuit.karate.validator.IgnoreValidator;
+import com.intuit.karate.validator.NotNullValidator;
+import com.intuit.karate.validator.NullValidator;
+import com.intuit.karate.validator.NumberValidator;
+import com.intuit.karate.validator.ObjectValidator;
 import com.intuit.karate.validator.RegexValidator;
+import com.intuit.karate.validator.StringValidator;
+import com.intuit.karate.validator.UuidValidator;
 import com.intuit.karate.validator.ValidationResult;
 import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
@@ -40,6 +48,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -61,17 +70,33 @@ import org.w3c.dom.NodeList;
  * @author pthomas3
  */
 public class Script {
+    
+    private Script() {
+        // only static methods
+    }    
 
     public static final String VAR_SELF = "_";
     public static final String VAR_ROOT = "$";
     public static final String VAR_PARENT = "_$";
     public static final String VAR_LOOP = "__loop";
     public static final String VAR_ARG = "__arg";
-
-    private Script() {
-        // only static methods
-    }
-
+    
+    public static final Map<String, Validator> VALIDATORS;
+    
+    static {
+        VALIDATORS = new HashMap(10);
+        VALIDATORS.put("ignore", IgnoreValidator.INSTANCE);
+        VALIDATORS.put("null", NullValidator.INSTANCE);
+        VALIDATORS.put("notnull", NotNullValidator.INSTANCE);
+        VALIDATORS.put("present", IgnoreValidator.INSTANCE); // re-use ignore, json key logic is in Script.java
+        VALIDATORS.put("uuid", UuidValidator.INSTANCE);
+        VALIDATORS.put("string", StringValidator.INSTANCE);
+        VALIDATORS.put("number", NumberValidator.INSTANCE);
+        VALIDATORS.put("boolean", BooleanValidator.INSTANCE);
+        VALIDATORS.put("array", ArrayValidator.INSTANCE);
+        VALIDATORS.put("object", ObjectValidator.INSTANCE);       
+    }    
+    
     public static final boolean isCallSyntax(String text) {
         return text.startsWith("call ");
     }
@@ -839,7 +864,7 @@ public class Script {
                 }
                 validatorName = StringUtils.trimToNull(validatorName);
                 if (validatorName != null) {
-                    Validator v = context.validators.get(validatorName);
+                    Validator v = VALIDATORS.get(validatorName);
                     if (v == null) {
                         boolean pass = expected.equals(actValue.getAsString());
                         if (!pass) {
