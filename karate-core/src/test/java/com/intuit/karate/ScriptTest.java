@@ -25,9 +25,9 @@ public class ScriptTest {
 
     private ScenarioContext getContext() {
         File featureDir = FileUtils.getDirContaining(getClass());
-        FeatureContext env = FeatureContext.forWorkingDir("dev", featureDir);
+        FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir);
         CallContext callContext = new CallContext(null, true);
-        return new ScenarioContext(env, callContext);
+        return new ScenarioContext(featureContext, callContext);
     }
 
     private AssertionResult matchJsonObject(Object act, Object exp, ScenarioContext context) {
@@ -1165,16 +1165,16 @@ public class ScriptTest {
 
     @Test
     public void testKarateEnvAccessFromScript() {
-        FeatureContext env = FeatureContext.forEnv("baz");
+        FeatureContext featureContext = FeatureContext.forEnv("baz");
         CallContext callContext = new CallContext(null, true);
-        ScenarioContext ctx = new ScenarioContext(env, callContext);
+        ScenarioContext ctx = new ScenarioContext(featureContext, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         ScriptValue bar = ctx.vars.get("bar");
         assertEquals("baz", bar.getValue());
         // null
-        env = FeatureContext.forEnv();
-        ctx = new ScenarioContext(env, callContext);
+        featureContext = FeatureContext.forEnv();
+        ctx = new ScenarioContext(featureContext, callContext);
         Script.assign("foo", "function(){ return karate.env }", ctx);
         Script.assign("bar", "call foo", ctx);
         bar = ctx.vars.get("bar");

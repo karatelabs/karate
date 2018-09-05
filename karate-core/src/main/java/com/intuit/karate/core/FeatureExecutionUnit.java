@@ -40,16 +40,16 @@ public class FeatureExecutionUnit {
 
     public FeatureExecutionUnit(ExecutionContext exec) {
         this.exec = exec;
-        iterator = exec.feature.getScenarios().iterator();
+        iterator = exec.featureContext.feature.getScenarios().iterator();
     }
 
     public void submit(Runnable next) {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
-            FeatureContext env = exec.env;
+            FeatureContext featureContext = exec.featureContext;
             Collection<Tag> tagsEffective = scenario.getTagsEffective();
-            if (!Tags.evaluate(env.tagSelector, tagsEffective)) {
-                env.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
+            if (!Tags.evaluate(featureContext.tagSelector, tagsEffective)) {
+                featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
                 FeatureExecutionUnit.this.submit(next);
                 return;
             }
@@ -57,20 +57,20 @@ public class FeatureExecutionUnit {
             if (callTag != null) {
                 Tag temp = new Tag(0, callTag);
                 if (!tagsEffective.contains(temp)) {
-                    env.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                    featureContext.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
                     FeatureExecutionUnit.this.submit(next);
                     return;
                 }
-                env.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+                featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
             // this is where the script-context and vars are inited for a scenario
             // first we set the scenario metadata
-            exec.callContext.setScenarioInfo(getScenarioInfo(scenario, env));
+            exec.callContext.setScenarioInfo(getScenarioInfo(scenario, featureContext));
             // then the tags metadata
             exec.callContext.setTagsEffective(tagsEffective);
             // karate-config.js will be processed here 
             // when the script-context constructor is called
-            StepActions actions = new StepActions(env, exec.callContext);
+            StepActions actions = new StepActions(featureContext, exec.callContext);
             // we also hold a reference to the LAST scenario executed
             // for cases where the caller needs a result
             exec.result.setResultVars(actions.context.getVars());            

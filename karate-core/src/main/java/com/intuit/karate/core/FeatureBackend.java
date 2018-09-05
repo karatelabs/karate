@@ -79,8 +79,8 @@ public class FeatureBackend {
         featureName = feature.getFile().getName();
         this.ssl = ssl;
         CallContext callContext = new CallContext(null, false);
-        FeatureContext env = new FeatureContext(feature, null);
-        actions = new StepActions(env, callContext);
+        FeatureContext featureContext = new FeatureContext(feature, null);
+        actions = new StepActions(featureContext, callContext);
         context = actions.context;
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);

@@ -94,7 +94,7 @@ public class HeaderPanel extends BorderPane {
             Label envLabel = new Label(ScriptBindings.KARATE_ENV);
             envLabel.setPadding(new Insets(5, 0, 0, 0));
             TextField envTextField = new TextField();
-            envTextField.setText(session.getEnv().env);
+            envTextField.setText(session.getFeatureContext().env);
             Button envButton = new Button("Reset");
             envButton.setOnAction(e -> session.resetAll(envTextField.getText()));
             Button runAllButton = new Button("Run ►►");

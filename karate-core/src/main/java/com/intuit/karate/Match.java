@@ -64,10 +64,10 @@ public class Match {
     }
     
     private Match() {
-        FeatureContext env = FeatureContext.forEnv();
+        FeatureContext featureContext = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, 0, null, -1, false, false, 
                 DummyHttpClient.class.getName(), null, false);
-        context = new ScenarioContext(env, callContext);
+        context = new ScenarioContext(featureContext, callContext);
     }
     
     private void handleFailure(AssertionResult ar) {

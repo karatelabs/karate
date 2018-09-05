@@ -23,6 +23,8 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
 
@@ -41,25 +43,26 @@ public class StepDefs implements Actions {
         this(getFeatureEnv(), new CallContext(null, true));
     }
 
-    private static FeatureContext ideScriptEnv;
+    private static FeatureContext IDE_FEATURE_CONTEXT;
 
     private static FeatureContext getFeatureEnv() {
-        if (ideScriptEnv == null) {
+        if (IDE_FEATURE_CONTEXT == null) {
             String cwd = new File("").getAbsoluteFile().getPath();
             String javaCommand = System.getProperty("sun.java.command");
             String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
             if (featurePath == null) {
                 LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", cwd);
-                ideScriptEnv = FeatureContext.forEnv();
+                IDE_FEATURE_CONTEXT = FeatureContext.forEnv();
             } else {
                 File file = new File(featurePath);
                 LOGGER.info("IDE runner - init karate env: {}", file);
-                ideScriptEnv = FeatureContext.forWorkingDir(file);
+                Feature feature = FeatureParser.parse(file);
+                IDE_FEATURE_CONTEXT = new FeatureContext(feature, null);
             }
         } else {
-            LOGGER.info("IDE runner - reusing karate env: {}", ideScriptEnv);
+            LOGGER.info("IDE runner - reusing karate env: {}", IDE_FEATURE_CONTEXT);
         }
-        return ideScriptEnv;
+        return IDE_FEATURE_CONTEXT;
     }
 
     private final Actions actions;

@@ -35,9 +35,9 @@ public class StepActions implements Actions {
     public final ScenarioContext context;
     public final CallContext callContext;
 
-    public StepActions(FeatureContext scriptEnv, CallContext callContext) {
+    public StepActions(FeatureContext featureContext, CallContext callContext) {
         this.callContext = callContext;
-        context = new ScenarioContext(scriptEnv, callContext);
+        context = new ScenarioContext(featureContext, callContext);
     }
 
     @Override

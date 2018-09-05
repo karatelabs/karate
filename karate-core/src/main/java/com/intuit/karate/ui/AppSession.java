@@ -74,13 +74,13 @@ public class AppSession {
         return actions;
     }    
 
-    public FeatureContext getEnv() {
+    public FeatureContext getFeatureContext() {
         return actions.context.getFeatureContext();
     }
     
     public void resetBackendAndVarsTable(String envString) {
-        FeatureContext env = new FeatureContext(envString, feature, null, logger);
-        actions = new StepActions(env, new CallContext(null, true));
+        FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
+        actions = new StepActions(featureContext, new CallContext(null, true));
         refreshVarsTable();        
     }
 

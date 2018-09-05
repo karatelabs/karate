@@ -87,11 +87,11 @@ public class Engine {
     }
 
     public static FeatureResult executeFeatureSync(Feature feature, String tagSelector, CallContext callContext) {
-        FeatureContext env = new FeatureContext(feature, tagSelector);
+        FeatureContext featureContext = new FeatureContext(feature, tagSelector);
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
-        ExecutionContext exec = new ExecutionContext(feature, env, callContext, null);
+        ExecutionContext exec = new ExecutionContext(featureContext, callContext, null);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
         unit.submit(NO_OP);
         return exec.result;

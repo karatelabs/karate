@@ -179,8 +179,8 @@ public class CucumberRunner {
     // this is called by karate-gatling !
     public static void callAsync(String path, CallContext callContext, Consumer<Runnable> system, Runnable next) { 
         Feature feature = FileUtils.resolveFeature(path);
-        FeatureContext env = new FeatureContext(feature, null);
-        ExecutionContext ec = new ExecutionContext(feature, env, callContext, system);
+        FeatureContext featureContext = new FeatureContext(feature, null);
+        ExecutionContext ec = new ExecutionContext(featureContext, callContext, system);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);
         exec.submit(next);
     }  

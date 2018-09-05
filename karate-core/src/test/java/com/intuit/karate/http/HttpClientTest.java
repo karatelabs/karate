@@ -40,9 +40,9 @@ import static org.junit.Assert.*;
 public class HttpClientTest {
     
     private ScenarioContext getContext() {
-        FeatureContext env = FeatureContext.forEnv();
+        FeatureContext featureContext = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, true);
-        return new ScenarioContext(env, callContext);
+        return new ScenarioContext(featureContext, callContext);
     }    
     
     @Test

@@ -36,8 +36,7 @@ import java.util.function.Consumer;
  */
 public class ExecutionContext {
 
-    public final Feature feature;
-    public final FeatureContext env;
+    public final FeatureContext featureContext;
     public final CallContext callContext;
     public final FeatureResult result;
     public final LogAppender appender;
@@ -45,10 +44,9 @@ public class ExecutionContext {
 
     private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
 
-    public ExecutionContext(Feature feature, FeatureContext env, CallContext callContext, Consumer<Runnable> system) {
-        this.feature = feature;
-        result = new FeatureResult(feature);
-        this.env = env;
+    public ExecutionContext(FeatureContext featureContext, CallContext callContext, Consumer<Runnable> system) {
+        result = new FeatureResult(featureContext.feature);
+        this.featureContext = featureContext;
         this.callContext = callContext;
         if (system == null) {
             this.system = SYNC_EXECUTOR;
@@ -60,8 +58,8 @@ public class ExecutionContext {
             if (!logFileDir.exists()) {
                 logFileDir.mkdirs();
             }
-            String basePath = feature.getPackageQualifiedName();
-            appender = new FileLogAppender(logFileDir.getPath() + File.separator + basePath + ".log", env.logger);
+            String basePath = featureContext.feature.getPackageQualifiedName();
+            appender = new FileLogAppender(logFileDir.getPath() + File.separator + basePath + ".log", featureContext.logger);
         } else {
             appender = LogAppender.NO_OP;
         }
