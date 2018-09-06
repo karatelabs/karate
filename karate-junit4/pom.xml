@@ -10,34 +10,29 @@
     <artifactId>karate-junit4</artifactId>
     <packaging>jar</packaging>   
 
-    <dependencies>
-        
+    <dependencies>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
-            <groupId>info.cukes</groupId>
-            <artifactId>cucumber-junit</artifactId>
-            <version>${cucumber.version}</version>
-        </dependency>
-        
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+        </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>
-        
+        </dependency>        
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
             <version>3.8.0</version>
             <scope>test</scope>
-        </dependency>        
-		
+        </dependency>		
     </dependencies>
 
     <build>

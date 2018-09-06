@@ -47,6 +47,16 @@ public class FeatureExecutionUnit {
         if (iterator.hasNext()) {
             Scenario scenario = iterator.next();
             FeatureContext featureContext = exec.featureContext;
+            String callName = featureContext.feature.getCallName();
+            if (callName != null) {
+                if (!scenario.getName().matches(callName)) {
+                    featureContext.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+                    FeatureExecutionUnit.this.submit(next);
+                    return;
+                } else {
+                    featureContext.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                }
+            }
             Collection<Tag> tagsEffective = scenario.getTagsEffective();
             if (!Tags.evaluate(featureContext.tagSelector, tagsEffective)) {
                 featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
@@ -73,10 +83,10 @@ public class FeatureExecutionUnit {
             StepActions actions = new StepActions(featureContext, exec.callContext);
             // we also hold a reference to the LAST scenario executed
             // for cases where the caller needs a result
-            exec.result.setResultVars(actions.context.getVars());            
+            exec.result.setResultVars(actions.context.getVars());
             exec.system.accept(() -> {
                 ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
-                unit.submit(() -> {                           
+                unit.submit(() -> {
                     FeatureExecutionUnit.this.submit(next);
                 });
             });

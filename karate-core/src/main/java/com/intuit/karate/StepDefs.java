@@ -49,12 +49,12 @@ public class StepDefs implements Actions {
         if (IDE_FEATURE_CONTEXT == null) {
             String cwd = new File("").getAbsoluteFile().getPath();
             String javaCommand = System.getProperty("sun.java.command");
-            String featurePath = FileUtils.getFeaturePath(javaCommand, cwd);
+            StringUtils.Pair featurePath = FileUtils.parseCommandLine(javaCommand, cwd);
             if (featurePath == null) {
                 LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", cwd);
                 IDE_FEATURE_CONTEXT = FeatureContext.forEnv();
             } else {
-                File file = new File(featurePath);
+                File file = new File(featurePath.left);
                 LOGGER.info("IDE runner - init karate env: {}", file);
                 Feature feature = FeatureParser.parse(file);
                 IDE_FEATURE_CONTEXT = new FeatureContext(feature, null);

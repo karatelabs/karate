@@ -51,6 +51,7 @@ public class Feature {
     private List<String> lines;
     
     private String callTag;
+    private String callName;
     
     public Feature(File file, String relativePath) {
         this.file = file;
@@ -156,6 +157,14 @@ public class Feature {
     public void setCallTag(String callTag) {
         this.callTag = callTag;
     }
+
+    public String getCallName() {
+        return callName;
+    }
+
+    public void setCallName(String callName) {
+        this.callName = callName;
+    }    
 
     public List<String> getLines() {
         return lines;
