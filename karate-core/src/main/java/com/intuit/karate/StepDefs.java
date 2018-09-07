@@ -23,352 +23,362 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+/**
+ * the only purpose of this file is to keep ide-support happy (intellij /
+ * eclipse) for feature-file formatting, auto-complete and syntax-coloring
+ *
+ * the cucumber-eclipse plugin parses the TEXT of this file :( and we have to have
+ * real text in the annotations instead of string-constants
+ *
+ * @author pthomas3
+ */
 public class StepDefs implements Actions {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(StepDefs.class);
+    public final ScenarioContext context;
+    public final CallContext callContext;
 
-    public StepDefs() { // zero-arg constructor for IDE support
-        this(getFeatureEnv(), new CallContext(null, true));
+    public StepDefs(FeatureContext featureContext, CallContext callContext) {
+        this.callContext = callContext;
+        context = new ScenarioContext(featureContext, callContext);
     }
 
-    private static FeatureContext IDE_FEATURE_CONTEXT;
-
-    private static FeatureContext getFeatureEnv() {
-        if (IDE_FEATURE_CONTEXT == null) {
-            String cwd = new File("").getAbsoluteFile().getPath();
-            String javaCommand = System.getProperty("sun.java.command");
-            StringUtils.Pair featurePath = FileUtils.parseCommandLine(javaCommand, cwd);
-            if (featurePath == null) {
-                LOGGER.warn("IDE runner - unable to derive feature file path, using: {}", cwd);
-                IDE_FEATURE_CONTEXT = FeatureContext.forEnv();
-            } else {
-                File file = new File(featurePath.left);
-                LOGGER.info("IDE runner - init karate env: {}", file);
-                Feature feature = FeatureParser.parse(file);
-                IDE_FEATURE_CONTEXT = new FeatureContext(feature, null);
-            }
-        } else {
-            LOGGER.info("IDE runner - reusing karate env: {}", IDE_FEATURE_CONTEXT);
-        }
-        return IDE_FEATURE_CONTEXT;
-    }
-
-    private final Actions actions;
-
-    public StepDefs(FeatureContext scriptEnv, CallContext callContext) {
-        actions = new StepActions(scriptEnv, callContext);
-    }
-
-    @When(CONFIGURE_DOCSTRING)
     @Override
+    @When("^configure ([^\\s]+) =$")
     public void configureDocstring(String key, String exp) {
-        actions.configure(key, exp);
+        context.configure(key, exp);
     }
 
-    @When(CONFIGURE)
     @Override
+    @When("^configure ([^\\s]+) = (.+)")
     public void configure(String key, String exp) {
-        actions.configure(key, exp);
+        context.configure(key, exp);
     }
 
-    @When(URL)
     @Override
+    @When("^url (.+)")
     public void url(String expression) {
-        actions.url(expression);
+        context.url(expression);
     }
 
-    @When(PATH)
     @Override
+    @When("^path (.+)")
     public void path(List<String> paths) {
-        actions.path(paths);
+        context.path(paths);
     }
 
-    @When(PARAM)
     @Override
+    @When("^param ([^\\s]+) = (.+)")
     public void param(String name, List<String> values) {
-        actions.param(name, values);
+        context.param(name, values);
     }
 
-    @When(PARAMS)
     @Override
+    @When("^params (.+)")
     public void params(String expr) {
-        actions.params(expr);
+        context.params(expr);
     }
 
-    @When(COOKIE)
     @Override
+    @When("^cookie ([^\\s]+) = (.+)")
     public void cookie(String name, String value) {
-        actions.cookie(name, value);
+        context.cookie(name, value);
     }
 
-    @When(COOKIES)
     @Override
+    @When("^cookies (.+)")
     public void cookies(String expr) {
-        actions.cookies(expr);
+        context.cookies(expr);
     }
 
-    @When(HEADER)
     @Override
+    @When("^header ([^\\s]+) = (.+)")
     public void header(String name, List<String> values) {
-        actions.header(name, values);
+        context.header(name, values);
     }
 
-    @When(HEADERS)
     @Override
+    @When("^headers (.+)")
     public void headers(String expr) {
-        actions.headers(expr);
+        context.headers(expr);
     }
 
-    @When(FORM_FIELD)
     @Override
+    @When("^form field ([^\\s]+) = (.+)")
     public void formField(String name, List<String> values) {
-        actions.formField(name, values);
+        context.formField(name, values);
     }
 
-    @When(FORM_FIELDS)
     @Override
+    @When("^form fields (.+)")
     public void formFields(String expr) {
-        actions.formFields(expr);
+        context.formFields(expr);
     }
 
-    @When(REQUEST_DOCSTRING)
     @Override
+    @When("^request$")
     public void requestDocstring(String body) {
-        actions.requestDocstring(body);
+        context.request(body);
     }
 
-    @When(REQUEST)
     @Override
+    @When("^request (.+)")
     public void request(String body) {
-        actions.request(body);
+        context.request(body);
     }
 
-    @When(TABLE) // ** data-table **
+    @When("^table (.+)")
     public void table(String name, DataTable table) {
         table(name, table.asMaps(String.class, String.class));
     }
 
     @Override
+    @Action("^table (.+)")
     public void table(String name, List<Map<String, String>> table) {
-        actions.table(name, table);
+        context.table(name, table);
     }
 
-    @When(REPLACE_TABLE) // ** data-table **
+    @When("^replace (\\w+)$")
     public void replace(String name, DataTable table) {
         replace(name, table.asMaps(String.class, String.class));
     }
 
     @Override
+    @Action("^replace (\\w+)$")
     public void replace(String name, List<Map<String, String>> table) {
-        actions.replace(name, table);
+        context.replace(name, table);
     }
 
-    @When(REPLACE)
     @Override
+    @When("^replace (\\w+).([^\\s]+) = (.+)")
     public void replace(String name, String token, String value) {
-        actions.replace(name, token, value);
+        context.replace(name, token, value);
     }
 
-    @When(DEF_DOCSTRING)
     @Override
+    @When("^def (.+) =$")
     public void defDocstring(String name, String expression) {
-        actions.defDocstring(name, expression);
+        context.assign(AssignType.AUTO, name, expression);
     }
 
-    @When(DEF)
     @Override
+    @When("^def (\\w+) = (.+)")
     public void def(String name, String expression) {
-        actions.def(name, expression);
+        context.assign(AssignType.AUTO, name, expression);
     }
 
-    @When(TEXT)
     @Override
+    @When("^text (.+) =$")
     public void text(String name, String expression) {
-        actions.text(name, expression);
+        context.assign(AssignType.TEXT, name, expression);
     }
 
-    @When(YAML)
     @Override
+    @When("^yaml (.+) =$")
     public void yaml(String name, String expression) {
-        actions.yaml(name, expression);
+        context.assign(AssignType.YAML, name, expression);
     }
 
-    @When(COPY)
     @Override
+    @When("^copy (.+) = (.+)")
     public void copy(String name, String expression) {
-        actions.copy(name, expression);
+        context.assign(AssignType.COPY, name, expression);
     }
 
-    @When(JSON)
     @Override
+    @When("^json (.+) = (.+)")
     public void json(String name, String expression) {
-        actions.json(name, expression);
+        context.assign(AssignType.JSON, name, expression);
     }
 
-    @When(STRING)
     @Override
+    @When("^string (.+) = (.+)")
     public void string(String name, String expression) {
-        actions.string(name, expression);
+        context.assign(AssignType.STRING, name, expression);
     }
 
-    @When(XML)
     @Override
+    @When("^xml (.+) = (.+)")
     public void xml(String name, String expression) {
-        actions.xml(name, expression);
+        context.assign(AssignType.XML, name, expression);
     }
 
-    @When(XMLSTRING)
     @Override
+    @When("^xmlstring (.+) = (.+)")
     public void xmlstring(String name, String expression) {
-        actions.xmlstring(name, expression);
+        context.assign(AssignType.XML_STRING, name, expression);
     }
 
-    @When(ASSERT)
     @Override
+    @When("^assert (.+)")
     public void assertTrue(String expression) {
-        actions.assertTrue(expression);
+        context.assertTrue(expression);
     }
 
-    @When(METHOD)
     @Override
+    @When("^method (\\w+)")
     public void method(String method) {
-        actions.method(method);
+        context.method(method);
     }
 
-    @When(SOAP_ACTION)
     @Override
+    @When("^soap action( .+)?")
     public void soapAction(String action) {
-        actions.soapAction(action);
+        context.soapAction(action);
     }
 
-    @When(MULTIPART_ENTITY)
     @Override
+    @When("^multipart entity (.+)")
     public void multipartEntity(String value) {
-        actions.multipartEntity(value);
+        context.multipartField(null, value);
     }
 
-    @When(MULTIPART_FIELD)
     @Override
+    @When("^multipart field (.+) = (.+)")
     public void multipartField(String name, String value) {
-        actions.multipartField(name, value);
+        context.multipartField(name, value);
     }
 
-    @When(MULTIPART_FIELDS)
     @Override
+    @When("^multipart fields (.+)")
     public void multipartFields(String expr) {
-        actions.multipartFields(expr);
+        context.multipartFields(expr);
     }
 
-    @When(MULTIPART_FILE)
     @Override
+    @When("^multipart file (.+) = (.+)")
     public void multipartFile(String name, String value) {
-        actions.multipartFile(name, value);
+        context.multipartFile(name, value);
     }
 
-    @When(MULTIPART_FILES)
     @Override
+    @When("^multipart files (.+)")
     public void multipartFiles(String expr) {
-        actions.multipartFiles(expr);
+        context.multipartFiles(expr);
     }
 
-    @When(PRINT)
     @Override
+    @When("^print (.+)")
     public void print(List<String> exps) {
-        actions.print(exps);
+        context.print(exps);
     }
 
-    @When(STATUS)
     @Override
+    @When("^status (\\d+)")
     public void status(int status) {
-        actions.status(status);
+        context.status(status);
     }
 
-    @When(MATCH_EQUALS_DOCSTRING)
     @Override
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=)$")
     public void matchEqualsDocstring(String each, String name, String path, String eqSymbol, String expected) {
-        actions.matchEqualsDocstring(each, name, path, eqSymbol, expected);
+        matchEquals(each, name, path, eqSymbol, expected);
     }
 
-    @When(MATCH_CONTAINS_DOCSTRING)
     @Override
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only| any)?$")
     public void matchContainsDocstring(String each, String name, String path, String not, String only, String expected) {
-        actions.matchContainsDocstring(each, name, path, not, only, expected);
-    }
+        matchContains(each, name, path, not, only, expected);
+    }    
 
-    @When(MATCH_EQUALS)
     @Override
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=) (.+)")
     public void matchEquals(String each, String name, String path, String eqSymbol, String expected) {
-        actions.matchEquals(each, name, path, eqSymbol, expected);
+        validateEqualsSign(eqSymbol);
+        MatchType mt = toMatchType(eqSymbol, each, null, null, false);
+        context.match(mt, name, path, expected);
     }
 
-    @When(MATCH_CONTAINS)
     @Override
+    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only| any)?(.+)")
     public void matchContains(String each, String name, String path, String not, String only, String expected) {
-        actions.matchContains(each, name, path, not, only, expected);
+        MatchType mt = toMatchType("==", each, not, only, true);
+        context.match(mt, name, path, expected);
     }
 
-    @When(SET_DOCSTRING)
     @Override
+    @When("^set ([^\\s]+)( .+)? =$")
     public void setDocstring(String name, String path, String value) {
-        actions.setDocstring(name, path, value);
+        context.set(name, path, value);
     }
 
-    @When(SET)
     @Override
+    @When("^set ([^\\s]+)( .+)? = (.+)")
     public void set(String name, String path, String value) {
-        actions.set(name, path, value);
+        context.set(name, path, value);
     }
 
-    @When(SET_TABLE) // ** data-table **
+    @When("^set ([^\\s]+)( [^=]+)?$")
     public void set(String name, String path, DataTable table) {
         set(name, path, table.asMaps(String.class, String.class));
     }
 
     @Override
+    @Action("^set ([^\\s]+)( [^=]+)?$")
     public void set(String name, String path, List<Map<String, String>> table) {
-        actions.set(name, path, table);
+        context.set(name, path, table);
     }
 
-    @When(REMOVE)
     @Override
+    @When("^remove ([^\\s]+)( .+)?")
     public void remove(String name, String path) {
-        actions.remove(name, path);
+        context.remove(name, path);
     }
 
-    @When(CALL)
     @Override
+    @When("^call ([^\\s]+)( .*)?")
     public void call(String name, String arg) {
-        actions.call(name, arg);
+        context.call(false, name, arg);
     }
 
-    @When(CALLONCE)
     @Override
+    @When("^callonce ([^\\s]+)( .*)?")
     public void callonce(String name, String arg) {
-        actions.callonce(name, arg);
+        context.call(true, name, arg);
     }
 
-    @When(EVAL)
     @Override
+    @When("^eval (.+)")
     public void eval(String exp) {
-        actions.eval(exp);
+        context.eval(exp);
     }
 
-    @When(EVAL_DOCSTRING)
     @Override
+    @When("^eval$")
     public void evalDocstring(String exp) {
-        actions.evalDocstring(exp);
+        context.eval(exp);
     }
+    
+    public static MatchType toMatchType(String eqSymbol, String each, String notContains, String only, boolean contains) {
+        boolean notEquals = eqSymbol.startsWith("!");
+        if (each == null) {
+            if (notContains != null) {
+                return MatchType.NOT_CONTAINS;
+            }
+            if (only != null) {
+                return only.contains("only") ? MatchType.CONTAINS_ONLY : MatchType.CONTAINS_ANY;
+            }
+            return contains ? MatchType.CONTAINS : notEquals ? MatchType.NOT_EQUALS : MatchType.EQUALS;
+        } else {
+            if (notContains != null) {
+                return MatchType.EACH_NOT_CONTAINS;
+            }
+            if (only != null) {
+                return only.contains("only") ? MatchType.EACH_CONTAINS_ONLY : MatchType.EACH_CONTAINS_ANY;
+            }
+            return contains ? MatchType.EACH_CONTAINS : notEquals ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
+        }
+    }    
+    
+    private static void validateEqualsSign(String eqSymbol) {
+        if (eqSymbol.equals("=")) {
+            throw new RuntimeException("use '==' for match (not '=')");
+        }
+    }    
 
 }

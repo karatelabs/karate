@@ -604,7 +604,7 @@ public class ScenarioContext {
         request.addMultiPartItem(item);
     }
 
-    public void multiPartFiles(String expr) {
+    public void multipartFiles(String expr) {
         Map<String, Object> map = evalMapExpr(expr);
         map.forEach((k, v) -> {
             ScriptValue sv = new ScriptValue(v);

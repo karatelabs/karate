@@ -24,7 +24,6 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.StepActions;
 import com.intuit.karate.Logger;
 import com.intuit.karate.FeatureContext;
 import com.intuit.karate.StepDefs;
@@ -56,7 +55,7 @@ public class AppSession {
     public final HttpPanel httpPanel;
     public final Logger logger = new Logger();
     
-    private StepActions actions;
+    private StepDefs actions;
     
     RunService runner;
     BooleanBinding runningNow;
@@ -70,7 +69,7 @@ public class AppSession {
         this(featureFile, envString, false);
     }
 
-    public StepActions getActions() {
+    public StepDefs getActions() {
         return actions;
     }    
 
@@ -80,7 +79,7 @@ public class AppSession {
     
     public void resetBackendAndVarsTable(String envString) {
         FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
-        actions = new StepActions(featureContext, new CallContext(null, true));
+        actions = new StepDefs(featureContext, new CallContext(null, true));
         refreshVarsTable();        
     }
 

@@ -394,10 +394,9 @@ Many popular text editors such as [Visual Studio Code](https://marketplace.visua
 
 > Also refer to the [JUnit HTML report](#junit-html-report).
 
-### Eclipse
+### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
-### IntelliJ
 If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time.
 > Important: only the "Gherkin" and "Cucumber for Java" plugins are needed, the "Substeps IntelliJ Plugin" is not compatible.
 

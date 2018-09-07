@@ -22,12 +22,9 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
 
@@ -42,10 +39,11 @@ public class FileUtils {
     public static final Charset UTF8 = StandardCharsets.UTF_8;
 
     private static final String CLASSPATH = "classpath";
+    
     public static final String CLASSPATH_COLON = CLASSPATH + ":";
     public static final String FILE_COLON = "file:";
-    private static final String SRC_TEST_JAVA = "src/test/java";
-    private static final String SRC_TEST_RESOURCES = "src/test/resources";
+    public static final String SRC_TEST_JAVA = "src/test/java";
+    public static final String SRC_TEST_RESOURCES = "src/test/resources";
 
     private FileUtils() {
         // only static methods
@@ -183,47 +181,6 @@ public class FileUtils {
             packagePath = packagePath.substring(0, packagePath.length() - 8);
         }
         return packagePath;
-    }
-
-    private static final Pattern COMMAND_NAME = Pattern.compile("--name (.+?\\$)");
-
-    public static StringUtils.Pair parseCommandLine(String commandLine, String cwd) {
-        Matcher matcher = COMMAND_NAME.matcher(commandLine);
-        String name;
-        if (matcher.find()) {
-            name = matcher.group(1);        
-            commandLine = matcher.replaceFirst("");
-        } else {
-            name = null;
-        }
-        List<String> args = Arrays.asList(commandLine.split("\\s+"));
-        Iterator<String> iterator = args.iterator();
-        String path = null;
-        while (iterator.hasNext()) {
-            String arg = iterator.next();
-            if (arg.equals("--plugin") || arg.equals("--glue")) {
-                iterator.next();
-            }
-            if (arg.startsWith("--") || arg.startsWith("com.") || arg.startsWith("cucumber.") || arg.startsWith("org.")) {
-                // do nothing
-            } else {
-                path = arg;
-            }
-        }
-        if (path == null) {
-            return null;
-        }
-        if (cwd == null) {
-            cwd = new File("").getAbsoluteFile().getPath();
-        }
-        cwd = cwd.replace('\\', '/'); // fix for windows
-        path = path.substring(cwd.length() + 1);
-        if (path.startsWith(SRC_TEST_JAVA)) {
-            path = CLASSPATH_COLON + path.substring(SRC_TEST_JAVA.length() + 1);
-        } else if (path.startsWith(SRC_TEST_RESOURCES)) {
-            path = CLASSPATH_COLON + path.substring(SRC_TEST_RESOURCES.length() + 1);
-        }
-        return StringUtils.pair(path, name);
     }
 
     public static String toString(File file) {

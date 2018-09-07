@@ -24,8 +24,8 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Action;
+import com.intuit.karate.Actions;
 import com.intuit.karate.CallContext;
-import com.intuit.karate.StepActions;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.FeatureContext;
@@ -49,7 +49,10 @@ import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import com.intuit.karate.Actions;
+import com.intuit.karate.StepDefs;
+import cucumber.api.java.en.When;
+import java.util.Collection;
+import java.util.HashMap;
 
 /**
  *
@@ -61,24 +64,43 @@ public class Engine {
         // only static methods
     }
 
-    private static final List<MethodPattern> PATTERNS = new ArrayList();
+    private static final Collection<MethodPattern> PATTERNS;
 
     static {
-        for (Method method : Actions.class.getMethods()) {
-            Action action = method.getDeclaredAnnotation(Action.class);
-            if (action != null) {
-                MethodPattern pattern = new MethodPattern(method, action);
-                PATTERNS.add(pattern);
+        Map<String, MethodPattern> temp = new HashMap();
+        List<MethodPattern> overwrite = new ArrayList();
+        for (Method method : StepDefs.class.getMethods()) {
+            When when = method.getDeclaredAnnotation(When.class);
+            if (when != null) {
+                String regex = when.value();
+                temp.put(regex, new MethodPattern(method, regex));
+            } else {
+                Action action = method.getDeclaredAnnotation(Action.class);
+                if (action != null) {
+                    String regex = action.value();
+                    overwrite.add(new MethodPattern(method, regex));
+                }
             }
         }
+        for (MethodPattern mp : overwrite) {
+            temp.put(mp.regex, mp);
+        }
+        PATTERNS = temp.values();
     }
 
     private static final Runnable NO_OP = () -> {
         // no op
     };
 
+    private static final double MILLION = 1000000;
+    private static final double BILLION = 1000000000;
+
     public static double nanosToSeconds(long nanos) {
-        return (double) nanos / 1000000000;
+        return (double) nanos / BILLION;
+    }
+
+    public static double nanosToMillis(long nanos) {
+        return (double) nanos / 1000000;
     }
 
     public static String getBuildDir() {
@@ -96,9 +118,9 @@ public class Engine {
         unit.submit(NO_OP);
         return exec.result;
     }
-    
+
     private static final String UNKNOWN = "-unknown-";
-    
+
     public static String getFeatureName(Step step) {
         if (step.getScenario() == null) {
             return UNKNOWN;
@@ -110,7 +132,7 @@ public class Engine {
         return file.getName();
     }
 
-    public static Result executeStep(Step step, StepActions actions) {
+    public static Result executeStep(Step step, Actions actions) {
         String text = step.getText();
         List<MethodMatch> matches = findMethodsMatching(text);
         if (matches.isEmpty()) {
@@ -156,10 +178,10 @@ public class Engine {
     private static String formatNanos(long nanos, DecimalFormat formatter) {
         return formatter.format(nanosToSeconds(nanos));
     }
-    
+
     private static String formatSeconds(double seconds, DecimalFormat formatter) {
         return formatter.format(seconds);
-    }    
+    }
 
     private static Throwable appendSteps(List<StepResult> steps, StringBuilder sb) {
         Throwable error = null;
@@ -193,7 +215,7 @@ public class Engine {
         Document doc = XmlUtils.newDocument();
         Element root = doc.createElement("testsuite");
         doc.appendChild(root);
-        root.setAttribute("name", result.getDisplayName()); // will be uri
+        root.setAttribute("name", result.getDisplayUri()); // will be uri
         root.setAttribute("skipped", "0");
         String baseName = result.getFeature().getPackageQualifiedName();
         int testCount = 0;
@@ -271,7 +293,7 @@ public class Engine {
     private static Node node(Document doc, String name, String clazz) {
         return node(doc, name, clazz, null);
     }
-    
+
     private static void callHtml(Document doc, DecimalFormat formatter, FeatureResult featureResult, Node parent) {
         String extraClass = featureResult.isFailed() ? "failed" : "passed";
         Node stepRow = div(doc, "step-row",
@@ -317,7 +339,7 @@ public class Engine {
         if (stepResult.getStepLog() != null) {
             if (sb.length() > 0) {
                 sb.append('\n');
-            }            
+            }
             sb.append(stepResult.getStepLog());
         }
         if (result.isFailed()) {

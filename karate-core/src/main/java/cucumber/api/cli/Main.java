@@ -23,13 +23,7 @@
  */
 package cucumber.api.cli;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
-import java.io.File;
+import com.intuit.karate.IdeUtils;
 
 /**
  * replaces cucumber-jvm code
@@ -39,13 +33,7 @@ import java.io.File;
 public class Main {
 
     public static void main(String[] args) {
-        String command = System.getProperty("sun.java.command");
-        System.out.println("command: " + command);
-        StringUtils.Pair path = FileUtils.parseCommandLine(command, null);
-        Feature feature = FeatureParser.parse(path.left);
-        feature.setCallName(path.right);
-        FeatureResult result = Engine.executeFeatureSync(feature, null, null);
-        Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", result);
+        IdeUtils.main(args);
     }
 
 }

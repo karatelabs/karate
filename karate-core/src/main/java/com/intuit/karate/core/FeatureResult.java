@@ -108,9 +108,9 @@ public class FeatureResult {
         return feature;
     }        
 
-    public String getDisplayName() {
+    public String getDisplayUri() {
         return displayName;
-    }        
+    }
     
     public KarateException getErrorsCombined() {
         if (errors == null) {

@@ -24,13 +24,13 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.StepActions;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.FeatureContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateException;
 import java.util.Map;
@@ -42,7 +42,7 @@ import java.util.Map;
 public class FeatureBackend {
 
     private final Feature feature;
-    private final StepActions actions;
+    private final StepDefs actions;
     private final boolean ssl;
     private final boolean corsEnabled;
     
@@ -80,7 +80,7 @@ public class FeatureBackend {
         this.ssl = ssl;
         CallContext callContext = new CallContext(null, false);
         FeatureContext featureContext = new FeatureContext(feature, null);
-        actions = new StepActions(featureContext, callContext);
+        actions = new StepDefs(featureContext, callContext);
         context = actions.context;
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);

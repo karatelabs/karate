@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Action;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,14 +35,15 @@ import java.util.regex.Pattern;
  */
 public class MethodPattern {
 
+    public final String regex;
     public final Method method;
     private final Pattern pattern;
 
-    MethodPattern(Method method, Action action) {
+    MethodPattern(Method method, String regex) {
+        this.regex = regex;
         this.method = method;
         try {
-            String regexpString = action.value();
-            pattern = Pattern.compile(regexpString);
+            pattern = Pattern.compile(regex);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

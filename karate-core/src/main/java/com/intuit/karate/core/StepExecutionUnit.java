@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepActions;
+import com.intuit.karate.StepDefs;
 import com.intuit.karate.StringUtils;
 import java.util.List;
 import java.util.function.Consumer;
@@ -35,10 +35,10 @@ import java.util.function.Consumer;
 public class StepExecutionUnit {
 
     private final Step step;
-    private final StepActions actions;
+    private final StepDefs actions;
     private final ExecutionContext exec;
 
-    public StepExecutionUnit(Step step, StepActions actions, ExecutionContext exec) {
+    public StepExecutionUnit(Step step, StepDefs actions, ExecutionContext exec) {
         this.step = step;
         this.actions = actions;
         this.exec = exec;

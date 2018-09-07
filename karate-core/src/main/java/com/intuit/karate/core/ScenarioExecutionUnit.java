@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepActions;
+import com.intuit.karate.StepDefs;
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -33,14 +33,14 @@ import java.util.Iterator;
  */
 public class ScenarioExecutionUnit {
 
-    private final StepActions actions;
+    private final StepDefs actions;
     private final ExecutionContext exec;
     private final Iterator<Step> iterator;
     private final ScenarioResult result;
 
     private boolean stopped = false;
 
-    public ScenarioExecutionUnit(Scenario scenario, StepActions actions, ExecutionContext exec) {
+    public ScenarioExecutionUnit(Scenario scenario, StepDefs actions, ExecutionContext exec) {
         this.actions = actions;
         this.exec = exec;
         result = new ScenarioResult(scenario);
