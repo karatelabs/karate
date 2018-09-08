@@ -24,7 +24,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileResource;
+import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.FeatureContext;
 import com.intuit.karate.core.Engine;
@@ -89,15 +89,15 @@ public class CucumberRunner {
     
     public static KarateStats parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
         String tagSelector = tags == null ? null : Engine.fromCucumberOptionsTags(tags);
-        List<FileResource> files = FileUtils.scanForFeatureFiles(paths);
+        List<Resource> files = FileUtils.scanForFeatureFiles(paths, null);
         return parallel(tagSelector, files, hook, threadCount, reportDir);
     }
     
-    public static KarateStats parallel(String tagSelector, List<FileResource> resources, int threadCount, String reportDir) {
+    public static KarateStats parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
         return parallel(tagSelector, resources, null, threadCount, reportDir);
     }     
     
-    public static KarateStats parallel(String tagSelector, List<FileResource> resources, ExecutionHook hook, int threadCount, String reportDir) {
+    public static KarateStats parallel(String tagSelector, List<Resource> resources, ExecutionHook hook, int threadCount, String reportDir) {
         if (reportDir == null) {
             reportDir = Engine.getBuildDir() + File.separator + "surefire-reports";
             new File(reportDir).mkdirs();
@@ -111,9 +111,9 @@ public class CucumberRunner {
             int count = resources.size();
             List<Callable<FeatureResult>> callables = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                FileResource resource = resources.get(i);
+                Resource resource = resources.get(i);
                 int index = i + 1;
-                Feature feature = FeatureParser.parse(resource.file, resource.relativePath);
+                Feature feature = FeatureParser.parse(resource);
                 callables.add(() -> {
                     // we are now within a separate thread. the reporter filters logs by self thread
                     String threadName = Thread.currentThread().getName();

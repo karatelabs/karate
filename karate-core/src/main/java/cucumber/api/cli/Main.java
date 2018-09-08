@@ -33,7 +33,7 @@ import com.intuit.karate.IdeUtils;
 public class Main {
 
     public static void main(String[] args) {
-        IdeUtils.main(args);
+        IdeUtils.exec(args);
     }
 
 }

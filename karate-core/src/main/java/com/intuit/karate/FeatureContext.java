@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,7 +39,7 @@ public class FeatureContext {
     public final String tagSelector;    
     public final Feature feature;
     public final Logger logger;
-    public final File workingDir;
+    public final Path parentPath;
     public final Map<String, CallResult> callCache;  
 
     private static String getEnv(String envString) {
@@ -55,7 +56,7 @@ public class FeatureContext {
         this.feature = feature;
         this.callCache = new HashMap(1);
         this.logger = logger;
-        this.workingDir = workingDir == null ? feature.getFile().getParentFile() : workingDir;
+        this.parentPath = workingDir == null ? feature.getPath().getParent() : workingDir.toPath();
     }
     
     public static FeatureContext forEnv(String env) {

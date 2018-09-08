@@ -23,10 +23,11 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileResource;
+import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import java.util.List;
 import org.junit.Test;
+import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,10 +41,12 @@ public class AllKarateFeaturesTest {
     
     @Test
     public void testParsingAllFeaturesInKarate() {
-        List<FileResource> files = FileUtils.scanForFeatureFiles(false, "..");
-        for (FileResource file : files) {
-            logger.debug("parsing: {}", file.relativePath);
-            FeatureParser.parse(file.file, file.relativePath);
+        List<Resource> files = FileUtils.scanForFeatureFiles(false, "..", null);
+        logger.debug("found files count: {}", files.size());
+        assertTrue(files.size() > 500);
+        for (Resource file : files) {
+            logger.debug("parsing: {}", file.getRelativePath());
+            FeatureParser.parse(file);
         }
     }
     

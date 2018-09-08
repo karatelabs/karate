@@ -135,7 +135,7 @@ public class App extends Application {
                 String suggestedName = "noname.feature";
                 file = chooseFileToSave(stage, "*.feature files", "*.feature", suggestedName);
             } else {
-                file = feature.getFile();
+                file = feature.getPath().toFile();
             }
             FileUtils.writeToFile(file, feature.getText());
             if (needsNameToSave) {

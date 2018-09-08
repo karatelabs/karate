@@ -76,7 +76,7 @@ public class FeatureBackend {
 
     public FeatureBackend(Feature feature, Map<String, Object> vars, boolean ssl) {
         this.feature = feature;
-        featureName = feature.getFile().getName();
+        featureName = feature.getPath().toFile().getName();
         this.ssl = ssl;
         CallContext callContext = new CallContext(null, false);
         FeatureContext featureContext = new FeatureContext(feature, null);

@@ -6,6 +6,6 @@ import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
 @CucumberOptions(features = "classpath:com/intuit/karate/junit4/files/working-dir.feature")
-public class FileWorkingDirectoryRunner {
+public class WorkingDirRunner {
 
 }

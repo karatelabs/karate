@@ -24,8 +24,9 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,8 +38,7 @@ public class Feature {
     
     public static final String KEYWORD = "Feature";
     
-    private final File file;
-    private final String relativePath;
+    private final Resource resource;
     private final String packageQualifiedName;
     
     private int line;
@@ -53,10 +53,9 @@ public class Feature {
     private String callTag;
     private String callName;
     
-    public Feature(File file, String relativePath) {
-        this.file = file;
-        this.relativePath = relativePath;
-        this.packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+    public Feature(Resource resource) {
+        this.resource = resource;
+        this.packageQualifiedName = FileUtils.toPackageQualifiedName(resource.getRelativePath());
     }
     
     public boolean isBackgroundPresent() {
@@ -122,8 +121,8 @@ public class Feature {
     
     public void initLines() {
         if (lines == null) {
-            if (file != null) {
-                lines = StringUtils.toStringLines(FileUtils.toString(file));
+            if (resource != null) {
+                lines = StringUtils.toStringLines(resource.toString());
             }
         }        
     }
@@ -172,14 +171,18 @@ public class Feature {
 
     public void setLines(List<String> lines) {
         this.lines = lines;
-    }            
+    }          
 
-    public File getFile() {
-        return file;
+    public Resource getResource() {
+        return resource;
+    }        
+
+    public Path getPath() {
+        return resource.getPath();
     }
 
     public String getRelativePath() {
-        return relativePath;
+        return resource.getRelativePath();
     }
 
     public String getPackageQualifiedName() {

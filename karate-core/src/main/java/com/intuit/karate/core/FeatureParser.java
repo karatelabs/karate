@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,6 +32,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -54,30 +56,28 @@ public class FeatureParser extends KarateParserBaseListener {
     private final ParserErrorListener errorListener = new ParserErrorListener();
 
     private final Feature feature;
-
-    public static Feature parse(File file) {
-        return new FeatureParser(file).feature;
+    
+   public static Feature parse(File file) {
+       Resource resource = new Resource(file, file.getPath());
+        return new FeatureParser(resource).feature;
+    }    
+    
+    public static Feature parse(Resource resource) {
+        return new FeatureParser(resource).feature;
     }
 
     public static Feature parse(String path) {
         File file = FileUtils.fromRelativeClassPath(path);
-        return FeatureParser.parse(file, path);
-    }
-
-    public static Feature parse(File file, String relativePath) {
-        return new FeatureParser(file, relativePath).feature;
+        Resource resource = new Resource(file, path);
+        return FeatureParser.parse(resource);
     }
     
     public static Feature parseText(Feature old, String text) {
-        Feature feature = new Feature(old.getFile(), old.getRelativePath());
+        Feature feature = new Feature(old.getResource());
         feature = new FeatureParser(feature, FileUtils.toInputStream(text)).feature;
         feature.setCallTag(old.getCallTag());
         feature.setLines(StringUtils.toStringLines(text));
         return feature;
-    }
-
-    private FeatureParser(File file) {
-        this(file, FileUtils.toRelativeClassPath(file));
     }
     
     private static InputStream toStream(File file) {
@@ -89,8 +89,12 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     private FeatureParser(File file, String relativePath) {
-        this(new Feature(file, relativePath), toStream(file));
+        this(new Feature(new Resource(file, relativePath)), toStream(file));
     }
+    
+    private FeatureParser(Resource resource) {
+        this(new Feature(resource), resource.getStream());
+    }    
     
     private FeatureParser(Feature feature, InputStream is) {
         this.feature = feature;

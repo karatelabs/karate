@@ -1,6 +1,6 @@
 package com.intuit.karate.junit4;
 
-import com.intuit.karate.FileResource;
+import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
@@ -59,10 +59,10 @@ public class Karate extends ParentRunner<Feature> {
             String relative = FileUtils.toRelativeClassPath(clazz);
             features = Collections.singletonList(relative);
         }
-        List<FileResource> resources = FileUtils.scanForFeatureFiles(features);
+        List<Resource> resources = FileUtils.scanForFeatureFiles(features, clazz.getClassLoader());
         children = new ArrayList(resources.size());
-        for (FileResource fr : resources) {
-            Feature feature = FeatureParser.parse(fr.file, fr.relativePath);
+        for (Resource fr : resources) {
+            Feature feature = FeatureParser.parse(fr);
             children.add(feature);
         }
         tagSelector = Engine.fromCucumberOptionsTags(tags);
@@ -78,7 +78,7 @@ public class Karate extends ParentRunner<Feature> {
     }
     
     private static String getFeatureName(Feature feature) {
-        return "[" + feature.getFile().getName() + "]";
+        return "[" + feature.getPath().toFile().getName() + "]";
     }
 
     @Override

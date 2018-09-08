@@ -47,7 +47,7 @@ public class IdeUtils {
 
     private static final Pattern COMMAND_NAME = Pattern.compile("--name (.+?\\$)");
 
-    public static void main(String[] args) {
+    public static void exec(String[] args) {
         String command = System.getProperty("sun.java.command");
         System.out.println("command: " + command);
         boolean isIntellij = command.contains("org.jetbrains");

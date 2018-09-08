@@ -125,11 +125,7 @@ public class Engine {
         if (step.getScenario() == null) {
             return UNKNOWN;
         }
-        File file = step.getScenario().getFeature().getFile();
-        if (file == null) {
-            return UNKNOWN;
-        }
-        return file.getName();
+        return step.getScenario().getFeature().getPath().getFileName().toString();
     }
 
     public static Result executeStep(Step step, Actions actions) {

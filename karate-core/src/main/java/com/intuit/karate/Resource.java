@@ -24,19 +24,59 @@
 package com.intuit.karate;
 
 import java.io.File;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  *
  * @author pthomas3
  */
-public class FileResource {
-    
-    public final File file;
-    public final String relativePath;    
+public class Resource {
 
-    public FileResource(File file, String relativePath) {
-        this.file = file;
+    private final boolean file;
+    private final Path path;    
+    private final String relativePath;
+    
+    public Resource(File file, String relativePath) {
+        this.file = true;
+        path = file.toPath();
         this.relativePath = relativePath;
     }
-    
+
+    public Resource(Path path, String relativePath) {
+        this.path = path;
+        file = !path.toUri().getScheme().equals("jar");
+        this.relativePath = relativePath;
+    }
+
+    public String getRelativePath() {
+        return relativePath;
+    }
+
+    public Path getPath() {
+        return path;
+    }
+
+    public InputStream getStream() {
+        try {
+            return Files.newInputStream(path);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String getAsString() {
+        if (file) {
+            return FileUtils.toString(path.toFile());
+        } else {
+            return FileUtils.toString(getStream());
+        }
+    }
+
+    @Override
+    public String toString() {
+        return relativePath;
+    }       
+
 }

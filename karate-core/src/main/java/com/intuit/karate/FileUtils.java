@@ -98,8 +98,8 @@ public class FileUtils {
             String contents = readFileAsString(text, context);
             return new ScriptValue(contents, text);
         } else if (isFeatureFile(text)) {
-            FileResource fr = resolvePath(text, context);
-            Feature feature = FeatureParser.parse(fr.file, fr.relativePath);
+            Resource fr = resolvePath(text, context);
+            Feature feature = FeatureParser.parse(fr);
             feature.setCallTag(pair.right);
             return new ScriptValue(feature, text);
         } else if (isYamlFile(text)) {
@@ -139,13 +139,14 @@ public class FileUtils {
         return feature;
     }
 
-    private static FileResource resolvePath(String path, ScenarioContext context) {
+    private static Resource resolvePath(String path, ScenarioContext context) {
         if (isClassPath(path) || isFilePath(path)) {
-            return new FileResource(fromRelativeClassPath(path), path);
+            return new Resource(fromRelativeClassPath(path), path);
         } else {
             try {
-                File file = new File(context.featureContext.workingDir + File.separator + path);
-                return new FileResource(file, path);
+                Path parentPath = context.featureContext.parentPath;
+                Path childPath = parentPath.resolve(path);
+                return new Resource(childPath, path);
             } catch (Exception e) {
                 logger.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
@@ -164,8 +165,8 @@ public class FileUtils {
     }
 
     public static InputStream getFileStream(String path, ScenarioContext context) {
-        FileResource fr = resolvePath(path, context);
-        return getStream(fr.file);
+        Resource fr = resolvePath(path, context);
+        return fr.getStream();
     }
 
     private static InputStream getStream(File file) {
@@ -319,7 +320,7 @@ public class FileUtils {
 
     public static String toRelativeClassPath(File file) {
         Path path = file.toPath();
-        for (Path rootPath : getAllClassPaths()) {
+        for (Path rootPath : getAllClassPaths(null)) {
             if (path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
                 return CLASSPATH_COLON + relativePath.toString();
@@ -354,24 +355,26 @@ public class FileUtils {
         }
     }
 
-    public static List<FileResource> scanForFeatureFilesOnClassPath() {
-        return scanForFeatureFiles(true, CLASSPATH_COLON);
+    public static List<Resource> scanForFeatureFilesOnClassPath(ClassLoader cl) {
+        return scanForFeatureFiles(true, CLASSPATH_COLON, cl);
     }
 
-    public static List<FileResource> scanForFeatureFiles(List<String> paths) {
-        List<FileResource> list = new ArrayList();
+    public static List<Resource> scanForFeatureFiles(List<String> paths, ClassLoader cl) {
+        List<Resource> list = new ArrayList();
         for (String path : paths) {
             boolean classpath = isClassPath(path);
-            list.addAll(scanForFeatureFiles(classpath, path));
+            list.addAll(scanForFeatureFiles(classpath, path, cl));
         }
         return list;
     }
 
-    public static List<Path> getAllClassPaths() {
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+    public static List<Path> getAllClassPaths(ClassLoader classLoader) {
+        if (classLoader == null) {
+            classLoader = Thread.currentThread().getContextClassLoader();
+        }
         try {
             List<Path> list = new ArrayList();
-            Enumeration<URL> iterator = cl.getResources("");
+            Enumeration<URL> iterator = classLoader.getResources("");
             while (iterator.hasMoreElements()) {
                 URL url = iterator.nextElement();
                 list.add(Paths.get(url.toURI()));
@@ -382,11 +385,37 @@ public class FileUtils {
         }
     }
 
-    public static List<FileResource> scanForFeatureFiles(boolean classpath, String searchPath) {
-        List<FileResource> files = new ArrayList();
+    private static FileSystem getFileSystem(URI uri) {
+        try {
+            return FileSystems.getFileSystem(uri);            
+        } catch (Exception e) {
+            logger.warn("creating file system for URI: {} - {}", uri, e.getMessage());
+            try {
+                return FileSystems.newFileSystem(uri, Collections.emptyMap());
+            } catch (IOException ioe) {
+                throw new RuntimeException(ioe);
+            }
+        }
+    }
+    
+    public static List<Resource> scanForFeatureFiles(boolean classpath, String searchPath, ClassLoader cl) {
+        List<Resource> files = new ArrayList();
         if (classpath) {
             searchPath = removePrefix(searchPath);
-            for (Path rootPath : getAllClassPaths()) {
+            if (cl != null) {
+                try {
+                    URL url = cl.getResource(searchPath);                
+                    if (url != null && url.toURI().getScheme().equals("jar")) {
+                        FileSystem fileSystem = getFileSystem(url.toURI());                      
+                        Path search = fileSystem.getPath(searchPath);
+                        collectFeatureFiles(search, files);
+                        return files; // exit early
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            for (Path rootPath : getAllClassPaths(cl)) {
                 collectFeatureFiles(rootPath, searchPath, files);
             }
         } else {
@@ -395,7 +424,7 @@ public class FileUtils {
         return files;
     }
 
-    private static void collectFeatureFiles(Path rootPath, String searchPath, List<FileResource> files) {
+    private static void collectFeatureFiles(Path rootPath, String searchPath, List<Resource> files) {
         boolean classpath = rootPath != null;
         Path search;
         if (classpath) {
@@ -419,9 +448,25 @@ public class FileUtils {
                 File file = path.toFile();
                 Path relativePath = rootPath.relativize(path);
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new FileResource(file, prefix + relativePath.toString()));
+                files.add(new Resource(file, prefix + relativePath.toString()));
             }
-        }
+        }        
     }
+    
+    private static void collectFeatureFiles(Path searchPath, List<Resource> files) {
+        Stream<Path> stream;
+        try {
+            stream = Files.walk(searchPath);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
+            Path path = paths.next();
+            if (path.getFileName().toString().endsWith(".feature")) {
+                Resource resource = new Resource(path, CLASSPATH_COLON + path.toString());
+                files.add(resource);
+            }
+        }        
+    }    
 
 }

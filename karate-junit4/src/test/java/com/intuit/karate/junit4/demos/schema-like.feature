@@ -159,3 +159,12 @@ Scenario: pretty print json
 Scenario: more pretty print
 * def myJson = { foo: 'bar', baz: [1, 2, 3]}
 * print 'pretty print:\n' + karate.pretty(myJson)
+
+Scenario: various ways of checking that a string ends with a number
+* def foo = 'hello1'
+* match foo == '#regex hello[0-9]+'
+* match foo == '#regex .+[0-9]+'
+* match foo contains 'hello'
+* assert foo.startsWith('hello')
+* def isHello = function(s){ return s.startsWith('hello') && karate.match(s, '#regex .+[0-9]+').pass }
+* match foo == '#? isHello(_)'

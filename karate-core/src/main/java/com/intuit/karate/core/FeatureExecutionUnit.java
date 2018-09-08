@@ -98,8 +98,8 @@ public class FeatureExecutionUnit {
 
     private static ScenarioInfo getScenarioInfo(Scenario scenario, FeatureContext env) {
         ScenarioInfo info = new ScenarioInfo();
-        info.setFeatureDir(env.feature.getFile().getParent());
-        info.setFeatureFileName(env.feature.getFile().getName());
+        info.setFeatureDir(env.feature.getPath().getParent().toString());
+        info.setFeatureFileName(env.feature.getPath().getFileName().toString());
         info.setScenarioName(scenario.getName());
         info.setScenarioDescription(scenario.getDescription());
         info.setScenarioType(scenario.isOutline() ? ScenarioOutline.KEYWORD : Scenario.KEYWORD);

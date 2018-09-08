@@ -1,6 +1,7 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Resource;
 import com.intuit.karate.core.Background;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
@@ -8,6 +9,7 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioOutline;
 import com.intuit.karate.core.Step;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -25,7 +27,8 @@ public class CucumberUtilsTest {
     private Feature parse(String name) {
         InputStream is = getClass().getResourceAsStream(name);
         String text = FileUtils.toString(is);
-        return FeatureParser.parseText(new Feature(null, null), text);
+        Resource resource = new Resource(Paths.get(""), "");
+        return FeatureParser.parseText(new Feature(resource), text);
     }
     
     private void printLines(List<String> lines) {
@@ -124,7 +127,8 @@ public class CucumberUtilsTest {
     @Test
     public void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
-        Feature feature = FeatureParser.parseText(new Feature(null, null), text);
+        Resource resource = new Resource(Paths.get(""), "");
+        Feature feature = FeatureParser.parseText(new Feature(resource), text);
         Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
         logger.debug("step name: '{}'", step.getText());
         assertTrue(step.getText().startsWith("method"));
