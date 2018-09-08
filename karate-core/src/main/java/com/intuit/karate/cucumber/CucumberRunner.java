@@ -100,6 +100,7 @@ public class CucumberRunner {
     public static KarateStats parallel(String tagSelector, List<FileResource> resources, ExecutionHook hook, int threadCount, String reportDir) {
         if (reportDir == null) {
             reportDir = Engine.getBuildDir() + File.separator + "surefire-reports";
+            new File(reportDir).mkdirs();
         }
         final String finalReportDir = reportDir;
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
@@ -152,6 +153,7 @@ public class CucumberRunner {
         }
         stats.setFeatureCount(executedFeatureCount);
         stats.printStats(threadCount);
+        stats.setReportDir(reportDir);
         return stats;
     }
 

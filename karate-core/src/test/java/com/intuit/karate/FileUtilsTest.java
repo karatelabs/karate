@@ -34,7 +34,7 @@ public class FileUtilsTest {
     }
     
     @Test
-    public void testScanFiles() {
+    public void testScanFile() {
         String relativePath = "classpath:com/intuit/karate/ui/test.feature";
         List<FileResource> files = FileUtils.scanForFeatureFilesOnClassPath();
         boolean found = false;
@@ -52,8 +52,20 @@ public class FileUtilsTest {
     }
     
     @Test
+    public void testScanFilePath() {
+        String relativePath = "classpath:com/intuit/karate/ui";
+        List<FileResource> files = FileUtils.scanForFeatureFiles(true, relativePath);
+        assertEquals(2, files.size());
+    }    
+    
+    @Test
     public void testRelativePathForClass() {
         assertEquals("classpath:com/intuit/karate", FileUtils.toRelativeClassPath(getClass()));
+    }
+    
+    @Test
+    public void testGetAllClasspaths() {
+        FileUtils.getAllClassPaths();
     }
     
 }

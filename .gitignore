@@ -5,6 +5,11 @@ target/
 .settings
 .classpath
 *.iml
+build/
+.gradle
+gradle
+gradlew
+gradlew.*
 karate-demo/activemq-data/
 karate-netty/dependency-reduced-pom.xml
 karate-junit4/src/test/java/com/intuit/karate/junit4/dev

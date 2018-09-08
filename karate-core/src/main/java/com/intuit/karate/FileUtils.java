@@ -17,12 +17,14 @@ import java.nio.charset.StandardCharsets;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.stream.Stream;
@@ -39,7 +41,7 @@ public class FileUtils {
     public static final Charset UTF8 = StandardCharsets.UTF_8;
 
     private static final String CLASSPATH = "classpath";
-    
+
     public static final String CLASSPATH_COLON = CLASSPATH + ":";
     public static final String FILE_COLON = "file:";
     public static final String SRC_TEST_JAVA = "src/test/java";
@@ -111,6 +113,9 @@ public class FileUtils {
     }
 
     public static String removePrefix(String text) {
+        if (text == null) {
+            return null;
+        }
         int pos = text.indexOf(':');
         return pos == -1 ? text : text.substring(pos + 1);
     }
@@ -312,42 +317,15 @@ public class FileUtils {
         }
     }
 
-    private static Path getPathFor(String pathString) {
-        pathString = pathString == null ? "." : pathString.trim();
-        try {
-            URI uri;
-            if (isClassPath(pathString)) {
-                pathString = removePrefix(pathString);
-                if (pathString.charAt(0) != '/') {
-                    pathString = '/' + pathString;
-                }
-                uri = FileUtils.class.getResource(pathString).toURI();
-            } else {
-                if (isFilePath(pathString)) {
-                    pathString = removePrefix(pathString);
-                }
-                uri = new File(pathString).toURI();
-            }
-            if (uri.getScheme().equals("jar")) {
-                FileSystem fileSystem = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
-                return fileSystem.getPath(pathString);
-            } else {
-                return Paths.get(uri);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static final String CLASSPATH_COLON_SLASH = CLASSPATH_COLON + "/";
-
-    private static Path getClassPathRoot() {
-        return getPathFor(CLASSPATH_COLON_SLASH);
-    }
-
     public static String toRelativeClassPath(File file) {
-        Path rootPath = getClassPathRoot();
-        return CLASSPATH_COLON + rootPath.relativize(Paths.get(file.getAbsolutePath())).toString();
+        Path path = file.toPath();
+        for (Path rootPath : getAllClassPaths()) {
+            if (path.startsWith(rootPath)) {
+                Path relativePath = rootPath.relativize(path);
+                return CLASSPATH_COLON + relativePath.toString();
+            }
+        }
+        return null;
     }
 
     public static File getDirContaining(Class clazz) {
@@ -377,25 +355,61 @@ public class FileUtils {
     }
 
     public static List<FileResource> scanForFeatureFilesOnClassPath() {
-        return scanForFeatureFiles(CLASSPATH_COLON_SLASH);
+        return scanForFeatureFiles(true, CLASSPATH_COLON);
     }
 
     public static List<FileResource> scanForFeatureFiles(List<String> paths) {
         List<FileResource> list = new ArrayList();
         for (String path : paths) {
-            list.addAll(scanForFeatureFiles(path));
+            boolean classpath = isClassPath(path);
+            list.addAll(scanForFeatureFiles(classpath, path));
         }
         return list;
     }
 
-    public static List<FileResource> scanForFeatureFiles(String pathString) {
-        boolean classpath = isClassPath(pathString);
-        Path rootPath = classpath ? getClassPathRoot() : getPathFor(null);
-        Path thisPath = getPathFor(pathString);
+    public static List<Path> getAllClassPaths() {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        try {
+            List<Path> list = new ArrayList();
+            Enumeration<URL> iterator = cl.getResources("");
+            while (iterator.hasMoreElements()) {
+                URL url = iterator.nextElement();
+                list.add(Paths.get(url.toURI()));
+            }
+            return list;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static List<FileResource> scanForFeatureFiles(boolean classpath, String searchPath) {
         List<FileResource> files = new ArrayList();
+        if (classpath) {
+            searchPath = removePrefix(searchPath);
+            for (Path rootPath : getAllClassPaths()) {
+                collectFeatureFiles(rootPath, searchPath, files);
+            }
+        } else {
+            collectFeatureFiles(null, searchPath, files);
+        }
+        return files;
+    }
+
+    private static void collectFeatureFiles(Path rootPath, String searchPath, List<FileResource> files) {
+        boolean classpath = rootPath != null;
+        Path search;
+        if (classpath) {
+            search = rootPath.resolve(searchPath);
+            if (!search.toFile().exists()) {
+                return;
+            }
+        } else {
+            rootPath = new File("").toPath();
+            search = new File(searchPath).toPath();
+        }
         Stream<Path> stream;
         try {
-            stream = Files.walk(thisPath);
+            stream = Files.walk(search);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -408,7 +422,6 @@ public class FileUtils {
                 files.add(new FileResource(file, prefix + relativePath.toString()));
             }
         }
-        return files;
     }
 
 }

@@ -40,9 +40,9 @@ public class AllKarateFeaturesTest {
     
     @Test
     public void testParsingAllFeaturesInKarate() {
-        List<FileResource> files = FileUtils.scanForFeatureFiles("..");
+        List<FileResource> files = FileUtils.scanForFeatureFiles(false, "..");
         for (FileResource file : files) {
-            logger.trace("parsing: {}", file.relativePath);
+            logger.debug("parsing: {}", file.relativePath);
             FeatureParser.parse(file.file, file.relativePath);
         }
     }

@@ -41,6 +41,7 @@ public class KarateStats {
     private long endTime;
     private Map<String, String> failedMap;
     private Throwable failureReason;
+    private String reportDir;
     
     private KarateStats(long startTime) {
         this.startTime = startTime;
@@ -56,6 +57,14 @@ public class KarateStats {
     public static KarateStats startTimer() {
         return new KarateStats(System.currentTimeMillis());
     }
+
+    public String getReportDir() {
+        return reportDir;
+    }
+
+    public void setReportDir(String reportDir) {
+        this.reportDir = reportDir;
+    }        
 
     public void setFailureReason(Throwable failureReason) {
         this.failureReason = failureReason;

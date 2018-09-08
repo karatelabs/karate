@@ -1,19 +1,21 @@
 buildscript {
-	ext {
-		springBootVersion = '1.5.3.RELEASE'
-		gradleVersionProperty = '4.1'
-		karateVersion = '0.5.0'
-		masterThought = '3.8.0'
-	}
+    ext {
+        springBootVersion = '1.5.3.RELEASE'
+        springVersion = '4.3.8.RELEASE'
+        gradleVersionProperty = '4.1'
+        karateVersion = '0.9.0'
+        masterThoughtVersion = '3.8.0'
+        activeMqVersion = '5.15.2'
+    }
     repositories {
         maven { url 'https://plugins.gradle.org/m2/' }
-		maven { url "http://repo.spring.io/release" }
-		maven { url "http://repo.spring.io/milestone" }
-		maven { url "http://repo.spring.io/snapshot" }        
+        maven { url "http://repo.spring.io/release" }
+        maven { url "http://repo.spring.io/milestone" }
+        maven { url "http://repo.spring.io/snapshot" }
     }
-	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-	}    
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
 }
 
 apply plugin: 'eclipse'
@@ -22,12 +24,12 @@ apply plugin: 'idea'
 apply plugin: 'org.springframework.boot'
 
 jar {
-	baseName = 'karate-demo'
-	version =  '0.5.1'
+    baseName = 'karate-demo'
+    version = karateVersion
 }
 
 bootRun {
-  systemProperties = System.properties
+    systemProperties = System.properties
 }
 
 // In this section you declare where to find the dependencies of your project
@@ -35,44 +37,49 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven { url "http://repo.spring.io/release" }
-	maven { url "http://repo.spring.io/milestone" }
-	maven { url "http://repo.spring.io/snapshot" }
+    maven { url "http://repo.spring.io/milestone" }
+    maven { url "http://repo.spring.io/snapshot" }
 }
 
 sourceSets {
     test {
-        java 
-            {
-                // Excluding UIRunner files as these require the javafx libraries
-                // which are not shipped with OpenJDK. These UIRunner classes are
-                // classes that allow developers to run/debug karate tests via a UI
-                // and as such are not required for headless runs on jenkins server
-                // but can run happily via IDE of the developer without needed to be
-                // compiled by gradle.  
-                srcDir file('src/test/java')
-                exclude '**/*UiRunner*.java'
-            }
+        java
+                {
+                    // Excluding UIRunner files as these require the javafx libraries
+                    // which are not shipped with OpenJDK. These UIRunner classes are
+                    // classes that allow developers to run/debug karate tests via a UI
+                    // and as such are not required for headless runs on jenkins server
+                    // but can run happily via IDE of the developer without needed to be
+                    // compiled by gradle.
+                    srcDir file('src/test/java')
+                    exclude '**/*UiRunner*.java'
+                }
         resources
-            {
-                // Using recommended karate project layout where karate feature files
-                // and associated javascript resources sit in same /test/java folders
-                // as their java counterparts. 
-                srcDir file('src/test/java')
-                exclude '**/*.java'
-            }
+                {
+                    // Using recommended karate project layout where karate feature files
+                    // and associated javascript resources sit in same /test/java folders
+                    // as their java counterparts.
+                    srcDir file('src/test/java')
+                    exclude '**/*.java'
+                }
     }
 }
 
 dependencies {
-	compile 'org.springframework.boot:spring-boot-starter-web'
-	compile 'org.springframework.boot:spring-boot-starter-security' 
-	compile 'commons-io:commons-io:2.5'
+    compile 'org.springframework.boot:spring-boot-starter-web'
+    compile 'org.springframework.boot:spring-boot-starter-security'
+    compile 'org.springframework:spring-jdbc:' + springVersion
+    compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
+    compile 'commons-io:commons-io:2.5'
+    runtime 'com.h2database:h2:1.4.196'
     testCompile 'junit:junit'
     testCompile 'com.intuit.karate:karate-junit4:' + karateVersion
-    testCompile 'com.intuit.karate:karate-apache:' + karateVersion
-    testCompile 'net.masterthought:cucumber-reporting:' + masterThought
-    compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
-
+    testCompile 'com.intuit.karate:karate-netty:' + karateVersion
+    testCompile 'org.apache.activemq:activemq-broker:' + activeMqVersion
+    testCompile 'org.apache.activemq:activemq-client:' + activeMqVersion
+    testCompile 'org.apache.activemq:activemq-kahadb-store:' + activeMqVersion
+    testCompile 'org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1'
+    testCompile 'net.masterthought:cucumber-reporting:' + masterThoughtVersion
 }
 
 test {
@@ -85,8 +92,12 @@ test {
     systemProperty "karate.env", System.properties.getProperty("karate.env")
     // Ensure tests are always run
     outputs.upToDateWhen { false }
+    // attach debugger
+    if (System.getProperty('debug', 'false') == 'true') {
+        jvmArgs '-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=9009'
+    }
 }
 
-task wrapper(type: Wrapper) { 
-    gradleVersion = gradleVersionProperty 
+task wrapper(type: Wrapper) {
+    gradleVersion = gradleVersionProperty
 }

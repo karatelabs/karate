@@ -28,13 +28,12 @@ public class DemoTestParallel {
     
     @Test
     public void testParallel() {
-        String karateOutputPath = "target/surefire-reports";
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5, karateOutputPath);
-        generateReport(karateOutputPath);
+        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
+        generateReport(stats.getReportDir());
         assertTrue("there are scenario failures", stats.getFailCount() == 0);        
     }
     
-    public static void generateReport(String karateOutputPath) {
+    public static void generateReport(String karateOutputPath) {        
         Collection<File> jsonFiles = FileUtils.listFiles(new File(karateOutputPath), new String[] {"json"}, true);
         List<String> jsonPaths = new ArrayList(jsonFiles.size());
         jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
