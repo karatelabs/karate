@@ -30,20 +30,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * the only purpose of this file is to keep ide-support happy (intellij /
+ * the main purpose of this file is to keep ide-support happy (intellij /
  * eclipse) for feature-file formatting, auto-complete and syntax-coloring
+ * 
+ * else all logic is in {@link ScenarioContext}
  *
  * the cucumber-eclipse plugin parses the TEXT of this file :( and we have to have
- * real text in the annotations instead of string-constants
+ * REAL text in the annotations instead of string-constants
  *
  * @author pthomas3
  */
-public class StepDefs implements Actions {
+public class StepActions implements Actions {
 
     public final ScenarioContext context;
     public final CallContext callContext;
 
-    public StepDefs(FeatureContext featureContext, CallContext callContext) {
+    public StepActions(FeatureContext featureContext, CallContext callContext) {
         this.callContext = callContext;
         context = new ScenarioContext(featureContext, callContext);
     }

@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepDefs;
+import com.intuit.karate.StepActions;
 import com.intuit.karate.FeatureContext;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.Collection;
@@ -80,7 +80,7 @@ public class FeatureExecutionUnit {
             exec.callContext.setTagsEffective(tagsEffective);
             // karate-config.js will be processed here 
             // when the script-context constructor is called
-            StepDefs actions = new StepDefs(featureContext, exec.callContext);
+            StepActions actions = new StepActions(featureContext, exec.callContext);
             // we also hold a reference to the LAST scenario executed
             // for cases where the caller needs a result
             exec.result.setResultVars(actions.context.getVars());

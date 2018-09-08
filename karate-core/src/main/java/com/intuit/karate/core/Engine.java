@@ -49,7 +49,7 @@ import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import com.intuit.karate.StepDefs;
+import com.intuit.karate.StepActions;
 import cucumber.api.java.en.When;
 import java.util.Collection;
 import java.util.HashMap;
@@ -69,7 +69,7 @@ public class Engine {
     static {
         Map<String, MethodPattern> temp = new HashMap();
         List<MethodPattern> overwrite = new ArrayList();
-        for (Method method : StepDefs.class.getMethods()) {
+        for (Method method : StepActions.class.getMethods()) {
             When when = method.getDeclaredAnnotation(When.class);
             if (when != null) {
                 String regex = when.value();
