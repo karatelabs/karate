@@ -83,7 +83,7 @@ public class Karate extends ParentRunner<Feature> {
 
     @Override
     protected Description describeChild(Feature child) {
-        return Description.createSuiteDescription(getFeatureName(child), child.getPackageQualifiedName());
+        return Description.createSuiteDescription(getFeatureName(child), child.getResource().getPackageQualifiedName());
     }
 
     @Override

@@ -24,7 +24,9 @@
 package com.intuit.karate;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -35,24 +37,28 @@ import java.nio.file.Path;
 public class Resource {
 
     private final boolean file;
-    private final Path path;    
+    private final Path path;
     private final String relativePath;
-    
+    private final String packageQualifiedName;
+
     public Resource(File file, String relativePath) {
-        this.file = true;
-        path = file.toPath();
-        this.relativePath = relativePath;
+        this(file.toPath(), relativePath);
     }
 
     public Resource(Path path, String relativePath) {
         this.path = path;
         file = !path.toUri().getScheme().equals("jar");
         this.relativePath = relativePath;
+        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
     }
 
     public String getRelativePath() {
         return relativePath;
     }
+
+    public String getPackageQualifiedName() {
+        return packageQualifiedName;
+    }        
 
     public Path getPath() {
         return path;
@@ -60,7 +66,11 @@ public class Resource {
 
     public InputStream getStream() {
         try {
-            return Files.newInputStream(path);
+            if (file) {
+                return new FileInputStream(path.toFile());
+            } else {
+                return Files.newInputStream(path);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -77,6 +87,6 @@ public class Resource {
     @Override
     public String toString() {
         return relativePath;
-    }       
+    }
 
 }

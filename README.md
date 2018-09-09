@@ -2804,7 +2804,7 @@ So you get the picture, any kind of complicated 'sign-in' flow can be scripted a
 Do look at the documentation and example for [`configure headers`](#configure-headers) also as it goes hand-in-hand with `call`. In the above example, the end-result of the `call` to `my-signin.feature` resulted in the `authToken` variable being initialized. Take a look at how the [`configure headers`](#configure-headers) example uses the `authToken` variable.
 
 ### Call Tag Selector
-You can "select" a single `Scenario` (or `Scenario`-s or `Scenario Outline`-s) by appending a "tag selector" at the end of the feature-file you are calling. For example:
+You can "select" a single `Scenario` (or `Scenario`-s or `Scenario Outline`-s or even specific `Examples` rows) by appending a "tag selector" at the end of the feature-file you are calling. For example:
 
 ```cucumber
 call read('classpath:my-signin.feature@name=someScenarioName')
@@ -3199,6 +3199,25 @@ The documentation on how to run tests via the [command line](#test-suites) has a
 has more information on tags. Also see [`first.feature`](karate-demo/src/test/java/demo/tags/first.feature) and [`second.feature`](karate-demo/src/test/java/demo/tags/second.feature) in the [demos](karate-demo). If you find yourself juggling multiple tags with logical `AND` and `OR` complexity, refer to this [Stack Overflow answer](https://stackoverflow.com/a/34543352/143475) and this [blog post](https://testingneeds.wordpress.com/2015/09/15/junit-runner-with-cucumberoptions/).
 
 > For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to [`karate.tags`](#karate-tags) and [`karate.tagValues`](#karate-tagvalues).
+
+### Tags And Examples
+A little-known capability of the Cucumber / Gherkin syntax is to be able to tag even specific rows in a bunch of examples ! You have to repeat the `Examples` section for each tag. The example below combines this with the advanced features described above.
+
+```cucumber
+Scenario Outline: examples partitioned by tag
+* def vals = karate.tagValues
+* match vals.region[0] == '<expected>'
+
+  @region=US
+  Examples:
+  | expected |
+  | US       |
+
+  @region=GB
+  Examples:
+  | expected |
+  | GB       |
+```
 
 ## Dynamic Port Numbers
 In situations where you start an (embedded) application server as part of the test set-up phase, a typical challenge is that the HTTP port may be determined at run-time. So how can you get this value injected into the Karate configuration ?

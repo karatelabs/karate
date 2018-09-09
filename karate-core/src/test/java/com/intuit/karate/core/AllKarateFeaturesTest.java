@@ -43,7 +43,7 @@ public class AllKarateFeaturesTest {
     public void testParsingAllFeaturesInKarate() {
         List<Resource> files = FileUtils.scanForFeatureFiles(false, "..", null);
         logger.debug("found files count: {}", files.size());
-        // assertTrue(files.size() > 500);
+        assertTrue(files.size() > 400);
         for (Resource file : files) {
             logger.debug("parsing: {}", file.getRelativePath());
             FeatureParser.parse(file);

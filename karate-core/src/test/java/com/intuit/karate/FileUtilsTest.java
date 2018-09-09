@@ -36,14 +36,12 @@ public class FileUtilsTest {
     @Test
     public void testScanFile() {
         String relativePath = "classpath:com/intuit/karate/ui/test.feature";
-        List<Resource> files = FileUtils.scanForFeatureFilesOnClassPath(null);
+        ClassLoader cl = getClass().getClassLoader();
+        List<Resource> files = FileUtils.scanForFeatureFilesOnClassPath(cl);
         boolean found = false;
         for (Resource file : files) {
-            String foo = file.getRelativePath();
-            if (file.getRelativePath().equals(relativePath)) {
-                File tempFile = FileUtils.fromRelativeClassPath(relativePath);                
-                assertEquals(tempFile, file.getPath().toFile());
-                String temp = FileUtils.toRelativeClassPath(file.getPath().toFile(), getClass().getClassLoader());
+            if (file.getRelativePath().equals(relativePath)) {               
+                String temp = FileUtils.toRelativeClassPath(file.getPath(), cl);
                 assertEquals(temp, file.getRelativePath());
                 found = true;
                 break;
@@ -55,7 +53,7 @@ public class FileUtilsTest {
     @Test
     public void testScanFilePath() {
         String relativePath = "classpath:com/intuit/karate/ui";
-        List<Resource> files = FileUtils.scanForFeatureFiles(true, relativePath, null);
+        List<Resource> files = FileUtils.scanForFeatureFiles(true, relativePath, getClass().getClassLoader());
         assertEquals(2, files.size());
     }    
     

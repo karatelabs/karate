@@ -39,7 +39,6 @@ public class Feature {
     public static final String KEYWORD = "Feature";
     
     private final Resource resource;
-    private final String packageQualifiedName;
     
     private int line;
     private List<Tag> tags;
@@ -55,7 +54,6 @@ public class Feature {
     
     public Feature(Resource resource) {
         this.resource = resource;
-        this.packageQualifiedName = FileUtils.toPackageQualifiedName(resource.getRelativePath());
     }
     
     public boolean isBackgroundPresent() {
@@ -183,10 +181,6 @@ public class Feature {
 
     public String getRelativePath() {
         return resource.getRelativePath();
-    }
-
-    public String getPackageQualifiedName() {
-        return packageQualifiedName;
     }
         
     public int getLine() {

@@ -166,7 +166,7 @@ public class Engine {
     public static File saveResultJson(String targetDir, FeatureResult result) {
         List<Map> single = Collections.singletonList(result.toMap());
         String json = JsonUtils.toJson(single);
-        File file = new File(targetDir + File.separator + result.getFeature().getPackageQualifiedName() + ".json");
+        File file = new File(targetDir + File.separator + result.getPackageQualifiedName() + ".json");
         FileUtils.writeToFile(file, json);
         return file;
     }
@@ -213,7 +213,7 @@ public class Engine {
         doc.appendChild(root);
         root.setAttribute("name", result.getDisplayUri()); // will be uri
         root.setAttribute("skipped", "0");
-        String baseName = result.getFeature().getPackageQualifiedName();
+        String baseName = result.getPackageQualifiedName();
         int testCount = 0;
         int failureCount = 0;
         long totalDuration = 0;
@@ -370,7 +370,7 @@ public class Engine {
         String js = getFile("report-template.js");
         Document doc = XmlUtils.toXmlDoc(html);
         XmlUtils.setByPath(doc, "/html/body/img", svg);
-        String baseName = result.getFeature().getPackageQualifiedName();
+        String baseName = result.getPackageQualifiedName();
         set(doc, "/html/head/title", baseName);
         set(doc, "/html/head/script", js);
         for (ScenarioResult sr : result.getScenarioResults()) {

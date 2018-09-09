@@ -89,7 +89,7 @@ public class CucumberRunner {
     
     public static KarateStats parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
         String tagSelector = tags == null ? null : Engine.fromCucumberOptionsTags(tags);
-        List<Resource> files = FileUtils.scanForFeatureFiles(paths, null);
+        List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
         return parallel(tagSelector, files, hook, threadCount, reportDir);
     }
     
@@ -142,7 +142,7 @@ public class CucumberRunner {
                 stats.addToFailCount(result.getFailedCount());
                 stats.addToTimeTaken(result.getDuration());
                 if (result.isFailed()) {                    
-                    stats.addToFailedList(result.getFeature().getPackageQualifiedName(), result.getErrorMessages());
+                    stats.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
                 }
             }
         } catch (Exception e) {
@@ -180,7 +180,7 @@ public class CucumberRunner {
     
     // this is called by karate-gatling !
     public static void callAsync(String path, CallContext callContext, Consumer<Runnable> system, Runnable next) { 
-        Feature feature = FileUtils.resolveFeature(path);
+        Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(feature, null);
         ExecutionContext ec = new ExecutionContext(featureContext, callContext, system);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);

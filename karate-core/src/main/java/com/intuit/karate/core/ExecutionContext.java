@@ -58,7 +58,7 @@ public class ExecutionContext {
             if (!logFileDir.exists()) {
                 logFileDir.mkdirs();
             }
-            String basePath = featureContext.feature.getPackageQualifiedName();
+            String basePath = featureContext.feature.getResource().getPackageQualifiedName();
             appender = new FileLogAppender(logFileDir.getPath() + File.separator + basePath + ".log", featureContext.logger);
         } else {
             appender = LogAppender.NO_OP;

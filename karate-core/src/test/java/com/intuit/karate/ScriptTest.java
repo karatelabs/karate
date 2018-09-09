@@ -4,6 +4,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,8 +25,8 @@ public class ScriptTest {
     private static final Logger logger = LoggerFactory.getLogger(ScriptTest.class);
 
     private ScenarioContext getContext() {
-        File featureDir = FileUtils.getDirContaining(getClass());
-        FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir);
+        Path featureDir = FileUtils.getDirContaining(getClass());
+        FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
         CallContext callContext = new CallContext(null, true);
         return new ScenarioContext(featureContext, callContext);
     }

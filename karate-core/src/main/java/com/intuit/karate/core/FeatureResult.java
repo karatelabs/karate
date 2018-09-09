@@ -53,17 +53,17 @@ public class FeatureResult {
     private ScriptValueMap resultVars;
     private Map<String, Object> callArg;
     private int loopIndex;
-    
+
     public void printStats(String featurePath, String reportPath) {
-        StringBuilder sb = new StringBuilder();        
+        StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
         sb.append("feature: ").append(featurePath).append('\n');
         sb.append("report: ").append(reportPath).append('\n');
         sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.2f\n", scenarioCount, scenarioCount - failedCount, failedCount, duration));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
-    }    
-    
+    }
+
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(8);
         List<Map> list = new ArrayList(scenarioResults.size());
@@ -75,18 +75,18 @@ public class FeatureResult {
             list.add(re.toMap());
         }
         map.put("keyword", Feature.KEYWORD);
-        map.put("line", feature.getLine());        
-        map.put("uri", displayName);        
+        map.put("line", feature.getLine());
+        map.put("uri", displayName);
         map.put("name", displayName);
         map.put("id", StringUtils.toIdString(feature.getName()));
         String temp = feature.getName() == null ? "" : feature.getName();
         if (feature.getDescription() != null) {
             temp = temp + "\n" + feature.getDescription();
-        }        
+        }
         map.put("description", temp.trim());
         if (feature.getTags() != null) {
             map.put("tags", Tags.toResultList(feature.getTags()));
-        }   
+        }
         return map;
     }
 
@@ -98,7 +98,7 @@ public class FeatureResult {
         }
         return list;
     }
-    
+
     public FeatureResult(Feature feature) {
         this.feature = feature;
         displayName = FileUtils.removePrefix(feature.getRelativePath());
@@ -106,12 +106,16 @@ public class FeatureResult {
 
     public Feature getFeature() {
         return feature;
-    }        
+    }
+
+    public String getPackageQualifiedName() {
+        return feature.getResource().getPackageQualifiedName();
+    }
 
     public String getDisplayUri() {
         return displayName;
     }
-    
+
     public KarateException getErrorsCombined() {
         if (errors == null) {
             return null;
@@ -126,7 +130,7 @@ public class FeatureResult {
         }
         return new KarateException(getErrorMessages());
     }
-    
+
     public String getErrorMessages() {
         StringBuilder sb = new StringBuilder();
         Iterator<Throwable> iterator = errors.iterator();
@@ -139,12 +143,12 @@ public class FeatureResult {
         }
         return sb.toString();
     }
-    
+
     public String getCallName() {
         String append = loopIndex == -1 ? "" : "[" + loopIndex + "] ";
         return append + displayName;
     }
-    
+
     public String getCallArgPretty() {
         if (callArg == null) {
             return null;
@@ -167,10 +171,10 @@ public class FeatureResult {
     public void setLoopIndex(int loopIndex) {
         this.loopIndex = loopIndex;
     }
-    
+
     public double getDuration() {
         return duration;
-    }        
+    }
 
     public int getFailedCount() {
         return failedCount;
@@ -211,7 +215,7 @@ public class FeatureResult {
         scenarioResults.add(result);
         duration += Engine.nanosToSeconds(result.getDuration());
         scenarioCount++;
-        if (result.isFailed()) {            
+        if (result.isFailed()) {
             addError(result.getError());
         }
     }

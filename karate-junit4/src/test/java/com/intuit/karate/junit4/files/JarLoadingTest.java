@@ -9,6 +9,7 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -24,12 +25,16 @@ import org.slf4j.LoggerFactory;
 public class JarLoadingTest {
 
     private static final Logger logger = LoggerFactory.getLogger(JarLoadingTest.class);
+    
+    private ClassLoader getJarClassLoader() throws Exception {
+        File jar = new File("../karate-core/src/test/resources/karate-test.jar");
+        assertTrue(jar.exists());
+        return new URLClassLoader(new URL[]{jar.toURI().toURL()});        
+    }
 
     @Test
     public void testRunningFromJarFile() throws Exception {
-        File jar = new File("../karate-core/src/test/resources/karate-test.jar");
-        assertTrue(jar.exists());
-        URLClassLoader cl = new URLClassLoader(new URL[]{jar.toURI().toURL()});
+        ClassLoader cl = getJarClassLoader();
         Class main = cl.loadClass("demo.jar1.Main");
         Method meth = main.getMethod("hello");
         Object result = meth.invoke(null);
@@ -43,6 +48,20 @@ public class JarLoadingTest {
         Feature feature = FeatureParser.parse(resource);
         Map<String, Object> map = CucumberRunner.runFeature(feature, null, false);
         assertEquals(true, map.get("success"));
+    }
+    
+    @Test
+    public void testFileUtilsForJarFile() throws Exception {
+        File file = new File("src/test/java/common.feature");
+        assertTrue(FileUtils.isFile(file.toPath()));
+        ClassLoader cl = getJarClassLoader();
+        Class main = cl.loadClass("demo.jar1.Main");
+        Path path = FileUtils.getDirContaining(main);
+        assertFalse(FileUtils.isFile(path));
+        String relativePath = FileUtils.toRelativeClassPath(path, cl);
+        assertEquals("classpath:demo/jar1", relativePath);
+        path = FileUtils.fromRelativeClassPath(relativePath, cl);
+        assertEquals(path.toString(), "/demo/jar1");
     }
 
 }

@@ -67,7 +67,8 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     public static Feature parse(String path) {
-        File file = FileUtils.fromRelativeClassPath(path);
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        Path file = FileUtils.fromRelativeClassPath(path, cl);
         Resource resource = new Resource(file, path);
         return FeatureParser.parse(resource);
     }
