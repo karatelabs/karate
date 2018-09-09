@@ -43,7 +43,7 @@ public class FileUtilsTest {
             if (file.getRelativePath().equals(relativePath)) {
                 File tempFile = FileUtils.fromRelativeClassPath(relativePath);                
                 assertEquals(tempFile, file.getPath().toFile());
-                String temp = FileUtils.toRelativeClassPath(file.getPath().toFile());
+                String temp = FileUtils.toRelativeClassPath(file.getPath().toFile(), getClass().getClassLoader());
                 assertEquals(temp, file.getRelativePath());
                 found = true;
                 break;
@@ -66,7 +66,7 @@ public class FileUtilsTest {
     
     @Test
     public void testGetAllClasspaths() {
-        FileUtils.getAllClassPaths(null);
+        FileUtils.getAllClassPaths(getClass().getClassLoader());
     }
     
 }

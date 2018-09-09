@@ -318,9 +318,9 @@ public class FileUtils {
         }
     }
 
-    public static String toRelativeClassPath(File file) {
+    public static String toRelativeClassPath(File file, ClassLoader cl) {
         Path path = file.toPath();
-        for (Path rootPath : getAllClassPaths(null)) {
+        for (Path rootPath : getAllClassPaths(cl)) {
             if (path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
                 return CLASSPATH_COLON + relativePath.toString();
@@ -341,7 +341,7 @@ public class FileUtils {
 
     public static String toRelativeClassPath(Class clazz) {
         File dir = getDirContaining(clazz);
-        return toRelativeClassPath(dir);
+        return toRelativeClassPath(dir, clazz.getClassLoader());
     }
 
     public static File fromRelativeClassPath(String relativePath) {
@@ -369,9 +369,6 @@ public class FileUtils {
     }
 
     public static List<Path> getAllClassPaths(ClassLoader classLoader) {
-        if (classLoader == null) {
-            classLoader = Thread.currentThread().getContextClassLoader();
-        }
         try {
             List<Path> list = new ArrayList();
             Enumeration<URL> iterator = classLoader.getResources("");
@@ -387,7 +384,7 @@ public class FileUtils {
 
     private static FileSystem getFileSystem(URI uri) {
         try {
-            return FileSystems.getFileSystem(uri);            
+            return FileSystems.getFileSystem(uri);
         } catch (Exception e) {
             logger.warn("creating file system for URI: {} - {}", uri, e.getMessage());
             try {
@@ -397,23 +394,24 @@ public class FileUtils {
             }
         }
     }
-    
+
     public static List<Resource> scanForFeatureFiles(boolean classpath, String searchPath, ClassLoader cl) {
         List<Resource> files = new ArrayList();
         if (classpath) {
             searchPath = removePrefix(searchPath);
-            if (cl != null) {
-                try {
-                    URL url = cl.getResource(searchPath);                
-                    if (url != null && url.toURI().getScheme().equals("jar")) {
-                        FileSystem fileSystem = getFileSystem(url.toURI());                      
-                        Path search = fileSystem.getPath(searchPath);
-                        collectFeatureFiles(search, files);
-                        return files; // exit early
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+            if (cl == null) {
+                cl = Thread.currentThread().getContextClassLoader();
+            }
+            try {
+                URL url = cl.getResource(searchPath);
+                if (url != null && url.toURI().getScheme().equals("jar")) {
+                    FileSystem fileSystem = getFileSystem(url.toURI());
+                    Path search = fileSystem.getPath(searchPath);
+                    collectFeatureFiles(search, files);
+                    return files; // exit early
                 }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
             for (Path rootPath : getAllClassPaths(cl)) {
                 collectFeatureFiles(rootPath, searchPath, files);
@@ -450,9 +448,9 @@ public class FileUtils {
                 String prefix = classpath ? CLASSPATH_COLON : "";
                 files.add(new Resource(file, prefix + relativePath.toString()));
             }
-        }        
+        }
     }
-    
+
     private static void collectFeatureFiles(Path searchPath, List<Resource> files) {
         Stream<Path> stream;
         try {
@@ -466,7 +464,7 @@ public class FileUtils {
                 Resource resource = new Resource(path, CLASSPATH_COLON + path.toString());
                 files.add(resource);
             }
-        }        
-    }    
+        }
+    }
 
 }
