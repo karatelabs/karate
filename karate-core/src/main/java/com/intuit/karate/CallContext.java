@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Tag;
+import com.intuit.karate.core.Tags;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -48,30 +49,20 @@ public class CallContext {
     public final ExecutionHook executionHook;
     public final boolean useLogAppenderFile;
 
-    private List<String> tags;
-    private Map<String, List<String>> tagValues;
+    private Tags tags = Tags.EMPTY;
     private ScenarioInfo scenarioInfo;
 
     public static CallContext forCall(ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.useLogAppenderFile);
     }
 
-    public List<String> getTags() {
+    public Tags getTags() {
         return tags;
     }
 
-    public void setTagsEffective(Collection<Tag> in) {
-        tags = new ArrayList(in.size());
-        tagValues = new HashMap(in.size());
-        for (Tag tag : in) {
-            tags.add(tag.getText());
-            tagValues.put(tag.getName(), tag.getValues());
-        }
-    }
-
-    public Map<String, List<String>> getTagValues() {
-        return tagValues;
-    }
+    public void setTags(Tags tags) {
+        this.tags = tags;
+    }        
 
     public void setScenarioInfo(ScenarioInfo scenarioInfo) {
         this.scenarioInfo = scenarioInfo;

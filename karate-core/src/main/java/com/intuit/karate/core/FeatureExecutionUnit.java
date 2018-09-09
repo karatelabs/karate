@@ -57,16 +57,15 @@ public class FeatureExecutionUnit {
                     featureContext.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
                 }
             }
-            Collection<Tag> tagsEffective = scenario.getTagsEffective();
-            if (!Tags.evaluate(featureContext.tagSelector, tagsEffective)) {
-                featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tagsEffective);
+            Tags tags = new Tags(scenario.getTagsEffective());
+            if (!tags.evaluate(featureContext.tagSelector)) {
+                featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 FeatureExecutionUnit.this.submit(next);
                 return;
             }
             String callTag = scenario.getFeature().getCallTag();
-            if (callTag != null) {
-                Tag temp = new Tag(0, callTag);
-                if (!tagsEffective.contains(temp)) {
+            if (callTag != null) {                
+                if (!tags.contains(callTag)) {
                     featureContext.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
                     FeatureExecutionUnit.this.submit(next);
                     return;
@@ -77,7 +76,7 @@ public class FeatureExecutionUnit {
             // first we set the scenario metadata
             exec.callContext.setScenarioInfo(getScenarioInfo(scenario, featureContext));
             // then the tags metadata
-            exec.callContext.setTagsEffective(tagsEffective);
+            exec.callContext.setTags(tags);
             // karate-config.js will be processed here 
             // when the script-context constructor is called
             StepActions actions = new StepActions(featureContext, exec.callContext);

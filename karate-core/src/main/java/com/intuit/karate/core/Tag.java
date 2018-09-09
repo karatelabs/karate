@@ -36,7 +36,7 @@ public class Tag {
     private final int line;
     private final String text;
     private final String name;
-    private final List<String> values;    
+    private final List<String> values;
 
     public Tag(int line, String text) {
         this.line = line;
@@ -44,7 +44,12 @@ public class Tag {
         int pos = text.indexOf('=');
         if (pos != -1) {
             name = text.substring(1, pos);
-            values = StringUtils.split(text.substring(pos + 1), ',');
+            String temp = text.substring(pos + 1);
+            if (temp.isEmpty()) { // edge case '@id='
+                values = Collections.EMPTY_LIST;
+            } else {
+                values = StringUtils.split(temp, ',');
+            }
         } else {
             name = this.text;
             values = Collections.EMPTY_LIST;
@@ -53,7 +58,7 @@ public class Tag {
 
     public int getLine() {
         return line;
-    }        
+    }
 
     public String getText() {
         return text;

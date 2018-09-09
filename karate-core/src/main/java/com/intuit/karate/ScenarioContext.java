@@ -151,8 +151,8 @@ public class ScenarioContext {
         callDepth = call.callDepth;
         executionHook = call.executionHook;
         useLogAppenderFile = call.useLogAppenderFile;
-        tags = call.getTags();
-        tagValues = call.getTagValues();
+        tags = call.getTags().getTags();
+        tagValues = call.getTags().getTagValues();
         scenarioInfo = call.getScenarioInfo();
         if (call.reuseParentContext) {
             vars = call.parentContext.vars; // shared context !
