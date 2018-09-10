@@ -46,7 +46,7 @@ public class HttpUtils {
     public static final String HEADER_AC_ALLOW_METHODS = "Access-Control-Allow-Methods";
     public static final String HEADER_AC_REQUEST_HEADERS = "Access-Control-Request-Headers";
     public static final String HEADER_AC_ALLOW_HEADERS = "Access-Control-Allow-Headers";
-    
+
     public static final String CHARSET = "charset";
 
     private static final String[] PRINTABLES = {"json", "xml", "text", "urlencoded", "html"};
@@ -64,7 +64,12 @@ public class HttpUtils {
         vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, response.getStartTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getResponseTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
-        vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
+        if (context.getConfig().isLowerCaseResponseHeaders()) {
+            Object temp = new ScriptValue(response.getHeaders()).toLowerCase();
+            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, temp);
+        } else {
+            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
+        }
         Object responseBody = convertResponseBody(response.getBody(), context);
         if (responseBody instanceof String) {
             String responseString = StringUtils.trimToEmpty((String) responseBody);
@@ -158,7 +163,7 @@ public class HttpUtils {
         }
         return false;
     }
-    
+
     public static Charset parseContentTypeCharset(String mimeType) {
         Map<String, String> map = parseContentTypeParams(mimeType);
         if (map == null) {
@@ -170,7 +175,7 @@ public class HttpUtils {
         }
         return Charset.forName(cs);
     }
-    
+
     public static Map<String, String> parseContentTypeParams(String mimeType) {
         List<String> items = StringUtils.split(mimeType, ';');
         int count = items.size();
@@ -189,7 +194,7 @@ public class HttpUtils {
             map.put(key, val);
         }
         return map;
-    }    
+    }
 
     public static String getContentType(ScriptValue sv) {
         if (sv.isStream()) {

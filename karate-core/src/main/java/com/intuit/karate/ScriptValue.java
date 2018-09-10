@@ -296,6 +296,32 @@ public class ScriptValue {
                 return value.toString();
         }
     }
+    
+    public Object toLowerCase() {
+        switch (type) {
+            case JSON:
+                DocumentContext doc = getValue(DocumentContext.class);
+                return JsonUtils.toJsonDoc(doc.jsonString().toLowerCase());
+            case XML:
+                Node node = getValue(Node.class);
+                return XmlUtils.toXmlDoc(XmlUtils.toString(node).toLowerCase());
+            case JS_ARRAY:
+            case LIST:
+                List list = getAsList();
+                DocumentContext listDoc = JsonPath.parse(list);
+                return JsonUtils.toJsonDoc(listDoc.jsonString().toLowerCase()).read("$");
+            case JS_OBJECT:
+            case MAP:
+                DocumentContext mapDoc = JsonPath.parse(getAsMap());
+                return JsonUtils.toJsonDoc(mapDoc.jsonString().toLowerCase()).read("$");
+            case INPUT_STREAM:
+                return FileUtils.toString(getValue(InputStream.class)).toLowerCase();
+            case STRING:
+                return value.toString().toLowerCase();
+            default: // NULL, UNKNOWN, JS_FUNCTION, BYTE_ARRAY, PRIMITIVE
+                return value;
+        }
+    }    
 
     public String getAsString() {
         switch (type) {
@@ -318,8 +344,7 @@ public class ScriptValue {
                 return listDoc.jsonString();
             case JS_OBJECT:
             case MAP:
-                Map map = getAsMap();
-                DocumentContext mapDoc = JsonPath.parse(map);
+                DocumentContext mapDoc = JsonPath.parse(getAsMap());
                 return mapDoc.jsonString();
             case JS_FUNCTION:
                 return value.toString().replace("\n", " ");

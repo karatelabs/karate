@@ -206,6 +206,11 @@ public class ScriptBridge {
         return doc.read(exp);
     }
     
+    public Object lowerCase(Object o) {
+        ScriptValue sv = new ScriptValue(o);
+        return sv.toLowerCase();
+    }
+    
     public Object xmlPath(Object o, String path) {
         if (!(o instanceof Node)) {
             if (o instanceof Map) {

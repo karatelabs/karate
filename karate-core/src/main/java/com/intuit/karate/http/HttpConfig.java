@@ -55,6 +55,7 @@ public class HttpConfig {
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
     private ScriptValue responseHeaders = ScriptValue.NULL;
+    private boolean lowerCaseResponseHeaders = false;
     private boolean corsEnabled = false;
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
@@ -94,6 +95,7 @@ public class HttpConfig {
         headers = parent.headers;
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
+        lowerCaseResponseHeaders = parent.lowerCaseResponseHeaders;
         corsEnabled = parent.corsEnabled;
         logPrettyRequest = parent.logPrettyRequest;
         logPrettyResponse = parent.logPrettyResponse;
@@ -267,6 +269,14 @@ public class HttpConfig {
         this.responseHeaders = responseHeaders;
     }
 
+    public boolean isLowerCaseResponseHeaders() {
+        return lowerCaseResponseHeaders;
+    }
+
+    public void setLowerCaseResponseHeaders(boolean lowerCaseResponseHeaders) {
+        this.lowerCaseResponseHeaders = lowerCaseResponseHeaders;
+    }
+    
     public boolean isCorsEnabled() {
         return corsEnabled;
     }

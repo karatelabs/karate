@@ -234,6 +234,10 @@ public class ScenarioContext {
             config.setResponseHeaders(value);
             return;
         }
+        if (key.equals("lowerCaseResponseHeaders")) {
+            config.setLowerCaseResponseHeaders(value.isBooleanTrue());
+            return;
+        }        
         if (key.equals("cors")) {
             config.setCorsEnabled(value.isBooleanTrue());
             return;

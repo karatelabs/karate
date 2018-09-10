@@ -8,5 +8,6 @@ Scenario: should be able to over-ride the content-type
     And header Content-Type = 'application/json'
     When method post
     Then status 200
+    And def response = karate.lowerCase(response)
     And match response['content-type'][0] contains 'application/json'
 
