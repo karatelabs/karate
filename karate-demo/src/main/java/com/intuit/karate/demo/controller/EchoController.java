@@ -27,6 +27,7 @@ import com.intuit.karate.demo.domain.Message;
 import com.intuit.karate.demo.domain.SignIn;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -56,6 +57,20 @@ public class EchoController {
     @GetMapping
     public Map<String, String[]> search(HttpServletRequest request) {
         return request.getParameterMap();
-    } 
+    }
+    
+    @PostMapping("/jwt")
+    public ResponseEntity jwtPost(@RequestBody SignIn signin) {
+        if ("john".equals(signin.getUsername()) && "secret".equals(signin.getPassword())) {
+            return ResponseEntity.ok("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdEBleGFtcGxlLmNvbSIsInJvbGUiOiJlZGl0b3IiLCJleHAiOjk5OTk5OTk5OSwiaXNzIjoia2xpbmdtYW4ifQ._D2tcNJN6mawerckbNotuINRm_8bRaXVi18hgsuOk9Y");
+        } else {
+            return ResponseEntity.status(403).build();
+        }
+    }
+
+    @GetMapping("/jwt/resource")
+    public String jwtResource() {
+        return "success";
+    }     
     
 }
