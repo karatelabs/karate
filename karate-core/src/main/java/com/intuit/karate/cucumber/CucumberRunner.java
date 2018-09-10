@@ -27,6 +27,7 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.FeatureContext;
+import com.intuit.karate.KarateOptions;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
@@ -48,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.FeatureExecutionUnit;
+import com.intuit.karate.core.Tags;
 import java.util.function.Consumer;
 
 /**
@@ -79,8 +81,10 @@ public class CucumberRunner {
         if (features == null || features.isEmpty()) {
             String relative = FileUtils.toRelativeClassPath(clazz);
             features = Collections.singletonList(relative);
-        }        
-        return parallel(tags, features, null, threadCount, reportDir);
+        }
+        // override with system properties if applicable
+        KarateOptions options = KarateOptions.parseSystemProperties(tags, features);
+        return parallel(options.getTags(), options.getFeatures(), null, threadCount, reportDir);
     }   
     
     public static KarateStats parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
@@ -88,7 +92,7 @@ public class CucumberRunner {
     }    
     
     public static KarateStats parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
-        String tagSelector = tags == null ? null : Engine.fromCucumberOptionsTags(tags);
+        String tagSelector = tags == null ? null : Tags.fromCucumberOptionsTags(tags);
         List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
         return parallel(tagSelector, files, hook, threadCount, reportDir);
     }

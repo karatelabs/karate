@@ -8,6 +8,7 @@ import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.Tags;
 import cucumber.api.CucumberOptions;
 import java.io.File;
 import java.io.IOException;
@@ -61,11 +62,11 @@ public class Karate extends ParentRunner<Feature> {
         }
         List<Resource> resources = FileUtils.scanForFeatureFiles(features, clazz.getClassLoader());
         children = new ArrayList(resources.size());
-        for (Resource fr : resources) {
-            Feature feature = FeatureParser.parse(fr);
+        for (Resource resource : resources) {
+            Feature feature = FeatureParser.parse(resource);
             children.add(feature);
         }
-        tagSelector = Engine.fromCucumberOptionsTags(tags);
+        tagSelector = Tags.fromCucumberOptionsTags(tags);
     }
 
     @Override

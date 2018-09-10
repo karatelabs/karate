@@ -30,6 +30,7 @@ import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.Tags;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -51,14 +52,21 @@ public class IdeUtils {
         String command = System.getProperty("sun.java.command");
         System.out.println("command: " + command);
         boolean isIntellij = command.contains("org.jetbrains");
-        StringUtils.Pair path = parseCommandLine(command, null);
-        Feature feature = FeatureParser.parse(path.left);
-        feature.setCallName(path.right);
-        FeatureResult result = Engine.executeFeatureSync(feature, null, null);
-        if (isIntellij) {
-            log(result);
-        }
-        Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", result);
+        KarateOptions options = KarateOptions.parseCommandLine(command);
+        String name = options.getName();
+        List<String> features = options.getFeatures();
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        List<Resource> resources = FileUtils.scanForFeatureFiles(features, cl);
+        String tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
+        for (Resource resource : resources) {
+            Feature feature = FeatureParser.parse(resource);
+            feature.setCallName(name);
+            FeatureResult result = Engine.executeFeatureSync(feature, tagSelector, null);
+            if (isIntellij) {
+                log(result);
+            }
+            Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", result);
+        }        
     }
 
     public static StringUtils.Pair parseCommandLine(String commandLine, String cwd) {

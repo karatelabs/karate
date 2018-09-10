@@ -413,36 +413,4 @@ public class Engine {
         return matches;
     }
 
-    public static String fromCucumberOptionsTags(List<String> tags) {
-        if (tags == null || tags.isEmpty()) {
-            return null;
-        }
-        return fromCucumberOptionsTags(tags.toArray(new String[]{}));
-    }
-
-    public static String fromCucumberOptionsTags(String... tags) {
-        if (tags == null || tags.length == 0) {
-            return null;
-        }
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < tags.length; i++) {
-            String and = tags[i];
-            if (and.startsWith("~")) {
-                sb.append("not('").append(and.substring(1)).append("')");
-            } else {
-                sb.append("anyOf(");
-                List<String> or = StringUtils.split(and, ',');
-                for (String tag : or) {
-                    sb.append('\'').append(tag).append('\'').append(',');
-                }
-                sb.setLength(sb.length() - 1);
-                sb.append(')');
-            }
-            if (i < (tags.length - 1)) {
-                sb.append(" && ");
-            }
-        }
-        return sb.toString();
-    }
-
 }

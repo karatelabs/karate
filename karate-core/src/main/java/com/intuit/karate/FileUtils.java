@@ -453,8 +453,8 @@ public class FileUtils {
                 return;
             }
         } else {
-            rootPath = new File("").toPath();
-            search = new File(searchPath).toPath();
+            rootPath = new File(".").getAbsoluteFile().toPath();
+            search = Paths.get(searchPath);
         }
         Stream<Path> stream;
         try {
@@ -465,10 +465,13 @@ public class FileUtils {
         for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
             Path path = paths.next();
             if (path.getFileName().toString().endsWith(".feature")) {
-                File file = path.toFile();
-                Path relativePath = rootPath.relativize(path);
+                String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
+                relativePath = relativePath.replaceAll("[.]{2,}", "");
+                if (relativePath.charAt(0) == '/') {
+                    relativePath = relativePath.substring(1);
+                }
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(file, prefix + relativePath.toString()));
+                files.add(new Resource(path, prefix + relativePath));
             }
         }
     }

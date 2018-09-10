@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.DummyHttpClient;
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import net.minidev.json.JSONObject;

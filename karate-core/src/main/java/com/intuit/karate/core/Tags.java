@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -184,5 +185,42 @@ public class Tags {
         }
         return list;
     }
+    
+    public static String fromCucumberOptionsTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return null;
+        }
+        return fromCucumberOptionsTags(tags.toArray(new String[]{}));
+    }    
+    
+    public static String fromCucumberOptionsTags(String... tags) {
+        if (tags == null || tags.length == 0) {
+            return null;
+        }
+        for (String s : tags) {
+            if (s.indexOf('(') != -1) { // new enhanced tag expression detected !
+                return s;
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < tags.length; i++) {
+            String and = tags[i];
+            if (and.startsWith("~")) {
+                sb.append("not('").append(and.substring(1)).append("')");
+            } else {
+                sb.append("anyOf(");
+                List<String> or = StringUtils.split(and, ',');
+                for (String tag : or) {
+                    sb.append('\'').append(tag).append('\'').append(',');
+                }
+                sb.setLength(sb.length() - 1);
+                sb.append(')');
+            }
+            if (i < (tags.length - 1)) {
+                sb.append(" && ");
+            }
+        }
+        return sb.toString();
+    }    
 
 }

@@ -34,7 +34,12 @@
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
             <version>1.18</version>
-        </dependency>              
+        </dependency>
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>3.0.1</version>
+        </dependency>                     
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

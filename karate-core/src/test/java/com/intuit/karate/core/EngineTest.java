@@ -23,8 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,14 +32,6 @@ import org.slf4j.LoggerFactory;
  */
 public class EngineTest {
     
-    private static final Logger logger = LoggerFactory.getLogger(EngineTest.class);
-    
-    @Test
-    public void testCucumberOptionsTagsConversion() {
-        assertEquals("anyOf('@foo')", Engine.fromCucumberOptionsTags("@foo"));
-        assertEquals("anyOf('@foo','@bar')", Engine.fromCucumberOptionsTags("@foo,@bar"));
-        assertEquals("anyOf('@foo') && anyOf('@bar')", Engine.fromCucumberOptionsTags("@foo", "@bar"));
-        assertEquals("anyOf('@foo') && not('@bar')", Engine.fromCucumberOptionsTags("@foo", "~@bar"));
-    }
+    private static final Logger logger = LoggerFactory.getLogger(EngineTest.class);    
     
 }

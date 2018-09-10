@@ -32,9 +32,19 @@ import static org.junit.Assert.*;
  *
  * @author pthomas3
  */
-public class TagsTest {
+public class TagsTest {   
     
-    private boolean evaluate(String tagSelector, String ... strs) {
+    @Test
+    public void testCucumberOptionsTagsConversion() {
+        assertEquals("anyOf('@foo')", Tags.fromCucumberOptionsTags("@foo"));
+        assertEquals("anyOf('@foo','@bar')", Tags.fromCucumberOptionsTags("@foo,@bar"));
+        assertEquals("anyOf('@foo') && anyOf('@bar')", Tags.fromCucumberOptionsTags("@foo", "@bar"));
+        assertEquals("anyOf('@foo') && not('@bar')", Tags.fromCucumberOptionsTags("@foo", "~@bar"));
+        // detect new syntax and use as-is
+        assertEquals("anyOf('@foo')", Tags.fromCucumberOptionsTags("anyOf('@foo')"));
+    }    
+    
+    private boolean eval(String tagSelector, String ... strs) {
         List<Tag> list = new ArrayList(strs.length);
         for (String s : strs) {
             list.add(new Tag(0, s));
@@ -45,49 +55,49 @@ public class TagsTest {
     
     @Test
     public void testTagSelectors() {
-        assertTrue(evaluate(null));
-        assertTrue(evaluate(null, "@foo", "@bar"));        
-        assertTrue(evaluate("anyOf('@foo')", "@foo", "@bar"));
-        assertTrue(evaluate("not('@ignore')"));
-        assertTrue(evaluate("not('@ignore')", "@foo", "@bar"));
-        assertTrue(evaluate("anyOf('@foo', '@bar')", "@foo", "@bar"));
-        assertTrue(evaluate("anyOf('@foo', '@baz')", "@foo", "@bar"));
-        assertTrue(evaluate("allOf('@foo')", "@foo", "@bar"));
-        assertTrue(evaluate("allOf('@foo', '@bar')", "@foo", "@bar"));
-        assertTrue(evaluate("allOf('@foo', '@bar') && not('@ignore')", "@foo", "@bar"));
-        assertTrue(evaluate("anyOf('@foo') && !anyOf('@ignore')", "@foo", "@bar"));
-        assertFalse(evaluate("!anyOf('@ignore')", "@ignore"));
-        assertFalse(evaluate("not('@ignore')", "@ignore"));
-        assertFalse(evaluate("not('@ignore', '@foo')", "@ignore"));
-        assertFalse(evaluate("!anyOf('@ignore')", "@foo", "@bar", "@ignore"));
-        assertFalse(evaluate("anyOf('@foo') && !anyOf('@ignore')", "@foo", "@bar", "@ignore"));
-        assertFalse(evaluate("anyOf('@foo')", "@bar", "@ignore"));        
-        assertFalse(evaluate("allOf('@foo', '@baz')", "@foo", "@bar"));
-        assertFalse(evaluate("anyOf('@foo') && anyOf('@baz')", "@foo", "@bar"));
-        assertFalse(evaluate("!anyOf('@foo')", "@foo", "@bar"));
-        assertFalse(evaluate("allOf('@foo', '@bar') && not('@ignore')", "@foo", "@bar", "@ignore"));        
+        assertTrue(eval(null));
+        assertTrue(eval(null, "@foo", "@bar"));        
+        assertTrue(eval("anyOf('@foo')", "@foo", "@bar"));
+        assertTrue(eval("not('@ignore')"));
+        assertTrue(eval("not('@ignore')", "@foo", "@bar"));
+        assertTrue(eval("anyOf('@foo', '@bar')", "@foo", "@bar"));
+        assertTrue(eval("anyOf('@foo', '@baz')", "@foo", "@bar"));
+        assertTrue(eval("allOf('@foo')", "@foo", "@bar"));
+        assertTrue(eval("allOf('@foo', '@bar')", "@foo", "@bar"));
+        assertTrue(eval("allOf('@foo', '@bar') && not('@ignore')", "@foo", "@bar"));
+        assertTrue(eval("anyOf('@foo') && !anyOf('@ignore')", "@foo", "@bar"));
+        assertFalse(eval("!anyOf('@ignore')", "@ignore"));
+        assertFalse(eval("not('@ignore')", "@ignore"));
+        assertFalse(eval("not('@ignore', '@foo')", "@ignore"));
+        assertFalse(eval("!anyOf('@ignore')", "@foo", "@bar", "@ignore"));
+        assertFalse(eval("anyOf('@foo') && !anyOf('@ignore')", "@foo", "@bar", "@ignore"));
+        assertFalse(eval("anyOf('@foo')", "@bar", "@ignore"));        
+        assertFalse(eval("allOf('@foo', '@baz')", "@foo", "@bar"));
+        assertFalse(eval("anyOf('@foo') && anyOf('@baz')", "@foo", "@bar"));
+        assertFalse(eval("!anyOf('@foo')", "@foo", "@bar"));
+        assertFalse(eval("allOf('@foo', '@bar') && not('@ignore')", "@foo", "@bar", "@ignore"));        
     }
     
     @Test
     public void testTagValueSelectors() {
-        assertFalse(evaluate("valuesFor('@id').isPresent"));
-        assertFalse(evaluate("valuesFor('@id').isPresent", "@foo"));
-        assertFalse(evaluate("valuesFor('@id').isPresent", "@id"));
-        assertFalse(evaluate("valuesFor('@id').isPresent", "@foo", "@id"));
-        assertFalse(evaluate("valuesFor('@id').isPresent", "@id="));
-        assertTrue(evaluate("valuesFor('@id').isPresent", "@id=1"));
-        assertTrue(evaluate("valuesFor('@id').isOnly(1)", "@id=1"));
-        assertTrue(evaluate("valuesFor('@id').isAnyOf(1)", "@id=1"));
-        assertTrue(evaluate("valuesFor('@id').isAllOf(1)", "@id=1"));
-        assertTrue(evaluate("valuesFor('@id').isAllOf(1)", "@id=1,2"));
-        assertFalse(evaluate("valuesFor('@id').isAnyOf(2)", "@id=1"));
-        assertTrue(evaluate("valuesFor('@id').isAnyOf(1)", "@id=1,2"));
-        assertTrue(evaluate("valuesFor('@id').isAnyOf(2)", "@id=1,2"));
-        assertTrue(evaluate("valuesFor('@id').isAllOf(1, 2)", "@id=1,2"));
-        assertTrue(evaluate("valuesFor('@id').isOnly(1, 2)", "@id=1,2"));
-        assertFalse(evaluate("valuesFor('@id').isOnly(1, 3)", "@id=1,2"));
-        assertTrue(evaluate("valuesFor('@id').isAnyOf(1, 2)", "@id=1,2"));
-        assertTrue(evaluate("valuesFor('@id').isAnyOf(1, 3)", "@id=1,2"));
+        assertFalse(eval("valuesFor('@id').isPresent"));
+        assertFalse(eval("valuesFor('@id').isPresent", "@foo"));
+        assertFalse(eval("valuesFor('@id').isPresent", "@id"));
+        assertFalse(eval("valuesFor('@id').isPresent", "@foo", "@id"));
+        assertFalse(eval("valuesFor('@id').isPresent", "@id="));
+        assertTrue(eval("valuesFor('@id').isPresent", "@id=1"));
+        assertTrue(eval("valuesFor('@id').isOnly(1)", "@id=1"));
+        assertTrue(eval("valuesFor('@id').isAnyOf(1)", "@id=1"));
+        assertTrue(eval("valuesFor('@id').isAllOf(1)", "@id=1"));
+        assertTrue(eval("valuesFor('@id').isAllOf(1)", "@id=1,2"));
+        assertFalse(eval("valuesFor('@id').isAnyOf(2)", "@id=1"));
+        assertTrue(eval("valuesFor('@id').isAnyOf(1)", "@id=1,2"));
+        assertTrue(eval("valuesFor('@id').isAnyOf(2)", "@id=1,2"));
+        assertTrue(eval("valuesFor('@id').isAllOf(1, 2)", "@id=1,2"));
+        assertTrue(eval("valuesFor('@id').isOnly(1, 2)", "@id=1,2"));
+        assertFalse(eval("valuesFor('@id').isOnly(1, 3)", "@id=1,2"));
+        assertTrue(eval("valuesFor('@id').isAnyOf(1, 2)", "@id=1,2"));
+        assertTrue(eval("valuesFor('@id').isAnyOf(1, 3)", "@id=1,2"));
     }
     
 }

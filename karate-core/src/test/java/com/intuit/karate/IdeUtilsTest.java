@@ -31,23 +31,25 @@ import org.junit.Test;
  * @author pthomas3
  */
 public class IdeUtilsTest {
+    
+    public static final String INTELLIJ1 = "com.intellij.rt.execution.application.AppMain cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^get users and then get first by id$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
+    public static final String INTELLIJ2 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos";
+    public static final String INTELLIJ3 = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^create and retrieve a cat$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
+
+    public static final String ECLIPSE1 = "com.intuit.karate.StepDefs - cucumber.api.cli.Main /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature --glue classpath: --plugin pretty --monochrome";
 
     @Test
     public void testExtractingFeaturePathFromCommandLine() {
         String expected = "classpath:com/intuit/karate/junit4/demos/users.feature";
         String cwd = "/Users/pthomas3/dev/zcode/karate/karate-junit4";
-        String intellij = "com.intellij.rt.execution.application.AppMain cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^get users and then get first by id$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
-        StringUtils.Pair path = IdeUtils.parseCommandLine(intellij, cwd);
+        StringUtils.Pair path = IdeUtils.parseCommandLine(INTELLIJ1, cwd);
         assertEquals(expected, path.left);
         assertEquals("^get users and then get first by id$", path.right);
-        String eclipse = "com.intuit.karate.StepDefs - cucumber.api.cli.Main /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature --glue classpath: --plugin pretty --monochrome";
-        path = IdeUtils.parseCommandLine(eclipse, cwd);
+        path = IdeUtils.parseCommandLine(ECLIPSE1, cwd);
         assertEquals(expected, path.left);
-        intellij = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos";
-        path = IdeUtils.parseCommandLine(intellij, cwd);
+        path = IdeUtils.parseCommandLine(INTELLIJ2, cwd);
         assertEquals("classpath:com/intuit/karate/junit4/demos", path.left);
-        intellij = "cucumber.api.cli.Main --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvmSMFormatter --monochrome --name ^create and retrieve a cat$ --glue com.intuit.karate /Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature";
-        path = IdeUtils.parseCommandLine(intellij, cwd);
+        path = IdeUtils.parseCommandLine(INTELLIJ3, cwd);
         assertEquals("classpath:com/intuit/karate/junit4/demos/users.feature", path.left);
         assertEquals("^create and retrieve a cat$", path.right);
     }
