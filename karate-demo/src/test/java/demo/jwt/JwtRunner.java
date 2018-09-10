@@ -1,9 +1,7 @@
-package demo.oauth;
+package demo.jwt;
 
-import com.intuit.karate.junit4.Karate;
-import org.junit.runner.RunWith;
+import demo.TestBase;
 
-@RunWith(Karate.class)
-public class JwtRunner {
+public class JwtRunner extends TestBase {
 
 }

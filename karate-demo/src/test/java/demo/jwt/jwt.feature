@@ -1,7 +1,8 @@
-Feature: JWT Test
+@ignore
+Feature: jwt test
 
 Background:
-* url 'http://klingman.us/api/jwtTest'
+* url demoBaseUrl
 * def parseJwtPayload =
   """
   function(token) {
@@ -11,26 +12,26 @@ Background:
       var decoded = Base64.getDecoder().decode(base64Str);
       var String = Java.type('java.lang.String')
       return new String(decoded)
-  };
+  }
   """
 
 Scenario: jwt flow
-Given path  'authenticate'
-And request {user: "test@example.com", password: "testPass"}
-When method POST
-Then status 200
-* def accessToken = response['token']
-* json result = parseJwtPayload(accessToken)
-* match result == {user: "test@example.com", role: "editor", exp: "#number", iss: "klingman"}
+    Given path 'echo', 'jwt'
+    And request { username: 'john', password: 'secret' }
+    When method POST
+    Then status 200
+    And json accessToken = parseJwtPayload(response)
+    And match accessToken == { user: 'test@example.com', role: 'editor', exp: '#number', iss: 'klingman' }
 
-* path 'resource'
-* header Authorization = 'Bearer ' + accessToken
-* method get
-* status 200
+    Given path 'echo', 'jwt', 'resource'
+    And header Authorization = 'Bearer ' + accessToken
+    When method get
+    Then status 200
+    And match response == 'success'
 
-Scenario: Access Denied
-Given path  'authenticate'
-And request {user: "test@example.com", password: "wrong"}
-When method POST
-Then status 403
+Scenario: access denied
+    Given path 'echo', 'jwt'
+    And request { username: 'john', password: 'wrong' }
+    When method POST
+    Then status 403
 
