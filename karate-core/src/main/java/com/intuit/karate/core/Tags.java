@@ -80,6 +80,20 @@ public class Tags {
         public boolean isOnly(String ... args) {
             return isAllOf(args) && args.length == values.size();
         }
+        
+        public boolean isEach(ScriptObjectMirror som) {
+            if (!som.isFunction()) {
+                return false;
+            }            
+            for (String s : values) {
+                Object o = som.call(som, s);
+                ScriptValue sv = new ScriptValue(o);
+                if (!sv.isBooleanTrue()) {
+                    return false;
+                }
+            }
+            return true;
+        }
 
     }
 

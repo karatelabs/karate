@@ -98,6 +98,8 @@ public class TagsTest {
         assertFalse(eval("valuesFor('@id').isOnly(1, 3)", "@id=1,2"));
         assertTrue(eval("valuesFor('@id').isAnyOf(1, 2)", "@id=1,2"));
         assertTrue(eval("valuesFor('@id').isAnyOf(1, 3)", "@id=1,2"));
+        assertTrue(eval("valuesFor('@id').isEach(function(s){return s.startsWith('1')})", "@id=100,1000"));
+        assertTrue(eval("valuesFor('@id').isEach(function(s){return /^1.*/.test(s)})", "@id=100,1000"));
     }
     
 }
