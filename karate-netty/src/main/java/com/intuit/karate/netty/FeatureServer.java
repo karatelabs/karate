@@ -111,15 +111,17 @@ public class FeatureServer {
         }
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
+        FeatureServerInitializer initializer = new FeatureServerInitializer(sslCtx, featureFile, vars, () -> stop());
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(getClass().getName(), LogLevel.TRACE))
-                    .childHandler(new FeatureServerInitializer(sslCtx, featureFile, vars, () -> stop()));
+                    .childHandler(initializer);
             channel = b.bind(port).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             this.port = isa.getPort();
+            initializer.backend.setPort(this.port);
             logger.info("server started - {}://127.0.0.1:{}", (sslCtx == null ? "http" : "https"), this.port);
         } catch (Exception e) {
             throw new RuntimeException(e);

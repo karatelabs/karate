@@ -4,7 +4,7 @@
 
 Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty) and [performance-testing](karate-gatling) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Besides powerful JSON & XML assertions, you can run tests in parallel - which is critical for HTTP API testing.
 
-With Karate, you can script a sequence of calls to any kind of web-service and assert that the responses are as expected. You can quickly build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' of two JSON or XML documents without being affected by white-space or the order in which data-elements actually appear, and you can opt to ignore the dynamic fields that you choose.
+With Karate, you can script a sequence of calls to any kind of web-service and assert that the responses are as expected. You can quickly build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' (deep-equals) of two JSON or XML documents, and you can specify which fields to ignore if they are dynamic.
 
 Running tests and generating reports is just like any standard Java project. But there's also a [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. You write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. 
 

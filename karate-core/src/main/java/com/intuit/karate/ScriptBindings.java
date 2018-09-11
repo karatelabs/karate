@@ -72,6 +72,7 @@ public class ScriptBindings implements Bindings {
     public static final String PARAM_VALUE = "paramValue";
     public static final String PATH_PARAMS = "pathParams";
     public static final String BODY_PATH = "bodyPath";
+    public static final String SERVER_PORT = "serverPort";
 
     private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
 

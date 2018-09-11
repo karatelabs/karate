@@ -42,7 +42,7 @@ import java.util.Map;
 public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> {
     
     private final SslContext sslCtx;
-    private final FeatureBackend backend;
+    protected final FeatureBackend backend;
     private final Runnable stopFunction;
     
     public FeatureServerInitializer(SslContext sslCtx, File featureFile, Map<String, Object> vars, Runnable stopFunction) {

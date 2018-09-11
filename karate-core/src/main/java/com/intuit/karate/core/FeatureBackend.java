@@ -54,6 +54,10 @@ public class FeatureBackend {
         context.getVars().put(name, Script.evalJsExpression(function, context));
     }
 
+    public void setPort(int port) {
+        context.getVars().put(ScriptBindings.SERVER_PORT, port);
+    }    
+    
     public boolean isCorsEnabled() {
         return corsEnabled;
     }
@@ -87,7 +91,7 @@ public class FeatureBackend {
         putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
-        putBinding(ScriptBindings.BODY_PATH, context);
+        putBinding(ScriptBindings.BODY_PATH, context);        
         if (vars != null) {
             ScriptValueMap backendVars = context.getVars();
             vars.forEach((k, v) -> backendVars.put(k, v));
@@ -97,7 +101,6 @@ public class FeatureBackend {
             for (Step step : feature.getBackground().getSteps()) {
                 Result result = Engine.executeStep(step, actions);
                 if (result.isFailed()) {
-
                     String message = "server-side background init failed - " + featureName + ":" + step.getLine();
                     actions.context.logger.error(message);
                     throw new KarateException(message, result.getError());
