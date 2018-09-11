@@ -52,6 +52,7 @@ public class FeatureBackendTest {
         File file = FileUtils.getFileRelativeTo(getClass(), "server.feature");
         Feature feature = FeatureParser.parse(file);
         FeatureBackend backend = new FeatureBackend(feature);
+        backend.init(0);
         ScriptValueMap vars = backend.handle(getRequest("Billie"));
         Match.equals(vars.get("response").getAsMap(), "{ id: 1, name: 'Billie' }");
         vars = backend.handle(getRequest("Wild"));

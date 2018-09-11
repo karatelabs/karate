@@ -44,8 +44,9 @@ public class FeatureBackend {
     private final Feature feature;
     private final StepActions actions;
     private final boolean ssl;
-    private final boolean corsEnabled;
-    
+
+    private boolean corsEnabled;
+
     private final ScenarioContext context;
     private final String featureName;
 
@@ -54,10 +55,6 @@ public class FeatureBackend {
         context.getVars().put(name, Script.evalJsExpression(function, context));
     }
 
-    public void setPort(int port) {
-        context.getVars().put(ScriptBindings.SERVER_PORT, port);
-    }    
-    
     public boolean isCorsEnabled() {
         return corsEnabled;
     }
@@ -91,11 +88,15 @@ public class FeatureBackend {
         putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
-        putBinding(ScriptBindings.BODY_PATH, context);        
+        putBinding(ScriptBindings.BODY_PATH, context);
         if (vars != null) {
             ScriptValueMap backendVars = context.getVars();
             vars.forEach((k, v) -> backendVars.put(k, v));
         }
+    }
+
+    public void init(int port) { // has to be called once !
+        context.getVars().put(ScriptBindings.SERVER_PORT, port);
         // the background is evaluated one-time
         if (feature.isBackgroundPresent()) {
             for (Step step : feature.getBackground().getSteps()) {
@@ -116,7 +117,7 @@ public class FeatureBackend {
         boolean matched = false;
         ScriptValueMap vars = actions.context.getVars();
         vars.putAll(args);
-        for (FeatureSection fs : feature.getSections()) {            
+        for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {
                 actions.context.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
                 break;

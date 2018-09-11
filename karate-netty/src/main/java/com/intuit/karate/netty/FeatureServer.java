@@ -121,7 +121,7 @@ public class FeatureServer {
             channel = b.bind(port).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             this.port = isa.getPort();
-            initializer.backend.setPort(this.port);
+            initializer.backend.init(this.port); // background will be processed here
             logger.info("server started - {}://127.0.0.1:{}", (sslCtx == null ? "http" : "https"), this.port);
         } catch (Exception e) {
             throw new RuntimeException(e);

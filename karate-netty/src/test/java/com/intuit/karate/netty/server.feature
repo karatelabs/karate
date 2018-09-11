@@ -5,6 +5,7 @@ Background:
 * def cats = {}
 * def id = 0
 * configure cors = true
+* print 'serverPort:', serverPort
 
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request
