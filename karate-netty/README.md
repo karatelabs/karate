@@ -448,6 +448,20 @@ Use this to add an artificial delay instead of calling `Thread.sleep()` directly
 
 Refer to this example: [`payment-service-proxy.feature`](../karate-demo/src/test/java/mock/contract/payment-service-proxy.feature).
 
+### `configure afterScenario`
+Just like the above, but you can set this "globally" for all route-handlers in the [`Background`](#background). Here is an example of setting a random delay between 200 to 600 milliseconds.
+
+```cucumber
+* configure afterScenario =
+"""
+function(){
+    var millis = 200 + Math.random() * 400;
+    karate.log('sleeping for:', millis, 'millis')
+    java.lang.Thread.sleep(millis); 
+}
+"""
+```
+
 ## `karate.abort()`
 Stop evaluating any more steps in the `Scenario` and return the `response`. Useful when combined with [`eval`](https://github.com/intuit/karate#eval) and conditional checks in JavaScript.
 

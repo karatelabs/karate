@@ -148,6 +148,9 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
             responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
             afterScenario = result.remove(VAR_AFTER_SCENARIO);
+            if (afterScenario == null) {
+                afterScenario = context.getConfig().getAfterScenario();
+            }            
             configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
             responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
         } // END TRANSACTION !!
