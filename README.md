@@ -392,13 +392,13 @@ For details on what actually goes into a script or `*.feature` file, refer to th
 ## IDE Support
 Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
 
-> Also refer to the [JUnit HTML report](#junit-html-report).
-
 ### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
 If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time.
 > Important: only the "Gherkin" and "Cucumber for Java" plugins are needed, the "Substeps IntelliJ Plugin" is not compatible.
+
+For both Eclipse and IntelliJ, when you run a feature (or package with multiple features) via the IDE - you will get the [JUnit HTML report](#junit-html-report).
 
 ### Troubleshooting Cucumber IDE Support
 * On Eclipse you may see warnings such as `Step 'xxx' does not have a matching glue code` or `required(..)+ loop did not match anything at input Scenario:`, and on IntelliJ: `Unimplemented substep definition`. Refer to [this ticket](https://github.com/intuit/karate/issues/90) on how to solve this.
@@ -3157,7 +3157,7 @@ Utility | Recipe
 | Case Insensitive Comparison | `function(a, b){ return a.equalsIgnoreCase(b) }`
 | Sleep or Wait for `pause` milliseconds | `function(pause){ java.lang.Thread.sleep(pause) }`
 
-The first three are good enough for random string generation for most situations.
+The first three are good enough for random string generation for most situations. Note that if you need to do a lot of case-insensitive string checks, [`karate.lowerCase()`](#karate-lowercase) is what you are looking for.
 
 ## GraphQL / RegEx replacement example
 As a demonstration of Karate's power and flexibility, here is an example that reads a GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries and filter criteria.
