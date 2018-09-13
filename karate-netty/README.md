@@ -333,9 +333,6 @@ Scenario: pathMatches('/v1/cats/{id}')
 ## `pathParams`
 JSON variable (not a function) allowing you to extract values by name. See [`pathMatches()`](#pathmatches) above.
 
-## `serverPort`
-Rarely used, but this variable (integer) holds the value of the port of the running mock. Useful when the port was dynamically chosen by the framework and you need it to construct URL-s in payloads, etc.
-
 ## `methodIs()`
 Helper function that you will use a lot along with [`pathMatches()`](#pathmatches). Lower-case is fine. For example:
 

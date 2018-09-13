@@ -5,7 +5,6 @@ Background:
 * def cats = {}
 * def id = 0
 * configure cors = true
-* print 'serverPort:', serverPort
 
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request
@@ -32,6 +31,3 @@ Scenario: pathMatches('/v1/abort')
     * eval if (response.success) karate.abort()
     # the next line will not be executed
     * def response = { success: false }
-
-Scenario: pathMatches('/v1/port')
-    * def response = { port: '#(serverPort)' }

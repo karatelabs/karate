@@ -72,8 +72,3 @@ Scenario: karate.abort() test
     Then match response == { success: true }
     * eval karate.abort()
     * match 1 == 2
-
-Scenario: karate serverPort test    
-    Given url mockServerUrl + 'port'
-    When method get
-    Then match response == { port: '#(mockPort)' }

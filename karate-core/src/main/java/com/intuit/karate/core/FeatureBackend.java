@@ -51,7 +51,6 @@ public class FeatureBackend {
 
     private final Feature feature;
     private final StepActions actions;
-    private final boolean ssl;
 
     private boolean corsEnabled;
 
@@ -67,26 +66,17 @@ public class FeatureBackend {
         return corsEnabled;
     }
 
-    public boolean isSsl() {
-        return ssl;
-    }
-
     public ScenarioContext getContext() {
         return context;
     }
 
     public FeatureBackend(Feature feature) {
-        this(feature, null, false);
+        this(feature, null);
     }
 
     public FeatureBackend(Feature feature, Map<String, Object> vars) {
-        this(feature, vars, false);
-    }
-
-    public FeatureBackend(Feature feature, Map<String, Object> vars, boolean ssl) {
         this.feature = feature;
         featureName = feature.getPath().toFile().getName();
-        this.ssl = ssl;
         CallContext callContext = new CallContext(null, false);
         FeatureContext featureContext = new FeatureContext(feature, null);
         actions = new StepActions(featureContext, callContext);
@@ -101,10 +91,6 @@ public class FeatureBackend {
             ScriptValueMap backendVars = context.getVars();
             vars.forEach((k, v) -> backendVars.put(k, v));
         }
-    }
-
-    public void init(int port) { // has to be called once !
-        context.getVars().put(ScriptBindings.SERVER_PORT, port);
         // the background is evaluated one-time
         if (feature.isBackgroundPresent()) {
             for (Step step : feature.getBackground().getSteps()) {
@@ -118,7 +104,8 @@ public class FeatureBackend {
         }
         // this is a special case, we support the auto-handling of cors
         // only if '* configure cors = true' has been done in the Background
-        corsEnabled = context.getConfig().isCorsEnabled();
+        corsEnabled = context.getConfig().isCorsEnabled(); 
+        actions.context.logger.info("backend initialized");
     }
 
     public ScriptValueMap handle(ScriptValueMap args) {

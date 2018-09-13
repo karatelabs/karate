@@ -51,9 +51,11 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     private final FeatureBackend backend;
     private final Runnable stopFunction;
+    private final boolean ssl;
 
-    public FeatureServerHandler(FeatureBackend backend, Runnable stopFunction) {
+    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Runnable stopFunction) {
         this.backend = backend;
+        this.ssl = ssl;
         this.stopFunction = stopFunction;
     }
 
@@ -78,7 +80,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
             HttpRequest request = new HttpRequest();
             if (url.left == null) {
-                String requestScheme = backend.isSsl() ? "https" : "http";
+                String requestScheme = ssl ? "https" : "http";
                 String host = msg.headers().get(HttpUtils.HEADER_HOST);
                 request.setUrlBase(requestScheme + "://" + host);
             } else {
