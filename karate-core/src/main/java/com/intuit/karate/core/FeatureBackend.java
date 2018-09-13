@@ -28,11 +28,19 @@ import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.FeatureContext;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpResponse;
+import com.intuit.karate.http.HttpUtils;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -166,5 +174,106 @@ public class FeatureBackend {
             return false;
         }
     }
+    
+    private static final String VAR_AFTER_SCENARIO = "afterScenario";
+    private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
+    
+    public HttpResponse buildResponse(HttpRequest request, long startTime) {
+        if (corsEnabled && "OPTIONS".equals(request.getMethod())) {
+            HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
+            response.setStatus(200);
+            response.addHeader(HttpUtils.HEADER_ALLOW, ALLOWED_METHODS);
+            response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
+            response.addHeader(HttpUtils.HEADER_AC_ALLOW_METHODS, ALLOWED_METHODS);
+            List requestHeaders = request.getHeaders().get(HttpUtils.HEADER_AC_REQUEST_HEADERS);
+            if (requestHeaders != null) {
+                response.putHeader(HttpUtils.HEADER_AC_ALLOW_HEADERS, requestHeaders);
+            }            
+            return response;
+        }
+        Match match = Match.init()
+                .defText(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
+                .defText(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
+                .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
+                .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
+                .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
+                .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
+        byte[] requestBytes = request.getBody();
+        if (requestBytes != null) {
+            match.def(ScriptValueMap.VAR_REQUEST_BYTES, requestBytes);
+            String requestString = FileUtils.toString(requestBytes);
+            Object requestBody = requestString;
+            if (Script.isJson(requestString)) {
+                try {
+                    requestBody = JsonUtils.toJsonDoc(requestString);
+                } catch (Exception e) {
+                    context.logger.warn("json parsing failed, request data type set to string: {}", e.getMessage());
+                }
+            } else if (Script.isXml(requestString)) {
+                try {
+                    requestBody = XmlUtils.toXmlDoc(requestString);
+                } catch (Exception e) {
+                    context.logger.warn("xml parsing failed, request data type set to string: {}", e.getMessage());
+                }
+            }
+            match.def(ScriptValueMap.VAR_REQUEST, requestBody);
+        }
+        ScriptValue responseValue, responseStatusValue, responseHeaders, afterScenario;
+        Map<String, Object> responseHeadersMap, configResponseHeadersMap;
+        // this is a sledgehammer approach to concurrency !
+        // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
+        synchronized (this) { // BEGIN TRANSACTION !
+            ScriptValueMap result = handle(match.vars());
+            ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
+            responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
+            responseStatusValue = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
+            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
+            afterScenario = result.remove(VAR_AFTER_SCENARIO);
+            if (afterScenario == null) {
+                afterScenario = context.getConfig().getAfterScenario();
+            }
+            configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
+            responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
+        } // END TRANSACTION !!
+        int responseStatus = responseStatusValue == null ? 200 : Integer.valueOf(responseStatusValue.getAsString());
+        HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
+        response.setStatus(responseStatus);
+        if (responseValue != null && !responseValue.isNull()) {
+            if (responseValue.isByteArray()) {
+                response.setBody(responseValue.getValue(byte[].class));
+            } else {
+                response.setBody(FileUtils.toBytes(responseValue.getAsString()));
+            }
+        }
+        // trying to avoid creating a map unless absolutely necessary
+        if (responseHeadersMap != null) {
+            if (configResponseHeadersMap != null) {
+                responseHeadersMap.putAll(configResponseHeadersMap);
+            }
+        } else if (configResponseHeadersMap != null) {
+            responseHeadersMap = configResponseHeadersMap;
+        }
+        if (responseHeadersMap != null) {
+            responseHeadersMap.forEach((k, v) -> {
+                if (v instanceof List) { // MultiValueMap returned by proceed / response.headers
+                    response.putHeader(k, (List) v);
+                } else if (v != null) {                    
+                    response.addHeader(k, v.toString());
+                }
+            }); 
+        }
+        if (responseValue != null && (responseHeadersMap == null || !responseHeadersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE))) {
+            response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
+        }
+        if (corsEnabled) {
+            response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
+        }
+        // functions here are outside of the 'transaction' and should not mutate global state !
+        // typically this is where users can set up an artificial delay or sleep
+        if (afterScenario != null && afterScenario.isFunction()) {
+            afterScenario.invokeFunction(context);
+        }
+        return response;
+    }    
 
 }

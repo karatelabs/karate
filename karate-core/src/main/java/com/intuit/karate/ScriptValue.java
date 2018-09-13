@@ -122,7 +122,7 @@ public class ScriptValue {
         return type == Type.INPUT_STREAM;
     }
     
-    public boolean isBytes() {
+    public boolean isByteArray() {
         return type == Type.BYTE_ARRAY;
     }
 

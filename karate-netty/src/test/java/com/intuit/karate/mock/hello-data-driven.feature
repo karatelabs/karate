@@ -1,8 +1,7 @@
 Feature: a karate test using cucumber scenario outlines
 
 Background:
-Given url mockServerUrl
-And path 'dogs'
+Given url mockServerUrl + 'dogs'
 
 Scenario Outline: create many dogs
 

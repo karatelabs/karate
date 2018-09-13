@@ -23,17 +23,10 @@
  */
 package com.intuit.karate.netty;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Match;
-import com.intuit.karate.ScenarioContext;
-import com.intuit.karate.Script;
-import com.intuit.karate.ScriptValue;
-import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.http.HttpRequest;
+import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -45,14 +38,10 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  *
@@ -73,31 +62,18 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         ctx.flush();
     }
 
-    private static final String STOP_URI = "/__admin/stop";
-    private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH";
+    private static final String STOP_URI = "/__admin/stop";    
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
+        long startTime = System.currentTimeMillis();
         backend.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
+        FullHttpResponse nettyResponse;
         if (msg.uri().startsWith(STOP_URI)) {
             backend.getContext().logger.info("stop uri invoked, shutting down");
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
-            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);            
-            ctx.write(response);
-            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+            nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
             stopFunction.run();
-        }
-        if (backend.isCorsEnabled() && msg.method().equals(HttpMethod.OPTIONS)) {
-            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-            HttpHeaders responseHeaders = response.headers();
-            responseHeaders.set(HttpUtils.HEADER_ALLOW, ALLOWED_METHODS);
-            responseHeaders.set(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
-            responseHeaders.set(HttpUtils.HEADER_AC_ALLOW_METHODS, ALLOWED_METHODS);
-            String requestHeaders = msg.headers().get(HttpUtils.HEADER_AC_REQUEST_HEADERS);
-            if (requestHeaders != null) {
-                responseHeaders.set(HttpUtils.HEADER_AC_ALLOW_HEADERS, requestHeaders);
-            }
-            ctx.write(response);
         } else {
             StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
             HttpRequest request = new HttpRequest();
@@ -120,113 +96,20 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 content.readBytes(bytes);
                 request.setBody(bytes);
             }
-            writeResponse(request, ctx);
+            HttpResponse response = backend.buildResponse(request, startTime);
+            HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(response.getStatus());
+            byte[] responseBody = response.getBody();
+            if (responseBody != null) {
+                ByteBuf responseBuf = Unpooled.copiedBuffer(responseBody);
+                nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus, responseBuf);
+            } else {
+                nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus);
+            }
+            HttpHeaders headers = nettyResponse.headers();
+            response.getHeaders().forEach((k, v) -> headers.add(k, v));
         }
+        ctx.write(nettyResponse);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-    }
-
-    private static final String VAR_AFTER_SCENARIO = "afterScenario";
-
-    private void writeResponse(HttpRequest request, ChannelHandlerContext ctx) {
-        Match match = Match.init()
-                .defText(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
-                .defText(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
-                .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
-                .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
-                .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
-                .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
-        byte[] requestBytes = request.getBody();
-        if (requestBytes != null) {   
-            match.def(ScriptValueMap.VAR_REQUEST_BYTES, requestBytes);
-            String requestString = FileUtils.toString(requestBytes);
-            Object requestBody = requestString;
-            if (Script.isJson(requestString)) {
-                try {
-                    requestBody = JsonUtils.toJsonDoc(requestString);
-                } catch (Exception e) {
-                    backend.getContext().logger.warn("json parsing failed, request data type set to string: {}", e.getMessage());
-                }
-            } else if (Script.isXml(requestString)) {
-                try {
-                    requestBody = XmlUtils.toXmlDoc(requestString);
-                } catch (Exception e) {
-                    backend.getContext().logger.warn("xml parsing failed, request data type set to string: {}", e.getMessage());
-                }
-            }            
-            match.def(ScriptValueMap.VAR_REQUEST, requestBody);
-        }
-        ScriptValue responseValue, responseStatus, responseHeaders, afterScenario;
-        Map<String, Object> responseHeadersMap, configResponseHeadersMap;
-        // this is a sledgehammer approach to concurrency !
-        // which is why for simulating 'delay', users should use the VAR_AFTER_SCENARIO (see end)
-        synchronized (backend) { // BEGIN TRANSACTION !
-            ScriptValueMap result = backend.handle(match.vars());
-            ScenarioContext context = backend.getContext();
-            ScriptValue configResponseHeaders = context.getConfig().getResponseHeaders();
-            responseValue = result.remove(ScriptValueMap.VAR_RESPONSE);
-            responseStatus = result.remove(ScriptValueMap.VAR_RESPONSE_STATUS);
-            responseHeaders = result.remove(ScriptValueMap.VAR_RESPONSE_HEADERS);
-            afterScenario = result.remove(VAR_AFTER_SCENARIO);
-            if (afterScenario == null) {
-                afterScenario = context.getConfig().getAfterScenario();
-            }            
-            configResponseHeadersMap = configResponseHeaders == null ? null : configResponseHeaders.evalAsMap(context);
-            responseHeadersMap = responseHeaders == null ? null : responseHeaders.evalAsMap(context);
-        } // END TRANSACTION !!
-        HttpResponseStatus nettyResponseStatus;
-        if (responseStatus == null) {
-            nettyResponseStatus = HttpResponseStatus.OK;
-        } else {
-            nettyResponseStatus = HttpResponseStatus.valueOf(Integer.valueOf(responseStatus.getValue().toString()));
-        }
-        FullHttpResponse response;
-        if (responseValue == null || responseValue.isNull()) {
-            response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, nettyResponseStatus);
-        } else {
-            ByteBuf responseBuf;
-            if (responseValue.getType() == ScriptValue.Type.BYTE_ARRAY) {
-                responseBuf = Unpooled.copiedBuffer(responseValue.getValue(byte[].class));
-            } else {
-                responseBuf = Unpooled.copiedBuffer(responseValue.getAsString(), CharsetUtil.UTF_8);
-            }
-            response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, nettyResponseStatus, responseBuf);
-        }
-        // trying to avoid creating a map unless absolutely necessary
-        Map<String, Object> headers = null;
-        if (responseHeadersMap != null) {
-            Map<String, Object> temp = new LinkedHashMap(responseHeadersMap.size());
-            responseHeadersMap.forEach((k, v) -> {
-                if (v instanceof List) { // MultiValueMap returned by proceed / response.headers
-                    List values = (List) v;
-                    temp.put(k, StringUtils.join(values, ','));
-                } else {
-                    temp.put(k, v);
-                }
-            });
-            headers = temp;
-        }
-        if (configResponseHeadersMap != null) {
-            if (headers == null) {
-                headers = configResponseHeadersMap;
-            } else {
-                headers.putAll(configResponseHeadersMap);
-            }
-        }
-        if (headers != null) {
-            headers.forEach((k, v) -> response.headers().set(k, v));
-        }
-        if (responseValue != null && (headers == null || !headers.containsKey(HttpUtils.HEADER_CONTENT_TYPE))) {
-            response.headers().set(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
-        }
-        if (backend.isCorsEnabled()) {
-            response.headers().set(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
-        }
-        // functions here are outside of the 'transaction' and should not mutate global state !
-        // typically this is where users can set up an artificial delay or sleep
-        if (afterScenario != null && afterScenario.isFunction()) {
-            afterScenario.invokeFunction(backend.getContext());
-        }
-        ctx.write(response);
     }
 
     @Override

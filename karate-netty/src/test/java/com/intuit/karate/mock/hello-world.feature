@@ -7,8 +7,7 @@ Background:
 
 Scenario: create and retrieve a cat
 
-Given url mockServerUrl
-And path 'cats'
+Given url mockServerUrl + 'cats'
 And request { name: 'Billie' }
 When method postMethod
 Then status 201

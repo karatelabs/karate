@@ -103,7 +103,7 @@ public abstract class HttpClient<T> {
                 mediaType = APPLICATION_OCTET_STREAM;
             }
             return getEntity(is, mediaType);
-        } else if (body.isBytes()) {
+        } else if (body.isByteArray()) {
             byte[] bytes = body.getValue(byte[].class);
             InputStream is = new ByteArrayInputStream(bytes);
             if (mediaType == null) {
