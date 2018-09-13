@@ -315,7 +315,7 @@ public class ScriptBridge {
         request.removeHeader(HttpUtils.HEADER_CONTENT_LENGTH);
         request.setBody(getValue(ScriptValueMap.VAR_REQUEST));
         HttpResponse response = context.getHttpClient().invoke(request, context);
-        HttpUtils.updateResponseVars(response, context.vars, context);
+        context.updateResponseVars(response);
     }    
     
     public void abort() {

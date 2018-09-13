@@ -28,6 +28,7 @@ import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
 import com.jayway.jsonpath.DocumentContext;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -98,6 +99,13 @@ public abstract class HttpClient<T> {
             return getEntity(XmlUtils.toString(node), mediaType);
         } else if (body.isStream()) {
             InputStream is = body.getValue(InputStream.class);
+            if (mediaType == null) {
+                mediaType = APPLICATION_OCTET_STREAM;
+            }
+            return getEntity(is, mediaType);
+        } else if (body.isBytes()) {
+            byte[] bytes = body.getValue(byte[].class);
+            InputStream is = new ByteArrayInputStream(bytes);
             if (mediaType == null) {
                 mediaType = APPLICATION_OCTET_STREAM;
             }

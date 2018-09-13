@@ -3,7 +3,7 @@ package com.intuit.karate.gatling
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorSystem
-import com.intuit.karate.http.HttpUtils
+import com.intuit.karate.http.{HttpRequestBuilder, HttpUtils}
 import io.gatling.core.{CoreComponents, protocol}
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}

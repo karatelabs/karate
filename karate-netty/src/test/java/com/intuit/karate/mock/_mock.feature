@@ -18,10 +18,15 @@ Scenario: pathMatches('/v1/dogs')
 Scenario: pathMatches('/v1/dogs/{uuid}')
     * def response = { id: '#(uuid())', name: 'Dummy' }
 
-Scenario: pathMatches('/v1/binary')
+Scenario: pathMatches('/v1/binary/download')
     * def responseHeaders = { 'Content-Type': 'application/octet-stream' }
     * def Runner = Java.type('com.intuit.karate.mock.MockServerTest')
     * def response = Runner.testBytes
+
+Scenario: pathMatches('/v1/binary/upload')
+    * def Runner = Java.type('com.intuit.karate.mock.MockServerTest')
+    * def success = java.util.Arrays.equals(Runner.testBytes, requestBytes)
+    * def response = ({ success: success })
 
 Scenario: pathMatches('/v1/patch')
     * def responseStatus = 422

@@ -46,6 +46,7 @@ public class HttpRequestBuilder {
     private ScriptValue body;
     private String method;
     private String soapAction;
+    private int pauseTime;
 
     public void setUrl(String url) {
         this.url = url;
@@ -55,6 +56,22 @@ public class HttpRequestBuilder {
         return url;
     }
     
+    private static String getFirst(MultiValuedMap map, String name) {
+        if (map == null) {
+            return null;
+        }
+        Object temp = map.getFirst(name);
+        return temp == null ? null : temp.toString();        
+    }
+
+    public String getHeader(String name) {
+        return getFirst(headers, name);
+    }
+
+    public String getParam(String name) {
+        return getFirst(params, name);
+    }
+
     public String getUrlAndPath() {
         String temp = url;
         if (!temp.endsWith("/")) {
@@ -95,7 +112,7 @@ public class HttpRequestBuilder {
 
     public void setHeaders(MultiValuedMap headers) {
         this.headers = headers;
-    }        
+    }
 
     public void setHeader(String name, String value) {
         setHeader(name, Collections.singletonList(value));
@@ -185,7 +202,7 @@ public class HttpRequestBuilder {
         }
         addMultiPartItem(item);
     }
-    
+
     public void addMultiPartItem(MultiPartItem item) {
         if (multiPartItems == null) {
             multiPartItems = new ArrayList<>();
@@ -231,5 +248,13 @@ public class HttpRequestBuilder {
     public String getSoapAction() {
         return soapAction;
     }
+    
+    public int getPauseTime() {
+        return pauseTime;
+    }
+
+    public void setPauseTime(int pauseTime) {
+        this.pauseTime = pauseTime;
+    }    
 
 }

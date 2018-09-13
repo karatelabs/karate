@@ -131,7 +131,8 @@ And you don't need to create additional Java classes for any of the payloads tha
 <tr>
   <th>Response</th>
   <td>
-      <a href="#response"><code>response</code></a> 
+      <a href="#response"><code>response</code></a>
+    | <a href="#responsebytes"><code>responseBytes</code></a> 
     | <a href="#responsestatus"><code>responseStatus</code></a>
     | <a href="#responseheaders"><code>responseHeaders</code></a>
     | <a href="#responsecookies"><code>responseCookies</code></a>
@@ -2651,6 +2652,9 @@ The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate 
 `$foo[0]` | Evaluates the JsonPath `$[0]` on the variable `foo` which is a JSON array or list-like
 
 > There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You *can* if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
+
+## `responseBytes`
+This will always hold the contents of the response as raw bytes. This is rarely used, unless you are expecting binary content returned by the server. Here is an example: [`binary.feature`](karate-netty/src/test/java/com/intuit/karate/mock/binary.feature).
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.

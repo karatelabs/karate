@@ -121,6 +121,10 @@ public class ScriptValue {
     public boolean isStream() {
         return type == Type.INPUT_STREAM;
     }
+    
+    public boolean isBytes() {
+        return type == Type.BYTE_ARRAY;
+    }
 
     public boolean isUnknownType() {
         return type == Type.UNKNOWN;

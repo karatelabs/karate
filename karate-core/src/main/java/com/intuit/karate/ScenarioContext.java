@@ -383,6 +383,38 @@ public class ScenarioContext {
         Object o = map.get(key);
         return o == null ? null : o.toString();
     }
+    
+    public void updateResponseVars(HttpResponse response) {
+        vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
+        vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, response.getStartTime());
+        vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getResponseTime());
+        vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
+        if (config.isLowerCaseResponseHeaders()) {
+            Object temp = new ScriptValue(response.getHeaders()).toLowerCase();
+            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, temp);
+        } else {
+            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
+        }
+        byte[] responseBytes = response.getBody();
+        vars.put(ScriptValueMap.VAR_RESPONSE_BYTES, responseBytes);
+        String responseString = FileUtils.toString(responseBytes);
+        Object responseBody = responseString;
+        responseString = StringUtils.trimToEmpty(responseString);
+        if (Script.isJson(responseString)) {
+            try {
+                responseBody = JsonUtils.toJsonDoc(responseString);
+            } catch (Exception e) {
+                logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
+            }
+        } else if (Script.isXml(responseString)) {
+            try {
+                responseBody = XmlUtils.toXmlDoc(responseString);
+            } catch (Exception e) {
+                logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
+            }
+        }
+        vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
+    }   
 
     //==========================================================================
 
@@ -553,8 +585,7 @@ public class ScenarioContext {
             logger.error("http request failed: {}", message);
             throw new KarateException(message); // reduce log verbosity
         }
-        HttpUtils.updateRequestVars(request, vars, this);
-        HttpUtils.updateResponseVars(response, vars, this);
+        updateResponseVars(response);
         String prevUrl = request.getUrl();
         request = new HttpRequestBuilder();
         request.setUrl(prevUrl);

@@ -24,11 +24,14 @@
 package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
@@ -132,8 +135,24 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
                 .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
                 .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
-        if (request.getBody() != null) {
-            String requestBody = FileUtils.toString(request.getBody());
+        byte[] requestBytes = request.getBody();
+        if (requestBytes != null) {   
+            match.def(ScriptValueMap.VAR_REQUEST_BYTES, requestBytes);
+            String requestString = FileUtils.toString(requestBytes);
+            Object requestBody = requestString;
+            if (Script.isJson(requestString)) {
+                try {
+                    requestBody = JsonUtils.toJsonDoc(requestString);
+                } catch (Exception e) {
+                    backend.getContext().logger.warn("json parsing failed, request data type set to string: {}", e.getMessage());
+                }
+            } else if (Script.isXml(requestString)) {
+                try {
+                    requestBody = XmlUtils.toXmlDoc(requestString);
+                } catch (Exception e) {
+                    backend.getContext().logger.warn("xml parsing failed, request data type set to string: {}", e.getMessage());
+                }
+            }            
             match.def(ScriptValueMap.VAR_REQUEST, requestBody);
         }
         ScriptValue responseValue, responseStatus, responseHeaders, afterScenario;

@@ -304,6 +304,9 @@ You can use these in the "request matcher" described above. This is how you can 
 ## `request`
 This variable holds the value of the request body. It will be a JSON or XML object if it can be parsed as such. Else it would be a string.
 
+## `requestBytes`
+Rarely used, unless you are expecting incoming binary content. This variable holds the value of the raw request bytes. Here is an example: [`_mock.feature`](src/test/java/com/intuit/karate/mock/_mock.feature).
+
 ## `requestUrlBase`
 Holds the value of the "base URL". This will be in the form `http://somehost:8080` and will include the port number if needed. It may start with `https` if applicable.
 

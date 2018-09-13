@@ -1,23 +1,17 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Script;
 import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
-import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.XmlUtils;
 import static com.intuit.karate.http.HttpClient.*;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpCookie;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -57,63 +51,6 @@ public class HttpUtils {
 
     private HttpUtils() {
         // only static methods
-    }
-
-    public static void updateResponseVars(HttpResponse response, ScriptValueMap vars, ScenarioContext context) {
-        vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
-        vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, response.getStartTime());
-        vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getResponseTime());
-        vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
-        if (context.getConfig().isLowerCaseResponseHeaders()) {
-            Object temp = new ScriptValue(response.getHeaders()).toLowerCase();
-            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, temp);
-        } else {
-            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
-        }
-        Object responseBody = convertResponseBody(response.getBody(), context);
-        if (responseBody instanceof String) {
-            String responseString = StringUtils.trimToEmpty((String) responseBody);
-            if (Script.isJson(responseString)) {
-                try {
-                    responseBody = JsonUtils.toJsonDoc(responseString);
-                } catch (Exception e) {
-                    context.logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
-                }
-            } else if (Script.isXml(responseString)) {
-                try {
-                    responseBody = XmlUtils.toXmlDoc(responseString);
-                } catch (Exception e) {
-                    context.logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
-                }
-            }
-        }
-        vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
-    }
-
-    public static void updateRequestVars(HttpRequestBuilder request, ScriptValueMap vars, ScenarioContext context) {
-        vars.put(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod());
-        vars.put(ScriptValueMap.VAR_REQUEST_URI, request.getUrl());
-        vars.put(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());
-        vars.put(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders());
-        vars.put(ScriptValueMap.VAR_REQUEST_BODY, request.getBody());
-    }
-
-    private static Object convertResponseBody(byte[] bytes, ScenarioContext context) {
-        if (bytes == null) {
-            return null;
-        }
-        // if a byte array contains a negative-signed byte,
-        // then the string conversion will corrupt it.
-        // in that case just return the byte array stream
-        try {
-            String rawString = FileUtils.toString(bytes);
-            if (Arrays.equals(bytes, rawString.getBytes())) {
-                return rawString;
-            }
-        } catch (Exception e) {
-            context.logger.warn("response bytes to string conversion failed: {}", e.getMessage());
-        }
-        return new ByteArrayInputStream(bytes);
     }
 
     public static SSLContext getSslContext(String algorithm) {
