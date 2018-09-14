@@ -51,6 +51,8 @@ class CatsSimulation extends Simulation {
     "/cats" -> pauseFor("get" -> 15, "post" -> 25)
   )
 
+  protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
+
   val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"))
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
 
@@ -65,17 +67,27 @@ class CatsSimulation extends Simulation {
 This piece is needed because Karate is responsible for making HTTP requests while Gatling is only measuring the timings and managing threads. In order for HTTP requests to "aggregate" correctly in the Gatling report, you need to declare the URL patterns involved in your test. For example, in the example above, the `{id}` would be random - and Gatling would by default report each one as a different request.
 
 #### `nameResolver`
-This is optional, and is useful for teams that need more control over the "segregation" of requests described above. This is especially needed for GraphQL and SOAP - where the URI and request-paths remain constant and only the payload changes. You can supply a function that takes 2 Karate core-objects as arguments. The first argument [`HttpRequestBuilder`](../karate-core/src/main/java/com/intuit/karate/http/HttpRequestBuilder.java) is all you would typically need, and gives you access to `getUrlAndPath()`, `getHeader(name)` and `getParameter(name)`. The example below over-rides the "request name" with the value of a custom-header:
+This is optional, and is useful for teams that need more control over the "segregation" of requests described above. This is especially needed for GraphQL and SOAP - where the URI and request-paths remain constant and only the payload changes. You can supply a function that takes 2 Karate core-objects as arguments. The first argument [`HttpRequestBuilder`](../karate-core/src/main/java/com/intuit/karate/http/HttpRequestBuilder.java) is all you would typically need, and gives you ways to access the HTTP request such as `getUrlAndPath()`, `getHeader(name)` and `getParameter(name)`. The example below over-rides the "request name" with the value of a custom-header:
 
 ```scala
  protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
+```
+
+For convenience, if the `nameResolver` returns `null`, Karate will fall-back to  the default strategy. And `HttpRequestBuilder.getHeader(name)` happens to return `null` if the header does not exist.
+
+So any HTTP request where a `karate-name` header is present can be "collected" in the Gatling report under a different name. This is how it could look like in a Karate feature ([example](src/test/scala/mock/cats-delete-one.feature)):
+
+```cucumber
+Given path id
+And header karate-name = 'cats-get-404'
+When method get
 ```
 
 #### `pauseFor()`
 
 You can also set pause times (in milliseconds) per URL pattern *and* HTTP method (`get`, `post` etc.) if needed (see [limitations](#limitations)). 
 
-We recommend you set that to `0` for everything unless you really need to artifically limit the requests per second. Note how you can use `Nil` to default to `0` for all HTTP methods for a URL pattern. Make sure you wire up the `protocol` in the Gatling `setUp`.
+We recommend you set that to `0` for everything unless you really need to artifically limit the requests per second. Note how you can use `Nil` to default to `0` for all HTTP methods for a URL pattern. Make sure you wire up the `protocol` in the Gatling `setUp`. If you use a [`nameResolver`](#nameresolver), even those names can be used in the `pauseFor` lookup (instead of a URL pattern).
 
 ### `karateFeature()`
 This declares a whole Karate feature as a "flow". Note how you can have concurrent flows in the same Gatling simulation.
