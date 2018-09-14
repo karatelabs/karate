@@ -47,6 +47,7 @@ public interface ExecutionHook {
     
     void afterStep(StepResult result, ScenarioContext context);   
     
+    // this is somewhat gatling specific, which we can clean up later
     void beforeHttpRequest(HttpRequestBuilder request, ScenarioContext context);
     
 }

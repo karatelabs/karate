@@ -28,6 +28,7 @@ import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
+import com.intuit.karate.http.MultiValuedMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -107,9 +108,12 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             } else {
                 nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus);
             }
-            HttpHeaders headers = nettyResponse.headers();
-            response.getHeaders().forEach((k, v) -> headers.add(k, v));
-        }
+            HttpHeaders nettyHeaders = nettyResponse.headers();
+            MultiValuedMap karateHeaders = response.getHeaders();
+            if (karateHeaders != null) {
+                karateHeaders.forEach((k, v) -> nettyHeaders.add(k, v));
+            }            
+        }        
         ctx.write(nettyResponse);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }

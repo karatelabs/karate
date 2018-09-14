@@ -97,7 +97,7 @@ public class FeatureBackend {
                 Result result = Engine.executeStep(step, actions);
                 if (result.isFailed()) {
                     String message = "server-side background init failed - " + featureName + ":" + step.getLine();
-                    actions.context.logger.error(message);
+                    context.logger.error(message);
                     throw new KarateException(message, result.getError());
                 }
             }
@@ -105,16 +105,16 @@ public class FeatureBackend {
         // this is a special case, we support the auto-handling of cors
         // only if '* configure cors = true' has been done in the Background
         corsEnabled = context.getConfig().isCorsEnabled(); 
-        actions.context.logger.info("backend initialized");
+        context.logger.info("backend initialized");
     }
 
     public ScriptValueMap handle(ScriptValueMap args) {
         boolean matched = false;
-        ScriptValueMap vars = actions.context.getVars();
+        ScriptValueMap vars = context.getVars();
         vars.putAll(args);
         for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {
-                actions.context.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
+                context.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
                 break;
             }
             Scenario scenario = fs.getScenario();
@@ -123,12 +123,12 @@ public class FeatureBackend {
                 for (Step step : scenario.getSteps()) {
                     Result result = Engine.executeStep(step, actions);
                     if (result.isAborted()) {
-                        actions.context.logger.debug("abort at {}:{}", featureName, step.getLine());
+                        context.logger.debug("abort at {}:{}", featureName, step.getLine());
                         break;
                     }
                     if (result.isFailed()) {
                         String message = "server-side scenario failed - " + featureName + ":" + step.getLine();
-                        actions.context.logger.error(message);
+                        context.logger.error(message);
                         throw new KarateException(message, result.getError());
                     }
                 }
@@ -251,7 +251,7 @@ public class FeatureBackend {
         }
         if (responseValue != null && (responseHeadersMap == null || !responseHeadersMap.containsKey(HttpUtils.HEADER_CONTENT_TYPE))) {
             response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, HttpUtils.getContentType(responseValue));
-        }
+        }        
         if (corsEnabled) {
             response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
         }
