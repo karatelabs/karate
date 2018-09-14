@@ -12,7 +12,7 @@ public class ConfigTest {
     
     @Test
     public void testSettingVariableViaKarateConfig() {
-        Path featureDir = FileUtils.getDirContaining(getClass());
+        Path featureDir = FileUtils.getPathContaining(getClass());
         FeatureContext featureContext = FeatureContext.forWorkingDir(featureDir.toFile());
         CallContext callContext = new CallContext(null, true);
         ScenarioContext ctx = new ScenarioContext(featureContext, callContext);        

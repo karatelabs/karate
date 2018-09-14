@@ -56,7 +56,7 @@ public class JarLoadingTest {
         assertTrue(FileUtils.isFile(file.toPath()));
         ClassLoader cl = getJarClassLoader();
         Class main = cl.loadClass("demo.jar1.Main");
-        Path path = FileUtils.getDirContaining(main);
+        Path path = FileUtils.getPathContaining(main);
         assertFalse(FileUtils.isFile(path));
         String relativePath = FileUtils.toRelativeClassPath(path, cl);
         assertEquals("classpath:demo/jar1", relativePath);

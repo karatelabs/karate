@@ -324,8 +324,13 @@ public class FileUtils {
         }
         return null;
     }
+    
+    public static File getDirContaining(Class clazz) {
+        Path path = getPathContaining(clazz);
+        return path.toFile();
+    }    
 
-    public static Path getDirContaining(Class clazz) {
+    public static Path getPathContaining(Class clazz) {
         String relativePath = clazz.getPackage().getName().replace('.', '/');
         ClassLoader cl = clazz.getClassLoader();
         Path path = getPathIfJar(relativePath, cl);
@@ -343,12 +348,12 @@ public class FileUtils {
     }
 
     public static File getFileRelativeTo(Class clazz, String path) {
-        Path dirPath = getDirContaining(clazz);
+        Path dirPath = getPathContaining(clazz);
         return new File(dirPath + File.separator + path);
     }
 
     public static String toRelativeClassPath(Class clazz) {
-        Path dirPath = getDirContaining(clazz);
+        Path dirPath = getPathContaining(clazz);
         return toRelativeClassPath(dirPath, clazz.getClassLoader());
     }
 

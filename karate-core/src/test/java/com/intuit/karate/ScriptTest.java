@@ -25,7 +25,7 @@ public class ScriptTest {
     private static final Logger logger = LoggerFactory.getLogger(ScriptTest.class);
 
     private ScenarioContext getContext() {
-        Path featureDir = FileUtils.getDirContaining(getClass());
+        Path featureDir = FileUtils.getPathContaining(getClass());
         FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
         CallContext callContext = new CallContext(null, true);
         return new ScenarioContext(featureContext, callContext);

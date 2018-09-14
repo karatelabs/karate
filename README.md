@@ -2186,6 +2186,8 @@ Checking if a string is contained within another string is a very common need an
 * match hello !contains 'blah'
 ```
 
+For case-insensitive string comparisons, see how to create [custom utilities](#commonly-needed-utilities) or [`karate.lowerCase()`](#karate-lowercase).
+
 ### `match header`
 Since asserting against header values in the response is a common task - `match header` has a special meaning.  It short-cuts to the pre-defined variable [`responseHeaders`](#responseheaders) and reduces some complexity - because strictly, HTTP headers are a 'multi-valued map' or a 'map of lists' - the Java-speak equivalent being `Map<String, List<String>>`.
 
