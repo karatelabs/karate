@@ -55,3 +55,6 @@ Scenario: pathMatches('/v1/linefeed')
 
 Scenario: pathMatches('/v1/spaces')
     * def response = '\n    \n'
+
+Scenario: pathMatches('/v1/noheaders')    
+    * def responseStatus = 404

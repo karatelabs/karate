@@ -43,6 +43,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
+import java.io.PrintWriter;
 
 /**
  *
@@ -107,10 +108,10 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus, responseBuf);
             } else {
                 nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus);
-            }
-            HttpHeaders nettyHeaders = nettyResponse.headers();
+            }            
             MultiValuedMap karateHeaders = response.getHeaders();
             if (karateHeaders != null) {
+                HttpHeaders nettyHeaders = nettyResponse.headers();
                 karateHeaders.forEach((k, v) -> nettyHeaders.add(k, v));
             }            
         }        
@@ -120,7 +121,11 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        backend.getContext().logger.error("error, closing connection: {}", cause.getMessage());
+        if (cause.getMessage() == null) {
+            cause.printStackTrace();
+        } else {
+            backend.getContext().logger.error("error, closing connection: {}", cause.getMessage());
+        }
         ctx.close();
     }
 
