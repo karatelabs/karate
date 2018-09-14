@@ -10,7 +10,7 @@ Scenario: cats crud
     Given request { name: 'Billie' }
     When method post
     Then status 200
-    And match response == { id: 1, name: 'Billie' }
+    And match response == { id: '#number', name: 'Billie' }
     * def billie = response
 
     Given path billie.id
@@ -21,7 +21,7 @@ Scenario: cats crud
     Given request { name: 'Wild' }
     When method post
     Then status 200
-    And match response == { id: 2, name: 'Wild' }
+    And match response == { id: '#number', name: 'Wild' }
     * def wild = response
 
     Given path wild.id
@@ -31,7 +31,7 @@ Scenario: cats crud
 
     When method get
     Then status 200
-    And match response == ([billie, wild])
+    And match response contains ([billie, wild])
     And match header Access-Control-Allow-Origin == '*'
 
 Scenario: cors options method handling

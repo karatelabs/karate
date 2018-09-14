@@ -140,9 +140,12 @@ public class FileUtils {
     }
 
     private static Resource toResource(String path, ScenarioContext context) {
-        if (isClassPath(path) || isFilePath(path)) {
+        if (isClassPath(path)) {
             ClassLoader cl = context.getClass().getClassLoader();
             return new Resource(fromRelativeClassPath(path, cl), path);
+        } else if (isFilePath(path)) {
+             String temp = removePrefix(path);
+             return new Resource(new File(temp), path);
         } else {
             try {
                 Path parentPath = context.featureContext.parentPath;
