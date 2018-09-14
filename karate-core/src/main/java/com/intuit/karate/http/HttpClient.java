@@ -213,6 +213,9 @@ public abstract class HttpClient<T> {
     }
 
     public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {
+        if (context.executionHook != null) {
+            context.executionHook.beforeHttpRequest(request, context);
+        }
         T body = buildRequestInternal(request, context);        
         try {
             HttpResponse response = makeHttpRequest(body, context);

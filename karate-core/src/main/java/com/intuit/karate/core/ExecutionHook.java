@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.http.HttpRequestBuilder;
 
 /**
  *
@@ -44,6 +45,8 @@ public interface ExecutionHook {
     
     void beforeStep(Step step, ScenarioContext context);
     
-    void afterStep(StepResult result, ScenarioContext context);    
+    void afterStep(StepResult result, ScenarioContext context);   
+    
+    void beforeHttpRequest(HttpRequestBuilder request, ScenarioContext context);
     
 }

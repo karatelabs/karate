@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.http.HttpRequestBuilder;
 import java.util.Collection;
 
 /**
@@ -64,6 +65,11 @@ public class MandatoryTagHook implements ExecutionHook {
     @Override
     public void afterStep(StepResult result, ScenarioContext context) {
 
+    }
+
+    @Override
+    public void beforeHttpRequest(HttpRequestBuilder request, ScenarioContext context) {
+        
     }
     
 }

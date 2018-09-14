@@ -64,6 +64,13 @@ class CatsSimulation extends Simulation {
 ### `karateProtocol()`
 This piece is needed because Karate is responsible for making HTTP requests while Gatling is only measuring the timings and managing threads. In order for HTTP requests to "aggregate" correctly in the Gatling report, you need to declare the URL patterns involved in your test. For example, in the example above, the `{id}` would be random - and Gatling would by default report each one as a different request.
 
+#### `nameResolver`
+This is optional, and is useful for teams that need more control over the "segregation" of requests described above. This is especially needed for GraphQL and SOAP - where the URI and request-paths remain constant and only the payload changes. You can supply a function that takes 2 Karate core-objects as arguments. The first argument [`HttpRequestBuilder`](../karate-core/src/main/java/com/intuit/karate/http/HttpRequestBuilder.java) is all you would typically need, and gives you access to `getUrlAndPath()`, `getHeader(name)` and `getParameter(name)`. The example below over-rides the "request name" with the value of a custom-header:
+
+```scala
+ protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
+```
+
 #### `pauseFor()`
 
 You can also set pause times (in milliseconds) per URL pattern *and* HTTP method (`get`, `post` etc.) if needed (see [limitations](#limitations)). 

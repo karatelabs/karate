@@ -13,6 +13,8 @@ class CatsSimulation extends Simulation {
     "/cats" -> pauseFor("get" -> 15, "post" -> 25)
   )
 
+  protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
+
   val create = scenario("create").exec(karateFeature("classpath:mock/cats-create.feature"))
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
 

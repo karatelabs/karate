@@ -9,5 +9,6 @@ Feature: delete cat by id and verify
     And match response == ''
 
     Given path id
+    And header karate-name = 'cats-get-404'
     When method get
     Then status 404

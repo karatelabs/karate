@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.intuit.karate.{CallContext, ScenarioContext, ScriptValueMap}
 import com.intuit.karate.core._
 import com.intuit.karate.cucumber.CucumberRunner
-import com.intuit.karate.http.{HttpRequest, HttpUtils}
+import com.intuit.karate.http.{HttpRequest, HttpRequestBuilder, HttpUtils}
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
@@ -32,11 +32,8 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
   override def execute(session: Session) = {
 
-    def logRequestStats(request: HttpRequest, timings: ResponseTimings, pass: Boolean, statusCode: Int, message: Option[String]) = {
-      val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(request.getUri)
-      val matchedUri = protocol.pathMatches(pathPair.right)
-      val reportUri = if (matchedUri.isDefined) matchedUri.get else pathPair.right
-      val key = request.getMethod + " " + reportUri
+    def logRequestStats(requestName: String, request: HttpRequest, timings: ResponseTimings, pass: Boolean, statusCode: Int, message: Option[String]) = {
+      val key = request.getMethod + " " + requestName
       val okOrNot = if (pass) OK else KO
       statsEngine.logResponse(session, key, timings, okOrNot, Option(statusCode + ""), message)
     }
@@ -47,11 +44,12 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
       var startTime: Long = 0
       var responseTime: Long = 0
       var responseStatus: Int = 0
+      var prevRequestName: String = null
 
       def logPrevRequestIfDefined(ctx: ScenarioContext, pass: Boolean, message: Option[String]) = {
         if (prevRequest.isDefined) {
           val responseTimings = ResponseTimings(startTime, startTime + responseTime);
-          logRequestStats(prevRequest.get, responseTimings, pass, responseStatus, message)
+          logRequestStats(prevRequestName, prevRequest.get, responseTimings, pass, responseStatus, message)
           prevRequest = None
         }
       }
@@ -63,17 +61,14 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         }
       }
 
-      override def beforeStep(step: Step, ctx: ScenarioContext): Unit = {
-        val stepText = step.getText;
-        val isHttpMethod = stepText.startsWith("method")
-        if (isHttpMethod) {
-          val method = stepText.substring(6).trim
-          logPrevRequestIfDefined(ctx, true, None)
-          val request = ctx.getRequest
-          val pauseTime = protocol.pauseFor(request.getUrlAndPath, method)
-          if (pauseTime > 0) {
-            Thread.sleep(pauseTime) // TODO use actors here as well
-          }
+      override def beforeStep(step: Step, ctx: ScenarioContext): Unit = Unit
+
+      override def beforeHttpRequest(req: HttpRequestBuilder, ctx: ScenarioContext): Unit = {
+        logPrevRequestIfDefined(ctx, true, None)
+        prevRequestName = protocol.resolveName(req, ctx)
+        val pauseTime = protocol.pauseFor(prevRequestName, req.getMethod)
+        if (pauseTime > 0) {
+          Thread.sleep(pauseTime) // TODO use actors here as well
         }
       }
 

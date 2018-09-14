@@ -3,6 +3,7 @@ package com.intuit.karate.gatling
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorSystem
+import com.intuit.karate.ScenarioContext
 import com.intuit.karate.http.{HttpRequestBuilder, HttpUtils}
 import io.gatling.core.{CoreComponents, protocol}
 import io.gatling.core.config.GatlingConfiguration
@@ -13,17 +14,21 @@ case class MethodPause(val method: String, pause: Int)
 
 class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Protocol {
   def pathMatches(uri: String): Option[String] = uriPatterns.keys.find(HttpUtils.parseUriPattern(_, uri) != null)
-  def pauseFor(uri: String, method: String) = {
-    val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(uri)
-    val matchedUri = pathMatches(pathPair.right)
-    if (matchedUri.isDefined) {
-      val methodPause = uriPatterns.getOrElse(matchedUri.get, Nil).find(mp => method.equalsIgnoreCase(mp.method))
-      if (methodPause.isDefined) methodPause.get.pause else 0
-    } else {
-      0
-    }
+  def resolveName(req: HttpRequestBuilder, ctx: ScenarioContext): String = {
+    val resolved = nameResolver.apply(req, ctx)
+    if (resolved != null) resolved else defaultNameResolver.apply(req, ctx)
+  }
+  def pauseFor(requestName: String, method: String) = {
+    val methodPause = uriPatterns.getOrElse(requestName, Nil).find(mp => method.equalsIgnoreCase(mp.method))
+    if (methodPause.isDefined) methodPause.get.pause else 0
   }
   val actorCount = new AtomicInteger()
+  val defaultNameResolver = (req: HttpRequestBuilder, ctx: ScenarioContext) => {
+    val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(req.getUrlAndPath)
+    val matchedUri = pathMatches(pathPair.right)
+    if (matchedUri.isDefined) matchedUri.get else pathPair.right
+  }
+  var nameResolver: (HttpRequestBuilder, ScenarioContext) => String = (req, ctx) => null
 }
 
 object KarateProtocol {
