@@ -21,11 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.selenium.util;
+package com.intuit.karate.selenium;
 
+import com.intuit.karate.web.selenium.SideConverter;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.selenium.domain.SideProject;
-import com.intuit.karate.selenium.domain.TestSuite;
+import com.intuit.karate.web.selenium.SideProject;
+import com.intuit.karate.web.selenium.TestSuite;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -39,7 +40,7 @@ public class SideConverterTest {
 
     @Test
     public void readSideProject() {
-        File file = new File("src/test/java/com/intuit/karate/selenium/util/side-converter-test.side");
+        File file = FileUtils.getFileRelativeTo(getClass(), "side-converter-test.side");
         String sideJson = FileUtils.toString(file);
         SideProject project = SideConverter.readSideProject(sideJson);
         Assert.assertEquals("https://github.com", project.getUrl());

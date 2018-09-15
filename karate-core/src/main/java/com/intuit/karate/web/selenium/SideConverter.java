@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.selenium.util;
+package com.intuit.karate.web.selenium;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.selenium.domain.SideProject;
+import com.intuit.karate.web.selenium.SideProject;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 

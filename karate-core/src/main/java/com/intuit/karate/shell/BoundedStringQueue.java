@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,38 +21,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.selenium.domain;
+package com.intuit.karate.shell;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.LinkedList;
 
-/**
- * @author vmchukky
- */
-
-// TestCase <-> Scenario ???
-public class TestCase extends TestBase {
-    List<TestCommand> commands;
-
-    public TestCase(Map<String, Object> testJson) {
-        super(testJson);
-        this.commands = new ArrayList<>();
-        List<Map<String, Object>> commandList = (List<Map<String, Object>>) testJson.get("commands");
-        for (Map<String, Object> commandJson : commandList) {
-            this.commands.add(new TestCommand(commandJson));
-        }
+public class BoundedStringQueue {
+	
+	private final int limit;
+	private final LinkedList<String> list;
+	
+	public BoundedStringQueue(int limit) {
+        this.limit = limit;
+		this.list = new LinkedList<>();
     }
 
-    public String convert(String url, HashMap<String, String> variables) {
-        StringBuilder sb = new StringBuilder("\nScenario: ")
-                .append(getIdentifierName());
+	public void add(String e) {
+		list.add(e);
+		if (list.size() > limit) {
+			list.remove();
+		}
+	}
+	
+	public String getLastLine() {
+		if (list.isEmpty()) {
+			return "";
+		}
+		return list.getLast();
+	}
 
-        for (TestCommand command : commands) {
-            sb.append(command.convert(url, variables));
-        }
-
-        return sb.toString();
-    }
+	public LinkedList<String> getList() {
+		return list;
+	}
+	
+	public String getBuffer() {
+		return String.join("\n", list);
+	}
+	
 }
