@@ -30,7 +30,6 @@ import com.intuit.karate.cucumber.CucumberRunner;
 import com.intuit.karate.cucumber.KarateStats;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ui.App;
-import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -174,9 +173,7 @@ public class Main implements Callable<Void> {
             if (!cert.exists() || !key.exists()) {
                 logger.warn("ssl requested, but " + CERT_FILE + " and/or " + KEY_FILE + " not found in working directory, will create");
                 try {
-                    SelfSignedCertificate ssc = new SelfSignedCertificate();
-                    FileUtils.copy(ssc.certificate(), cert);
-                    FileUtils.copy(ssc.privateKey(), key);
+                    NettyUtils.createSelfSignedCertificatePair(cert, key);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

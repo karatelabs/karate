@@ -56,7 +56,9 @@ public class FeatureServer {
     }    
 
     private final Channel channel;
+    private final String host;
     private final int port;
+    private final boolean ssl;
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
 
@@ -104,7 +106,8 @@ public class FeatureServer {
         this(featureFile, port, ssl ? getSelfSignedSslContext() : null, vars);
     }
 
-    private FeatureServer(File featureFile, int port, SslContext sslCtx, Map<String, Object> vars) {
+    private FeatureServer(File featureFile, int requestedPort, SslContext sslCtx, Map<String, Object> vars) {
+        ssl = sslCtx != null;
         File parent = featureFile.getParentFile();
         if (parent == null) { // when running via command line and same dir
             featureFile = new File(featureFile.getAbsolutePath());
@@ -118,10 +121,11 @@ public class FeatureServer {
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(getClass().getName(), LogLevel.TRACE))
                     .childHandler(initializer);
-            channel = b.bind(port).sync().channel();
+            channel = b.bind(requestedPort).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
-            this.port = isa.getPort();
-            logger.info("server started - {}://127.0.0.1:{}", (sslCtx != null ? "https" : "http"), this.port);
+            host = isa.getHostString();
+            port = isa.getPort();
+            logger.info("server started - {}://{}:{}", ssl ? "https" : "http", host, port);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
