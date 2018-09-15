@@ -4,7 +4,7 @@
 
 Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty) and [performance-testing](karate-gatling) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Besides powerful JSON & XML assertions, you can run tests in parallel - which is critical for HTTP API testing.
 
-With Karate, you can script a sequence of calls to any kind of web-service and assert that the responses are as expected. You can quickly build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' (deep-equals) of two JSON or XML documents, and you can specify which fields to ignore if they are dynamic.
+With Karate, you can script a sequence of calls to any kind of web-service and assert that the responses are as expected. You can quickly build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' (deep-equals) of two JSON or XML documents, and you can even ignore dynamic values if needed.
 
 Running tests and generating reports is just like any standard Java project. But there's also a [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. You write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. 
 
@@ -718,7 +718,7 @@ A common requirement is to pass dynamic parameter values via the command line, a
 
 This decision to use JavaScript for config is influenced by years of experience with the set-up of complicated test-suites and fighting with [Maven profiles](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), [Maven resource-filtering](https://maven.apache.org/plugins/maven-resources-plugin/examples/filter.html) and the XML-soup that somehow gets summoned by the [Maven AntRun plugin](http://maven.apache.org/plugins/maven-antrun-plugin/usage.html).
 
-Karate's approach frees you from Maven, is far more expressive, allows you to eyeball all environments in one place, and is still a plain-text file.  If you want, you could even create nested chunks of JSON that 'name-space' your config variables.
+Karate's approach frees you from Maven, is far more expressive, allows you to eyeball all environments in one place, and is still a plain-text file.  If you want, you could even create [nested chunks of JSON that 'name-space' your config variables](https://stackoverflow.com/a/49693808/143475).
 
 > One way to appreciate Karate's approach is to think over what it takes to add a new environment-dependent variable (e.g. a password) into a test. In typical frameworks it could mean changing multiple properties files, maven profiles and placeholders, and maybe even threading the value via a dependency-injection framework - before you can even access the value within your test.
 
@@ -806,16 +806,16 @@ Feature: brief description of what is being tested
     more lines of description if needed.
 
 Background:
-# this section is optional !
-# steps here are executed before each Scenario in this file
-# variables defined here will be 'global' to all scenarios
-# and will be re-initialized before every scenario
+  # this section is optional !
+  # steps here are executed before each Scenario in this file
+  # variables defined here will be 'global' to all scenarios
+  # and will be re-initialized before every scenario
 
 Scenario: brief description of this scenario
-# steps for this scenario
+  # steps for this scenario
 
 Scenario: a different scenario
-# steps for this other scenario
+  # steps for this other scenario
 ```
 
 > There is also a variant of `Scenario` called `Scenario Outline` along with `Examples`, useful for [data-driven tests](#data-driven-tests).
@@ -842,11 +842,11 @@ The following table summmarizes some key differences between Cucumber and Karate
 **Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find various discussions and third-party projects on the web that attempt to close this gap: [1](https://github.com/cucumber/cucumber-jvm/issues/630) [2](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [3](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) [4](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [5](https://github.com/temyers/cucumber-jvm-parallel-plugin) [6](https://github.com/trivago/cucable-plugin) [7](https://github.com/eu-evops/cucumber-runner-maven-plugin) [8](https://automationrhapsody.com/running-cucumber-tests-in-parallel/) | :white_check_mark: [**Yes**](#parallel-execution).
 **Run 'Set-Up' Routines Only Once** | **No**. Cucumber has a limitation where `Background` steps are re-run for every `Scenario` and worse - even for every `Examples` row within a `Scenario Outline`. This has been a [highly-requested open issue](https://github.com/cucumber/cucumber-jvm/issues/515) for a *long* time. | :white_check_mark: [**Yes**](#callonce).
 
-One nice thing about the design of the underlying Cucumber framework is that script-steps are treated the same no matter whether they start with the keyword `Given`, `And`, `When` or `Then`.  What this means is that you are free to use whatever makes sense for you.  You could even have all the steps start with `When` and Karate won't care.
+One nice thing about the design of the Gherkin syntax is that script-steps are treated the same no matter whether they start with the keyword `Given`, `And`, `When` or `Then`.  What this means is that you are free to use whatever makes sense for you.  You could even have all the steps start with `When` and Karate won't care.
 
-In fact Cucumber supports the [catch-all symbol '`*`'](https://www.relishapp.com/cucumber/cucumber/docs/gherkin/using-star-notation-instead-of-given-when-then) - instead of forcing you to use `Given`, `When` or `Then`. This is perfect for those cases where it really doesn't make sense - for example the [`Background`](#script-structure) section or when you use the [`def`](#def) or [`set`](#set) syntax. When eyeballing a test-script, think of the `*` as a 'bullet-point'.
+In fact Gherkin supports the [catch-all symbol '`*`'](https://www.relishapp.com/cucumber/cucumber/docs/gherkin/using-star-notation-instead-of-given-when-then) - instead of forcing you to use `Given`, `When` or `Then`. This is perfect for those cases where it really doesn't make sense - for example the [`Background`](#script-structure) section or when you use the [`def`](#def) or [`set`](#set) syntax. When eyeballing a test-script, think of the `*` as a 'bullet-point'.
 
-You can read more about the Given-When-Then convention at the [Cucumber reference documentation](https://cucumber.io/docs/reference). Since Karate is based on Cucumber, you can also employ [data-driven](#data-driven-tests) techniques such as expressing data-tables in test scripts. Another good thing that Karate inherits is the nice IDE support for Cucumber that [IntelliJ](https://www.jetbrains.com/idea/help/cucumber.html) and [Eclipse](https://cucumber.io/cucumber-eclipse/) have. So you can do things like right-click and run a `*.feature` file (or scenario) without needing to use a JUnit runner.
+You can read more about the Given-When-Then convention at the [Cucumber reference documentation](https://cucumber.io/docs/reference). Since Karate uses Gherkin, you can also employ [data-driven](#data-driven-tests) techniques such as expressing data-tables in test scripts. Another good thing that Karate inherits is the nice IDE support for Cucumber that [IntelliJ](https://www.jetbrains.com/idea/help/cucumber.html) and [Eclipse](https://cucumber.io/cucumber-eclipse/) have. So you can do things like right-click and run a `*.feature` file (or scenario) without needing to use a JUnit runner.
 
 For a detailed discussion on BDD and how Karate relates to Cucumber, please refer to this blog-post: [Yes, Karate is not *true* BDD](https://medium.com/@ptrthomas/yes-karate-is-not-true-bdd-698bf4a9be39). It is the opinion of the author of Karate that *true* BDD is un-necessary over-kill for API testing, and this is explained more in [this answer](https://stackoverflow.com/a/47799207/143475) on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
@@ -1018,39 +1018,39 @@ The keywords [`def`](#def), [`set`](#set), [`match`](#match), [`request`](#reque
 
 # this is more readable:
 * def cat = 
-"""
-<cat>
-    <name>Billie</name>
-    <scores>
-        <score>2</score>
-        <score>5</score>
-    </scores>
-</cat>
-"""
+  """
+  <cat>
+      <name>Billie</name>
+      <scores>
+          <score>2</score>
+          <score>5</score>
+      </scores>
+  </cat>
+  """
 # example of a request payload in-line
 Given request 
-""" 
-<?xml version='1.0' encoding='UTF-8'?>
-<S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
-<S:Body>
-<ns2:QueryUsageBalance xmlns:ns2="http://www.mycompany.com/usage/V1">
-    <ns2:UsageBalance>
-        <ns2:LicenseId>12341234</ns2:LicenseId>
-    </ns2:UsageBalance>
-</ns2:QueryUsageBalance>
-</S:Body>
-</S:Envelope>
-"""
+  """ 
+  <?xml version='1.0' encoding='UTF-8'?>
+  <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/">
+  <S:Body>
+  <ns2:QueryUsageBalance xmlns:ns2="http://www.mycompany.com/usage/V1">
+      <ns2:UsageBalance>
+          <ns2:LicenseId>12341234</ns2:LicenseId>
+      </ns2:UsageBalance>
+  </ns2:QueryUsageBalance>
+  </S:Body>
+  </S:Envelope>
+  """
 
 # example of a payload assertion in-line
 Then match response ==
-"""
-{ id: { domain: "DOM", type: "entityId", value: "#ignore" },
-  created: { on: "#ignore" }, 
-  lastUpdated: { on: "#ignore" },
-  entityState: "ACTIVE"
-}
-"""
+  """
+  { id: { domain: "DOM", type: "entityId", value: "#ignore" },
+    created: { on: "#ignore" }, 
+    lastUpdated: { on: "#ignore" },
+    entityState: "ACTIVE"
+  }
+  """
 ```
 
 ## `table`
@@ -1059,10 +1059,10 @@ Now that we have seen how JSON is a 'native' data type that Karate understands, 
 
 ```cucumber
 * table cats
-    | name   | age |
-    | 'Bob'  | 2   |
-    | 'Wild' | 4   |
-    | 'Nyan' | 3   |
+  | name   | age |
+  | 'Bob'  | 2   |
+  | 'Wild' | 4   |
+  | 'Nyan' | 3   |
 
 * match cats == [{name: 'Bob', age: 2}, {name: 'Wild', age: 4}, {name: 'Nyan', age: 3}]
 ```
@@ -1075,9 +1075,9 @@ Notice that in the above example, string values within the table need to be encl
 * def one = 'hello'
 * def two = { baz: 'world' }
 * table json
-    | foo     | bar            |
-    | one     | { baz: 1 }     |
-    | two.baz | ['baz', 'ban'] |
+  | foo     | bar            |
+  | one     | { baz: 1 }     |
+  | two.baz | ['baz', 'ban'] |
 * match json == [{ foo: 'hello', bar: { baz: 1 } }, { foo: 'world', bar: ['baz', 'ban'] }]
 ```
 Yes, you can even nest chunks of JSON in tables, and things work as you would expect.
@@ -1086,10 +1086,10 @@ Empty cells or expressions that evaluate to `null` will result in the key being 
 ```cucumber
 * def one = { baz: null }
 * table json
-    | foo     | bar    |
-    | 'hello' |        |
-    | one.baz | (null) |
-    | 'world' | null   |
+  | foo     | bar    |
+  | 'hello' |        |
+  | one.baz | (null) |
+  | 'world' | null   |
 * match json == [{ foo: 'hello' }, { bar: null }, { foo: 'world' }]
 ```
 
@@ -1097,10 +1097,10 @@ An alternate way to create data is using the [`set` multiple](#set-multiple) syn
 
 ```cucumber
 * set search
-    | path       | 0        | 1      | 2       |
-    | name.first | 'John'   | 'Jane' |         |
-    | name.last  | 'Smith'  | 'Doe'  | 'Waldo' |
-    | age        | 20       |        |         |
+  | path       | 0        | 1      | 2       |
+  | name.first | 'John'   | 'Jane' |         |
+  | name.last  | 'Smith'  | 'Doe'  | 'Waldo' |
+  | age        | 20       |        |         |
 
 * match search[0] == { name: { first: 'John', last: 'Smith' }, age: 20 }
 * match search[1] == { name: { first: 'Jane', last: 'Doe' } }
@@ -1113,26 +1113,26 @@ Not something you would commonly use, but in some cases you need to disable Kara
 
 ```cucumber
 Scenario Outline:
-# note the 'text' keyword instead of 'def'
-* text query =
-"""
-{
-  hero(name: "<name>") {
-    height
-    mass
-  }
-}
-"""
-Given path 'graphql'
-And request { query: '#(query)' }
-And header Accept = 'application/json'
-When method post
-Then status 200
+  # note the 'text' keyword instead of 'def'
+  * text query =
+    """
+    {
+      hero(name: "<name>") {
+        height
+        mass
+      }
+    }
+    """
+  Given path 'graphql'
+  And request { query: '#(query)' }
+  And header Accept = 'application/json'
+  When method post
+  Then status 200
 
-Examples:
-| name  |
-| John  |
-| Smith | 
+  Examples:
+    | name  |
+    | John  |
+    | Smith | 
 ```
 
 Note that if you did not need to inject [`Examples:`](#data-driven-tests) into 'placeholders' enclosed within `<` and `>`, [reading from a file](#reading-files) with the extension `*.txt` may have been sufficient.
@@ -1161,9 +1161,9 @@ Karate makes it really easy to substitute multiple placeholders in a single, rea
 * def text = 'hello <one> world <two> bye'
 
 * replace text
-    | token | value   |
-    | one   | 'cruel' |
-    | two   | 'good'  |
+  | token | value   |
+  | one   | 'cruel' |
+  | two   | 'good'  |
 
 * match text == 'hello cruel world good bye'
 ```
@@ -1191,25 +1191,25 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 ```cucumber
 # reading yaml 'in-line', note the 'yaml' keyword instead of 'def'
 * yaml foo =
-"""
-name: John
-input:
-  id: 1
-  subType: 
-    name: Smith
-    deleted: false
-"""
+  """
+  name: John
+  input:
+    id: 1
+    subType: 
+      name: Smith
+      deleted: false
+  """
 # the data is now JSON, so you can do JSON-things with it
 * match foo ==
-"""
-{
-  name: 'John',
-  input: { 
-    id: 1,
-    subType: { name: 'Smith', deleted: false }    
+  """
+  {
+    name: 'John',
+    input: { 
+      id: 1,
+      subType: { name: 'Smith', deleted: false }    
+    }
   }
-}
-"""
+  """
 
 # yaml from a file (the extension matters), and the data-type of 'bar' would be JSON
 * def bar = read('data.yaml')
@@ -1233,13 +1233,13 @@ For more complex functions you are better off using the [multi-line](#multi-line
 
 ```cucumber
 * def dateStringToLong =
-"""
-function(s) {
-  var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
-  var sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-  return sdf.parse(s).time; // '.getTime()' would also have worked instead of '.time'
-} 
-"""
+  """
+  function(s) {
+    var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
+    var sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+    return sdf.parse(s).time; // '.getTime()' would also have worked instead of '.time'
+  } 
+  """
 * assert dateStringToLong("2016-12-24T03:39:21.081+0000") == 1482550761081
 ```
 
@@ -1943,9 +1943,9 @@ Karate has an elegant way to set multiple keys (via path expressions) in one ste
 * def cat = { name: '' }
 
 * set cat
-| path   | value |
-| name   | 'Bob' |
-| age    | 5     |
+  | path   | value |
+  | name   | 'Bob' |
+  | age    | 5     |
 
 * match cat == { name: 'Bob', age: 5 }
 ```
@@ -1954,8 +1954,8 @@ One extra convenience for JSON is that if the variable itself (which was `cat` i
 
 ```cucumber
 * set foo
-| path | 0     | 1     |
-| bar  | 'baz' | 'ban' |
+  | path | 0     | 1     |
+  | bar  | 'baz' | 'ban' |
 
 * match foo == [{ bar: 'baz' }, { bar: 'ban' }]
 ```
@@ -1964,10 +1964,10 @@ If you have to set a bunch of deeply nested keys, you can move the parent path t
 
 ```cucumber
 * set foo.bar
-| path   | value |
-| one    | 1     |
-| two[0] | 2     |
-| two[1] | 3     |
+  | path   | value |
+  | one    | 1     |
+  | two[0] | 2     |
+  | two[1] | 3     |
 
 * match foo == { bar: { one: 1, two: [2, 3] } }
 ```
@@ -1976,22 +1976,22 @@ The same concept applies to XML and you can build complicated payloads from scra
 
 ```cucumber
 * set search /acc:getAccountByPhoneNumber
-| path                        | value |
-| acc:phone/@foo              | 'bar' |
-| acc:phone/acc:number[1]     | 1234  |
-| acc:phone/acc:number[2]     | 5678  |     
-| acc:phoneNumberSearchOption | 'all' |
+  | path                        | value |
+  | acc:phone/@foo              | 'bar' |
+  | acc:phone/acc:number[1]     | 1234  |
+  | acc:phone/acc:number[2]     | 5678  |     
+  | acc:phoneNumberSearchOption | 'all' |
 
 * match search ==
-"""
-<acc:getAccountByPhoneNumber>
-    <acc:phone foo="bar">
-        <acc:number>1234</acc:number>
-        <acc:number>5678</acc:number>
-    </acc:phone>
-    <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
-</acc:getAccountByPhoneNumber>
-"""
+  """
+  <acc:getAccountByPhoneNumber>
+      <acc:phone foo="bar">
+          <acc:number>1234</acc:number>
+          <acc:number>5678</acc:number>
+      </acc:phone>
+      <acc:phoneNumberSearchOption>all</acc:phoneNumberSearchOption>        
+  </acc:getAccountByPhoneNumber>
+  """
 ```
 
 ## `remove`
@@ -2254,15 +2254,15 @@ Here are some example assertions performed while scraping a list of child elemen
 
 ```cucumber
 Given def cat = 
-"""
-{
-  name: 'Billie',
-  kittens: [
-    { id: 23, name: 'Bob' },
-    { id: 42, name: 'Wild' }
-  ]
-}
-"""
+  """
+  {
+    name: 'Billie',
+    kittens: [
+      { id: 23, name: 'Bob' },
+      { id: 42, name: 'Wild' }
+    ]
+  }
+  """
 # normal 'equality' match. note the wildcard '*' in the JsonPath (returns an array)
 Then match cat.kittens[*].id == [23, 42]
 
@@ -2338,14 +2338,14 @@ Here is a contrived example that uses `match each`, [`contains`](#match-contains
 
 ```cucumber
 Given def json =
-"""
-{
-  "hotels": [
-    { "roomInformation": [{ "roomPrice": 618.4 }], "totalPrice": 618.4  },
-    { "roomInformation": [{ "roomPrice": 679.79}], "totalPrice": 679.79 }
-  ]
-}
-"""
+  """
+  {
+    "hotels": [
+      { "roomInformation": [{ "roomPrice": 618.4 }], "totalPrice": 618.4  },
+      { "roomInformation": [{ "roomPrice": 679.79}], "totalPrice": 679.79 }
+    ]
+  }
+  """
 Then match each json.hotels contains { totalPrice: '#? _ == _$.roomInformation[0].roomPrice' }
 # when validation logic is an 'equality' check, an embedded expression works better
 Then match each json.hotels contains { totalPrice: '#(_$.roomInformation[0].roomPrice)' }
@@ -2396,22 +2396,22 @@ This 'in-line' short-cut for validating JSON arrays is similar to how [`match ea
 * def isValidTime = read('time-validator.js')
 When method get
 Then match response ==
-"""
-{ 
-  id: '#regex[0-9]+',
-  count: '#number',
-  odd: '#(oddSchema)',
-  data: { 
-    countryId: '#number', 
-    countryName: '#string', 
-    leagueName: '##string', 
-    status: '#number? _ >= 0', 
-    sportName: '#string',
-    time: '#? isValidTime(_)'
-  },
-  odds: '#[] oddSchema'  
-}
-"""
+  """
+  { 
+    id: '#regex[0-9]+',
+    count: '#number',
+    odd: '#(oddSchema)',
+    data: { 
+      countryId: '#number', 
+      countryName: '#string', 
+      leagueName: '##string', 
+      status: '#number? _ >= 0', 
+      sportName: '#string',
+      time: '#? isValidTime(_)'
+    },
+    odds: '#[] oddSchema'  
+  }
+  """
 ```
 
 Especially note the re-use of the `oddSchema` both as an [embedded-expression](#embedded-expressions) and as an array validation (on the last line).
@@ -2456,15 +2456,15 @@ In real-life tests, these are very useful when the order of items in arrays retu
 
 ```cucumber
 * def cat = 
-"""
-{
-  name: 'Billie',
-  kittens: [
-    { id: 23, name: 'Bob' },
-    { id: 42, name: 'Wild' }
-  ]
-}
-"""
+  """
+  {
+    name: 'Billie',
+    kittens: [
+      { id: 23, name: 'Bob' },
+      { id: 42, name: 'Wild' }
+    ]
+  }
+  """
 * def expected = [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 * match cat == { name: 'Billie', kittens: '#(^^expected)' }
 ```
@@ -2476,15 +2476,15 @@ By now, it should be clear that [JsonPath]((https://github.com/jayway/JsonPath#p
 
 ```cucumber
 * def cat = 
-"""
-{
-  name: 'Billie',
-  kittens: [
-    { id: 23, name: 'Bob' },
-    { id: 42, name: 'Wild' }
-  ]
-}
-"""
+  """
+  {
+    name: 'Billie',
+    kittens: [
+      { id: 23, name: 'Bob' },
+      { id: 42, name: 'Wild' }
+    ]
+  }
+  """
 * def kitnums = get cat.kittens[*].id
 * match kitnums == [23, 42]
 * def kitnames = get cat $.kittens[*].name
@@ -2531,15 +2531,15 @@ JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-opera
 
 ```cucumber
 * def cat = 
-"""
-{
-  name: 'Billie',
-  kittens: [
-    { id: 23, name: 'Bob' },
-    { id: 42, name: 'Wild' }
-  ]
-}
-"""
+  """
+  {
+    name: 'Billie',
+    kittens: [
+      { id: 23, name: 'Bob' },
+      { id: 42, name: 'Wild' }
+    ]
+  }
+  """
 # find single kitten where id == 23
 * def bob = get[0] cat.kittens[?(@.id==23)]
 * match bob.name == 'Bob'
@@ -2560,13 +2560,13 @@ When handling XML, you sometimes need to call [XPath functions](https://docs.ora
 
 ```cucumber
 * def myXml =
-"""
-<records>
-  <record index="1">a</record>
-  <record index="2">b</record>
-  <record index="3" foo="bar">c</record>
-</records>
-"""
+  """
+  <records>
+    <record index="1">a</record>
+    <record index="2">b</record>
+    <record index="3" foo="bar">c</record>
+  </records>
+  """
 
 * match foo count(/records//record) == 3
 * match foo //record[@index=2] == 'b'
@@ -2578,18 +2578,18 @@ Some XPath expressions return a list of nodes (instead of a single node). But si
 
 ```cucumber
 * def teachers = 
-"""
-<teachers>
-  <teacher department="science">
-    <subject>math</subject>
-    <subject>physics</subject>
-  </teacher>
-  <teacher department="arts">
-    <subject>political education</subject>
-    <subject>english</subject>
-  </teacher>
-</teachers>
-"""
+  """
+  <teachers>
+    <teacher department="science">
+      <subject>math</subject>
+      <subject>physics</subject>
+    </teacher>
+    <teacher department="arts">
+      <subject>political education</subject>
+      <subject>english</subject>
+    </teacher>
+  </teachers>
+  """
 * match teachers //teacher[@department='science']/subject == ['math', 'physics']
 ```
 
@@ -2767,12 +2767,12 @@ Here is an example of using the `call` keyword to invoke another feature file, l
 Feature: which makes a 'call' to another re-usable feature
 
 Background:
-* configure headers = read('classpath:my-headers.js')
-* def signIn = call read('classpath:my-signin.feature') { username: 'john', password: 'secret' }
-* def authToken = signIn.authToken
+  * configure headers = read('classpath:my-headers.js')
+  * def signIn = call read('classpath:my-signin.feature') { username: 'john', password: 'secret' }
+  * def authToken = signIn.authToken
 
 Scenario: some scenario
-# main test steps
+  # main test steps
 ```
 
 The contents of `my-signin.feature` are shown below. A few points to note:
@@ -2790,19 +2790,18 @@ The contents of `my-signin.feature` are shown below. A few points to note:
 Feature: here are the contents of 'my-signin.feature'
 
 Scenario:
+  Given url loginUrlBase
+  And request { userId: '#(username)', userPass: '#(password)' }
+  When method post
+  Then status 200
+  And def authToken = response
 
-Given url loginUrlBase
-And request { userId: '#(username)', userPass: '#(password)' }
-When method post
-Then status 200
-And def authToken = response
-
-# second HTTP call, to get a list of 'projects'
-Given path 'users', authToken.userId, 'projects'
-When method get
-Then status 200
-# logic to 'choose' first project
-And set authToken.projectId = response.projects[0].projectId;
+  # second HTTP call, to get a list of 'projects'
+  Given path 'users', authToken.userId, 'projects'
+  When method get
+  Then status 200
+  # logic to 'choose' first project
+  And set authToken.projectId = response.projects[0].projectId;
 ```
 
 The above example actually makes two HTTP requests - the first is a standard 'sign-in' POST and then (for illustrative purposes) another HTTP call (a GET) is made for retrieving a list of projects for the signed-in user, and the first one is 'selected' and added to the returned 'auth token' JSON object.
@@ -2833,10 +2832,10 @@ Here is an example that combines the [`table`](#table) keyword with calling a `*
 
 ```cucumber
 * table kittens 
-    | name   | age |
-    | 'Bob'  |   2 |
-    | 'Wild' |   1 |
-    | 'Nyan' |   3 |
+  | name   | age |
+  | 'Bob'  |   2 |
+  | 'Wild' |   1 |
+  | 'Nyan' |   3 |
 
 * def result = call read('cat-create.feature') kittens
 * def created = $result[*].response
@@ -2851,12 +2850,11 @@ And here is how `cat-create.feature` could look like:
 Feature:
 
 Scenario:
-
-Given url someUrlFromConfig
-And path 'cats'
-And request { name: '#(name)', age: '#(age)' }
-When method post
-Then status 200
+  Given url someUrlFromConfig
+  And path 'cats'
+  And request { name: '#(name)', age: '#(age)' }
+  When method post
+  Then status 200
 ```
 
 If you replace the `table` with perhaps a JavaScript function call that gets some JSON data from some data-source, you can imagine how you could go about dynamic data-driven testing.
@@ -3000,13 +2998,13 @@ public class JavaDemo {
 This is how it can be called from a test-script, and yes, even static methods can be invoked:
 ```cucumber
 * def doWork =
-"""
-function(arg) {
-  var JavaDemo = Java.type('com.mycompany.JavaDemo');
-  var jd = new JavaDemo();
-  return jd.doWork(arg);  
-}
-"""
+  """
+  function(arg) {
+    var JavaDemo = Java.type('com.mycompany.JavaDemo');
+    var jd = new JavaDemo();
+    return jd.doWork(arg);  
+  }
+  """
 # in this case the solitary 'call' argument is of type string
 * def result = call doWork 'world'
 * match result == { someKey: 'hello world' }
@@ -3070,15 +3068,15 @@ There are a few situations where this comes in handy:
 
 # you can use multiple lines of JavaScript if needed
 * eval
-"""
-var foo = function(v){ return v * v };
-var nums = [0, 1, 2, 3, 4];
-var squares = [];
-for (var n in nums) {
-  squares.push(foo(n));
-}
-karate.set('temp', squares);
-"""
+  """
+  var foo = function(v){ return v * v };
+  var nums = [0, 1, 2, 3, 4];
+  var squares = [];
+  for (var n in nums) {
+    squares.push(foo(n));
+  }
+  karate.set('temp', squares);
+  """
 * match temp == [0, 1, 4, 9, 16]
 
 * def json = { a: 1 }
@@ -3138,14 +3136,14 @@ Here is an example of how to get the current date, and formatted the way you wan
 
 ```cucumber
 * def getDate =
-"""
-function() {
-  var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
-  var sdf = new SimpleDateFormat('yyyy/MM/dd');
-  var date = new java.util.Date();
-  return sdf.format(date);
-} 
-"""
+  """
+  function() {
+    var SimpleDateFormat = Java.type('java.text.SimpleDateFormat');
+    var sdf = new SimpleDateFormat('yyyy/MM/dd');
+    var date = new java.util.Date();
+    return sdf.format(date);
+  } 
+  """
 
 * def temp = getDate()
 * print temp
@@ -3221,13 +3219,13 @@ Scenario Outline: examples partitioned by tag
 
   @region=US
   Examples:
-  | expected |
-  | US       |
+    | expected |
+    | US       |
 
   @region=GB
   Examples:
-  | expected |
-  | GB       |
+    | expected |
+    | GB       |
 ```
 
 ## Dynamic Port Numbers
@@ -3268,32 +3266,30 @@ You should take a minute to compare this with the [exact same example implemente
 Feature: karate answers 2
 
 Background:
-* url 'http://localhost:8080'
+  * url 'http://localhost:8080'
 
 Scenario Outline: given circuit name, validate country
+  Given path 'api/f1/circuits/<name>.json'
+  When method get
+  Then match $.MRData.CircuitTable.Circuits[0].Location.country == '<country>'
 
-Given path 'api/f1/circuits/<name>.json'
-When method get
-Then match $.MRData.CircuitTable.Circuits[0].Location.country == '<country>'
-
-Examples:
-| name   | country  |
-| monza  | Italy    |
-| spa    | Belgium  |
-| sepang | Malaysia |
+  Examples:
+    | name   | country  |
+    | monza  | Italy    |
+    | spa    | Belgium  |
+    | sepang | Malaysia |
 
 Scenario Outline: given race number, validate number of pitstops for Max Verstappen in 2015
+  Given path 'api/f1/2015/<race>/drivers/max_verstappen/pitstops.json'
+  When method get
+  Then assert response.MRData.RaceTable.Races[0].PitStops.length == <stops>
 
-Given path 'api/f1/2015/<race>/drivers/max_verstappen/pitstops.json'
-When method get
-Then assert response.MRData.RaceTable.Races[0].PitStops.length == <stops>
-
-Examples:
-| race | stops |
-| 1    | 1     |
-| 2    | 3     |
-| 3    | 2     |
-| 4    | 2     |
+  Examples:
+    | race | stops |
+    | 1    | 1     |
+    | 2    | 3     |
+    | 3    | 2     |
+    | 4    | 2     |
 ```
 This is great for testing boundary conditions against a single end-point, with the added bonus that your test becomes even more readable. This approach can certainly enable product-owners or domain-experts who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
