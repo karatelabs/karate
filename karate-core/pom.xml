@@ -40,6 +40,20 @@
             <groupId>info.cukes</groupId>
             <artifactId>cucumber-java</artifactId>
             <version>1.2.5</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>info.cukes</groupId>
+                    <artifactId>cucumber-html</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>info.cukes</groupId>
+                    <artifactId>cucumber-jvm-deps</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>info.cukes</groupId>
+                    <artifactId>gherkin</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>        
         <dependency>
             <groupId>org.yaml</groupId>
