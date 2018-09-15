@@ -358,7 +358,6 @@ public class Engine {
                 }
             }
         }
-
     }
 
     public static File saveResultHtml(String targetDir, FeatureResult result) {

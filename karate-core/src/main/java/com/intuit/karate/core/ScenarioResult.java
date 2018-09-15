@@ -42,11 +42,11 @@ public class ScenarioResult {
     private Throwable error;
     private long duration;
 
-    public void addError(Throwable error) {
+    public void addError(String message, Throwable error) {
         Step step = new Step(scenario, -1);
         step.setLine(scenario.getLine());
         step.setPrefix("*");
-        step.setText("scenario hook failed");
+        step.setText(message);
         StepResult sr = new StepResult(step, Result.failed(0, error, step), null, null);
         addStepResult(sr);
     }

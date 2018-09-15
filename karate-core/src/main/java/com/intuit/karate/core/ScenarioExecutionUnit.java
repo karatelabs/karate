@@ -51,7 +51,7 @@ public class ScenarioExecutionUnit {
                 actions.callContext.executionHook.beforeScenario(scenario, actions.context);
             } catch (Exception e) {
                 hookFailed = true;
-                result.addError(e);
+                result.addError("beforeScenario hook failed", e);
             }
         }
         iterator = hookFailed ? Collections.emptyIterator() : scenario.getStepsIncludingBackground().iterator();
@@ -78,11 +78,12 @@ public class ScenarioExecutionUnit {
         } else {
             // this has to be done at the end after they are fully populated
             // else the feature-result will not "collect" stats correctly 
-            exec.result.addResult(result);
+            exec.result.addResult(result);            
             // after-scenario hook
             if (actions.callContext.executionHook != null) {
                 actions.callContext.executionHook.afterScenario(result, actions.context);
             }
+            actions.context.invokeAfterHookIfConfigured(false);
             next.run();
         }
     }

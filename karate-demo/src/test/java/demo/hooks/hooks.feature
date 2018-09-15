@@ -32,8 +32,6 @@ function(){
 # for an explanation of 'karate.info' above: https://github.com/intuit/karate#the-karate-object
 # note that 'karate.info' will not work within features invoked using the 'call' or 'callonce' keywords
 
-# IMPORTANT: 'afterFeature' works only with the Karate "runners" (JUnit, TestNG, CucumberRunner.parallel)
-# which simply means that Cucumber IDE "right-click-and-run" will not work
 * configure afterFeature = function(){ karate.call('after-feature.feature'); }
 
 Scenario: first

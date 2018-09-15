@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.StepActions;
 import com.intuit.karate.FeatureContext;
+import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.cucumber.ScenarioInfo;
 import java.util.Collection;
 import java.util.Iterator;
@@ -42,6 +43,8 @@ public class FeatureExecutionUnit {
         this.exec = exec;
         iterator = exec.featureContext.feature.getScenarios().iterator();
     }
+    
+    private ScenarioContext lastContextExecuted;
 
     public void submit(Runnable next) {
         if (iterator.hasNext()) {
@@ -82,6 +85,7 @@ public class FeatureExecutionUnit {
             StepActions actions = new StepActions(featureContext, exec.callContext);
             // we also hold a reference to the LAST scenario executed
             // for cases where the caller needs a result
+            lastContextExecuted = actions.context;
             exec.result.setResultVars(actions.context.getVars());
             exec.system.accept(() -> {
                 ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
@@ -90,6 +94,9 @@ public class FeatureExecutionUnit {
                 });
             });
         } else {
+            if (lastContextExecuted != null) {
+                lastContextExecuted.invokeAfterHookIfConfigured(true);
+            }
             exec.appender.close();
             next.run();
         }

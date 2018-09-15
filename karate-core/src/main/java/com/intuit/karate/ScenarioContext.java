@@ -414,6 +414,21 @@ public class ScenarioContext {
         }
         vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
     }   
+    
+    public void invokeAfterHookIfConfigured(boolean afterFeature) {
+        if (callDepth > 0) {
+            return;
+        }
+        ScriptValue sv = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
+        if (sv.isFunction()) {
+            try {
+                sv.invokeFunction(this);
+            } catch (Exception e) {
+                String prefix = afterFeature ? "afterFeature" : "afterScenario";
+                logger.warn("{} hook failed: {}", prefix, e.getMessage());
+            }
+        }
+    }    
 
     //==========================================================================
 
