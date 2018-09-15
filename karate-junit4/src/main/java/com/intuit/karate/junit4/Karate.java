@@ -79,7 +79,7 @@ public class Karate extends ParentRunner<Feature> {
     }
     
     private static String getFeatureName(Feature feature) {
-        return "[" + feature.getPath().toFile().getName() + "]";
+        return "[" + feature.getResource().getFileNameWithoutExtension() + "]";
     }
 
     @Override

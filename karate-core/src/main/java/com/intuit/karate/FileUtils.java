@@ -268,6 +268,15 @@ public class FileUtils {
     public static InputStream toInputStream(String text) {
         return new ByteArrayInputStream(text.getBytes(UTF8));
     }
+    
+    public static String removeFileExtension(String path) {
+        int pos = path.lastIndexOf('.');
+        if (pos == -1) {
+            return path;
+        } else {
+            return path.substring(0, pos);
+        }        
+    }
 
     public static String replaceFileExtension(String path, String extension) {
         int pos = path.lastIndexOf('.');

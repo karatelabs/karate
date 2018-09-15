@@ -26,7 +26,6 @@ package com.intuit.karate;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -50,6 +49,10 @@ public class Resource {
         file = !path.toUri().getScheme().equals("jar");
         this.relativePath = relativePath;
         packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+    }
+    
+    public String getFileNameWithoutExtension() {
+        return FileUtils.removeFileExtension(path.getFileName().toString());
     }
 
     public String getRelativePath() {
