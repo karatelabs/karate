@@ -286,13 +286,13 @@ public class ScenarioContext {
         if (key.equals("report")) {
             if (value.isMapLike()) {
                 Map<String, Object> map = value.getAsMap();
-                config.setLogEnabled((Boolean) map.get("logEnabled"));
+                config.setShowLog((Boolean) map.get("showLog"));
                 config.setShowAllSteps((Boolean) map.get("showAllSteps"));
             } else if (value.isBooleanTrue()) {
-                config.setLogEnabled(true);
+                config.setShowLog(true);
                 config.setShowAllSteps(true);
             } else {
-                config.setLogEnabled(false);
+                config.setShowLog(false);
                 config.setShowAllSteps(false);
             }
             return;

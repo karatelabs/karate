@@ -24,14 +24,9 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cucumber.ScenarioInfo;
-import java.util.List;
 import java.util.Map;
 import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.Tag;
 import com.intuit.karate.core.Tags;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 
 /**
  *

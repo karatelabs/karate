@@ -273,7 +273,10 @@ public class Script {
             }
             String left;
             String right;
-            if (isVariableAndSpaceAndPath(text)) {
+            if (isJsonPath(text)) { // edge case get[0] $..foo
+                left = ScriptValueMap.VAR_RESPONSE;
+                right = text;
+            } else if (isVariableAndSpaceAndPath(text)) {
                 int pos = text.indexOf(' ');
                 right = text.substring(pos + 1);
                 left = text.substring(0, pos);

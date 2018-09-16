@@ -37,7 +37,7 @@ public class NettyUtils {
         // only static methods
     }
 
-    public static void createSelfSignedCertificatePair(File cert, File key) {
+    public static void createSelfSignedCertificate(File cert, File key) {
         try {
             SelfSignedCertificate ssc = new SelfSignedCertificate();
             FileUtils.copy(ssc.certificate(), cert);

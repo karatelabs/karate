@@ -3,7 +3,6 @@ package com.intuit.karate;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1297,6 +1296,11 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo.bar[*].baz", null, "$foo.bar[*].baz", ctx).pass);
         Script.assign("nums", "get foo $.bar[*].baz", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "nums", null, "[1, 2, 3]", ctx).pass);
+        Script.assign("response", "[{baz: 1}, {baz: 2}, {baz: 3}]", ctx);
+        Script.assign("second", "get[1] $[*].baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "second", null, "2", ctx).pass);
+        Script.assign("third", "get[2] response $[*].baz", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "third", null, "3", ctx).pass);
     }
 
     @Test

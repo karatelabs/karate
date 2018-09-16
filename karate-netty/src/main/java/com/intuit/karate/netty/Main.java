@@ -173,7 +173,7 @@ public class Main implements Callable<Void> {
             if (!cert.exists() || !key.exists()) {
                 logger.warn("ssl requested, but " + CERT_FILE + " and/or " + KEY_FILE + " not found in working directory, will create");
                 try {
-                    NettyUtils.createSelfSignedCertificatePair(cert, key);
+                    NettyUtils.createSelfSignedCertificate(cert, key);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

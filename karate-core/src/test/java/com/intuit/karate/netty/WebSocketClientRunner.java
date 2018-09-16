@@ -26,7 +26,7 @@ public class WebSocketClientRunner implements WebSocketListener {
     
     @Test
     public void testWebSockets() throws Exception {
-        String url = "ws://echo.websocket.org";
+        String url = "ws://localhost:9222/devtools/page/5133DAD1D14C8F11D17A83E91D70B2A9";
         WebSocketClient client = new WebSocketClient(url, this);
         String json = "{id: 1, method: 'Page.navigate', params: {url: 'https://www.github.com/'}}";        
         client.send(JsonUtils.toStrictJsonString(json));

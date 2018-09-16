@@ -12,8 +12,9 @@ public class CommandTest {
     
     @Test
     public void testCommand() {
-		Command command = new Command(new File("src"), "ls", "-al");
-		int exitCode = command.run();
+		CommandThread command = new CommandThread("target/command.log", new File("src"), "ls", "-al");
+		command.start();
+        int exitCode = command.waitSync();
 		assertEquals(exitCode, 0);        
     }
     

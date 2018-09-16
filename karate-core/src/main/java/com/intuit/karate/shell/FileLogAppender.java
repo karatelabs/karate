@@ -21,8 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.shell;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.Logger;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -37,15 +40,20 @@ public class FileLogAppender implements LogAppender {
     private final FileChannel file;
     private final Logger logger;
     private int prevPos;
+    
+    public FileLogAppender(String in, Logger logger) {
+        this(in == null ? null : new File(in), logger);
+    }
 
-    public FileLogAppender(String tempFilePath, Logger logger) {
+    public FileLogAppender(File in, Logger logger) {
         this.logger = logger;
         try {
-            if (tempFilePath == null) {
-                File temp = File.createTempFile("karate", "tmp");
-                tempFilePath = temp.getPath();
+            if (in == null) {
+                in = File.createTempFile("karate", "tmp");
+            } else {
+                in.getParentFile().mkdirs();
             }
-            RandomAccessFile raf = new RandomAccessFile(tempFilePath, "rw");
+            RandomAccessFile raf = new RandomAccessFile(in, "rw");
             file = raf.getChannel();
             prevPos = (int) file.position();
         } catch (Exception e) {

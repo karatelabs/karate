@@ -23,38 +23,12 @@
  */
 package com.intuit.karate.shell;
 
-import java.util.LinkedList;
-
-public class BoundedStringQueue {
-	
-	private final int limit;
-	private final LinkedList<String> list;
-	
-	public BoundedStringQueue(int limit) {
-        this.limit = limit;
-		this.list = new LinkedList<>();
-    }
-
-	public void add(String e) {
-		list.add(e);
-		if (list.size() > limit) {
-			list.remove();
-		}
-	}
-	
-	public String getLastLine() {
-		if (list.isEmpty()) {
-			return "";
-		}
-		return list.getLast();
-	}
-
-	public LinkedList<String> getList() {
-		return list;
-	}
-	
-	public String getBuffer() {
-		return String.join("\n", list);
-	}
-	
+/**
+ *
+ * @author pthomas3
+ */
+public interface Stoppable {
+    
+    void stop();
+    
 }

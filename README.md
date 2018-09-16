@@ -1806,13 +1806,13 @@ The configure key here is `report` and it takes a JSON value. For example:
 > IMPORTANT: `showAllSteps` is *not* implemented yet. It was attempted but reverted due to some technical challenges. The documentation has been left in-place below. If you have some thoughts on how this feature should work, do comment or discuss [here](https://github.com/intuit/karate/issues/397).
 
 ```cucumber
-* configure report = { logEnabled: true, showAllSteps: false }
+* configure report = { showLog: true, showAllSteps: false }
 ```
 
  `report` | Type | Description
 ------ | ---- | ---------
-`logEnabled` | boolean | HTTP requests and responses (including headers) will appear in the HTML report, default `true`
-`showAllSteps` | boolean | Any step that starts with `*` instead of `Given`, `When`, `Then` etc. will *not* appear in the HTML report. The [`print`](#print) step is an exception.
+`showLog` | boolean | HTTP requests and responses (including headers) will appear in the HTML report, default `true`
+`showAllSteps` | boolean | If `false`, any step that starts with `*` instead of `Given`, `When`, `Then` etc. will *not* appear in the HTML report. The [`print`](#print) step is an exception. Default `true`.
 
 You can 'reset' default settings by using the following short-cut:
 

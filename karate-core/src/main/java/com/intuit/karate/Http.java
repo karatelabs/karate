@@ -27,29 +27,31 @@ package com.intuit.karate;
  *
  * @author pthomas3
  */
-public interface LogAppender {
-
-    String collect();
-
-    void append(String text);
-
-    void close();
+public class Http {
     
-    public static final LogAppender NO_OP = new LogAppender() {
-        @Override
-        public String collect() {
-            return "";
-        }
-
-        @Override
-        public void append(String text) {
-
-        }
-
-        @Override
-        public void close() {
-
-        }
-    };    
-
+    private final Match match;
+    
+    public Http(Match match) {
+        this.match = match;
+    }
+    
+    public Http url(String url) {
+        match.url(url);
+        return this;
+    }
+    
+    public Http path(String ... paths) {
+        match.path(paths);
+        return this;
+    }    
+    
+    public Match get() {
+        return match.httpGet();
+    }
+    
+    public static Http forUrl(String url) {
+        Http http = new Http(Match.init(true));
+        return http.url(url);
+    }
+    
 }

@@ -113,34 +113,44 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin> 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>${maven.shade.version}</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <artifactSet>
-                                <includes>
-                                    <include>io.netty:*</include>                                    
-                                </includes>
-                            </artifactSet>
-                            <relocations>
-                                <relocation>
-                                    <pattern>io.netty</pattern>
-                                    <shadedPattern>io.netty.karate</shadedPattern>
-                                </relocation>
-                            </relocations>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>                    
+            </plugin>                   
         </plugins>               
-    </build>           
+    </build>
+    
+    <profiles>
+        <profile> 
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>${maven.shade.version}</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactSet>
+                                        <includes>
+                                            <include>io.netty:*</include>                                    
+                                        </includes>
+                                    </artifactSet>
+                                    <relocations>
+                                        <relocation>
+                                            <pattern>io.netty</pattern>
+                                            <shadedPattern>io.netty.karate</shadedPattern>
+                                        </relocation>
+                                    </relocations>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>                    
+                </plugins>
+            </build>
+        </profile>
+    </profiles>                        
     
 </project>

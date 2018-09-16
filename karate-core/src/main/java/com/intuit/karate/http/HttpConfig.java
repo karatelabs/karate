@@ -67,7 +67,7 @@ public class HttpConfig {
     private ScriptValue afterFeature = ScriptValue.NULL;
     
     // report config
-    private boolean logEnabled = true;
+    private boolean showLog = true;
     private boolean showAllSteps = true;
 
     public HttpConfig() {
@@ -105,7 +105,7 @@ public class HttpConfig {
         userDefined = parent.userDefined;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
-        logEnabled = parent.logEnabled;
+        showLog = parent.showLog;
         showAllSteps = parent.showAllSteps;
     }
 
@@ -349,12 +349,12 @@ public class HttpConfig {
         this.afterFeature = afterFeature;
     }
 
-    public boolean isLogEnabled() {
-        return logEnabled;
+    public boolean isShowLog() {
+        return showLog;
     }
 
-    public void setLogEnabled(boolean logEnabled) {
-        this.logEnabled = logEnabled;
+    public void setShowLog(boolean showLog) {
+        this.showLog = showLog;
     }
 
     public boolean isShowAllSteps() {

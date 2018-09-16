@@ -24,7 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileLogAppender;
+import com.intuit.karate.shell.FileLogAppender;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.FeatureContext;
 import java.io.File;

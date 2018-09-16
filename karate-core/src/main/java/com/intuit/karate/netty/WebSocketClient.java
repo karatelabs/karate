@@ -111,9 +111,10 @@ public class WebSocketClient {
         channel.writeAndFlush(frame);
     }
 
-    public void send(String msg) {
+    public void send(String msg) {        
         WebSocketFrame frame = new TextWebSocketFrame(msg);
         channel.writeAndFlush(frame);
+        logger.debug("sent: {}", msg);
     }
     
     public void send(byte[] msg) {
