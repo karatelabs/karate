@@ -79,14 +79,16 @@ public class KarateOptions {
 
     public static KarateOptions parseStringArgs(String[] args) {
         KarateOptions options = CommandLine.populateCommand(new KarateOptions(), args);
-        List<String> featuresTemp = new ArrayList();
-        for (String s : options.features) {
-            if (s.startsWith("com.") || s.startsWith("cucumber.") || s.startsWith("org.")) {
-                continue;
+        List<String> featuresTemp = new ArrayList();  
+        if (options.features != null) {
+            for (String s : options.features) {
+                if (s.startsWith("com.") || s.startsWith("cucumber.") || s.startsWith("org.")) {
+                    continue;
+                }
+                featuresTemp.add(s);
             }
-            featuresTemp.add(s);
+            options.features = featuresTemp.isEmpty() ? null : featuresTemp;
         }
-        options.features = featuresTemp;
         return options;
     }
 
