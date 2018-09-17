@@ -3017,7 +3017,9 @@ This is how it can be called from a test-script, and yes, even static methods ca
 
 Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-over to Java. Refer to the [`cats-java.feature`](karate-demo/src/test/java/demo/java/cats-java.feature) demo for an example.
 
-Another great example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
+Another example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
+
+A great example of how you can extend Karate, even bypass the HTTP client but still use Karate's test-automation effectively, is this [gRPC](https://grpc.io) example by [@thinkerou](https://github.com/thinkerou): [`karate-grpc`](https://thinkerou.com/karate-grpc/).
 
 #### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
