@@ -4,10 +4,10 @@ import java.io.File
 import java.util.function.Consumer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import com.intuit.karate.{CallContext, ScenarioContext, ScriptValueMap}
+import com.intuit.karate.{CallContext, PerfEvent, ScenarioContext}
 import com.intuit.karate.core._
 import com.intuit.karate.cucumber.CucumberRunner
-import com.intuit.karate.http.{HttpRequest, HttpRequestBuilder, HttpUtils}
+import com.intuit.karate.http.HttpRequestBuilder
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
@@ -32,64 +32,26 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
   override def execute(session: Session) = {
 
-    def logRequestStats(requestName: String, request: HttpRequest, timings: ResponseTimings, pass: Boolean, statusCode: Int, message: Option[String]) = {
-      val key = request.getMethod + " " + requestName
-      val okOrNot = if (pass) OK else KO
-      statsEngine.logResponse(session, key, timings, okOrNot, Option(statusCode + ""), message)
-    }
-
     val executionHook = new ExecutionHook {
 
-      var prevRequest: Option[HttpRequest] = None
-      var startTime: Long = 0
-      var responseTime: Long = 0
-      var responseStatus: Int = 0
-      var prevRequestName: String = null
+      override def beforeScenario(scenario: Scenario, ctx: ScenarioContext): Boolean = true
 
-      def logPrevRequestIfDefined(ctx: ScenarioContext, pass: Boolean, message: Option[String]) = {
-        if (prevRequest.isDefined) {
-          val responseTimings = ResponseTimings(startTime, startTime + responseTime);
-          logRequestStats(prevRequestName, prevRequest.get, responseTimings, pass, responseStatus, message)
-          prevRequest = None
-        }
-      }
-
-      def handleResultIfFail(feature: String, result: StepResult, step: Step, ctx: ScenarioContext) = {
-        if (result.getResult.isFailed) { // if a step failed, assume that the last http request is a fail
-          val message = feature + ":" + step.getLine + " " + result.getStep.getText
-          logPrevRequestIfDefined(ctx, false, Option(message))
-        }
-      }
-
-      override def beforeStep(step: Step, ctx: ScenarioContext): Unit = Unit
-
-      override def beforeHttpRequest(req: HttpRequestBuilder, ctx: ScenarioContext): Unit = {
-        logPrevRequestIfDefined(ctx, true, None)
-        prevRequestName = protocol.resolveName(req, ctx)
-        val pauseTime = protocol.pauseFor(prevRequestName, req.getMethod)
+      override def getPerfEventName(req: HttpRequestBuilder, ctx: ScenarioContext): String = {
+        val customName = protocol.nameResolver.apply(req, ctx)
+        val finalName = if (customName != null) customName else protocol.defaultNameResolver.apply(req, ctx)
+        val pauseTime = protocol.pauseFor(finalName, req.getMethod)
         if (pauseTime > 0) {
           Thread.sleep(pauseTime) // TODO use actors here as well
         }
+        return if (customName != null) customName else req.getMethod + " " + finalName
       }
 
-      override def afterStep(result: StepResult, ctx: ScenarioContext): Unit = {
-        val stepText = result.getStep.getText;
-        val isHttpMethod = stepText.startsWith("method")
-        if (isHttpMethod) {
-          prevRequest = Option(ctx.getPrevRequest)
-          startTime = ctx.getVars.get(ScriptValueMap.VAR_REQUEST_TIME_STAMP).getValue(classOf[Long])
-          responseTime = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_TIME).getValue(classOf[Long])
-          responseStatus = ctx.getVars.get(ScriptValueMap.VAR_RESPONSE_STATUS).getValue(classOf[Int])
-        }
-        val featureName = ctx.getFeatureContext.feature.getRelativePath
-        handleResultIfFail(featureName, result, result.getStep, ctx)
+      override def reportPerfEvent(event: PerfEvent): Unit = {
+        val okOrNot = if (event.isFailed) KO else OK
+        val timings = ResponseTimings(event.getStartTime, event.getEndTime);
+        val message = if (event.getMessage == null) None else Option(event.getMessage)
+        statsEngine.logResponse(session, event.getName, timings, okOrNot, Option(event.getStatusCode + ""), message)
       }
-
-      override def afterScenario(scenarioResult: ScenarioResult, ctx: ScenarioContext): Unit = {
-        logPrevRequestIfDefined(ctx, true, None)
-      }
-
-      override def beforeScenario(scenario: Scenario, ctx: ScenarioContext): Boolean = true
 
     }
 

@@ -14,10 +14,6 @@ case class MethodPause(val method: String, pause: Int)
 
 class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Protocol {
   def pathMatches(uri: String): Option[String] = uriPatterns.keys.find(HttpUtils.parseUriPattern(_, uri) != null)
-  def resolveName(req: HttpRequestBuilder, ctx: ScenarioContext): String = {
-    val resolved = nameResolver.apply(req, ctx)
-    if (resolved != null) resolved else defaultNameResolver.apply(req, ctx)
-  }
   def pauseFor(requestName: String, method: String) = {
     val methodPause = uriPatterns.getOrElse(requestName, Nil).find(mp => method.equalsIgnoreCase(mp.method))
     if (methodPause.isDefined) methodPause.get.pause else 0

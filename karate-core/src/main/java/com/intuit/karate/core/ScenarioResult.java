@@ -38,10 +38,19 @@ public class ScenarioResult {
     private final List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
 
-    private boolean failed;
-    private Throwable error;
-    private long duration;
+    private StepResult failedStep;
+    private long duration;        
 
+    public String getFailureMessageForDisplay() {
+        if (failedStep == null) {
+            return null;
+        }
+        // val message = feature + ":" + step.getLine + " " + result.getStep.getText
+        Step step = failedStep.getStep();
+        String featureName = scenario.getFeature().getResource().getRelativePath();
+        return featureName + ":" + step.getLine() + " " + step.getText();
+    }
+    
     public void addError(String message, Throwable error) {
         Step step = new Step(scenario, -1);
         step.setLine(scenario.getLine());
@@ -56,8 +65,7 @@ public class ScenarioResult {
         Result result = stepResult.getResult();
         duration += result.getDuration();
         if (result.isFailed()) {
-            failed = true;
-            error = result.getError();
+            failedStep = stepResult;
         }
     }
 
@@ -132,11 +140,15 @@ public class ScenarioResult {
     }
 
     public boolean isFailed() {
-        return failed;
+        return failedStep != null;
     }
 
+    public StepResult getFailedStep() {
+        return failedStep;
+    }        
+
     public Throwable getError() {
-        return error;
+        return failedStep == null ? null : failedStep.getResult().getError();
     }
 
     public long getDuration() {

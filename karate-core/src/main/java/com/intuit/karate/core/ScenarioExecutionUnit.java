@@ -78,11 +78,10 @@ public class ScenarioExecutionUnit {
         } else {
             // this has to be done at the end after they are fully populated
             // else the feature-result will not "collect" stats correctly 
-            exec.result.addResult(result);            
+            exec.result.addResult(result);
+            // gatling clean up            
+            actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
             // after-scenario hook
-            if (actions.callContext.executionHook != null) {
-                actions.callContext.executionHook.afterScenario(result, actions.context);
-            }
             actions.context.invokeAfterHookIfConfigured(false);
             next.run();
         }

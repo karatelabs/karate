@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.PerfEvent;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.ScriptValue;
@@ -212,14 +213,19 @@ public abstract class HttpClient<T> {
         }
     }
 
-    public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {
+    public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {        
+        T body = buildRequestInternal(request, context);
+        String perfEventName = null; // acts as a flag to report perf if not null
         if (context.executionHook != null) {
-            context.executionHook.beforeHttpRequest(request, context);
-        }
-        T body = buildRequestInternal(request, context);        
+            perfEventName = context.executionHook.getPerfEventName(request, context);
+        }        
         try {
             HttpResponse response = makeHttpRequest(body, context);
             context.updateConfigCookies(response.getCookies());
+            if (perfEventName != null) {
+                PerfEvent pe = new PerfEvent(response.getStartTime(), response.getEndTime(), perfEventName, response.getStatus());
+                context.capturePerfEvent(pe);
+            }
             return response;
         } catch (Exception e) {
             long startTime = context.getPrevRequest().getStartTime();

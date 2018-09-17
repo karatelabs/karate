@@ -51,7 +51,7 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  * @author pthomas3
  */
 public class ScenarioContext {
-    
+
     public final Logger logger;
     public final ScriptBindings bindings;
     public final int callDepth;
@@ -75,6 +75,25 @@ public class ScenarioContext {
 
     // pass call result to engine via this variable (hack)
     private List<FeatureResult> callResults;
+
+    // gatling integration    
+    private PerfEvent prevPerfEvent;
+
+    public void logLastPerfEvent(String failureMessage) {
+        if (prevPerfEvent != null && executionHook != null) {
+            if (failureMessage != null) {
+                prevPerfEvent.setFailed(true);
+                prevPerfEvent.setMessage(failureMessage);
+            }
+            executionHook.reportPerfEvent(prevPerfEvent);
+        }
+        prevPerfEvent = null;
+    }
+
+    public void capturePerfEvent(PerfEvent event) {
+        logLastPerfEvent(null);
+        prevPerfEvent = event;
+    }
 
     public List<FeatureResult> getCallResults() {
         return callResults;
@@ -101,7 +120,7 @@ public class ScenarioContext {
 
     public HttpRequestBuilder getRequest() {
         return request;
-    }        
+    }
 
     public HttpRequest getPrevRequest() {
         return prevRequest;
@@ -236,7 +255,7 @@ public class ScenarioContext {
         if (key.equals("lowerCaseResponseHeaders")) {
             config.setLowerCaseResponseHeaders(value.isBooleanTrue());
             return;
-        }        
+        }
         if (key.equals("cors")) {
             config.setCorsEnabled(value.isBooleanTrue());
             return;
@@ -382,7 +401,7 @@ public class ScenarioContext {
         Object o = map.get(key);
         return o == null ? null : o.toString();
     }
-    
+
     public void updateResponseVars(HttpResponse response) {
         vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
         vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, response.getStartTime());
@@ -413,8 +432,8 @@ public class ScenarioContext {
             }
         }
         vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
-    }   
-    
+    }
+
     public void invokeAfterHookIfConfigured(boolean afterFeature) {
         if (callDepth > 0) {
             return;
@@ -428,10 +447,9 @@ public class ScenarioContext {
                 logger.warn("{} hook failed: {}", prefix, e.getMessage());
             }
         }
-    }    
+    }
 
     //==========================================================================
-
     public void configure(String key, String exp) {
         configure(key, Script.evalKarateExpression(exp, this));
     }

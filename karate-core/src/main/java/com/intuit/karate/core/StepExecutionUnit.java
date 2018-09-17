@@ -46,9 +46,6 @@ public class StepExecutionUnit {
 
     public void submit(Consumer<StepResult> next) {
         exec.system.accept(() -> {
-            if (actions.callContext.executionHook != null) {
-                actions.callContext.executionHook.beforeStep(step, actions.context);
-            }
             Result result = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getCallResults();
             actions.context.setCallResults(null); // clear
@@ -57,10 +54,7 @@ public class StepExecutionUnit {
             StepResult stepResult = new StepResult(step, result, stepLog, callResults);            
             if (result.isAborted()) { // we log only aborts for visibility
                 actions.context.logger.debug("abort at {}", step.getDebugInfo());
-            }
-            if (actions.callContext.executionHook != null) {
-                actions.callContext.executionHook.afterStep(stepResult, actions.context);
-            }            
+            }         
             next.accept(stepResult);
         });
     }

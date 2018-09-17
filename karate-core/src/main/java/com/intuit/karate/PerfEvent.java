@@ -21,29 +21,59 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
-
-import com.intuit.karate.PerfEvent;
-import com.intuit.karate.ScenarioContext;
-import com.intuit.karate.http.HttpRequestBuilder;
+package com.intuit.karate;
 
 /**
  *
  * @author pthomas3
  */
-public interface ExecutionHook {
+public class PerfEvent {
     
-    /**
-     * 
-     * @param scenario
-     * @param context 
-     * @return false if the scenario should be excluded from the test-run
-     * @throws RuntimeException (any) to abort the scenario
-     */
-    boolean beforeScenario(Scenario scenario, ScenarioContext context);        
+    private final String name;
+    private final long startTime;   
+    private final long endTime;
+    private final int statusCode;
     
-    String getPerfEventName(HttpRequestBuilder req, ScenarioContext context);
+    private boolean failed;    
+    private String message;
+        
+    public PerfEvent(long startTime, long endTime, String name, int statusCode) {
+        this.name = name;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.statusCode = statusCode;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }        
+
+    public long getEndTime() {
+        return endTime;
+    }
     
-    void reportPerfEvent(PerfEvent event);
+    public int getStatusCode() {
+        return statusCode;
+    }    
+
+    public boolean isFailed() {
+        return failed;
+    }
+
+    public void setFailed(boolean failed) {
+        this.failed = failed;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
     
 }
