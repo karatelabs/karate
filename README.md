@@ -239,11 +239,12 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 
 ## References
 * [REST API Testing with Karate](http://www.baeldung.com/karate-rest-api-testing) - tutorial by [Baeldung](http://www.baeldung.com/author/baeldung/)
-* [10 API testing tools to try in 2017](https://assertible.com/blog/10-api-testing-tools-to-try-in-2017) - blog post by [Christopher Reichert](https://twitter.com/creichert07) of [Assertible](https://twitter.com/AssertibleApp)
 * [Karate at the Ministry of Testing (Dallas)](https://www.slideshare.net/ptrthomas/karate-mot-dallas-26oct2017) - [presentation](https://www.meetup.com/Ministry-Of-Testing-Dallas/events/242414866/) by [Peter Thomas](https://twitter.com/ptrthomas)
 * [Testing a Java Spring Boot REST API with Karate](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - tutorial by [Micha Kops](https://twitter.com/hascode) - featured by [Semaphore CI](https://twitter.com/semaphoreci)
 * [5 top open-source API testing tools: How to choose](https://techbeacon.com/5-top-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
 * [Ceinture noire Karate en tests d’API REST](http://cfp.devoxx.fr/2018/talk/INV-5571/Ceinture_noire_Karate_en_tests_d%E2%80%99API_REST) - [Video](https://youtu.be/NYlPxd5dZOU) / [Code](https://github.com/binout/karate-devoxxfr2018) / [Slides](https://binout.github.io/karate-devoxxfr2018/) - [Devoxx.fr 2018](http://www.devoxx.fr) talk by [Nicolas Comet](https://twitter.com/NicolasComet) and [Benoît Prioux](https://twitter.com/binout)
+* [Karate, the black belt of HTTP API testing ?](https://adapt.to/2018/en/schedule/karate-the-black-belt-of-http-api-testing.html) - [Photo](https://twitter.com/bdelacretaz/status/1039444256572751873) / [Slides](https://www.slideshare.net/bdelacretaz/karate-the-black-belt-of-http-api-testing) / [Code](http://tinyurl.com/potsdam2018) - [adaptTo() 2018](https://adapt.to/2018/en.html) talk by [Bertrand Delacretaz](https://twitter.com/bdelacretaz) <br/>of Adobe & the Apache Software Foundation ([Board of Directors](http://www.apache.org/foundation/#who-runs-the-asf))
+
 
 You can find a lot more at the [community wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own 'tag' and a healthy presence on [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
@@ -2881,6 +2882,8 @@ Examples of [defining and using JavaScript functions](#javascript-functions) app
 * call re-usable functions that take complex data as an argument and return complex data that can be stored in a variable
 * call and interoperate with Java code if needed
 * share and re-use test [utilities](#commonly-needed-utilities) or 'helper' functionality across your organization
+
+> For an advanced example of how you can build and re-use a common set of JS functions, refer to [this answer on Stack Overflow](https://stackoverflow.com/a/49384760/143475).
 
 In real-life scripts, you would typically also use this capability of Karate to [`configure headers`](#configure-headers) where the specified JavaScript function uses the variables that result from a [sign in](#calling-other-feature-files) to manipulate headers for all subsequent HTTP requests. And it is worth mentioning that the Karate [configuration 'bootstrap'](#configuration) routine is itself a JavaScript function.
 

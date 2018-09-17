@@ -83,7 +83,7 @@ public class CucumberRunner {
             features = Collections.singletonList(relative);
         }
         // override with system properties if applicable
-        KarateOptions options = KarateOptions.parseSystemProperties(tags, features);
+        KarateOptions options = KarateOptions.updateFromSystemProperties(tags, features);
         return parallel(options.getTags(), options.getFeatures(), null, threadCount, reportDir);
     }   
     

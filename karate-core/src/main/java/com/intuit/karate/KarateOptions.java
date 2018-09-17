@@ -107,7 +107,7 @@ public class KarateOptions {
         return options;
     }
 
-    public static KarateOptions parseSystemProperties(List<String> tags, List<String> features) {
+    public static KarateOptions updateFromSystemProperties(List<String> tags, List<String> features) {
         String line = System.getProperty("cucumber.options");
         line = StringUtils.trimToNull(line);
         KarateOptions options;

@@ -2,6 +2,7 @@ package com.intuit.karate.junit4;
 
 import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.KarateOptions;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
@@ -56,6 +57,9 @@ public class Karate extends ParentRunner<Feature> {
             String[] featuresArray = co.features();
             features = Arrays.asList(featuresArray);
         }
+        KarateOptions options = KarateOptions.updateFromSystemProperties(tags, features);
+        tags = options.getTags();
+        features = options.getFeatures();
         if (features == null || features.isEmpty()) {
             String relative = FileUtils.toRelativeClassPath(clazz);
             features = Collections.singletonList(relative);
@@ -77,7 +81,7 @@ public class Karate extends ParentRunner<Feature> {
     private static Description getScenarioDescription(String featureName, Scenario scenario) {
         return Description.createTestDescription(featureName, scenario.getDisplayMeta() + ' ' + scenario.getName());
     }
-    
+
     private static String getFeatureName(Feature feature) {
         return "[" + feature.getResource().getFileNameWithoutExtension() + "]";
     }
