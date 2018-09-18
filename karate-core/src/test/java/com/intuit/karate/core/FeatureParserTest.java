@@ -48,7 +48,7 @@ public class FeatureParserTest {
     public void testEngineForSimpleFeature() {
         FeatureResult result = execute("test-simple.feature");
         Map<String, Object> map = result.toMap();
-        Match.equals(map.get("tags"), "[{ name: '@foo', line: 1 }]");        
+        Match.equals(map.get("tags"), "[{ name: '@foo', line: 1 }]");
         ScenarioResult sr = (ScenarioResult) result.getScenarioResults().get(0);
         map = sr.toMap();
         Match.equals(map.get("tags"), "[{ name: '@bar', line: 5 }]");
@@ -63,13 +63,13 @@ public class FeatureParserTest {
         Engine.saveResultJson("target", result);
         Engine.saveResultXml("target", result);
     }
-    
+
     @Test
     public void testEngineForError() {
         FeatureResult result = execute("test-error.feature");
         Engine.saveResultJson("target", result);
         Engine.saveResultXml("target", result);
-    }    
+    }
 
     @Test
     public void testParsingFeatureDescription() {
@@ -97,12 +97,28 @@ public class FeatureParserTest {
             assertEquals("passed", step.getResult().getStatus());
         }
     }
-    
+
     @Test
     public void testSetTable() {
         FeatureResult result = execute("test-set-table.feature");
         Map<String, Object> map = result.getResultAsPrimitiveMap();
         Match.equals(map.get("output"), "{ name: 'Bob', age: 2 }");
-    }    
+    }
+
+    @Test
+    public void testEmptyFeature() {
+        try {
+            FeatureResult result = execute("empty.feature.txt");
+            fail("we expected parsing to fail");
+        } catch (Exception e) {
+            String message = e.getMessage();
+            assertTrue(e.getMessage().contains("mismatched input '<EOF>'"));
+        }
+    }
+
+    @Test
+    public void testFeatureHeaderOnly() {
+        FeatureResult result = execute("feature-header-only.feature");
+    }
 
 }

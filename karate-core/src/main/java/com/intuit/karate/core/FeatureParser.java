@@ -116,7 +116,9 @@ public class FeatureParser extends KarateParserBaseListener {
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
         if (errorListener.isFail()) {
-            throw new RuntimeException(errorListener.getMessage());
+            String errorMessage = errorListener.getMessage();
+            logger.error("not a valid feature file: {} - {}", feature.getResource().getRelativePath(), errorMessage);
+            throw new RuntimeException(errorMessage);
         }
     }    
 
@@ -240,11 +242,13 @@ public class FeatureParser extends KarateParserBaseListener {
         if (ctx.FEATURE_TAGS() != null) {
             feature.setTags(toTags(ctx.FEATURE_TAGS().getSymbol().getLine(), ctx.FEATURE_TAGS()));
         }
-        feature.setLine(ctx.FEATURE().getSymbol().getLine());
-        if (ctx.featureDescription() != null) {
-            StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.featureDescription().getText());
-            feature.setName(pair.left);
-            feature.setDescription(pair.right);
+        if (ctx.FEATURE() != null) {
+            feature.setLine(ctx.FEATURE().getSymbol().getLine());
+            if (ctx.featureDescription() != null) {
+                StringUtils.Pair pair = StringUtils.splitByFirstLineFeed(ctx.featureDescription().getText());
+                feature.setName(pair.left);
+                feature.setDescription(pair.right);
+            }
         }
     }
 

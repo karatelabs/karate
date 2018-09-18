@@ -66,7 +66,7 @@ public class Chrome implements WebSocketListener {
         command.start();
         Http http = Http.forUrl("http://localhost:" + port);
         Match session = http.path("json").get();
-        String webSocketUrl = session.get("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
+        String webSocketUrl = session.jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
         client = new WebSocketClient(webSocketUrl, this);
     }
 
