@@ -6,6 +6,7 @@
 * Karate assertion failures appear in Gatling report, along with the line-numbers that failed
 * Leverage Karate's powerful assertion capabilities to check that server responses are as expected under load - which is much harder to do in Gatling and other performance testing tools
 * API invocation sequences that represent end-user workflows are much easier to express in Karate
+* *Anything* that can be written in Java can be performance tested !
 
 ## Demo Video
 Refer: https://twitter.com/ptrthomas/status/986463717465391104
@@ -99,3 +100,53 @@ If multiple `Scenario`-s have the tag on them, they will all be executed. The or
 
 > The tag does not need to be in the `@key=value` form and you can use the plain "`@foo`" form if you want to. But using the pattern `@name=someName` is arguably more readable when it comes to giving multiple `Scenario`-s meaningful names.
 
+## Custom
+You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.
+
+What this means is that you can easily script performance tests for database-access, [gRPC](https://grpc.io), proprietary non-HTTP protocols or pretty much *anything*, really.
+
+ For this you need to use a couple of Karate core-objects. Here is an [example](src/test/scala/mock/MockUtils.java):
+
+ ```java
+public static Map<String, Object> myRpc(Map<String, Object> map, ScenarioContext context) {
+    long startTime = System.currentTimeMillis();
+    // this is just an example, you can put any kind of code here
+    int sleepTime = (Integer) map.get("sleep");
+    try {
+        Thread.sleep(sleepTime);
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
+    long endTime = System.currentTimeMillis();
+    // and here is where you send the performance data to the reporting engine
+    PerfEvent event = new PerfEvent(startTime, endTime, "myRpc-" + sleepTime, 200);
+    context.capturePerfEvent(event);
+    return Collections.singletonMap("success", true);
+}
+ ```
+
+### `PerfEvent`
+The [`PerfEvent`](../karate-core/src/main/java/com/intuit/karate/PerfEvent.java) constructor is as follows:
+* `startTime` - long
+* `endTime` - long
+* `eventName` - string, which will show up in the Gatling report
+* `statusCode` - just leave this as `200`
+
+And there is a `capturePerfEvent(PerfEvent)` method on the `ScenarioContext` which you use to send data to the performance-test reporting engine.
+
+###
+To get a reference to the current `ScenarioContext`, just use the JavaScript expression `karate.context` from within a Karate test. For [example](src/test/scala/mock/custom-rpc.feature):
+
+```cucumber
+Background:
+  * def Utils = Java.type('mock.MockUtils')
+
+Scenario: fifty
+  * def payload = { sleep: 50 }
+  * def response = Utils.myRpc(payload, karate.context)
+  * match response == { success: true }
+```
+
+Note how the `myRpc` method has been implemented to accept a `Map` (auto-converted from JSON) and the `ScenarioContext` as arguments.
+
+Like the built-in HTTP support, any test failures are automatically linked to the previous `PerfEvent` captured.
