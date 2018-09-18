@@ -56,6 +56,7 @@ public class WebSocketClient {
     private final boolean ssl;
     private final Channel channel;
     private final EventLoopGroup group;
+    
 
     private boolean waiting;
 
@@ -114,7 +115,9 @@ public class WebSocketClient {
     public void send(String msg) {        
         WebSocketFrame frame = new TextWebSocketFrame(msg);
         channel.writeAndFlush(frame);
-        logger.debug("sent: {}", msg);
+        if (logger.isTraceEnabled()) {
+            logger.trace("sent: {}", msg);
+        }
     }
     
     public void send(byte[] msg) {

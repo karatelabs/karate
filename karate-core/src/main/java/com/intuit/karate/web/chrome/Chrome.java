@@ -25,11 +25,11 @@ package com.intuit.karate.web.chrome;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Match;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
 import java.io.File;
+import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +46,12 @@ public class Chrome implements WebSocketListener {
 
     private final CommandThread command;
     private final int port;
+    protected final WebSocketClient client;
 
-    private WebSocketClient client;
     private int next;
 
-    public Chrome(int requestedPort) {
-        port = requestedPort == 0 ? 9222 : requestedPort;
+    public Chrome(int port) {
+        this.port = port;
         String uniqueName = System.currentTimeMillis() + "";
         File profileDir = new File("target/chrome" + uniqueName);
         String logFile = profileDir.getPath() + File.separator + "karate.log";
@@ -60,13 +60,10 @@ public class Chrome implements WebSocketListener {
                 "--remote-debugging-port=" + port,
                 "--no-first-run",
                 "--user-data-dir=" + profileDir.getAbsolutePath());
-    }
-
-    public void start() {
         command.start();
         Http http = Http.forUrl("http://localhost:" + port);
-        Match session = http.path("json").get();
-        String webSocketUrl = session.jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
+        String webSocketUrl = http.path("json").get()
+                .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
         client = new WebSocketClient(webSocketUrl, this);
     }
 
@@ -78,13 +75,46 @@ public class Chrome implements WebSocketListener {
         return new ChromeMessage(++next, method);
     }
 
+    private final Map<Integer, ChromeMessage> messages = new HashMap();
+
+    public void sendAndWait(ChromeMessage cm) {
+        String json = JsonUtils.toJson(cm.toMap());
+        client.send(json);
+        messages.put(cm.getId(), cm);        
+        while (messages.containsKey(cm.getId())) {
+            synchronized (messages) {
+                try {
+                    logger.debug(">> sent: {}", cm);
+                    messages.wait();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            logger.debug(">> wait: {}", cm);
+        }
+        logger.debug("<< complete", cm);       
+    }
+    
+    public void receive(ChromeMessage cm) {
+        synchronized (messages) {
+            if (messages.containsKey(cm.getId())) {
+                messages.remove(cm.getId());
+                messages.notify();
+                logger.debug("<< received: {}", cm);
+            } else {
+                logger.debug("<< ignored: {}", cm);
+            }
+        }        
+    }
+
     public void url(String url) {
-        method("Page.navigate").param("url", url).send(client);
+        method("Page.navigate").param("url", url).send(this);
     }
 
     @Override
     public void onTextMessage(String text) {
-        logger.debug("received: {}", text);
+        ChromeMessage cm = JsonUtils.fromJson(text, ChromeMessage.class);
+        receive(cm);
     }
 
     @Override

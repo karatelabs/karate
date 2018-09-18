@@ -2,7 +2,6 @@ package com.intuit.karate.junit4.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.Match;
 import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
 import org.junit.AfterClass;

@@ -23,8 +23,7 @@
  */
 package com.intuit.karate.web.chrome;
 
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.netty.WebSocketClient;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -35,15 +34,20 @@ import java.util.Map;
  */
 public class ChromeMessage {        
     
-    private long id;
+    private int id;
     private String method;
-    private Map<String, Object> params;   
+    private Map<String, Object> params;
+    private Map<String, Object> result;
+    
+    public ChromeMessage() {
+        // for json marshalling
+    }
 
-    public long getId() {
+    public int getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -62,8 +66,16 @@ public class ChromeMessage {
     public void setParams(Map<String, Object> params) {
         this.params = params;
     }
+
+    public Map<String, Object> getResult() {
+        return result;
+    }
+
+    public void setResult(Map<String, Object> result) {
+        this.result = result;
+    }
     
-    public ChromeMessage(long id, String method) {
+    public ChromeMessage(int id, String method) {
         this.id = id;
         this.method = method;        
     }
@@ -76,9 +88,38 @@ public class ChromeMessage {
         return this;
     }
     
-    public void send(WebSocketClient client) {
-        String json = JsonUtils.toJson(this);
-        client.send(json);
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap(4);
+        map.put("id", id);
+        map.put("method", method);
+        if (params != null) {
+            map.put("params", params);
+        }
+        if (result != null) {
+            map.put("result", result);
+        }
+        return map;
     }
+    
+    public void send(Chrome chrome) {
+        chrome.sendAndWait(this);
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[id: ").append(id);
+        if (method != null) {
+            sb.append(", method: ").append(method);
+        }
+        if (params != null) {
+            sb.append(", params: ").append(params);
+        }       
+        if (result != null) {
+            sb.append(", result: ").append(result);
+        }        
+        sb.append("]");
+        return sb.toString();
+    }    
     
 }

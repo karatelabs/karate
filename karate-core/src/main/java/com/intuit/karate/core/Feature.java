@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
 import java.nio.file.Path;
