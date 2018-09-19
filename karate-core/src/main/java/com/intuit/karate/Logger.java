@@ -36,9 +36,11 @@ import org.slf4j.helpers.MessageFormatter;
  * @author pthomas3
  */
 public class Logger {
-    
+
+    private static final String DEFAULT_PACKAGE = "com.intuit.karate";
+
     private final org.slf4j.Logger LOGGER;
-    
+
     // not static, has to be per thread
     private final DateFormat dateFormatter = new SimpleDateFormat("HH:mm:ss.SSS");
 
@@ -46,43 +48,53 @@ public class Logger {
 
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;
-    }        
+    }
+
+    public Logger(Class clazz) {
+        LOGGER = LoggerFactory.getLogger(clazz);
+    }
+
+    public Logger(String name) {
+        LOGGER = LoggerFactory.getLogger(name);
+    }
 
     public Logger() {
-        LOGGER = LoggerFactory.getLogger("com.intuit.karate");
+        LOGGER = LoggerFactory.getLogger(DEFAULT_PACKAGE);
     }
 
     public void trace(String format, Object... arguments) {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace(format, arguments);
+            formatAndAppend(format, arguments);
         }
-        // we never do trace in html logs
     }
 
     public void debug(String format, Object... arguments) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(format, arguments);
+            formatAndAppend(format, arguments);
         }
-        formatAndAppend(format, arguments);
     }
 
     public void info(String format, Object... arguments) {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(format, arguments);
+            formatAndAppend(format, arguments);
         }
-        formatAndAppend(format, arguments);
     }
 
     public void warn(String format, Object... arguments) {
         if (LOGGER.isWarnEnabled()) {
             LOGGER.warn(format, arguments);
+            formatAndAppend(format, arguments);
         }
-        formatAndAppend(format, arguments);
     }
 
     public void error(String format, Object... arguments) {
-        LOGGER.error(format, arguments);
-        formatAndAppend(format, arguments);
+        if (LOGGER.isErrorEnabled()) {
+            LOGGER.error(format, arguments);
+            formatAndAppend(format, arguments);
+        }
     }
 
     private String getFormattedDate() {

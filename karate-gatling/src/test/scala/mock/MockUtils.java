@@ -1,8 +1,7 @@
 package mock;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.PerfEvent;
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.PerfContext;
 import com.intuit.karate.netty.FeatureServer;
 
 
@@ -22,7 +21,7 @@ public class MockUtils {
         System.setProperty("mock.cats.url", "http://localhost:" + server.getPort() + "/cats");        
     }
 
-    public static Map<String, Object> myRpc(Map<String, Object> map, ScenarioContext context) {
+    public static Map<String, Object> myRpc(Map<String, Object> map, PerfContext context) {
         long startTime = System.currentTimeMillis();
         // this is just an example, you can put any kind of code here
         int sleepTime = (Integer) map.get("sleep");
@@ -33,8 +32,7 @@ public class MockUtils {
         }
         long endTime = System.currentTimeMillis();
         // and here is where you send the performance data to the reporting engine
-        PerfEvent event = new PerfEvent(startTime, endTime, "myRpc-" + sleepTime, 200);
-        context.capturePerfEvent(event);
+        context.capturePerfEvent("myRpc-" + sleepTime, startTime, endTime);
         return Collections.singletonMap("success", true);
     }
     

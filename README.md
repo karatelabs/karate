@@ -1800,7 +1800,7 @@ Examples:
 And if you need to set some of these 'globally' you can easily do so using [the `karate` object](#the-karate-object) in [`karate-config.js`](#configuration) - for e.g. [`karate.configure('ssl', true)`](#karate-configure).
 
 ### Report Verbosity
-By default, when the [parallel runner](#parallel-execution) is used Karate will add logs to the report output so that HTTP requests and responses appear in-line in the HTML reports. There may be cases where you want to suppress this to make the logs "lighter" and easier to read.
+By default, when the [parallel runner](#parallel-execution) is used Karate will add logs to the report output so that HTTP requests and responses appear in-line in the HTML reports. There may be cases where you want to suppress this to make the reports "lighter" and easier to read.
 
 The configure key here is `report` and it takes a JSON value. For example:
 

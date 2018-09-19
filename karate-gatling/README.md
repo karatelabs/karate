@@ -6,7 +6,7 @@
 * Karate assertion failures appear in Gatling report, along with the line-numbers that failed
 * Leverage Karate's powerful assertion capabilities to check that server responses are as expected under load - which is much harder to do in Gatling and other performance testing tools
 * API invocation sequences that represent end-user workflows are much easier to express in Karate
-* *Anything* that can be written in Java can be performance tested !
+* [*Anything*](#custom) that can be written in Java can be performance tested !
 
 ## Demo Video
 Refer: https://twitter.com/ptrthomas/status/986463717465391104
@@ -29,7 +29,7 @@ You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling
 ## Sample Project:
 Refer: https://github.com/ptrthomas/karate-gatling-demo
 
-This demo project happens to depend on [`karate-netty`](../karate-netty) which already depends on `karate-apache`. It is worth calling out that we are perf-testing [Karate test-doubles](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) here ! A truly self-contained demo.
+It is worth calling out that we are perf-testing [Karate test-doubles](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) here ! A truly self-contained demo.
 
 ## Limitations
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see [`pauseFor()`](#pausefor).
@@ -105,10 +105,10 @@ You can even include any custom code you write in Java into a performance test, 
 
 What this means is that you can easily script performance tests for database-access, [gRPC](https://grpc.io), proprietary non-HTTP protocols or pretty much *anything*, really.
 
- For this you need to use a couple of Karate core-objects. Here is an [example](src/test/scala/mock/MockUtils.java):
+Just use a single Karate interface called [`PerfContext`](../karate-core/src/main/java/com/intuit/karate/PerfContext.java). Here is an [example](src/test/scala/mock/MockUtils.java):
 
  ```java
-public static Map<String, Object> myRpc(Map<String, Object> map, ScenarioContext context) {
+public static Map<String, Object> myRpc(Map<String, Object> map, PerfContext context) {
     long startTime = System.currentTimeMillis();
     // this is just an example, you can put any kind of code here
     int sleepTime = (Integer) map.get("sleep");
@@ -119,23 +119,19 @@ public static Map<String, Object> myRpc(Map<String, Object> map, ScenarioContext
     }
     long endTime = System.currentTimeMillis();
     // and here is where you send the performance data to the reporting engine
-    PerfEvent event = new PerfEvent(startTime, endTime, "myRpc-" + sleepTime, 200);
-    context.capturePerfEvent(event);
+    context.capturePerfEvent("myRpc-" + sleepTime, startTime, endTime);
     return Collections.singletonMap("success", true);
 }
  ```
 
-### `PerfEvent`
-The [`PerfEvent`](../karate-core/src/main/java/com/intuit/karate/PerfEvent.java) constructor is as follows:
+### `capturePerfEvent()`
+The [`PerfContext.capturePerfEvent()`]() method takes these arguments:
+* `eventName` - string, which will show up in the Gatling report
 * `startTime` - long
 * `endTime` - long
-* `eventName` - string, which will show up in the Gatling report
-* `statusCode` - just leave this as `200`
-
-And there is a `capturePerfEvent(PerfEvent)` method on the `ScenarioContext` which you use to send data to the performance-test reporting engine.
 
 ###
-To get a reference to the current `ScenarioContext`, just use the JavaScript expression `karate.context` from within a Karate test. For [example](src/test/scala/mock/custom-rpc.feature):
+To get a reference to the current `PerfContext`, just pass the built-in JavaScript object `karate` from within a Karate test to the "Java side". For [example](src/test/scala/mock/custom-rpc.feature):
 
 ```cucumber
 Background:
@@ -143,10 +139,10 @@ Background:
 
 Scenario: fifty
   * def payload = { sleep: 50 }
-  * def response = Utils.myRpc(payload, karate.context)
+  * def response = Utils.myRpc(payload, karate)
   * match response == { success: true }
 ```
 
-Note how the `myRpc` method has been implemented to accept a `Map` (auto-converted from JSON) and the `ScenarioContext` as arguments.
+The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been implemented to accept a `Map` (auto-converted from JSON) and the `PerfContext` as arguments. 
 
-Like the built-in HTTP support, any test failures are automatically linked to the previous `PerfEvent` captured.
+Like the built-in HTTP support, any test failures are automatically linked to the previous "perf event" captured.

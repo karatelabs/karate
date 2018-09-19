@@ -41,18 +41,18 @@ public class CommandThread extends Thread {
     private int exitCode = -1;
 
     public CommandThread(String... args) {
-        this(null, null, args);
+        this(null, null, null, args);
     }
 
     public CommandThread(File workingDir, String... args) {
-        this(null, workingDir, args);
+        this(null, null, workingDir, args);
     }
 
-    public CommandThread(String logFile, File workingDir, String... args) {
+    public CommandThread(Class logClass, String logFile, File workingDir, String... args) {
         setDaemon(true);
         this.uniqueName = System.currentTimeMillis() + "";
         setName("command-" + uniqueName);
-        logger = new Logger();
+        logger = logClass == null ? new Logger() : new Logger(logClass);
         this.workingDir = workingDir == null ? new File(".") : workingDir;
         this.args = args;
         if (logFile == null) {
@@ -95,7 +95,7 @@ public class CommandThread extends Thread {
             String line;
             while ((line = in.readLine()) != null) {
                 appender.append(line);
-                logger.debug("{}", line);
+                logger.trace("{}", line);
             }
             exitCode = process.waitFor();
             appender.close();

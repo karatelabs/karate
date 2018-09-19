@@ -46,7 +46,7 @@ import org.w3c.dom.Node;
  *
  * @author pthomas3
  */
-public class ScriptBridge {
+public class ScriptBridge implements PerfContext {
     
     private static final Object GLOBALS_LOCK = new Object();
     private static final Map<String, Object> GLOBALS = new HashMap();
@@ -408,6 +408,12 @@ public class ScriptBridge {
             context.logger.info("{}", new LogWrapper(objects));
         }
     }        
+
+    @Override
+    public void capturePerfEvent(String name, long startTime, long endTime) {
+        PerfEvent event = new PerfEvent(startTime, endTime, name, 200);
+        context.capturePerfEvent(event);
+    }
     
     // make sure toString() is lazy
     static class LogWrapper {

@@ -15,8 +15,8 @@ public class ChromeRunner {
     
     @Test
     public void testChrome() {
-        Chrome chrome = new Chrome(9222);
-        chrome.url("https://www.github.com/");
+        Chrome chrome = Chrome.start(9222);
+        chrome.method("Page.navigate").param("url", "https://google.com").send();
         chrome.waitSync();
     }
     

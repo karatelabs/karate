@@ -28,35 +28,24 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * {id: 1, method: 'Page.navigate', params: {url: 'https://www.github.com/'}}
  * 
  * @author pthomas3
  */
 public class ChromeMessage {        
     
-    private int id;
-    private String method;
-    private Map<String, Object> params;
-    private Map<String, Object> result;
+    private final Chrome chrome;
     
-    public ChromeMessage() {
-        // for json marshalling
-    }
+    private Integer id;
+    private final String method;
+    private Map<String, Object> params;
+    private Map<String, Object> result;    
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
-    }
-
-    public String getMethod() {
-        return method;
-    }
-
-    public void setMethod(String method) {
-        this.method = method;
     }
 
     public Map<String, Object> getParams() {
@@ -75,9 +64,18 @@ public class ChromeMessage {
         this.result = result;
     }
     
-    public ChromeMessage(int id, String method) {
-        this.id = id;
+    public ChromeMessage(Chrome chrome, String method) {
+        this.chrome = chrome;
+        id = chrome.getNextId();
         this.method = method;        
+    }
+    
+    public ChromeMessage(Chrome chrome, Map<String, Object> map) {
+        this.chrome = chrome;
+        id = (Integer) map.get("id");
+        method = (String) map.get("method");
+        params = (Map) map.get("params");
+        result = (Map) map.get("result");
     }
     
     public ChromeMessage param(String key, Object value) {
@@ -101,7 +99,7 @@ public class ChromeMessage {
         return map;
     }
     
-    public void send(Chrome chrome) {
+    public void send() {
         chrome.sendAndWait(this);
     }
     

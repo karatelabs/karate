@@ -205,7 +205,6 @@ public class App extends Application {
         Scene scene = new Scene(rootPane, 900, 750);
         stage.setScene(scene);
         stage.setTitle("Karate UI");
-        stage.setMaximized(true);
         stage.show();
     }
 
