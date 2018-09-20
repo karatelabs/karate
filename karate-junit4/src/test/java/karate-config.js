@@ -14,5 +14,6 @@ function() {
     // customize
   }
   config.myObject = karate.read('classpath:test.json');
+  config.myFunction = karate.read('classpath:test.js');
   return config;
 }
