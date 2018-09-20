@@ -3168,6 +3168,36 @@ Utility | Recipe
 
 The first three are good enough for random string generation for most situations. Note that if you need to do a lot of case-insensitive string checks, [`karate.lowerCase()`](#karate-lowercase) is what you are looking for.
 
+### Multiple Functions in One File
+If you find yourself needing a complex helper or utility function, we strongly recommend that you [use Java](#calling-java) because it is much easier to maintain and even debug if needed. And if you need multiple functions, you can easily organize them into a single Java class with multiple static methods.
+
+That said, if you want to stick to JavaScript, but find yourself accumulating a lot of helper functions that you need to use in multiple feature files, the following pattern is recommended.
+
+You can organize multiple "common" utilities into a single re-usable feature file as follows e.g. `common.feature`
+
+```cucumber
+@ignore
+Feature:
+
+Scenario:
+  * def hello = function(){ return 'hello' }
+  * def world = function(){ return 'world' }
+```
+
+And then you have two options. The first option using [shared scope](#shared-scope) should be fine for most projects, but if you want to "name space" your functions, use "isolated scope":
+
+```cucumber
+Scenario: function re-use, global / shared scope
+    * call read('common.feature')
+    * assert hello() == 'hello'
+    * assert world() == 'world'
+
+Scenario: function re-use, isolated / name-spaced scope
+    * def utils = call read('common.feature')
+    * assert utils.hello() == 'hello'
+    * assert utils.world() == 'world'
+```
+
 ## GraphQL / RegEx replacement example
 As a demonstration of Karate's power and flexibility, here is an example that reads a GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries and filter criteria.
 
