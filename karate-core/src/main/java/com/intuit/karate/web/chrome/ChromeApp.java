@@ -44,7 +44,7 @@ public class ChromeApp extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         TextArea input = new TextArea();
-        input.setText("{ method: 'Page.navigate', params: { url: 'https://google.com'} }");
+        input.setText("{ method: 'Page.navigate', params: { url: 'https://github.com/login'} }");
         input.setPrefRowCount(5);
         rootPane.setTop(input);
         Button send = new Button("Send");

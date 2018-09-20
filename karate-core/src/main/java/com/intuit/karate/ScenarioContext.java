@@ -58,6 +58,7 @@ public class ScenarioContext {
     public final List<String> tags;
     public final Map<String, List<String>> tagValues;
     public final ScriptValueMap vars;
+    public final FeatureContext rootFeatureContext;
     public final FeatureContext featureContext;
     public final ExecutionHook executionHook;
     public final boolean useLogAppenderFile;
@@ -175,13 +176,16 @@ public class ScenarioContext {
         if (call.reuseParentContext) {
             vars = call.parentContext.vars; // shared context !
             config = call.parentContext.config;
+            rootFeatureContext = call.parentContext.rootFeatureContext;
         } else if (call.parentContext != null) {
             vars = call.parentContext.vars.copy();
             config = new HttpConfig(call.parentContext.config);
+            rootFeatureContext = call.parentContext.rootFeatureContext;
         } else {
             vars = new ScriptValueMap();
             config = new HttpConfig();
             config.setClientClass(call.httpClientClass);
+            rootFeatureContext = featureContext;
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);

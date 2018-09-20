@@ -48,17 +48,17 @@ public class Chrome implements WebSocketListener {
     private final CommandThread command;
     protected final WebSocketClient client;
     private final Map<Integer, ChromeMessage> messages = new HashMap();
-    
-    private int nextId;
-    
+
+    private int nextId = 1;
+
     public int getNextId() {
-        return ++nextId;
+        return nextId++;
     }
-    
+
     public static Chrome start(int port) {
         String uniqueName = System.currentTimeMillis() + "";
         File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
-        String logFile = profileDir.getPath() + File.separator + "karate.log";        
+        String logFile = profileDir.getPath() + File.separator + "karate.log";
         CommandThread command = new CommandThread(Chrome.class, logFile, profileDir,
                 PATH_MAC,
                 "--remote-debugging-port=" + port,
@@ -82,8 +82,8 @@ public class Chrome implements WebSocketListener {
 
     public ChromeMessage method(String method) {
         return new ChromeMessage(this, method);
-    }    
-    
+    }
+
     public void sendAndWait(String text) {
         Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
         ChromeMessage cm = new ChromeMessage(this, map);
@@ -97,20 +97,20 @@ public class Chrome implements WebSocketListener {
         String json = JsonUtils.toJson(cm.toMap());
         client.send(json);
         logger.debug(">> sent: {}", cm);
-        messages.put(cm.getId(), cm);        
+        messages.put(cm.getId(), cm);
         while (messages.containsKey(cm.getId())) {
             synchronized (messages) {
                 logger.debug(">> wait: {}", cm);
-                try {                    
+                try {
                     messages.wait();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-            }            
+            }
         }
-        logger.debug("<< notified: {}", cm);       
+        logger.debug("<< notified: {}", cm);
     }
-    
+
     public void receive(ChromeMessage cm) {
         if (cm.getId() == null) {
             logger.debug("<< ignored: {}", cm);
@@ -124,7 +124,7 @@ public class Chrome implements WebSocketListener {
             } else {
                 logger.warn("<< no match: {}", cm);
             }
-        }        
+        }
     }
 
     @Override
@@ -137,7 +137,7 @@ public class Chrome implements WebSocketListener {
 
     @Override
     public void onBinaryMessage(byte[] bytes) {
-
+        logger.warn("ignoring binary message");
     }
 
 }

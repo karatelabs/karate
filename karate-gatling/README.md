@@ -125,13 +125,13 @@ public static Map<String, Object> myRpc(Map<String, Object> map, PerfContext con
  ```
 
 ### `capturePerfEvent()`
-The [`PerfContext.capturePerfEvent()`]() method takes these arguments:
+The `PerfContext.capturePerfEvent()` method takes these arguments:
 * `eventName` - string, which will show up in the Gatling report
 * `startTime` - long
 * `endTime` - long
 
 ###
-To get a reference to the current `PerfContext`, just pass the built-in JavaScript object `karate` from within a Karate test to the "Java side". For [example](src/test/scala/mock/custom-rpc.feature):
+To get a reference to the current `PerfContext`, just pass the built-in `karate` JavaScript object from the "Karate side" to the "Java side". For [example](src/test/scala/mock/custom-rpc.feature):
 
 ```cucumber
 Background:

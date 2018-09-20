@@ -3,4 +3,4 @@ Feature:
 
 Scenario:
 * print 'in called2'
-* call read('called3.feature')
+* call read('this:called3.feature')

@@ -43,6 +43,7 @@ public class FileUtils {
     private static final String CLASSPATH = "classpath";
 
     public static final String CLASSPATH_COLON = CLASSPATH + ":";
+    public static final String THIS_COLON = "this:";
     public static final String FILE_COLON = "file:";
     public static final String SRC_TEST_JAVA = "src/test/java";
     public static final String SRC_TEST_RESOURCES = "src/test/resources";
@@ -58,6 +59,10 @@ public class FileUtils {
     public static final boolean isFilePath(String text) {
         return text.startsWith(FILE_COLON);
     }
+    
+    public static final boolean isThisPath(String text) {
+        return text.startsWith(THIS_COLON);
+    }    
 
     public static final boolean isJsonFile(String text) {
         return text.endsWith(".json");
@@ -144,11 +149,16 @@ public class FileUtils {
             ClassLoader cl = context.getClass().getClassLoader();
             return new Resource(fromRelativeClassPath(path, cl), path);
         } else if (isFilePath(path)) {
-             String temp = removePrefix(path);
-             return new Resource(new File(temp), path);
+            String temp = removePrefix(path);
+            return new Resource(new File(temp), path);
+        } else if (isThisPath(path)) {
+            String temp = removePrefix(path);
+            Path parentPath = context.featureContext.parentPath;
+            Path childPath = parentPath.resolve(temp);
+            return new Resource(childPath, path);
         } else {
             try {
-                Path parentPath = context.featureContext.parentPath;
+                Path parentPath = context.rootFeatureContext.parentPath;
                 Path childPath = parentPath.resolve(path);
                 return new Resource(childPath, path);
             } catch (Exception e) {
@@ -268,14 +278,14 @@ public class FileUtils {
     public static InputStream toInputStream(String text) {
         return new ByteArrayInputStream(text.getBytes(UTF8));
     }
-    
+
     public static String removeFileExtension(String path) {
         int pos = path.lastIndexOf('.');
         if (pos == -1) {
             return path;
         } else {
             return path.substring(0, pos);
-        }        
+        }
     }
 
     public static String replaceFileExtension(String path, String extension) {
@@ -336,11 +346,11 @@ public class FileUtils {
         }
         return null;
     }
-    
+
     public static File getDirContaining(Class clazz) {
         Path path = getPathContaining(clazz);
         return path.toFile();
-    }    
+    }
 
     public static Path getPathContaining(Class clazz) {
         String relativePath = clazz.getPackage().getName().replace('.', '/');
