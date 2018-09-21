@@ -6,12 +6,12 @@ Scenario: complex 'global' json
 Scenario: a global js function
     * assert myFunction() == 'hello world'
 
-Scenario: from a feature, global / shared scope
+Scenario: function re-use, global / shared scope
     * call read('common.feature')
     * assert hello() == 'hello'
     * assert world() == 'world'
 
-Scenario: from a feature, isolated / name-spaced scope
+Scenario: function re-use, isolated / name-spaced scope
     * def utils = call read('common.feature')
     * assert utils.hello() == 'hello'
     * assert utils.world() == 'world'

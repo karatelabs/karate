@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.web.chrome;
 
+import com.intuit.karate.ScriptValue;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -59,7 +60,23 @@ public class ChromeMessage {
     public Map<String, Object> getResult() {
         return result;
     }
+    
+    public boolean isResultError() {
+        if (result == null) {
+            return false;
+        }
+        String error = (String) result.get("subtype");
+        return "error".equals(error);
+    }
 
+    public String getResultValueAsString() {
+        if (result == null) {
+            return null;
+        }
+        ScriptValue sv = new ScriptValue(result.get("value"));
+        return sv.getAsString();
+    }
+    
     public void setResult(Map<String, Object> result) {
         this.result = result;
     }
@@ -75,7 +92,12 @@ public class ChromeMessage {
         id = (Integer) map.get("id");
         method = (String) map.get("method");
         params = (Map) map.get("params");
-        result = (Map) map.get("result");
+        Map temp = (Map) map.get("result");
+        if (temp != null && temp.containsKey("result")) {
+            result = (Map) temp.get("result");
+        } else {
+            result = temp;
+        }
     }
     
     public ChromeMessage param(String key, Object value) {
@@ -99,8 +121,8 @@ public class ChromeMessage {
         return map;
     }
     
-    public void send() {
-        chrome.sendAndWait(this);
+    public ChromeMessage send() {
+        return chrome.sendAndWait(this);
     }
     
     @Override

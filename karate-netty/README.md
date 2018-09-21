@@ -31,16 +31,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
 
 ### Maven
-Note that this includes the [`karate-apache`](https://github.com/intuit/karate#maven) dependency for convenience.
-
-```xml
-<dependency>
-    <groupId>com.intuit.karate</groupId>
-    <artifactId>karate-netty</artifactId>
-    <version>${karate.version}</version>
-    <scope>test</scope>
-</dependency>  
-```
+The [Netty](https://netty.io) based capabilities are included when you use `karate-apache` (or `karate-jersey`), so there is no extra dependency needed besides what is outlined in the [main documentation](https://github.com/intuit/karate#maven).
 
 ## Consumer-Provider Example
 

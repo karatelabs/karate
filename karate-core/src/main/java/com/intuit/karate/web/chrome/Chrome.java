@@ -48,6 +48,7 @@ public class Chrome implements WebSocketListener {
     private final CommandThread command;
     protected final WebSocketClient client;
     private final Map<Integer, ChromeMessage> messages = new HashMap();
+    private final Map<Integer, ChromeMessage> results = new HashMap();
 
     private int nextId = 1;
 
@@ -84,21 +85,22 @@ public class Chrome implements WebSocketListener {
         return new ChromeMessage(this, method);
     }
 
-    public void sendAndWait(String text) {
+    public ChromeMessage sendAndWait(String text) {
         Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
         ChromeMessage cm = new ChromeMessage(this, map);
         if (cm.getId() == null) {
             cm.setId(getNextId());
         }
-        sendAndWait(cm);
+        return sendAndWait(cm);
     }
 
-    public void sendAndWait(ChromeMessage cm) {
+    public ChromeMessage sendAndWait(ChromeMessage cm) {
         String json = JsonUtils.toJson(cm.toMap());
         client.send(json);
         logger.debug(">> sent: {}", cm);
-        messages.put(cm.getId(), cm);
-        while (messages.containsKey(cm.getId())) {
+        int id = cm.getId();
+        messages.put(id, cm);
+        while (messages.containsKey(id)) {
             synchronized (messages) {
                 logger.debug(">> wait: {}", cm);
                 try {
@@ -109,6 +111,7 @@ public class Chrome implements WebSocketListener {
             }
         }
         logger.debug("<< notified: {}", cm);
+        return results.remove(id);
     }
 
     public void receive(ChromeMessage cm) {
@@ -117,8 +120,10 @@ public class Chrome implements WebSocketListener {
             return;
         }
         synchronized (messages) {
-            if (messages.containsKey(cm.getId())) {
-                messages.remove(cm.getId());
+            int id = cm.getId();
+            if (messages.containsKey(id) && cm.getResult() != null) {
+                messages.remove(id);
+                results.put(id, cm);
                 messages.notify();
                 logger.debug("<< notify: {}", cm);
             } else {
@@ -139,5 +144,56 @@ public class Chrome implements WebSocketListener {
     public void onBinaryMessage(byte[] bytes) {
         logger.warn("ignoring binary message");
     }
+    
+    private String elementGetter(String id) {
+        if (id.startsWith("/")) {
+            id = id.replace('"', '\'');
+            return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
+        } else if (id.startsWith("#")) {
+            return "document.getElementById('" + id.substring(1) + "')";
+        } else {
+            return "document.getElementById('" + id + "')";
+        }        
+    }
+
+    //==========================================================================
+    
+    public ChromeMessage eval(String expression) {
+        int count = 0;
+        ChromeMessage cm;
+        do {
+            cm = method("Runtime.evaluate").param("expression", expression).send();
+        } while (cm.isResultError() && count < 3);
+        return cm;
+    }
+    
+    public void url(String url) {
+        method("Page.navigate").param("url", url).send();
+    }
+    
+    public void click(String id) {
+        eval(elementGetter(id) + ".click()");
+    }    
+
+    public void focus(String id) {        
+        eval(elementGetter(id) + ".focus()");
+    }
+
+    public void type(String id, String value) {
+        focus(id);
+        for (char c : value.toCharArray()) {
+            method("Input.dispatchKeyEvent").param("type", "keyDown").param("text", c + "").send();
+        }
+    }
+    
+    public String getText(String id) {
+        ChromeMessage cm = eval(elementGetter(id) + ".textContent");
+        return cm.getResultValueAsString();
+    }
+    
+    public String getHtml(String id) {
+        ChromeMessage cm = eval(elementGetter(id) + ".innerHTML");
+        return cm.getResultValueAsString();
+    }    
 
 }

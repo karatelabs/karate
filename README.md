@@ -3103,7 +3103,7 @@ The keywords [`Given` `When` `Then`](#given-when-then) are only for decoration a
 That said, if you really need to implement 'conditional' checks, this can be one pattern:
 
 ```cucumber
-* def filename = (zone == 'zone1' ? 'test1.feature' : 'test2.feature')
+* def filename = zone == 'zone1' ? 'test1.feature' : 'test2.feature'
 * def result = call read(filename)
 ```
 
@@ -3122,7 +3122,7 @@ Or if we don't care about the result, we can use [`eval`](#eval):
 And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) or [call Java](#calling-java) for more complex logic.
 
 ```cucumber
-* def expected = (zone == 'zone1' ? { foo: '#string' } : { bar: '#number' })
+* def expected = zone == 'zone1' ? { foo: '#string' } : { bar: '#number' }
 * match response == expected
 ```
 
