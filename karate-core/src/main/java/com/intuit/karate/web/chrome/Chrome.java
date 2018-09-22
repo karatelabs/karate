@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.web.chrome;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.core.Engine;
@@ -44,6 +45,7 @@ public class Chrome implements WebSocketListener {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketListener.class);
 
     public static final String PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    public static final String PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
 
     private final CommandThread command;
     protected final WebSocketClient client;
@@ -61,7 +63,7 @@ public class Chrome implements WebSocketListener {
         File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
         String logFile = profileDir.getPath() + File.separator + "karate.log";
         CommandThread command = new CommandThread(Chrome.class, logFile, profileDir,
-                PATH_MAC,
+                FileUtils.isWindows() ? PATH_WIN : PATH_MAC,
                 "--remote-debugging-port=" + port,
                 "--no-first-run",
                 "--user-data-dir=" + profileDir.getAbsolutePath());
