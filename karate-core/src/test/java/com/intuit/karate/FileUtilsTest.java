@@ -40,9 +40,10 @@ public class FileUtilsTest {
         List<Resource> files = FileUtils.scanForFeatureFilesOnClassPath(cl);
         boolean found = false;
         for (Resource file : files) {
-            if (file.getRelativePath().equals(relativePath)) {               
+            String actualPath = file.getRelativePath().replace('\\', '/');
+            if (actualPath.equals(relativePath)) {
                 String temp = FileUtils.toRelativeClassPath(file.getPath(), cl);
-                assertEquals(temp, file.getRelativePath());
+                assertEquals(temp, actualPath);
                 found = true;
                 break;
             }

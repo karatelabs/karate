@@ -334,14 +334,21 @@ public class FileUtils {
         return "file".equals(path.toUri().getScheme());
     }
 
+    private static String toStandardPath(String path) {
+        if (path == null) {
+            return null;
+        }
+        return path.replace('\\', '/');
+    }
+
     public static String toRelativeClassPath(Path path, ClassLoader cl) {
         if (!isFile(path)) {
-            return CLASSPATH_COLON + path.toString();
+            return CLASSPATH_COLON + toStandardPath(path.toString());
         }
         for (Path rootPath : getAllClassPaths(cl)) {
             if (path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
-                return CLASSPATH_COLON + relativePath.toString();
+                return CLASSPATH_COLON + toStandardPath(relativePath.toString());
             }
         }
         return null;
@@ -498,7 +505,7 @@ public class FileUtils {
                     relativePath = relativePath.substring(1);
                 }
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + relativePath));
+                files.add(new Resource(path, prefix + toStandardPath(relativePath)));
             }
         }
     }
@@ -513,7 +520,7 @@ public class FileUtils {
         for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
             Path path = paths.next();
             if (path.getFileName().toString().endsWith(".feature")) {
-                Resource resource = new Resource(path, CLASSPATH_COLON + path.toString());
+                Resource resource = new Resource(path, CLASSPATH_COLON + toStandardPath(path.toString()));
                 files.add(resource);
             }
         }
