@@ -334,7 +334,7 @@ public class FileUtils {
         return "file".equals(path.toUri().getScheme());
     }
 
-    private static String toStandardPath(String path) {
+    public static String toStandardPath(String path) {
         if (path == null) {
             return null;
         }
@@ -373,7 +373,6 @@ public class FileUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
     }
 
     public static File getFileRelativeTo(Class clazz, String path) {

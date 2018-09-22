@@ -99,7 +99,7 @@ public class ScriptBindings implements Bindings {
             } else { // if the user set a config dir, look for karate-config.js but as a file in that dir
                 File configFile = new File(configDir + "/" + KARATE_CONFIG_JS);
                 if (configFile.exists()) {
-                    return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath());
+                    return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, FileUtils.toStandardPath(configFile.getPath()));
                 } else { // if karate-config.js was not over-ridden
                     // user intent is likely to over-ride env config, see 'else' block for this function
                     return READ_KARATE_CONFIG_DEFAULT; // default to classpath:karate-config.js
@@ -110,7 +110,7 @@ public class ScriptBindings implements Bindings {
                 return String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_DASH_CONFIG + "-" + env + DOT_JS); 
             } else { // look for file:<karate.config.dir>/karate-config-<env>.js
                 File configFile = new File(configDir + "/" + KARATE_DASH_CONFIG + "-" + env + DOT_JS);
-                return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath());                
+                return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, FileUtils.toStandardPath(configFile.getPath()));
             }
         }
     }
