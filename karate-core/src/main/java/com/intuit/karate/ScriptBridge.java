@@ -30,6 +30,7 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
+import com.intuit.karate.web.chrome.Chrome;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
@@ -408,6 +409,10 @@ public class ScriptBridge implements PerfContext {
             context.logger.info("{}", new LogWrapper(objects));
         }
     }        
+    
+    public Chrome getBrowser() {
+        return context.getChrome();
+    }
 
     @Override
     public void capturePerfEvent(String name, long startTime, long endTime) {

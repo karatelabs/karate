@@ -32,11 +32,11 @@ import java.util.Map;
 /**
  * the main purpose of this file is to keep ide-support happy (intellij /
  * eclipse) for feature-file formatting, auto-complete and syntax-coloring
- * 
+ *
  * else all logic is in {@link ScenarioContext}
  *
- * the cucumber-eclipse plugin parses the TEXT of this file :( and we have to have
- * REAL text in the annotations instead of string-constants
+ * the cucumber-eclipse plugin parses the TEXT of this file :( and we have to
+ * have REAL text in the annotations instead of string-constants
  *
  * @author pthomas3
  */
@@ -48,6 +48,33 @@ public class StepActions implements Actions {
     public StepActions(FeatureContext featureContext, CallContext callContext) {
         this.callContext = callContext;
         context = new ScenarioContext(featureContext, callContext);
+    }
+
+    public static MatchType toMatchType(String eqSymbol, String each, String notContains, String only, boolean contains) {
+        boolean notEquals = eqSymbol.startsWith("!");
+        if (each == null) {
+            if (notContains != null) {
+                return MatchType.NOT_CONTAINS;
+            }
+            if (only != null) {
+                return only.contains("only") ? MatchType.CONTAINS_ONLY : MatchType.CONTAINS_ANY;
+            }
+            return contains ? MatchType.CONTAINS : notEquals ? MatchType.NOT_EQUALS : MatchType.EQUALS;
+        } else {
+            if (notContains != null) {
+                return MatchType.EACH_NOT_CONTAINS;
+            }
+            if (only != null) {
+                return only.contains("only") ? MatchType.EACH_CONTAINS_ONLY : MatchType.EACH_CONTAINS_ANY;
+            }
+            return contains ? MatchType.EACH_CONTAINS : notEquals ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
+        }
+    }
+
+    private static void validateEqualsSign(String eqSymbol) {
+        if (eqSymbol.equals("=")) {
+            throw new RuntimeException("use '==' for match (not '=')");
+        }
     }
 
     @Override
@@ -286,7 +313,7 @@ public class StepActions implements Actions {
     @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only| any)?$")
     public void matchContainsDocstring(String each, String name, String path, String not, String only, String expected) {
         matchContains(each, name, path, not, only, expected);
-    }    
+    }
 
     @Override
     @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=) (.+)")
@@ -355,32 +382,37 @@ public class StepActions implements Actions {
     public void evalDocstring(String exp) {
         context.eval(exp);
     }
+
+    //==========================================================================
     
-    public static MatchType toMatchType(String eqSymbol, String each, String notContains, String only, boolean contains) {
-        boolean notEquals = eqSymbol.startsWith("!");
-        if (each == null) {
-            if (notContains != null) {
-                return MatchType.NOT_CONTAINS;
-            }
-            if (only != null) {
-                return only.contains("only") ? MatchType.CONTAINS_ONLY : MatchType.CONTAINS_ANY;
-            }
-            return contains ? MatchType.CONTAINS : notEquals ? MatchType.NOT_EQUALS : MatchType.EQUALS;
-        } else {
-            if (notContains != null) {
-                return MatchType.EACH_NOT_CONTAINS;
-            }
-            if (only != null) {
-                return only.contains("only") ? MatchType.EACH_CONTAINS_ONLY : MatchType.EACH_CONTAINS_ANY;
-            }
-            return contains ? MatchType.EACH_CONTAINS : notEquals ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
-        }
-    }    
+    @Override
+    @When("^browse (.+)")
+    public void browse(String url) {
+        context.browse(url);
+    }
+
+    @Override
+    @When("^type ([^\\s]+) = (.+)")
+    public void type(String name, String value) {
+        context.type(name, value);
+    }
     
-    private static void validateEqualsSign(String eqSymbol) {
-        if (eqSymbol.equals("=")) {
-            throw new RuntimeException("use '==' for match (not '=')");
-        }
+    @Override
+    @When("^click (.+)")
+    public void click(String name) {
+        context.click(name);
+    }  
+    
+    @Override
+    @When("^wait$")
+    public void await() {
+        context.await();
+    }     
+    
+    @Override
+    @When("^stop$")
+    public void stop() {
+        context.stop();
     }    
 
 }

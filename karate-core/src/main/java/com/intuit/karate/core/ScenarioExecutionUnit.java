@@ -83,6 +83,8 @@ public class ScenarioExecutionUnit {
             actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
             // after-scenario hook
             actions.context.invokeAfterHookIfConfigured(false);
+            // stop browser automation if running
+            actions.context.stop();
             next.run();
         }
     }

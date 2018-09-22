@@ -49,6 +49,21 @@ public class ChromeMessage {
         this.id = id;
     }
 
+    public String getMethod() {
+        return method;
+    }        
+    
+    public String getFrameUrl() {
+        if (params == null) {
+            return null;
+        }
+        Map<String, Object> frame = (Map) params.get("frame");
+        if (frame == null) {
+            return null;
+        }
+        return (String) frame.get("url");
+    }
+
     public Map<String, Object> getParams() {
         return params;
     }

@@ -36,6 +36,7 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
+import com.intuit.karate.web.chrome.Chrome;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.Charset;
@@ -67,6 +68,9 @@ public class ScenarioContext {
     // these can get re-built or swapped, so cannot be final
     private HttpClient client;
     private HttpConfig config;
+    
+    // TODO interface
+    private Chrome chrome;
 
     private HttpRequestBuilder request = new HttpRequestBuilder();
     private HttpResponse response;
@@ -118,6 +122,10 @@ public class ScenarioContext {
     public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
     }
+
+    public Chrome getChrome() {
+        return chrome;
+    }        
 
     public HttpRequestBuilder getRequest() {
         return request;
@@ -320,6 +328,10 @@ public class ScenarioContext {
             }
             return;
         }
+        if (key.equals("webDriver")) {
+            config.setWebDriverOptions(value.getAsMap());
+            return;
+        }
         // beyond this point, we don't exit early and we have to re-configure the http client
         if (key.equals("ssl")) {
             if (value.isString()) {
@@ -454,6 +466,7 @@ public class ScenarioContext {
     }
 
     //==========================================================================
+    
     public void configure(String key, String exp) {
         configure(key, Script.evalKarateExpression(exp, this));
     }
@@ -749,6 +762,36 @@ public class ScenarioContext {
 
     public void eval(String exp) {
         Script.evalJsExpression(exp, this);
+    }
+    
+    //==========================================================================
+    
+    public void browse(String expression) {        
+        if (chrome == null) {
+            chrome = Chrome.start(config.getWebDriverOptions());
+        }
+        String temp = Script.evalKarateExpression(expression, this).getAsString();
+        chrome.browse(temp);
+    }
+    
+    public void type(String name, String value) {
+        String temp = Script.evalKarateExpression(value, this).getAsString();
+        chrome.type(name, temp);
+    }
+    
+    public void click(String name) {
+        chrome.click(name);
+    }
+    
+    public void await() {
+        chrome.await("Page.frameNavigated");
+    }
+    
+    public void stop() {
+        if (chrome != null) {
+            chrome.stop();
+            chrome = null;
+        }
     }
 
 }

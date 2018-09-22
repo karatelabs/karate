@@ -127,5 +127,17 @@ public interface Actions {
     void url(String expression);
 
     void yaml(String name, String expression);
+    
+    //==========================================================================
+    
+    void browse(String expression);
+    
+    void type(String name, String value);
+    
+    void click(String expression);    
+    
+    void await();
+    
+    void stop();
 
 }

@@ -26,6 +26,7 @@ package com.intuit.karate.http;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -63,9 +64,10 @@ public class HttpConfig {
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
+    private Map<String, Object> webDriverOptions = Collections.EMPTY_MAP;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
-    
+
     // report config
     private boolean showLog = true;
     private boolean showAllSteps = true;
@@ -103,6 +105,7 @@ public class HttpConfig {
         clientClass = parent.clientClass;
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
+        webDriverOptions = parent.webDriverOptions;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
         showLog = parent.showLog;
@@ -211,7 +214,7 @@ public class HttpConfig {
 
     public void setCharset(Charset charset) {
         this.charset = charset;
-    }    
+    }
 
     public String getProxyUri() {
         return proxyUri;
@@ -243,7 +246,7 @@ public class HttpConfig {
 
     public void setNonProxyHosts(List<String> nonProxyHosts) {
         this.nonProxyHosts = nonProxyHosts;
-    }        
+    }
 
     public ScriptValue getHeaders() {
         return headers;
@@ -276,7 +279,7 @@ public class HttpConfig {
     public void setLowerCaseResponseHeaders(boolean lowerCaseResponseHeaders) {
         this.lowerCaseResponseHeaders = lowerCaseResponseHeaders;
     }
-    
+
     public boolean isCorsEnabled() {
         return corsEnabled;
     }
@@ -325,6 +328,14 @@ public class HttpConfig {
         this.userDefined = userDefined;
     }
 
+    public Map<String, Object> getWebDriverOptions() {
+        return webDriverOptions;
+    }
+
+    public void setWebDriverOptions(Map<String, Object> webDriverOptions) {
+        this.webDriverOptions = webDriverOptions;
+    }
+
     public HttpClient getClientInstance() {
         return clientInstance;
     }
@@ -364,5 +375,5 @@ public class HttpConfig {
     public void setShowAllSteps(boolean showAllSteps) {
         this.showAllSteps = showAllSteps;
     }
-    
+
 }

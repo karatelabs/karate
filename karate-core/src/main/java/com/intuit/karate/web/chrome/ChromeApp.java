@@ -24,6 +24,7 @@
 package com.intuit.karate.web.chrome;
 
 import com.intuit.karate.ui.App;
+import java.util.Collections;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -48,14 +49,11 @@ public class ChromeApp extends Application {
         input.setPrefRowCount(5);
         rootPane.setTop(input);
         Button send = new Button("Send");
-        rootPane.setBottom(send);
-        
-        chrome = Chrome.start(9222);
-                
+        rootPane.setBottom(send);        
+        chrome = Chrome.start(Collections.singletonMap("port", 9222));                
         send.setOnAction(e -> {
             chrome.sendAndWait(input.getText());
-        });
-        
+        });        
         Scene scene = new Scene(rootPane, 900, 200);
         stage.setScene(scene);
         stage.setTitle("Chrome Debug");
