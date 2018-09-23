@@ -4,7 +4,7 @@ import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.Runner;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -46,7 +46,7 @@ public class JarLoadingTest {
         assertEquals(1, list.size());
         Resource resource = list.get(0);
         Feature feature = FeatureParser.parse(resource);
-        Map<String, Object> map = CucumberRunner.runFeature(feature, null, false);
+        Map<String, Object> map = Runner.runFeature(feature, null, false);
         assertEquals(true, map.get("success"));
     }
     

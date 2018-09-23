@@ -404,9 +404,9 @@ public class StepActions implements Actions {
     }  
     
     @Override
-    @When("^wait$")
-    public void await() {
-        context.await();
+    @When("^submit (.+)")
+    public void submit(String name) {
+        context.submit(name);
     }     
     
     @Override

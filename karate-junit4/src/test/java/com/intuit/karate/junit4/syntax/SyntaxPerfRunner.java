@@ -1,6 +1,6 @@
 package com.intuit.karate.junit4.syntax;
 
-import com.intuit.karate.cucumber.CucumberRunner;
+import com.intuit.karate.Runner;
 import java.util.Collections;
 import org.junit.Test;
 
@@ -15,7 +15,7 @@ public class SyntaxPerfRunner {
         System.setProperty("karate.env", "foo");
         long startTime = System.currentTimeMillis();
         for (int i = 0; i < 100; i++) {
-            CucumberRunner.runFeature(getClass(), "syntax.feature", Collections.EMPTY_MAP, true); 
+            Runner.runFeature(getClass(), "syntax.feature", Collections.EMPTY_MAP, true);
         }
         long elapsedTime = System.currentTimeMillis() - startTime;
         System.out.println("elapsed time: " + elapsedTime);

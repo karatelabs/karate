@@ -37,6 +37,7 @@ import picocli.CommandLine;
  *
  * @author pthomas3
  */
+@SuppressWarnings("deprecation")
 public class RunnerOptions {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(RunnerOptions.class);

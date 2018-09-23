@@ -27,19 +27,20 @@ import com.intuit.karate.ScriptValue;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
- * 
+ *
  * @author pthomas3
  */
-public class ChromeMessage {        
-    
+public class ChromeMessage {
+
     private final Chrome chrome;
-    
+
     private Integer id;
     private final String method;
     private Map<String, Object> params;
-    private Map<String, Object> result;    
+    private Map<String, Object> result;
 
     public Integer getId() {
         return id;
@@ -51,8 +52,8 @@ public class ChromeMessage {
 
     public String getMethod() {
         return method;
-    }        
-    
+    }
+
     public String getFrameUrl() {
         if (params == null) {
             return null;
@@ -75,7 +76,7 @@ public class ChromeMessage {
     public Map<String, Object> getResult() {
         return result;
     }
-    
+
     public boolean isResultError() {
         if (result == null) {
             return false;
@@ -91,17 +92,17 @@ public class ChromeMessage {
         ScriptValue sv = new ScriptValue(result.get("value"));
         return sv.getAsString();
     }
-    
+
     public void setResult(Map<String, Object> result) {
         this.result = result;
     }
-    
+
     public ChromeMessage(Chrome chrome, String method) {
         this.chrome = chrome;
         id = chrome.getNextId();
-        this.method = method;        
+        this.method = method;
     }
-    
+
     public ChromeMessage(Chrome chrome, Map<String, Object> map) {
         this.chrome = chrome;
         id = (Integer) map.get("id");
@@ -114,7 +115,7 @@ public class ChromeMessage {
             result = temp;
         }
     }
-    
+
     public ChromeMessage param(String key, Object value) {
         if (params == null) {
             params = new LinkedHashMap();
@@ -122,7 +123,7 @@ public class ChromeMessage {
         params.put(key, value);
         return this;
     }
-    
+
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(4);
         map.put("id", id);
@@ -135,11 +136,15 @@ public class ChromeMessage {
         }
         return map;
     }
-    
+
     public ChromeMessage send() {
-        return chrome.sendAndWait(this);
+        return send(null);
     }
-    
+
+    public ChromeMessage send(Predicate<ChromeMessage> condition) {
+        return chrome.sendAndWait(this, condition);
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -149,12 +154,12 @@ public class ChromeMessage {
         }
         if (params != null) {
             sb.append(", params: ").append(params);
-        }       
+        }
         if (result != null) {
             sb.append(", result: ").append(result);
-        }        
+        }
         sb.append("]");
         return sb.toString();
-    }    
-    
+    }
+
 }

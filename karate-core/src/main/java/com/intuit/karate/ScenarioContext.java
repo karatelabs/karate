@@ -783,9 +783,9 @@ public class ScenarioContext {
         chrome.click(name);
     }
     
-    public void await() {
-        chrome.await("Page.frameNavigated");
-    }
+    public void submit(String name) {
+        chrome.submit(name);
+    }    
     
     public void stop() {
         if (chrome != null) {

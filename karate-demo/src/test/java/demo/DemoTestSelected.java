@@ -1,7 +1,7 @@
 package demo;
 
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
+import com.intuit.karate.Runner;
+import com.intuit.karate.KarateStats;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.Assert.*;
@@ -27,7 +27,7 @@ public class DemoTestSelected {
         List<String> tags = Arrays.asList("~@ignore");
         List<String> features = Arrays.asList("classpath:demo/cats");
         String karateOutputPath = "target/surefire-reports";
-        KarateStats stats = CucumberRunner.parallel(tags, features, 5, karateOutputPath);
+        KarateStats stats = Runner.parallel(tags, features, 5, karateOutputPath);
         DemoTestParallel.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }

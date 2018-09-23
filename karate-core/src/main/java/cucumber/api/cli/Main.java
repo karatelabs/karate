@@ -34,6 +34,7 @@ public class Main {
 
     public static void main(String[] args) {
         IdeUtils.exec(args);
+        System.exit(0);
     }
 
 }

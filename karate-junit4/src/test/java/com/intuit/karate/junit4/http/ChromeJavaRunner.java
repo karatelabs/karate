@@ -25,14 +25,13 @@ public class ChromeJavaRunner {
         chrome.browse("https://github.com/login");
         chrome.type("#login_field", "hello");
         chrome.type("#password", "world");
-        chrome.click("//input[@name='commit']");
+        chrome.submit("//input[@name='commit']");
         String html = chrome.html("#js-flash-container");
         assertTrue(html.contains("Incorrect username or password."));
         chrome.browse("https://google.com");
         chrome.type("//input[@name='q']", "karate dsl");
-        chrome.click("//input[@name='btnI']");
-        chrome.await("Page.frameNavigated");
-        assertEquals("https://github.com/intuit/karate", chrome.url());
+        chrome.submit("//input[@name='btnI']");
+        assertEquals("https://github.com/intuit/karate", chrome.getUrl());
         chrome.stop();
         // chrome.waitSync();
     }

@@ -10,14 +10,13 @@ Scenario: try to login to github
   Given browse 'https://github.com/login'
   And type #login_field = 'hello'
   And type #password = 'world'
-  When click //input[@name='commit']
+  When submit //input[@name='commit']
   Then def html = karate.browser.html('#js-flash-container')
   And match html contains 'Incorrect username or password.'
   
   Given browse 'https://google.com'
   And type //input[@name='q'] = 'karate dsl'
-  When click //input[@name='btnI']
-  Then wait
-  And def location = karate.browser.url()
+  When submit //input[@name='btnI']
+  And def location = karate.browser.url
   And match location == 'https://github.com/intuit/karate'
    

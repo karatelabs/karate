@@ -134,9 +134,9 @@ public interface Actions {
     
     void type(String name, String value);
     
-    void click(String expression);    
+    void click(String expression);
     
-    void await();
+    void submit(String expression);
     
     void stop();
 
