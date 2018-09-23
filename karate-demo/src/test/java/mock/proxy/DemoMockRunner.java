@@ -1,10 +1,10 @@
 package mock.proxy;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
+import com.intuit.karate.Runner;
+import com.intuit.karate.KarateStats;
 import com.intuit.karate.netty.FeatureServer;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import java.io.File;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
@@ -15,7 +15,7 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = "~@ignore", features = {
+@KarateOptions(tags = "~@ignore", features = {
     "classpath:demo/cats", 
     "classpath:demo/greeting"})
 public class DemoMockRunner {
@@ -40,7 +40,7 @@ public class DemoMockRunner {
         System.setProperty("demo.server.port", port + ""); 
         System.setProperty("demo.server.https", "false");
         String karateOutputPath = "target/mock";
-        KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
+        KarateStats stats = Runner.parallel(getClass(), 1, karateOutputPath);
         DemoMockUtils.generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }

@@ -1,13 +1,13 @@
 package demo.calldynamic;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/calldynamic/call-dynamic-json.feature")
+@KarateOptions(features = "classpath:demo/calldynamic/call-dynamic-json.feature")
 public class CallDynamicJsonRunner extends TestBase {
     
 }

@@ -1,4 +1,4 @@
-package com.intuit.karate.cucumber;
+package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
@@ -20,9 +20,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class CucumberUtilsTest {
+public class FeatureEditTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(CucumberUtilsTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(FeatureEditTest.class);
     
     private Feature parse(String name) {
         InputStream is = getClass().getResourceAsStream(name);

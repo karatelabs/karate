@@ -84,8 +84,8 @@ test {
     // When running the test task, only run the base Test class which runs all cucumber
     // tests in parallel.
     include '**/*DemoTestParallel*'
-    // Pull cucumber options into the cucumber JVM
-    systemProperty "cucumber.options", System.properties.getProperty("cucumber.options")
+    // Pull karate options into the runtime
+    systemProperty "karate.options", System.properties.getProperty("karate.options")
     // Pull karate options into the JVM
     systemProperty "karate.env", System.properties.getProperty("karate.env")
     // Ensure tests are always run

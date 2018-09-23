@@ -3,7 +3,7 @@ package mock.contract;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.junit4.Karate;
 import com.intuit.karate.netty.FeatureServer;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import java.io.File;
 import java.util.Collections;
 import org.junit.AfterClass;
@@ -15,7 +15,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:mock/contract/payment-service.feature")
+@KarateOptions(features = "classpath:mock/contract/payment-service.feature")
 public class PaymentServiceContractUsingMockTest {
     
     private static FeatureServer server;

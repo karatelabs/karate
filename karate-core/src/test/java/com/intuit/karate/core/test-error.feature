@@ -1,3 +1,4 @@
+@ignore
 Feature: the first line
 
 Scenario: has name

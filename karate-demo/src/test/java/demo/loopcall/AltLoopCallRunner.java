@@ -1,13 +1,13 @@
 package demo.loopcall;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/loopcall/alt-loop.feature")
+@KarateOptions(features = "classpath:demo/loopcall/alt-loop.feature")
 public class AltLoopCallRunner extends TestBase {
     
 }

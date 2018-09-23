@@ -1,13 +1,13 @@
 package demo.polling;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/polling/polling.feature")
+@KarateOptions(features = "classpath:demo/polling/polling.feature")
 public class PollingRunner extends TestBase {
     
 }

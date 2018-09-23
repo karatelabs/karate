@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Engine;
@@ -43,7 +43,7 @@ public class FeatureReuseTest {
     private static final Logger logger = LoggerFactory.getLogger(FeatureReuseTest.class);
     
     private static String resultXml(String name) {
-        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/cucumber/" + name);
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
         FeatureResult result = Engine.executeFeatureSync(feature, null, null);
         File file = Engine.saveResultXml("target", result);
         return FileUtils.toString(file);        

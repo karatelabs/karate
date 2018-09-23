@@ -25,7 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.cucumber.ScenarioInfo;
+import com.intuit.karate.core.ScenarioInfo;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;

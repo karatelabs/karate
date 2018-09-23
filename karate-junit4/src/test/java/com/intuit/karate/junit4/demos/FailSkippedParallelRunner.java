@@ -1,8 +1,8 @@
 package com.intuit.karate.junit4.demos;
 
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.Runner;
+import com.intuit.karate.KarateStats;
+import com.intuit.karate.KarateOptions;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,7 +17,7 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@CucumberOptions(features = {
+@KarateOptions(features = {
     "classpath:com/intuit/karate/junit4/demos/fail-skipped.feature",
     "classpath:com/intuit/karate/junit4/demos/fail.feature"})
 public class FailSkippedParallelRunner {
@@ -25,7 +25,7 @@ public class FailSkippedParallelRunner {
     @Test
     public void testParallel() {
         String karateOutputPath = "target/surefire-reports";
-        KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
+        KarateStats stats = Runner.parallel(getClass(), 1, karateOutputPath);
         generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }

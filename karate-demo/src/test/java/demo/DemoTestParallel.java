@@ -1,8 +1,8 @@
 package demo;
 
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.Runner;
+import com.intuit.karate.KarateStats;
+import com.intuit.karate.KarateOptions;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,7 +18,7 @@ import static org.junit.Assert.*;
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = {"~@ignore"}) // important: do not use @RunWith(Karate.class) !
+@KarateOptions(tags = {"~@ignore"}) // important: do not use @RunWith(Karate.class) !
 public class DemoTestParallel {
     
     @BeforeClass
@@ -28,7 +28,7 @@ public class DemoTestParallel {
     
     @Test
     public void testParallel() {
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
+        KarateStats stats = Runner.parallel(getClass(), 5);
         generateReport(stats.getReportDir());
         assertTrue("there are scenario failures", stats.getFailCount() == 0);        
     }

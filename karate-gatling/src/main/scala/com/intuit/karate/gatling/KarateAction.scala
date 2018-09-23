@@ -6,7 +6,7 @@ import java.util.function.Consumer
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.intuit.karate.{CallContext, PerfEvent, ScenarioContext}
 import com.intuit.karate.core._
-import com.intuit.karate.cucumber.CucumberRunner
+import com.intuit.karate.Runner
 import com.intuit.karate.http.HttpRequestBuilder
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.core.action.{Action, ExitableAction}
@@ -59,7 +59,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
     val asyncNext: Runnable = () => next ! session
     val callContext = new CallContext(false, executionHook)
 
-    CucumberRunner.callAsync(name, callContext, asyncSystem, asyncNext)
+    Runner.callAsync(name, callContext, asyncSystem, asyncNext)
 
   }
 

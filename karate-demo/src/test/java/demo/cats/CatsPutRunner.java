@@ -1,13 +1,13 @@
 package demo.cats;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/cats/cats-put.feature")
+@KarateOptions(features = "classpath:demo/cats/cats-put.feature")
 public class CatsPutRunner extends TestBase {
     
 }

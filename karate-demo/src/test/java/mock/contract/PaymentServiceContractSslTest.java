@@ -1,7 +1,7 @@
 package mock.contract;
 
 import com.intuit.karate.junit4.Karate;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
@@ -12,7 +12,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:mock/contract/payment-service.feature")
+@KarateOptions(features = "classpath:mock/contract/payment-service.feature")
 public class PaymentServiceContractSslTest {
     
     private static ConfigurableApplicationContext context;

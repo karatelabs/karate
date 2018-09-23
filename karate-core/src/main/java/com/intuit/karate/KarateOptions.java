@@ -23,109 +23,21 @@
  */
 package com.intuit.karate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  *
  * @author pthomas3
  */
-public class KarateOptions {
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE})
+public @interface KarateOptions {    
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(KarateOptions.class);
+    String[] features() default {};
 
-    private static final Pattern COMMAND_NAME = Pattern.compile("--name (\\^.+?\\$)");
-
-    @CommandLine.Option(names = {"-h", "--help"}, usageHelp = true, description = "display this help message")
-    boolean help;
-
-    @CommandLine.Option(names = {"-m", "--monochrome"}, description = "monochrome (not supported)")
-    boolean monochrome;
-
-    @CommandLine.Option(names = {"-g", "--glue"}, description = "glue (not supported)")
-    String glue;
-
-    @CommandLine.Option(names = {"-t", "--tags"}, description = "tags")
-    List<String> tags;
-
-    @CommandLine.Option(names = {"-", "--plugin"}, description = "plugin (not supported)")
-    List<String> plugins;
-
-    @CommandLine.Option(names = {"-n", "--name"}, description = "name of scenario to run")
-    String name;
-
-    @CommandLine.Parameters(description = "one or more tests (features) or search-paths to run")
-    List<String> features;
-
-    public List<String> getTags() {
-        return tags;
-    }
-
-    public List<String> getPlugins() {
-        return plugins;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public List<String> getFeatures() {
-        return features;
-    }
-
-    public static KarateOptions parseStringArgs(String[] args) {
-        KarateOptions options = CommandLine.populateCommand(new KarateOptions(), args);
-        List<String> featuresTemp = new ArrayList();  
-        if (options.features != null) {
-            for (String s : options.features) {
-                if (s.startsWith("com.") || s.startsWith("cucumber.") || s.startsWith("org.")) {
-                    continue;
-                }
-                featuresTemp.add(s);
-            }
-            options.features = featuresTemp.isEmpty() ? null : featuresTemp;
-        }
-        return options;
-    }
-
-    public static KarateOptions parseCommandLine(String line) {
-        Matcher matcher = COMMAND_NAME.matcher(line);
-        String nameTemp;
-        if (matcher.find()) {
-            nameTemp = matcher.group(1);
-            line = matcher.replaceFirst("");
-        } else {
-            nameTemp = null;
-        }
-        String[] args = line.split("\\s+");
-        KarateOptions options = parseStringArgs(args);
-        options.name = nameTemp;
-        return options;
-    }
-
-    public static KarateOptions updateFromSystemProperties(List<String> tags, List<String> features) {
-        String line = System.getProperty("cucumber.options");
-        line = StringUtils.trimToNull(line);
-        KarateOptions options;
-        if (line == null) {
-            options = new KarateOptions();
-            options.tags = tags;
-            options.features = features;
-        } else {
-            logger.info("found system property 'cucumber.options': {}", line);
-            options = parseCommandLine(line);
-            if (options.tags == null) {
-                options.tags = tags;
-            }
-            if (options.features == null) {
-                options.features = features;
-            }
-        }
-        return options;
-    }
-
+    String[] tags() default {};
+    
 }

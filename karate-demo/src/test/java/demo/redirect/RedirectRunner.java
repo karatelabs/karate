@@ -1,13 +1,13 @@
 package demo.redirect;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/redirect/redirect.feature")
+@KarateOptions(features = "classpath:demo/redirect/redirect.feature")
 public class RedirectRunner extends TestBase {
     
 }

@@ -2,7 +2,7 @@ package com.intuit.karate.junit4;
 
 import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.KarateOptions;
+import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
@@ -10,12 +10,9 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Tags;
-import cucumber.api.CucumberOptions;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 import org.junit.runner.Description;
@@ -44,33 +41,14 @@ public class Karate extends ParentRunner<Feature> {
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
-        CucumberOptions co = clazz.getAnnotation(CucumberOptions.class);
-        List<String> tags;
-        List<String> features;
-        if (co == null) {
-            logger.warn("CucumberOptions annotation not found on class: {}", clazz);
-            tags = null;
-            features = null;
-        } else {
-            String[] tagsArray = co.tags();
-            tags = Arrays.asList(tagsArray);
-            String[] featuresArray = co.features();
-            features = Arrays.asList(featuresArray);
-        }
-        KarateOptions options = KarateOptions.updateFromSystemProperties(tags, features);
-        tags = options.getTags();
-        features = options.getFeatures();
-        if (features == null || features.isEmpty()) {
-            String relative = FileUtils.toRelativeClassPath(clazz);
-            features = Collections.singletonList(relative);
-        }
-        List<Resource> resources = FileUtils.scanForFeatureFiles(features, clazz.getClassLoader());
+        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(clazz);
+        List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz.getClassLoader());
         children = new ArrayList(resources.size());
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             children.add(feature);
         }
-        tagSelector = Tags.fromCucumberOptionsTags(tags);
+        tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
     }
 
     @Override

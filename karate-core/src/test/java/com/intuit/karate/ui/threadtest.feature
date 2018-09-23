@@ -1,3 +1,4 @@
+@ignore
 Feature: Thread Test
 
 Scenario: Scenario-1

@@ -451,18 +451,18 @@ file:/projects/myproject/target/surefire-reports/TEST-mypackage.myfeature.html
 
 You can easily select (double-click), copy and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just re-fresh your browser window if you re-run the test.
 
-## Cucumber Options
-To run only a specific feature file from a JUnit test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm#configuration) annotation.
+## Karate Options
+To run only a specific feature file from a JUnit test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the `@KarateOptions` annotation.
 
 ```java
 package animals.cats;
 
+import com.intuit.karate.KarateOptions;
 import com.intuit.karate.junit4.Karate;
-import cucumber.api.CucumberOptions;
 import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:animals/cats/cats-post.feature")
+@KarateOptions(features = "classpath:animals/cats/cats-post.feature")
 public class CatsPostRunner {
 	
 }
@@ -471,7 +471,7 @@ public class CatsPostRunner {
 The `features` parameter in the annotation can take an array, so if you wanted to associate multiple feature files with a JUnit test, you could do this:
 
 ```java
-@CucumberOptions(features = {
+@KarateOptions(features = {
     "classpath:animals/cats/cats-post.feature",
     "classpath:animals/cats/cats-get.feature"})
 ```
@@ -479,12 +479,10 @@ The `features` parameter in the annotation can take an array, so if you wanted t
 And most convenient of all, you can even point to a directory (or package). Combine this with [tags](#test-suites) to execute multiple features, without having to list every one of them.
 
 ```java
-@CucumberOptions(features = "classpath:animals/cats", tags = "~@ignore") 
+@KarateOptions(features = "classpath:animals/cats", tags = "~@ignore") 
 // this will run all feature files in 'animals/cats'
 // except the ones tagged as @ignore
 ```
-
-> Note that any `plugins` specified on the [`@CucumberOptions`](https://cucumber.io/docs/reference/jvm) annotation will be ignored when using `@RunWith(Karate.class)`, because Karate's execution life-cycle is not compatible with 'native' Cucumber reports. This is not a limitation of Karate at all - as for API tests, you will only ever need the [parallel report](#test-reports) (which also produces standard JUnit and Cucumber-JSON output) or the [HTML report](#junit-html-report).
 
 ## Command Line
 Normally in dev mode, you will use your IDE to run a `*.feature` file directly or via the companion 'runner' JUnit Java class. When you have a 'runner' class in place, it would be possible to run it from the command-line as well.
@@ -495,23 +493,23 @@ Note that the `mvn test` command only runs test classes that follow the `*Test.j
 mvn test -Dtest=CatsRunner
 ```
 
-When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature (or even directory) via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified using the [Cucumber options](#cucumber-options).
+When your Java test "runner" is linked to multiple feature files, which will be the case when you use the recommended [parallel runner](#parallel-execution), you can narrow down your scope to a single feature (or even directory) via the command-line, useful in dev-mode. Note how even [tags](#tags) to exclude (or include) can be specified using the [Karate options](#karate-options).
 
 ```
-mvn test -Dcucumber.options="--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
+mvn test -Dkarate.options="--tags ~@ignore classpath:demo/cats/cats.feature" -Dtest=DemoTestParallel
 ```
 
-Multiple feature files (or paths) can be specified, de-limited by the space character. They should be at the end of the `cucumber.options`.
+Multiple feature files (or paths) can be specified, de-limited by the space character. They should be at the end of the `karate.options`.
 
 ### Command Line - Gradle
 
-For gradle you must extend the test task to allow the `cucumber.options` to be passed to the Cucumber-JVM (otherwise they get consumed by gradle itself). To do that, add the following:
+For gradle you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
 
 ```yml
 test {
-    // pull cucumber options into the cucumber jvm
-    systemProperty "cucumber.options", System.properties.getProperty("cucumber.options")
-    // pull karate options into the jvm
+    // pull karate options into the runtime
+    systemProperty "karate.options", System.properties.getProperty("karate.options")
+    // pull karate env into the runtime
     systemProperty "karate.env", System.properties.getProperty("karate.env")
     // ensure tests are always run
     outputs.upToDateWhen { false }
@@ -530,15 +528,15 @@ And then the above command in gradle would look like:
 One way to define 'test-suites' in Karate is to have a JUnit class with the `@RunWith(Karate.class)` annotation at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions), you can do this on the command-line:
 
 ```
-mvn test -Dcucumber.options="--tags ~@ignore" -Dtest=AnimalsTest
+mvn test -Dkarate.options="--tags ~@ignore" -Dtest=AnimalsTest
 ```
 
-Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. Cucumber has a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
+Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. There is a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
 
-The tag options can be specified in the test-class via the `@CucumberOptions` annotation, in which case you don't need to pass the `-Dcucumber.options` on the command-line:
+The tag options can be specified in the test-class via the `@KarateOptions` annotation, in which case you don't need to pass the `-Dkarate.options` on the command-line:
 
 ```java
-@CucumberOptions(tags = {"~@ignore"})
+@KarateOptions(tags = {"~@ignore"})
 ```
 
 You can 'lock down' the fact that you only want to execute the single JUnit class that functions as a test-suite - by using the following [maven-surefire-plugin configuration](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html):
@@ -553,29 +551,29 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
             <include>animals/AnimalsTest.java</include>
         </includes>
         <systemProperties>
-            <cucumber.options>--tags ~@ignore</cucumber.options>
+            <karate.options>--tags ~@ignore</karate.options>
         </systemProperties>            
     </configuration>
 </plugin> 
 ```
 
-Note how the `cucumber.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@CucumberOptions` annotation is present (on `AnimalsTest.java`).
+Note how the `karate.options` can be specified using the `<systemProperties>` configuration. Options here would over-ride corresponding options specified if a `@KarateOptions` annotation is present (on `AnimalsTest.java`).
 
 For Gradle, you simply specify the test which is to be `include`-d:
 
 ```yml
 test {
     include 'animals/AnimalsTest.java'
-    // pull cucumber options into the cucumber jvm
-    systemProperty "cucumber.options", System.properties.getProperty("cucumber.options")
-    // pull karate options into the jvm
+    // pull karate options into the runtime
+    systemProperty "karate.options", System.properties.getProperty("karate.options")
+    // pull karate env into the runtime
     systemProperty "karate.env", System.properties.getProperty("karate.env")
     // ensure tests are always run
     outputs.upToDateWhen { false }
 }
 ```
 
-The big drawback of the 'Cucumber-native' approach is that you cannot run tests in parallel. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on generating the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
+The big drawback of the approach above is that you cannot run tests in parallel. The recommended approach for Karate reporting in a Continuous Integration set-up is described in the next section which focuses on generating the [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) format that most CI tools can consume. The [Cucumber JSON format](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) is also emitted, which gives you plenty of options for generating pretty reports using third-party maven plugins.
 
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
@@ -585,18 +583,18 @@ Karate can run tests in parallel, and dramatically cut down execution time. This
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit test class !
 
 ```java
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
+import com.intuit.karate.KarateStats;
+import com.intuit.karate.Runner;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
-@CucumberOptions(tags = {"~@ignore"})
+@KarateOptions(tags = {"~@ignore"})
 public class TestParallel {
     
     @Test
     public void testParallel() {
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5, "target/surefire-reports");
+        KarateStats stats = Runner.parallel(getClass(), 5, "target/surefire-reports");
         assertTrue("scenarios failed", stats.getFailCount() == 0);
     }
     
@@ -604,14 +602,13 @@ public class TestParallel {
 ```
 
 Things to note:
-* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `CucumberRunner.parallel()` static method in `karate-core`.
+* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `Runner.parallel()` static method in `karate-core`.
 * You can use the returned `KarateStats` to check if any scenarios failed.
-* The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@CucumberOptions` annotation, it will be processed (see below).
+* The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@KarateOptions` annotation, it will be processed (see below).
 * The second argument is the number of threads to use.
 * [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
 * [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`.
-* No other reports will be generated. If you specify a `plugin` option via the [`@CucumberOptions`](#cucumber-options) annotation, or the [command-line](#test-suites), or the 'maven-surefire-plugin' `<systemProperties>` - it will be ignored.
-* But all other options passed to `@CucumberOptions` would work as expected, provided you point the `CucumberRunner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites).
+* Options passed to `@KarateOptions` would work as expected, provided you point the `Runner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites).
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
 
 ```

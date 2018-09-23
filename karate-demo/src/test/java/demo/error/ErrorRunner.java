@@ -1,13 +1,13 @@
 package demo.error;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/error/error.feature")
+@KarateOptions(features = "classpath:demo/error/error.feature")
 public class ErrorRunner extends TestBase {
     
 }

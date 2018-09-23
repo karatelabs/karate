@@ -1,12 +1,12 @@
 package demo;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = {"~@ignore"})
+@KarateOptions(tags = {"~@ignore"})
 public class DemoTest extends TestBase {
     // this class will automatically pick up all *.feature files
     // in src/test/java/demo and even recurse sub-directories

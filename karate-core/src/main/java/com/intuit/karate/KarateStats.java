@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,18 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.cucumber;
+package com.intuit.karate;
 
-import com.intuit.karate.FileUtils;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * as of version 0.9.0 - replaced by {@link com.intuit.karate.KarateStats}
- * 
+ *
  * @author pthomas3
  */
-@Deprecated
 public class KarateStats {
     
     private int featureCount;
@@ -44,18 +41,6 @@ public class KarateStats {
     private Map<String, String> failedMap;
     private Throwable failureReason;
     private String reportDir;
-    
-    protected KarateStats(com.intuit.karate.KarateStats from) {
-        featureCount = from.getFeatureCount();
-        testCount = from.getTestCount();
-        failCount = from.getFailCount();
-        timeTaken = from.getTimeTaken();
-        startTime = from.getStartTime();
-        endTime = from.getEndTime();
-        failedMap = from.getFailedMap();
-        failureReason = from.getFailureReason();
-        reportDir = from.getReportDir();
-    }
     
     private KarateStats(long startTime) {
         this.startTime = startTime;

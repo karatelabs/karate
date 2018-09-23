@@ -1,13 +1,13 @@
 package demo.callnested;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/callnested/call-nested.feature")
+@KarateOptions(features = "classpath:demo/callnested/call-nested.feature")
 public class CallNestedRunner extends TestBase {
     
 }

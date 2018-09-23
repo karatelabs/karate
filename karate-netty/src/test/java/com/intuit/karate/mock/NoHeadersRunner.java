@@ -3,7 +3,7 @@ package com.intuit.karate.mock;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.junit4.Karate;
 import com.intuit.karate.netty.FeatureServer;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import java.io.File;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
@@ -13,7 +13,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:com/intuit/karate/mock/no-headers.feature")
+@KarateOptions(features = "classpath:com/intuit/karate/mock/no-headers.feature")
 public class NoHeadersRunner {
     
     private static FeatureServer server;

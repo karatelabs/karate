@@ -1,13 +1,13 @@
 package demo.headers;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/headers/content-type.feature")
+@KarateOptions(features = "classpath:demo/headers/content-type.feature")
 public class ContentTypeRunner extends TestBase {
     
 }

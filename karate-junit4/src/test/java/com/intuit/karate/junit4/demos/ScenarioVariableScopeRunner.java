@@ -1,7 +1,7 @@
 package com.intuit.karate.junit4.demos;
 
 import com.intuit.karate.junit4.Karate;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import org.junit.runner.RunWith;
 
 /**
@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@CucumberOptions(features = "classpath:com/intuit/karate/junit4/demos/scenario-variable-scope.feature")
+@KarateOptions(features = "classpath:com/intuit/karate/junit4/demos/scenario-variable-scope.feature")
 public class ScenarioVariableScopeRunner {   
     
 

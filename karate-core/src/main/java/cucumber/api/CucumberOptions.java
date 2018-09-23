@@ -6,10 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * replaces cucumber-jvm code
+ * as of version 0.9.0 - replaced by {@link com.intuit.karate.KarateOptions}
  * 
  * @author pthomas3
  */
+@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})
 public @interface CucumberOptions {

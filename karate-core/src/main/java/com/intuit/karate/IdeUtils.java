@@ -52,7 +52,7 @@ public class IdeUtils {
         String command = System.getProperty("sun.java.command");
         System.out.println("command: " + command);
         boolean isIntellij = command.contains("org.jetbrains");
-        KarateOptions options = KarateOptions.parseCommandLine(command);
+        RunnerOptions options = RunnerOptions.parseCommandLine(command);
         String name = options.getName();
         List<String> features = options.getFeatures();
         ClassLoader cl = Thread.currentThread().getContextClassLoader();

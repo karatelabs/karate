@@ -1,13 +1,13 @@
 package demo.dogs;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/dogs/dogs.feature")
+@KarateOptions(features = "classpath:demo/dogs/dogs.feature")
 public class DogsRunner extends TestBase {
     
 }

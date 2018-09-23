@@ -23,7 +23,7 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.cucumber.ScenarioInfo;
+import com.intuit.karate.core.ScenarioInfo;
 import java.util.Map;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Tags;

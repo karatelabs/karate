@@ -1,10 +1,10 @@
 package demo;
 
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
+import com.intuit.karate.Runner;
+import com.intuit.karate.KarateStats;
 import com.intuit.karate.demo.Application;
 import com.intuit.karate.demo.config.ServerStartedInitializingBean;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import java.io.File;
 import org.apache.commons.io.FileUtils;
 import static org.junit.Assert.assertTrue;
@@ -15,7 +15,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = {"~@ignore", "~@apache"})
+@KarateOptions(tags = {"~@ignore", "~@apache"})
 public class JerseyHttpClientTest {
     
     @Test
@@ -28,7 +28,7 @@ public class JerseyHttpClientTest {
         System.setProperty("karate.env", "jersey");
         System.setProperty("demo.server.port", ss.getLocalPort() + "");
         System.setProperty("demo.server.https", "false");
-        KarateStats stats = CucumberRunner.parallel(getClass(), 5);
+        KarateStats stats = Runner.parallel(getClass(), 5);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);
     }
     

@@ -2,9 +2,9 @@ package com.intuit.karate.mock;
 
 import com.intuit.karate.netty.*;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.Runner;
+import com.intuit.karate.KarateStats;
+import com.intuit.karate.KarateOptions;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,7 +19,7 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = "~@ignore")
+@KarateOptions(tags = "~@ignore")
 public class MockServerTest {
 
     private static FeatureServer server;
@@ -38,7 +38,7 @@ public class MockServerTest {
     public void testServer() {
         // will run all features in 'this' package
         String karateOutputPath = "target/surefire-reports";
-        KarateStats stats = CucumberRunner.parallel(getClass(), 1, karateOutputPath);
+        KarateStats stats = Runner.parallel(getClass(), 1, karateOutputPath);
         generateReport(karateOutputPath);
         assertTrue("there are scenario failures", stats.getFailCount() == 0);        
     }

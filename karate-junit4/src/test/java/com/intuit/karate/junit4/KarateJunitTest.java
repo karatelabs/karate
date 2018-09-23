@@ -1,14 +1,14 @@
 package com.intuit.karate.junit4;
 
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import org.junit.runner.RunWith;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(tags = "~@ignore")
+@KarateOptions(tags = "~@ignore")
 @RunWith(Karate.class)
 public class KarateJunitTest {
     

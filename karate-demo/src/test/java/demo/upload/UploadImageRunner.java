@@ -1,13 +1,13 @@
 package demo.upload;
 
-import cucumber.api.CucumberOptions;
+import com.intuit.karate.KarateOptions;
 import demo.TestBase;
 
 /**
  *
  * @author pthomas3
  */
-@CucumberOptions(features = "classpath:demo/upload/upload-image.feature")
+@KarateOptions(features = "classpath:demo/upload/upload-image.feature")
 public class UploadImageRunner extends TestBase {
     
 }

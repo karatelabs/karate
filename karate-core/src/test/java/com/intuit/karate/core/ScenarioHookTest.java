@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.cucumber.CucumberRunner;
-import com.intuit.karate.cucumber.KarateStats;
+import com.intuit.karate.KarateStats;
+import com.intuit.karate.Runner;
 import java.util.Collections;
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -38,7 +38,7 @@ public class ScenarioHookTest {
     @Test
     public void testStopIfScenarioHasNoTags() {
         String path = "classpath:com/intuit/karate/core/test-hook-notags.feature";
-        KarateStats stats = CucumberRunner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
+        KarateStats stats = Runner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
         assertEquals(1, stats.getFeatureCount());
         assertEquals(1, stats.getFailCount());
     }
@@ -46,7 +46,7 @@ public class ScenarioHookTest {
     @Test
     public void testHookForExamplesWithTags() {
         String path = "classpath:com/intuit/karate/core/test-hook-multiexample.feature";
-        KarateStats stats = CucumberRunner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
+        KarateStats stats = Runner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
         assertEquals(1, stats.getFeatureCount());
         assertEquals(7, stats.getTestCount());
         assertEquals(0, stats.getFailCount());
