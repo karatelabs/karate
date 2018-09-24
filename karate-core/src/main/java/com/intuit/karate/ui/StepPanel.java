@@ -187,12 +187,12 @@ public class StepPanel extends AnchorPane {
     }
 
     private void initTextArea() {
-        oldText = step.getText();
+        oldText = step.getPrefix() + " " + step.getText();
         nonFeature.setValue(callPattern.matcher(oldText).matches() ? false : true);
         textArea.setText(oldText);
         int lineCount = step.getLineCount();
         if (lineCount == 1) {
-            int wrapEstimate = oldText.length() / 40;
+            int wrapEstimate = (int) Math.ceil(oldText.length() / 35);
             if (wrapEstimate > 1) {
                 lineCount = wrapEstimate;
             } else {

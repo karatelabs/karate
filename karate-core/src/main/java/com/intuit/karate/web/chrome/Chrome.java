@@ -161,6 +161,7 @@ public class Chrome implements WebSocketListener {
     }
 
     //==========================================================================
+    
     public ChromeMessage eval(String expression, Predicate<ChromeMessage> condition) {
         int count = 0;
         ChromeMessage cm;
