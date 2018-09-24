@@ -185,6 +185,7 @@ public class Chrome implements WebSocketListener {
         } else {
             method("Browser.close").send();
         }
+        command.interrupt();
     }
 
     public void browse(String url) {

@@ -122,6 +122,7 @@ public class Main implements Callable<Void> {
             }
         };
         cmd.parseWithHandlers(new RunLast(), exceptionHandler, args);
+        System.exit(0);
     }
     
     @Override

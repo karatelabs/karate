@@ -27,6 +27,7 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Map;
 
@@ -64,7 +65,7 @@ public class CommandThread extends Thread {
 
     public LogAppender getAppender() {
         return appender;
-    }        
+    }
 
     public String getUniqueName() {
         return uniqueName;
@@ -98,9 +99,11 @@ public class CommandThread extends Thread {
                 logger.trace("{}", line);
             }
             exitCode = process.waitFor();
-            appender.close();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            System.err.println("thread stopping: " + e.getMessage());
+        } finally {
+            appender.close();
+            System.out.println("command complete: " + uniqueName);
         }
     }
 
