@@ -30,6 +30,7 @@ import com.intuit.karate.core.Engine;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.web.Driver;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,12 +41,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
+ * chrome devtools protocol - the "preferred" driver: https://chromedevtools.github.io/devtools-protocol/
+ * 
  * @author pthomas3
  */
-public class Chrome implements WebSocketListener {
+public class Chrome implements Driver, WebSocketListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketListener.class);
+    private static final Logger logger = LoggerFactory.getLogger(Chrome.class);
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
@@ -172,14 +174,17 @@ public class Chrome implements WebSocketListener {
         return cm;
     }
 
+    @Override
     public void activate() {
         method("Target.activateTarget").param("targetId", pageId).send();
     }
 
+    @Override
     public void close() {
         method("Page.close").send();
     }
 
+    @Override
     public void stop() {
         if (headless) {
             close();
@@ -189,42 +194,50 @@ public class Chrome implements WebSocketListener {
         command.interrupt();
     }
 
-    public void browse(String url) {
+    @Override
+    public void location(String url) {
         ChromeMessage cm = method("Page.navigate").param("url", url).send(WaitState.FRAME_NAVIGATED);
         currentUrl = cm.getFrameUrl();
     }
 
+    @Override
     public void click(String id) {
         eval(elementGetter(id) + ".click()", null);
     }
 
+    @Override
     public void submit(String id) {
         ChromeMessage cm = eval(elementGetter(id) + ".click()", WaitState.FRAME_NAVIGATED);
         currentUrl = cm.getFrameUrl();
     }
 
+    @Override
     public void focus(String id) {
         eval(elementGetter(id) + ".focus()", null);
     }
 
-    public void type(String id, String value) {
+    @Override
+    public void input(String id, String value) {
         focus(id);
         for (char c : value.toCharArray()) {
             method("Input.dispatchKeyEvent").param("type", "keyDown").param("text", c + "").send();
         }
     }
 
+    @Override
     public String text(String id) {
         ChromeMessage cm = eval(elementGetter(id) + ".textContent", null);
         return cm.getResultValueAsString();
     }
 
+    @Override
     public String html(String id) {
         ChromeMessage cm = eval(elementGetter(id) + ".innerHTML", null);
         return cm.getResultValueAsString();
     }
 
-    public String getUrl() {
+    @Override
+    public String getLocation() {
         return currentUrl;
     }
 

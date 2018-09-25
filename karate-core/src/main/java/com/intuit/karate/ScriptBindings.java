@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
+import com.intuit.karate.web.Driver;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
@@ -63,6 +64,7 @@ public class ScriptBindings implements Bindings {
     public static final String KARATE_CONFIG_JS = KARATE_DASH_CONFIG + DOT_JS;
     private static final String KARATE_BASE_JS = KARATE_DASH_BASE + DOT_JS;
     public static final String READ = "read";
+    public static final String DRIVER = "driver";
     
     // netty / test-doubles
     public static final String PATH_MATCHES = "pathMatches";
@@ -78,7 +80,7 @@ public class ScriptBindings implements Bindings {
 
     public ScriptBindings(ScenarioContext context) {
         this.vars = context.vars;
-        this.adds = new HashMap(6); // read, karate, self, root, parent, nashorn.global
+        this.adds = new HashMap(7); // read, karate, self, root, parent, nashorn.global, driver
         bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
         // the next line calls an eval with 'incomplete' bindings
@@ -150,6 +152,10 @@ public class ScriptBindings implements Bindings {
     
     public static Bindings createBindings() {
         return NASHORN.createBindings();
+    }
+    
+    public void setDriver(Driver driver) {
+        adds.put(DRIVER, driver);
     }
     
     @Override

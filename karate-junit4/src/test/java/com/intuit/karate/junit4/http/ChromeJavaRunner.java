@@ -1,5 +1,6 @@
 package com.intuit.karate.junit4.http;
 
+import com.intuit.karate.web.Driver;
 import com.intuit.karate.web.chrome.Chrome;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,18 +22,18 @@ public class ChromeJavaRunner {
         Map<String, Object> options = new HashMap();
         options.put("port", 9222);
         // options.put("headless", true);
-        Chrome chrome = Chrome.start(options);        
-        chrome.browse("https://github.com/login");
-        chrome.type("#login_field", "hello");
-        chrome.type("#password", "world");
-        chrome.submit("//input[@name='commit']");
-        String html = chrome.html("#js-flash-container");
+        Driver driver = Chrome.start(options);        
+        driver.location("https://github.com/login");
+        driver.input("#login_field", "hello");
+        driver.input("#password", "world");
+        driver.submit("//input[@name='commit']");
+        String html = driver.html("#js-flash-container");
         assertTrue(html.contains("Incorrect username or password."));
-        chrome.browse("https://google.com");
-        chrome.type("//input[@name='q']", "karate dsl");
-        chrome.submit("//input[@name='btnI']");
-        assertEquals("https://github.com/intuit/karate", chrome.getUrl());
-        chrome.stop();
+        driver.location("https://google.com");
+        driver.input("//input[@name='q']", "karate dsl");
+        driver.submit("//input[@name='btnI']");
+        assertEquals("https://github.com/intuit/karate", driver.getLocation());
+        driver.stop();
         // chrome.waitSync();
     }
     

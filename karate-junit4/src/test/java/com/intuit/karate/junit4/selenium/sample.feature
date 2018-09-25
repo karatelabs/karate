@@ -15,12 +15,12 @@ Scenario: Test-1-of-Default-Suite-136573f0-2437-48aa-9bfe-457f0c88ee8b
 * status 200
 * def sessionId = response.sessionId
 
-* path 'session', sessionId, 'url'
+* def sessionPath = 'session/' + sessionId
+
+* path sessionPath, 'url'
 * request { url: 'https://google.com' }
 * method post
 * status 200
-
-* def sessionPath = 'session/' + sessionId
 
 Given path sessionPath, 'url'
 And request {url:'https://github.com/'}

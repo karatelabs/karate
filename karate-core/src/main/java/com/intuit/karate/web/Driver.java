@@ -31,14 +31,26 @@ public interface Driver {
     
     // constructor takes a Map<String, Object> always
     
-    void browse(String expression);
+    void location(String expression);
     
-    void type(String name, String value);
+    void activate();
+    
+    void focus(String id);
+    
+    void input(String name, String value);    
     
     void click(String expression);
     
     void submit(String expression);
     
+    void close();
+    
     void stop();
+    
+    String getLocation(); // javabean naming convention is intentional
+    
+    String html(String id);
+    
+    String text(String id);
     
 }

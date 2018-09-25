@@ -130,9 +130,9 @@ public interface Actions {
     
     //==========================================================================
     
-    void browse(String expression);
+    void location(String expression);
     
-    void type(String name, String value);
+    void input(String name, String value);
     
     void click(String expression);
     

@@ -224,6 +224,12 @@ public class Match {
         context.method("get");
         return this;
     }
+    
+    public Match httpPost(String body) {
+        context.request(body);
+        context.method("post");
+        return this;
+    }    
 
     public Match response() {
         jsonPath("response");

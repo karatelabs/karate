@@ -386,15 +386,15 @@ public class StepActions implements Actions {
     //==========================================================================
     
     @Override
-    @When("^browse (.+)")
-    public void browse(String url) {
-        context.browse(url);
+    @When("^location (.+)")
+    public void location(String url) {
+        context.location(url);
     }
 
     @Override
-    @When("^type ([^\\s]+) = (.+)")
-    public void type(String name, String value) {
-        context.type(name, value);
+    @When("^input ([^\\s]+) = (.+)")
+    public void input(String name, String value) {
+        context.input(name, value);
     }
     
     @Override

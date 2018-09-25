@@ -408,10 +408,6 @@ public class ScriptBridge implements PerfContext {
         if (context.isPrintEnabled()) {
             context.logger.info("{}", new LogWrapper(objects));
         }
-    }        
-    
-    public Chrome getBrowser() {
-        return context.getChrome();
     }
 
     @Override

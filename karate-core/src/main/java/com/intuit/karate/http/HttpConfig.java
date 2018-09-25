@@ -64,7 +64,7 @@ public class HttpConfig {
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
-    private Map<String, Object> webDriverOptions = Collections.EMPTY_MAP;
+    private Map<String, Object> driverOptions = Collections.EMPTY_MAP;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
 
@@ -105,7 +105,7 @@ public class HttpConfig {
         clientClass = parent.clientClass;
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
-        webDriverOptions = parent.webDriverOptions;
+        driverOptions = parent.driverOptions;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
         showLog = parent.showLog;
@@ -328,12 +328,12 @@ public class HttpConfig {
         this.userDefined = userDefined;
     }
 
-    public Map<String, Object> getWebDriverOptions() {
-        return webDriverOptions;
+    public Map<String, Object> getDriverOptions() {
+        return driverOptions;
     }
 
-    public void setWebDriverOptions(Map<String, Object> webDriverOptions) {
-        this.webDriverOptions = webDriverOptions;
+    public void setDriverOptions(Map<String, Object> driverOptions) {
+        this.driverOptions = driverOptions;
     }
 
     public HttpClient getClientInstance() {

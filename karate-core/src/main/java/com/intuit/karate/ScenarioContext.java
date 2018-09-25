@@ -36,6 +36,8 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
+import com.intuit.karate.web.Driver;
+import com.intuit.karate.web.DriverFactory;
 import com.intuit.karate.web.chrome.Chrome;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -70,7 +72,7 @@ public class ScenarioContext {
     private HttpConfig config;
     
     // TODO interface
-    private Chrome chrome;
+    private Driver driver;
 
     private HttpRequestBuilder request = new HttpRequestBuilder();
     private HttpResponse response;
@@ -121,11 +123,7 @@ public class ScenarioContext {
 
     public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
-    }
-
-    public Chrome getChrome() {
-        return chrome;
-    }        
+    }      
 
     public HttpRequestBuilder getRequest() {
         return request;
@@ -328,8 +326,8 @@ public class ScenarioContext {
             }
             return;
         }
-        if (key.equals("webDriver")) {
-            config.setWebDriverOptions(value.getAsMap());
+        if (key.equals("driver")) {
+            config.setDriverOptions(value.getAsMap());
             return;
         }
         // beyond this point, we don't exit early and we have to re-configure the http client
@@ -766,31 +764,32 @@ public class ScenarioContext {
     
     //==========================================================================
     
-    public void browse(String expression) {        
-        if (chrome == null) {
-            chrome = Chrome.start(config.getWebDriverOptions());
+    public void location(String expression) {        
+        if (driver == null) {
+            driver = DriverFactory.construct(config.getDriverOptions());
+            bindings.setDriver(driver);
         }
         String temp = Script.evalKarateExpression(expression, this).getAsString();
-        chrome.browse(temp);
+        driver.location(temp);
     }
     
-    public void type(String name, String value) {
+    public void input(String name, String value) {
         String temp = Script.evalKarateExpression(value, this).getAsString();
-        chrome.type(name, temp);
+        driver.input(name, temp);
     }
     
     public void click(String name) {
-        chrome.click(name);
+        driver.click(name);
     }
     
     public void submit(String name) {
-        chrome.submit(name);
+        driver.submit(name);
     }    
     
     public void stop() {
-        if (chrome != null) {
-            chrome.stop();
-            chrome = null;
+        if (driver != null) {
+            driver.stop();
+            driver = null;
         }
     }
 

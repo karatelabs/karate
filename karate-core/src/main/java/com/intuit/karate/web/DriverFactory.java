@@ -21,41 +21,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.web;
+
+import com.intuit.karate.web.chrome.Chrome;
+import com.intuit.karate.web.chrome.ChromeDriver;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public class Http {
+public class DriverFactory {
     
-    private final Match match;
+    private static final Logger logger = LoggerFactory.getLogger(DriverFactory.class);
     
-    public Http(Match match) {
-        this.match = match;
+    private DriverFactory() {
+        // only static methods
     }
     
-    public Http url(String url) {
-        match.url(url);
-        return this;
-    }
-    
-    public Http path(String ... paths) {
-        match.path(paths);
-        return this;
-    }    
-    
-    public Match get() {
-        return match.httpGet();
-    }
-    
-    public Match post(String body) {
-        return match.httpPost(body);
-    }
-    
-    public static Http forUrl(String url) {
-        Http http = new Http(Match.init(true));
-        return http.url(url);
+    public static Driver construct(Map<String, Object> options) {
+        String type = (String) options.get("type");
+        if (type == null) {
+            logger.warn("type was null, defaulting to 'chrome'");
+            type = "chrome";
+        }
+        if (type.equals("chrome")) {
+            return Chrome.start(options);
+        } else if (type.equals("chromedriver")) {
+            return new ChromeDriver(options);
+        } else {
+            logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
+            return Chrome.start(options);
+        }
     }
     
 }
