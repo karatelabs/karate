@@ -41,11 +41,15 @@ public class ChromeDriver implements Driver {
     private final String sessionId;
     
     public ChromeDriver(Map<String, Object> options) {
-        String urlBase = "http://localhost:9515";
+        Integer port = (Integer) options.get("port");
+        if (port == null) {
+            port = 9515;
+        }
+        String urlBase = "http://localhost:" + port;
         http = Http.forUrl(urlBase);
         sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
-                .jsonPath("$.sessionId").asString();
+                .jsonPath("get[0] response..sessionId").asString();
         logger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
     }
