@@ -13,7 +13,9 @@ import com.intuit.karate.core.Tags;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -33,6 +35,7 @@ public class Karate extends ParentRunner<Feature> {
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
 
     private final List<Feature> children;
+    private final Map<String, Description> featureMap;
     private final String tagSelector;
 
     public Karate(Class<?> clazz) throws InitializationError, IOException {
@@ -44,9 +47,17 @@ public class Karate extends ParentRunner<Feature> {
         RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(clazz);
         List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz.getClassLoader());
         children = new ArrayList(resources.size());
+        featureMap = new HashMap(resources.size());
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             children.add(feature);
+            Description featureDescription = Description.createSuiteDescription(
+                    getFeatureName(feature), feature.getResource().getPackageQualifiedName());
+            featureMap.put(feature.getRelativePath(), featureDescription);
+            for (Scenario s : feature.getScenarios()) {
+                Description scenarioDescription = getScenarioDescription(getFeatureName(feature), s);
+                featureDescription.addChild(scenarioDescription);
+            }
         }
         tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
     }
@@ -66,7 +77,7 @@ public class Karate extends ParentRunner<Feature> {
 
     @Override
     protected Description describeChild(Feature child) {
-        return Description.createSuiteDescription(getFeatureName(child), child.getResource().getPackageQualifiedName());
+        return featureMap.get(child.getRelativePath());
     }
 
     @Override
