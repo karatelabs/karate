@@ -39,6 +39,7 @@ public class ChromeDriver implements Driver {
     
     private final Http http;
     private final String sessionId;
+    private final String windowId;
     
     public ChromeDriver(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
@@ -52,6 +53,9 @@ public class ChromeDriver implements Driver {
                 .jsonPath("get[0] response..sessionId").asString();
         logger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
+        windowId = http.path("window").get().jsonPath("$.value").asString();
+        logger.debug("init window id: {}", windowId);
+        activate();
     }
     
     private String getElementId(String id) {
@@ -74,7 +78,7 @@ public class ChromeDriver implements Driver {
 
     @Override
     public void activate() {
-
+        http.path("window").post("{ handle: '" + windowId + "' }");
     }
 
     @Override
@@ -101,27 +105,29 @@ public class ChromeDriver implements Driver {
 
     @Override
     public void close() {
-
+        http.path("window").delete();
     }
 
     @Override
     public void stop() {
-
+        http.delete();
     }
 
     @Override
     public String getLocation() {
-        return "https://github.com/intuit/karate"; // TODO
+        return http.path("url").get().jsonPath("$.value").asString();
     }
 
     @Override
-    public String html(String id) {
-        return "Incorrect username or password."; // TODO
+    public String html(String locator) {
+        String id = getElementId(locator);
+        return http.path("element", id, "attribute", "innerHTML").get().jsonPath("$.value").asString();
     }
 
     @Override
-    public String text(String id) {
-        return null;
+    public String text(String locator) {
+        String id = getElementId(locator);
+        return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }
 
 }

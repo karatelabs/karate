@@ -397,8 +397,9 @@ Many popular text editors such as [Visual Studio Code](https://marketplace.visua
 ### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
-If you use [IntelliJ](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html) and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time.
-> Important: only the "Gherkin" and "Cucumber for Java" plugins are needed, the "Substeps IntelliJ Plugin" is not compatible.
+If you use [IntelliJ IDEA](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html), and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time. If you are using the free [Community Edition](https://www.jetbrains.com/idea/download/), you can easily install the "Gherkin" and "Cucumber for Java" plugins.
+
+> Important: For IntelliJ Community Edition, the "Substeps IntelliJ Plugin" is not compatible and should *not* be installed.
 
 For both Eclipse and IntelliJ, when you run a feature (or package with multiple features) via the IDE - you will get the [JUnit HTML report](#junit-html-report).
 
@@ -2652,7 +2653,7 @@ The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate 
 > There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You *can* if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
 
 ## `responseBytes`
-This will always hold the contents of the response as raw bytes. This is rarely used, unless you are expecting binary content returned by the server. Here is an example: [`binary.feature`](karate-netty/src/test/java/com/intuit/karate/mock/binary.feature).
+This will always hold the contents of the response as a byte-array. This is rarely used, unless you are expecting binary content returned by the server. Here is an example: [`binary.feature`](karate-netty/src/test/java/com/intuit/karate/mock/binary.feature).
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.

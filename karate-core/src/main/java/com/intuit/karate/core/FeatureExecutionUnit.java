@@ -26,7 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.FeatureContext;
 import com.intuit.karate.ScenarioContext;
-import java.util.Collection;
 import java.util.Iterator;
 
 /**

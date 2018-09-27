@@ -71,7 +71,6 @@ public class ScenarioContext {
     private HttpClient client;
     private HttpConfig config;
     
-    // TODO interface
     private Driver driver;
 
     private HttpRequestBuilder request = new HttpRequestBuilder();

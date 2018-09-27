@@ -53,6 +53,10 @@ public class Http {
         return match.httpPost(body);
     }
     
+    public Match delete() {
+        return match.httpDelete();
+    }    
+    
     public static Http forUrl(String url) {
         Http http = new Http(Match.init(true));
         return http.url(url);

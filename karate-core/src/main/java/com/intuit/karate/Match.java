@@ -229,6 +229,11 @@ public class Match {
         context.request(body);
         context.method("post");
         return this;
+    } 
+    
+    public Match httpDelete() {
+        context.method("delete");
+        return this;
     }    
 
     public Match response() {

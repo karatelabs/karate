@@ -3,7 +3,7 @@ Feature: browser automation
 
 Background:
   * configure driver = { type: 'chrome', executable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
-  # * configure driver = { type: 'chromedriver' }
+  # * configure driver = { type: 'chromedriver', port: 9515 }
 
 Scenario: try to login to github
     and then do a google search
@@ -18,6 +18,6 @@ Scenario: try to login to github
   Given location 'https://google.com'
   And input //input[@name='q'] = 'karate dsl'
   When submit //input[@name='btnI']
-  And def address = driver.location
+  Then def address = driver.location
   And match address == 'https://github.com/intuit/karate'
    
