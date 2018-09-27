@@ -180,7 +180,7 @@ public class FeatureParser extends KarateParserBaseListener {
     private static String fixDocString(String temp) {
         int quotePos = temp.indexOf(TRIPLE_QUOTES);
         int endPos = temp.lastIndexOf(TRIPLE_QUOTES);
-        String raw = temp.substring(quotePos + 3, endPos);
+        String raw = temp.substring(quotePos + 3, endPos).replaceAll("\r", "");
         List<String> lines = StringUtils.split(raw, '\n');
         StringBuilder sb = new StringBuilder();
         int marginPos = -1;

@@ -39,7 +39,7 @@ import com.intuit.karate.core.ExecutionHook;
  * 
  * @author pthomas3
  */
-@Deprecated
+// @Deprecated
 public class CucumberRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(CucumberRunner.class);

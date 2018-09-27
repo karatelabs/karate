@@ -11,7 +11,7 @@ Scenario: multi-line text
       }
     }
     """
-    * match query == read('query.txt')
+    * match query == read('query.txt').replaceAll("\r", "")
 
 Scenario Outline: multi-line text in a scenario outline
     * text query =
@@ -23,7 +23,7 @@ Scenario Outline: multi-line text in a scenario outline
       }
     }
     """
-    * match query == read('query.txt')
+    * match query == read('query.txt').replaceAll("\r", "")
 
     Examples:
     | name           |
