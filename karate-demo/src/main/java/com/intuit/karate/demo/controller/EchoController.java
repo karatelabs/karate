@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.demo.controller;
 
+import com.intuit.karate.demo.domain.Binary;
 import com.intuit.karate.demo.domain.Message;
 import com.intuit.karate.demo.domain.SignIn;
+import java.util.Arrays;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -71,6 +73,20 @@ public class EchoController {
     @GetMapping("/jwt/resource")
     public String jwtResource() {
         return "success";
+    }  
+    
+    @PostMapping("/binary")
+    public Binary create(@RequestBody Binary bin) {
+        if (!bin.getMessage().equals("hello")) {
+            throw new RuntimeException("expected message 'hello' but was: " + bin.getMessage());
+        }
+        if (!Arrays.equals("hello".getBytes(), bin.getData())) {
+            throw new RuntimeException("expected data 'hello' but was: " + new String(bin.getData()));
+        }        
+        bin = new Binary();
+        bin.setMessage("world");
+        bin.setData("world".getBytes());
+        return bin;
     }     
     
 }
