@@ -31,6 +31,7 @@ import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.web.Driver;
+import com.intuit.karate.web.DriverUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -97,7 +98,10 @@ public class Chrome implements Driver, WebSocketListener {
         Http http = Http.forUrl("http://localhost:" + port);
         String webSocketUrl = http.path("json").get()
                 .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
-        return new Chrome(command, webSocketUrl, headless);
+        Chrome chrome = new Chrome(command, webSocketUrl, headless);
+        chrome.activate();
+        chrome.enablePageEvents();
+        return chrome;
     }
 
     private Chrome(CommandThread command, String webSocketUrl, boolean headless) {
@@ -107,8 +111,6 @@ public class Chrome implements Driver, WebSocketListener {
         pageId = webSocketUrl.substring(pos + 1);
         logger.debug("page id: {}", pageId);
         client = new WebSocketClient(webSocketUrl, this);
-        activate();
-        enablePageEvents();
     }
 
     public int waitSync() {
@@ -152,19 +154,9 @@ public class Chrome implements Driver, WebSocketListener {
         logger.warn("ignoring binary message");
     }
 
-    private String elementGetter(String id) {
-        if (id.startsWith("/")) {
-            return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
-        } else if (id.startsWith("#")) {
-            return "document.getElementById('" + id.substring(1) + "')";
-        } else {
-            return elementGetter("//*[@value=\"" + id + "\"]");
-        }
-    }
-
     //==========================================================================
     
-    public ChromeMessage eval(String expression, Predicate<ChromeMessage> condition) {
+    private ChromeMessage eval(String expression, Predicate<ChromeMessage> condition) {
         int count = 0;
         ChromeMessage cm;
         do {
@@ -202,18 +194,18 @@ public class Chrome implements Driver, WebSocketListener {
 
     @Override
     public void click(String id) {
-        eval(elementGetter(id) + ".click()", null);
+        eval(DriverUtils.selectorScript(id) + ".click()", null);
     }
 
     @Override
     public void submit(String id) {
-        ChromeMessage cm = eval(elementGetter(id) + ".click()", WaitState.FRAME_NAVIGATED);
+        ChromeMessage cm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.FRAME_NAVIGATED);
         currentUrl = cm.getFrameUrl();
     }
 
     @Override
     public void focus(String id) {
-        eval(elementGetter(id) + ".focus()", null);
+        eval(DriverUtils.selectorScript(id) + ".focus()", null);
     }
 
     @Override
@@ -226,13 +218,13 @@ public class Chrome implements Driver, WebSocketListener {
 
     @Override
     public String text(String id) {
-        ChromeMessage cm = eval(elementGetter(id) + ".textContent", null);
+        ChromeMessage cm = eval(DriverUtils.selectorScript(id) + ".textContent", null);
         return cm.getResultValueAsString();
     }
 
     @Override
     public String html(String id) {
-        ChromeMessage cm = eval(elementGetter(id) + ".innerHTML", null);
+        ChromeMessage cm = eval(DriverUtils.selectorScript(id) + ".innerHTML", null);
         return cm.getResultValueAsString();
     }
 

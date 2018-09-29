@@ -24,7 +24,12 @@
 package com.intuit.karate.web.chrome;
 
 import com.intuit.karate.Http;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.core.Engine;
+import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.web.Driver;
+import com.intuit.karate.web.DriverUtils;
+import java.io.File;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,35 +42,59 @@ public class ChromeDriver implements Driver {
     
     private static final Logger logger = LoggerFactory.getLogger(ChromeDriver.class);
     
+    private final CommandThread command;
     private final Http http;
     private final String sessionId;
     private final String windowId;
     
-    public ChromeDriver(Map<String, Object> options) {
+    
+    public static ChromeDriver start(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
         if (port == null) {
             port = 9515;
         }
+        String executable = (String) options.get("executable");
+        CommandThread command;
+        if (executable != null) {
+            String targetDir = Engine.getBuildDir() + File.separator;
+            String logFile = targetDir + "chromedriver.log";
+            command = new CommandThread(ChromeDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
+            command.start();
+        } else {
+            command = null;
+        }
         String urlBase = "http://localhost:" + port;
-        http = Http.forUrl(urlBase);
-        sessionId = http.path("session")
+        Http http = Http.forUrl(urlBase);
+        String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
                 .jsonPath("get[0] response..sessionId").asString();
         logger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
-        windowId = http.path("window").get().jsonPath("$.value").asString();
+        String windowId = http.path("window").get().jsonPath("$.value").asString();
         logger.debug("init window id: {}", windowId);
-        activate();
+        ChromeDriver driver = new ChromeDriver(command, http, sessionId, windowId);
+        driver.activate();
+        return driver;
+    }
+    
+    private ChromeDriver(CommandThread command, Http http, String sessionId, String windowId) {
+        this.command = command;
+        this.http = http;
+        this.sessionId = sessionId;
+        this.windowId = windowId;
+    }
+    
+    private void eval(String expression) {
+        String body = "{ script: \"" + JsonUtils.escapeValue(expression) + "\", args: [] }";
+        http.path("execute", "sync").post(body);
     }
     
     private String getElementId(String id) {
         String body;
         if (id.startsWith("/")) {
             body = "{ using: 'xpath', value: \"" + id + "\" }";
-        } else if (id.startsWith("#")) {
-            body = "{ using: 'id', value: '" + id.substring(1) + "' }";
         } else {
-            body = "{ using: 'value', value: '" + id  + "' }";
+            body = "{ using: 'css selector', value: \"" + id  + "\" }";
         }
         logger.debug("body: {}", body);
         return http.path("element").post(body).jsonPath("$.value.ELEMENT").asString();
@@ -83,7 +112,7 @@ public class ChromeDriver implements Driver {
 
     @Override
     public void focus(String id) {
-
+        eval(DriverUtils.selectorScript(id) + ".focus()");
     }
 
     @Override
@@ -93,9 +122,8 @@ public class ChromeDriver implements Driver {
     }
 
     @Override
-    public void click(String name) {
-        String id = getElementId(name);
-        http.path("element", id, "click").post("{}");
+    public void click(String id) {
+        eval(DriverUtils.selectorScript(id) + ".click()");
     }
 
     @Override
@@ -111,6 +139,9 @@ public class ChromeDriver implements Driver {
     @Override
     public void stop() {
         http.delete();
+        if (command != null) {
+            command.interrupt();
+        }
     }
 
     @Override

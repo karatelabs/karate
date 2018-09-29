@@ -162,6 +162,10 @@ public class JsonUtils {
         sb.append("\"#ref:").append(o.getClass().getName()).append('"');
     }
 
+    public static String escapeValue(String raw) {
+        return JSONValue.escape(raw, JSONStyle.LT_COMPRESS);
+    }
+    
     private static void recursePretty(Object o, StringBuilder sb, int depth, Set<Object> seen) {
         if (o == null) {
             sb.append("null");
@@ -174,7 +178,7 @@ public class JsonUtils {
                     Map.Entry<String, Object> entry = iterator.next();
                     String key = entry.getKey();
                     pad(sb, depth + 1);
-                    sb.append('"').append(JSONValue.escape(key, JSONStyle.LT_COMPRESS)).append('"');
+                    sb.append('"').append(escapeValue(key)).append('"');
                     sb.append(':').append(' ');
                     recursePretty(entry.getValue(), sb, depth + 1, seen);
                     if (iterator.hasNext()) {
@@ -208,7 +212,7 @@ public class JsonUtils {
             }
         } else if (o instanceof String) {
             String value = (String) o;
-            sb.append('"').append(JSONValue.escape(value, JSONStyle.LT_COMPRESS)).append('"');
+            sb.append('"').append(escapeValue(value)).append('"');
         } else {
             sb.append(o);
         }

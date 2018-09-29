@@ -33,11 +33,11 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class DriverFactory {
+public class DriverUtils {
     
-    private static final Logger logger = LoggerFactory.getLogger(DriverFactory.class);
+    private static final Logger logger = LoggerFactory.getLogger(DriverUtils.class);
     
-    private DriverFactory() {
+    private DriverUtils() {
         // only static methods
     }
     
@@ -50,11 +50,19 @@ public class DriverFactory {
         if (type.equals("chrome")) {
             return Chrome.start(options);
         } else if (type.equals("chromedriver")) {
-            return new ChromeDriver(options);
+            return ChromeDriver.start(options);
         } else {
             logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
             return Chrome.start(options);
         }
     }
+    
+    public static String selectorScript(String id) {
+        if (id.startsWith("/")) {
+            return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
+        } else {
+            return "document.querySelector(\"" + id + "\")";
+        }
+    }    
     
 }

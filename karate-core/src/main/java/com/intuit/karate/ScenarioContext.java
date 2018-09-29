@@ -37,7 +37,7 @@ import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.web.Driver;
-import com.intuit.karate.web.DriverFactory;
+import com.intuit.karate.web.DriverUtils;
 import com.intuit.karate.web.chrome.Chrome;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -765,7 +765,7 @@ public class ScenarioContext {
     
     public void location(String expression) {        
         if (driver == null) {
-            driver = DriverFactory.construct(config.getDriverOptions());
+            driver = DriverUtils.construct(config.getDriverOptions());
             bindings.setDriver(driver);
         }
         String temp = Script.evalKarateExpression(expression, this).getAsString();
