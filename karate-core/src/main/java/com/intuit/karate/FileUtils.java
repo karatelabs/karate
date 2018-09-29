@@ -525,9 +525,28 @@ public class FileUtils {
         }
     }
     
+    public static enum Platform {
+        WINDOWS,
+        MAC,
+        UNIX,
+        UNKNOWN
+    }
+    
     public static boolean isWindows() {
-    	String os = System.getProperty("os.name", "");
-    	return os.toLowerCase().contains("windows");
+        return getPlatform() == Platform.WINDOWS;
+    }
+    
+    public static Platform getPlatform() {
+    	String os = System.getProperty("os.name", "").toLowerCase();
+    	if (os.contains("win")) {
+            return Platform.WINDOWS;
+        } else if (os.contains("mac")) {
+            return Platform.MAC;
+        } else if (os.contains("nix") || os.contains("nux")) {
+            return Platform.UNIX;
+        } else {
+            return Platform.UNKNOWN;
+        }        
     }
 
 }

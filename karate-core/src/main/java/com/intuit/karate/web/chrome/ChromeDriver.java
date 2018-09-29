@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.web.chrome;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.core.Engine;
@@ -39,15 +40,15 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class ChromeDriver implements Driver {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(ChromeDriver.class);
-    
+
     private final CommandThread command;
+    private final boolean headless;
     private final Http http;
     private final String sessionId;
     private final String windowId;
-    
-    
+
     public static ChromeDriver start(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
         if (port == null) {
@@ -72,29 +73,30 @@ public class ChromeDriver implements Driver {
         http.url(urlBase + "/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
         logger.debug("init window id: {}", windowId);
-        ChromeDriver driver = new ChromeDriver(command, http, sessionId, windowId);
+        ChromeDriver driver = new ChromeDriver(command, false, http, sessionId, windowId);
         driver.activate();
         return driver;
     }
-    
-    private ChromeDriver(CommandThread command, Http http, String sessionId, String windowId) {
+
+    private ChromeDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
         this.command = command;
+        this.headless = headless;
         this.http = http;
         this.sessionId = sessionId;
         this.windowId = windowId;
     }
-    
+
     private void eval(String expression) {
         String body = "{ script: \"" + JsonUtils.escapeValue(expression) + "\", args: [] }";
         http.path("execute", "sync").post(body);
     }
-    
+
     private String getElementId(String id) {
         String body;
         if (id.startsWith("/")) {
             body = "{ using: 'xpath', value: \"" + id + "\" }";
         } else {
-            body = "{ using: 'css selector', value: \"" + id  + "\" }";
+            body = "{ using: 'css selector', value: \"" + id + "\" }";
         }
         logger.debug("body: {}", body);
         return http.path("element").post(body).jsonPath("$.value.ELEMENT").asString();
@@ -107,7 +109,19 @@ public class ChromeDriver implements Driver {
 
     @Override
     public void activate() {
-        http.path("window").post("{ handle: '" + windowId + "' }");
+        if (!headless) {
+            try {
+                switch (FileUtils.getPlatform()) {
+                    case MAC:
+                        Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Chrome\" to activate"});
+                        break;
+                    default:
+
+                }
+            } catch (Exception e) {
+                logger.warn("native window switch failed: {}", e.getMessage());
+            }
+        }
     }
 
     @Override
