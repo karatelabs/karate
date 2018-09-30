@@ -70,19 +70,20 @@ import org.w3c.dom.NodeList;
  * @author pthomas3
  */
 public class Script {
-    
+
     private Script() {
         // only static methods
-    }    
+    }
 
     public static final String VAR_SELF = "_";
     public static final String VAR_ROOT = "$";
     public static final String VAR_PARENT = "_$";
     public static final String VAR_LOOP = "__loop";
     public static final String VAR_ARG = "__arg";
-    
+    public static final String VAR_HEADER = "header";
+
     public static final Map<String, Validator> VALIDATORS;
-    
+
     static {
         VALIDATORS = new HashMap(10);
         VALIDATORS.put("ignore", IgnoreValidator.INSTANCE);
@@ -94,9 +95,9 @@ public class Script {
         VALIDATORS.put("number", NumberValidator.INSTANCE);
         VALIDATORS.put("boolean", BooleanValidator.INSTANCE);
         VALIDATORS.put("array", ArrayValidator.INSTANCE);
-        VALIDATORS.put("object", ObjectValidator.INSTANCE);       
-    }    
-    
+        VALIDATORS.put("object", ObjectValidator.INSTANCE);
+    }
+
     public static final boolean isCallSyntax(String text) {
         return text.startsWith("call ");
     }
@@ -652,21 +653,24 @@ public class Script {
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
             name = name.substring(1);
         }
+        if (name.startsWith(ScriptBindings.DRIVER_DOT)) { // ui driver, don't proceed with jsonPath / xpath
+            ScriptValue actual = evalKarateExpression(name, context);
+            return matchScriptValue(matchType, actual, path, expected, context);
+        }
         path = StringUtils.trimToNull(path);
         if (path == null) {
             StringUtils.Pair pair = parseVariableAndPath(name);
             name = pair.left;
             path = pair.right;
         }
-        if ("header".equals(name)) { // convenience shortcut for asserting against response header
+        if (VAR_HEADER.equals(name)) { // convenience shortcut for asserting against response header
             return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
-        } else {
-            ScriptValue actual = context.vars.get(name);
-            if (actual == null) {
-                throw new RuntimeException("variable not initialized: " + name);
-            }
-            return matchScriptValue(matchType, actual, path, expected, context);
         }
+        ScriptValue actual = context.vars.get(name);
+        if (actual == null) {
+            throw new RuntimeException("variable not initialized: " + name);
+        }
+        return matchScriptValue(matchType, actual, path, expected, context);
     }
 
     public static AssertionResult matchScriptValue(MatchType matchType, ScriptValue actual, String path, String expected, ScenarioContext context) {

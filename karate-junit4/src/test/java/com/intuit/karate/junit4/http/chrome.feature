@@ -12,12 +12,10 @@ Scenario: try to login to github
   And input #login_field = 'hello'
   And input #password = 'world'
   When submit //input[@name='commit']
-  Then def html = driver.html('#js-flash-container')
-  And match html contains 'Incorrect username or password.'
+  And match driver.html('#js-flash-container') contains 'Incorrect username or password.'
   
   Given location 'https://google.com'
   And input //input[@name='q'] = 'karate dsl'
   When submit //input[@name='btnI']
-  Then def address = driver.location
-  And match address == 'https://github.com/intuit/karate'
+  And match driver.location == 'https://github.com/intuit/karate'
    
