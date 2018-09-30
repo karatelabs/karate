@@ -25,6 +25,7 @@ package com.intuit.karate.web;
 
 import com.intuit.karate.web.chrome.ChromeDevToolsDriver;
 import com.intuit.karate.web.chrome.ChromeWebDriver;
+import com.intuit.karate.web.edge.MicrosoftWebDriver;
 import com.intuit.karate.web.firefox.GeckoWebDriver;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -64,7 +65,9 @@ public class DriverUtils {
         } else if (type.equals("chromedriver")) {
             return ChromeWebDriver.start(options);
         } else if (type.equals("geckodriver")) {
-            return GeckoWebDriver.start(options);            
+            return GeckoWebDriver.start(options);
+        } else if (type.equals("mswebdriver")) {
+            return MicrosoftWebDriver.start(options);              
         } else {
             logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
             return ChromeDevToolsDriver.start(options);
