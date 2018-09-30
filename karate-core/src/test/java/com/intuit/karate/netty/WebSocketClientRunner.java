@@ -15,12 +15,12 @@ public class WebSocketClientRunner implements WebSocketListener {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketClientRunner.class);
     
     @Override
-    public void onTextMessage(String text) {
+    public void onMessage(String text) {
         logger.debug("*** {}", text);
     }
 
     @Override
-    public void onBinaryMessage(byte[] bytes) {
+    public void onMessage(byte[] bytes) {
         logger.debug("*** binary {}", FileUtils.toString(bytes));
     }    
     

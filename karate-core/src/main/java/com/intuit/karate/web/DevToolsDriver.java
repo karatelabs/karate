@@ -21,45 +21,33 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.web.chrome;
+package com.intuit.karate.web;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.core.Engine;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
-import com.intuit.karate.web.Driver;
-import com.intuit.karate.web.DriverUtils;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * chrome devtools protocol - the "preferred" driver: https://chromedevtools.github.io/devtools-protocol/
  * 
  * @author pthomas3
  */
-public class Chrome implements Driver, WebSocketListener {
+public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(Chrome.class);
-
-    public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-    public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+    protected static final Logger logger = LoggerFactory.getLogger(DevToolsDriver.class);
 
     private final CommandThread command;
     protected final WebSocketClient client;
 
-    private final WaitState waitState = new WaitState();
+    private final WaitState waitState;
 
     private final String pageId;
     private final boolean headless;
+    private final long timeOut;
 
     private String currentUrl;
 
@@ -69,44 +57,11 @@ public class Chrome implements Driver, WebSocketListener {
         return nextId++;
     }
 
-    public static Chrome start(Map<String, Object> options) {
-        Integer port = (Integer) options.get("port");
-        if (port == null) {
-            port = 9222;
-        }
-        String executable = (String) options.get("executable");
-        if (executable == null) {
-            executable = FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC;
-        }
-        String uniqueName = System.currentTimeMillis() + "";
-        File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
-        List<String> args = Arrays.asList(executable,
-                "--remote-debugging-port=" + port,
-                "--no-first-run",
-                "--user-data-dir=" + profileDir.getAbsolutePath());
-        Boolean headless = (Boolean) options.get("headless");
-        if (headless == null) {
-            headless = false;
-        }
-        if (headless) {
-            args = new ArrayList(args);
-            args.add("--headless");
-        }
-        String logFile = profileDir.getPath() + File.separator + "karate.log";
-        CommandThread command = new CommandThread(Chrome.class, logFile, profileDir, args.toArray(new String[]{}));
-        command.start();
-        Http http = Http.forUrl("http://localhost:" + port);
-        String webSocketUrl = http.path("json").get()
-                .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
-        Chrome chrome = new Chrome(command, webSocketUrl, headless);
-        chrome.activate();
-        chrome.enablePageEvents();
-        return chrome;
-    }
-
-    private Chrome(CommandThread command, String webSocketUrl, boolean headless) {
+    protected DevToolsDriver(CommandThread command, String webSocketUrl, boolean headless, long timeOut) {
         this.command = command;
         this.headless = headless;
+        this.timeOut = timeOut;
+        this.waitState = new WaitState(timeOut);
         int pos = webSocketUrl.lastIndexOf('/');
         pageId = webSocketUrl.substring(pos + 1);
         logger.debug("page id: {}", pageId);
@@ -117,48 +72,48 @@ public class Chrome implements Driver, WebSocketListener {
         return command.waitSync();
     }
 
-    public ChromeMessage method(String method) {
-        return new ChromeMessage(this, method);
+    public DevToolsMessage method(String method) {
+        return new DevToolsMessage(this, method);
     }
 
-    public ChromeMessage sendAndWait(String text) {
+    public DevToolsMessage sendAndWait(String text) {
         Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
-        ChromeMessage cm = new ChromeMessage(this, map);
+        DevToolsMessage cm = new DevToolsMessage(this, map);
         if (cm.getId() == null) {
             cm.setId(getNextId());
         }
         return sendAndWait(cm, null);
     }
 
-    public ChromeMessage sendAndWait(ChromeMessage cm, Predicate<ChromeMessage> condition) {
+    public DevToolsMessage sendAndWait(DevToolsMessage cm, Predicate<DevToolsMessage> condition) {
         String json = JsonUtils.toJson(cm.toMap());
         client.send(json);
         logger.debug(">> sent: {}", cm);
         return waitState.sendAndWait(cm, condition);
     }
 
-    public void receive(ChromeMessage cm) {
+    public void receive(DevToolsMessage cm) {
         waitState.receive(cm);
     }
 
     @Override
-    public void onTextMessage(String text) {
+    public void onMessage(String text) {
         logger.debug("received raw: {}", text);
         Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
-        ChromeMessage cm = new ChromeMessage(this, map);
+        DevToolsMessage cm = new DevToolsMessage(this, map);
         receive(cm);
     }
 
     @Override
-    public void onBinaryMessage(byte[] bytes) {
+    public void onMessage(byte[] bytes) {
         logger.warn("ignoring binary message");
     }
 
     //==========================================================================
     
-    private ChromeMessage eval(String expression, Predicate<ChromeMessage> condition) {
+    private DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
-        ChromeMessage cm;
+        DevToolsMessage cm;
         do {
             cm = method("Runtime.evaluate").param("expression", expression).send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
@@ -188,7 +143,7 @@ public class Chrome implements Driver, WebSocketListener {
 
     @Override
     public void location(String url) {
-        ChromeMessage cm = method("Page.navigate").param("url", url).send(WaitState.FRAME_NAVIGATED);
+        DevToolsMessage cm = method("Page.navigate").param("url", url).send(WaitState.FRAME_NAVIGATED);
         currentUrl = cm.getFrameUrl();
     }
 
@@ -199,7 +154,7 @@ public class Chrome implements Driver, WebSocketListener {
 
     @Override
     public void submit(String id) {
-        ChromeMessage cm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.FRAME_NAVIGATED);
+        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.FRAME_NAVIGATED);
         currentUrl = cm.getFrameUrl();
     }
 
@@ -218,13 +173,13 @@ public class Chrome implements Driver, WebSocketListener {
 
     @Override
     public String text(String id) {
-        ChromeMessage cm = eval(DriverUtils.selectorScript(id) + ".textContent", null);
+        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".textContent", null);
         return cm.getResultValueAsString();
     }
 
     @Override
     public String html(String id) {
-        ChromeMessage cm = eval(DriverUtils.selectorScript(id) + ".innerHTML", null);
+        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".innerHTML", null);
         return cm.getResultValueAsString();
     }
 

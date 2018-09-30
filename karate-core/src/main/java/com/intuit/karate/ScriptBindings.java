@@ -65,7 +65,7 @@ public class ScriptBindings implements Bindings {
     private static final String KARATE_BASE_JS = KARATE_DASH_BASE + DOT_JS;
     public static final String READ = "read";
     public static final String DRIVER = "driver";
-    public static final String DRIVER_DOT = "driver.";
+    public static final String DRIVER_DOT = DRIVER + ".";
     
     // netty / test-doubles
     public static final String PATH_MATCHES = "pathMatches";

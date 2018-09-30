@@ -29,8 +29,8 @@ package com.intuit.karate.netty;
  */
 public interface WebSocketListener {
     
-    void onTextMessage(String text);
+    void onMessage(String text);
     
-    void onBinaryMessage(byte[] bytes);
+    void onMessage(byte[] bytes);
     
 }

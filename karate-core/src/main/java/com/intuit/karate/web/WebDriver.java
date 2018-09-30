@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.web.chrome;
+package com.intuit.karate.web;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
@@ -39,9 +39,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class ChromeDriver implements Driver {
+public abstract class WebDriver implements Driver {
 
-    private static final Logger logger = LoggerFactory.getLogger(ChromeDriver.class);
+    protected static final Logger logger = LoggerFactory.getLogger(WebDriver.class);
 
     private final CommandThread command;
     private final boolean headless;
@@ -49,36 +49,7 @@ public class ChromeDriver implements Driver {
     private final String sessionId;
     private final String windowId;
 
-    public static ChromeDriver start(Map<String, Object> options) {
-        Integer port = (Integer) options.get("port");
-        if (port == null) {
-            port = 9515;
-        }
-        String executable = (String) options.get("executable");
-        CommandThread command;
-        if (executable != null) {
-            String targetDir = Engine.getBuildDir() + File.separator;
-            String logFile = targetDir + "chromedriver.log";
-            command = new CommandThread(ChromeDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
-            command.start();
-        } else {
-            command = null;
-        }
-        String urlBase = "http://localhost:" + port;
-        Http http = Http.forUrl(urlBase);
-        String sessionId = http.path("session")
-                .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
-                .jsonPath("get[0] response..sessionId").asString();
-        logger.debug("init session id: {}", sessionId);
-        http.url(urlBase + "/session/" + sessionId);
-        String windowId = http.path("window").get().jsonPath("$.value").asString();
-        logger.debug("init window id: {}", windowId);
-        ChromeDriver driver = new ChromeDriver(command, false, http, sessionId, windowId);
-        driver.activate();
-        return driver;
-    }
-
-    private ChromeDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
+    protected WebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
         this.command = command;
         this.headless = headless;
         this.http = http;

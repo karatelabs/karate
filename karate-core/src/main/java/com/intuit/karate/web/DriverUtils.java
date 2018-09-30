@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.web;
 
-import com.intuit.karate.web.chrome.Chrome;
-import com.intuit.karate.web.chrome.ChromeDriver;
+import com.intuit.karate.web.chrome.ChromeDevToolsDriver;
+import com.intuit.karate.web.chrome.ChromeWebDriver;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +41,17 @@ public class DriverUtils {
         // only static methods
     }
     
+    public static final long TIME_OUT_DEFAULT = 30 * 1000; // 30 seconds
+    
+    public static long getTimeOut(Map<String, Object> options) {
+        Object temp = options.get("timeOut");
+        if (temp == null) {
+            return DriverUtils.TIME_OUT_DEFAULT;
+        } else {
+            return Long.valueOf(temp.toString());
+        }        
+    }
+    
     public static Driver construct(Map<String, Object> options) {
         String type = (String) options.get("type");
         if (type == null) {
@@ -48,12 +59,12 @@ public class DriverUtils {
             type = "chrome";
         }
         if (type.equals("chrome")) {
-            return Chrome.start(options);
+            return ChromeDevToolsDriver.start(options);
         } else if (type.equals("chromedriver")) {
-            return ChromeDriver.start(options);
+            return ChromeWebDriver.start(options);
         } else {
             logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-            return Chrome.start(options);
+            return ChromeDevToolsDriver.start(options);
         }
     }
     

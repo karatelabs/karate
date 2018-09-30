@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.web.chrome;
+package com.intuit.karate.web;
 
 import com.intuit.karate.ScriptValue;
 import java.util.HashMap;
@@ -33,9 +33,9 @@ import java.util.function.Predicate;
  *
  * @author pthomas3
  */
-public class ChromeMessage {
+public class DevToolsMessage {
 
-    private final Chrome chrome;
+    private final DevToolsDriver driver;
 
     private Integer id;
     private final String method;
@@ -97,14 +97,14 @@ public class ChromeMessage {
         this.result = result;
     }
 
-    public ChromeMessage(Chrome chrome, String method) {
-        this.chrome = chrome;
-        id = chrome.getNextId();
+    public DevToolsMessage(DevToolsDriver driver, String method) {
+        this.driver = driver;
+        id = driver.getNextId();
         this.method = method;
     }
 
-    public ChromeMessage(Chrome chrome, Map<String, Object> map) {
-        this.chrome = chrome;
+    public DevToolsMessage(DevToolsDriver driver, Map<String, Object> map) {
+        this.driver = driver;
         id = (Integer) map.get("id");
         method = (String) map.get("method");
         params = (Map) map.get("params");
@@ -116,7 +116,7 @@ public class ChromeMessage {
         }
     }
 
-    public ChromeMessage param(String key, Object value) {
+    public DevToolsMessage param(String key, Object value) {
         if (params == null) {
             params = new LinkedHashMap();
         }
@@ -137,12 +137,12 @@ public class ChromeMessage {
         return map;
     }
 
-    public ChromeMessage send() {
+    public DevToolsMessage send() {
         return send(null);
     }
 
-    public ChromeMessage send(Predicate<ChromeMessage> condition) {
-        return chrome.sendAndWait(this, condition);
+    public DevToolsMessage send(Predicate<DevToolsMessage> condition) {
+        return driver.sendAndWait(this, condition);
     }
 
     @Override

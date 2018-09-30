@@ -168,7 +168,7 @@ public class FileUtils {
         }
     }
 
-    private static String readFileAsString(String path, ScenarioContext context) {
+    public static String readFileAsString(String path, ScenarioContext context) {
         try {
             InputStream is = getFileStream(path, context);
             return toString(is);

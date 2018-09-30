@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.web.chrome;
+package com.intuit.karate.web;
 
 import java.util.function.Predicate;
 import org.slf4j.Logger;
@@ -34,14 +34,17 @@ import org.slf4j.LoggerFactory;
 public class WaitState {
 
     private static final Logger logger = LoggerFactory.getLogger(WaitState.class);
+    
+    private final long timeOut;
 
-    private ChromeMessage lastSent;
-    private Predicate<ChromeMessage> condition;
-    private ChromeMessage lastReceived;
+    private DevToolsMessage lastSent;
+    private Predicate<DevToolsMessage> condition;
+    private DevToolsMessage lastReceived;
+    private boolean conditionMatched;
 
-    private final Predicate<ChromeMessage> DEFAULT = cm -> lastSent.getId().equals(cm.getId()) && cm.getResult() != null;
+    private final Predicate<DevToolsMessage> DEFAULT = cm -> lastSent.getId().equals(cm.getId()) && cm.getResult() != null;
 
-    public static final Predicate<ChromeMessage> FRAME_NAVIGATED = cm -> {
+    public static final Predicate<DevToolsMessage> FRAME_NAVIGATED = cm -> {
         if ("Page.frameNavigated".equals(cm.getMethod())) {
             if (cm.getFrameUrl().startsWith("http")) {
                 return true;
@@ -49,8 +52,12 @@ public class WaitState {
         }
         return false;
     };
+    
+    public WaitState(long timeOut) {
+        this.timeOut = timeOut;
+    }
 
-    public ChromeMessage sendAndWait(ChromeMessage cm, Predicate<ChromeMessage> condition) {
+    public DevToolsMessage sendAndWait(DevToolsMessage cm, Predicate<DevToolsMessage> condition) {
         lastReceived = null;
         lastSent = cm;
         this.condition = condition == null ? DEFAULT : condition;
@@ -58,23 +65,29 @@ public class WaitState {
             synchronized (this) {
                 logger.debug(">> wait: {}", cm);
                 try {
-                    wait();
+                    wait(timeOut);
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    logger.error("interrupted: {} wait: {}", e.getMessage(), cm);
                 }
             }
         }
-        logger.debug("<< notified: {}", cm);
+        if (conditionMatched) {
+            logger.debug("<< notified: {}", cm);
+        } else {
+            logger.warn("<< timed out: {}", cm);
+        }        
         return lastReceived;
     }
 
-    public void receive(ChromeMessage cm) {
+    public void receive(DevToolsMessage cm) {
         lastReceived = cm;
         synchronized (this) {
             if (condition.test(cm)) {
                 logger.debug("<< notify: {}", cm);
+                conditionMatched = true;
                 notify();
             } else {
+                conditionMatched = false;
                 logger.debug("<< ignore: {}", cm);
             }
         }

@@ -101,7 +101,7 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
         if (frame instanceof TextWebSocketFrame) {
             logger.debug("websocket received text");
             TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
-            listener.onTextMessage(textFrame.text());
+            listener.onMessage(textFrame.text());
         } else if (frame instanceof PongWebSocketFrame) {
             logger.debug("websocket received pong");
         } else if (frame instanceof CloseWebSocketFrame) {
@@ -113,7 +113,7 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
             ByteBuf buf = binaryFrame.content();
             byte[] bytes = new byte[buf.readableBytes()];
             buf.readBytes(bytes);            
-            listener.onBinaryMessage(bytes);
+            listener.onMessage(bytes);
         }
     }
 

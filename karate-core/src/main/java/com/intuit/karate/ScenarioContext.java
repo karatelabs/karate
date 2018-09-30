@@ -38,7 +38,7 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.web.Driver;
 import com.intuit.karate.web.DriverUtils;
-import com.intuit.karate.web.chrome.Chrome;
+import com.intuit.karate.web.DevToolsDriver;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.Charset;

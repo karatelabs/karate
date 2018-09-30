@@ -30,7 +30,7 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
-import com.intuit.karate.web.chrome.Chrome;
+import com.intuit.karate.web.DevToolsDriver;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
@@ -71,6 +71,10 @@ public class ScriptBridge implements PerfContext {
         // json should behave like json within js / function
         return sv.isJsonLike() ? sv.getAfterConvertingFromJsonOrXmlIfNeeded() : sv.getValue();
     }
+    
+    public String readAsString(String fileName) {
+        return FileUtils.readFileAsString(fileName, context);
+    }    
     
     public String pretty(Object o) {
         ScriptValue sv = new ScriptValue(o);
