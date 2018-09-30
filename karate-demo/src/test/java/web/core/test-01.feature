@@ -12,13 +12,13 @@ Scenario: dom operations, validations and navigation
   Given location webUrlBase + '/page-01'
   And input #eg01InputId = 'hello world'
   When click input[name=eg01SubmitName]
-  And match driver.text('#eg01DivId') == 'hello world'
+  Then match driver.text('#eg01DivId') == 'hello world'
   And match driver.value('#eg01InputId') == 'hello world'
   And match driver.title == 'Page One'
   And match driver.location == webUrlBase + '/page-01'
 
-  Given location webUrlBase + '/page-02'
-  And match driver.text('.eg01Cls') == 'Class Locator Test'
+  When location webUrlBase + '/page-02'
+  Then match driver.text('.eg01Cls') == 'Class Locator Test'
   And match driver.html('.eg01Cls') == '<span>Class Locator Test</span>'
   And match driver.title == 'Page Two'
   And match driver.location == webUrlBase + '/page-02'

@@ -2,7 +2,7 @@
 Feature: browser automation
 
 Background:
-  # * configure driver = { type: 'chrome', executable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
+  * configure driver = { type: 'chrome', executable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
   # * configure driver = { type: 'chromedriver', port: 9515, executable: '/Users/pthomas3/dev/webdriver/chromedriver' }
   # * configure driver = { type: 'geckodriver', port: 4444, executable: '/Users/pthomas3/dev/webdriver/geckodriver' }
   # * configure driver = { type: 'mswebdriver', port: 17556, executable: 'C:/Users/pthomas3/Downloads/MicrosoftWebDriver.exe' }
@@ -14,10 +14,10 @@ Scenario: try to login to github
   And input #login_field = 'hello'
   And input #password = 'world'
   When submit //input[@name='commit']
-  And match driver.html('#js-flash-container') contains 'Incorrect username or password.'
+  Then match driver.html('#js-flash-container') contains 'Incorrect username or password.'
   
   Given location 'https://google.com'
   And input //input[@name='q'] = 'karate dsl'
   When submit //input[@name='btnI']
-  And match driver.location == 'https://github.com/intuit/karate'
+  Then match driver.location == 'https://github.com/intuit/karate'
    
