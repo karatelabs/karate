@@ -68,11 +68,21 @@ public class MicrosoftWebDriver extends WebDriver {
         MicrosoftWebDriver driver = new MicrosoftWebDriver(command, false, http, sessionId, windowId);
         driver.activate();
         return driver;
-    }    
+    }
+
+    @Override
+    protected String getJsonForInput(String text) {
+        return "{ keysToSend: [\"" + text + "\"] }";
+    }
+
+    @Override
+    protected String getPathForProperty() {
+        return "attribute";
+    }
 
     @Override
     public void activate() {
-        
+        logger.warn("activate not implemented for mswebdriver");
     }
     
 }
