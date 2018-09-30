@@ -53,6 +53,8 @@ public interface Driver {
     
     String value(String id);
     
+    void waitForEvalTrue(String expression);
+    
     // javabean naming convention is intentional ===============================
     
     String getLocation(); 

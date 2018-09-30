@@ -190,6 +190,11 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     }        
 
     @Override
+    public void waitForEvalTrue(String expression) {
+        // TODO
+    }        
+
+    @Override
     public String getTitle() {
         DevToolsMessage cm = eval("document.title", null);
         return cm.getResultValueAsString();

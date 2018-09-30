@@ -23,15 +23,10 @@
  */
 package com.intuit.karate.web;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
-import com.intuit.karate.web.Driver;
-import com.intuit.karate.web.DriverUtils;
-import java.io.File;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,19 +52,35 @@ public abstract class WebDriver implements Driver {
         this.windowId = windowId;
     }
 
-    private void eval(String expression) {
+    private ScriptValue eval(String expression) {
         String body = "{ script: \"" + JsonUtils.escapeValue(expression) + "\", args: [] }";
-        http.path("execute", "sync").post(body);
+        return http.path("execute", "sync").post(body).jsonPath("$.value").value();
     }
-    
+
+    private void sleep(int millis) {
+        if (millis == 0) {
+            return;
+        }
+        try {
+            logger.debug("sleeping for millis: {}", millis);
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected int getWaitInterval() {
+        return 0;
+    }
+
     protected String getJsonPathForElementId() {
         return "get[0] $..element-6066-11e4-a52e-4f735466cecf";
     }
-    
+
     protected String getJsonForInput(String text) {
         return "{ text: '" + text + "' }";
     }
-    
+
     protected String getPathForProperty() {
         return "property";
     }
@@ -109,6 +120,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void submit(String name) {
         click(name);
+        waitForEvalTrue("return document.readyState == 'complete'");
     }
 
     @Override
@@ -121,7 +133,7 @@ public abstract class WebDriver implements Driver {
         http.delete();
         if (command != null) {
             command.interrupt();
-        }        
+        }
     }
 
     @Override
@@ -145,11 +157,21 @@ public abstract class WebDriver implements Driver {
     public String value(String locator) {
         String id = getElementId(locator);
         return http.path("element", id, getPathForProperty(), "value").get().jsonPath("$.value").asString();
-    }        
+    }
+
+    @Override
+    public void waitForEvalTrue(String expression) {
+        int count = 0;
+        ScriptValue sv;
+        do {
+            sleep(getWaitInterval());
+            sv = eval(expression);
+        } while (!sv.isBooleanTrue() && count++ < 3);
+    }
 
     @Override
     public String getTitle() {
         return http.path("title").get().jsonPath("$.value").asString();
-    }        
+    }
 
 }

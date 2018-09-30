@@ -36,11 +36,11 @@ import java.util.Map;
  * @author pthomas3
  */
 public class MicrosoftWebDriver extends WebDriver {
-    
+
     public MicrosoftWebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
         super(command, headless, http, sessionId, windowId);
-    }    
-    
+    }
+
     public static MicrosoftWebDriver start(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
         if (port == null) {
@@ -84,5 +84,10 @@ public class MicrosoftWebDriver extends WebDriver {
     public void activate() {
         logger.warn("activate not implemented for mswebdriver");
     }
-    
+
+    @Override
+    protected int getWaitInterval() {
+        return 1000;
+    }
+
 }

@@ -117,6 +117,14 @@ public class Match {
         return this;
     }
     
+    public ScriptValue value() {
+        return prevValue;
+    }
+    
+    public boolean isBooleanTrue() {
+        return prevValue.isBooleanTrue();
+    }
+    
     public String asString() {
         return prevValue.getAsString();
     }
