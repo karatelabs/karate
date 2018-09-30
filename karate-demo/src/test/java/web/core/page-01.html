@@ -1,23 +1,17 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <title>Page One</title>
+    <script src="karate.js"></script>
+  </head>
+  <body>
+    <div id="eg01">
+      <input name="eg01InputName" id="eg01InputId" type="text" />
+      <input name="eg01SubmitName" id="eg01SubmitId" type="submit" onclick="karate.setHtml('eg01DivId', karate.get('eg01InputId').value)" />
+      <div id="eg01DivId"></div>
+    </div>
+    <div id="eg02">
 
-<head>
-  <title>Page One</title>
-  <script src="karate.js"></script>
-</head>
-
-<body>
-
-  <div id="eg01">
-    <input name="eg01InputName" id="eg01InputId" type="text" />
-    <input name="eg01SubmitName" id="eg01SubmitId" type="submit" onclick="karate.setHtml('eg01DivId', karate.get('eg01InputId').value)" />
-    <div id="eg01DivId"></div>
-  </div>
-
-  <div id="eg02">
-
-  </div>
-
-</body>
-
+    </div>
+  </body>
 </html>

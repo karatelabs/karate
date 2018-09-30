@@ -45,12 +45,18 @@ public interface Driver {
     
     void close();
     
-    void stop();
-    
-    String getLocation(); // javabean naming convention is intentional
+    void stop();        
     
     String html(String id);
     
     String text(String id);
+    
+    String value(String id);
+    
+    // javabean naming convention is intentional ===============================
+    
+    String getLocation(); 
+    
+    String getTitle();
     
 }

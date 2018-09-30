@@ -184,6 +184,18 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     }
 
     @Override
+    public String value(String id) {
+        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".value", null);
+        return cm.getResultValueAsString();
+    }        
+
+    @Override
+    public String getTitle() {
+        DevToolsMessage cm = eval("document.title", null);
+        return cm.getResultValueAsString();
+    }        
+
+    @Override
     public String getLocation() {
         return currentUrl;
     }

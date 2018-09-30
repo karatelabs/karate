@@ -146,4 +146,15 @@ public abstract class WebDriver implements Driver {
         return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }
 
+    @Override
+    public String value(String locator) {
+        String id = getElementId(locator);
+        return http.path("element", id, "attribute", "value").get().jsonPath("$.value").asString();
+    }        
+
+    @Override
+    public String getTitle() {
+        return http.path("title").get().jsonPath("$.value").asString();
+    }        
+
 }
