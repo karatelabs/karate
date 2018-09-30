@@ -101,7 +101,8 @@ public class CommandThread extends Thread {
         } catch (Exception e) {
             System.err.println("thread stopping: " + e.getMessage());
         } finally {
-            appender.close();
+            process.destroy();
+            appender.close();            
             System.out.println("command complete: " + uniqueName);
         }
     }

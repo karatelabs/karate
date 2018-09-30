@@ -44,7 +44,7 @@ public abstract class WebDriver implements Driver {
     protected static final Logger logger = LoggerFactory.getLogger(WebDriver.class);
 
     private final CommandThread command;
-    private final boolean headless;
+    protected final boolean headless;
     private final Http http;
     private final String sessionId;
     private final String windowId;
@@ -61,6 +61,18 @@ public abstract class WebDriver implements Driver {
         String body = "{ script: \"" + JsonUtils.escapeValue(expression) + "\", args: [] }";
         http.path("execute", "sync").post(body);
     }
+    
+    protected String getJsonPathForElementId() {
+        return "get[0] $..element-6066-11e4-a52e-4f735466cecf";
+    }
+    
+    protected String getJsonForInput(String text) {
+        return "{ text: '" + text + "' }";
+    }
+    
+    protected String getPathForProperty() {
+        return "property";
+    }
 
     private String getElementId(String id) {
         String body;
@@ -70,29 +82,12 @@ public abstract class WebDriver implements Driver {
             body = "{ using: 'css selector', value: \"" + id + "\" }";
         }
         logger.debug("body: {}", body);
-        return http.path("element").post(body).jsonPath("$.value.ELEMENT").asString();
+        return http.path("element").post(body).jsonPath(getJsonPathForElementId()).asString();
     }
 
     @Override
     public void location(String url) {
         http.path("url").post("{ url: '" + url + "'}");
-    }
-
-    @Override
-    public void activate() {
-        if (!headless) {
-            try {
-                switch (FileUtils.getPlatform()) {
-                    case MAC:
-                        Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Chrome\" to activate"});
-                        break;
-                    default:
-
-                }
-            } catch (Exception e) {
-                logger.warn("native window switch failed: {}", e.getMessage());
-            }
-        }
     }
 
     @Override
@@ -103,7 +98,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void input(String name, String value) {
         String id = getElementId(name);
-        http.path("element", id, "value").post("{ value: ['" + value + "'] }");
+        http.path("element", id, "value").post(getJsonForInput(value));
     }
 
     @Override
@@ -126,7 +121,7 @@ public abstract class WebDriver implements Driver {
         http.delete();
         if (command != null) {
             command.interrupt();
-        }
+        }        
     }
 
     @Override
@@ -137,7 +132,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public String html(String locator) {
         String id = getElementId(locator);
-        return http.path("element", id, "attribute", "innerHTML").get().jsonPath("$.value").asString();
+        return http.path("element", id, getPathForProperty(), "innerHTML").get().jsonPath("$.value").asString();
     }
 
     @Override
@@ -149,7 +144,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public String value(String locator) {
         String id = getElementId(locator);
-        return http.path("element", id, "attribute", "value").get().jsonPath("$.value").asString();
+        return http.path("element", id, getPathForProperty(), "value").get().jsonPath("$.value").asString();
     }        
 
     @Override

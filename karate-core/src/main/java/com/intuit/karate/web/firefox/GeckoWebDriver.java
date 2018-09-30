@@ -21,13 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.web.chrome;
+package com.intuit.karate.web.firefox;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.web.WebDriver;
+import com.intuit.karate.web.chrome.ChromeWebDriver;
 import java.io.File;
 import java.util.Map;
 
@@ -35,22 +36,22 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class ChromeWebDriver extends WebDriver {
+public class GeckoWebDriver extends WebDriver {
 
-    public ChromeWebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
+    public GeckoWebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
         super(command, headless, http, sessionId, windowId);
     }
 
-    public static ChromeWebDriver start(Map<String, Object> options) {
+    public static GeckoWebDriver start(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
         if (port == null) {
-            port = 9515;
+            port = 4444;
         }
         String executable = (String) options.get("executable");
         CommandThread command;
         if (executable != null) {
             String targetDir = Engine.getBuildDir() + File.separator;
-            String logFile = targetDir + "chromedriver.log";
+            String logFile = targetDir + "geckodriver.log";
             command = new CommandThread(WebDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
             command.start();
         } else {
@@ -59,31 +60,16 @@ public class ChromeWebDriver extends WebDriver {
         String urlBase = "http://localhost:" + port;
         Http http = Http.forUrl(urlBase);
         String sessionId = http.path("session")
-                .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
+                .post("{ desiredCapabilities: { browserName: 'Firefox' } }")
                 .jsonPath("get[0] response..sessionId").asString();
         logger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
         logger.debug("init window id: {}", windowId);
-        ChromeWebDriver driver = new ChromeWebDriver(command, false, http, sessionId, windowId);
+        GeckoWebDriver driver = new GeckoWebDriver(command, false, http, sessionId, windowId);
         driver.activate();
         return driver;
     }
-
-    @Override
-    protected String getJsonPathForElementId() {
-        return "$.value.ELEMENT";
-    }
-
-    @Override
-    protected String getJsonForInput(String text) {
-        return "{ value: ['" + text + "'] }";
-    }
-
-    @Override
-    protected String getPathForProperty() {
-        return "attribute";
-    }        
 
     @Override
     public void activate() {
@@ -91,7 +77,7 @@ public class ChromeWebDriver extends WebDriver {
             try {
                 switch (FileUtils.getPlatform()) {
                     case MAC:
-                        Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Chrome\" to activate"});
+                        Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Firefox\" to activate"});
                         break;
                     default:
 
