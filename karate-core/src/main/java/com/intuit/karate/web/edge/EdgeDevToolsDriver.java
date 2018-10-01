@@ -73,8 +73,8 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
             command.start();
         }
         Http http = Http.forUrl("http://" + host + ":" + port);
-        String webSocketUrl = http.path("json").get()
-                .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
+        String webSocketUrl = http.path("json", "list").get()
+                .jsonPath("get[0] $[?(@.type=='Page')].webSocketDebuggerUrl").asString();
         Long timeOut = DriverUtils.getTimeOut(options);
         EdgeDevToolsDriver edge = new EdgeDevToolsDriver(command, webSocketUrl, headless, timeOut);
         edge.activate();

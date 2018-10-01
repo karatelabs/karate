@@ -5,7 +5,7 @@ Background:
   # * configure driver = { type: 'chromedriver', port: 9515, executable: '/Users/pthomas3/dev/webdriver/chromedriver' }
   # * configure driver = { type: 'geckodriver', port: 4444, executable: '/Users/pthomas3/dev/webdriver/geckodriver' }
   # * configure driver = { type: 'mswebdriver', port: 17556, executable: 'C:/Users/pthomas3/Downloads/MicrosoftWebDriver.exe' }
-  # * configure driver = { type: 'edge', timeout: 5000; host: 'VM1029D45382' }
+  # * configure driver = { type: 'edge', timeout: 5000 }
   * def webUrlBase = karate.properties['web.url.base']
 
 Scenario: dom operations, validations and navigation
