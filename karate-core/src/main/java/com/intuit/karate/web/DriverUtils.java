@@ -83,6 +83,18 @@ public class DriverUtils {
         } else {
             return "document.querySelector(\"" + id + "\")";
         }
-    }    
-    
+    }
+
+    public static void sleep(int millis) {
+        if (millis == 0) {
+            return;
+        }
+        try {
+            logger.debug("sleeping for millis: {}", millis);
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }

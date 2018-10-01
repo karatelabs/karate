@@ -57,18 +57,6 @@ public abstract class WebDriver implements Driver {
         return http.path("execute", "sync").post(body).jsonPath("$.value").value();
     }
 
-    private void sleep(int millis) {
-        if (millis == 0) {
-            return;
-        }
-        try {
-            logger.debug("sleeping for millis: {}", millis);
-            Thread.sleep(millis);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     protected int getWaitInterval() {
         return 0;
     }
@@ -164,7 +152,7 @@ public abstract class WebDriver implements Driver {
         int count = 0;
         ScriptValue sv;
         do {
-            sleep(getWaitInterval());
+            DriverUtils.sleep(getWaitInterval());
             sv = eval(expression);
         } while (!sv.isBooleanTrue() && count++ < 3);
     }

@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.web;
 
+import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
@@ -40,16 +42,17 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     protected static final Logger logger = LoggerFactory.getLogger(DevToolsDriver.class);
 
-    private final CommandThread command;
+    protected final CommandThread command;
+    protected final Http http;
     protected final WebSocketClient client;
 
     private final WaitState waitState;
 
     private final String pageId;
-    private final boolean headless;
+    protected final boolean headless;
     private final long timeOut;
 
-    private String currentUrl;
+    protected String currentUrl;
 
     private int nextId = 1;
 
@@ -57,8 +60,9 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
         return nextId++;
     }
 
-    protected DevToolsDriver(CommandThread command, String webSocketUrl, boolean headless, long timeOut) {
+    protected DevToolsDriver(CommandThread command, Http http, String webSocketUrl, boolean headless, long timeOut) {
         this.command = command;
+        this.http = http;
         this.headless = headless;
         this.timeOut = timeOut;
         this.waitState = new WaitState(timeOut);
@@ -110,14 +114,19 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     }
 
     //==========================================================================
+
+    protected int getWaitInterval() {
+        return 0;
+    }
     
-    private DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
+    protected DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
         DevToolsMessage cm;
         do {
+            logger.debug("eval try #{}", count + 1);
             cm = method("Runtime.evaluate").param("expression", expression).send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
-        } while (cm.isResultError() && count++ < 3);
+        } while (cm != null && cm.isResultError() && count++ < 3);
         return cm;
     }
 
@@ -145,7 +154,7 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     @Override
     public void location(String url) {
-        DevToolsMessage cm = method("Page.navigate").param("url", url).send(WaitState.FRAME_NAVIGATED);
+        DevToolsMessage cm = method("Page.navigate").param("url", url).send(WaitState.CHROME_FRAME_NAVIGATED);
         currentUrl = cm.getFrameUrl();
     }
 
@@ -156,7 +165,7 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     @Override
     public void submit(String id) {
-        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.FRAME_NAVIGATED);
+        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_FRAME_NAVIGATED);
         currentUrl = cm.getFrameUrl();
     }
 
@@ -176,30 +185,37 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     @Override
     public String text(String id) {
         DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".textContent", null);
-        return cm.getResultValueAsString();
+        return cm.getResult("value").getAsString();
     }
 
     @Override
     public String html(String id) {
         DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".innerHTML", null);
-        return cm.getResultValueAsString();
+        return cm.getResult("value").getAsString();
     }
 
     @Override
     public String value(String id) {
         DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".value", null);
-        return cm.getResultValueAsString();
-    }        
+        return cm.getResult("value").getAsString();
+    }
 
     @Override
     public void waitForEvalTrue(String expression) {
-        // TODO
+        int count = 0;
+        ScriptValue sv;
+        do {
+            DriverUtils.sleep(getWaitInterval());
+            logger.debug("poll try #{}", count + 1);
+            DevToolsMessage dtm = eval(expression, null);
+            sv = dtm.getResult("value");
+        } while (!sv.isBooleanTrue() && count++ < 3);
     }        
 
     @Override
     public String getTitle() {
         DevToolsMessage cm = eval("document.title", null);
-        return cm.getResultValueAsString();
+        return cm.getResult("value").getAsString();
     }        
 
     @Override

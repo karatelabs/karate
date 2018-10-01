@@ -27,7 +27,10 @@ import com.intuit.karate.Http;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.web.DevToolsDriver;
+import com.intuit.karate.web.DevToolsMessage;
 import com.intuit.karate.web.DriverUtils;
+import com.intuit.karate.web.WaitState;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,8 +43,8 @@ import java.util.Map;
  */
 public class EdgeDevToolsDriver extends DevToolsDriver {
 
-    public EdgeDevToolsDriver(CommandThread command, String webSocketUrl, boolean headless, long timeOut) {
-        super(command, webSocketUrl, headless, timeOut);
+    public EdgeDevToolsDriver(CommandThread command, Http http, String webSocketUrl, boolean headless, long timeOut) {
+        super(command, http, webSocketUrl, headless, timeOut);
     }
 
     public static EdgeDevToolsDriver start(Map<String, Object> options) {
@@ -57,15 +60,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         String uniqueName = System.currentTimeMillis() + "";
         File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
         List<String> args = Arrays.asList(executable,
-                "--devtools-server-port", port + "");
-        Boolean headless = (Boolean) options.get("headless");
-        if (headless == null) {
-            headless = false;
-        }
-        if (headless) {
-            args = new ArrayList(args);
-            args.add("--headless");
-        }
+                "--devtools-server-port", port + "", "about:blank");
         String logFile = profileDir.getPath() + File.separator + "karate.log";
         CommandThread command = null;
         if (executable != null) {
@@ -76,10 +71,45 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         String webSocketUrl = http.path("json", "list").get()
                 .jsonPath("get[0] $[?(@.type=='Page')].webSocketDebuggerUrl").asString();
         Long timeOut = DriverUtils.getTimeOut(options);
-        EdgeDevToolsDriver edge = new EdgeDevToolsDriver(command, webSocketUrl, headless, timeOut);
-        edge.activate();
+        EdgeDevToolsDriver edge = new EdgeDevToolsDriver(command, http, webSocketUrl, false, timeOut);
+        // edge.activate(); // not supported
         edge.enablePageEvents();
         return edge;
     }
 
+    @Override
+    public void activate() {
+        // not supported apparently
+    }
+
+    @Override
+    protected int getWaitInterval() {
+        return 1000;
+    }
+
+    @Override
+    public void location(String url) {
+        DevToolsMessage dtm = method("Page.navigate").param("url", url).send();
+        waitForEvalTrue("document.readyState=='complete'");
+        currentUrl = url;
+    }
+
+    @Override
+    public void input(String id, String value) {
+        eval(DriverUtils.selectorScript(id) + ".value = \"" + value + "\"", null);
+    }
+
+    @Override
+    public void close() {
+        // eval("window.close()", null); // this brings up an alert
+    }
+
+    @Override
+    public void stop() {
+        close();
+        if (command != null) {
+            // TODO this does not work because the command never blocks on windows
+            command.interrupt();
+        }
+    }
 }

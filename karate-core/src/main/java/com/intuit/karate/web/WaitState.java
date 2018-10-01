@@ -40,11 +40,10 @@ public class WaitState {
     private DevToolsMessage lastSent;
     private Predicate<DevToolsMessage> condition;
     private DevToolsMessage lastReceived;
-    private boolean conditionMatched;
 
     private final Predicate<DevToolsMessage> DEFAULT = cm -> lastSent.getId().equals(cm.getId()) && cm.getResult() != null;
 
-    public static final Predicate<DevToolsMessage> FRAME_NAVIGATED = cm -> {
+    public static final Predicate<DevToolsMessage> CHROME_FRAME_NAVIGATED = cm -> {
         if ("Page.frameNavigated".equals(cm.getMethod())) {
             if (cm.getFrameUrl().startsWith("http")) {
                 return true;
@@ -61,17 +60,15 @@ public class WaitState {
         lastReceived = null;
         lastSent = cm;
         this.condition = condition == null ? DEFAULT : condition;
-        while (lastReceived == null) {
-            synchronized (this) {
-                logger.debug(">> wait: {}", cm);
-                try {
-                    wait(timeOut);
-                } catch (InterruptedException e) {
-                    logger.error("interrupted: {} wait: {}", e.getMessage(), cm);
-                }
+        synchronized (this) {
+            logger.debug(">> wait: {}", cm);
+            try {
+                wait(timeOut);
+            } catch (InterruptedException e) {
+                logger.error("interrupted: {} wait: {}", e.getMessage(), cm);
             }
         }
-        if (conditionMatched) {
+        if (lastReceived != null) {
             logger.debug("<< notified: {}", cm);
         } else {
             logger.warn("<< timed out: {}", cm);
@@ -80,14 +77,12 @@ public class WaitState {
     }
 
     public void receive(DevToolsMessage cm) {
-        lastReceived = cm;
         synchronized (this) {
             if (condition.test(cm)) {
                 logger.debug("<< notify: {}", cm);
-                conditionMatched = true;
+                lastReceived = cm;
                 notify();
             } else {
-                conditionMatched = false;
                 logger.debug("<< ignore: {}", cm);
             }
         }

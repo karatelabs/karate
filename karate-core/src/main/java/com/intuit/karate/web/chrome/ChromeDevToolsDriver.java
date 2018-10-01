@@ -46,8 +46,8 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";    
     
-    public ChromeDevToolsDriver(CommandThread command, String webSocketUrl, boolean headless, long timeOut) {
-        super(command, webSocketUrl, headless, timeOut);
+    public ChromeDevToolsDriver(CommandThread command, Http http, String webSocketUrl, boolean headless, long timeOut) {
+        super(command, http, webSocketUrl, headless, timeOut);
     }
     
     public static ChromeDevToolsDriver start(Map<String, Object> options) {
@@ -80,7 +80,7 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
         String webSocketUrl = http.path("json").get()
                 .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
         Long timeOut = DriverUtils.getTimeOut(options);
-        ChromeDevToolsDriver chrome = new ChromeDevToolsDriver(command, webSocketUrl, headless, timeOut);
+        ChromeDevToolsDriver chrome = new ChromeDevToolsDriver(command, http, webSocketUrl, headless, timeOut);
         chrome.activate();
         chrome.enablePageEvents();
         return chrome;

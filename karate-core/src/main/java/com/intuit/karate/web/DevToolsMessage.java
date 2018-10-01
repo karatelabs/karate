@@ -85,12 +85,11 @@ public class DevToolsMessage {
         return "error".equals(error);
     }
 
-    public String getResultValueAsString() {
+    public ScriptValue getResult(String key) {
         if (result == null) {
             return null;
         }
-        ScriptValue sv = new ScriptValue(result.get("value"));
-        return sv.getAsString();
+        return new ScriptValue(result.get(key));
     }
 
     public void setResult(Map<String, Object> result) {
