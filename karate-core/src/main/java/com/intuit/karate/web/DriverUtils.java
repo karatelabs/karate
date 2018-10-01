@@ -25,6 +25,7 @@ package com.intuit.karate.web;
 
 import com.intuit.karate.web.chrome.ChromeDevToolsDriver;
 import com.intuit.karate.web.chrome.ChromeWebDriver;
+import com.intuit.karate.web.edge.EdgeDevToolsDriver;
 import com.intuit.karate.web.edge.MicrosoftWebDriver;
 import com.intuit.karate.web.firefox.GeckoWebDriver;
 import java.util.Map;
@@ -46,7 +47,7 @@ public class DriverUtils {
     public static final long TIME_OUT_DEFAULT = 30 * 1000; // 30 seconds
     
     public static long getTimeOut(Map<String, Object> options) {
-        Object temp = options.get("timeOut");
+        Object temp = options.get("timeout");
         if (temp == null) {
             return DriverUtils.TIME_OUT_DEFAULT;
         } else {
@@ -62,6 +63,8 @@ public class DriverUtils {
         }
         if (type.equals("chrome")) {
             return ChromeDevToolsDriver.start(options);
+        } else if (type.equals("edge")) {
+            return EdgeDevToolsDriver.start(options);             
         } else if (type.equals("chromedriver")) {
             return ChromeWebDriver.start(options);
         } else if (type.equals("geckodriver")) {

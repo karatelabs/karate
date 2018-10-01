@@ -1,10 +1,11 @@
 Feature: ui automation core capabilities
 
 Background:
-  * configure driver = { type: 'chrome', timeOut: 5000, executable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
+  * configure driver = { type: 'chrome', timeout: 5000, executable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
   # * configure driver = { type: 'chromedriver', port: 9515, executable: '/Users/pthomas3/dev/webdriver/chromedriver' }
   # * configure driver = { type: 'geckodriver', port: 4444, executable: '/Users/pthomas3/dev/webdriver/geckodriver' }
   # * configure driver = { type: 'mswebdriver', port: 17556, executable: 'C:/Users/pthomas3/Downloads/MicrosoftWebDriver.exe' }
+  # * configure driver = { type: 'edge', timeout: 5000; host: 'VM1029D45382' }
   * def webUrlBase = karate.properties['web.url.base']
 
 Scenario: dom operations, validations and navigation

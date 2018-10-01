@@ -138,7 +138,9 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
         } else {
             method("Browser.close").send();
         }
-        command.interrupt();
+        if (command != null) {
+            command.interrupt();
+        }
     }
 
     @Override

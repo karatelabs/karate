@@ -46,6 +46,10 @@ public class MicrosoftWebDriver extends WebDriver {
         if (port == null) {
             port = 17556;
         }
+        String host = (String) options.get("host");
+        if (host == null) {
+            host = "localhost";
+        }
         String executable = (String) options.get("executable");
         CommandThread command;
         if (executable != null) {
@@ -56,7 +60,7 @@ public class MicrosoftWebDriver extends WebDriver {
         } else {
             command = null;
         }
-        String urlBase = "http://localhost:" + port;
+        String urlBase = "http://" + host + ":" + port;
         Http http = Http.forUrl(urlBase);
         String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Edge' } }")
