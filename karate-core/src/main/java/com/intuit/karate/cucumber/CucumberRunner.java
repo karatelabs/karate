@@ -83,5 +83,9 @@ public class CucumberRunner {
     public static Map<String, Object> runFeature(String path, Map<String, Object> vars, boolean evalKarateConfig) {
         return Runner.runFeature(path, vars, evalKarateConfig);
     } 
+    
+    public static Map<String, Object> runClasspathFeature(String feature, Map<String, Object> vars, boolean evalKarateConfig) {
+        return Runner.runFeature("classpath:" + feature, vars, evalKarateConfig);
+    }
 
 }

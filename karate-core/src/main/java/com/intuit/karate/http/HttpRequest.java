@@ -73,6 +73,10 @@ public class HttpRequest {
         headers.put(key, values);
     }
 
+    public void setParams(MultiValuedMap params) {
+        this.params = params;
+    }        
+
     public MultiValuedMap getParams() {
         return params;
     }        
