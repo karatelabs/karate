@@ -16,8 +16,11 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLClassLoader;
+import java.net.URLConnection;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -59,10 +62,10 @@ public class FileUtils {
     public static final boolean isFilePath(String text) {
         return text.startsWith(FILE_COLON);
     }
-    
+
     public static final boolean isThisPath(String text) {
         return text.startsWith(THIS_COLON);
-    }    
+    }
 
     public static final boolean isJsonFile(String text) {
         return text.endsWith(".json");
@@ -345,7 +348,8 @@ public class FileUtils {
         if (!isFile(path)) {
             return CLASSPATH_COLON + toStandardPath(path.toString());
         }
-        for (Path rootPath : getAllClassPaths(cl)) {
+        for (URL url : getAllClassPathUrls(cl)) {
+            Path rootPath = getPathFor(url);
             if (path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
                 return CLASSPATH_COLON + toStandardPath(relativePath.toString());
@@ -360,19 +364,10 @@ public class FileUtils {
     }
 
     public static Path getPathContaining(Class clazz) {
-        String relativePath = clazz.getPackage().getName().replace('.', '/');
-        ClassLoader cl = clazz.getClassLoader();
-        Path path = getPathIfJar(relativePath, cl);
-        if (path != null) {
-            return path;
-        }
-        // get file path
-        try {
-            URL url = cl.getResource(relativePath);
-            return Paths.get(url.toURI());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        Package p = clazz.getPackage();
+        String relative = p.getName().replace('.', '/');
+        URL url = clazz.getClassLoader().getResource(relative);
+        return getPathFor(url);
     }
 
     public static File getFileRelativeTo(Class clazz, String path) {
@@ -416,15 +411,34 @@ public class FileUtils {
         }
         return list;
     }
-
-    public static List<Path> getAllClassPaths(ClassLoader classLoader) {
+    
+    private static Path getPathFor(URL url) {
         try {
-            List<Path> list = new ArrayList();
+            if (url.toString().contains("!/")) {
+                FileSystem fs = getFileSystem(url.toURI());
+                return fs.getRootDirectories().iterator().next();
+            } else {
+                return Paths.get(url.toURI());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static List<URL> getAllClassPathUrls(ClassLoader classLoader) {
+        try {
+            List<URL> list = new ArrayList();
             Enumeration<URL> iterator = classLoader.getResources("");
             while (iterator.hasMoreElements()) {
                 URL url = iterator.nextElement();
-                list.add(Paths.get(url.toURI()));
+                list.add(url);
             }
+            if (classLoader instanceof URLClassLoader) {
+				for (URL u : ((URLClassLoader) classLoader).getURLs()) {
+                    URL url = new URL("jar:" + u + "!/");
+                    list.add(url);
+				}                
+            }            
             return list;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -444,31 +458,12 @@ public class FileUtils {
         }
     }
 
-    private static Path getPathIfJar(String relativePath, ClassLoader cl) {
-        try {
-            URL url = cl.getResource(relativePath);
-            if (url != null && url.toURI().getScheme().equals("jar")) {
-                FileSystem fileSystem = getFileSystem(url.toURI());
-                return fileSystem.getPath(relativePath);
-            } else {
-                return null;
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public static List<Resource> scanForFeatureFiles(boolean classpath, String searchPath, ClassLoader cl) {
         List<Resource> files = new ArrayList();
         if (classpath) {
             searchPath = removePrefix(searchPath);
-            Path search = getPathIfJar(searchPath, cl);
-            if (search != null) {
-                collectFeatureFilesFromJar(search, files);
-            } else {
-                for (Path rootPath : getAllClassPaths(cl)) {
-                    collectFeatureFiles(rootPath, searchPath, files);
-                }
+            for (URL url : getAllClassPathUrls(cl)) {
+                collectFeatureFiles(url, searchPath, files);
             }
             return files;
         } else {
@@ -477,14 +472,13 @@ public class FileUtils {
         }
     }
 
-    private static void collectFeatureFiles(Path rootPath, String searchPath, List<Resource> files) {
-        boolean classpath = rootPath != null;
+    private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files) {
+        boolean classpath = url != null;
+        Path rootPath;
         Path search;
         if (classpath) {
+            rootPath = getPathFor(url);
             search = rootPath.resolve(searchPath);
-            if (!search.toFile().exists()) {
-                return;
-            }
         } else {
             rootPath = new File(".").getAbsoluteFile().toPath();
             search = Paths.get(searchPath);
@@ -492,12 +486,13 @@ public class FileUtils {
         Stream<Path> stream;
         try {
             stream = Files.walk(search);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException e) { // NoSuchFileException            
+            return;
         }
         for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
             Path path = paths.next();
-            if (path.getFileName().toString().endsWith(".feature")) {
+            Path fileName = path.getFileName();
+            if (fileName != null && fileName.toString().endsWith(".feature")) {
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
                 relativePath = relativePath.replaceAll("[.]{2,}", "");
                 if (relativePath.charAt(0) == '/') {
@@ -508,22 +503,6 @@ public class FileUtils {
             }
         }
     }
-
-    private static void collectFeatureFilesFromJar(Path searchPath, List<Resource> files) {
-        Stream<Path> stream;
-        try {
-            stream = Files.walk(searchPath);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
-            Path path = paths.next();
-            if (path.getFileName().toString().endsWith(".feature")) {
-                Resource resource = new Resource(path, CLASSPATH_COLON + toStandardPath(path.toString()));
-                files.add(resource);
-            }
-        }
-    }
     
     public static enum Platform {
         WINDOWS,
@@ -531,14 +510,14 @@ public class FileUtils {
         UNIX,
         UNKNOWN
     }
-    
+
     public static boolean isWindows() {
         return getPlatform() == Platform.WINDOWS;
     }
-    
+
     public static Platform getPlatform() {
-    	String os = System.getProperty("os.name", "").toLowerCase();
-    	if (os.contains("win")) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) {
             return Platform.WINDOWS;
         } else if (os.contains("mac")) {
             return Platform.MAC;
@@ -546,7 +525,7 @@ public class FileUtils {
             return Platform.UNIX;
         } else {
             return Platform.UNKNOWN;
-        }        
+        }
     }
 
 }

@@ -1,6 +1,7 @@
 package com.intuit.karate;
 
 import java.io.File;
+import java.net.URL;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -65,7 +66,10 @@ public class FileUtilsTest {
     
     @Test
     public void testGetAllClasspaths() {
-        FileUtils.getAllClassPaths(getClass().getClassLoader());
+        List<URL> urls = FileUtils.getAllClassPathUrls(getClass().getClassLoader());
+        for (URL url : urls) {
+            logger.debug("url: {}", url);
+        }
     }
     
 }
