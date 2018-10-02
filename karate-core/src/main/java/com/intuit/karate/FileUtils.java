@@ -383,7 +383,8 @@ public class FileUtils {
         try {
             return Paths.get(cl.getResource(relativePath).toURI());
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            Path path = getPathFor(cl.getResource(relativePath));
+            return path.resolve(relativePath);
         }
     }
 
