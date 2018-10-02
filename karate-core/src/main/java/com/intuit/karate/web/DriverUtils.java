@@ -28,6 +28,7 @@ import com.intuit.karate.web.chrome.ChromeWebDriver;
 import com.intuit.karate.web.edge.EdgeDevToolsDriver;
 import com.intuit.karate.web.edge.MicrosoftWebDriver;
 import com.intuit.karate.web.firefox.GeckoWebDriver;
+import com.intuit.karate.web.safari.SafariWebDriver;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,19 +62,22 @@ public class DriverUtils {
             logger.warn("type was null, defaulting to 'chrome'");
             type = "chrome";
         }
-        if (type.equals("chrome")) {
-            return ChromeDevToolsDriver.start(options);
-        } else if (type.equals("edge")) {
-            return EdgeDevToolsDriver.start(options);             
-        } else if (type.equals("chromedriver")) {
-            return ChromeWebDriver.start(options);
-        } else if (type.equals("geckodriver")) {
-            return GeckoWebDriver.start(options);
-        } else if (type.equals("mswebdriver")) {
-            return MicrosoftWebDriver.start(options);              
-        } else {
-            logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-            return ChromeDevToolsDriver.start(options);
+        switch (type) {
+            case "chrome":
+                return ChromeDevToolsDriver.start(options);
+            case "edge":
+                return EdgeDevToolsDriver.start(options);
+            case "chromedriver":
+                return ChromeWebDriver.start(options);
+            case "geckodriver":
+                return GeckoWebDriver.start(options);
+            case "safaridriver":
+                return SafariWebDriver.start(options);
+            case "mswebdriver":
+                return MicrosoftWebDriver.start(options);
+            default:
+                logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
+                return ChromeDevToolsDriver.start(options);
         }
     }
     
