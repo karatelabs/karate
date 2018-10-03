@@ -26,8 +26,8 @@ package com.intuit.karate.web.edge;
 import com.intuit.karate.Http;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.web.DriverUtils;
 import com.intuit.karate.web.WebDriver;
-import com.intuit.karate.web.chrome.ChromeWebDriver;
 import java.io.File;
 import java.util.Map;
 
@@ -57,6 +57,7 @@ public class MicrosoftWebDriver extends WebDriver {
             String logFile = targetDir + "mswebdriver.log";
             command = new CommandThread(WebDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
             command.start();
+            DriverUtils.waitForPort(host, port);
         } else {
             command = null;
         }

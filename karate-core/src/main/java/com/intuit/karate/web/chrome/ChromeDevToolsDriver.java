@@ -60,7 +60,7 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
             executable = FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC;
         }
         String uniqueName = System.currentTimeMillis() + "";
-        File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
+        File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome-" + uniqueName);
         List<String> args = Arrays.asList(executable,
                 "--remote-debugging-port=" + port,
                 "--no-first-run",

@@ -28,14 +28,20 @@ import com.intuit.karate.Logger;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import org.slf4j.LoggerFactory;
 
 public class CommandThread extends Thread {
+
+    protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(CommandThread.class);
 
     private final File workingDir;
     private final String uniqueName;
     private final Logger logger;
     private final String[] args;
+    private final List argList;
     private Process process;
     private final LogAppender appender;
     private int exitCode = -1;
@@ -55,6 +61,7 @@ public class CommandThread extends Thread {
         logger = logClass == null ? new Logger() : new Logger(logClass);
         this.workingDir = workingDir == null ? new File(".") : workingDir;
         this.args = args;
+        argList = Arrays.asList(args);
         if (logFile == null) {
             appender = LogAppender.NO_OP;
         } else {
@@ -83,27 +90,31 @@ public class CommandThread extends Thread {
         }
     }
 
+    public void close() {
+        LOGGER.debug("closing command: {}", uniqueName);
+        process.destroyForcibly();
+    }
+
     public void run() {
         try {
+            LOGGER.debug("command: {}", argList);
             ProcessBuilder pb = new ProcessBuilder(args);
             Map env = pb.environment();
             env.clear();
             pb.directory(workingDir);
             pb.redirectErrorStream(true);
-            process = pb.start();
+            process = pb.start();            
             BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = in.readLine()) != null) {
                 appender.append(line);
-                logger.trace("{}", line);
+                logger.debug("{}", line);
             }
             exitCode = process.waitFor();
+            appender.close();
+            LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);
         } catch (Exception e) {
-            System.err.println("thread stopping: " + e.getMessage());
-        } finally {
-            process.destroy();
-            appender.close();            
-            System.out.println("command complete: " + uniqueName);
+            LOGGER.error("command error: {} - {}", argList, e.getMessage());
         }
     }
 

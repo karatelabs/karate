@@ -27,8 +27,8 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.web.DriverUtils;
 import com.intuit.karate.web.WebDriver;
-import com.intuit.karate.web.chrome.ChromeWebDriver;
 import java.io.File;
 import java.util.Map;
 
@@ -47,6 +47,7 @@ public class GeckoWebDriver extends WebDriver {
         if (port == null) {
             port = 4444;
         }
+        String host = "localhost";
         String executable = (String) options.get("executable");
         CommandThread command;
         if (executable != null) {
@@ -54,10 +55,11 @@ public class GeckoWebDriver extends WebDriver {
             String logFile = targetDir + "geckodriver.log";
             command = new CommandThread(WebDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
             command.start();
+            DriverUtils.waitForPort(host, port);
         } else {
             command = null;
         }
-        String urlBase = "http://localhost:" + port;
+        String urlBase = "http://" + host + ":" + port;
         Http http = Http.forUrl(urlBase);
         String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Firefox' } }")
@@ -74,7 +76,7 @@ public class GeckoWebDriver extends WebDriver {
     @Override
     protected int getWaitInterval() {
         return 1000;
-    }        
+    }
 
     @Override
     public void activate() {

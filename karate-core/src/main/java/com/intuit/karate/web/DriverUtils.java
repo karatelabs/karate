@@ -29,6 +29,10 @@ import com.intuit.karate.web.edge.EdgeDevToolsDriver;
 import com.intuit.karate.web.edge.MicrosoftWebDriver;
 import com.intuit.karate.web.firefox.GeckoWebDriver;
 import com.intuit.karate.web.safari.SafariWebDriver;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.nio.channels.SocketChannel;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,24 +42,24 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class DriverUtils {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(DriverUtils.class);
-    
+
     private DriverUtils() {
         // only static methods
     }
-    
+
     public static final long TIME_OUT_DEFAULT = 30 * 1000; // 30 seconds
-    
+
     public static long getTimeOut(Map<String, Object> options) {
         Object temp = options.get("timeout");
         if (temp == null) {
             return DriverUtils.TIME_OUT_DEFAULT;
         } else {
             return Long.valueOf(temp.toString());
-        }        
+        }
     }
-    
+
     public static Driver construct(Map<String, Object> options) {
         String type = (String) options.get("type");
         if (type == null) {
@@ -80,7 +84,7 @@ public class DriverUtils {
                 return ChromeDevToolsDriver.start(options);
         }
     }
-    
+
     public static String selectorScript(String id) {
         if (id.startsWith("/")) {
             return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
@@ -99,6 +103,21 @@ public class DriverUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static boolean waitForPort(String host, int port) {
+        int attempts = 0;
+        do {
+            SocketAddress address = new InetSocketAddress(host, port);            
+            try {
+                SocketChannel sock = SocketChannel.open(address);
+                sock.close();
+            } catch (IOException e) {
+                logger.debug("waiting #{} for port to be ready - {}:{}", attempts + 1, host, port);
+                sleep(150);
+            }
+        } while (attempts++ < 3);
+        return false;
     }
 
 }

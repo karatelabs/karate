@@ -120,7 +120,7 @@ public abstract class WebDriver implements Driver {
     public void stop() {
         http.delete();
         if (command != null) {
-            command.interrupt();
+            command.close();
         }
     }
 

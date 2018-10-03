@@ -29,10 +29,8 @@ import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.web.DevToolsDriver;
 import com.intuit.karate.web.DevToolsMessage;
 import com.intuit.karate.web.DriverUtils;
-import com.intuit.karate.web.WaitState;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -109,7 +107,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         close();
         if (command != null) {
             // TODO this does not work because the command never blocks on windows
-            command.interrupt();
+            command.close();
         }
     }
 }
