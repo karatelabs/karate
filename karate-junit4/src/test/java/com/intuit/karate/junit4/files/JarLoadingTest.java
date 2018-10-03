@@ -45,6 +45,10 @@ public class JarLoadingTest {
         list = FileUtils.scanForFeatureFiles(Collections.singletonList("classpath:demo/jar1/caller.feature"), cl);
         assertEquals(1, list.size());
         Resource resource = list.get(0);
+        assertTrue(FileUtils.isJarPath(resource.getPath().toUri()));
+        Path path = FileUtils.fromRelativeClassPath("classpath:demo/jar1/caller.feature", cl);
+        String relativePath = FileUtils.toRelativeClassPath(path, cl);
+        assertEquals("classpath:demo/jar1/caller.feature", relativePath);
         Feature feature = FeatureParser.parse(resource);
         Map<String, Object> map = Runner.runFeature(feature, null, false);
         assertEquals(true, map.get("success"));
@@ -53,13 +57,13 @@ public class JarLoadingTest {
     @Test
     public void testFileUtilsForJarFile() throws Exception {
         File file = new File("src/test/java/common.feature");
-        assertTrue(FileUtils.isFile(file.toPath()));
+        assertTrue(!FileUtils.isJarPath(file.toPath().toUri()));
         ClassLoader cl = getJarClassLoader();
         Class main = cl.loadClass("demo.jar1.Main");
         Path path = FileUtils.getPathContaining(main);
-        assertFalse(FileUtils.isFile(path));
+        assertFalse(!FileUtils.isJarPath(path.toUri()));
         String relativePath = FileUtils.toRelativeClassPath(path, cl);
-        assertEquals("classpath:/", relativePath);
+        assertEquals("classpath:", relativePath); // TODO doesn't matter but fix in future if possible
         path = FileUtils.fromRelativeClassPath("classpath:demo/jar1", cl);
         assertEquals(path.toString(), "/demo/jar1");
     }

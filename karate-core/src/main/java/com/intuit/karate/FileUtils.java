@@ -331,23 +331,20 @@ public class FileUtils {
         }
     }
 
-    public static boolean isFile(Path path) {
-        return "file".equals(path.toUri().getScheme());
-    }
-
     public static String toStandardPath(String path) {
         if (path == null) {
             return null;
         }
-        return path.replace('\\', '/');
+        path = path.replace('\\', '/');
+        return path.startsWith("/") ? path.substring(1) : path;
     }
 
     public static String toRelativeClassPath(Path path, ClassLoader cl) {
-        if (!isFile(path)) {
+        if (isJarPath(path.toUri())) {
             return CLASSPATH_COLON + toStandardPath(path.toString());
         }
         for (URL url : getAllClassPathUrls(cl)) {
-            Path rootPath = getPathFor(url);
+            Path rootPath = getPathFor(url, null);
             if (path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
                 return CLASSPATH_COLON + toStandardPath(relativePath.toString());
@@ -365,7 +362,7 @@ public class FileUtils {
         Package p = clazz.getPackage();
         String relative = p.getName().replace('.', '/');
         URL url = clazz.getClassLoader().getResource(relative);
-        return getPathFor(url);
+        return getPathFor(url, null);
     }
 
     public static File getFileRelativeTo(Class clazz, String path) {
@@ -380,12 +377,8 @@ public class FileUtils {
 
     public static Path fromRelativeClassPath(String relativePath, ClassLoader cl) {
         relativePath = removePrefix(relativePath);
-        try {
-            return Paths.get(cl.getResource(relativePath).toURI());
-        } catch (Exception e) {
-            Path path = getPathFor(cl.getResource(relativePath));
-            return path.resolve(relativePath);
-        }
+        URL url = cl.getResource(relativePath);
+        return getPathFor(url, relativePath);
     }
 
     public static Path fromRelativeClassPath(String relativePath, Path parentPath) {
@@ -411,13 +404,23 @@ public class FileUtils {
         return list;
     }
     
-    private static Path getPathFor(URL url) {
+    public static boolean isJarPath(URI uri) {
+        return uri.toString().contains("!/");
+    }
+
+    private static Path getPathFor(URL url, String relativePath) {
         try {
-            if (url.toString().contains("!/")) {
-                FileSystem fs = getFileSystem(url.toURI());
-                return fs.getRootDirectories().iterator().next();
+            URI uri = url.toURI();
+            if (isJarPath(uri)) {
+                FileSystem fs = getFileSystem(uri);
+                Path path = fs.getRootDirectories().iterator().next();
+                if (relativePath != null) {
+                    return path.resolve(relativePath);
+                } else {
+                    return path;
+                }
             } else {
-                return Paths.get(url.toURI());
+                return Paths.get(uri);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -433,11 +436,11 @@ public class FileUtils {
                 list.add(url);
             }
             if (classLoader instanceof URLClassLoader) {
-				for (URL u : ((URLClassLoader) classLoader).getURLs()) {
+                for (URL u : ((URLClassLoader) classLoader).getURLs()) {
                     URL url = new URL("jar:" + u + "!/");
                     list.add(url);
-				}                
-            }            
+                }
+            }
             return list;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -476,7 +479,7 @@ public class FileUtils {
         Path rootPath;
         Path search;
         if (classpath) {
-            rootPath = getPathFor(url);
+            rootPath = getPathFor(url, null);
             search = rootPath.resolve(searchPath);
         } else {
             rootPath = new File(".").getAbsoluteFile().toPath();
@@ -494,15 +497,12 @@ public class FileUtils {
             if (fileName != null && fileName.toString().endsWith(".feature")) {
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
                 relativePath = relativePath.replaceAll("[.]{2,}", "");
-                if (relativePath.charAt(0) == '/') {
-                    relativePath = relativePath.substring(1);
-                }
                 String prefix = classpath ? CLASSPATH_COLON : "";
                 files.add(new Resource(path, prefix + toStandardPath(relativePath)));
             }
         }
     }
-    
+
     public static enum Platform {
         WINDOWS,
         MAC,
