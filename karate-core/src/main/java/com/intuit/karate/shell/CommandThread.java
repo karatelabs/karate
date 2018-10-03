@@ -61,6 +61,7 @@ public class CommandThread extends Thread {
         logger = logClass == null ? new Logger() : new Logger(logClass);
         this.workingDir = workingDir == null ? new File(".") : workingDir;
         this.args = args;
+        this.workingDir.mkdirs();
         argList = Arrays.asList(args);
         if (logFile == null) {
             appender = LogAppender.NO_OP;

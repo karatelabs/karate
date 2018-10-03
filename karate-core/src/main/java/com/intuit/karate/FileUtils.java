@@ -423,7 +423,8 @@ public class FileUtils {
                 return Paths.get(uri);
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            logger.trace("invalid path: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -451,7 +452,7 @@ public class FileUtils {
         try {
             return FileSystems.getFileSystem(uri);
         } catch (Exception e) {
-            logger.warn("creating file system for URI: {} - {}", uri, e.getMessage());
+            logger.trace("creating file system for URI: {} - {}", uri, e.getMessage());
             try {
                 return FileSystems.newFileSystem(uri, Collections.emptyMap());
             } catch (IOException ioe) {
@@ -480,6 +481,9 @@ public class FileUtils {
         Path search;
         if (classpath) {
             rootPath = getPathFor(url, null);
+            if (rootPath == null) { // windows edge case
+                return;
+            }
             search = rootPath.resolve(searchPath);
         } else {
             rootPath = new File(".").getAbsoluteFile().toPath();

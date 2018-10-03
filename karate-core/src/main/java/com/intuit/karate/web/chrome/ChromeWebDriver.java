@@ -51,9 +51,11 @@ public class ChromeWebDriver extends WebDriver {
         String executable = (String) options.get("executable");
         CommandThread command;
         if (executable != null) {
-            String targetDir = Engine.getBuildDir() + File.separator;
+            String targetPath = Engine.getBuildDir() + File.separator + System.currentTimeMillis() + "-chrome";
+            File targetDir = new File(targetPath);
             String logFile = targetDir + "chromedriver.log";
-            command = new CommandThread(WebDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
+            command = new CommandThread(WebDriver.class, logFile, targetDir,
+                    executable, "--port=" + port, "--user-data-dir=" + targetDir.getAbsolutePath());
             command.start();
             DriverUtils.waitForPort(host, port);
         } else {
