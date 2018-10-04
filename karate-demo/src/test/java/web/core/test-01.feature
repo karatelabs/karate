@@ -12,7 +12,7 @@ Scenario Outline: dom operations, validations and navigation
   Then match driver.text('#eg01DivId') == 'hello world'
   And match driver.value('#eg01InputId') == 'hello world'  
   
-  When eval driver.reload(false)
+  When eval driver.refresh()
   And match driver.location == webUrlBase + '/page-01'
   Then match driver.text('#eg01DivId') == ''
   And match driver.value('#eg01InputId') == ''
