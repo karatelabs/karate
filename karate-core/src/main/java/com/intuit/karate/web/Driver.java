@@ -35,6 +35,10 @@ public interface Driver {
     
     void activate();
     
+    void refresh();
+    
+    void reload();
+    
     void focus(String id);
     
     void input(String name, String value);    
@@ -45,7 +49,7 @@ public interface Driver {
     
     void close();
     
-    void stop();        
+    void quit();        
     
     String html(String id);
     

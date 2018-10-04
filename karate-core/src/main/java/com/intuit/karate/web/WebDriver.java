@@ -88,6 +88,17 @@ public abstract class WebDriver implements Driver {
     public void location(String url) {
         http.path("url").post("{ url: '" + url + "'}");
     }
+    
+    @Override
+    public void refresh() {
+        http.path("refresh").post("{}");
+    }     
+
+    @Override
+    public void reload() {
+        // not supported by webdriver
+        refresh();
+    }        
 
     @Override
     public void focus(String id) {
@@ -117,7 +128,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void stop() {
+    public void quit() {
         http.delete();
         if (command != null) {
             command.close();

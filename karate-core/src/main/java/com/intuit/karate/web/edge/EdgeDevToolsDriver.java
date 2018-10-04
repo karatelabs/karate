@@ -103,7 +103,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     }
 
     @Override
-    public void stop() {
+    public void quit() {
         close();
         if (command != null) {
             // TODO this does not work because the command never blocks on windows

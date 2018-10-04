@@ -69,7 +69,7 @@ public class DriverUtils {
         switch (type) {
             case "chrome":
                 return ChromeDevToolsDriver.start(options);
-            case "edge":
+            case "msedge":
                 return EdgeDevToolsDriver.start(options);
             case "chromedriver":
                 return ChromeWebDriver.start(options);

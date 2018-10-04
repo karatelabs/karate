@@ -141,7 +141,7 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     }
 
     @Override
-    public void stop() {
+    public void quit() {
         if (headless) {
             close();
         } else {
@@ -158,6 +158,16 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
         currentUrl = cm.getFrameUrl();
     }
 
+    @Override
+    public void refresh() {
+        method("Page.reload").send();
+    }
+
+    @Override
+    public void reload() {
+        method("Page.reload").param("ignoreCache", true).send();
+    }
+    
     @Override
     public void click(String id) {
         eval(DriverUtils.selectorScript(id) + ".click()", null);

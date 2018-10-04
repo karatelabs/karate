@@ -787,7 +787,7 @@ public class ScenarioContext {
     
     public void stop() {
         if (driver != null) {
-            driver.stop();
+            driver.quit();
             driver = null;
         }
     }

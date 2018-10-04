@@ -33,7 +33,7 @@ public class ChromeJavaRunner {
         driver.input("//input[@name='q']", "karate dsl");
         driver.submit("//input[@name='btnI']");
         assertEquals("https://github.com/intuit/karate", driver.getLocation());
-        driver.stop();
+        driver.quit();
         // chrome.waitSync();
     }
     
