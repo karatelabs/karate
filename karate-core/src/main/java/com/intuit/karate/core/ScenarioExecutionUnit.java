@@ -24,8 +24,10 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.StepActions;
+import com.intuit.karate.StringUtils;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  *
@@ -65,14 +67,20 @@ public class ScenarioExecutionUnit {
                 ScenarioExecutionUnit.this.submit(next);
             } else {
                 exec.system.accept(() -> {
-                    StepExecutionUnit unit = new StepExecutionUnit(step, actions, exec);
-                    unit.submit(stepResult -> {
-                        result.addStepResult(stepResult);
-                        if (stepResult.isStopped()) {
-                            stopped = true;
-                        }
-                        ScenarioExecutionUnit.this.submit(next);
-                    });
+                    Result execResult = Engine.executeStep(step, actions);
+                    List<FeatureResult> callResults = actions.context.getCallResults();
+                    actions.context.setCallResults(null); // clear
+                    if (execResult.isAborted()) { // we log only aborts for visibility
+                        actions.context.logger.debug("abort at {}", step.getDebugInfo());
+                    }
+                    // log appender collection for each step happens here
+                    String stepLog = StringUtils.trimToNull(exec.appender.collect());
+                    StepResult stepResult = new StepResult(step, execResult, stepLog, callResults);
+                    if (stepResult.isStopped()) {
+                        stopped = true;
+                    }
+                    result.addStepResult(stepResult);
+                    ScenarioExecutionUnit.this.submit(next);
                 });
             }
         } else {
