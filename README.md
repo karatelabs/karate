@@ -713,6 +713,8 @@ function() {
 
 A common requirement is to pass dynamic parameter values via the command line, and you can use the [`karate.properties['some.name']`](#karate-properties) syntax for getting a system property passed via JVM options in the form `-Dsome.name=foo`. Refer to the section on [dynamic port numbers](#dynamic-port-numbers) for an example.
 
+> You can even retrieve operating-system environment variables via [Java interop](#calling-java) as follows: `var systemPath = java.lang.System.getenv('PATH');`
+
 This decision to use JavaScript for config is influenced by years of experience with the set-up of complicated test-suites and fighting with [Maven profiles](http://maven.apache.org/guides/introduction/introduction-to-profiles.html), [Maven resource-filtering](https://maven.apache.org/plugins/maven-resources-plugin/examples/filter.html) and the XML-soup that somehow gets summoned by the [Maven AntRun plugin](http://maven.apache.org/plugins/maven-antrun-plugin/usage.html).
 
 Karate's approach frees you from Maven, is far more expressive, allows you to eyeball all environments in one place, and is still a plain-text file.  If you want, you could even create [nested chunks of JSON that 'name-space' your config variables](https://stackoverflow.com/a/49693808/143475).

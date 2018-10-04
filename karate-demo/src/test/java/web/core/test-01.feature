@@ -13,8 +13,8 @@ Scenario Outline: dom operations, validations and navigation
   And match driver.value('#eg01InputId') == 'hello world'  
   
   When eval driver.refresh()
-  And match driver.location == webUrlBase + '/page-01'
-  Then match driver.text('#eg01DivId') == ''
+  Then match driver.location == webUrlBase + '/page-01'
+  And match driver.text('#eg01DivId') == ''
   And match driver.value('#eg01InputId') == ''
   And match driver.title == 'Page One'
 
@@ -24,12 +24,20 @@ Scenario Outline: dom operations, validations and navigation
   And match driver.title == 'Page Two'
   And match driver.location == webUrlBase + '/page-02'
 
+  When eval driver.back()
+  Then match driver.location == webUrlBase + '/page-01'
+  And match driver.title == 'Page One'
+
+  When eval driver.forward()
+  Then match driver.location == webUrlBase + '/page-02'
+  And match driver.title == 'Page Two'
+
 Examples:
     | config |
     | { type: 'chrome', executable: 'chrome' } |
     | { type: 'chromedriver', port: 9515, executable: 'chromedriver' } |
     | { type: 'geckodriver', port: 4444, executable: 'geckodriver' } |
-    # | { type: 'safaridriver', port: 5555, executable: 'safaridriver' } |
+    | { type: 'safaridriver', port: 5555, executable: 'safaridriver' } |
     # | { type: 'mswebdriver', port: 17556, executable: 'MicrosoftWebDriver' } |
     # | { type: 'msedge', timeout: 5000, executable: 'MicrosoftEdge' } |
     

@@ -101,12 +101,10 @@ public class ScenarioContext {
         prevPerfEvent = event;
     }
 
-    public List<FeatureResult> getCallResults() {
-        return callResults;
-    }
-
-    public void setCallResults(List<FeatureResult> callResults) {
-        this.callResults = callResults;
+    public List<FeatureResult> getAndClearCallResults() {
+        List<FeatureResult> temp = callResults;
+        callResults = null;
+        return temp;
     }
 
     public void addCallResult(FeatureResult callResult) {

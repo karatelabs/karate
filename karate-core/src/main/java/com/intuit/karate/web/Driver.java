@@ -39,6 +39,10 @@ public interface Driver {
     
     void reload();
     
+    void back();
+    
+    void forward();
+    
     void focus(String id);
     
     void input(String name, String value);    

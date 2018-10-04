@@ -29,6 +29,7 @@ import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
@@ -82,30 +83,30 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     public DevToolsMessage sendAndWait(String text) {
         Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
-        DevToolsMessage cm = new DevToolsMessage(this, map);
-        if (cm.getId() == null) {
-            cm.setId(getNextId());
+        DevToolsMessage dtm = new DevToolsMessage(this, map);
+        if (dtm.getId() == null) {
+            dtm.setId(getNextId());
         }
-        return sendAndWait(cm, null);
+        return sendAndWait(dtm, null);
     }
 
-    public DevToolsMessage sendAndWait(DevToolsMessage cm, Predicate<DevToolsMessage> condition) {
-        String json = JsonUtils.toJson(cm.toMap());
+    public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
+        String json = JsonUtils.toJson(dtm.toMap());
         client.send(json);
-        logger.debug(">> sent: {}", cm);
-        return waitState.sendAndWait(cm, condition);
+        logger.debug(">> sent: {}", dtm);
+        return waitState.sendAndWait(dtm, condition);
     }
 
-    public void receive(DevToolsMessage cm) {
-        waitState.receive(cm);
+    public void receive(DevToolsMessage dtm) {
+        waitState.receive(dtm);
     }
 
     @Override
     public void onMessage(String text) {
         logger.debug("received raw: {}", text);
         Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
-        DevToolsMessage cm = new DevToolsMessage(this, map);
-        receive(cm);
+        DevToolsMessage dtm = new DevToolsMessage(this, map);
+        receive(dtm);
     }
 
     @Override
@@ -121,13 +122,13 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     
     protected DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
-        DevToolsMessage cm;
+        DevToolsMessage dtm;
         do {
             logger.debug("eval try #{}", count + 1);
-            cm = method("Runtime.evaluate").param("expression", expression).send(condition);
+            dtm = method("Runtime.evaluate").param("expression", expression).send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
-        } while (cm != null && cm.isResultError() && count++ < 3);
-        return cm;
+        } while (dtm != null && dtm.isResultError() && count++ < 3);
+        return dtm;
     }
 
     @Override
@@ -154,8 +155,8 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     @Override
     public void location(String url) {
-        DevToolsMessage cm = method("Page.navigate").param("url", url).send(WaitState.CHROME_FRAME_NAVIGATED);
-        currentUrl = cm.getFrameUrl();
+        DevToolsMessage dtm = method("Page.navigate").param("url", url).send(WaitState.CHROME_FRAME_NAVIGATED);
+        currentUrl = dtm.getFrameUrl();
     }
 
     @Override
@@ -168,6 +169,31 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
         method("Page.reload").param("ignoreCache", true).send();
     }
     
+    private void history(int delta) {
+        DevToolsMessage dtm = method("Page.getNavigationHistory").send();
+        int currentIndex = dtm.getResult("currentIndex").getValue(Integer.class);
+        List<Map> list = dtm.getResult("entries").getValue(List.class); 
+        int targetIndex = currentIndex + delta;
+        if (targetIndex < 0 || targetIndex == list.size()) {
+            return;
+        }      
+        Map<String, Object> entry = list.get(targetIndex);
+        Integer id = (Integer) entry.get("id");
+        String url = (String) entry.get("url");
+        method("Page.navigateToHistoryEntry").param("entryId", id).send();
+        currentUrl = url;        
+    }
+
+    @Override
+    public void back() {
+        history(-1);
+    }  
+    
+    @Override
+    public void forward() {
+        history(1);
+    }     
+    
     @Override
     public void click(String id) {
         eval(DriverUtils.selectorScript(id) + ".click()", null);
@@ -175,8 +201,8 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     @Override
     public void submit(String id) {
-        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_FRAME_NAVIGATED);
-        currentUrl = cm.getFrameUrl();
+        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_FRAME_NAVIGATED);
+        currentUrl = dtm.getFrameUrl();
     }
 
     @Override
@@ -194,20 +220,20 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     @Override
     public String text(String id) {
-        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".textContent", null);
-        return cm.getResult("value").getAsString();
+        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".textContent", null);
+        return dtm.getResult("value").getAsString();
     }
 
     @Override
     public String html(String id) {
-        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".innerHTML", null);
-        return cm.getResult("value").getAsString();
+        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".innerHTML", null);
+        return dtm.getResult("value").getAsString();
     }
 
     @Override
     public String value(String id) {
-        DevToolsMessage cm = eval(DriverUtils.selectorScript(id) + ".value", null);
-        return cm.getResult("value").getAsString();
+        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".value", null);
+        return dtm.getResult("value").getAsString();
     }
 
     @Override
@@ -224,8 +250,8 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     @Override
     public String getTitle() {
-        DevToolsMessage cm = eval("document.title", null);
-        return cm.getResult("value").getAsString();
+        DevToolsMessage dtm = eval("document.title", null);
+        return dtm.getResult("value").getAsString();
     }        
 
     @Override

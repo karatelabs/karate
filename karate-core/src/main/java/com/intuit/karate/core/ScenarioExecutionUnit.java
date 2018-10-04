@@ -68,8 +68,7 @@ public class ScenarioExecutionUnit {
             } else {
                 exec.system.accept(() -> {
                     Result execResult = Engine.executeStep(step, actions);
-                    List<FeatureResult> callResults = actions.context.getCallResults();
-                    actions.context.setCallResults(null); // clear
+                    List<FeatureResult> callResults = actions.context.getAndClearCallResults();
                     if (execResult.isAborted()) { // we log only aborts for visibility
                         actions.context.logger.debug("abort at {}", step.getDebugInfo());
                     }

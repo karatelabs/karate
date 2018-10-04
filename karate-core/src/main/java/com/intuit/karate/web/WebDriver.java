@@ -101,6 +101,16 @@ public abstract class WebDriver implements Driver {
     }        
 
     @Override
+    public void back() {
+        http.path("back").post("{}");
+    } 
+    
+    @Override
+    public void forward() {
+        http.path("forward").post("{}");
+    }     
+
+    @Override
     public void focus(String id) {
         eval(DriverUtils.selectorScript(id) + ".focus()");
     }
