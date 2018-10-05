@@ -93,19 +93,18 @@ public class FeatureExecutionUnit {
             // karate-config.js will be processed here 
             // when the script-context constructor is called
             StepActions actions = new StepActions(featureContext, exec.callContext);
-            // we also hold a reference to the LAST scenario (in the feature)
-            // for cases where the caller needs a result
-            lastContextExecuted = actions.context;
-            exec.result.setResultVars(actions.context.getVars());
             ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
             // this is an elegant solution to retaining the order of scenarios 
             // in the final report - even if they run in parallel !
             results.add(unit.result);
             unit.submit(() -> {
                 latch.countDown();
-                if (exec.callContext.perfMode) {
-                    // execute one-by-one in sequence order
-                    // and yield next scenario only when previous completes
+                // we also hold a reference to the last scenario-context that executed
+                // for cases where the caller needs a result
+                lastContextExecuted = actions.context;
+                if (exec.callContext.perfMode) {                    
+                    // yield next scenario only when previous completes
+                    // and we execute one-by-one in sequence order
                     FeatureExecutionUnit.this.submit(next);
                 }
             });
@@ -128,6 +127,8 @@ public class FeatureExecutionUnit {
                 exec.result.addResult(sr);
             }
             if (lastContextExecuted != null) {
+                // set result map that caller will see
+                exec.result.setResultVars(lastContextExecuted.getVars());
                 lastContextExecuted.invokeAfterHookIfConfigured(true);
             }
             exec.appender.close();
