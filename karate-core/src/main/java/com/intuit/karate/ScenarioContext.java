@@ -64,7 +64,7 @@ public class ScenarioContext {
     public final FeatureContext rootFeatureContext;
     public final FeatureContext featureContext;
     public final ExecutionHook executionHook;
-    public final boolean useLogAppenderFile;
+    public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
 
     // these can get re-built or swapped, so cannot be final
@@ -172,7 +172,7 @@ public class ScenarioContext {
         logger = featureContext.logger;
         callDepth = call.callDepth;
         executionHook = call.executionHook;
-        useLogAppenderFile = call.useLogAppenderFile;
+        perfMode = call.perfMode;
         tags = call.getTags().getTags();
         tagValues = call.getTags().getTagValues();
         scenarioInfo = call.getScenarioInfo();

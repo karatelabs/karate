@@ -42,13 +42,13 @@ public class CallContext {
     public final int loopIndex;
     public final String httpClientClass;
     public final ExecutionHook executionHook;
-    public final boolean useLogAppenderFile;
+    public final boolean perfMode;
 
     private Tags tags = Tags.EMPTY;
     private ScenarioInfo scenarioInfo;
 
     public static CallContext forCall(ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.useLogAppenderFile);
+        return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.perfMode);
     }
 
     public Tags getTags() {
@@ -90,7 +90,7 @@ public class CallContext {
         this.evalKarateConfig = evalKarateConfig;
         this.httpClientClass = httpClientClass;
         this.executionHook = executionHook;
-        this.useLogAppenderFile = useLogAppenderFile;
+        this.perfMode = useLogAppenderFile;
     }
 
 }

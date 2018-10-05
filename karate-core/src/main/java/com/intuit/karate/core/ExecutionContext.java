@@ -53,7 +53,7 @@ public class ExecutionContext {
         } else {
             this.system = system;
         }
-        if (callContext.useLogAppenderFile) {
+        if (callContext.perfMode) {
             File logFileDir = new File(Engine.getBuildDir() + File.separator + "surefire-reports");
             if (!logFileDir.exists()) {
                 logFileDir.mkdirs();

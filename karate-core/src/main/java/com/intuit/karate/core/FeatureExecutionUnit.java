@@ -27,6 +27,7 @@ import com.intuit.karate.StepActions;
 import com.intuit.karate.FeatureContext;
 import com.intuit.karate.ScenarioContext;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -37,28 +38,33 @@ import java.util.concurrent.CountDownLatch;
 public class FeatureExecutionUnit {
 
     private final ExecutionContext exec;
-    private final List<Scenario> scenarios;
+    private final int count;
+    private final Iterator<Scenario> iterator;
+    private final List<ScenarioResult> results;
+    private final CountDownLatch latch;
 
     public FeatureExecutionUnit(ExecutionContext exec) {
         this.exec = exec;
-        scenarios = exec.featureContext.feature.getScenarios();
+        List<Scenario> scenarios = exec.featureContext.feature.getScenarios();
+        count = scenarios.size();
+        iterator = scenarios.iterator();
+        results = new ArrayList(count);
+        latch = new CountDownLatch(count);
     }
 
     private ScenarioContext lastContextExecuted;
 
     public void submit(Runnable next) {
         FeatureContext featureContext = exec.featureContext;
-        int count = scenarios.size();
-        CountDownLatch latch = new CountDownLatch(count);
-        List<ScenarioResult> scenarioResults = new ArrayList(count);
-        for (int i = 0; i < count; i++) {
-            Scenario scenario = scenarios.get(i);
-            String callName = featureContext.feature.getCallName();
+        String callName = featureContext.feature.getCallName();
+        if (iterator.hasNext()) {
+            Scenario scenario = iterator.next();
             if (callName != null) {
                 if (!scenario.getName().matches(callName)) {
                     featureContext.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
                     latch.countDown();
-                    continue;
+                    FeatureExecutionUnit.this.submit(next);
+                    return;
                 }
                 featureContext.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
             }
@@ -66,14 +72,16 @@ public class FeatureExecutionUnit {
             if (!tags.evaluate(featureContext.tagSelector)) {
                 featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 latch.countDown();
-                continue;
+                FeatureExecutionUnit.this.submit(next);
+                return;
             }
             String callTag = scenario.getFeature().getCallTag();
             if (callTag != null) {
                 if (!tags.contains(callTag)) {
                     featureContext.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
                     latch.countDown();
-                    continue;
+                    FeatureExecutionUnit.this.submit(next);
+                    return;
                 }
                 featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
@@ -90,23 +98,37 @@ public class FeatureExecutionUnit {
             lastContextExecuted = actions.context;
             exec.result.setResultVars(actions.context.getVars());
             ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
-            scenarioResults.add(unit.result);
-            unit.submit(() -> latch.countDown());
+            results.add(unit.result);
+            unit.submit(() -> {
+                latch.countDown();
+                if (exec.callContext.perfMode) {
+                    // execute in sequence
+                    FeatureExecutionUnit.this.submit(next);
+                }
+            });
+            if (!exec.callContext.perfMode) {
+                // submit ALL in sequence
+                FeatureExecutionUnit.this.submit(next);
+            }
+        } else {
+            if (!exec.callContext.perfMode) {
+                // wait for parallel submissions to complete
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    featureContext.logger.error("feature failed: {}", e.getMessage());
+                }
+            }
+            // this is where the feature gets "populated" with stats also. timing matters
+            for (ScenarioResult sr : results) {
+                exec.result.addResult(sr);
+            }
+            if (lastContextExecuted != null) {
+                lastContextExecuted.invokeAfterHookIfConfigured(true);
+            }
+            exec.appender.close();
+            next.run();
         }
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            featureContext.logger.error("feature failed: {}", e.getMessage());
-        }
-        // this is where the feature gets "populated" with stats also. timing matters
-        for (ScenarioResult sr : scenarioResults) {
-            exec.result.addResult(sr);
-        }
-        if (lastContextExecuted != null) {
-            lastContextExecuted.invokeAfterHookIfConfigured(true);
-        }
-        exec.appender.close();
-        next.run();
     }
 
     private static ScenarioInfo getScenarioInfo(Scenario scenario, FeatureContext env) {
