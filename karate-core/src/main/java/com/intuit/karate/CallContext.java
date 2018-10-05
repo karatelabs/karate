@@ -51,6 +51,10 @@ public class CallContext {
         return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.perfMode);
     }
 
+    public static CallContext forAsync(ExecutionHook hook, boolean perfMode) {
+       return new CallContext(null, 0, null, -1, false, true, null, hook, perfMode);    
+    }  
+    
     public Tags getTags() {
         return tags;
     }
@@ -72,16 +76,12 @@ public class CallContext {
     }
 
     public CallContext(Map<String, Object> callArg, boolean evalKarateConfig) {
-        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, true);
-    }
-
-    public CallContext(boolean useLogAppenderFile, ExecutionHook executionHook) {
-        this(null, 0, null, -1, false, true, null, executionHook, useLogAppenderFile);
+        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, false);
     }
 
     public CallContext(ScenarioContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
             boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass,
-            ExecutionHook executionHook, boolean useLogAppenderFile) {
+            ExecutionHook executionHook, boolean perfMode) {
         this.parentContext = parentContext;
         this.callDepth = callDepth;
         this.callArg = callArg;
@@ -90,7 +90,7 @@ public class CallContext {
         this.evalKarateConfig = evalKarateConfig;
         this.httpClientClass = httpClientClass;
         this.executionHook = executionHook;
-        this.perfMode = useLogAppenderFile;
+        this.perfMode = perfMode;
     }
 
 }

@@ -73,7 +73,7 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
             args = new ArrayList(args);
             args.add("--headless");
         }
-        String logFile = profileDir.getPath() + File.separator + "karate.log";
+        String logFile = profileDir.getPath() + File.separator + "chrome.log";
         CommandThread command = new CommandThread(DevToolsDriver.class, logFile, profileDir, args.toArray(new String[]{}));
         command.start();
         Http http = Http.forUrl("http://localhost:" + port);

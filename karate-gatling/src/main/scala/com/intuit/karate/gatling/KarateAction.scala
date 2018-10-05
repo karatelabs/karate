@@ -57,9 +57,8 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
-    val callContext = new CallContext(false, executionHook)
 
-    Runner.callAsync(name, callContext, asyncSystem, asyncNext)
+    Runner.callAsync(name, executionHook, asyncSystem, asyncNext)
 
   }
 

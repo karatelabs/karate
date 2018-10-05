@@ -91,7 +91,7 @@ public class Runner {
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
                 FeatureContext featureContext = new FeatureContext(feature, tagSelector);
-                CallContext callContext = new CallContext(true, hook);
+                CallContext callContext = CallContext.forAsync(hook, false);
                 ExecutionContext execContext = new ExecutionContext(featureContext, callContext, r -> executor.submit(r));
                 results.add(execContext.result);
                 FeatureExecutionUnit execUnit = new FeatureExecutionUnit(execContext);
@@ -157,11 +157,12 @@ public class Runner {
     }
 
     // this is called by karate-gatling !
-    public static void callAsync(String path, CallContext callContext, Consumer<Runnable> system, Runnable next) {
+    public static void callAsync(String path, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(feature, null);
-        ExecutionContext ec = new ExecutionContext(featureContext, callContext, system);
-        FeatureExecutionUnit exec = new FeatureExecutionUnit(ec);
+        CallContext callContext = CallContext.forAsync(hook, true);
+        ExecutionContext executionContext = new ExecutionContext(featureContext, callContext, system);
+        FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.submit(next);
     }
 

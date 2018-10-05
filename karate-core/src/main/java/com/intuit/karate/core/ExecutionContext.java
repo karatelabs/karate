@@ -54,14 +54,14 @@ public class ExecutionContext {
             this.system = system;
         }
         if (callContext.perfMode) {
+            appender = LogAppender.NO_OP;
+        } else {            
             File logFileDir = new File(Engine.getBuildDir() + File.separator + "surefire-reports");
             if (!logFileDir.exists()) {
                 logFileDir.mkdirs();
             }
             String basePath = featureContext.feature.getResource().getPackageQualifiedName();
-            appender = new FileLogAppender(logFileDir.getPath() + File.separator + basePath + ".log", featureContext.logger);
-        } else {
-            appender = LogAppender.NO_OP;
+            appender = new FileLogAppender(logFileDir.getPath() + File.separator + basePath + ".log", featureContext.logger);            
         }
     }
 
