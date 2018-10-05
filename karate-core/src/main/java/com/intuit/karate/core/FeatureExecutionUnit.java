@@ -90,10 +90,8 @@ public class FeatureExecutionUnit {
             lastContextExecuted = actions.context;
             exec.result.setResultVars(actions.context.getVars());
             ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
-            scenarioResults.add(unit.result);           
-            exec.system.accept(() -> {                
-                unit.submit(() -> latch.countDown());
-            });
+            scenarioResults.add(unit.result);
+            unit.submit(() -> latch.countDown());
         }
         try {
             latch.await();
