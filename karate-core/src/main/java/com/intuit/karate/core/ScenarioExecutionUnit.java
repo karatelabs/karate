@@ -38,7 +38,7 @@ public class ScenarioExecutionUnit {
     private final StepActions actions;
     private final ExecutionContext exec;
     private final Iterator<Step> iterator;
-    private final ScenarioResult result;
+    protected final ScenarioResult result;
 
     private boolean stopped = false;
 
@@ -66,7 +66,7 @@ public class ScenarioExecutionUnit {
                 result.addStepResult(new StepResult(step, Result.skipped(), null, null));
                 ScenarioExecutionUnit.this.submit(next);
             } else {
-                exec.system.accept(() -> {
+                exec.system.accept(() -> {                    
                     Result execResult = Engine.executeStep(step, actions);
                     List<FeatureResult> callResults = actions.context.getAndClearCallResults();
                     if (execResult.isAborted()) { // we log only aborts for visibility
@@ -83,9 +83,6 @@ public class ScenarioExecutionUnit {
                 });
             }
         } else {
-            // this has to be done at the end after they are fully populated
-            // else the feature-result will not "collect" stats correctly 
-            exec.result.addResult(result);
             // gatling clean up            
             actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
             // after-scenario hook
