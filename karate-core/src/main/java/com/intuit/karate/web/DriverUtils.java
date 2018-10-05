@@ -110,11 +110,11 @@ public class DriverUtils {
         do {
             SocketAddress address = new InetSocketAddress(host, port);            
             try {
-                logger.debug("poll attempt #{} for port to be ready - {}:{}", attempts + 1, host, port);
+                logger.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
                 SocketChannel sock = SocketChannel.open(address);
                 sock.close();
             } catch (IOException e) {                
-                sleep(200);
+                sleep(250);
             }
         } while (attempts++ < 3);
         return false;

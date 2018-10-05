@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.web;
 
+import java.util.Map;
+
 /**
  *
  * @author pthomas3
@@ -64,6 +66,10 @@ public interface Driver {
     void waitForEvalTrue(String expression);
     
     // javabean naming convention is intentional ===============================
+    
+    void setDimensions(Map<String, Object> map);
+    
+    Map<String, Object> getDimensions();
     
     String getLocation(); 
     

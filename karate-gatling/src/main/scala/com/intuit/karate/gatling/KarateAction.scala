@@ -4,7 +4,7 @@ import java.io.File
 import java.util.function.Consumer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import com.intuit.karate.{CallContext, PerfEvent, ScenarioContext}
+import com.intuit.karate.{PerfEvent, ScenarioContext}
 import com.intuit.karate.core._
 import com.intuit.karate.Runner
 import com.intuit.karate.http.HttpRequestBuilder

@@ -137,6 +137,25 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     }
 
     @Override
+    public Map<String, Object> getDimensions() {
+        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", pageId).send();
+        int windowId =  dtm.getResult("windowId").getValue(Integer.class);
+        Map map = dtm.getResult("bounds").getAsMap();
+        map.put("windowId", windowId);
+        return map;
+    }
+
+    @Override
+    public void setDimensions(Map<String, Object> map) {
+        Map temp = getDimensions();
+        int windowId = (Integer) temp.remove("windowId");
+        temp.putAll(map);
+        method("Browser.setWindowBounds")
+                .param("windowId", windowId)
+                .param("bounds", temp).send();
+    }    
+
+    @Override
     public void close() {
         method("Page.close").send();
     }

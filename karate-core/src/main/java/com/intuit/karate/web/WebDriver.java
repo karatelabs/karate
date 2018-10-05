@@ -27,6 +27,7 @@ import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,27 +89,47 @@ public abstract class WebDriver implements Driver {
     public void location(String url) {
         http.path("url").post("{ url: '" + url + "'}");
     }
-    
+
+    @Override
+    public Map<String, Object> getDimensions() {
+        Map map = http.path("window", "rect").get().asMap();
+        Integer left = (Integer) map.remove("x");
+        Integer top = (Integer) map.remove("y");
+        map.put("left", left);
+        map.put("top", top);
+        return map;
+    }
+
+    @Override
+    public void setDimensions(Map<String, Object> map) {
+        Integer x = (Integer) map.remove("left");
+        Integer y = (Integer) map.remove("top");
+        map.put("x", x);
+        map.put("y", y);
+        String json = JsonUtils.toJson(map);
+        http.path("window", "rect").post(json);
+    }
+
     @Override
     public void refresh() {
         http.path("refresh").post("{}");
-    }     
+    }
 
     @Override
     public void reload() {
         // not supported by webdriver
         refresh();
-    }        
+    }
 
     @Override
     public void back() {
         http.path("back").post("{}");
-    } 
-    
+    }
+
     @Override
     public void forward() {
         http.path("forward").post("{}");
-    }     
+    }
 
     @Override
     public void focus(String id) {

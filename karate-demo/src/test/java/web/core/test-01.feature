@@ -7,6 +7,7 @@ Scenario Outline: dom operations, validations and navigation
   * configure driver = <config>
 
   Given location webUrlBase + '/page-01'
+  And eval driver.dimensions = <dimensions>
   And input #eg01InputId = 'hello world'
   When click input[name=eg01SubmitName]
   Then match driver.text('#eg01DivId') == 'hello world'
@@ -33,11 +34,11 @@ Scenario Outline: dom operations, validations and navigation
   And match driver.title == 'Page Two'
 
 Examples:
-    | config |
-    | { type: 'chrome', executable: 'chrome' } |
-    | { type: 'chromedriver', port: 9515, executable: 'chromedriver' } |
-    | { type: 'geckodriver', port: 4444, executable: 'geckodriver' } |
-    | { type: 'safaridriver', port: 5555, executable: 'safaridriver' } |
+    | config | dimensions |
+    | { type: 'chrome', executable: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
+    | { type: 'chromedriver', port: 9515, executable: 'chromedriver' } | { left: 300, top: 0, width: 300, height: 800 } |
+    | { type: 'geckodriver', port: 4444, executable: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
+    | { type: 'safaridriver', port: 5555, executable: 'safaridriver' } | { left: 700, top: 0, width: 300, height: 800 } |
     # | { type: 'mswebdriver', port: 17556, executable: 'MicrosoftWebDriver' } |
     # | { type: 'msedge', timeout: 5000, executable: 'MicrosoftEdge' } |
     
