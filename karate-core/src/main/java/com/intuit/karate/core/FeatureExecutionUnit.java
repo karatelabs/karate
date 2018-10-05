@@ -93,33 +93,37 @@ public class FeatureExecutionUnit {
             // karate-config.js will be processed here 
             // when the script-context constructor is called
             StepActions actions = new StepActions(featureContext, exec.callContext);
-            // we also hold a reference to the LAST scenario executed
+            // we also hold a reference to the LAST scenario (in the feature)
             // for cases where the caller needs a result
             lastContextExecuted = actions.context;
             exec.result.setResultVars(actions.context.getVars());
             ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
+            // this is an elegant solution to retaining the order of scenarios 
+            // in the final report - even if they run in parallel !
             results.add(unit.result);
             unit.submit(() -> {
                 latch.countDown();
                 if (exec.callContext.perfMode) {
-                    // execute in sequence
+                    // execute one-by-one in sequence order
+                    // and yield next scenario only when previous completes
                     FeatureExecutionUnit.this.submit(next);
                 }
             });
             if (!exec.callContext.perfMode) {
-                // submit ALL in sequence
+                // loop immediately and submit all scenarios in parallel
                 FeatureExecutionUnit.this.submit(next);
             }
         } else {
             if (!exec.callContext.perfMode) {
-                // wait for parallel submissions to complete
+                // wait for parallel scenario submissions to complete
                 try {
                     latch.await();
                 } catch (InterruptedException e) {
                     featureContext.logger.error("feature failed: {}", e.getMessage());
                 }
             }
-            // this is where the feature gets "populated" with stats also. timing matters
+            // this is where the feature gets "populated" with stats
+            // but best of all, the original order is retained
             for (ScenarioResult sr : results) {
                 exec.result.addResult(sr);
             }
