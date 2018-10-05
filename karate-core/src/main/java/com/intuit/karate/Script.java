@@ -199,7 +199,11 @@ public class Script {
     }
 
     private static ScriptValue callWithCache(String text, String arg, ScenarioContext context, boolean reuseParentConfig) {
-        CallResult result = context.featureContext.callCache.get(text);
+        final FeatureContext featureContext = context.featureContext;
+        CallResult result;
+        synchronized (featureContext) {
+            result = featureContext.callCache.get(text);
+        }
         if (result != null) {
             context.logger.debug("callonce cache hit for: {}", text);
             if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
@@ -208,7 +212,9 @@ public class Script {
             return result.value;
         }
         ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
-        context.featureContext.callCache.put(text, new CallResult(resultValue, context.getConfig()));
+        synchronized (featureContext) {
+            featureContext.callCache.put(text, new CallResult(resultValue, context.getConfig()));
+        }
         context.logger.debug("cached callonce: {}", text);
         return resultValue;
     }

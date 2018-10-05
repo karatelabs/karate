@@ -25,6 +25,7 @@ package com.intuit.karate.demo.controller;
 
 import com.intuit.karate.demo.domain.Greeting;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,8 +40,15 @@ public class GreetingController {
 
     private static final String TEMPLATE = "Hello %s!";
     private final AtomicInteger counter = new AtomicInteger();
+    
+    @GetMapping("/reset")
+    public String reset() {
+        int value = 0;
+        counter.set(value);
+        return "{ counter: 0 }";
+    }
 
-    @RequestMapping
+    @GetMapping
     public Greeting greeting(@RequestParam(value = "name", defaultValue = "World") String name) {
         return new Greeting(counter.incrementAndGet(), String.format(TEMPLATE, name));
     }
