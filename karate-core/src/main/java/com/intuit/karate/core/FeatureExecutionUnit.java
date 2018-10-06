@@ -49,7 +49,7 @@ public class FeatureExecutionUnit {
         count = scenarios.size();
         iterator = scenarios.iterator();
         results = new ArrayList(count);
-        latch = new CountDownLatch(count);
+        latch = exec.parallelScenarios ? new CountDownLatch(count) : null;
     }
 
     private ScenarioContext lastContextExecuted;
@@ -62,7 +62,9 @@ public class FeatureExecutionUnit {
             if (callName != null) {
                 if (!scenario.getName().matches(callName)) {
                     featureContext.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
-                    latch.countDown();
+                    if (latch != null) {
+                        latch.countDown();
+                    }
                     FeatureExecutionUnit.this.submit(next);
                     return;
                 }
@@ -71,7 +73,9 @@ public class FeatureExecutionUnit {
             Tags tags = new Tags(scenario.getTagsEffective());
             if (!tags.evaluate(featureContext.tagSelector)) {
                 featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
-                latch.countDown();
+                if (latch != null) {
+                    latch.countDown();
+                }
                 FeatureExecutionUnit.this.submit(next);
                 return;
             }
@@ -79,7 +83,9 @@ public class FeatureExecutionUnit {
             if (callTag != null) {
                 if (!tags.contains(callTag)) {
                     featureContext.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
-                    latch.countDown();
+                    if (latch != null) {
+                        latch.countDown();
+                    }
                     FeatureExecutionUnit.this.submit(next);
                     return;
                 }
@@ -98,22 +104,23 @@ public class FeatureExecutionUnit {
             // in the final report - even if they run in parallel !
             results.add(unit.result);
             unit.submit(() -> {
-                latch.countDown();
                 // we also hold a reference to the last scenario-context that executed
                 // for cases where the caller needs a result
                 lastContextExecuted = actions.context;
-                if (exec.callContext.perfMode) {                    
+                if (latch != null) {
+                    latch.countDown();
+                } else {
                     // yield next scenario only when previous completes
-                    // and we execute one-by-one in sequence order
+                    // and we execute one-by-one in sequence order                    
                     FeatureExecutionUnit.this.submit(next);
                 }
             });
-            if (!exec.callContext.perfMode) {
+            if (latch != null) {
                 // loop immediately and submit all scenarios in parallel
                 FeatureExecutionUnit.this.submit(next);
             }
         } else {
-            if (!exec.callContext.perfMode) {
+            if (latch != null) {
                 // wait for parallel scenario submissions to complete
                 try {
                     latch.await();

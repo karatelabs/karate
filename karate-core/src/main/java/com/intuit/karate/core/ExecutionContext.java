@@ -41,6 +41,7 @@ public class ExecutionContext {
     public final FeatureResult result;
     public final LogAppender appender;
     public final Consumer<Runnable> system;
+    public final boolean parallelScenarios;
 
     private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
 
@@ -48,6 +49,7 @@ public class ExecutionContext {
         result = new FeatureResult(featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;
+        parallelScenarios = system != null && !callContext.perfMode;
         if (system == null) {
             this.system = SYNC_EXECUTOR;
         } else {
