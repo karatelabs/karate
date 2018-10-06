@@ -45,6 +45,12 @@ public interface Driver {
     
     void forward();
     
+    void maximize();
+    
+    void minimize();
+    
+    void fullscreen();
+    
     void focus(String id);
     
     void input(String name, String value);    

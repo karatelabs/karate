@@ -41,9 +41,11 @@ public abstract class WebDriver implements Driver {
 
     private final CommandThread command;
     protected final boolean headless;
-    private final Http http;
+    protected final Http http;
     private final String sessionId;
     private final String windowId;
+    
+    protected boolean open = true;
 
     protected WebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
         this.command = command;
@@ -130,6 +132,21 @@ public abstract class WebDriver implements Driver {
     public void forward() {
         http.path("forward").post("{}");
     }
+    
+    @Override
+    public void maximize() {
+        http.path("window", "maximize").post("{}");
+    }
+
+    @Override
+    public void minimize() {
+        http.path("window", "minimize").post("{}");
+    }
+
+    @Override
+    public void fullscreen() {
+        http.path("window", "fullscreen").post("{}");
+    }    
 
     @Override
     public void focus(String id) {
@@ -156,10 +173,15 @@ public abstract class WebDriver implements Driver {
     @Override
     public void close() {
         http.path("window").delete();
+        open = false;
     }
 
     @Override
     public void quit() {
+        if (open) {
+            close();
+        }
+        // delete session
         http.delete();
         if (command != null) {
             command.close();

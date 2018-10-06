@@ -29,6 +29,7 @@ import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -36,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 
+ *
  * @author pthomas3
  */
 public abstract class DevToolsDriver implements Driver, WebSocketListener {
@@ -49,10 +50,14 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     private final WaitState waitState;
 
-    private final String pageId;
+    protected final String pageId;
+
+    private Integer _windowId;
+
     protected final boolean headless;
     private final long timeOut;
 
+    protected boolean open = true;
     protected String currentUrl;
 
     private int nextId = 1;
@@ -115,11 +120,10 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     }
 
     //==========================================================================
-
     protected int getWaitInterval() {
         return 0;
     }
-    
+
     protected DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
         DevToolsMessage dtm;
@@ -136,37 +140,46 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
         method("Target.activateTarget").param("targetId", pageId).send();
     }
 
+    private int getWindowId() {
+        if (_windowId == null) {
+            DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", pageId).send();
+            _windowId = dtm.getResult("windowId").getValue(Integer.class);
+        }
+        return _windowId;
+    }
+
+    private String getWindowState() {
+        return (String) getDimensions().get("windowState");
+    }
+
     @Override
     public Map<String, Object> getDimensions() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", pageId).send();
-        int windowId =  dtm.getResult("windowId").getValue(Integer.class);
-        Map map = dtm.getResult("bounds").getAsMap();
-        map.put("windowId", windowId);
-        return map;
+        return dtm.getResult("bounds").getAsMap();
     }
 
     @Override
     public void setDimensions(Map<String, Object> map) {
         Map temp = getDimensions();
-        int windowId = (Integer) temp.remove("windowId");
         temp.putAll(map);
+        temp.remove("windowState");
         method("Browser.setWindowBounds")
-                .param("windowId", windowId)
+                .param("windowId", getWindowId())
                 .param("bounds", temp).send();
-    }    
+    }
 
     @Override
     public void close() {
         method("Page.close").send();
+        open = false;
     }
 
     @Override
     public void quit() {
-        if (headless) {
+        if (open) {
             close();
-        } else {
-            method("Browser.close").send();
         }
+        method("Browser.close").send(WaitState.CHROME_INSPECTOR_DETACHED);
         if (command != null) {
             command.close();
         }
@@ -187,32 +200,66 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     public void reload() {
         method("Page.reload").param("ignoreCache", true).send();
     }
-    
+
     private void history(int delta) {
         DevToolsMessage dtm = method("Page.getNavigationHistory").send();
         int currentIndex = dtm.getResult("currentIndex").getValue(Integer.class);
-        List<Map> list = dtm.getResult("entries").getValue(List.class); 
+        List<Map> list = dtm.getResult("entries").getValue(List.class);
         int targetIndex = currentIndex + delta;
         if (targetIndex < 0 || targetIndex == list.size()) {
             return;
-        }      
+        }
         Map<String, Object> entry = list.get(targetIndex);
         Integer id = (Integer) entry.get("id");
         String url = (String) entry.get("url");
         method("Page.navigateToHistoryEntry").param("entryId", id).send();
-        currentUrl = url;        
+        currentUrl = url;
     }
 
     @Override
     public void back() {
         history(-1);
-    }  
-    
+    }
+
     @Override
     public void forward() {
         history(1);
-    }     
-    
+    }
+
+    private void setWindowState(String state) {
+        String currentState = getWindowState();
+        if (!"normal".equals(currentState)) {
+            Predicate<DevToolsMessage> condition = "minimized".equals(currentState) ? null : WaitState.CHROME_FRAME_RESIZED;
+            method("Browser.setWindowBounds")
+                    .param("windowId", getWindowId())
+                    .param("bounds", Collections.singletonMap("windowState", "normal"))
+                    .send(condition);
+            currentState = "normal";
+        }
+        if (!currentState.equals(state)) {
+            Predicate<DevToolsMessage> condition = "minimized".equals(state) ? null : WaitState.CHROME_FRAME_RESIZED;
+            method("Browser.setWindowBounds")
+                    .param("windowId", getWindowId())
+                    .param("bounds", Collections.singletonMap("windowState", state))
+                    .send(condition);
+        }
+    }
+
+    @Override
+    public void maximize() {
+        setWindowState("maximized");
+    }
+
+    @Override
+    public void minimize() {
+        setWindowState("minimized");
+    }
+
+    @Override
+    public void fullscreen() {
+        setWindowState("fullscreen");
+    }
+
     @Override
     public void click(String id) {
         eval(DriverUtils.selectorScript(id) + ".click()", null);
@@ -265,13 +312,13 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
             DevToolsMessage dtm = eval(expression, null);
             sv = dtm.getResult("value");
         } while (!sv.isBooleanTrue() && count++ < 3);
-    }        
+    }
 
     @Override
     public String getTitle() {
         DevToolsMessage dtm = eval("document.title", null);
         return dtm.getResult("value").getAsString();
-    }        
+    }
 
     @Override
     public String getLocation() {

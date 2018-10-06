@@ -41,11 +41,19 @@ public class WaitState {
     private Predicate<DevToolsMessage> condition;
     private DevToolsMessage lastReceived;
 
-    private final Predicate<DevToolsMessage> DEFAULT = cm -> lastSent.getId().equals(cm.getId()) && cm.getResult() != null;
+    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.getResult() != null;
+    
+    public static final Predicate<DevToolsMessage> CHROME_FRAME_RESIZED = forEvent("Page.frameResized");
+    
+    public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");
+    
+    public static Predicate<DevToolsMessage> forEvent(String name) {
+        return m -> name.equals(m.getMethod());
+    }
 
-    public static final Predicate<DevToolsMessage> CHROME_FRAME_NAVIGATED = cm -> {
-        if ("Page.frameNavigated".equals(cm.getMethod())) {
-            if (cm.getFrameUrl().startsWith("http")) {
+    public static final Predicate<DevToolsMessage> CHROME_FRAME_NAVIGATED = m -> {
+        if ("Page.frameNavigated".equals(m.getMethod())) {
+            if (m.getFrameUrl().startsWith("http")) {
                 return true;
             }
         }
@@ -56,34 +64,34 @@ public class WaitState {
         this.timeOut = timeOut;
     }
 
-    public DevToolsMessage sendAndWait(DevToolsMessage cm, Predicate<DevToolsMessage> condition) {
+    public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         lastReceived = null;
-        lastSent = cm;
+        lastSent = dtm;
         this.condition = condition == null ? DEFAULT : condition;
         synchronized (this) {
-            logger.debug(">> wait: {}", cm);
+            logger.debug(">> wait: {}", dtm);
             try {
                 wait(timeOut);
             } catch (InterruptedException e) {
-                logger.error("interrupted: {} wait: {}", e.getMessage(), cm);
+                logger.error("interrupted: {} wait: {}", e.getMessage(), dtm);
             }
         }
         if (lastReceived != null) {
-            logger.debug("<< notified: {}", cm);
+            logger.debug("<< notified: {}", dtm);
         } else {
-            logger.warn("<< timed out: {}", cm);
+            logger.warn("<< timed out: {}", dtm);
         }        
         return lastReceived;
     }
 
-    public void receive(DevToolsMessage cm) {
+    public void receive(DevToolsMessage dtm) {
         synchronized (this) {
-            if (condition.test(cm)) {
-                logger.debug("<< notify: {}", cm);
-                lastReceived = cm;
+            if (condition.test(dtm)) {
+                logger.debug("<< notify: {}", dtm);
+                lastReceived = dtm;
                 notify();
             } else {
-                logger.debug("<< ignore: {}", cm);
+                logger.debug("<< ignore: {}", dtm);
             }
         }
     }

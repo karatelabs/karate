@@ -25,6 +25,7 @@ package com.intuit.karate.web.safari;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.web.DriverUtils;
@@ -76,7 +77,22 @@ public class SafariWebDriver extends WebDriver {
     @Override
     protected int getWaitInterval() {
         return 1000;
-    }        
+    }     
+    
+    @Override
+    public void setDimensions(Map<String, Object> map) {
+        Integer x = (Integer) map.remove("left");
+        Integer y = (Integer) map.remove("top");  
+        // webdriver bug where 0 or 1 is mis-interpreted as boolean !
+        if (x != null) {
+            map.put("x", x < 2 ? 2 : x);
+        }
+        if (y != null) {
+            map.put("y", y < 2 ? 2 : y);
+        }
+        String json = JsonUtils.toJson(map);
+        http.path("window", "rect").post(json);
+    }    
 
     @Override
     public void activate() {

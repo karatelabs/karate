@@ -7,6 +7,11 @@ Scenario Outline: dom operations, validations and navigation
   * configure driver = <config>
 
   Given location webUrlBase + '/page-01'
+
+  And eval driver.fullscreen()
+  And eval driver.minimize()
+  And eval driver.maximize()
+
   And eval driver.dimensions = <dimensions>
   And input #eg01InputId = 'hello world'
   When click input[name=eg01SubmitName]

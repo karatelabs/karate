@@ -113,6 +113,7 @@ public class DriverUtils {
                 logger.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
                 SocketChannel sock = SocketChannel.open(address);
                 sock.close();
+                return true;
             } catch (IOException e) {                
                 sleep(250);
             }
