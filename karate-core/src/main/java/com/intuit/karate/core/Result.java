@@ -37,7 +37,7 @@ public class Result {
     private static final String SKIPPED = "skipped";
 
     private final String status;
-    private final long duration;
+    private final long durationNanos;
     private final boolean aborted;
     private final Throwable error;
     private final boolean skipped;
@@ -45,16 +45,16 @@ public class Result {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(error == null ? 2 : 3);
         map.put("status", status);
-        map.put("duration", duration);
+        map.put("duration", durationNanos);
         if (error != null) {
             map.put("error_message", error.getClass().getName() + ": " + error.getMessage());
         }
         return map;
     }
 
-    private Result(String status, long duration, Throwable error, boolean aborted) {
+    private Result(String status, long nanos, Throwable error, boolean aborted) {
         this.status = status;
-        this.duration = duration;
+        this.durationNanos = nanos;
         this.error = error;
         this.aborted = aborted;
         skipped = SKIPPED.equals(status);
@@ -76,33 +76,33 @@ public class Result {
         return error;
     }
 
-    public static Result passed(long duration) {
-        return new Result(PASSED, duration, null, false);
+    public static Result passed(long nanos) {
+        return new Result(PASSED, nanos, null, false);
     }
 
-    public static Result failed(long duration, Throwable error, Step step) {
+    public static Result failed(long nanos, Throwable error, Step step) {
         String featureName = Engine.getFeatureName(step);
         StackTraceElement[] newTrace = new StackTraceElement[]{
             new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', featureName, step.getLine())
         };
         error.setStackTrace(newTrace);
-        return new Result(FAILED, duration, error, false);
+        return new Result(FAILED, nanos, error, false);
     }
 
     public static Result skipped() {
         return new Result(SKIPPED, 0, null, false);
     }
 
-    public static Result aborted(long duration) {
-        return new Result(SKIPPED, duration, null, true);
+    public static Result aborted(long nanos) {
+        return new Result(SKIPPED, nanos, null, true);
     }
 
     public String getStatus() {
         return status;
     }
 
-    public long getDuration() {
-        return duration;
+    public long getDurationNanos() {
+        return durationNanos;
     }
 
     @Override

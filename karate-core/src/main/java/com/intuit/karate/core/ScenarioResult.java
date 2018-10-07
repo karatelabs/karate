@@ -39,7 +39,11 @@ public class ScenarioResult {
     private final Scenario scenario;
 
     private StepResult failedStep;
-    private long duration;        
+    
+    private String threadName;
+    private long startTime;
+    private long endTime;
+    private long durationNanos;        
 
     public String getFailureMessageForDisplay() {
         if (failedStep == null) {
@@ -63,7 +67,7 @@ public class ScenarioResult {
     public void addStepResult(StepResult stepResult) {
         stepResults.add(stepResult);
         Result result = stepResult.getResult();
-        duration += result.getDuration();
+        durationNanos += result.getDurationNanos();
         if (result.isFailed()) {
             failedStep = stepResult;
         }
@@ -151,8 +155,32 @@ public class ScenarioResult {
         return failedStep == null ? null : failedStep.getResult().getError();
     }
 
-    public long getDuration() {
-        return duration;
+    public long getDurationNanos() {
+        return durationNanos;
+    }
+
+    public String getThreadName() {
+        return threadName;
+    }
+
+    public void setThreadName(String threadName) {
+        this.threadName = threadName;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    public long getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(long endTime) {
+        this.endTime = endTime;
     }
 
 }

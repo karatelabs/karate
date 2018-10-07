@@ -70,17 +70,17 @@ public class RunnerTest {
     
     @Test 
     public void testParallel() {
-        KarateStats stats = Runner.parallel(getClass(), 1);
-        assertEquals(2, stats.getFailCount());
+        Results results = Runner.parallel(getClass(), 1);
+        assertEquals(2, results.getFailCount());
         String pathBase = "target/surefire-reports/com.intuit.karate.";
         assertTrue(contains(pathBase + "core.scenario.xml", "Then match b == { foo: 'bar'}"));
         assertTrue(contains(pathBase + "core.outline.xml", "Then assert a == 55"));
         assertTrue(contains(pathBase + "multi-scenario.xml", "Then assert a != 2"));
         // a scenario failure should not stop other features from running
         assertTrue(contains(pathBase + "multi-scenario-fail.xml", "Then assert a != 2 ........................................................ passed"));
-        assertEquals(2, stats.getFailedMap().size());
-        assertTrue(stats.getFailedMap().keySet().contains("com.intuit.karate.no-scenario-name"));
-        assertTrue(stats.getFailedMap().keySet().contains("com.intuit.karate.multi-scenario-fail"));
+        assertEquals(2, results.getFailedMap().size());
+        assertTrue(results.getFailedMap().keySet().contains("com.intuit.karate.no-scenario-name"));
+        assertTrue(results.getFailedMap().keySet().contains("com.intuit.karate.multi-scenario-fail"));
     }    
     
     @Test

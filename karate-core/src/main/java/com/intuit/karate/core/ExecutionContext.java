@@ -36,6 +36,7 @@ import java.util.function.Consumer;
  */
 public class ExecutionContext {
 
+    public final long startTime;
     public final FeatureContext featureContext;
     public final CallContext callContext;
     public final FeatureResult result;
@@ -43,9 +44,10 @@ public class ExecutionContext {
     public final Consumer<Runnable> system;
     public final boolean parallelScenarios;
 
-    private static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
+    public static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
 
-    public ExecutionContext(FeatureContext featureContext, CallContext callContext, Consumer<Runnable> system) {
+    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, Consumer<Runnable> system) {
+        this.startTime = startTime;
         result = new FeatureResult(featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;

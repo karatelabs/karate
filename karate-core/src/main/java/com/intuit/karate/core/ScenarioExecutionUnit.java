@@ -28,6 +28,7 @@ import com.intuit.karate.StringUtils;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  *
@@ -39,6 +40,7 @@ public class ScenarioExecutionUnit {
     private final ExecutionContext exec;
     private final Iterator<Step> iterator;
     protected final ScenarioResult result;
+    private final Consumer<Runnable> system;
 
     private boolean stopped = false;
 
@@ -46,6 +48,7 @@ public class ScenarioExecutionUnit {
         this.actions = actions;
         this.exec = exec;
         result = new ScenarioResult(scenario);
+        system = exec.callContext.perfMode ? exec.system : ExecutionContext.SYNC_EXECUTOR;
         // before-scenario hook
         boolean hookFailed = false;
         if (actions.callContext.executionHook != null) {
@@ -60,13 +63,13 @@ public class ScenarioExecutionUnit {
     }
 
     public void submit(Runnable next) {
-        if (iterator.hasNext()) {
-            Step step = iterator.next();
-            if (stopped) {
-                result.addStepResult(new StepResult(step, Result.skipped(), null, null));
-                ScenarioExecutionUnit.this.submit(next);
-            } else {
-                exec.system.accept(() -> {                    
+        system.accept(() -> {
+            if (iterator.hasNext()) {
+                Step step = iterator.next();
+                if (stopped) {
+                    result.addStepResult(new StepResult(step, Result.skipped(), null, null));
+                    ScenarioExecutionUnit.this.submit(next);
+                } else {
                     Result execResult = Engine.executeStep(step, actions);
                     List<FeatureResult> callResults = actions.context.getAndClearCallResults();
                     if (execResult.isAborted()) { // we log only aborts for visibility
@@ -80,17 +83,17 @@ public class ScenarioExecutionUnit {
                     }
                     result.addStepResult(stepResult);
                     ScenarioExecutionUnit.this.submit(next);
-                });
+                }
+            } else {
+                // gatling clean up            
+                actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
+                // after-scenario hook
+                actions.context.invokeAfterHookIfConfigured(false);
+                // stop browser automation if running
+                actions.context.stop();
+                next.run();
             }
-        } else {
-            // gatling clean up            
-            actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
-            // after-scenario hook
-            actions.context.invokeAfterHookIfConfigured(false);
-            // stop browser automation if running
-            actions.context.stop();
-            next.run();
-        }
+        });
     }
 
 }

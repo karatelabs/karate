@@ -3,7 +3,7 @@ package com.intuit.karate.mock;
 import com.intuit.karate.netty.*;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.KarateOptions;
 import java.io.File;
 import java.util.ArrayList;
@@ -38,9 +38,9 @@ public class MockServerTest {
     public void testServer() {
         // will run all features in 'this' package
         String karateOutputPath = "target/surefire-reports";
-        KarateStats stats = Runner.parallel(getClass(), 1, karateOutputPath);
+        Results results = Runner.parallel(getClass(), 1, karateOutputPath);
         generateReport(karateOutputPath);
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);        
+        assertTrue("there are scenario failures", results.getFailCount() == 0);        
     }
     
     private static void generateReport(String karateOutputPath) {

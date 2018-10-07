@@ -1,7 +1,7 @@
 package ssl;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.KarateOptions;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
@@ -29,8 +29,8 @@ public class SslTest {
         // skip callSingle, note that the karate-config.js copied from demo may be present
         System.setProperty("karate.env", "mock");
         System.setProperty("jersey.ssl.port", port + "");
-        KarateStats stats = Runner.parallel(getClass(), 1, "target/ssl");
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);        
+        Results results = Runner.parallel(getClass(), 1, "target/ssl");
+        assertTrue("there are scenario failures", results.getFailCount() == 0);        
     }
 
     @AfterClass

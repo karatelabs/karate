@@ -1,7 +1,7 @@
 package demo;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.demo.Application;
 import com.intuit.karate.demo.config.ServerStartedInitializingBean;
 import com.intuit.karate.KarateOptions;
@@ -28,8 +28,8 @@ public class JerseyHttpClientTest {
         System.setProperty("karate.env", "jersey");
         System.setProperty("demo.server.port", ss.getLocalPort() + "");
         System.setProperty("demo.server.https", "false");
-        KarateStats stats = Runner.parallel(getClass(), 5);
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);
+        Results results = Runner.parallel(getClass(), 5);
+        assertTrue("there are scenario failures", results.getFailCount() == 0);
     }
     
 }

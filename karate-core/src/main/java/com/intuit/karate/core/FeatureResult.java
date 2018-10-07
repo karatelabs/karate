@@ -48,7 +48,7 @@ public class FeatureResult {
     private int scenarioCount;
     private int failedCount;
     private List<Throwable> errors;
-    private double duration;
+    private double durationMillis;
 
     private ScriptValueMap resultVars;
     private Map<String, Object> callArg;
@@ -59,7 +59,7 @@ public class FeatureResult {
         sb.append("---------------------------------------------------------\n");
         sb.append("feature: ").append(featurePath).append('\n');
         sb.append("report: ").append(reportPath).append('\n');
-        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.2f\n", scenarioCount, scenarioCount - failedCount, failedCount, duration));
+        sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, scenarioCount - failedCount, failedCount, durationMillis / 1000));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);
     }
@@ -172,8 +172,8 @@ public class FeatureResult {
         this.loopIndex = loopIndex;
     }
 
-    public double getDuration() {
-        return duration;
+    public double getDurationMillis() {
+        return durationMillis;
     }
 
     public int getFailedCount() {
@@ -213,7 +213,7 @@ public class FeatureResult {
 
     public void addResult(ScenarioResult result) {
         scenarioResults.add(result);
-        duration += Engine.nanosToSeconds(result.getDuration());
+        durationMillis += Engine.nanosToMillis(result.getDurationNanos());
         scenarioCount++;
         if (result.isFailed()) {
             addError(result.getError());

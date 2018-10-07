@@ -55,92 +55,97 @@ public class FeatureExecutionUnit {
     private ScenarioContext lastContextExecuted;
 
     public void submit(Runnable next) {
-        FeatureContext featureContext = exec.featureContext;
-        String callName = featureContext.feature.getCallName();
-        if (iterator.hasNext()) {
-            Scenario scenario = iterator.next();
-            if (callName != null) {
-                if (!scenario.getName().matches(callName)) {
-                    featureContext.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+        exec.system.accept(() -> {
+            FeatureContext featureContext = exec.featureContext;
+            String callName = featureContext.feature.getCallName();
+            if (iterator.hasNext()) {
+                Scenario scenario = iterator.next();
+                if (callName != null) {
+                    if (!scenario.getName().matches(callName)) {
+                        featureContext.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+                        if (latch != null) {
+                            latch.countDown();
+                        }
+                        FeatureExecutionUnit.this.submit(next);
+                        return;
+                    }
+                    featureContext.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                }
+                Tags tags = new Tags(scenario.getTagsEffective());
+                if (!tags.evaluate(featureContext.tagSelector)) {
+                    featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                     if (latch != null) {
                         latch.countDown();
                     }
                     FeatureExecutionUnit.this.submit(next);
                     return;
                 }
-                featureContext.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
-            }
-            Tags tags = new Tags(scenario.getTagsEffective());
-            if (!tags.evaluate(featureContext.tagSelector)) {
-                featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
-                if (latch != null) {
-                    latch.countDown();
+                String callTag = scenario.getFeature().getCallTag();
+                if (callTag != null) {
+                    if (!tags.contains(callTag)) {
+                        featureContext.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                        if (latch != null) {
+                            latch.countDown();
+                        }
+                        FeatureExecutionUnit.this.submit(next);
+                        return;
+                    }
+                    featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
                 }
-                FeatureExecutionUnit.this.submit(next);
-                return;
-            }
-            String callTag = scenario.getFeature().getCallTag();
-            if (callTag != null) {
-                if (!tags.contains(callTag)) {
-                    featureContext.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                // this is where the script-context and vars are inited for a scenario
+                // first we set the scenario metadata
+                exec.callContext.setScenarioInfo(getScenarioInfo(scenario, featureContext));
+                // then the tags metadata
+                exec.callContext.setTags(tags);
+                // karate-config.js will be processed here 
+                // when the script-context constructor is called
+                StepActions actions = new StepActions(featureContext, exec.callContext);
+                ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
+                // this is an elegant solution to retaining the order of scenarios 
+                // in the final report - even if they run in parallel !
+                results.add(unit.result);
+                unit.result.setThreadName(Thread.currentThread().getName());
+                unit.result.setStartTime(System.currentTimeMillis() - exec.startTime);
+                unit.submit(() -> {
+                    unit.result.setEndTime(System.currentTimeMillis() - exec.startTime);
+                    // we also hold a reference to the last scenario-context that executed
+                    // for cases where the caller needs a result
+                    lastContextExecuted = actions.context;
                     if (latch != null) {
                         latch.countDown();
+                    } else {
+                        // yield next scenario only when previous completes
+                        // and we execute one-by-one in sequence order                    
+                        FeatureExecutionUnit.this.submit(next);
                     }
-                    FeatureExecutionUnit.this.submit(next);
-                    return;
-                }
-                featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
-            }
-            // this is where the script-context and vars are inited for a scenario
-            // first we set the scenario metadata
-            exec.callContext.setScenarioInfo(getScenarioInfo(scenario, featureContext));
-            // then the tags metadata
-            exec.callContext.setTags(tags);
-            // karate-config.js will be processed here 
-            // when the script-context constructor is called
-            StepActions actions = new StepActions(featureContext, exec.callContext);
-            ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec);
-            // this is an elegant solution to retaining the order of scenarios 
-            // in the final report - even if they run in parallel !
-            results.add(unit.result);
-            unit.submit(() -> {
-                // we also hold a reference to the last scenario-context that executed
-                // for cases where the caller needs a result
-                lastContextExecuted = actions.context;
+                });
                 if (latch != null) {
-                    latch.countDown();
-                } else {
-                    // yield next scenario only when previous completes
-                    // and we execute one-by-one in sequence order                    
+                    // loop immediately and submit all scenarios in parallel
                     FeatureExecutionUnit.this.submit(next);
                 }
-            });
-            if (latch != null) {
-                // loop immediately and submit all scenarios in parallel
-                FeatureExecutionUnit.this.submit(next);
-            }
-        } else {
-            if (latch != null) {
-                // wait for parallel scenario submissions to complete
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    featureContext.logger.error("feature failed: {}", e.getMessage());
+            } else {
+                if (latch != null) {
+                    // wait for parallel scenario submissions to complete
+                    try {
+                        latch.await();
+                    } catch (InterruptedException e) {
+                        featureContext.logger.error("feature failed: {}", e.getMessage());
+                    }
                 }
+                // this is where the feature gets "populated" with stats
+                // but best of all, the original order is retained
+                for (ScenarioResult sr : results) {
+                    exec.result.addResult(sr);
+                }
+                if (lastContextExecuted != null) {
+                    // set result map that caller will see
+                    exec.result.setResultVars(lastContextExecuted.getVars());
+                    lastContextExecuted.invokeAfterHookIfConfigured(true);
+                }
+                exec.appender.close();
+                next.run();
             }
-            // this is where the feature gets "populated" with stats
-            // but best of all, the original order is retained
-            for (ScenarioResult sr : results) {
-                exec.result.addResult(sr);
-            }
-            if (lastContextExecuted != null) {
-                // set result map that caller will see
-                exec.result.setResultVars(lastContextExecuted.getVars());
-                lastContextExecuted.invokeAfterHookIfConfigured(true);
-            }
-            exec.appender.close();
-            next.run();
-        }
+        });
     }
 
     private static ScenarioInfo getScenarioInfo(Scenario scenario, FeatureContext env) {

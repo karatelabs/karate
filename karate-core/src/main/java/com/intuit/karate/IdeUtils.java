@@ -165,7 +165,7 @@ public class IdeUtils {
                 StringUtils.Pair error = details(sr.getError());
                 log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), scenarioName, ""));
             }
-            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.getDuration() / 1000000, scenarioName));
+            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.getDurationNanos() / 1000000, scenarioName));
         }
         log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), featureName));
         log(String.format(TEMPLATE_SCENARIO_COUNTING_FINISHED, getCurrentTime()));

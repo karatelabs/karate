@@ -49,51 +49,51 @@ public class Runner {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(Runner.class);
 
-    public static KarateStats parallel(Class<?> clazz, int threadCount) {
+    public static Results parallel(Class<?> clazz, int threadCount) {
         return parallel(clazz, threadCount, null);
     }
 
-    public static KarateStats parallel(Class<?> clazz, int threadCount, String reportDir) {
+    public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
         RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(clazz);
         return parallel(options.getTags(), options.getFeatures(), null, threadCount, reportDir);
     }
 
-    public static KarateStats parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
+    public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
         return parallel(tags, paths, null, threadCount, reportDir);
     }
 
-    public static KarateStats parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
+    public static Results parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
         String tagSelector = tags == null ? null : Tags.fromCucumberOptionsTags(tags);
         List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
         return parallel(tagSelector, files, hook, threadCount, reportDir);
     }
 
-    public static KarateStats parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
+    public static Results parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
         return parallel(tagSelector, resources, null, threadCount, reportDir);
     }
 
-    public static KarateStats parallel(String tagSelector, List<Resource> resources, ExecutionHook hook, int threadCount, String reportDir) {
+    public static Results parallel(String tagSelector, List<Resource> resources, ExecutionHook hook, int threadCount, String reportDir) {
         if (reportDir == null) {
             reportDir = Engine.getBuildDir() + File.separator + "surefire-reports";
             new File(reportDir).mkdirs();
         }
         final String finalReportDir = reportDir;
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
-        KarateStats stats = KarateStats.startTimer();
-        ExecutorService executor = Executors.newFixedThreadPool(threadCount);        
+        Results results = Results.startTimer();
+        ExecutorService executor = Executors.newWorkStealingPool(threadCount);
         int executedFeatureCount = 0;
         try {
             int count = resources.size();
-            CountDownLatch latch = new CountDownLatch(count); 
-            List<FeatureResult> results = new ArrayList(count);
+            CountDownLatch latch = new CountDownLatch(count);
+            List<FeatureResult> featureResults = new ArrayList(count);
             for (int i = 0; i < count; i++) {
                 Resource resource = resources.get(i);
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
                 FeatureContext featureContext = new FeatureContext(feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(hook, false);
-                ExecutionContext execContext = new ExecutionContext(featureContext, callContext, r -> executor.submit(r));
-                results.add(execContext.result);
+                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, r -> executor.submit(r));
+                featureResults.add(execContext.result);
                 FeatureExecutionUnit execUnit = new FeatureExecutionUnit(execContext);
                 execUnit.submit(() -> {
                     FeatureResult result = execContext.result;
@@ -110,29 +110,31 @@ public class Runner {
                 });
             }
             latch.await();
-            stats.stopTimer();
-            for (FeatureResult result : results) {
+            results.stopTimer();
+            for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
-                stats.addToTestCount(scenarioCount);
+                results.addToTestCount(scenarioCount);
                 if (scenarioCount != 0) {
                     executedFeatureCount++;
                 }
-                stats.addToFailCount(result.getFailedCount());
-                stats.addToTimeTaken(result.getDuration());
+                results.addToFailCount(result.getFailedCount());
+                results.addToTimeTaken(result.getDurationMillis());
                 if (result.isFailed()) {
-                    stats.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
+                    results.addToFailedList(result.getPackageQualifiedName(), result.getErrorMessages());
                 }
+                results.addScenarioResults(result.getScenarioResults());
             }
         } catch (Exception e) {
             logger.error("karate parallel runner failed: ", e.getMessage());
-            stats.setFailureReason(e);
+            results.setFailureReason(e);
         } finally {
             executor.shutdownNow();
         }
-        stats.setFeatureCount(executedFeatureCount);
-        stats.printStats(threadCount);
-        stats.setReportDir(reportDir);
-        return stats;
+        results.setFeatureCount(executedFeatureCount);
+        results.printStats(threadCount);
+        Engine.saveTimelineHtml(reportDir, results);
+        results.setReportDir(reportDir);
+        return results;
     }
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
@@ -161,7 +163,7 @@ public class Runner {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(feature, null);
         CallContext callContext = CallContext.forAsync(hook, true);
-        ExecutionContext executionContext = new ExecutionContext(featureContext, callContext, system);
+        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, system);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.submit(next);
     }

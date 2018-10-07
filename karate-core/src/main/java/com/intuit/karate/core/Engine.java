@@ -29,6 +29,7 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.FeatureContext;
+import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
@@ -53,6 +54,7 @@ import com.intuit.karate.StepActions;
 import cucumber.api.java.en.When;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 /**
  *
@@ -100,7 +102,7 @@ public class Engine {
     }
 
     public static double nanosToMillis(long nanos) {
-        return (double) nanos / 1000000;
+        return (double) nanos / MILLION;
     }
 
     public static String getBuildDir() {
@@ -113,7 +115,7 @@ public class Engine {
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
-        ExecutionContext exec = new ExecutionContext(featureContext, callContext, null);
+        ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
         unit.submit(NO_OP);
         return exec.result;
@@ -175,8 +177,8 @@ public class Engine {
         return formatter.format(nanosToSeconds(nanos));
     }
 
-    private static String formatSeconds(double seconds, DecimalFormat formatter) {
-        return formatter.format(seconds);
+    private static String formatMillis(double millis, DecimalFormat formatter) {
+        return formatter.format(millis / 1000);
     }
 
     private static Throwable appendSteps(List<StepResult> steps, StringBuilder sb) {
@@ -222,7 +224,7 @@ public class Engine {
         StringBuilder sb = new StringBuilder();
         while (iterator.hasNext()) {
             ScenarioResult sr = iterator.next();
-            totalDuration += sr.getDuration();
+            totalDuration += sr.getDurationNanos();
             if (sr.isFailed()) {
                 failureCount++;
             }
@@ -230,7 +232,7 @@ public class Engine {
             root.appendChild(testCase);
             testCase.setAttribute("classname", baseName);
             testCount++;
-            long duration = sr.getDuration();
+            long duration = sr.getDurationNanos();
             error = appendSteps(sr.getStepResults(), sb);
             String name = sr.getScenario().getName();
             if (StringUtils.isBlank(name)) {
@@ -257,7 +259,7 @@ public class Engine {
         return file;
     }
 
-    private static String getFile(String name) {
+    public static String getClasspathResource(String name) {
         return FileUtils.toString(Engine.class.getClassLoader().getResourceAsStream(name));
     }
 
@@ -294,7 +296,7 @@ public class Engine {
         String extraClass = featureResult.isFailed() ? "failed" : "passed";
         Node stepRow = div(doc, "step-row",
                 div(doc, "step-cell " + extraClass, featureResult.getCallName()),
-                div(doc, "time-cell " + extraClass, formatSeconds(featureResult.getDuration(), formatter)));
+                div(doc, "time-cell " + extraClass, formatMillis(featureResult.getDurationMillis(), formatter)));
         parent.appendChild(stepRow);
         String callArg = featureResult.getCallArgPretty();
         if (callArg != null) {
@@ -315,7 +317,7 @@ public class Engine {
         }
         Node stepRow = div(doc, "step-row",
                 div(doc, "step-cell " + extraClass, step.getPrefix() + ' ' + step.getText()),
-                div(doc, "time-cell " + extraClass, formatNanos(result.getDuration(), formatter)));
+                div(doc, "time-cell " + extraClass, formatNanos(result.getDurationNanos(), formatter)));
         parent.appendChild(stepRow);
         if (step.getTable() != null) {
             Node table = node(doc, "table", null);
@@ -363,10 +365,10 @@ public class Engine {
     public static File saveResultHtml(String targetDir, FeatureResult result) {
         DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
-        String html = getFile("report-template.html");
-        String img = getFile("karate-logo.svg");
+        String html = getClasspathResource("report-template.html");
+        String img = getClasspathResource("karate-logo.svg");
         Node svg = XmlUtils.toXmlDoc(img);
-        String js = getFile("report-template.js");
+        String js = getClasspathResource("report-template.js");
         Document doc = XmlUtils.toXmlDoc(html);
         XmlUtils.setByPath(doc, "/html/body/img", svg);
         String baseName = result.getPackageQualifiedName();
@@ -399,6 +401,51 @@ public class Engine {
 
     private static long getElapsedTime(long startTime) {
         return System.nanoTime() - startTime;
+    }
+
+    public static void saveTimelineHtml(String targetDir, Results results) {
+        Map<String, Integer> groupsMap = new LinkedHashMap();
+        List<ScenarioResult> scenarioResults = results.getScenarioResults();
+        List<Map> items = new ArrayList(scenarioResults.size());
+        int id = 1;
+        for (ScenarioResult sr : scenarioResults) {
+            String threadName = sr.getThreadName();
+            Integer groupId = groupsMap.get(threadName);
+            if (groupId == null) {
+                groupId = groupsMap.size() + 1;
+                groupsMap.put(threadName, groupId);
+            }
+            Map<String, Object> item = new LinkedHashMap(7);
+            items.add(item);
+            item.put("id", id++);
+            item.put("group", groupId);            
+            Scenario s = sr.getScenario();
+            String featureName = s.getFeature().getResource().getFileNameWithoutExtension();
+            String content = featureName + s.getDisplayMeta();
+            item.put("content", content);
+            item.put("start", sr.getStartTime());
+            item.put("end", sr.getEndTime());
+            item.put("title", content + " " + sr.getStartTime() + "-" + sr.getEndTime());
+        }
+        List<Map> groups = new ArrayList(groupsMap.size());
+        groupsMap.forEach((k, v) -> {
+            Map<String, Object> group = new LinkedHashMap(2);
+            groups.add(group);
+            group.put("id", v);
+            group.put("content", k);
+        });
+        StringBuilder sb = new StringBuilder();
+        sb.append("\nvar groups = new vis.DataSet(").append(JsonUtils.toJson(groups)).append(");").append('\n');
+        sb.append("var items = new vis.DataSet(").append(JsonUtils.toJson(items)).append(");").append('\n');
+        sb.append("var container = document.getElementById('visualization');\n"
+                + "var timeline = new vis.Timeline(container);\n"
+                + "timeline.setOptions({ groupOrder: 'content' });\n"
+                + "timeline.setGroups(groups);\n"
+                + "timeline.setItems(items);\n");
+        File htmlFile = new File(targetDir + File.separator + "timeline.html");
+        String html = getClasspathResource("timeline-template.html");
+        html = html.replaceFirst("//timeline//", sb.toString());
+        FileUtils.writeToFile(htmlFile, html);
     }
 
     private static List<MethodMatch> findMethodsMatching(String text) {

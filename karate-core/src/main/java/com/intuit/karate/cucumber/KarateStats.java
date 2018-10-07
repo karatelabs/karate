@@ -24,11 +24,12 @@
 package com.intuit.karate.cucumber;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Results;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * as of version 0.9.0 - replaced by {@link com.intuit.karate.KarateStats}
+ * as of version 0.9.0 - replaced by {@link com.intuit.karate.Results}
  * 
  * @author pthomas3
  */
@@ -38,18 +39,18 @@ public class KarateStats {
     private int featureCount;
     private int testCount;
     private int failCount;
-    private double timeTaken;    
+    private double timeTakenMillis;    
     private final long startTime;
     private long endTime;
     private Map<String, String> failedMap;
     private Throwable failureReason;
     private String reportDir;
     
-    protected KarateStats(com.intuit.karate.KarateStats from) {
+    protected KarateStats(Results from) {
         featureCount = from.getFeatureCount();
         testCount = from.getTestCount();
         failCount = from.getFailCount();
-        timeTaken = from.getTimeTaken();
+        timeTakenMillis = from.getTimeTakenMillis();
         startTime = from.getStartTime();
         endTime = from.getEndTime();
         failedMap = from.getFailedMap();
@@ -97,7 +98,7 @@ public class KarateStats {
     }
     
     public void addToTimeTaken(double time) {
-        timeTaken += time;
+        timeTakenMillis += time;
     }
     
     public void stopTimer() {
@@ -108,8 +109,8 @@ public class KarateStats {
         double elapsedTime = endTime - startTime;
         System.out.println("Karate version: " + FileUtils.getKarateVersion());
         System.out.println("====================================================");
-        System.out.println(String.format("elapsed time: %.2f | total thread time: %.2f", elapsedTime / 1000, timeTaken));
-        double efficiency = 1000 * timeTaken / (elapsedTime * threadCount);
+        System.out.println(String.format("elapsed time: %.2f | total thread time: %.2f", elapsedTime / 1000, timeTakenMillis / 1000));
+        double efficiency = timeTakenMillis / (elapsedTime * threadCount);
         System.out.println(String.format("features: %5d | threads: %3d | efficiency: %.2f", 
                 featureCount, threadCount, efficiency));
         System.out.println(String.format("scenarios: %4d | passed: %4d | failed: %4d", 
@@ -146,8 +147,8 @@ public class KarateStats {
         return failCount;
     }
 
-    public double getTimeTaken() {
-        return timeTaken;
+    public double getTimeTakenMillis() {
+        return timeTakenMillis;
     }
 
     public long getStartTime() {

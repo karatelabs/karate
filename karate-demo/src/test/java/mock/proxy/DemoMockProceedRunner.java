@@ -3,7 +3,7 @@ package mock.proxy;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.KarateOptions;
 import demo.TestBase;
@@ -45,9 +45,9 @@ public class DemoMockProceedRunner {
         System.setProperty("demo.server.port", port + "");
         System.setProperty("demo.server.https", "false");        
         String karateOutputPath = "target/mock-proceed";
-        KarateStats stats = Runner.parallel(getClass(), 1, karateOutputPath);
+        Results results = Runner.parallel(getClass(), 1, karateOutputPath);
         // DemoMockUtils.generateReport(karateOutputPath);
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);
+        assertTrue("there are scenario failures", results.getFailCount() == 0);
     }
 
 }

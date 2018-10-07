@@ -24,7 +24,7 @@
 package demo;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.KarateOptions;
 import java.io.File;
 import org.apache.commons.io.FileUtils;
@@ -45,8 +45,8 @@ public class MockSpringMvcServletTest {
         FileUtils.copyDirectory(srcDir, destDir, 
                 f -> !f.getName().equals("karate-config.js"), false); // don't over-write karate-config.js
         System.setProperty("karate.env", "dev-mock-springmvc");
-        KarateStats stats = Runner.parallel(getClass(), 5);
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);
+        Results results = Runner.parallel(getClass(), 5);
+        assertTrue("there are scenario failures", results.getFailCount() == 0);
     }
     
 }

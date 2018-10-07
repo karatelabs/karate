@@ -1,7 +1,7 @@
 package demo;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.KarateOptions;
 import java.io.File;
 import java.util.ArrayList;
@@ -28,9 +28,9 @@ public class DemoTestParallel {
     
     @Test
     public void testParallel() {
-        KarateStats stats = Runner.parallel(getClass(), 5);
-        generateReport(stats.getReportDir());
-        assertTrue("there are scenario failures", stats.getFailCount() == 0);        
+        Results results = Runner.parallel(getClass(), 5);
+        generateReport(results.getReportDir());
+        assertTrue("there are scenario failures", results.getFailCount() == 0);        
     }
     
     public static void generateReport(String karateOutputPath) {        

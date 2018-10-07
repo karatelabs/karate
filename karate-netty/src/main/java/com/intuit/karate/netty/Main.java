@@ -27,7 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.ui.App;
 import java.io.File;
@@ -139,14 +139,14 @@ public class Main implements Callable<Void> {
                     System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File(".").getPath());
                 }
                 List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
-                KarateStats stats = Runner.parallel(tags, fixed, threads, output);
+                Results results = Runner.parallel(tags, fixed, threads, output);
                 Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(output), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
                 Configuration config = new Configuration(new File(output), new Date() + "");
                 ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
                 reportBuilder.generateReports();
-                if (stats.getFailCount() > 0) {
+                if (results.getFailCount() > 0) {
                     throw new KarateException("there are test failures");
                 }
             }

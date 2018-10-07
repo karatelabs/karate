@@ -1,7 +1,7 @@
 package com.intuit.karate.junit4.options;
 
 import com.intuit.karate.Runner;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.junit4.Karate;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -15,7 +15,7 @@ public class ParallelWarnTest {
     
     @Test
     public void testParallel() {
-        KarateStats stats = Runner.parallel(getClass(), 1);
+        Results results = Runner.parallel(getClass(), 1);
     }
     
 }
