@@ -40,7 +40,7 @@ public class ScenarioExecutionUnit {
     private final ExecutionContext exec;
     private final Iterator<Step> iterator;
     protected final ScenarioResult result;
-    private final Consumer<Runnable> system;
+    private final Consumer<Runnable> SYSTEM;
 
     private boolean stopped = false;
 
@@ -48,7 +48,7 @@ public class ScenarioExecutionUnit {
         this.actions = actions;
         this.exec = exec;
         result = new ScenarioResult(scenario);
-        system = exec.callContext.perfMode ? exec.system : ExecutionContext.SYNC_EXECUTOR;
+        SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
         // before-scenario hook
         boolean hookFailed = false;
         if (actions.callContext.executionHook != null) {
@@ -63,7 +63,7 @@ public class ScenarioExecutionUnit {
     }
 
     public void submit(Runnable next) {
-        system.accept(() -> {
+        SYSTEM.accept(() -> {
             if (iterator.hasNext()) {
                 Step step = iterator.next();
                 if (stopped) {

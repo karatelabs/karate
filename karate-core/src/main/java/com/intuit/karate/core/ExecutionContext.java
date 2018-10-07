@@ -44,8 +44,6 @@ public class ExecutionContext {
     public final Consumer<Runnable> system;
     public final boolean parallelScenarios;
 
-    public static final Consumer<Runnable> SYNC_EXECUTOR = r -> r.run();
-
     public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, Consumer<Runnable> system) {
         this.startTime = startTime;
         result = new FeatureResult(featureContext.feature);
@@ -53,7 +51,7 @@ public class ExecutionContext {
         this.callContext = callContext;
         parallelScenarios = system != null && !callContext.perfMode;
         if (system == null) {
-            this.system = SYNC_EXECUTOR;
+            this.system = r -> r.run();
         } else {
             this.system = system;
         }
