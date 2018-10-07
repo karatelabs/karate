@@ -29,6 +29,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -109,10 +110,10 @@ public class ScriptValue {
     public boolean isString() {
         return type == Type.STRING;
     }
-    
+
     public boolean isStringOrStream() {
         return isString() || isStream();
-    }    
+    }
 
     public boolean isXml() {
         return type == Type.XML;
@@ -121,7 +122,7 @@ public class ScriptValue {
     public boolean isStream() {
         return type == Type.INPUT_STREAM;
     }
-    
+
     public boolean isByteArray() {
         return type == Type.BYTE_ARRAY;
     }
@@ -133,7 +134,7 @@ public class ScriptValue {
     public boolean isBooleanTrue() {
         return type == Type.PRIMITIVE && "true".equals(value.toString());
     }
-    
+
     public boolean isPrimitive() {
         return type == Type.PRIMITIVE;
     }
@@ -182,7 +183,7 @@ public class ScriptValue {
                 return false;
         }
     }
-    
+
     public ScriptValue copy() {
         switch (type) {
             case NULL:
@@ -192,7 +193,7 @@ public class ScriptValue {
             case BYTE_ARRAY:
             case INPUT_STREAM:
             case FEATURE:
-            case JS_FUNCTION:                
+            case JS_FUNCTION:
                 return this;
             case XML:
                 String xml = XmlUtils.toString(getValue(Node.class));
@@ -200,12 +201,16 @@ public class ScriptValue {
             case JSON:
                 String json = getValue(DocumentContext.class).jsonString();
                 return new ScriptValue(JsonPath.parse(json));
-            case MAP:                                               
-            case JS_OBJECT:
+            case JS_OBJECT: // is a map-like object, happens for json resulting from nashorn
+            case MAP:
+                Map map = getValue(Map.class);
+                return new ScriptValue(new LinkedHashMap(map));
             case JS_ARRAY:
+                ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
+                return new ScriptValue(new ArrayList(som.values()));
             case LIST:
-                DocumentContext mapOrListJson = getAsJsonDocument();
-                return new ScriptValue(JsonPath.parse(mapOrListJson).read("$"));            
+                List list = getValue(List.class);
+                return new ScriptValue(new ArrayList(list));
             default:
                 return this;
         }
@@ -294,13 +299,13 @@ public class ScriptValue {
                 return JsonUtils.toPrettyJsonString(mapDoc);
             case BYTE_ARRAY:
                 return "(..bytes..)";
-            case INPUT_STREAM:            
+            case INPUT_STREAM:
                 return "(..stream..)";
             default:
                 return value.toString();
         }
     }
-    
+
     public Object toLowerCase() {
         switch (type) {
             case JSON:
@@ -325,7 +330,7 @@ public class ScriptValue {
             default: // NULL, UNKNOWN, JS_FUNCTION, BYTE_ARRAY, PRIMITIVE
                 return value;
         }
-    }    
+    }
 
     public String getAsString() {
         switch (type) {

@@ -39,7 +39,7 @@ public abstract class WebDriver implements Driver {
 
     protected static final Logger logger = LoggerFactory.getLogger(WebDriver.class);
 
-    private final CommandThread command;
+    protected final CommandThread command;
     protected final boolean headless;
     protected final Http http;
     private final String sessionId;

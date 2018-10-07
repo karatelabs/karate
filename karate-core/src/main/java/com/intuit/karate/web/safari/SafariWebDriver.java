@@ -109,6 +109,6 @@ public class SafariWebDriver extends WebDriver {
                 logger.warn("native window switch failed: {}", e.getMessage());
             }
         }
-    }
+    }    
 
 }

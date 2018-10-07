@@ -277,7 +277,7 @@ public class ScriptBridge implements PerfContext {
             context.logger.info(">> lock acquired, begin callSingle: {}", fileName);
             Object result = call(fileName, arg);
             GLOBALS.put(fileName, result);
-            context.logger.info("<< lock released, end callSingle: {}", fileName);
+            context.logger.info("<< lock released, cached callSingle: {}", fileName);
             return result;
         }        
     }

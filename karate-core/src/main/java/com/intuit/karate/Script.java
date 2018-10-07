@@ -28,6 +28,7 @@ import static com.intuit.karate.ScriptValue.Type.*;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.validator.ArrayValidator;
 import com.intuit.karate.validator.BooleanValidator;
 import com.intuit.karate.validator.IgnoreValidator;
@@ -191,29 +192,43 @@ public class Script {
     }
 
     public static ScriptValue evalKarateExpressionForMatch(String text, ScenarioContext context) {
-        return evalKarateExpression(text, context, false, true);
+        return evalKarateExpression(text, context, true);
     }
 
     public static ScriptValue evalKarateExpression(String text, ScenarioContext context) {
-        return evalKarateExpression(text, context, false, false);
+        return evalKarateExpression(text, context, false);
     }
 
     private static ScriptValue callWithCache(String text, String arg, ScenarioContext context, boolean reuseParentConfig) {
         final FeatureContext featureContext = context.featureContext;
         CallResult result = featureContext.callCache.get(text);
         if (result != null) {
-            context.logger.debug("callonce cache hit for: {}", text);
+            context.logger.trace("callonce cache hit for: {}", text);
             if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
-                context.configure(result.config);
+                context.configure(new HttpConfig(result.config)); // clone for safety
             }
-            return result.value;
+            return result.value.copy(); // clone for safety
         }
-        ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
+        long startTime = System.currentTimeMillis();
+        context.logger.trace("callonce waiting for lock: {}", text);
         synchronized (featureContext) {
-            featureContext.callCache.put(text, new CallResult(resultValue, context.getConfig()));
+            result = featureContext.callCache.get(text); // retry
+            if (result != null) {
+                long endTime = System.currentTimeMillis() - startTime;
+                context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);
+                if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
+                    context.configure(new HttpConfig(result.config)); // clone for safety
+                }
+                return result.value.copy(); // clone for safety
+            }
+            // this thread is the 'winner'
+            context.logger.info(">> lock acquired, begin callonce: {}", text);
+            ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
+            result = new CallResult(resultValue.copy(), new HttpConfig(context.getConfig())); // snapshot for safety
+            featureContext.callCache.put(text, result); 
+            context.logger.info("<< lock released, cached callonce: {}", text);
+            return resultValue;
         }
-        context.logger.debug("cached callonce: {}", text);
-        return resultValue;
     }
 
     public static ScriptValue getIfVariableReference(String text, ScenarioContext context) {
@@ -229,7 +244,7 @@ public class Script {
         return null;
     }
 
-    private static ScriptValue evalKarateExpression(String text, ScenarioContext context, boolean reuseParentConfig, boolean forMatch) {
+    private static ScriptValue evalKarateExpression(String text, ScenarioContext context, boolean forMatch) {
         text = StringUtils.trimToNull(text);
         if (text == null) {
             return ScriptValue.NULL;
@@ -254,9 +269,9 @@ public class Script {
                 arg = null;
             }
             if (callOnce) {
-                return callWithCache(text, arg, context, reuseParentConfig);
+                return callWithCache(text, arg, context, false);
             } else {
-                return call(text, arg, context, reuseParentConfig);
+                return call(text, arg, context, false);
             }
         } else if (isJsonPath(text)) {
             return evalJsonPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
@@ -1715,18 +1730,10 @@ public class Script {
         } else {
             sv = call(name, arg, context, true);
         }
-        Map<String, Object> result;
-        switch (sv.getType()) {
-            case JS_OBJECT:
-            case MAP:
-                result = sv.getValue(Map.class);
-                break;
-            default:
-                context.logger.trace("no vars returned from function call result: {}", sv);
-                return;
-        }
-        for (Map.Entry<String, Object> entry : result.entrySet()) {
-            context.vars.put(entry.getKey(), entry.getValue());
+        if (sv.isMapLike()) {
+            sv.getAsMap().forEach((k, v) -> context.vars.put(k, v));
+        } else {
+            context.logger.trace("no vars returned from function call result: {}", sv);
         }
     }
 
