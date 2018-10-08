@@ -81,7 +81,7 @@ public class Runner {
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
         Results results = Results.startTimer();
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount);
-        ExecutorService scenarioExecutor = Executors.newFixedThreadPool(threadCount);
+        ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
         int executedFeatureCount = 0;
         try {
             int count = resources.size();
