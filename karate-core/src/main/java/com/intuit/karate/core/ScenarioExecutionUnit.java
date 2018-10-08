@@ -34,21 +34,24 @@ import java.util.function.Consumer;
  *
  * @author pthomas3
  */
-public class ScenarioExecutionUnit {
+public class ScenarioExecutionUnit implements Runnable {
 
     private final StepActions actions;
     private final ExecutionContext exec;
     private final Iterator<Step> iterator;
     protected final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
+    private final Runnable next;
 
+    private boolean started;
     private boolean stopped = false;
 
-    public ScenarioExecutionUnit(Scenario scenario, StepActions actions, ExecutionContext exec) {
+    public ScenarioExecutionUnit(Scenario scenario, StepActions actions, ExecutionContext exec, Runnable next) {
         this.actions = actions;
         this.exec = exec;
         result = new ScenarioResult(scenario);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
+        this.next = next;
         // before-scenario hook
         boolean hookFailed = false;
         if (actions.callContext.executionHook != null) {
@@ -62,38 +65,43 @@ public class ScenarioExecutionUnit {
         iterator = hookFailed ? Collections.emptyIterator() : scenario.getStepsIncludingBackground().iterator();
     }
 
-    public void submit(Runnable next) {
-        SYSTEM.accept(() -> {
-            if (iterator.hasNext()) {
-                Step step = iterator.next();
-                if (stopped) {
-                    result.addStepResult(new StepResult(step, Result.skipped(), null, null));
-                    ScenarioExecutionUnit.this.submit(next);
-                } else {
-                    Result execResult = Engine.executeStep(step, actions);
-                    List<FeatureResult> callResults = actions.context.getAndClearCallResults();
-                    if (execResult.isAborted()) { // we log only aborts for visibility
-                        actions.context.logger.debug("abort at {}", step.getDebugInfo());
-                    }
-                    // log appender collection for each step happens here
-                    String stepLog = StringUtils.trimToNull(exec.appender.collect());
-                    StepResult stepResult = new StepResult(step, execResult, stepLog, callResults);
-                    if (stepResult.isStopped()) {
-                        stopped = true;
-                    }
-                    result.addStepResult(stepResult);
-                    ScenarioExecutionUnit.this.submit(next);
-                }
+    @Override
+    public void run() {
+        if (!started) {
+            result.setThreadName(Thread.currentThread().getName());
+            result.setStartTime(System.currentTimeMillis() - exec.startTime);
+            started = true;
+        }
+        if (iterator.hasNext()) {
+            Step step = iterator.next();
+            if (stopped) {
+                result.addStepResult(new StepResult(step, Result.skipped(), null, null));
+                SYSTEM.accept(this);
             } else {
-                // gatling clean up            
-                actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
-                // after-scenario hook
-                actions.context.invokeAfterHookIfConfigured(false);
-                // stop browser automation if running
-                actions.context.stop();
-                next.run();
+                Result execResult = Engine.executeStep(step, actions);
+                List<FeatureResult> callResults = actions.context.getAndClearCallResults();
+                if (execResult.isAborted()) { // we log only aborts for visibility
+                    actions.context.logger.debug("abort at {}", step.getDebugInfo());
+                }
+                // log appender collection for each step happens here
+                String stepLog = StringUtils.trimToNull(exec.appender.collect());
+                StepResult stepResult = new StepResult(step, execResult, stepLog, callResults);
+                if (stepResult.isStopped()) {
+                    stopped = true;
+                }
+                result.addStepResult(stepResult);
+                SYSTEM.accept(this);
             }
-        });
+        } else {            
+            result.setEndTime(System.currentTimeMillis() - exec.startTime);
+            // gatling clean up            
+            actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
+            // after-scenario hook
+            actions.context.invokeAfterHookIfConfigured(false);
+            // stop browser automation if running
+            actions.context.stop();
+            next.run();
+        }
     }
 
 }

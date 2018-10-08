@@ -80,7 +80,8 @@ public class Runner {
         final String finalReportDir = reportDir;
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
         Results results = Results.startTimer();
-        ExecutorService executor = Executors.newWorkStealingPool(threadCount);
+        ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount);
+        ExecutorService scenarioExecutor = Executors.newFixedThreadPool(threadCount);
         int executedFeatureCount = 0;
         try {
             int count = resources.size();
@@ -92,10 +93,9 @@ public class Runner {
                 Feature feature = FeatureParser.parse(resource);
                 FeatureContext featureContext = new FeatureContext(feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(hook, false);
-                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, r -> executor.submit(r));
+                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, r -> featureExecutor.submit(r), scenarioExecutor);
                 featureResults.add(execContext.result);
-                FeatureExecutionUnit execUnit = new FeatureExecutionUnit(execContext);
-                execUnit.submit(() -> {
+                FeatureExecutionUnit execUnit = new FeatureExecutionUnit(execContext, () -> {
                     FeatureResult result = execContext.result;
                     if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
                         File file = Engine.saveResultJson(finalReportDir, result);
@@ -106,8 +106,9 @@ public class Runner {
                     } else {
                         logger.info("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
                     }
-                    latch.countDown();
+                    latch.countDown();                    
                 });
+                featureExecutor.submit(execUnit);
             }
             latch.await();
             results.stopTimer();
@@ -128,7 +129,8 @@ public class Runner {
             logger.error("karate parallel runner failed: ", e.getMessage());
             results.setFailureReason(e);
         } finally {
-            executor.shutdownNow();
+            featureExecutor.shutdownNow();
+            scenarioExecutor.shutdownNow();
         }
         results.setFeatureCount(executedFeatureCount);
         results.printStats(threadCount);
@@ -163,9 +165,9 @@ public class Runner {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(feature, null);
         CallContext callContext = CallContext.forAsync(hook, true);
-        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, system);
-        FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
-        exec.submit(next);
+        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, system, null);
+        FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext, next);
+        system.accept(exec);
     }
 
 }

@@ -39,14 +39,14 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class AppSessionTest {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(AppSessionTest.class);
-    
+
     @Test
     public void testRunning() {
         File tempFile = new File("src/test/java/com/intuit/karate/ui/test.feature");
         AppSession session = new AppSession(tempFile, null, true);
-        ExecutionContext ec = new ExecutionContext(System.currentTimeMillis(), session.getFeatureContext(), new CallContext(null, true), null);
+        ExecutionContext ec = new ExecutionContext(System.currentTimeMillis(), session.getFeatureContext(), new CallContext(null, true), null, null);
         for (FeatureSection section : session.getFeature().getSections()) {
             if (section.isOutline()) {
                 ScenarioOutline outline = section.getScenarioOutline();
@@ -56,12 +56,12 @@ public class AppSessionTest {
             } else {
                 call(section.getScenario(), session, ec);
             }
-        }        
+        }
     }
-    
+
     private static void call(Scenario scenario, AppSession session, ExecutionContext ec) {
-        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, session.getActions(), ec);
-        exec.submit(() -> {});
-    }    
-    
+        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, session.getActions(), ec, () -> {});
+        exec.run();
+    }
+
 }

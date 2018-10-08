@@ -90,10 +90,6 @@ public class Engine {
         PATTERNS = temp.values();
     }
 
-    private static final Runnable NO_OP = () -> {
-        // no op
-    };
-
     private static final double MILLION = 1000000;
     private static final double BILLION = 1000000000;
 
@@ -115,9 +111,9 @@ public class Engine {
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
-        ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null);
-        FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
-        unit.submit(NO_OP);
+        ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null);
+        FeatureExecutionUnit unit = new FeatureExecutionUnit(exec, () -> {});
+        unit.run();
         return exec.result;
     }
 

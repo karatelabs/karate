@@ -28,6 +28,7 @@ import com.intuit.karate.shell.FileLogAppender;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.FeatureContext;
 import java.io.File;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 /**
@@ -42,14 +43,15 @@ public class ExecutionContext {
     public final FeatureResult result;
     public final LogAppender appender;
     public final Consumer<Runnable> system;
-    public final boolean parallelScenarios;
+    public final ExecutorService scenarioExecutor;
 
-    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, Consumer<Runnable> system) {
+    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, 
+            Consumer<Runnable> system, ExecutorService scenarioExecutor) {
+        this.scenarioExecutor = scenarioExecutor;
         this.startTime = startTime;
         result = new FeatureResult(featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;
-        parallelScenarios = system != null && !callContext.perfMode;
         if (system == null) {
             this.system = r -> r.run();
         } else {
