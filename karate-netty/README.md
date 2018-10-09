@@ -233,6 +233,29 @@ And `FeatureServer` has a `stop()` method that will [stop](#stopping) the server
 
 You can look at this demo example for reference: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) - note how the dynamic port number can be retrieved and passed to other elements in your test set-up.
 
+## Within a Karate Test
+Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using [Java interop](https://github.com/intuit/karate#calling-java). The code that starts a mock server is quite simple and can be wrapped in a JavaScript function as follows:
+
+```javascript
+function() {
+  var Mock = Java.type('com.intuit.karate.netty.FeatureServer');
+  var file = new java.io.File('src/test/java/mock/web/cats-mock.feature');
+  var server = Mock.start(file, 0, false, null);
+  return server.port;
+}
+```
+
+Now using this in a Karate test is simple. This example also shows how [conditional logic](https://github.com/intuit/karate#conditional-logic) can be used effectively.
+
+```feature
+Background:
+    * def starter = read('start-mock.js')
+    * def port = karate.env == 'mock' ? starter() : 8080
+    * url 'http://localhost:' + port + '/cats'
+```
+
+For the full example, look at [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature).
+
 # Server Life Cycle
 Writing a mock can get complicated for real-life API interactions, and most other frameworks attempt to solve this using declarative approaches, such as expecting you to create a large, complicated JSON to model all requests and responses. You can think of Karate's approach as combining the best of both the worlds of declarative and imperative programming. Combined with the capability to maintain state in the form of JSON objects in memory, and Karate's native support for [Json-Path](https://github.com/intuit/karate#jsonpath-filters), XML and [`embedded expressions`](https://github.com/intuit/karate#embedded-expressions) - you have a very powerful toolkit at your disposal. And Karate's intelligent defaults keep things dead simple.
 

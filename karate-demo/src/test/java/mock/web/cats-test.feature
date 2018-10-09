@@ -1,7 +1,9 @@
 Feature: integration test
 
 Background:
-    * url 'http://localhost:8080/cats'
+    * def starter = read('start-mock.js')
+    * def port = karate.env == 'mock' ? starter() : 8080
+    * url 'http://localhost:' + port + '/cats'
 
 Scenario: create cat
     Given request { name: 'Billie' }

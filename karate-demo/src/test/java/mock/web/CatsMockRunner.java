@@ -1,21 +1,22 @@
 package mock.web;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
+import com.intuit.karate.KarateOptions;
+import com.intuit.karate.junit4.Karate;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 /**
  *
  * @author pthomas3
  */
+@RunWith(Karate.class)
+@KarateOptions(features = "classpath:mock/web/cats-test.feature")
 public class CatsMockRunner {
 
-    @Test
-    public  void beforeClass() {
-        File file = FileUtils.getFileRelativeTo(getClass(), "cats-mock.feature");
-        FeatureServer server = FeatureServer.start(file, 8080, false, null);
-        server.waitSync();
+    @BeforeClass
+    public  static void beforeClass() {
+        System.setProperty("karate.env", "mock");
     }
 
 }
