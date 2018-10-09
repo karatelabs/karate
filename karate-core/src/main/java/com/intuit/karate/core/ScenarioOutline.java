@@ -69,9 +69,9 @@ public class ScenarioOutline {
                     }
                     scenario.setTags(temp);
                 }
-                scenario.setName(name);
-                scenario.setDescription(description);
-                List<Step> replaced = new ArrayList(steps.size());
+                String tempName = name;
+                String tempDesc = description;
+                List<Step> tempSteps = new ArrayList(steps.size());
                 for (Step original : steps) {
                     String text = original.getText();
                     String docString = original.getDocString();
@@ -80,6 +80,8 @@ public class ScenarioOutline {
                         String value = t.getValue(key, i);
                         String token = "<" + key + ">";
                         text = text.replace(token, value);
+                        tempName = tempName.replace(token, value);
+                        tempDesc = tempDesc.replace(token, value);
                         if (docString != null) {
                             docString = docString.replace(token, value);
                         } else if (table != null) {
@@ -91,9 +93,11 @@ public class ScenarioOutline {
                     step.setText(text);
                     step.setDocString(docString);
                     step.setTable(table);
-                    replaced.add(step);
+                    tempSteps.add(step);
                 }
-                scenario.setSteps(replaced);
+                scenario.setSteps(tempSteps);
+                scenario.setName(tempName);
+                scenario.setDescription(tempDesc);                
             }
         }
         return list;

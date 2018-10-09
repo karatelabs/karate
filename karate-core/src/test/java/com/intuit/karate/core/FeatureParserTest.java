@@ -126,6 +126,14 @@ public class FeatureParserTest {
         FeatureResult result = execute("test-table-pipe.feature");
         Map<String, Object> map = result.getResultAsPrimitiveMap();
         Match.equalsText(map.get("value"), "pi|pe");
-    }    
+    } 
+    
+    @Test
+    public void testOutlineName() {
+        FeatureResult result = execute("test-outline-name.feature");
+        Map<String, Object> map = result.getResultAsPrimitiveMap();
+        Match.equalsText(map.get("name"), "Nyan");
+        Match.equalsText(map.get("title"), "name is Nyan and age is 5");
+    }     
 
 }
