@@ -37,18 +37,18 @@ import java.util.stream.Collectors;
  * @author pthomas3
  */
 public class StringUtils {
-    
+
     private StringUtils() {
         // only static methods
     }
-    
+
     private static final String EMPTY = "";
-    
+
     public static class Pair {
-        
+
         public final String left;
         public final String right;
-        
+
         public Pair(String left, String right) {
             this.left = left;
             this.right = right;
@@ -58,14 +58,14 @@ public class StringUtils {
         public boolean equals(Object obj) {
             Pair o = (Pair) obj;
             return left.equals(o.left) && right.equals(o.right);
-        }                
-        
+        }
+
     }
-    
+
     public static Pair pair(String left, String right) {
         return new Pair(left, right);
-    }   
-    
+    }
+
     public static String trimToEmpty(String s) {
         if (s == null) {
             return EMPTY;
@@ -73,7 +73,7 @@ public class StringUtils {
             return s.trim();
         }
     }
-    
+
     public static String trimToNull(String s) {
         if (s == null) {
             return null;
@@ -89,7 +89,7 @@ public class StringUtils {
         }
         return sb.toString();
     }
-    
+
     public static String join(Object[] a, char delimiter) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < a.length; i++) {
@@ -100,7 +100,7 @@ public class StringUtils {
         }
         return sb.toString();
     }
-    
+
     public static String join(Collection<String> c, char delimiter) {
         StringBuilder sb = new StringBuilder();
         Iterator iterator = c.iterator();
@@ -112,7 +112,7 @@ public class StringUtils {
         }
         return sb.toString();
     }
-    
+
     public static List<String> split(String s, char delimiter) {
         int pos = s.indexOf(delimiter);
         if (pos == -1) {
@@ -120,13 +120,20 @@ public class StringUtils {
         }
         List<String> list = new ArrayList();
         int startPos = 0;
+        int searchPos = 0;
         while (pos != -1) {
-            String temp = s.substring(startPos, pos);
-            if (!EMPTY.equals(temp)) {
-                list.add(temp);
+            if (pos > 0 && s.charAt(pos - 1) == '\\') {
+                s = s.substring(0, pos - 1) + s.substring(pos);
+                searchPos = pos;
+            } else {
+                String temp = s.substring(startPos, pos);
+                if (!EMPTY.equals(temp)) {
+                    list.add(temp);
+                }
+                startPos = pos + 1;
+                searchPos = startPos;
             }            
-            startPos = pos + 1;
-            pos = s.indexOf(delimiter, startPos);
+            pos = s.indexOf(delimiter, searchPos);
         }
         if (startPos != s.length()) {
             String temp = s.substring(startPos);
@@ -136,11 +143,11 @@ public class StringUtils {
         }
         return list;
     }
-    
+
     public static boolean isBlank(String s) {
         return trimToNull(s) == null;
     }
-    
+
     public static String toIdString(String name) {
         return name.replaceAll("[\\s_]", "-").toLowerCase();
     }
@@ -152,16 +159,16 @@ public class StringUtils {
             int pos = text.indexOf('\n');
             if (pos != -1) {
                 left = text.substring(0, pos).trim();
-                right = text.substring(pos).trim();                
+                right = text.substring(pos).trim();
             } else {
                 left = text.trim();
             }
         }
         return StringUtils.pair(left, right);
-    }    
+    }
 
     public static List<String> toStringLines(String text) {
         return new BufferedReader(new StringReader(text)).lines().collect(Collectors.toList());
-    }    
-    
+    }
+
 }

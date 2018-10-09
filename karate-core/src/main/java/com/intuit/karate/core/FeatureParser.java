@@ -153,7 +153,7 @@ public class FeatureParser extends KarateParserBaseListener {
         List<List<String>> rows = new ArrayList(rowCount);
         List<Integer> lineNumbers = new ArrayList(rowCount);
         for (TerminalNode node : nodes) {
-            List<String> tokens = StringUtils.split(node.getText().trim(), '|'); // TODO escaped pipe characters "\|" ?
+            List<String> tokens = StringUtils.split(node.getText().trim(), '|');
             int count = tokens.size();
             for (int i = 0; i < count; i++) {
                 tokens.set(i, tokens.get(i).trim());

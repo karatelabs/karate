@@ -120,5 +120,12 @@ public class FeatureParserTest {
     public void testFeatureHeaderOnly() {
         FeatureResult result = execute("feature-header-only.feature");
     }
+    
+    @Test
+    public void testTablePipe() {
+        FeatureResult result = execute("test-table-pipe.feature");
+        Map<String, Object> map = result.getResultAsPrimitiveMap();
+        Match.equalsText(map.get("value"), "pi|pe");
+    }    
 
 }

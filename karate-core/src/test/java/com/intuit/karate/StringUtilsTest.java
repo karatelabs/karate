@@ -53,7 +53,11 @@ public class StringUtilsTest {
         list = StringUtils.split("/foo/bar", '/');
         assertEquals(2, list.size());   
         assertEquals("foo", list.get(0)); 
-        assertEquals("bar", list.get(1));        
+        assertEquals("bar", list.get(1));
+        list = StringUtils.split("|pi\\|pe|blah|", '|');
+        assertEquals(2, list.size());   
+        assertEquals("pi|pe", list.get(0)); 
+        assertEquals("blah", list.get(1));        
     }
     
     @Test
