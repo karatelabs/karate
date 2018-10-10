@@ -1,3 +1,4 @@
+@parallel=false
 Feature: encoding tests
 
 Scenario: special characters in the url

@@ -93,6 +93,7 @@ public class FeatureExecutionUnit implements Runnable {
                 }
                 featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
+            boolean forceSequential = exec.singleExecutor != null && tags.valuesFor("parallel").isAnyOf("false");            
             // this is where the script-context and vars are inited for a scenario
             // first we set the scenario metadata
             exec.callContext.setScenarioInfo(getScenarioInfo(scenario, featureContext));
@@ -115,7 +116,11 @@ public class FeatureExecutionUnit implements Runnable {
             // this is an elegant solution to retaining the order of scenarios 
             // in the final report - even if they run in parallel !            
             results.add(unit.result);
-            SYSTEM.accept(unit);
+            if (forceSequential) {
+                exec.singleExecutor.submit(unit);
+            } else {
+                SYSTEM.accept(unit);
+            }            
             if (parallelScenarios) {
                 // loop immediately and submit all scenarios in parallel
                 SYSTEM.accept(this);

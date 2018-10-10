@@ -73,6 +73,9 @@ public class Runner {
     }
 
     public static Results parallel(String tagSelector, List<Resource> resources, ExecutionHook hook, int threadCount, String reportDir) {
+        if (threadCount < 1) {
+            threadCount = 1;
+        }
         if (reportDir == null) {
             reportDir = Engine.getBuildDir() + File.separator + "surefire-reports";
             new File(reportDir).mkdirs();
@@ -82,6 +85,7 @@ public class Runner {
         Results results = Results.startTimer();
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount);
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
+        ExecutorService singleExecutor = Executors.newSingleThreadExecutor();
         int executedFeatureCount = 0;
         try {
             int count = resources.size();
@@ -93,7 +97,8 @@ public class Runner {
                 Feature feature = FeatureParser.parse(resource);
                 FeatureContext featureContext = new FeatureContext(feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(hook, false);
-                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, r -> featureExecutor.submit(r), scenarioExecutor);
+                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, 
+                        r -> featureExecutor.submit(r), scenarioExecutor, singleExecutor);
                 featureResults.add(execContext.result);
                 FeatureExecutionUnit execUnit = new FeatureExecutionUnit(execContext, () -> {
                     FeatureResult result = execContext.result;
@@ -131,6 +136,7 @@ public class Runner {
         } finally {
             featureExecutor.shutdownNow();
             scenarioExecutor.shutdownNow();
+            singleExecutor.shutdownNow();
         }
         results.setFeatureCount(executedFeatureCount);
         results.printStats(threadCount);
@@ -165,7 +171,7 @@ public class Runner {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(feature, null);
         CallContext callContext = CallContext.forAsync(hook, true);
-        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, system, null);
+        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, system, null, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext, next);
         system.accept(exec);
     }
