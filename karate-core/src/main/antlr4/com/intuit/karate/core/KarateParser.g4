@@ -27,7 +27,9 @@ options { tokenVocab=KarateLexer; }
 
 feature: featureHeader background? ( scenario | scenarioOutline )* NEWLINE? EOF ;
 
-featureHeader: FEATURE_TAGS? FEATURE featureDescription;
+featureHeader: featureTags? FEATURE featureDescription ;
+
+featureTags: FEATURE_TAGS+ ;
 
 featureDescription: ~(BACKGROUND | SCENARIO | SCENARIO_OUTLINE | TAGS)* ;
 
@@ -47,7 +49,7 @@ prefix: STAR | GIVEN | WHEN | THEN | AND | BUT ;
 
 line: CHAR+ ;
 
-tags: TAGS ;
+tags: TAGS+ ;
 
 docString: DOC_STRING ;
 

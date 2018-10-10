@@ -1,4 +1,4 @@
- /*
+/*
  * The MIT License
  *
  * Copyright 2018 Intuit Inc.
@@ -56,12 +56,12 @@ public class FeatureParser extends KarateParserBaseListener {
     private final ParserErrorListener errorListener = new ParserErrorListener();
 
     private final Feature feature;
-    
-   public static Feature parse(File file) {
-       Resource resource = new Resource(file, file.getPath());
+
+    public static Feature parse(File file) {
+        Resource resource = new Resource(file, file.getPath());
         return new FeatureParser(resource).feature;
-    }    
-    
+    }
+
     public static Feature parse(Resource resource) {
         return new FeatureParser(resource).feature;
     }
@@ -72,7 +72,7 @@ public class FeatureParser extends KarateParserBaseListener {
         Resource resource = new Resource(file, path);
         return FeatureParser.parse(resource);
     }
-    
+
     public static Feature parseText(Feature old, String text) {
         Feature feature = new Feature(old.getResource());
         feature = new FeatureParser(feature, FileUtils.toInputStream(text)).feature;
@@ -80,7 +80,7 @@ public class FeatureParser extends KarateParserBaseListener {
         feature.setLines(StringUtils.toStringLines(text));
         return feature;
     }
-    
+
     private static InputStream toStream(File file) {
         try {
             return new FileInputStream(file);
@@ -92,11 +92,11 @@ public class FeatureParser extends KarateParserBaseListener {
     private FeatureParser(File file, String relativePath) {
         this(new Feature(new Resource(file, relativePath)), toStream(file));
     }
-    
+
     private FeatureParser(Resource resource) {
         this(new Feature(resource), resource.getStream());
-    }    
-    
+    }
+
     private FeatureParser(Feature feature, InputStream is) {
         this.feature = feature;
         CharStream stream;
@@ -120,7 +120,7 @@ public class FeatureParser extends KarateParserBaseListener {
             logger.error("not a valid feature file: {} - {}", feature.getResource().getRelativePath(), errorMessage);
             throw new RuntimeException(errorMessage);
         }
-    }    
+    }
 
     private static int getActualLine(TerminalNode node) {
         int count = 0;
@@ -134,15 +134,17 @@ public class FeatureParser extends KarateParserBaseListener {
         return node.getSymbol().getLine() + count;
     }
 
-    private static List<Tag> toTags(int line, TerminalNode node) {
-        String text = node.getText();
-        if (line == -1) {
-            line = getActualLine(node);
-        }
-        String[] tokens = text.trim().split("\\s+"); // handles spaces and tabs also
-        List<Tag> tags = new ArrayList(tokens.length);
-        for (String t : tokens) {
-            tags.add(new Tag(line, t));
+    private static List<Tag> toTags(int line, List<TerminalNode> nodes) {
+        List<Tag> tags = new ArrayList();
+        for (TerminalNode node : nodes) {
+            String text = node.getText();
+            if (line == -1) {
+                line = getActualLine(node);
+            }
+            String[] tokens = text.trim().split("\\s+"); // handles spaces and tabs also        
+            for (String t : tokens) {
+                tags.add(new Tag(line, t));
+            }
         }
         return tags;
     }
@@ -201,7 +203,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
         return sb.toString().trim();
     }
-    
+
     private static int countLineFeeds(String text) {
         int count = 0;
         for (char c : text.toCharArray()) {
@@ -239,8 +241,8 @@ public class FeatureParser extends KarateParserBaseListener {
 
     @Override
     public void enterFeatureHeader(KarateParser.FeatureHeaderContext ctx) {
-        if (ctx.FEATURE_TAGS() != null) {
-            feature.setTags(toTags(ctx.FEATURE_TAGS().getSymbol().getLine(), ctx.FEATURE_TAGS()));
+        if (ctx.featureTags() != null) {
+            feature.setTags(toTags(ctx.featureTags().getStart().getLine(), ctx.featureTags().FEATURE_TAGS()));
         }
         if (ctx.FEATURE() != null) {
             feature.setLine(ctx.FEATURE().getSymbol().getLine());

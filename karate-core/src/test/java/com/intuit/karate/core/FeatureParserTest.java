@@ -134,6 +134,13 @@ public class FeatureParserTest {
         Map<String, Object> map = result.getResultAsPrimitiveMap();
         Match.equalsText(map.get("name"), "Nyan");
         Match.equalsText(map.get("title"), "name is Nyan and age is 5");
-    }     
+    }
+    
+    @Test
+    public void testTagsMultiline() {
+        FeatureResult result = execute("test-tags-multiline.feature");
+        Map<String, Object> map = result.getResultAsPrimitiveMap();
+        Match.contains(map.get("tags"), "[ 'tag1', 'tag2', 'tag3', 'tag4' ]");
+    }    
 
 }
