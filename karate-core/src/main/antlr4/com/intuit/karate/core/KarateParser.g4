@@ -33,7 +33,7 @@ featureTags: FEATURE_TAGS+ ;
 
 featureDescription: ~(BACKGROUND | SCENARIO | SCENARIO_OUTLINE | TAGS)* ;
 
-background: BACKGROUND step* ;
+background: BACKGROUND scenarioDescription step* ;
 
 scenario: tags? SCENARIO scenarioDescription step* ;
 
@@ -41,7 +41,9 @@ scenarioDescription: ~(STAR | GIVEN | WHEN | THEN | AND | BUT | SCENARIO | SCENA
 
 scenarioOutline: tags? SCENARIO_OUTLINE scenarioDescription step* examples+ ;
 
-examples: tags? EXAMPLES table ;
+examples: tags? EXAMPLES exampleDescription table ;
+
+exampleDescription: ~(TABLE_ROW)* ;
 
 step: prefix line ( docString | table )? ;
 

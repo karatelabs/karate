@@ -1,12 +1,10 @@
 @tag1
+# @commented
 @tag2
 Feature:
 
   @tag3
+  # @commented
   @tag4
   Scenario:
-  * print 'hello'
   * def tags = karate.tags
-  * print tags
-
-

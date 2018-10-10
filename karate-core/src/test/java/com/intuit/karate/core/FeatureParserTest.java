@@ -142,5 +142,11 @@ public class FeatureParserTest {
         Map<String, Object> map = result.getResultAsPrimitiveMap();
         Match.contains(map.get("tags"), "[ 'tag1', 'tag2', 'tag3', 'tag4' ]");
     }    
+    
+    @Test
+    public void testEdgeCases() {
+        FeatureResult result = execute("test-edge-cases.feature");
+
+    }    
 
 }
