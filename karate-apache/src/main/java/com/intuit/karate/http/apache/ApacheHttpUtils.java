@@ -43,6 +43,7 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.entity.mime.FormBodyPartBuilder;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.ContentBody;
 import org.apache.http.entity.mime.content.InputStreamBody;
 import org.apache.http.entity.mime.content.StringBody;
@@ -194,9 +195,8 @@ public class ApacheHttpUtils {
                     FormBodyPartBuilder formBuilder = FormBodyPartBuilder.create().setName(name);
                     ContentBody contentBody;
                     String filename = item.getFilename();
-                    if (filename != null) {
-                        InputStream is = sv.getAsStream();
-                        contentBody = new InputStreamBody(is, contentType, filename);
+                    if (filename != null) {                        
+                        contentBody = new ByteArrayBody(sv.getAsByteArray(), contentType, filename);
                     } else if (sv.isStream()) {
                         contentBody = new InputStreamBody(sv.getAsStream(), contentType);
                     } else {

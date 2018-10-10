@@ -52,3 +52,19 @@ Scenario: upload multipart/mixed
     When method post
     Then status 200
     And match response == { id: '#uuid', filename: 'upload-name.pdf', message: 'hello world', contentType: 'application/pdf' }
+
+@mock-servlet-todo
+Scenario: multipart upload has content-length header set
+    Given path 'search', 'headers'
+    And multipart field myFile = read('test.pdf')
+    And multipart field message = 'hello world'
+    When method post
+    Then status 200
+    And match response['content-length'][0] == '#notnull'
+
+    Given path 'search', 'headers'
+    And multipart file myFile = { read: 'test.pdf', filename: 'upload-name.pdf', contentType: 'application/pdf' }
+    And multipart field message = 'hello world'
+    When method post
+    Then status 200
+    And match response['content-length'][0] == '#notnull'

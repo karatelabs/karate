@@ -365,6 +365,19 @@ public class ScriptValue {
                 return value.toString();
         }
     }
+    
+    public byte[] getAsByteArray() {
+        switch (type) {
+            case NULL:
+                return null;
+            case INPUT_STREAM:
+                return FileUtils.toBytes(getValue(InputStream.class));
+            case BYTE_ARRAY:
+                return getValue(byte[].class);
+            default:
+                return getAsString().getBytes();
+        }        
+    }
 
     public InputStream getAsStream() {
         switch (type) {
