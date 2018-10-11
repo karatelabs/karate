@@ -79,6 +79,14 @@ public class HttpRequest {
         this.urlBase = urlBase;
     }        
     
+    public String getHeader(String key) {
+    	Object headerValue = headers.getFirst(key.toLowerCase());
+        if (headerValue == null) {
+            return null;
+        }
+        return headerValue.toString();
+    }
+    
     public void addHeader(String key, String value) {
         headers.add(key.toLowerCase(), value);
     }
