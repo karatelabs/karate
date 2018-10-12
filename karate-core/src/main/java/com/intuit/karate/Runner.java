@@ -109,6 +109,7 @@ public class Runner {
                         logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
                         result.printStats(feature.getRelativePath(), file.getPath());
                     } else {
+                        results.addToSkipCount(1);
                         logger.info("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
                     }
                     latch.countDown();                    

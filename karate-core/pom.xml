@@ -119,7 +119,7 @@
     
     <profiles>
         <profile> 
-            <id>release</id>
+            <id>pre-release</id>
             <build>
                 <plugins>
                     <plugin>
@@ -135,7 +135,8 @@
                                 <configuration>
                                     <artifactSet>
                                         <includes>
-                                            <include>io.netty:*</include>                                    
+                                            <include>io.netty:*</include>
+                                            <include>org.antlr:*</include>                                  
                                         </includes>
                                     </artifactSet>
                                     <relocations>
@@ -143,6 +144,10 @@
                                             <pattern>io.netty</pattern>
                                             <shadedPattern>io.netty.karate</shadedPattern>
                                         </relocation>
+                                        <relocation>
+                                            <pattern>org.antlr.v4</pattern>
+                                            <shadedPattern>org.antlr.karate</shadedPattern>
+                                        </relocation>                                        
                                     </relocations>
                                 </configuration>
                             </execution>

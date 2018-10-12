@@ -613,11 +613,11 @@ Things to note:
 * For convenience, some stats are logged to the console when execution completes, which should look something like this:
 
 ```
-====================================================
-elapsed time: 3.62 | total thread time: 13.79
-features:    31 | threads:   5 | efficiency: 0.76
-scenarios:   70 | passed:   70 | failed:    0
-====================================================
+======================================================
+elapsed:   2.35 | threads:    5 | thread time: 4.98 
+features:    54 | ignored:   25 | efficiency: 0.42
+scenarios:  145 | passed:   145 | failed: 0
+======================================================
 ```
 
 > There is also an API to run a chosen set of features (and tags) which may be useful in cases where you dynamically want to select features at run time. Refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java)

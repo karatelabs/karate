@@ -38,6 +38,7 @@ public class Results {
     private int featureCount;
     private int testCount;
     private int failCount;
+    private int skipCount;
     private double timeTakenMillis;    
     private final long startTime;
     private long endTime;
@@ -85,6 +86,10 @@ public class Results {
         failCount += count;
     }
     
+    public void addToSkipCount(int count) {
+        skipCount += count;
+    }    
+    
     public void addToTimeTaken(double time) {
         timeTakenMillis += time;
     }
@@ -104,14 +109,14 @@ public class Results {
     public void printStats(int threadCount) {
         double elapsedTime = endTime - startTime;
         System.out.println("Karate version: " + FileUtils.getKarateVersion());
-        System.out.println("====================================================");
-        System.out.println(String.format("elapsed time: %.2f | total thread time: %.2f", elapsedTime / 1000, timeTakenMillis / 1000));
+        System.out.println("======================================================");
         double efficiency = timeTakenMillis / (elapsedTime * threadCount);
-        System.out.println(String.format("features: %5d | threads: %3d | efficiency: %.2f", 
-                featureCount, threadCount, efficiency));
-        System.out.println(String.format("scenarios: %4d | passed: %4d | failed: %4d", 
+        System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ", 
+                elapsedTime / 1000, threadCount, timeTakenMillis / 1000));       
+        System.out.println(String.format("features: %5d | ignored: %4d | efficiency: %.2f", featureCount, skipCount, efficiency));
+        System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d", 
                 testCount, testCount - failCount, failCount));
-        System.out.println("====================================================");
+        System.out.println("======================================================");
         if (failedMap != null) {
             System.out.println("failed features:");
             failedMap.forEach((k, v) -> {
