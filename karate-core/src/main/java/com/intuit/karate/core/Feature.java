@@ -34,52 +34,56 @@ import java.util.List;
  * @author pthomas3
  */
 public class Feature {
-    
+
     public static final String KEYWORD = "Feature";
-    
+
     private final Resource resource;
-    
+
     private int line;
     private List<Tag> tags;
     private String name;
     private String description;
     private Background background;
     private List<FeatureSection> sections = new ArrayList();
-    
+
     private List<String> lines;
-    
+
     private String callTag;
     private String callName;
-    
+
     public Feature(Resource resource) {
         this.resource = resource;
     }
-    
+
     public boolean isBackgroundPresent() {
         return background != null && background.getSteps() != null;
     }
-    
+
+    private List<Scenario> scenarios;
+
     public List<Scenario> getScenarios() {
-        List<Scenario> scenarios = new ArrayList();
-        for (FeatureSection section : sections) {
-            if (section.isOutline()) {
-                scenarios.addAll(section.getScenarioOutline().getScenarios());
-            } else {
-                scenarios.add(section.getScenario());
+        if (scenarios == null) {
+            scenarios = new ArrayList();
+            for (FeatureSection section : sections) {
+                if (section.isOutline()) {
+                    scenarios.addAll(section.getScenarioOutline().getScenarios());
+                } else {
+                    scenarios.add(section.getScenario());
+                }
             }
         }
         return scenarios;
     }
-    
+
     public void addSection(FeatureSection section) {
         section.setIndex(sections.size());
         sections.add(section);
-    }    
-    
+    }
+
     public FeatureSection getSection(int sectionIndex) {
         return sections.get(sectionIndex);
-    }    
-    
+    }
+
     public Scenario getScenario(int sectionIndex, int scenarioIndex) {
         FeatureSection section = getSection(sectionIndex);
         if (scenarioIndex == -1) {
@@ -87,43 +91,43 @@ public class Feature {
         }
         ScenarioOutline outline = section.getScenarioOutline();
         return outline.getScenarios().get(scenarioIndex);
-    } 
-    
+    }
+
     public Step getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
         Scenario scenario = getScenario(sectionIndex, scenarioIndex);
         return scenario.getSteps().get(stepIndex);
-    }    
-    
+    }
+
     public Feature replaceStep(Step step, String text) {
         return replaceLines(step.getLine(), step.getEndLine(), text);
-    }    
-    
+    }
+
     public Feature replaceLines(int start, int end, String text) {
         for (int i = start - 1; i < end - 1; i++) {
             lines.remove(start);
         }
         lines.set(start - 1, text);
         return replaceText(getText());
-    }    
-    
+    }
+
     public Feature addLine(int index, String line) {
         lines.add(index, line);
         return replaceText(getText());
-    }    
-    
+    }
+
     public String getText() {
         initLines();
         return joinLines();
     }
-    
+
     public void initLines() {
         if (lines == null) {
             if (resource != null) {
                 lines = StringUtils.toStringLines(resource.toString());
             }
-        }        
+        }
     }
-    
+
     public String joinLines(int startLine, int endLine) {
         initLines();
         StringBuilder sb = new StringBuilder();
@@ -135,17 +139,17 @@ public class Feature {
             sb.append(temp).append("\n");
         }
         return sb.toString();
-    }    
-    
+    }
+
     public String joinLines() {
         int lineCount = lines.size();
         return joinLines(0, lineCount);
-    }    
+    }
 
     public Feature replaceText(String text) {
         return FeatureParser.parseText(this, text);
     }
-    
+
     public String getCallTag() {
         return callTag;
     }
@@ -160,7 +164,7 @@ public class Feature {
 
     public void setCallName(String callName) {
         this.callName = callName;
-    }    
+    }
 
     public List<String> getLines() {
         return lines;
@@ -168,11 +172,11 @@ public class Feature {
 
     public void setLines(List<String> lines) {
         this.lines = lines;
-    }          
+    }
 
     public Resource getResource() {
         return resource;
-    }        
+    }
 
     public Path getPath() {
         return resource.getPath();
@@ -181,7 +185,7 @@ public class Feature {
     public String getRelativePath() {
         return resource.getRelativePath();
     }
-        
+
     public int getLine() {
         return line;
     }
@@ -200,7 +204,7 @@ public class Feature {
 
     public String getName() {
         return name;
-    }        
+    }
 
     public void setName(String name) {
         this.name = name;
@@ -229,5 +233,5 @@ public class Feature {
     public void setSections(List<FeatureSection> sections) {
         this.sections = sections;
     }
-    
+
 }

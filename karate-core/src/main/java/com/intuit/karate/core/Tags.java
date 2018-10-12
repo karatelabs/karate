@@ -194,7 +194,7 @@ public class Tags {
         for (Tag tag : tags) {
             Map<String, Object> tagMap = new HashMap(2);
             tagMap.put("line", tag.getLine());
-            tagMap.put("name", '@' + tag.getName());
+            tagMap.put("name", '@' + tag.getText());
             list.add(tagMap);
         }
         return list;
