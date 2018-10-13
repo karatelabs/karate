@@ -152,6 +152,10 @@ public class FeatureParser extends KarateParserBaseListener {
     private static Table toTable(KarateParser.TableContext ctx) {
         List<TerminalNode> nodes = ctx.TABLE_ROW();
         int rowCount = nodes.size();
+        if(rowCount < 1) {
+        	// if scenario outline found without examples
+        	return null;
+        }
         List<List<String>> rows = new ArrayList(rowCount);
         List<Integer> lineNumbers = new ArrayList(rowCount);
         for (TerminalNode node : nodes) {
