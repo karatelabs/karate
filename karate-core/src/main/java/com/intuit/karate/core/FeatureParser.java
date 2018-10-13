@@ -314,13 +314,12 @@ public class FeatureParser extends KarateParserBaseListener {
         List<ExampleTable> examples = new ArrayList(ctx.examples().size());
         outline.setExampleTables(examples);
         for (KarateParser.ExamplesContext ec : ctx.examples()) {
-            ExampleTable example = new ExampleTable(outline);
+            Table table = toTable(ec.table());
+            ExampleTable example = new ExampleTable(outline, table);
             examples.add(example);
             if (ec.tags() != null) {
                 example.setTags(toTags(-1, ec.tags().TAGS()));
             }
-            Table table = toTable(ec.table());
-            example.setTable(table);
             if (logger.isTraceEnabled()) {
                 logger.trace("example rows: {}", table.getRows());
             }

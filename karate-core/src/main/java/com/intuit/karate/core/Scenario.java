@@ -46,13 +46,31 @@ public class Scenario {
     private String description;
     private List<Step> steps;
     private boolean outline;
+    private boolean dynamic;
 
     public Scenario(Feature feature, FeatureSection section, int index) {
         this.feature = feature;
         this.section = section;
         this.index = index;
     }
-    
+
+    public void replace(String token, String value) {
+        name = name.replace(token, value);
+        description = description.replace(token, value);
+        for (Step step : steps) {
+            String text = step.getText();
+            step.setText(text.replace(token, value));
+            String docString = step.getDocString();
+            if (docString != null) {
+                step.setDocString(docString.replace(token, value));
+            }
+            Table table = step.getTable();
+            if (table != null) {
+                step.setTable(table.replace(token, value));
+            }
+        }
+    }
+
     public String getDisplayMeta() {
         int num = section.getIndex() + 1;
         String meta = "[#" + num;
@@ -60,9 +78,9 @@ public class Scenario {
             meta = meta + " eg " + (index + 1);
         }
         return meta + " line " + line + "]";
-    }    
+    }
 
-    public List<Step> getStepsIncludingBackground() { 
+    public List<Step> getStepsIncludingBackground() {
         List<Step> background = feature.isBackgroundPresent() ? feature.getBackground().getSteps() : null;
         int count = background == null ? steps.size() : steps.size() + background.size();
         List<Step> temp = new ArrayList(count);
@@ -72,11 +90,11 @@ public class Scenario {
         temp.addAll(steps);
         return temp;
     }
-    
+
     public String getKeyword() {
         return outline ? ScenarioOutline.KEYWORD : KEYWORD;
     }
-    
+
     private Collection<Tag> tagsEffective; // cache
 
     public Collection<Tag> getTagsEffective() {
@@ -84,7 +102,7 @@ public class Scenario {
             tagsEffective = Tags.merge(feature.getTags(), tags);
         }
         return tagsEffective;
-    }    
+    }
 
     public FeatureSection getSection() {
         return section;
@@ -93,7 +111,7 @@ public class Scenario {
     public Feature getFeature() {
         return feature;
     }
-   
+
     public int getIndex() {
         return index;
     }
@@ -144,6 +162,14 @@ public class Scenario {
 
     public void setOutline(boolean outline) {
         this.outline = outline;
+    }
+
+    public boolean isDynamic() {
+        return dynamic;
+    }
+
+    public void setDynamic(boolean dynamic) {
+        this.dynamic = dynamic;
     }
 
 }

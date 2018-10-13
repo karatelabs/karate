@@ -24,11 +24,9 @@
 package com.intuit.karate.core;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  *
@@ -39,6 +37,11 @@ public class Table {
     private final List<List<String>> rows;
     private final Map<String, Integer> keyColumns;
     private final List<Integer> lineNumbers;
+    private final boolean dynamic;
+
+    public boolean isDynamic() {
+        return dynamic;
+    }        
 
     public List<String> getKeys() {
         return rows.get(0);
@@ -83,6 +86,7 @@ public class Table {
         for (int i = 0; i < colCount; i++) {
             keyColumns.put(keys.get(i), i);
         }
+        dynamic = colCount == 1 && rows.size() == 1;
     }
 
     public List<List<String>> getRows() {

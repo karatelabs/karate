@@ -30,13 +30,22 @@ import java.util.List;
  * @author pthomas3
  */
 public class ExampleTable {
-    
+
     private final ScenarioOutline outline;
-    private List<Tag> tags;   
-    private Table table;
-    
-    public ExampleTable(ScenarioOutline outline) {
+    private final Table table;
+    private List<Tag> tags;
+
+    boolean isDynamic() {
+        return table.isDynamic();
+    }
+
+    public ExampleTable(ScenarioOutline outline, Table table) {
         this.outline = outline;
+        this.table = table;
+    }
+
+    public ScenarioOutline getOutline() {
+        return outline;
     }
 
     public List<Tag> getTags() {
@@ -51,8 +60,4 @@ public class ExampleTable {
         return table;
     }
 
-    public void setTable(Table table) {
-        this.table = table;
-    }
-    
 }

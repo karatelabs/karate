@@ -146,7 +146,12 @@ public class FeatureParserTest {
     @Test
     public void testEdgeCases() {
         FeatureResult result = execute("test-edge-cases.feature");
-
+    } 
+    
+    @Test
+    public void testOutlineDynamic() {
+        FeatureResult result = execute("test-outline-dynamic.feature");
+        result.getScenarioResults();
     }    
 
 }

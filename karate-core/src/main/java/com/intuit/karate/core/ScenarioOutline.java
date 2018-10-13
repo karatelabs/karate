@@ -48,6 +48,36 @@ public class ScenarioOutline {
         this.feature = feature;
         this.section = section;
     }
+    
+    public Scenario toScenario(boolean dynamic, int exampleIndex, int line, List<Tag> exampleTags) {
+        Scenario s = new Scenario(feature, section, exampleIndex);
+        s.setName(name);
+        s.setDescription(description);
+        s.setDynamic(dynamic);
+        s.setOutline(true);
+        s.setLine(line);
+        if (tags != null || exampleTags != null) {
+            List<Tag> temp = new ArrayList();
+            if (tags != null) {
+                temp.addAll(tags);
+            }
+            if (exampleTags != null) {
+                temp.addAll(exampleTags);
+            }
+            s.setTags(temp);
+        }
+        List<Step> temp = new ArrayList(steps.size());
+        s.setSteps(temp);
+        for (Step original : steps) {
+            Step step = new Step(s, original.getIndex());
+            temp.add(step);
+            step.setPrefix(original.getPrefix());
+            step.setText(original.getText());
+            step.setDocString(original.getDocString());
+            step.setTable(original.getTable());
+        }
+        return s;
+    }    
 
     public List<Scenario> getScenarios() {
         List<Scenario> list = new ArrayList();
@@ -55,49 +85,11 @@ public class ScenarioOutline {
             Table t = et.getTable();
             int rowCount = t.getRows().size();
             for (int i = 1; i < rowCount; i++) { // don't include header row
-                Scenario scenario = new Scenario(feature, section, i - 1);
+                Scenario scenario = toScenario(false, i - 1, t.getLineNumberForRow(i), et.getTags());
                 list.add(scenario);
-                scenario.setOutline(true);
-                scenario.setLine(t.getLineNumberForRow(i));
-                if (tags != null || et.getTags() != null) {
-                    List<Tag> temp = new ArrayList();
-                    if (tags != null) {
-                        temp.addAll(tags);
-                    }
-                    if (et.getTags() != null) {
-                        temp.addAll(et.getTags());
-                    }
-                    scenario.setTags(temp);
+                for (String key : t.getKeys()) {
+                    scenario.replace("<" + key + ">", t.getValue(key, i));
                 }
-                String tempName = name;
-                String tempDesc = description;
-                List<Step> tempSteps = new ArrayList(steps.size());
-                for (Step original : steps) {
-                    String text = original.getText();
-                    String docString = original.getDocString();
-                    Table table = original.getTable();
-                    for (String key : t.getKeys()) {
-                        String value = t.getValue(key, i);
-                        String token = "<" + key + ">";
-                        text = text.replace(token, value);
-                        tempName = tempName.replace(token, value);
-                        tempDesc = tempDesc.replace(token, value);
-                        if (docString != null) {
-                            docString = docString.replace(token, value);
-                        } else if (table != null) {
-                            table = table.replace(token, value);
-                        }
-                    }
-                    Step step = new Step(scenario, original.getIndex());
-                    step.setPrefix(original.getPrefix());
-                    step.setText(text);
-                    step.setDocString(docString);
-                    step.setTable(table);
-                    tempSteps.add(step);
-                }
-                scenario.setSteps(tempSteps);
-                scenario.setName(tempName);
-                scenario.setDescription(tempDesc);                
             }
         }
         return list;
@@ -105,7 +97,7 @@ public class ScenarioOutline {
 
     public FeatureSection getSection() {
         return section;
-    }        
+    }
 
     public int getLine() {
         return line;
