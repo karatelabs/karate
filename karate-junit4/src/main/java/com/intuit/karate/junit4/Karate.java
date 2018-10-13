@@ -68,7 +68,14 @@ public class Karate extends ParentRunner<Feature> {
     }
 
     private static Description getScenarioDescription(String featureName, Scenario scenario) {
-        return Description.createTestDescription(featureName, scenario.getDisplayMeta() + ' ' + scenario.getName());
+        String scenarioKey;
+        if (scenario.isDynamic() || scenario.isBackgroundDone()) {
+            // hack otherwide eclipse "unrooted tests" in junit view
+            scenarioKey = scenario.getDisplayMeta();
+        } else {
+            scenarioKey = scenario.getDisplayMeta() + ' ' + scenario.getName();
+        }
+        return Description.createTestDescription(featureName, scenarioKey);
     }
 
     private static String getFeatureName(Feature feature) {

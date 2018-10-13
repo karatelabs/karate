@@ -8,6 +8,6 @@ import demo.TestBase;
  * @author pthomas3
  */
 @KarateOptions(features = "classpath:demo/outline/examples.feature")
-public class OutlineRunner extends TestBase {
+public class ExamplesRunner extends TestBase {
     
 }

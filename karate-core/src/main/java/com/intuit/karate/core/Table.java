@@ -37,10 +37,14 @@ public class Table {
     private final List<List<String>> rows;
     private final Map<String, Integer> keyColumns;
     private final List<Integer> lineNumbers;
-    private final boolean dynamic;
+    private final String dynamicExpression;
+
+    public String getDynamicExpression() {
+        return dynamicExpression;
+    }            
 
     public boolean isDynamic() {
-        return dynamic;
+        return dynamicExpression != null;
     }        
 
     public List<String> getKeys() {
@@ -86,7 +90,11 @@ public class Table {
         for (int i = 0; i < colCount; i++) {
             keyColumns.put(keys.get(i), i);
         }
-        dynamic = colCount == 1 && rows.size() == 1;
+        if (colCount == 1 && rows.size() == 1) {
+            dynamicExpression = keys.get(0);
+        } else {
+            dynamicExpression = null;
+        }
     }
 
     public List<List<String>> getRows() {

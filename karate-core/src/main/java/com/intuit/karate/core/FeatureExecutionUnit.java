@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.StepActions;
 import com.intuit.karate.FeatureContext;
 import com.intuit.karate.ScenarioContext;
 import java.util.ArrayList;
@@ -39,23 +38,29 @@ import java.util.function.Consumer;
 public class FeatureExecutionUnit implements Runnable {
 
     private final ExecutionContext exec;
-    private final int count;
-    private final Iterator<Scenario> iterator;
-    private final List<ScenarioResult> results;
-    private final CountDownLatch latch;
     private final Consumer<Runnable> SYSTEM;
-    private final Runnable next;
-    private final boolean parallelScenarios;
+    private final boolean parallelScenarios;    
+    
+    private Iterator<ScenarioExecutionUnit> iterator;
+    private List<ScenarioResult> results;
+    private CountDownLatch latch;
+    private Runnable next;
 
-    public FeatureExecutionUnit(ExecutionContext exec, Runnable next) {
+    public FeatureExecutionUnit(ExecutionContext exec) {
         this.exec = exec;
-        List<Scenario> scenarios = exec.featureContext.feature.getScenarios();
-        count = scenarios.size();
-        results = new ArrayList(count);
-        latch = new CountDownLatch(count);
-        iterator = scenarios.iterator();
         parallelScenarios = exec.scenarioExecutor != null;
         SYSTEM = parallelScenarios ? r -> exec.scenarioExecutor.submit(r) : r -> r.run();
+    }
+    
+    private void init() {
+        List<ScenarioExecutionUnit> units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
+        int count = units.size();
+        results = new ArrayList(count);
+        latch = new CountDownLatch(count);
+        iterator = units.iterator();        
+    }
+
+    public void setNext(Runnable next) {
         this.next = next;
     }
 
@@ -63,10 +68,14 @@ public class FeatureExecutionUnit implements Runnable {
 
     @Override
     public void run() {
+        if (iterator == null) {
+            init();
+        }
         FeatureContext featureContext = exec.featureContext;
         String callName = featureContext.feature.getCallName();
         if (iterator.hasNext()) {
-            Scenario scenario = iterator.next();
+            ScenarioExecutionUnit unit = iterator.next();
+            Scenario scenario = unit.scenario;
             if (callName != null) {
                 if (!scenario.getName().matches(callName)) {
                     featureContext.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
@@ -76,7 +85,7 @@ public class FeatureExecutionUnit implements Runnable {
                 }
                 featureContext.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
             }
-            Tags tags = new Tags(scenario.getTagsEffective());
+            Tags tags = unit.tags;
             if (!tags.evaluate(featureContext.tagSelector)) {
                 featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 latch.countDown();
@@ -93,19 +102,11 @@ public class FeatureExecutionUnit implements Runnable {
                 }
                 featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
-            boolean forceSequential = exec.singleExecutor != null && tags.valuesFor("parallel").isAnyOf("false");            
-            // this is where the script-context and vars are inited for a scenario
-            // first we set the scenario metadata
-            exec.callContext.setScenarioInfo(getScenarioInfo(scenario, featureContext));
-            // then the tags metadata
-            exec.callContext.setTags(tags);
-            // karate-config.js will be processed here 
-            // when the script-context constructor is called
-            StepActions actions = new StepActions(featureContext, exec.callContext);
-            ScenarioExecutionUnit unit = new ScenarioExecutionUnit(scenario, actions, exec, () -> {
+            boolean forceSequential = exec.singleExecutor != null && tags.valuesFor("parallel").isAnyOf("false");
+            unit.setNext(() -> {
                 // we also hold a reference to the last scenario-context that executed
                 // for cases where the caller needs a result
-                lastContextExecuted = actions.context;
+                lastContextExecuted = unit.actions.context;
                 if (parallelScenarios) {
                     latch.countDown();
                 } else { // yield next scenario only when previous completes                    
@@ -120,7 +121,7 @@ public class FeatureExecutionUnit implements Runnable {
                 exec.singleExecutor.submit(unit);
             } else {
                 SYSTEM.accept(unit);
-            }            
+            }
             if (parallelScenarios) {
                 // loop immediately and submit all scenarios in parallel
                 SYSTEM.accept(this);
@@ -145,18 +146,10 @@ public class FeatureExecutionUnit implements Runnable {
                 lastContextExecuted.invokeAfterHookIfConfigured(true);
             }
             exec.appender.close();
-            next.run();
+            if (next != null) {
+                next.run();
+            }
         }
-    }
-
-    private static ScenarioInfo getScenarioInfo(Scenario scenario, FeatureContext env) {
-        ScenarioInfo info = new ScenarioInfo();
-        info.setFeatureDir(env.feature.getPath().getParent().toString());
-        info.setFeatureFileName(env.feature.getPath().getFileName().toString());
-        info.setScenarioName(scenario.getName());
-        info.setScenarioDescription(scenario.getDescription());
-        info.setScenarioType(scenario.isOutline() ? ScenarioOutline.KEYWORD : Scenario.KEYWORD);
-        return info;
     }
 
 }

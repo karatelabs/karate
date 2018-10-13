@@ -35,10 +35,6 @@ public class ExampleTable {
     private final Table table;
     private List<Tag> tags;
 
-    boolean isDynamic() {
-        return table.isDynamic();
-    }
-
     public ExampleTable(ScenarioOutline outline, Table table) {
         this.outline = outline;
         this.table = table;

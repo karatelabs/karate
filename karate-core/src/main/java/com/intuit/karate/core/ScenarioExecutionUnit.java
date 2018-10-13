@@ -36,40 +36,65 @@ import java.util.function.Consumer;
  */
 public class ScenarioExecutionUnit implements Runnable {
 
-    private final StepActions actions;
+    public final Scenario scenario;
+    public final Tags tags;
+    public final StepActions actions;
     private final ExecutionContext exec;
     private final Iterator<Step> iterator;
     protected final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
-    private final Runnable next;
-
+    
+    private Runnable init;
+    private Runnable next;
     private boolean started;
     private boolean stopped = false;
 
-    public ScenarioExecutionUnit(Scenario scenario, StepActions actions, ExecutionContext exec, Runnable next) {
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, Tags tags, StepActions actions, ExecutionContext exec) {
+        this.scenario = scenario;
+        this.tags = tags;
         this.actions = actions;
         this.exec = exec;
-        result = new ScenarioResult(scenario);
+        result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
-        this.next = next;
         // before-scenario hook
         boolean hookFailed = false;
-        if (actions.callContext.executionHook != null) {
+        if (actions.context.executionHook != null) {
             try {
-                actions.callContext.executionHook.beforeScenario(scenario, actions.context);
+                actions.context.executionHook.beforeScenario(scenario, actions.context);
             } catch (Exception e) {
                 hookFailed = true;
                 result.addError("beforeScenario hook failed", e);
             }
         }
-        iterator = hookFailed ? Collections.emptyIterator() : scenario.getStepsIncludingBackground().iterator();
+        if (hookFailed) {
+            iterator = Collections.emptyIterator();
+        } else {
+            if (scenario.isDynamic()) {
+                iterator = scenario.getBackgroundSteps().iterator();
+            } else if (scenario.isBackgroundDone()) {
+                iterator = scenario.getSteps().iterator();
+            } else {
+                iterator = scenario.getStepsIncludingBackground().iterator();
+            }
+        }
     }
+
+    public void setInit(Runnable init) {
+        this.init = init;
+    }        
+
+    public void setNext(Runnable next) {
+        this.next = next;
+    }        
 
     @Override
     public void run() {
         if (!started) {
             result.setThreadName(Thread.currentThread().getName());
             result.setStartTime(System.currentTimeMillis() - exec.startTime);
+            if (init != null) {
+                init.run();
+            }
             started = true;
         }
         if (iterator.hasNext()) {
@@ -100,7 +125,9 @@ public class ScenarioExecutionUnit implements Runnable {
             actions.context.invokeAfterHookIfConfigured(false);
             // stop browser automation if running
             actions.context.stop();
-            next.run();
+            if (next != null) {
+                next.run();
+            }
         }
     }
 

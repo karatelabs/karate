@@ -43,9 +43,9 @@ public class ScriptValueMap extends HashMap<String, ScriptValue> {
         return new ScriptObjectMap(this);
     }
 
-    public ScriptValueMap copy() {
+    public ScriptValueMap copy(boolean deep) {
         ScriptValueMap copy = new ScriptValueMap();
-        forEach((k, v) -> copy.put(k, v));
+        forEach((k, v) -> copy.put(k, deep ? v.copy() : v));
         return copy;
     }
 

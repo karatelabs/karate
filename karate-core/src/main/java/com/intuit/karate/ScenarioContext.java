@@ -38,7 +38,6 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.web.Driver;
 import com.intuit.karate.web.DriverUtils;
-import com.intuit.karate.web.DevToolsDriver;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.Charset;
@@ -181,7 +180,8 @@ public class ScenarioContext {
             config = call.parentContext.config;
             rootFeatureContext = call.parentContext.rootFeatureContext;
         } else if (call.parentContext != null) {
-            vars = call.parentContext.vars.copy();
+            // complex objects like JSON and XML are "global by reference" TODO           
+            vars = call.parentContext.vars.copy(false);
             config = new HttpConfig(call.parentContext.config);
             rootFeatureContext = call.parentContext.rootFeatureContext;
         } else {
@@ -238,6 +238,33 @@ public class ScenarioContext {
             vars.put(Script.VAR_LOOP, -1);
         }
         logger.trace("karate context init - initial properties: {}", vars);
+    }
+    
+    public ScenarioContext copy(ScenarioInfo info) {
+        return new ScenarioContext(this, info);
+    }
+    
+    private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
+        featureContext = sc.featureContext;
+        logger = sc.logger;
+        callDepth = sc.callDepth;
+        executionHook = sc.executionHook;
+        perfMode = sc.perfMode;
+        tags = sc.tags;
+        tagValues = sc.tagValues;
+        scenarioInfo = info;
+        vars = sc.vars.copy(true); // deep / snap-shot copy
+        config = new HttpConfig(sc.config); // safe copy
+        rootFeatureContext = sc.rootFeatureContext;
+        client = HttpClient.construct(config, this);
+        bindings = new ScriptBindings(this);
+        // state
+        request = sc.request.copy();
+        response = sc.response;
+        driver = sc.driver;
+        prevRequest = sc.prevRequest;
+        prevPerfEvent = sc.prevPerfEvent;
+        callResults = sc.callResults;
     }
 
     public void configure(HttpConfig config) {

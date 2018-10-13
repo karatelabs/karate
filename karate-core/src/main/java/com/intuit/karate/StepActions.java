@@ -43,11 +43,13 @@ import java.util.Map;
 public class StepActions implements Actions {
 
     public final ScenarioContext context;
-    public final CallContext callContext;
 
     public StepActions(FeatureContext featureContext, CallContext callContext) {
-        this.callContext = callContext;
         context = new ScenarioContext(featureContext, callContext);
+    }
+    
+    public StepActions(ScenarioContext context) {
+        this.context = context;
     }
 
     public static MatchType toMatchType(String eqSymbol, String each, String notContains, String only, boolean contains) {

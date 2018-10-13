@@ -29,7 +29,9 @@ import com.intuit.karate.core.FeatureSection;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.ScenarioOutline;
+import com.intuit.karate.core.Tags;
 import java.io.File;
+import java.util.Collections;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +62,7 @@ public class AppSessionTest {
     }
 
     private static void call(Scenario scenario, AppSession session, ExecutionContext ec) {
-        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, session.getActions(), ec, () -> {});
+        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, null, Tags.EMPTY, session.getActions(), ec);
         exec.run();
     }
 

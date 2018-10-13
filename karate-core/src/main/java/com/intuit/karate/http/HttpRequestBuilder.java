@@ -46,7 +46,35 @@ public class HttpRequestBuilder {
     private ScriptValue body;
     private String method;
     private String soapAction;
-    private int pauseTime;
+
+    public HttpRequestBuilder copy() {
+        HttpRequestBuilder out = new HttpRequestBuilder();
+        out.url = url;
+        if (paths != null) {
+            out.paths = new ArrayList(paths);
+        }
+        if (headers != null) {
+            out.headers = new MultiValuedMap(headers);
+        }
+        if (params != null) {
+            out.params = new MultiValuedMap(params);
+        }
+        if (cookies != null) {
+            out.cookies = new LinkedHashMap(cookies);
+        }
+        if (formFields != null) {
+            out.formFields = new MultiValuedMap(formFields);
+        }
+        if (multiPartItems != null) {
+            out.multiPartItems = new ArrayList(multiPartItems);
+        }
+        if (body != null) {
+            out.body = body.copy();
+        }
+        out.method = method;
+        out.soapAction = soapAction;
+        return out;
+    }
 
     public void setUrl(String url) {
         this.url = url;
@@ -55,13 +83,13 @@ public class HttpRequestBuilder {
     public String getUrl() {
         return url;
     }
-    
+
     private static String getFirst(MultiValuedMap map, String name) {
         if (map == null) {
             return null;
         }
         Object temp = map.getFirst(name);
-        return temp == null ? null : temp.toString();        
+        return temp == null ? null : temp.toString();
     }
 
     public String getHeader(String name) {
@@ -248,13 +276,5 @@ public class HttpRequestBuilder {
     public String getSoapAction() {
         return soapAction;
     }
-    
-    public int getPauseTime() {
-        return pauseTime;
-    }
-
-    public void setPauseTime(int pauseTime) {
-        this.pauseTime = pauseTime;
-    }    
 
 }

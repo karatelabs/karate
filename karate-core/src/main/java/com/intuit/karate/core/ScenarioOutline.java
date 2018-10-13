@@ -49,11 +49,11 @@ public class ScenarioOutline {
         this.section = section;
     }
     
-    public Scenario toScenario(boolean dynamic, int exampleIndex, int line, List<Tag> exampleTags) {
+    public Scenario toScenario(String dynamicExpression, int exampleIndex, int line, List<Tag> exampleTags) {
         Scenario s = new Scenario(feature, section, exampleIndex);
         s.setName(name);
         s.setDescription(description);
-        s.setDynamic(dynamic);
+        s.setDynamicExpression(dynamicExpression);
         s.setOutline(true);
         s.setLine(line);
         if (tags != null || exampleTags != null) {
@@ -81,14 +81,19 @@ public class ScenarioOutline {
 
     public List<Scenario> getScenarios() {
         List<Scenario> list = new ArrayList();
-        for (ExampleTable et : exampleTables) {
-            Table t = et.getTable();
-            int rowCount = t.getRows().size();
-            for (int i = 1; i < rowCount; i++) { // don't include header row
-                Scenario scenario = toScenario(false, i - 1, t.getLineNumberForRow(i), et.getTags());
+        for (ExampleTable examples : exampleTables) {
+            Table table = examples.getTable();
+            if (table.isDynamic()) {
+                Scenario scenario = toScenario(table.getDynamicExpression(), -1, line, examples.getTags());
                 list.add(scenario);
-                for (String key : t.getKeys()) {
-                    scenario.replace("<" + key + ">", t.getValue(key, i));
+            } else {
+                int rowCount = table.getRows().size();
+                for (int i = 1; i < rowCount; i++) { // don't include header row
+                    Scenario scenario = toScenario(null, i - 1, table.getLineNumberForRow(i), examples.getTags());
+                    list.add(scenario);
+                    for (String key : table.getKeys()) {
+                        scenario.replace("<" + key + ">", table.getValue(key, i));
+                    }
                 }
             }
         }

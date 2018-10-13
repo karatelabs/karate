@@ -131,8 +131,11 @@ public class ScenarioResult {
         return map;
     }
 
-    public ScenarioResult(Scenario scenario) {
+    public ScenarioResult(Scenario scenario, List<StepResult> stepResults) {
         this.scenario = scenario;
+        if (stepResults != null) {
+            this.stepResults.addAll(stepResults);
+        }
     }
 
     public Scenario getScenario() {

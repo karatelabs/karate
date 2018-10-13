@@ -112,7 +112,7 @@ public class Engine {
             callContext = new CallContext(null, true);
         }
         ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
-        FeatureExecutionUnit unit = new FeatureExecutionUnit(exec, () -> {});
+        FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
         unit.run();
         return exec.result;
     }

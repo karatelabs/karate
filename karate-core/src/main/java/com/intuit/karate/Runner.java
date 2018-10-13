@@ -100,7 +100,8 @@ public class Runner {
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, 
                         r -> featureExecutor.submit(r), scenarioExecutor, singleExecutor);
                 featureResults.add(execContext.result);
-                FeatureExecutionUnit execUnit = new FeatureExecutionUnit(execContext, () -> {
+                FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
+                unit.setNext(() -> {
                     FeatureResult result = execContext.result;
                     if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
                         File file = Engine.saveResultJson(finalReportDir, result);
@@ -114,7 +115,7 @@ public class Runner {
                     }
                     latch.countDown();                    
                 });
-                featureExecutor.submit(execUnit);
+                featureExecutor.submit(unit);
             }
             latch.await();
             results.stopTimer();
@@ -173,7 +174,8 @@ public class Runner {
         FeatureContext featureContext = new FeatureContext(feature, null);
         CallContext callContext = CallContext.forAsync(hook, true);
         ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, system, null, null);
-        FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext, next);
+        FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
+        exec.setNext(next);
         system.accept(exec);
     }
 

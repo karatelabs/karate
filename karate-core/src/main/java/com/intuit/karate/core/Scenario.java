@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.core;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -46,12 +48,44 @@ public class Scenario {
     private String description;
     private List<Step> steps;
     private boolean outline;
-    private boolean dynamic;
+    private String dynamicExpression;
+    private boolean backgroundDone;
 
     public Scenario(Feature feature, FeatureSection section, int index) {
         this.feature = feature;
         this.section = section;
         this.index = index;
+    }
+
+    public ScenarioInfo toInfo(Path featurePath) {
+        ScenarioInfo info = new ScenarioInfo();
+        info.setFeatureDir(featurePath.getParent().toString());
+        info.setFeatureFileName(featurePath.getFileName().toString());
+        info.setScenarioName(name);
+        info.setScenarioDescription(description);
+        info.setScenarioType(getKeyword());
+        return info;
+    }
+
+    public Scenario copy(int exampleIndex) {
+        Scenario s = new Scenario(feature, section, exampleIndex);
+        s.name = name;
+        s.description = description;
+        s.tags = tags;
+        s.line = line;
+        s.outline = exampleIndex != -1;
+        s.steps = new ArrayList(steps.size());
+        for (Step step : steps) {
+            Step temp = new Step(s, step.getIndex());
+            s.steps.add(temp);
+            temp.setLine(step.getLine());
+            temp.setEndLine(step.getEndLine());
+            temp.setPrefix(step.getPrefix());
+            temp.setText(step.getText());
+            temp.setDocString(step.getDocString());
+            temp.setTable(step.getTable());
+        }
+        return s;
     }
 
     public void replace(String token, String value) {
@@ -74,10 +108,14 @@ public class Scenario {
     public String getDisplayMeta() {
         int num = section.getIndex() + 1;
         String meta = "[#" + num;
-        if (index != -1) {
+        if (index != -1 && !backgroundDone) {
             meta = meta + " eg " + (index + 1);
         }
         return meta + " line " + line + "]";
+    }
+
+    public List<Step> getBackgroundSteps() {
+        return feature.isBackgroundPresent() ? feature.getBackground().getSteps() : Collections.EMPTY_LIST;
     }
 
     public List<Step> getStepsIncludingBackground() {
@@ -165,11 +203,23 @@ public class Scenario {
     }
 
     public boolean isDynamic() {
-        return dynamic;
+        return dynamicExpression != null;
     }
 
-    public void setDynamic(boolean dynamic) {
-        this.dynamic = dynamic;
+    public String getDynamicExpression() {
+        return dynamicExpression;
+    }
+
+    public void setDynamicExpression(String dynamicExpression) {
+        this.dynamicExpression = dynamicExpression;
+    }
+
+    public boolean isBackgroundDone() {
+        return backgroundDone;
+    }
+
+    public void setBackgroundDone(boolean backgroundDone) {
+        this.backgroundDone = backgroundDone;
     }
 
 }

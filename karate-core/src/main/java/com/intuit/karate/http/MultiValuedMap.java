@@ -31,7 +31,15 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class MultiValuedMap extends LinkedHashMap<String, List> {       
+public class MultiValuedMap extends LinkedHashMap<String, List> {
+    
+    public MultiValuedMap() {
+        super();
+    }    
+    
+    public MultiValuedMap(LinkedHashMap<String, List> map) {
+        super(map);
+    }
     
     public void add(String key, Object value) {
         List list = get(key);
