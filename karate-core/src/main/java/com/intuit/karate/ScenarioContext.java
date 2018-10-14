@@ -83,6 +83,9 @@ public class ScenarioContext {
 
     // gatling integration    
     private PerfEvent prevPerfEvent;
+    
+    // report embed
+    protected Embed prevEmbed;
 
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHook != null) {
@@ -784,6 +787,19 @@ public class ScenarioContext {
 
     public void eval(String exp) {
         Script.evalJsExpression(exp, this);
+    }
+    
+    public Embed getAndClearEmbed() {
+        Embed temp = prevEmbed;
+        prevEmbed = null;
+        return temp;
+    }
+    
+    public void embed(byte[] bytes, String contentType) {
+        Embed embed = new Embed();
+        embed.setBytes(bytes);
+        embed.setMimeType(contentType);
+        prevEmbed = embed;
     }
     
     //==========================================================================

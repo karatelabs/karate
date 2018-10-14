@@ -262,18 +262,22 @@ public class FileUtils {
             throw new RuntimeException(e);
         }
     }
-
-    public static void writeToFile(File file, String data) {
+    
+    public static void writeToFile(File file, byte[] data) {
         try {
             if (file.getParentFile() != null) {
                 file.getParentFile().mkdirs();
             }
-            FileOutputStream fos = new FileOutputStream(file);
-            fos.write(data.getBytes(UTF8));
-            fos.close();
-        } catch (Exception e) {
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                fos.write(data);
+            }
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }    
+
+    public static void writeToFile(File file, String data) {
+        writeToFile(file, data.getBytes(UTF8));
     }
 
     public static InputStream toInputStream(String text) {

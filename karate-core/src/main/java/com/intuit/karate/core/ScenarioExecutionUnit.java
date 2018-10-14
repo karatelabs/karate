@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Embed;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.util.Collections;
@@ -100,17 +101,19 @@ public class ScenarioExecutionUnit implements Runnable {
         if (iterator.hasNext()) {
             Step step = iterator.next();
             if (stopped) {
-                result.addStepResult(new StepResult(step, Result.skipped(), null, null));
+                result.addStepResult(new StepResult(step, Result.skipped(), null, null, null));
                 SYSTEM.accept(this);
             } else {
                 Result execResult = Engine.executeStep(step, actions);
                 List<FeatureResult> callResults = actions.context.getAndClearCallResults();
+                // embed collection for each step happens here
+                Embed embed = actions.context.getAndClearEmbed();
                 if (execResult.isAborted()) { // we log only aborts for visibility
                     actions.context.logger.debug("abort at {}", step.getDebugInfo());
                 }
                 // log appender collection for each step happens here
                 String stepLog = StringUtils.trimToNull(exec.appender.collect());
-                StepResult stepResult = new StepResult(step, execResult, stepLog, callResults);
+                StepResult stepResult = new StepResult(step, execResult, stepLog, embed, callResults);
                 if (stepResult.isStopped()) {
                     stopped = true;
                 }

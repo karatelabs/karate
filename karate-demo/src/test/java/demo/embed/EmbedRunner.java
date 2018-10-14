@@ -1,4 +1,4 @@
-package demo.schema;
+package demo.embed;
 
 import com.intuit.karate.junit4.Karate;
 import org.junit.BeforeClass;
@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-public class SchemaRunner {
+public class EmbedRunner {
     
     @BeforeClass
     public static void beforeClass() {

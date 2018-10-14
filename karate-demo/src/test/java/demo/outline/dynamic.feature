@@ -12,7 +12,7 @@ Scenario Outline: cat name: <name>
     And match response == { id: '#number', name: '<name>' }
 
     # the single cell can be any valid karate expression
-    # and even reference a variable setup in the Background
+    # and even reference a variable defined in the Background
     Examples:
     | kittens |
     

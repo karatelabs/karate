@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.http.HttpRequest;
@@ -32,6 +33,7 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -324,6 +326,23 @@ public class ScriptBridge implements PerfContext {
     
     public void abort() {
         throw new KarateAbortException(null);
+    }
+    
+    public void embed(Object o, String contentType) {
+       ScriptValue sv = new ScriptValue(o);
+       if (contentType == null) {
+           contentType = HttpUtils.getContentType(sv);
+       }
+       Embed embed = new Embed();
+       embed.setBytes(sv.getAsByteArray());
+       embed.setMimeType(contentType);
+       context.prevEmbed = embed;
+    }   
+    
+    public void write(Object o, String path) {        
+        ScriptValue sv = new ScriptValue(o);
+        path = Engine.getBuildDir() + File.separator + path;
+        FileUtils.writeToFile(new File(path), sv.getAsByteArray());
     }
     
     private ScriptValue getValue(String name) {

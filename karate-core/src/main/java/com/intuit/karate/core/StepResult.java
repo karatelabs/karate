@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Embed;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +40,7 @@ public class StepResult  {
     private final Step step;
     private final Result result;
     private final String stepLog;
+    private final Embed embed;
     private final List<FeatureResult> callResults;
 
     static {
@@ -75,6 +77,12 @@ public class StepResult  {
         if (sb.length() > 0) {
             map.put("doc_string", docStringToMap(step.getLine(), sb.toString()));
         }
+        if (embed != null) {
+            Map embedMap = new HashMap(2);
+            embedMap.put("data", embed.getBase64());
+            embedMap.put("mime_type", embed.getMimeType());
+            map.put("embeddings", Collections.singletonList(embedMap));
+        }
         return map;
     }
         
@@ -82,10 +90,11 @@ public class StepResult  {
         return result.isFailed() || result.isAborted();
     }    
 
-    public StepResult(Step step, Result result, String stepLog, List<FeatureResult> callResults) {
+    public StepResult(Step step, Result result, String stepLog, Embed embed, List<FeatureResult> callResults) {
         this.step = step;
         this.result = result;
         this.stepLog = stepLog;
+        this.embed = embed;
         this.callResults = callResults;
     }   
 
@@ -100,6 +109,10 @@ public class StepResult  {
     public String getStepLog() {
         return stepLog;
     }
+
+    public Embed getEmbed() {
+        return embed;
+    }        
 
     public List<FeatureResult> getCallResults() {
         return callResults;
