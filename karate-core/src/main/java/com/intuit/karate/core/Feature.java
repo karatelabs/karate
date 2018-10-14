@@ -64,22 +64,6 @@ public class Feature {
         return background != null && background.getSteps() != null;
     }
 
-    private List<Scenario> scenarios;
-
-    public List<Scenario> getScenarios() {
-        if (scenarios == null) {
-            scenarios = new ArrayList();
-            for (FeatureSection section : sections) {
-                if (section.isOutline()) {
-                    scenarios.addAll(section.getScenarioOutline().getScenarios());
-                } else {
-                    scenarios.add(section.getScenario());
-                }
-            }
-        }
-        return scenarios;
-    }
-
     private static ScenarioExecutionUnit toExecutionUnit(Scenario scenario, ExecutionContext exec) {
         // karate-config.js will be processed here 
         // when the script-context constructor is called

@@ -41,6 +41,7 @@ public class FeatureExecutionUnit implements Runnable {
     private final Consumer<Runnable> SYSTEM;
     private final boolean parallelScenarios;    
     
+    private List<ScenarioExecutionUnit> units;
     private Iterator<ScenarioExecutionUnit> iterator;
     private List<ScenarioResult> results;
     private CountDownLatch latch;
@@ -51,9 +52,13 @@ public class FeatureExecutionUnit implements Runnable {
         parallelScenarios = exec.scenarioExecutor != null;
         SYSTEM = parallelScenarios ? r -> exec.scenarioExecutor.submit(r) : r -> r.run();
     }
+
+    public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
+        return units;
+    }        
     
-    private void init() {
-        List<ScenarioExecutionUnit> units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
+    public void init() {
+        units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
         int count = units.size();
         results = new ArrayList(count);
         latch = new CountDownLatch(count);

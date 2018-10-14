@@ -3,7 +3,7 @@ Feature: scenario outline using a dynamic table
 Background:
     * def kittens = read('../callarray/kittens.json')
 
-Scenario Outline: read from a json file
+Scenario Outline: cat name: <name>
     Given url demoBaseUrl
     And path 'cats'
     And request { name: '<name>' }

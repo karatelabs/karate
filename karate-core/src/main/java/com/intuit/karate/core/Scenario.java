@@ -108,7 +108,7 @@ public class Scenario {
     public String getDisplayMeta() {
         int num = section.getIndex() + 1;
         String meta = "[#" + num;
-        if (index != -1 && !backgroundDone) {
+        if (index != -1) {
             meta = meta + " eg " + (index + 1);
         }
         return meta + " line " + line + "]";

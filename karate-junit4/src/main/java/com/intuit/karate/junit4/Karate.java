@@ -7,7 +7,6 @@ import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Tags;
 import java.io.File;
@@ -23,6 +22,7 @@ import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +35,7 @@ public class Karate extends ParentRunner<Feature> {
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
 
     private final List<Feature> children;
-    private final Map<String, Description> featureMap;
+    private final Map<String, FeatureInfo> featureMap;
     private final String tagSelector;
 
     public Karate(Class<?> clazz) throws InitializationError, IOException {
@@ -51,13 +51,6 @@ public class Karate extends ParentRunner<Feature> {
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             children.add(feature);
-            Description featureDescription = Description.createSuiteDescription(
-                    getFeatureName(feature), feature.getResource().getPackageQualifiedName());
-            featureMap.put(feature.getRelativePath(), featureDescription);
-            for (Scenario s : feature.getScenarios()) {
-                Description scenarioDescription = getScenarioDescription(getFeatureName(feature), s);
-                featureDescription.addChild(scenarioDescription);
-            }
         }
         tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
     }
@@ -67,31 +60,45 @@ public class Karate extends ParentRunner<Feature> {
         return children;
     }
 
-    private static Description getScenarioDescription(String featureName, Scenario scenario) {
-        String scenarioKey;
-        if (scenario.isDynamic() || scenario.isBackgroundDone()) {
-            // hack otherwide eclipse "unrooted tests" in junit view
-            scenarioKey = scenario.getDisplayMeta();
-        } else {
-            scenarioKey = scenario.getDisplayMeta() + ' ' + scenario.getName();
+    private static final Statement NO_OP = new Statement() {
+        @Override
+        public void evaluate() throws Throwable {
         }
-        return Description.createTestDescription(featureName, scenarioKey);
-    }
+    };
+    private boolean beforeClassDone;
 
-    private static String getFeatureName(Feature feature) {
-        return "[" + feature.getResource().getFileNameWithoutExtension() + "]";
+    @Override
+    protected Statement withBeforeClasses(Statement statement) {
+        if (!beforeClassDone) {
+            return super.withBeforeClasses(statement);
+        } else {
+            return statement;
+        }
     }
 
     @Override
-    protected Description describeChild(Feature child) {
-        return featureMap.get(child.getRelativePath());
+    protected Description describeChild(Feature feature) {
+        if (!beforeClassDone) {
+            try {
+                Statement statement = withBeforeClasses(NO_OP);
+                statement.evaluate();
+                beforeClassDone = true;
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
+        }
+        FeatureInfo info = new FeatureInfo(feature, tagSelector);
+        featureMap.put(feature.getRelativePath(), info);
+        return info.description;
     }
 
     @Override
-    protected void runChild(Feature child, RunNotifier notifier) {
-        FeatureResult result = Engine.executeFeatureSync(child, tagSelector, null);
+    protected void runChild(Feature feature, RunNotifier notifier) {
+        FeatureInfo info = featureMap.get(feature.getRelativePath());
+        info.unit.run();
+        FeatureResult result = info.exec.result;
         for (ScenarioResult sr : result.getScenarioResults()) {
-            Description scenarioDescription = getScenarioDescription(getFeatureName(child), sr.getScenario());
+            Description scenarioDescription = FeatureInfo.getScenarioDescription(sr.getScenario());
             notifier.fireTestStarted(scenarioDescription);
             if (sr.isFailed()) {
                 notifier.fireTestFailure(new Failure(scenarioDescription, sr.getError()));
