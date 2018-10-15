@@ -3329,8 +3329,13 @@ This is great for testing boundary conditions against a single end-point, with t
 
 For an advanced example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
-#### Dynamic Scenario Outline
-You can even feed an `Examples` table from a JSON array, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.  Here is an example:
+### The Karate Way
+The limitation of the Cucumber `Scenario Outline:` seen above is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).
+
+Also see the option below, where you can data-drive an `Examples:` table using JSON.
+
+### Dynamic Scenario Outline
+You can feed an `Examples` table from a JSON array, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.  Here is an example:
 
 ```cucumber
 Feature: scenario outline using a dynamic table
@@ -3353,6 +3358,3 @@ Scenario Outline: cat name: <name>
 ```
 
 The great thing about this approach is that you can set-up the JSON array using the `Background` section. Any [Karate expression](#karate-expressions) can be used in the "cell expression", and you can even use [Java-interop](#calling-java) to use external data-sources such as a database, spread-sheet or CSV file.
-
-### The Karate Way
-The limitation of the Cucumber `Scenario Outline:` is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).
