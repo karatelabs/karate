@@ -171,7 +171,7 @@ public class Feature {
     public void initLines() {
         if (lines == null) {
             if (resource != null) {
-                lines = StringUtils.toStringLines(resource.toString());
+                lines = StringUtils.toStringLines(resource.getAsString());
             }
         }
     }
