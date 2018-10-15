@@ -30,55 +30,54 @@ import java.util.Map;
  * @author pthomas3
  */
 public interface Driver {
-    
+
     // constructor takes a Map<String, Object> always
-    
-    void location(String expression);
-    
     void activate();
-    
+
     void refresh();
-    
+
     void reload();
-    
+
     void back();
-    
+
     void forward();
-    
+
     void maximize();
-    
+
     void minimize();
-    
+
     void fullscreen();
-    
+
     void focus(String id);
-    
-    void input(String name, String value);    
-    
+
+    void input(String name, String value);
+
     void click(String expression);
-    
+
     void submit(String expression);
-    
+
     void close();
-    
-    void quit();        
-    
+
+    void quit();
+
     String html(String id);
-    
+
     String text(String id);
-    
+
     String value(String id);
-    
+
     void waitForEvalTrue(String expression);
-    
+
     // javabean naming convention is intentional ===============================
     
+    void setLocation(String expression);
+
     void setDimensions(Map<String, Object> map);
-    
+
     Map<String, Object> getDimensions();
-    
-    String getLocation(); 
-    
+
+    String getLocation();
+
     String getTitle();
-    
+
 }

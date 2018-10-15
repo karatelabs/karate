@@ -86,7 +86,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     }
 
     @Override
-    public void location(String url) {
+    public void setLocation(String url) {
         DevToolsMessage dtm = method("Page.navigate").param("url", url).send();
         waitForEvalTrue("document.readyState=='complete'");
         currentUrl = url;

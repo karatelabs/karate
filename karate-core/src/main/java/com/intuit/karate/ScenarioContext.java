@@ -810,7 +810,7 @@ public class ScenarioContext {
             bindings.setDriver(driver);
         }
         String temp = Script.evalKarateExpression(expression, this).getAsString();
-        driver.location(temp);
+        driver.setLocation(temp);
     }
     
     public void input(String name, String value) {

@@ -88,7 +88,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void location(String url) {
+    public void setLocation(String url) {
         http.path("url").post("{ url: '" + url + "'}");
     }
 

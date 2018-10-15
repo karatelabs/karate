@@ -426,6 +426,10 @@ public class ScriptBridge implements PerfContext {
         return System.getProperties();
     }
     
+    public void setLocation(String expression) {
+        context.location(expression);
+    }
+    
     public void log(Object ... objects) {
         if (context.isPrintEnabled()) {
             context.logger.info("{}", new LogWrapper(objects));

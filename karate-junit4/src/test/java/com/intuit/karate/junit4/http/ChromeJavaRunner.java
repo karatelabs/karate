@@ -23,13 +23,13 @@ public class ChromeJavaRunner {
         options.put("port", 9222);
         // options.put("headless", true);
         Driver driver = ChromeDevToolsDriver.start(options);        
-        driver.location("https://github.com/login");
+        driver.setLocation("https://github.com/login");
         driver.input("#login_field", "hello");
         driver.input("#password", "world");
         driver.submit("//input[@name='commit']");
         String html = driver.html("#js-flash-container");
         assertTrue(html.contains("Incorrect username or password."));
-        driver.location("https://google.com");
+        driver.setLocation("https://google.com");
         driver.input("//input[@name='q']", "karate dsl");
         driver.submit("//input[@name='btnI']");
         assertEquals("https://github.com/intuit/karate", driver.getLocation());

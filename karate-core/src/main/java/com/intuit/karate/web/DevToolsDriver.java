@@ -186,7 +186,7 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     }
 
     @Override
-    public void location(String url) {
+    public void setLocation(String url) {
         DevToolsMessage dtm = method("Page.navigate").param("url", url).send(WaitState.CHROME_FRAME_NAVIGATED);
         currentUrl = dtm.getFrameUrl();
     }
