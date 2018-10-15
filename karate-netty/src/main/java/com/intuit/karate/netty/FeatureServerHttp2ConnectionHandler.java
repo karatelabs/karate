@@ -51,17 +51,27 @@ public final class FeatureServerHttp2ConnectionHandler extends Http2ConnectionHa
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-    	logger.info("ConnectionHandler write: ({}) ", msg);
+        logger.debug("ConnectionHandler write: ({}) ", msg);
     	if (msg instanceof FullHttpResponse) {
     		FullHttpResponse response = (FullHttpResponse)msg;
-            Http2Headers headers = HttpConversionUtil.toHttp2Headers(response, false);
-            encoder().writeHeaders(ctx, 1, headers, 0, false, ctx.newPromise());
-            encoder().writeData(ctx, 1, response.content(), 0, true, ctx.newPromise());
+    		Http2Headers headers = HttpConversionUtil.toHttp2Headers(response, false);
+            int streamId = getStreamId(response);
+            encoder().writeHeaders(ctx, streamId, headers, 0, false, ctx.newPromise());
+            encoder().writeData(ctx, streamId, response.content(), 0, true, ctx.newPromise());
     		
             return;
     	}
     	
     	ctx.write(msg, promise);
+    }
+
+    /**
+     * @param response
+     * @return
+     */
+    private int getStreamId(FullHttpResponse response) {
+        int streamId = response.headers().getInt(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text(), 1);
+        return streamId;
     }
 
 	
@@ -71,6 +81,7 @@ public final class FeatureServerHttp2ConnectionHandler extends Http2ConnectionHa
      */
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        logger.info("ConnectionHandler userEventTriggered: ({}) ", evt);
         if (evt instanceof HttpServerUpgradeHandler.UpgradeEvent) {
             HttpServerUpgradeHandler.UpgradeEvent upgradeEvent =
                     (HttpServerUpgradeHandler.UpgradeEvent) evt;
@@ -82,6 +93,7 @@ public final class FeatureServerHttp2ConnectionHandler extends Http2ConnectionHa
 
 	@Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        logger.error("ConnectionHandler exceptionCaught: ({}) ", cause);
         super.exceptionCaught(ctx, cause);
         cause.printStackTrace();
         ctx.close();

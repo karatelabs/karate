@@ -23,6 +23,13 @@
  */
 package com.intuit.karate.netty;
 
+import static io.netty.handler.codec.http.HttpUtil.setContentLength;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScriptContext;
@@ -32,6 +39,7 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.cucumber.FeatureProvider;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -46,10 +54,8 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http2.HttpConversionUtil;
 import io.netty.util.CharsetUtil;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  *
@@ -120,7 +126,6 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
             }
             writeResponse(request, ctx);
         }
-        ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
 
     private static final String VAR_AFTER_SCENARIO = "afterScenario";
@@ -205,7 +210,7 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
         if (afterScenario != null && afterScenario.isFunction()) {
             afterScenario.invokeFunction(provider.getContext());
         }
-        ctx.write(response);
+        sendResponse(ctx, getStreamId(request), 0, response);
     }
 
     @Override
@@ -215,4 +220,19 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
         ctx.close();
     }
 
+    protected void sendResponse(final ChannelHandlerContext ctx, String streamId, int latency,
+            final FullHttpResponse response) {
+        setContentLength(response, response.content().readableBytes());
+        if(streamId != null)
+            setStreamId(response, streamId);
+        ctx.writeAndFlush(response);
+    }
+
+    private String getStreamId(HttpRequest request) {
+        return request.getHeader(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text().toString());
+    }
+
+    private void setStreamId(FullHttpResponse response, String streamId) {
+        response.headers().set(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text(), streamId);
+    }
 }
