@@ -6,6 +6,6 @@ mvn clean deploy -P pre-release,release
 
 (release netty JAR)
 cd karate-netty
-mvn install -P shade
+mvn install -P fatjar
 
 

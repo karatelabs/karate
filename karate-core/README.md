@@ -70,7 +70,7 @@ And input #myDivId = 'hello world'
 ```
 
 ### Locators
-The standard locator syntax is supported, a `#` prefix means by `id` a `/` prefix means XPath and else it would be evaluated as a "CSS selector" for example:
+The standard locator syntax is supported, a `#` prefix means by `id`, a `/` prefix means XPath and else it would be evaluated as a "CSS selector" for example:
 
 ```cucumber
 And input input[name=someName] = 'test input'
