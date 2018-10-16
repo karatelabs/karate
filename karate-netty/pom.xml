@@ -42,7 +42,7 @@
     
     <profiles>
         <profile>
-            <id>shade</id>
+            <id>fatjar</id>
             <build>
                 <plugins>
                     <plugin>
