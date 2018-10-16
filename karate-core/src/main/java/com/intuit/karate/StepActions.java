@@ -409,12 +409,6 @@ public class StepActions implements Actions {
     @When("^submit (.+)")
     public void submit(String name) {
         context.submit(name);
-    }     
-    
-    @Override
-    @When("^stop$")
-    public void stop() {
-        context.stop();
-    }    
+    }  
 
 }

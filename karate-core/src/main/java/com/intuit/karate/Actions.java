@@ -137,7 +137,5 @@ public interface Actions {
     void click(String expression);
     
     void submit(String expression);
-    
-    void stop();
 
 }

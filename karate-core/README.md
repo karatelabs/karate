@@ -27,6 +27,7 @@ For now refer to these two examples along with the syntax guide:
 * [Example 2](../karate-demo/src/test/java/web/core/test-01.feature)
 
 # Syntax Guide
+
 ## `configure driver`
 
 Example (Direct-to-Chrome):
@@ -65,16 +66,27 @@ Given location webUrlBase + '/page-01'
 
 ## `input`
 ```cucumber
-And input #eg01InputId = 'hello world'
+And input #myDivId = 'hello world'
 ```
 
+### Locators
 The standard locator syntax is supported, a `#` prefix means by `id` a `/` prefix means XPath and else it would be evaluated as a "CSS selector" for example:
 
 ```cucumber
 And input input[name=someName] = 'test input'
 ```
 
-## 
+## `click`
+Just triggers a click event on the DOM element, does *not* wait for a page load.
+```cucumber
+And click #myButtonId
+```
+
+## `submit`
+Triggers a click event on the DOM element, *and* waits for the next page to load.
+```cucumber
+And submit #myButtonId
+```
 
 # JS API
 In some cases, especially when using dynamic data in scope as Karate variables, the built-in `driver` object can be used instead of the DSL keywords listed above.
