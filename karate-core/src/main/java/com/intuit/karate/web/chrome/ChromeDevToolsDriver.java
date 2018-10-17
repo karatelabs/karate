@@ -36,47 +36,60 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 
- * chrome devtools protocol - the "preferred" driver: https://chromedevtools.github.io/devtools-protocol/
- * 
+ *
+ * chrome devtools protocol - the "preferred" driver:
+ * https://chromedevtools.github.io/devtools-protocol/
+ *
  * @author pthomas3
  */
 public class ChromeDevToolsDriver extends DevToolsDriver {
-    
+
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-    public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";    
-    
+    public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+
     public ChromeDevToolsDriver(CommandThread command, Http http, String webSocketUrl, boolean headless, long timeOut) {
         super(command, http, webSocketUrl, headless, timeOut);
     }
-    
+
     public static ChromeDevToolsDriver start(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
         if (port == null) {
             port = 9222;
         }
+        String host = (String) options.get("host");
+        if (host == null) {
+            host = "localhost";
+        }
+        Boolean start = (Boolean) options.get("start");
         String executable = (String) options.get("executable");
-        if (executable == null) {
+        if (executable == null && start != null && start) {
             executable = FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC;
         }
-        String uniqueName = System.currentTimeMillis() + "";
-        File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome-" + uniqueName);
-        List<String> args = Arrays.asList(executable,
-                "--remote-debugging-port=" + port,
-                "--no-first-run",
-                "--user-data-dir=" + profileDir.getAbsolutePath());
         Boolean headless = (Boolean) options.get("headless");
         if (headless == null) {
             headless = false;
         }
-        if (headless) {
-            args = new ArrayList(args);
-            args.add("--headless");
+        CommandThread command;
+        if (executable != null) {
+            String uniqueName = System.currentTimeMillis() + "";
+            File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome-" + uniqueName);
+            List<String> args = Arrays.asList(executable,
+                    "--remote-debugging-port=" + port,
+                    "--no-first-run",
+                    "--user-data-dir=" + profileDir.getAbsolutePath());
+
+            if (headless) {
+                args = new ArrayList(args);
+                args.add("--headless");
+            }
+            String logFile = profileDir.getPath() + File.separator + "chrome.log";
+            command = new CommandThread(DevToolsDriver.class, logFile, profileDir, args.toArray(new String[]{}));
+            command.start();
+            DriverUtils.waitForPort(host, port);
+        } else {
+            command = null;
         }
-        String logFile = profileDir.getPath() + File.separator + "chrome.log";
-        CommandThread command = new CommandThread(DevToolsDriver.class, logFile, profileDir, args.toArray(new String[]{}));
-        command.start();
-        Http http = Http.forUrl("http://localhost:" + port);
+        Http http = Http.forUrl("http://" + host + ":" + port);
         String webSocketUrl = http.path("json").get()
                 .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
         Long timeOut = DriverUtils.getTimeOut(options);
@@ -84,6 +97,6 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
         chrome.activate();
         chrome.enablePageEvents();
         return chrome;
-    }    
-    
+    }
+
 }

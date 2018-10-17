@@ -50,7 +50,11 @@ public class MicrosoftWebDriver extends WebDriver {
         if (host == null) {
             host = "localhost";
         }
+        Boolean start = (Boolean) options.get("start");
         String executable = (String) options.get("executable");
+        if (executable == null && start != null && start) {
+            executable = "MicrosoftWebDriver";
+        }
         CommandThread command;
         if (executable != null) {
             String targetDir = Engine.getBuildDir() + File.separator;

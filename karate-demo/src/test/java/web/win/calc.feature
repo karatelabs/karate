@@ -1,7 +1,7 @@
 Feature:
 
   Background:
-    * configure driver = { type: 'winappdriver', port: 4727, executable: 'C:/Program Files (x86)/Windows Application Driver/WinAppDriver' }
+    * configure driver = { type: 'winappdriver', start: true }
 
     Scenario:
       Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }

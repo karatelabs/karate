@@ -48,7 +48,11 @@ public class GeckoWebDriver extends WebDriver {
             port = 4444;
         }
         String host = "localhost";
+        Boolean start = (Boolean) options.get("start");
         String executable = (String) options.get("executable");
+        if (executable == null && start != null && start) {
+            executable = "geckodriver";
+        }
         CommandThread command;
         if (executable != null) {
             String targetDir = Engine.getBuildDir() + File.separator;

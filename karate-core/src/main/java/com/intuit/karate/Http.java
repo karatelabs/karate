@@ -49,7 +49,7 @@ public class Http {
         return match.httpGet();
     }
     
-    public Match post(String body) {
+    public Match post(Object body) {
         return match.httpPost(body);
     }
     

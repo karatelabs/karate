@@ -46,10 +46,14 @@ public class SafariWebDriver extends WebDriver {
     public static SafariWebDriver start(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
         if (port == null) {
-            port = 4444;
+            port = 5555;
         }
         String host = "localhost";
+        Boolean start = (Boolean) options.get("start");
         String executable = (String) options.get("executable");
+        if (executable == null && start != null && start) {
+            executable = "safaridriver";
+        }
         CommandThread command;
         if (executable != null) {
             String targetDir = Engine.getBuildDir() + File.separator;

@@ -31,6 +31,8 @@ import com.intuit.karate.web.WebDriver;
 import com.intuit.karate.web.safari.SafariWebDriver;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -49,7 +51,11 @@ public class WinAppDriver extends WebDriver {
             port = 4727;
         }
         String host = "localhost";
+        Boolean start = (Boolean) options.get("start");
         String executable = (String) options.get("executable");
+        if (executable == null && start != null && start) {
+            executable = "C:/Program Files (x86)/Windows Application Driver/WinAppDriver";
+        }
         CommandThread command;
         if (executable != null) {
             String targetDir = Engine.getBuildDir() + File.separator;
@@ -62,16 +68,16 @@ public class WinAppDriver extends WebDriver {
         }
         String urlBase = "http://" + host + ":" + port;
         Http http = Http.forUrl(urlBase);
-        String app = (String) options.remove("app");
+        Map<String, Object> capabilities = DriverUtils.putSelected(options, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
         String sessionId = http.path("session")
-                .post("{ desiredCapabilities: { app: '" + app + "' } }")
+                .post(Collections.singletonMap("desiredCapabilities", capabilities))
                 .jsonPath("get[0] response..sessionId").asString();
         logger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
         logger.debug("init window id: {}", windowId);
         WinAppDriver driver = new WinAppDriver(command, false, http, sessionId, windowId);
-        driver.activate();
+        // driver.activate();
         return driver;
     }
 
@@ -102,6 +108,7 @@ public class WinAppDriver extends WebDriver {
         http.path("element", id, "click").post("{}");
     }
 
+    @Override
     protected String getPathForProperty() {
         return "attribute";
     }

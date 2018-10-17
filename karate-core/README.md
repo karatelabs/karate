@@ -20,6 +20,9 @@ Some highlights:
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * WebDriver support without any intermediate server
+* Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
+* The Windows example above proves that this should work for Appium with minimal changes (please contribute !)
+* Karate can start the WebDriver executable automatically for you
 
 # Example
 For now refer to these two examples along with the syntax guide:
@@ -30,19 +33,29 @@ For now refer to these two examples along with the syntax guide:
 
 ## `configure driver`
 
-Example (Direct-to-Chrome):
+### Direct to Chrome
+This will actually start Chrome on both Mac OS and Windows from the default installed location.
+
+```cucumber
+* configure driver = { type: 'chrome', start: true }
+```
+
+If you want to customize the start-up, you can use a batch-file:
 
 ```cucumber
 * configure driver = { type: 'chrome', executable: 'chrome' }
 ```
 
-In the above example, a batch-file called `chrome` was created in the system `PATH` with the following contents:
+Here a batch-file called `chrome` was created in the system `PATH` (and made executable) with the following contents:
 
 ```sh
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" $*
 ```
 
-> TODO Windows example for the above.
+For Windows it would be `chrome.bat` in the system `PATH` as follows:
+```bat
+"C:\Program Files (x86)\Google\Chrome\Application\chrome" %*
+```
 
 Another example for WebDriver, again assuming that `chromedriver` is in the `PATH`:
 
@@ -52,8 +65,9 @@ Another example for WebDriver, again assuming that `chromedriver` is in the `PAT
 
 key | description
 --- | -----------
-`type` | `chrome` - "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) <br/>[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) <br/>[`geckodriver`](https://github.com/mozilla/geckodriver) <br/>[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) <br/>[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) <br/>[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) (*Very* Experimental)
+`type` | [`chrome`](https://chromedevtools.github.io/devtools-protocol/) - "native" Chrome automation via the DevTools protocol <br/>[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) <br/>[`geckodriver`](https://github.com/mozilla/geckodriver) <br/>[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) <br/>[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) <br/>[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) (*Very* Experimental - using the DevTools protocol) <br/>[`winappdriver`](https://github.com/Microsoft/WinAppDriver) - Windows Desktop automation, similar to Appium 
 `executable` | if present, Karate will attempt to invoke this, if not in the system `PATH`, you can use a full-path instead of just the name of the executable. batch files should also work
+`start` | if `true`, you can omit the `executable` and Karate will try to use the default for the OS in use
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
 `headless` | (not ready yet, nearly done for `chrome`, but needs some testing)
 
@@ -64,17 +78,34 @@ Navigate to a web-address. And yes, you can use [variable expressions](https://g
 Given location webUrlBase + '/page-01'
 ```
 
+## `driver`
+Used (instead of `location`) only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
+
+```cucumber
+Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
+```
+
 ## `input`
 ```cucumber
 And input #myDivId = 'hello world'
 ```
 
 ### Locators
-The standard locator syntax is supported, a `#` prefix means by `id`, a `/` prefix means XPath and else it would be evaluated as a "CSS selector" for example:
+The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
 
 ```cucumber
 And input input[name=someName] = 'test input'
 ```
+
+web ? | prefix | means | example
+----- | ------ | ----- | -------
+web | (none) | css selector | `input[name=someName]`
+web | `/` | xpath | `//input[@name='commit']`
+win | (none) | name | `Submit`
+win | `@` | accessibility id | `@CalculatorResults`
+win | `#` | id | `#MyButton`
+
+> TODO other selectors like link text and partial link text
 
 ## `click`
 Just triggers a click event on the DOM element, does *not* wait for a page load.
@@ -97,6 +128,9 @@ This is the only one that is on the `karate` object, the rest are on the `driver
 ```cucumber
 * eval karate.location = 'https://google.com'
 ```
+
+## `karate.driver()`
+Similar to the above, and equivalent to [`driver`](#driver).
 
 ## `driver.location`
 Get the current URL / address for matching. Example:

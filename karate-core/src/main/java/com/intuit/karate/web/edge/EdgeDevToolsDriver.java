@@ -54,16 +54,23 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         if (host == null) {
             host = "localhost";
         }
+        Boolean start = (Boolean) options.get("start");
         String executable = (String) options.get("executable");
-        String uniqueName = System.currentTimeMillis() + "";
-        File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
-        List<String> args = Arrays.asList(executable,
-                "--devtools-server-port", port + "", "about:blank");
-        String logFile = profileDir.getPath() + File.separator + "karate.log";
-        CommandThread command = null;
+        if (executable == null && start != null && start) {
+            executable = "MicrosoftEdge";
+        }
+        CommandThread command;
         if (executable != null) {
+            String uniqueName = System.currentTimeMillis() + "";
+            File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
+            List<String> args = Arrays.asList(executable,
+                    "--devtools-server-port", port + "", "about:blank");
+            String logFile = profileDir.getPath() + File.separator + "karate.log";
             command = new CommandThread(DevToolsDriver.class, logFile, profileDir, args.toArray(new String[]{}));
             command.start();
+            DriverUtils.waitForPort(host, port);
+        } else {
+            command = null;
         }
         Http http = Http.forUrl("http://" + host + ":" + port);
         String webSocketUrl = http.path("json", "list").get()

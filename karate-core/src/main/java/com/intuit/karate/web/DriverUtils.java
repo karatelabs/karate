@@ -36,6 +36,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Map;
 
 import com.intuit.karate.web.winapp.WinAppDriver;
+import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,6 +124,17 @@ public class DriverUtils {
             }
         } while (attempts++ < 3);
         return false;
+    }
+    
+    public static Map<String, Object> putSelected(Map<String, Object> map, String ... keys) {
+        Map<String, Object> out = new HashMap(keys.length);
+        for (String key : keys) {
+            Object o = out.get(key);
+            if (o != null) {
+                out.put(key, o);
+            }
+        }
+        return out;
     }
 
 }

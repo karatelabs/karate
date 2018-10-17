@@ -48,7 +48,11 @@ public class ChromeWebDriver extends WebDriver {
             port = 9515;
         }
         String host = "localhost";
+        Boolean start = (Boolean) options.get("start");
         String executable = (String) options.get("executable");
+        if (executable == null && start != null && start) {
+            executable = "chromedriver";
+        }        
         CommandThread command;
         if (executable != null) {
             String targetPath = Engine.getBuildDir() + File.separator + System.currentTimeMillis() + "-chrome";

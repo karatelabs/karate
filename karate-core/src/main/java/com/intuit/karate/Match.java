@@ -233,8 +233,9 @@ public class Match {
         return this;
     }
     
-    public Match httpPost(String body) {
-        context.request(body);
+    public Match httpPost(Object body) {
+        ScriptValue sv = new ScriptValue(body);
+        context.request(sv.getAsString());
         context.method("post");
         return this;
     } 
