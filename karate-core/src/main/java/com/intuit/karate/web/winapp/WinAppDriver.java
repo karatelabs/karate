@@ -21,15 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.web.safari;
+package com.intuit.karate.web.winapp;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.web.DriverUtils;
 import com.intuit.karate.web.WebDriver;
+import com.intuit.karate.web.safari.SafariWebDriver;
+
 import java.io.File;
 import java.util.Map;
 
@@ -37,24 +37,24 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class SafariWebDriver extends WebDriver {
+public class WinAppDriver extends WebDriver {
 
-    public SafariWebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
+    public WinAppDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
         super(command, headless, http, sessionId, windowId);
     }
 
-    public static SafariWebDriver start(Map<String, Object> options) {
+    public static WinAppDriver start(Map<String, Object> options) {
         Integer port = (Integer) options.get("port");
         if (port == null) {
-            port = 4444;
+            port = 4727;
         }
         String host = "localhost";
         String executable = (String) options.get("executable");
         CommandThread command;
         if (executable != null) {
             String targetDir = Engine.getBuildDir() + File.separator;
-            String logFile = targetDir + "safaridriver.log";
-            command = new CommandThread(SafariWebDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
+            String logFile = targetDir + "winappdriver.log";
+            command = new CommandThread(WinAppDriver.class, logFile, new File(targetDir), executable, port + "");
             command.start();
             DriverUtils.waitForPort(host, port);
         } else {
@@ -62,53 +62,48 @@ public class SafariWebDriver extends WebDriver {
         }
         String urlBase = "http://" + host + ":" + port;
         Http http = Http.forUrl(urlBase);
+        String app = (String) options.remove("app");
         String sessionId = http.path("session")
-                .post("{ capabilities: { browserName: 'Safari' } }")
+                .post("{ desiredCapabilities: { app: '" + app + "' } }")
                 .jsonPath("get[0] response..sessionId").asString();
         logger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
         logger.debug("init window id: {}", windowId);
-        SafariWebDriver driver = new SafariWebDriver(command, false, http, sessionId, windowId);
+        WinAppDriver driver = new WinAppDriver(command, false, http, sessionId, windowId);
         driver.activate();
         return driver;
     }
 
     @Override
-    protected int getWaitInterval() {
-        return 1000;
-    }     
-    
-    @Override
-    public void setDimensions(Map<String, Object> map) {
-        Integer x = (Integer) map.remove("left");
-        Integer y = (Integer) map.remove("top");  
-        // webdriver bug where 0 or 1 is mis-interpreted as boolean !
-        if (x != null) {
-            map.put("x", x < 2 ? 2 : x);
-        }
-        if (y != null) {
-            map.put("y", y < 2 ? 2 : y);
-        }
-        String json = JsonUtils.toJson(map);
-        http.path("window", "rect").post(json);
-    }    
-
-    @Override
     public void activate() {
-        if (!headless) {
-            try {
-                switch (FileUtils.getPlatform()) {
-                    case MAC:
-                        Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Safari\" to activate"});
-                        break;
-                    default:
+        // TODO
+    }
 
-                }
-            } catch (Exception e) {
-                logger.warn("native window switch failed: {}", e.getMessage());
-            }
+    @Override
+    protected String getElementId(String id) {
+        String body;
+        if (id.startsWith("/")) {
+            body = "{ using: 'xpath', value: \"" + id + "\" }";
+        } else if (id.startsWith("@")){
+            body = "{ using: 'accessibility id', value: \"" + id.substring(1) + "\" }";
+        } else if (id.startsWith("#")){
+            body = "{ using: 'id', value: \"" + id.substring(1) + "\" }";
+        } else {
+            body = "{ using: 'name', value: \"" + id + "\" }";
         }
-    }    
+        logger.debug("body: {}", body);
+        return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
+    }
+
+    @Override
+    public void click(String selector) {
+        String id = getElementId(selector);
+        http.path("element", id, "click").post("{}");
+    }
+
+    protected String getPathForProperty() {
+        return "attribute";
+    }
 
 }

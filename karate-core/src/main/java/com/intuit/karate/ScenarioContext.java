@@ -803,7 +803,17 @@ public class ScenarioContext {
     }
     
     //==========================================================================
-    
+
+    public void driver(String expression) {
+        Map<String, Object> options = config.getDriverOptions();
+        ScriptValue sv = Script.evalKarateExpression(expression, this);
+        if (sv.isMapLike()) {
+            options.putAll(sv.getAsMap());
+        }
+        driver = DriverUtils.construct(options);
+        bindings.setDriver(driver);
+    }
+
     public void location(String expression) {        
         if (driver == null) {
             driver = DriverUtils.construct(config.getDriverOptions());

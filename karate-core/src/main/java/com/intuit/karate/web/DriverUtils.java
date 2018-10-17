@@ -34,6 +34,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
+
+import com.intuit.karate.web.winapp.WinAppDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +81,8 @@ public class DriverUtils {
                 return SafariWebDriver.start(options);
             case "mswebdriver":
                 return MicrosoftWebDriver.start(options);
+            case "winappdriver":
+                return WinAppDriver.start(options);
             default:
                 logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                 return ChromeDevToolsDriver.start(options);

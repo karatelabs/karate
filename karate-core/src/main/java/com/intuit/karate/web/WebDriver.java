@@ -76,7 +76,7 @@ public abstract class WebDriver implements Driver {
         return "property";
     }
 
-    private String getElementId(String id) {
+    protected String getElementId(String id) {
         String body;
         if (id.startsWith("/")) {
             body = "{ using: 'xpath', value: \"" + id + "\" }";

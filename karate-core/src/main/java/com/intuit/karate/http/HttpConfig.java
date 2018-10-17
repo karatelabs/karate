@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import java.nio.charset.Charset;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,7 +65,7 @@ public class HttpConfig {
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
-    private Map<String, Object> driverOptions = Collections.EMPTY_MAP;
+    private Map<String, Object> driverOptions;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
 
@@ -329,6 +330,9 @@ public class HttpConfig {
     }
 
     public Map<String, Object> getDriverOptions() {
+        if (driverOptions == null) {
+            driverOptions = new HashMap();
+        }
         return driverOptions;
     }
 

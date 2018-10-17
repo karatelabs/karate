@@ -386,7 +386,13 @@ public class StepActions implements Actions {
     }
 
     //==========================================================================
-    
+
+    @Override
+    @When("^driver (.+)")
+    public void driver(String expression) {
+        context.driver(expression);
+    }
+
     @Override
     @When("^location (.+)")
     public void location(String url) {
