@@ -14,15 +14,17 @@ We know too well that UI automation is hard to get right and suffers from 2 big 
 
 With the help of the community, we would like to try valiantly - to see if we can get close to as ideal a state a possible. So wish us luck !
 
-Some highlights:
+### Capabilities
 
 * Direct-to-Chrome automation using the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * WebDriver support without any intermediate server
-* Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
-* The Windows example above proves that this should work for Appium with minimal changes (please contribute !)
-* Karate can start the WebDriver executable automatically for you
+* Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
+* The Windows example above proves that the approach would work for Appium with minimal changes (please contribute !)
+* Karate can start the executable (WebDriver / Chrome, WinAppDriver, Appium Server) automatically for you
+* Seamlessly mix API and UI tests in the same script
+* Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
 
 # Example
 For now refer to these two examples along with the syntax guide:
