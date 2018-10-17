@@ -3,6 +3,7 @@ package com.intuit.karate.gatling
 import java.io.File
 import java.util.function.Consumer
 
+import scala.collection.JavaConverters._
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.intuit.karate.{CallContext, ScriptContext, ScriptValueMap}
 import com.intuit.karate.cucumber._
@@ -98,7 +99,8 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
-    val callContext = new CallContext(null, 0, null, -1, false, true, null, asyncSystem, asyncNext, stepInterceptor)
+    val args = KarateAction.prefixKeys(session.attributes + ("userId" -> session.userId)).asInstanceOf[Map[String, AnyRef]].asJava
+    val callContext = new CallContext(null, 0, args, -1, false, true, null, asyncSystem, asyncNext, stepInterceptor)
 
     CucumberUtils.callAsync(name, callTag, callContext)
 
@@ -106,4 +108,10 @@ class KarateAction(val name: String, val callTag: String, val protocol: KaratePr
 
 }
 
+private[gatling] object KarateAction {
+  // a prefix for all gatling session attributes and the gatling userId, to avoid collisions with other user defined variables in the context
+  private val ArgPrefix = "__gatlingSession_"
+
+  def prefixKeys[V](attr:Map[String, V]):Map[String, V] = attr.map { case (key, value) => (ArgPrefix + key, value) }
+}
 
