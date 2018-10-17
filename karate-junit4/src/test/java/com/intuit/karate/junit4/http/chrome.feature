@@ -2,11 +2,11 @@
 Feature: browser automation
 
 Background:
-  * configure driver = { type: 'chrome', executable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }
-  # * configure driver = { type: 'chromedriver', port: 9515, executable: '/Users/pthomas3/dev/webdriver/chromedriver' }
-  # * configure driver = { type: 'geckodriver', port: 4444, executable: '/Users/pthomas3/dev/webdriver/geckodriver' }
-  # * configure driver = { type: 'mswebdriver', port: 17556, executable: 'C:/Users/pthomas3/Downloads/MicrosoftWebDriver.exe' }
-  # * configure driver = { type: 'safaridriver', port: 4444, executable: 'safaridriver' }
+  * configure driver = { type: 'chrome', start: true }
+  # * configure driver = { type: 'chromedriver', start: true }
+  # * configure driver = { type: 'geckodriver', start: true }  
+  # * configure driver = { type: 'safaridriver', start: true }
+  # * configure driver = { type: 'mswebdriver', start: true }
 
 Scenario: try to login to github
     and then do a google search
