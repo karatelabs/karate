@@ -43,18 +43,12 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
     private final ScenarioContext context;
     private final AtomicInteger counter = new AtomicInteger();
 
-    private long startTime;
-
     public RequestLoggingInterceptor(ScenarioContext context) {
         this.context = context;
     }
 
     public AtomicInteger getCounter() {
         return counter;
-    }
-
-    public long getStartTime() {
-        return startTime;
     }
 
     @Override
@@ -84,8 +78,7 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
         }
         context.setPrevRequest(actual);
         context.logger.debug(sb.toString());
-        startTime = System.currentTimeMillis();
-        actual.setStartTime(startTime);
+        actual.startTimer();
     }
 
 }

@@ -55,7 +55,6 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
     }
 
     private final AtomicInteger counter = new AtomicInteger();
-    private long startTime;
 
     private static boolean isPrintable(MediaType mediaType) {
         if (mediaType == null) {
@@ -83,17 +82,15 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
             request.setEntityStream(out);
             request.setProperty(LoggingFilterOutputStream.KEY, out);
         }
-        startTime = System.currentTimeMillis();
+        HttpRequest actual = new HttpRequest();
+        context.setPrevRequest(actual);
+        actual.startTimer();
     }
 
     @Override
-    public void filter(ClientRequestContext request, ClientResponseContext response) throws IOException {
-        long endTime = System.currentTimeMillis();
-        long responseTime = endTime - startTime;
-        HttpRequest actual = new HttpRequest();
-        context.setPrevRequest(actual);
-        actual.setStartTime(startTime);
-        actual.setEndTime(endTime);        
+    public void filter(ClientRequestContext request, ClientResponseContext response) throws IOException {        
+        HttpRequest actual = context.getPrevRequest();
+        actual.stopTimer();
         int id = counter.incrementAndGet();
         String method = request.getMethod();
         String uri = request.getUri().toASCIIString();
@@ -115,7 +112,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         context.logger.debug(sb.toString()); // log request
         // response
         sb = new StringBuilder();
-        sb.append("response time in milliseconds: ").append(responseTime).append('\n');
+        sb.append("response time in milliseconds: ").append(actual.getResponseTimeFormatted()).append('\n');
         sb.append(id).append(" < ").append(response.getStatus()).append('\n');
         logHeaders(sb, id, '<', response.getHeaders(), null);
         if (response.hasEntity() && isPrintable(response.getMediaType())) {

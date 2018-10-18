@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.core.Engine;
 import java.util.List;
 
 /**
@@ -34,27 +35,40 @@ public class HttpRequest {
     
     private long startTime;
     private long endTime;
+    private double responseTime;
     private String urlBase; // used in mock since uri may start with '/'
     private String uri; // will be full uri including query string
     private String method;    
     private MultiValuedMap headers = new MultiValuedMap();
     private MultiValuedMap params; // only used in mock
     private byte[] body;
+    
+    private long startTimeNanos;
 
     public long getStartTime() {
         return startTime;
     }
     
-    public void setStartTime(long startTime) {
-        this.startTime = startTime;
+    public void startTimer() {
+        startTime = System.currentTimeMillis();
+        startTimeNanos = System.nanoTime();
     }    
 
     public long getEndTime() {
         return endTime;
     }    
+
+    public double getResponseTime() {
+        return responseTime;
+    }        
     
-    public void setEndTime(long endTime) {
-        this.endTime = endTime;
+    public String getResponseTimeFormatted() {
+        return String.format("%.2f", responseTime);
+    }
+    
+    public void stopTimer() {        
+        responseTime = Engine.nanosToMillis(System.nanoTime() - startTimeNanos);
+        endTime = startTime + Math.round(responseTime);
     }    
     
     public String getUrlBase() {
