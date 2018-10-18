@@ -51,8 +51,8 @@ public class CallContext {
         return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.perfMode);
     }
 
-    public static CallContext forAsync(ExecutionHook hook, boolean perfMode) {
-       return new CallContext(null, 0, null, -1, false, true, null, hook, perfMode);    
+    public static CallContext forAsync(ExecutionHook hook, Map<String, Object> arg, boolean perfMode) {
+       return new CallContext(null, 0, arg, -1, false, true, null, hook, perfMode);    
     }
     
     public Tags getTags() {

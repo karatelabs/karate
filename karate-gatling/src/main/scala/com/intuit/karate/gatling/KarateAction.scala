@@ -1,8 +1,10 @@
 package com.intuit.karate.gatling
 
 import java.io.File
+import java.util.Collections
 import java.util.function.Consumer
 
+import scala.collection.JavaConverters._
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.intuit.karate.{PerfEvent, ScenarioContext}
 import com.intuit.karate.core._
@@ -57,11 +59,11 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
-
-    Runner.callAsync(name, executionHook, asyncSystem, asyncNext)
+    val attribs: Object = (session.attributes + ("userId" -> session.userId)).asInstanceOf[Map[String, AnyRef]].asJava
+    val arg = Collections.singletonMap("__gatling", attribs);
+    Runner.callAsync(name, arg, executionHook, asyncSystem, asyncNext)
 
   }
 
 }
-
 

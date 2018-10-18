@@ -100,6 +100,15 @@ If multiple `Scenario`-s have the tag on them, they will all be executed. The or
 
 > The tag does not need to be in the `@key=value` form and you can use the plain "`@foo`" form if you want to. But using the pattern `@name=someName` is arguably more readable when it comes to giving multiple `Scenario`-s meaningful names.
 
+### Gatling Session
+The Gatling session attributes and `userId` would be available in a Karate variable under the name-space `__gatling`. So you can refer to the user-id for the thread as follows:
+
+```cucumber
+* print 'gatling userId:', __gatling.userId
+```
+
+This is useful as an alternative to using a random UUID where you want to create unique users, and makes it easy to co-relate values to your test-run in some situations.
+
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.
 
@@ -130,7 +139,7 @@ The `PerfContext.capturePerfEvent()` method takes these arguments:
 * `startTime` - long
 * `endTime` - long
 
-###
+### `PerfContext`
 To get a reference to the current `PerfContext`, just pass the built-in `karate` JavaScript object from the "Karate side" to the "Java side". For [example](src/test/scala/mock/custom-rpc.feature):
 
 ```cucumber
