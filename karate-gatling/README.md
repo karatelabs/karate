@@ -109,6 +109,22 @@ The Gatling session attributes and `userId` would be available in a Karate varia
 
 This is useful as an alternative to using a random UUID where you want to create unique users, and makes it easy to co-relate values to your test-run in some situations.
 
+### Feeders
+Because of the above mechanism which allows Karate to "see" Gatling session data, you can use [feeders](https://gatling.io/docs/current/session/feeder/) effectively. For example:
+
+```scala
+import scala.util.Random
+val feeder = Iterator.continually(Map("email" -> (Random.alphanumeric.take(20).mkString + "@foo.com")))
+
+feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
+```
+
+And now in the feature file you can do this:
+
+```cucumber
+* print __gatling.email
+```
+
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.
 
