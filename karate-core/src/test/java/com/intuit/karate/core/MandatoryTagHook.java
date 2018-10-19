@@ -23,8 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.PerfEvent;
-import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.http.HttpRequestBuilder;
 import java.util.Collection;
 

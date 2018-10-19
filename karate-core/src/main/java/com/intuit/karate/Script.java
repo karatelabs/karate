@@ -23,6 +23,8 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.exception.KarateException;
 import static com.intuit.karate.ScriptValue.Type.*;
 import com.intuit.karate.core.Engine;

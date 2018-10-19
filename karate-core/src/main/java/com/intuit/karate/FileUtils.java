@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.exception.KarateFileNotFoundException;

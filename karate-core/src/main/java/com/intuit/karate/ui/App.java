@@ -25,8 +25,8 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptBindings;
-import com.intuit.karate.convert.ConvertUtils;
-import com.intuit.karate.convert.PostmanItem;
+import com.intuit.karate.formats.postman.PostmanUtils;
+import com.intuit.karate.formats.postman.PostmanItem;
 import com.intuit.karate.core.Feature;
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -171,8 +171,8 @@ public class App extends Application {
         header.setImportOpenAction(e -> {
             File file = chooseFile(stage, "*.postman_collection files", "*.postman_collection");
             String json = FileUtils.toString(file);
-            List<PostmanItem> items = ConvertUtils.readPostmanJson(json);
-            String featureText = ConvertUtils.toKarateFeature(file.getName(), items);
+            List<PostmanItem> items = PostmanUtils.readPostmanJson(json);
+            String featureText = PostmanUtils.toKarateFeature(file.getName(), items);
             File noNameFeature = new File(workingDir, DEFAULT_FEATURE_NAME);
             FileUtils.writeToFile(noNameFeature, featureText);
             needsNameToSave = true;

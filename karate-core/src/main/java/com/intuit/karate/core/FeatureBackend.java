@@ -26,8 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
-import com.intuit.karate.ScenarioContext;
-import com.intuit.karate.FeatureContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Match;

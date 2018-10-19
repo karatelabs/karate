@@ -26,10 +26,12 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * Seamlessly mix API and UI tests in the same script
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
 
-# Example
-For now refer to these two examples along with the syntax guide:
+# Examples
+## Web Browser
 * [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature)
 * [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature)
+## Windows
+* [Example](../karate-demo/src/test/java/driver/windows/calc.feature)
 
 # Syntax Guide
 

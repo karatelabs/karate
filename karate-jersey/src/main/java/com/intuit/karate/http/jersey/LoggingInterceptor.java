@@ -24,7 +24,7 @@
 package com.intuit.karate.http.jersey;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.LoggingFilterOutputStream;

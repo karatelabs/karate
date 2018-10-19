@@ -1,6 +1,6 @@
 package com.intuit.karate.ui;
 
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepActions;

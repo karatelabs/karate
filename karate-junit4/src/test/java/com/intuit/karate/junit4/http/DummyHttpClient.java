@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.junit4.http;
 
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.http.HttpConfig;

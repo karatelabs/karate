@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.convert;
+package com.intuit.karate.formats.postman;
 
 import com.intuit.karate.StringUtils;
 

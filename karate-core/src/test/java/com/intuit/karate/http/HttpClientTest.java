@@ -25,8 +25,8 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScenarioContext;
-import com.intuit.karate.FeatureContext;
+import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.FeatureContext;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;

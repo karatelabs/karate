@@ -23,6 +23,8 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.driver.Driver;

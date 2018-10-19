@@ -24,7 +24,7 @@
 package com.intuit.karate.mock.servlet;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import static com.intuit.karate.http.Cookie.DOMAIN;
 import static com.intuit.karate.http.Cookie.MAX_AGE;
 import static com.intuit.karate.http.Cookie.PATH;

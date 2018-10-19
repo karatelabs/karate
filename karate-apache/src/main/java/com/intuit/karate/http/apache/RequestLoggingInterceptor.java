@@ -24,7 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.HttpRequest;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;

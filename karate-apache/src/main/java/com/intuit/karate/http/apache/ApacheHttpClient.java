@@ -24,7 +24,7 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import org.apache.http.conn.ssl.LenientSslConnectionSocketFactory;
 
 import static com.intuit.karate.http.Cookie.*;

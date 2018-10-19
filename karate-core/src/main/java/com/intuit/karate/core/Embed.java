@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,38 +21,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.selenium;
+package com.intuit.karate.core;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Base64;
 
 /**
- * @author vmchukky
+ *
+ * @author pthomas3
  */
+public class Embed {
+    
+    private String mimeType;
+    private byte[] bytes;
 
-// TestCase <-> Scenario ???
-public class TestCase extends TestBase {
-    List<TestCommand> commands;
-
-    public TestCase(Map<String, Object> testJson) {
-        super(testJson);
-        this.commands = new ArrayList<>();
-        List<Map<String, Object>> commandList = (List<Map<String, Object>>) testJson.get("commands");
-        for (Map<String, Object> commandJson : commandList) {
-            this.commands.add(new TestCommand(commandJson));
-        }
+    public String getMimeType() {
+        return mimeType;
     }
 
-    public String convert(String url, HashMap<String, String> variables) {
-        StringBuilder sb = new StringBuilder("\nScenario: ")
-                .append(getIdentifierName());
-
-        for (TestCommand command : commands) {
-            sb.append(command.convert(url, variables));
-        }
-
-        return sb.toString();
+    public void setMimeType(String mimeType) {
+        this.mimeType = mimeType;
     }
+
+    public byte[] getBytes() {
+        return bytes;
+    }
+
+    public void setBytes(byte[] bytes) {
+        this.bytes = bytes;
+    }
+    
+    public String getBase64() {
+        return Base64.getEncoder().encodeToString(bytes);
+    }
+    
 }

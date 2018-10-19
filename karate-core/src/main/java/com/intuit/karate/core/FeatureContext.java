@@ -21,9 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.core;
 
-import com.intuit.karate.core.Feature;
+import com.intuit.karate.CallResult;
+import com.intuit.karate.Logger;
+import com.intuit.karate.ScriptBindings;
+import com.intuit.karate.StringUtils;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.HashMap;

@@ -21,10 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.core;
 
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.Feature;
+import com.intuit.karate.AssertionResult;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.MatchType;
+import com.intuit.karate.PerfContext;
+import com.intuit.karate.Script;
+import com.intuit.karate.ScriptBindings;
+import com.intuit.karate.ScriptValue;
+import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.StringUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;

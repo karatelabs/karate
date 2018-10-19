@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.convert;
+package com.intuit.karate.formats.postman;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -33,11 +33,11 @@ import java.util.*;
 /**
  * Created by rkumar32 on 7/5/17.
  */
-public class ConvertUtils {
+public class PostmanUtils {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConvertUtils.class);
+    private static final Logger logger = LoggerFactory.getLogger(PostmanUtils.class);
 
-    private ConvertUtils() {
+    private PostmanUtils() {
         // only static methods
     }
 
@@ -65,13 +65,13 @@ public class ConvertUtils {
         List<PostmanItem> requests = new ArrayList<>(list.size());
         for (Map<String, Object> map : list) {
             logger.debug("map: {}", map);
-            item = readPosmanItem(parent, map);
+            item = readPostmanItem(parent, map);
             requests.add(item);
         }
         return requests;
     }
 
-    private static PostmanItem readPosmanItem(PostmanItem parent, Map<String, Object> itemMap) {
+    private static PostmanItem readPostmanItem(PostmanItem parent, Map<String, Object> itemMap) {
         PostmanItem item = new PostmanItem();
         String name = (String) itemMap.get("name");
         item.setName(name);

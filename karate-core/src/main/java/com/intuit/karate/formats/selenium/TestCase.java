@@ -21,49 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.selenium;
+package com.intuit.karate.formats.selenium;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * @author vmchukky
  */
-public abstract class TestBase {
-    static final String PAGE_TITLE_VAR = "pageTitle";
-    static final String DRIVER_ELEMENT_ID_VAR = "webdriverElementId";
 
-    static final String DRIVER = "webDriver";
-    static final String DRIVER_URL = DRIVER + '.' + "url";
-    static final String DRIVER_BROWSER = DRIVER + '.' + "browser";
-    static final String DRIVER_SESSION = "session";
-    static final String DRIVER_SESSION_ID = DRIVER_SESSION + '.' + "id";
-    static final String DRIVER_SESSION_URL = DRIVER_SESSION + '.' + "url";
+// TestCase <-> Scenario ???
+public class TestCase extends TestBase {
+    List<TestCommand> commands;
 
-
-    protected final String id;
-    protected final String name;
-
-    public TestBase(String id, String name) {
-        this.id = id;
-        this.name = name.trim().replace(" ", "_");
+    public TestCase(Map<String, Object> testJson) {
+        super(testJson);
+        this.commands = new ArrayList<>();
+        List<Map<String, Object>> commandList = (List<Map<String, Object>>) testJson.get("commands");
+        for (Map<String, Object> commandJson : commandList) {
+            this.commands.add(new TestCommand(commandJson));
+        }
     }
 
-    public TestBase(Map<String, Object> json) {
-        this.id = (String) json.get("id");
-        this.name = (String) json.get("name");
-    }
+    public String convert(String url, HashMap<String, String> variables) {
+        StringBuilder sb = new StringBuilder("\nScenario: ")
+                .append(getIdentifierName());
 
-    public String getId() {
-        return id;
-    }
+        for (TestCommand command : commands) {
+            sb.append(command.convert(url, variables));
+        }
 
-    public String getName() {
-        return name;
+        return sb.toString();
     }
-
-    // used to name the feature file / scenario name etc
-    public String getIdentifierName() {
-        return name.trim() + '-' + id.trim();
-    }
-
 }

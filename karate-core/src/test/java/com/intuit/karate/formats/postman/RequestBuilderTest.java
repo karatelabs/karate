@@ -1,5 +1,9 @@
-package com.intuit.karate.convert;
+package com.intuit.karate.formats.postman;
 
+import com.intuit.karate.formats.postman.RequestBuilder;
+import com.intuit.karate.formats.postman.PostmanItem;
+import com.intuit.karate.formats.postman.PostmanRequest;
+import com.intuit.karate.formats.postman.PostmanUtils;
 import com.intuit.karate.FileUtils;
 import java.io.InputStream;
 import org.junit.Test;
@@ -21,7 +25,7 @@ public class RequestBuilderTest {
     public void testConverting() {
         InputStream is = getClass().getResourceAsStream("postman-echo-single.postman_collection");
         String json = FileUtils.toString(is);
-        List<PostmanItem> items = ConvertUtils.readPostmanJson(json);
+        List<PostmanItem> items = PostmanUtils.readPostmanJson(json);
         logger.debug("list: {}", items);
         assertEquals(1, items.size());
         PostmanItem item = items.get(0);

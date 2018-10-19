@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.PerfEvent;
+import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.exception.KarateException;
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
 import com.jayway.jsonpath.DocumentContext;

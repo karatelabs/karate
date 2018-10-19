@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.selenium;
+package com.intuit.karate.formats.selenium;
 
 import com.jayway.jsonpath.DocumentContext;
 

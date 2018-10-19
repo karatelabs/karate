@@ -6,8 +6,8 @@ package com.intuit.karate;
  */
 public class AssertionResult {
     
-    protected final String message;
-    protected final boolean pass;
+    public final String message;
+    public final boolean pass;
     
     public static final AssertionResult PASS = new AssertionResult(true, null);
     

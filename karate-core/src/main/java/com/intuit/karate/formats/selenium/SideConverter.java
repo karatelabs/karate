@@ -21,34 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate.formats.selenium;
 
-import com.intuit.karate.core.ScenarioContext;
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.formats.selenium.SideProject;
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
+
+import java.io.File;
 
 /**
- *
- * @author pthomas3
+ * @author vmchukky
  */
-public class CustomDummyHttpClient extends DummyHttpClient {
-    
-    private static final Logger logger = LoggerFactory.getLogger(CustomDummyHttpClient.class);
 
-    private Map<String, Object> userDefined;
-    
-    @Override
-    public void configure(HttpConfig config, ScenarioContext context) {
-        userDefined = config.getUserDefined();
-    }        
+// Selenium IDE SideProject file parser and converter util functions
 
-    @Override
-    protected HttpResponse makeHttpRequest(String entity, ScenarioContext context) {
-        HttpResponse response = new HttpResponse(0, 0);
-        String message = "hello " + userDefined.get("name");
-        response.setBody(message.getBytes());
-        return response;
-    }        
-    
+// https://github.com/SeleniumHQ/selenium-ide/issues/77
+// couldn't find version 1 of .side format yet
+// picked a sample .side file to proceed with parsing for now
+
+// may be we should also support import from old Selenium IDE
+// https://github.com/SeleniumHQ/selenium-ide/issues/95
+public class SideConverter {
+
+    public static SideProject readSideProject(String json) {
+        DocumentContext doc = JsonPath.parse(json);
+        return new SideProject(doc);
+    }
+
+    public static String toKarateFeature(SideProject sideProject, String configJson, File dir) {
+        String featureText = sideProject.convert(dir, configJson);
+        File file = new File(dir, sideProject.getIdentifierName() + ".feature");
+        FileUtils.writeToFile(file, featureText);
+        return featureText;
+    }
 }

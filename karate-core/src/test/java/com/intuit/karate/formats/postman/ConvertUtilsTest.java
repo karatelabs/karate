@@ -1,5 +1,8 @@
-package com.intuit.karate.convert;
+package com.intuit.karate.formats.postman;
 
+import com.intuit.karate.formats.postman.PostmanItem;
+import com.intuit.karate.formats.postman.PostmanRequest;
+import com.intuit.karate.formats.postman.PostmanUtils;
 import com.intuit.karate.FileUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -22,7 +25,7 @@ public class ConvertUtilsTest {
     public void testReadingSinglePostmanItemWithOneRequest() {
         InputStream is = getClass().getResourceAsStream("postman-echo-single.postman_collection");
         String json = FileUtils.toString(is);
-        List<PostmanItem> items = ConvertUtils.readPostmanJson(json);
+        List<PostmanItem> items = PostmanUtils.readPostmanJson(json);
         logger.debug("list: {}", items);
         assertEquals(1, items.size());
         PostmanItem item = items.get(0);
@@ -40,9 +43,9 @@ public class ConvertUtilsTest {
         String collectionFileName = "postman-multiple-items-and-sub-items.postman_collection";
         InputStream is = getClass().getResourceAsStream(collectionFileName);
         String json = FileUtils.toString(is);
-        List<PostmanItem> items = ConvertUtils.readPostmanJson(json);
+        List<PostmanItem> items = PostmanUtils.readPostmanJson(json);
         logger.debug("list: {}", items);
-        String featureJson = ConvertUtils.toKarateFeature(collectionFileName, items).trim();
+        String featureJson = PostmanUtils.toKarateFeature(collectionFileName, items).trim();
         assertTrue(featureJson.startsWith("Feature: " + collectionFileName)); // assert feature name
         assertTrue(featureJson.contains("Scenario: rootItem-1")); // assert scenario names
         assertTrue(featureJson.contains("Scenario: rootItem-2"));

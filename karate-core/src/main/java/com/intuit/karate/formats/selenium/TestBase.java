@@ -21,38 +21,49 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver.selenium;
+package com.intuit.karate.formats.selenium;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.driver.selenium.SideProject;
-import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.JsonPath;
-
-import java.io.File;
+import java.util.Map;
 
 /**
  * @author vmchukky
  */
+public abstract class TestBase {
+    static final String PAGE_TITLE_VAR = "pageTitle";
+    static final String DRIVER_ELEMENT_ID_VAR = "webdriverElementId";
 
-// Selenium IDE SideProject file parser and converter util functions
+    static final String DRIVER = "webDriver";
+    static final String DRIVER_URL = DRIVER + '.' + "url";
+    static final String DRIVER_BROWSER = DRIVER + '.' + "browser";
+    static final String DRIVER_SESSION = "session";
+    static final String DRIVER_SESSION_ID = DRIVER_SESSION + '.' + "id";
+    static final String DRIVER_SESSION_URL = DRIVER_SESSION + '.' + "url";
 
-// https://github.com/SeleniumHQ/selenium-ide/issues/77
-// couldn't find version 1 of .side format yet
-// picked a sample .side file to proceed with parsing for now
 
-// may be we should also support import from old Selenium IDE
-// https://github.com/SeleniumHQ/selenium-ide/issues/95
-public class SideConverter {
+    protected final String id;
+    protected final String name;
 
-    public static SideProject readSideProject(String json) {
-        DocumentContext doc = JsonPath.parse(json);
-        return new SideProject(doc);
+    public TestBase(String id, String name) {
+        this.id = id;
+        this.name = name.trim().replace(" ", "_");
     }
 
-    public static String toKarateFeature(SideProject sideProject, String configJson, File dir) {
-        String featureText = sideProject.convert(dir, configJson);
-        File file = new File(dir, sideProject.getIdentifierName() + ".feature");
-        FileUtils.writeToFile(file, featureText);
-        return featureText;
+    public TestBase(Map<String, Object> json) {
+        this.id = (String) json.get("id");
+        this.name = (String) json.get("name");
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    // used to name the feature file / scenario name etc
+    public String getIdentifierName() {
+        return name.trim() + '-' + id.trim();
+    }
+
 }

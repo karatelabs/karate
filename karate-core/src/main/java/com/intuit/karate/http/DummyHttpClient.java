@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import java.io.InputStream;
 import java.util.List;
 import org.slf4j.Logger;

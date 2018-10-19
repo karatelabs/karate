@@ -1,5 +1,7 @@
 package com.intuit.karate;
 
+import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.ScenarioContext;
 import java.nio.file.Path;
 import org.junit.Test;
 import static org.junit.Assert.*;

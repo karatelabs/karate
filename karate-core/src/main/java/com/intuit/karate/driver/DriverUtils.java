@@ -35,7 +35,7 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
 
-import com.intuit.karate.driver.winapp.WinAppDriver;
+import com.intuit.karate.driver.windows.WinAppDriver;
 import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

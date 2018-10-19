@@ -23,6 +23,9 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.Action;
+import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.ScenarioContext;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
 

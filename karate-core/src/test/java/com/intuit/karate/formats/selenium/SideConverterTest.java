@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.selenium;
+package com.intuit.karate.formats.selenium;
 
-import com.intuit.karate.driver.selenium.SideConverter;
+import com.intuit.karate.formats.selenium.SideConverter;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.driver.selenium.SideProject;
-import com.intuit.karate.driver.selenium.TestSuite;
+import com.intuit.karate.formats.selenium.SideProject;
+import com.intuit.karate.formats.selenium.TestSuite;
 import org.junit.Assert;
 import org.junit.Test;
 

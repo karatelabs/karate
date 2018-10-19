@@ -23,12 +23,10 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Action;
 import com.intuit.karate.Actions;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.FeatureContext;
 import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;

@@ -24,7 +24,7 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FeatureContext;
+import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureExecutionUnit;

@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.http.jersey;
 
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;

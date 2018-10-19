@@ -1,7 +1,7 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScenarioContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValue.Type;
 import com.intuit.karate.StringUtils;

@@ -21,11 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.core;
 
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.ScenarioInfo;
+import com.intuit.karate.AssertionResult;
+import com.intuit.karate.AssignType;
+import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Logger;
+import com.intuit.karate.MatchType;
+import com.intuit.karate.Script;
+import com.intuit.karate.ScriptBindings;
+import com.intuit.karate.ScriptValue;
+import com.intuit.karate.ScriptValueMap;
+import com.intuit.karate.StringUtils;
+import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;

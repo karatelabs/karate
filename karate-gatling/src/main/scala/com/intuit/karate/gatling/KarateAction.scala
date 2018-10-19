@@ -6,7 +6,6 @@ import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import com.intuit.karate.{PerfEvent, ScenarioContext}
 import com.intuit.karate.core._
 import com.intuit.karate.Runner
 import com.intuit.karate.http.HttpRequestBuilder

@@ -21,37 +21,59 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
-
-import java.util.Base64;
+package com.intuit.karate.core;
 
 /**
  *
  * @author pthomas3
  */
-public class Embed {
+public class PerfEvent {
     
-    private String mimeType;
-    private byte[] bytes;
-
-    public String getMimeType() {
-        return mimeType;
+    private final String name;
+    private final long startTime;   
+    private final long endTime;
+    private final int statusCode;
+    
+    private boolean failed;    
+    private String message;
+        
+    public PerfEvent(long startTime, long endTime, String name, int statusCode) {
+        this.name = name;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.statusCode = statusCode;
     }
 
-    public void setMimeType(String mimeType) {
-        this.mimeType = mimeType;
+    public String getName() {
+        return name;
     }
 
-    public byte[] getBytes() {
-        return bytes;
-    }
+    public long getStartTime() {
+        return startTime;
+    }        
 
-    public void setBytes(byte[] bytes) {
-        this.bytes = bytes;
+    public long getEndTime() {
+        return endTime;
     }
     
-    public String getBase64() {
-        return Base64.getEncoder().encodeToString(bytes);
+    public int getStatusCode() {
+        return statusCode;
+    }    
+
+    public boolean isFailed() {
+        return failed;
+    }
+
+    public void setFailed(boolean failed) {
+        this.failed = failed;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
     
 }

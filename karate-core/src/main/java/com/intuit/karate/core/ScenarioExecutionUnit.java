@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.Embed;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.util.Collections;

@@ -21,59 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.core;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  *
  * @author pthomas3
  */
-public class PerfEvent {
-    
-    private final String name;
-    private final long startTime;   
-    private final long endTime;
-    private final int statusCode;
-    
-    private boolean failed;    
-    private String message;
-        
-    public PerfEvent(long startTime, long endTime, String name, int statusCode) {
-        this.name = name;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.statusCode = statusCode;
-    }
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface Action {
 
-    public String getName() {
-        return name;
-    }
+    String value();
 
-    public long getStartTime() {
-        return startTime;
-    }        
-
-    public long getEndTime() {
-        return endTime;
-    }
-    
-    public int getStatusCode() {
-        return statusCode;
-    }    
-
-    public boolean isFailed() {
-        return failed;
-    }
-
-    public void setFailed(boolean failed) {
-        this.failed = failed;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-    
 }

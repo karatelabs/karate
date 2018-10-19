@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Resource;
-import com.intuit.karate.ScenarioContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StepActions;
