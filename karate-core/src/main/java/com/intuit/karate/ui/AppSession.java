@@ -48,6 +48,7 @@ public class AppSession {
 
     public final File featureFile;
     private Feature feature; // mutable, can be re-built    
+    private String envString; // can be changed
     public final HeaderPanel headerPanel;
     public final FeaturePanel featurePanel;
     public final VarsPanel varsPanel;
@@ -78,6 +79,9 @@ public class AppSession {
     }
     
     public void resetBackendAndVarsTable(String envString) {
+        if (envString == null) {
+            envString = this.envString;
+        }
         FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
         actions = new StepActions(featureContext, new CallContext(null, true));
         refreshVarsTable();        
@@ -105,6 +109,7 @@ public class AppSession {
     public AppSession(File featureFile, String envString, boolean test) {
         this.featureFile = featureFile;
         feature = FeatureParser.parse(featureFile);
+        this.envString = envString;
         resetBackendAndVarsTable(envString);
         if (!test) {
             notRunning = new SimpleBooleanProperty(Boolean.TRUE);

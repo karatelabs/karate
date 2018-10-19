@@ -23,10 +23,10 @@
  */
 package com.intuit.karate.selenium;
 
-import com.intuit.karate.web.selenium.SideConverter;
+import com.intuit.karate.driver.selenium.SideConverter;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.web.selenium.SideProject;
-import com.intuit.karate.web.selenium.TestSuite;
+import com.intuit.karate.driver.selenium.SideProject;
+import com.intuit.karate.driver.selenium.TestSuite;
 import org.junit.Assert;
 import org.junit.Test;
 

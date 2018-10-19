@@ -28,8 +28,8 @@ With the help of the community, we would like to try valiantly - to see if we ca
 
 # Example
 For now refer to these two examples along with the syntax guide:
-* [Example 1](../karate-junit4/src/test/java/com/intuit/karate/junit4/http/chrome.feature)
-* [Example 2](../karate-demo/src/test/java/web/core/test-01.feature)
+* [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature)
+* [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature)
 
 # Syntax Guide
 
@@ -215,4 +215,3 @@ Including cache
 ## `driver.minimize()`
 
 ## `driver.fullscreen()`
-

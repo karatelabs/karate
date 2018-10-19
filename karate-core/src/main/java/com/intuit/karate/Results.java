@@ -34,30 +34,30 @@ import java.util.Map;
  * @author pthomas3
  */
 public class Results {
-    
+
     private int featureCount;
     private int testCount;
     private int failCount;
     private int skipCount;
-    private double timeTakenMillis;    
+    private double timeTakenMillis;
     private final long startTime;
     private long endTime;
     private Map<String, String> failedMap;
     private Throwable failureReason;
     private String reportDir;
     private final List<ScenarioResult> scenarioResults = new ArrayList();
-    
+
     private Results(long startTime) {
         this.startTime = startTime;
     }
-    
+
     public void addToFailedList(String name, String errorMessage) {
         if (failedMap == null) {
             failedMap = new LinkedHashMap();
         }
         failedMap.put(name, errorMessage);
     }
-    
+
     public static Results startTimer() {
         return new Results(System.currentTimeMillis());
     }
@@ -68,7 +68,7 @@ public class Results {
 
     public void setReportDir(String reportDir) {
         this.reportDir = reportDir;
-    }        
+    }
 
     public void setFailureReason(Throwable failureReason) {
         this.failureReason = failureReason;
@@ -76,53 +76,59 @@ public class Results {
 
     public Throwable getFailureReason() {
         return failureReason;
-    }         
-    
+    }
+
     public void addToTestCount(int count) {
         testCount += count;
     }
-    
+
     public void addToFailCount(int count) {
         failCount += count;
     }
-    
+
     public void addToSkipCount(int count) {
         skipCount += count;
-    }    
-    
+    }
+
     public void addToTimeTaken(double time) {
         timeTakenMillis += time;
     }
-    
+
     public void stopTimer() {
         endTime = System.currentTimeMillis();
     }
-    
+
     public void addScenarioResults(List<ScenarioResult> list) {
         scenarioResults.addAll(list);
-    }        
+    }
 
     public List<ScenarioResult> getScenarioResults() {
         return scenarioResults;
-    }        
-    
+    }
+
+    public String getErrorMessages() {
+        StringBuilder sb = new StringBuilder();
+        if (failedMap != null) {
+            sb.append("failed features:\n");
+            failedMap.forEach((k, v) -> {
+                sb.append(k).append(": ").append(v).append('\n');
+            });
+        }
+        return sb.toString();
+    }
+
     public void printStats(int threadCount) {
         double elapsedTime = endTime - startTime;
         System.out.println("Karate version: " + FileUtils.getKarateVersion());
         System.out.println("======================================================");
         double efficiency = timeTakenMillis / (elapsedTime * threadCount);
-        System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ", 
-                elapsedTime / 1000, threadCount, timeTakenMillis / 1000));       
+        System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
+                elapsedTime / 1000, threadCount, timeTakenMillis / 1000));
         System.out.println(String.format("features: %5d | ignored: %4d | efficiency: %.2f", featureCount, skipCount, efficiency));
-        System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d", 
+        System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
                 testCount, testCount - failCount, failCount));
         System.out.println("======================================================");
-        if (failedMap != null) {
-            System.out.println("failed features:");
-            failedMap.forEach((k, v) -> {
-                System.out.println(k + ": " + v);
-            });
-        }
+        System.out.println(getErrorMessages());
         if (failureReason != null) {
             if (failCount == 0) {
                 failCount = 1;
@@ -134,11 +140,11 @@ public class Results {
 
     public void setFeatureCount(int featureCount) {
         this.featureCount = featureCount;
-    }        
+    }
 
     public int getFeatureCount() {
         return featureCount;
-    }        
+    }
 
     public int getTestCount() {
         return testCount;
@@ -162,6 +168,6 @@ public class Results {
 
     public Map<String, String> getFailedMap() {
         return failedMap;
-    }        
-    
+    }
+
 }

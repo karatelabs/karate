@@ -45,7 +45,6 @@ public class ScenarioExecutionUnit implements Runnable {
     protected final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
     
-    private Runnable init;
     private Runnable next;
     private boolean started;
     private boolean stopped = false;
@@ -78,11 +77,7 @@ public class ScenarioExecutionUnit implements Runnable {
                 iterator = scenario.getStepsIncludingBackground().iterator();
             }
         }
-    }
-
-    public void setInit(Runnable init) {
-        this.init = init;
-    }        
+    }       
 
     public void setNext(Runnable next) {
         this.next = next;
@@ -93,9 +88,6 @@ public class ScenarioExecutionUnit implements Runnable {
         if (!started) {
             result.setThreadName(Thread.currentThread().getName());
             result.setStartTime(System.currentTimeMillis() - exec.startTime);
-            if (init != null) {
-                init.run();
-            }
             started = true;
         }
         if (iterator.hasNext()) {

@@ -25,7 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
-import com.intuit.karate.web.Driver;
+import com.intuit.karate.driver.Driver;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
