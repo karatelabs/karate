@@ -52,7 +52,7 @@ public class RunnerTest {
     private static String resultXml(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/" + name);
         FeatureResult result = Engine.executeFeatureSync(feature, null, null);
-        File file = Engine.saveResultXml("target", result);
+        File file = Engine.saveResultXml("target", result, null);
         return FileUtils.toString(file);        
     }    
     

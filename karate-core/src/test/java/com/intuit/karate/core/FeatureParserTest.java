@@ -52,23 +52,23 @@ public class FeatureParserTest {
         ScenarioResult sr = (ScenarioResult) result.getScenarioResults().get(0);
         map = sr.toMap();
         Match.equals(map.get("tags"), "[{ name: '@bar', line: 5 }]");
-        Engine.saveResultJson("target", result);
-        Engine.saveResultXml("target", result);
+        Engine.saveResultJson("target", result, null);
+        Engine.saveResultXml("target", result, null);
     }
 
     @Test
     public void testEngineForSimpleFeatureWithBackground() {
         FeatureResult result = execute("test-simple-background.feature");
         assertEquals(1, result.getScenarioResults().size());
-        Engine.saveResultJson("target", result);
-        Engine.saveResultXml("target", result);
+        Engine.saveResultJson("target", result, null);
+        Engine.saveResultXml("target", result, null);
     }
 
     @Test
     public void testEngineForError() {
         FeatureResult result = execute("test-error.feature");
-        Engine.saveResultJson("target", result);
-        Engine.saveResultXml("target", result);
+        Engine.saveResultJson("target", result, null);
+        Engine.saveResultXml("target", result, null);
     }
 
     @Test

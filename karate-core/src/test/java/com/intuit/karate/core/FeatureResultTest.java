@@ -50,7 +50,7 @@ public class FeatureResultTest {
     }     
     
     private static String xml(FeatureResult result) {
-        File file = Engine.saveResultXml("target", result);
+        File file = Engine.saveResultXml("target", result, null);
         return FileUtils.toString(file);           
     }
 

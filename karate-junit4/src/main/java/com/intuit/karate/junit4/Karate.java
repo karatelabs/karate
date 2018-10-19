@@ -105,7 +105,7 @@ public class Karate extends ParentRunner<Feature> {
             }
             notifier.fireTestFinished(scenarioDescription);
         }
-        Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", result);
+        Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", result, null);
     }
 
     @Override

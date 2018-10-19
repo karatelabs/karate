@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.intuit.karate.ui.App.PADDING_INSET;
+import javafx.geometry.Insets;
 
 /**
  *
@@ -51,6 +52,7 @@ public class FeaturePanel extends BorderPane {
         this.setPadding(PADDING_INSET);
         this.scrollPane = new ScrollPane();
         content = new VBox(5.0);
+        content.setPadding(new Insets(5, 0, 5, 0));
         this.scrollPane.setContent(content);
         this.scrollPane.setFitToWidth(true);
         this.session = session;
@@ -63,6 +65,7 @@ public class FeaturePanel extends BorderPane {
     private void addSections() {
         final Feature feature = session.getFeature();
         TextFlow flow = new TextFlow();
+        flow.setPadding(new Insets(0, 5, 0, 5));
         Text keyword = new Text("Feature: ");
         Text name = new Text(feature.getName());
         flow.getChildren().addAll(keyword, name);

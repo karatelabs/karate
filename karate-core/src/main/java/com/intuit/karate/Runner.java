@@ -104,8 +104,8 @@ public class Runner {
                 unit.setNext(() -> {
                     FeatureResult result = execContext.result;
                     if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
-                        File file = Engine.saveResultJson(finalReportDir, result);
-                        Engine.saveResultXml(finalReportDir, result);
+                        File file = Engine.saveResultJson(finalReportDir, result, null);
+                        Engine.saveResultXml(finalReportDir, result, null);
                         String status = result.isFailed() ? "fail" : "pass";
                         logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
                         result.printStats(feature.getRelativePath(), file.getPath());
@@ -142,7 +142,7 @@ public class Runner {
         }
         results.setFeatureCount(executedFeatureCount);
         results.printStats(threadCount);
-        Engine.saveTimelineHtml(reportDir, results);
+        Engine.saveTimelineHtml(reportDir, results, null);
         results.setReportDir(reportDir);
         return results;
     }

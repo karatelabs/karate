@@ -45,10 +45,11 @@ import javafx.collections.FXCollections;
  * @author pthomas3
  */
 public class AppSession {
-
-    public final File featureFile;
+    
     private Feature feature; // mutable, can be re-built    
     private String envString; // can be changed
+    
+    public final File featureFile;
     public final HeaderPanel headerPanel;
     public final FeaturePanel featurePanel;
     public final VarsPanel varsPanel;

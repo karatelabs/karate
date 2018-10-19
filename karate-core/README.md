@@ -50,7 +50,7 @@ If you want to customize the start-up, you can use a batch-file:
 
 Here a batch-file called `chrome` was created in the system `PATH` (and made executable) with the following contents:
 
-```sh
+```bash
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" $*
 ```
 

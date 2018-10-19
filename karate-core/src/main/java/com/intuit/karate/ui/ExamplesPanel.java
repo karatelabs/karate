@@ -38,13 +38,13 @@ import javafx.scene.layout.VBox;
  * @author pthomas3
  */
 public class ExamplesPanel extends TitledPane {
-    
-    private final VBox content;    
+
+    private final VBox content;
     private final AppSession session;
 
     private Scenario scenario;
     private final List<StepPanel> stepPanels;
-    
+
     public ExamplesPanel(AppSession session, Scenario scenario) {
         super();
         content = new VBox(0);
@@ -53,25 +53,35 @@ public class ExamplesPanel extends TitledPane {
         this.session = session;
         this.scenario = scenario;
         stepPanels = new ArrayList(scenario.getSteps().size());
-        initTitleAndContent();        
+        initTitleAndContent();
     }
+
+    private Optional<StepPanel> previousStep = Optional.empty();
     
+    private void addStepPanel(Step step) {
+        StepPanel stepPanel = new StepPanel(session, step, previousStep);
+        content.getChildren().add(stepPanel);
+        stepPanels.add(stepPanel);
+        previousStep = Optional.of(stepPanel);
+    }
+
     private void initTitleAndContent() {
-        setText(scenario.getName());
-        Optional<StepPanel> previousStep = Optional.empty();
+        setText(scenario.getName());        
+        if (!scenario.isBackgroundDone()) {
+            for (Step step : scenario.getBackgroundSteps()) {
+                addStepPanel(step);
+            }
+        }
         for (Step step : scenario.getSteps()) {
-            StepPanel stepPanel = new StepPanel(session, step, previousStep);
-            content.getChildren().add(stepPanel);
-            stepPanels.add(stepPanel);
-            previousStep = Optional.of(stepPanel);
-        }       
+            addStepPanel(step);
+        }
     }
-    
+
     public void refresh(AppAction action) {
         scenario = session.refresh(scenario);
         for (StepPanel panel : stepPanels) {
             panel.action(action);
         }
     }
-    
+
 }

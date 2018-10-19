@@ -161,10 +161,13 @@ public class Engine {
         }
     }
 
-    public static File saveResultJson(String targetDir, FeatureResult result) {
+    public static File saveResultJson(String targetDir, FeatureResult result, String fileName) {
         List<Map> single = Collections.singletonList(result.toMap());
         String json = JsonUtils.toJson(single);
-        File file = new File(targetDir + File.separator + result.getPackageQualifiedName() + ".json");
+        if (fileName == null) {
+            fileName = File.separator + result.getPackageQualifiedName() + ".json";
+        }
+        File file = new File(targetDir + fileName);
         FileUtils.writeToFile(file, json);
         return file;
     }
@@ -203,7 +206,7 @@ public class Engine {
         return error;
     }
 
-    public static File saveResultXml(String targetDir, FeatureResult result) {
+    public static File saveResultXml(String targetDir, FeatureResult result, String fileName) {
         DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
         Document doc = XmlUtils.newDocument();
@@ -250,7 +253,10 @@ public class Engine {
         root.setAttribute("failures", failureCount + "");
         root.setAttribute("time", formatNanos(totalDuration, formatter));
         String xml = XmlUtils.toString(doc, true);
-        File file = new File(targetDir + File.separator + baseName + ".xml");
+        if (fileName == null) {
+            fileName = baseName + ".xml";
+        }
+        File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, xml);
         return file;
     }
@@ -358,7 +364,7 @@ public class Engine {
         }
     }
 
-    public static File saveResultHtml(String targetDir, FeatureResult result) {
+    public static File saveResultHtml(String targetDir, FeatureResult result, String fileName) {
         DecimalFormat formatter = (DecimalFormat) NumberFormat.getNumberInstance(Locale.US);
         formatter.applyPattern("0.######");
         String html = getClasspathResource("report-template.html");
@@ -381,7 +387,10 @@ public class Engine {
                 stepHtml(doc, formatter, stepResult, scenarioDiv);
             }
         }
-        File file = new File(targetDir + File.separator + baseName + ".html");
+        if (fileName == null) {
+            fileName = File.separator + baseName + ".html";
+        }
+        File file = new File(targetDir + fileName);
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
             FileUtils.writeToFile(file, xml);
@@ -399,7 +408,7 @@ public class Engine {
         return System.nanoTime() - startTime;
     }
 
-    public static void saveTimelineHtml(String targetDir, Results results) {
+    public static void saveTimelineHtml(String targetDir, Results results, String fileName) {
         Map<String, Integer> groupsMap = new LinkedHashMap();
         List<ScenarioResult> scenarioResults = results.getScenarioResults();
         List<Map> items = new ArrayList(scenarioResults.size());
@@ -438,7 +447,10 @@ public class Engine {
                 + "timeline.setOptions({ groupOrder: 'content' });\n"
                 + "timeline.setGroups(groups);\n"
                 + "timeline.setItems(items);\n");
-        File htmlFile = new File(targetDir + File.separator + "timeline.html");
+        if (fileName == null) {
+            fileName = File.separator + "timeline.html";
+        }
+        File htmlFile = new File(targetDir + fileName);
         String html = getClasspathResource("timeline-template.html");
         html = html.replaceFirst("//timeline//", sb.toString());
         FileUtils.writeToFile(htmlFile, html);
