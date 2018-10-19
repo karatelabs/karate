@@ -12,7 +12,7 @@
     <packaging>jar</packaging>  
     
     <properties>
-        <activemq.version>5.15.2</activemq.version>
+        <activemq.version>5.15.6</activemq.version>
     </properties>
 
     <!-- you will not need all these dependencies for a typical karate project !-->
