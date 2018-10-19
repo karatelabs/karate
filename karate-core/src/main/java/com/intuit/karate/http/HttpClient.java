@@ -228,7 +228,7 @@ public abstract class HttpClient<T> {
             }
             return response;
         } catch (Exception e) {
-            long startTime = context.getPrevRequest().getStartTime();
+            long startTime = context.getPrevRequest().getStartTimeMillis();
             long responseTime = System.currentTimeMillis() - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
             context.logger.error(e.getMessage() + ", " + message);

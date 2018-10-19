@@ -112,7 +112,7 @@ public class LoggingInterceptor implements ClientRequestFilter, ClientResponseFi
         context.logger.debug(sb.toString()); // log request
         // response
         sb = new StringBuilder();
-        sb.append("response time in milliseconds: ").append(actual.getResponseTimeFormatted()).append('\n');
+        sb.append("response time in milliseconds: ").append(actual.getResponseTimeMillis()).append('\n');
         sb.append(id).append(" < ").append(response.getStatus()).append('\n');
         logHeaders(sb, id, '<', response.getHeaders(), null);
         if (response.hasEntity() && isPrintable(response.getMediaType())) {

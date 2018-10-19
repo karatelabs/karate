@@ -53,7 +53,7 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
         actual.stopTimer();
         int id = requestInterceptor.getCounter().get();
         StringBuilder sb = new StringBuilder();
-        sb.append("response time in milliseconds: ").append(actual.getResponseTimeFormatted()).append('\n');
+        sb.append("response time in milliseconds: ").append(actual.getResponseTimeMillis()).append('\n');
         sb.append(id).append(" < ").append(response.getStatusLine().getStatusCode()).append('\n');
         LoggingUtils.logHeaders(sb, id, '<', response);
         HttpEntity entity = response.getEntity();

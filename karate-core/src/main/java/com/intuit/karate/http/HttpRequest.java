@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.http;
 
-import com.intuit.karate.core.Engine;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * this is only for capturing what was actually sent on the wire, read-only
@@ -33,42 +33,39 @@ import java.util.List;
  */
 public class HttpRequest {
     
-    private long startTime;
-    private long endTime;
-    private double responseTime;
+    private long startTimeMillis;
+    private long startTimeNanos;
+    private long endTimeMillis;
+    private long responseTimeMillis;
     private String urlBase; // used in mock since uri may start with '/'
     private String uri; // will be full uri including query string
     private String method;    
     private MultiValuedMap headers = new MultiValuedMap();
     private MultiValuedMap params; // only used in mock
     private byte[] body;
-    
-    private long startTimeNanos;
 
-    public long getStartTime() {
-        return startTime;
+    // should not be used for response time calculations, use getResponseTimeMillis directly
+    public long getStartTimeMillis() {
+        return startTimeMillis;
     }
     
     public void startTimer() {
-        startTime = System.currentTimeMillis();
+        startTimeMillis = System.currentTimeMillis();
         startTimeNanos = System.nanoTime();
+    }
+
+    // should not be used for response time calculations, use getResponseTimeMillis directly
+    public long getEndTimeMillis() {
+        return endTimeMillis;
     }    
 
-    public long getEndTime() {
-        return endTime;
-    }    
-
-    public double getResponseTime() {
-        return responseTime;
-    }        
-    
-    public String getResponseTimeFormatted() {
-        return String.format("%.2f", responseTime);
+    public double getResponseTimeMillis() {
+        return responseTimeMillis;
     }
     
     public void stopTimer() {        
-        responseTime = Engine.nanosToMillis(System.nanoTime() - startTimeNanos);
-        endTime = startTime + Math.round(responseTime);
+        responseTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNanos);
+        endTimeMillis = startTimeMillis + responseTimeMillis;
     }    
     
     public String getUrlBase() {

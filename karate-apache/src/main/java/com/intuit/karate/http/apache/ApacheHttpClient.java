@@ -300,7 +300,7 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
             throw new RuntimeException(e);
         }
         HttpRequest actualRequest = context.getPrevRequest();
-        HttpResponse response = new HttpResponse(actualRequest.getStartTime(), actualRequest.getEndTime());
+        HttpResponse response = new HttpResponse(actualRequest.getStartTimeMillis(), actualRequest.getEndTimeMillis());
         response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(httpResponse.getStatusLine().getStatusCode());

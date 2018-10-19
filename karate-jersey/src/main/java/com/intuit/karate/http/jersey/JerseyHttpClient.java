@@ -223,7 +223,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
             resp = builder.method(method);
         }
         HttpRequest actualRequest = context.getPrevRequest();
-        HttpResponse response = new HttpResponse(actualRequest.getStartTime(), actualRequest.getEndTime());
+        HttpResponse response = new HttpResponse(actualRequest.getStartTimeMillis(), actualRequest.getEndTimeMillis());
         byte[] bytes = resp.readEntity(byte[].class);        
         response.setUri(getRequestUri());
         response.setBody(bytes);
