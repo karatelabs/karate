@@ -365,7 +365,10 @@ public class FileUtils {
 
     public static Path getPathContaining(Class clazz) {
         Package p = clazz.getPackage();
-        String relative = p.getName().replace('.', '/');
+        String relative = "";
+        if (p != null) {
+            relative = p.getName().replace('.', '/');
+        }
         URL url = clazz.getClassLoader().getResource(relative);
         return getPathFor(url, null);
     }
