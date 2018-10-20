@@ -28,7 +28,7 @@ class KarateActor extends Actor {
     }
     case m: FiniteDuration => {
       val waiter = sender()
-      val task: Runnable = () => waiter ! Nil
+      val task: Runnable = () => waiter ! true
       context.system.scheduler.scheduleOnce(m, self, task)
     }
   }
