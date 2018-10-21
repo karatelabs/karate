@@ -35,7 +35,7 @@ import java.util.function.Consumer;
  */
 public class FeatureExecutionUnit implements Runnable {
 
-    private final ExecutionContext exec;
+    public final ExecutionContext exec;
     private final Consumer<Runnable> SYSTEM;
     private final boolean parallelScenarios;    
     
@@ -49,8 +49,8 @@ public class FeatureExecutionUnit implements Runnable {
         this.exec = exec;
         parallelScenarios = exec.scenarioExecutor != null;
         SYSTEM = parallelScenarios ? r -> exec.scenarioExecutor.submit(r) : r -> r.run();
-    }
-
+    }       
+    
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
         return units;
     }        

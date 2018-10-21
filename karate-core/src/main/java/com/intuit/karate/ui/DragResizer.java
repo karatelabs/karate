@@ -19,7 +19,7 @@ import javafx.scene.layout.Region;
  * <pre>DragResizer.makeResizable(myAnchorPane, true, true, true, true);</pre> makes the
  * region resizable for hight and width and moveable, but only within the bounds of the parent.
  * <p>
- * Builds on the modifications to theoriginal version by
+ * Builds on the modifications to the original version by
  * Geoff Capper.
  * <p>
  *
@@ -328,7 +328,6 @@ public class DragResizer {
 
         y = allowHeightResize ? event.getSceneY() : y;
         x = allowWidthResize ? event.getSceneX() : x;
-
 
     }
 

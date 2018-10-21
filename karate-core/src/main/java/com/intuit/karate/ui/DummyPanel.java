@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,42 +23,18 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import javafx.scene.control.TextArea;
+import javafx.scene.layout.BorderPane;
 
 /**
  *
  * @author pthomas3
  */
-public class TextAreaLogAppender implements LogAppender {
-
-    private final TextArea textArea;
-
-    public static TextAreaLogAppender init(Logger logger, TextArea textArea) {
-        return new TextAreaLogAppender(logger, textArea);
+public class DummyPanel extends BorderPane {
+    
+    public DummyPanel(double width, double height) {
+        setCenter(new TextArea());     
+        setPrefSize(width, height);
     }
     
-    private TextAreaLogAppender(Logger logger, TextArea textArea) {
-        this.textArea = textArea;
-        logger.setLogAppender(this);
-    }
-
-    @Override
-    public String collect() {
-        String text = textArea.getText();
-        textArea.clear();
-        return text;
-    }
-
-    @Override
-    public void append(String text) {
-        textArea.appendText(text);
-    }
-
-    @Override
-    public void close() {
-
-    }    
-
 }

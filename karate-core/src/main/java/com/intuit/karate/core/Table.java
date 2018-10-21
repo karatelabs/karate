@@ -118,7 +118,14 @@ public class Table {
 
     @Override
     public String toString() {
-        return rows.toString();
+        StringBuilder sb = new StringBuilder();
+        for (List<String> row : rows) {
+            for (String s : row) {
+                sb.append(s).append('\t').append('|');
+            }
+            sb.append('\n');
+        }
+        return sb.toString();
     }
 
 }

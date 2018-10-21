@@ -69,7 +69,7 @@ public class ScenarioOutline {
         List<Step> temp = new ArrayList(steps.size());
         s.setSteps(temp);
         for (Step original : steps) {
-            Step step = new Step(s, original.getIndex());
+            Step step = new Step(feature, s, original.getIndex());
             temp.add(step);
             step.setPrefix(original.getPrefix());
             step.setText(original.getText());

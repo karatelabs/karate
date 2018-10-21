@@ -40,10 +40,11 @@ public class ScenarioExecutionUnit implements Runnable {
     public final Tags tags;
     public final StepActions actions;
     private final ExecutionContext exec;
+    private final List<Step> steps;
     private final Iterator<Step> iterator;
     protected final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
-    
+
     private Runnable next;
     private boolean started;
     private boolean stopped = false;
@@ -66,62 +67,80 @@ public class ScenarioExecutionUnit implements Runnable {
             }
         }
         if (hookFailed) {
-            iterator = Collections.emptyIterator();
+            steps = Collections.EMPTY_LIST;
         } else {
             if (scenario.isDynamic()) {
-                iterator = scenario.getBackgroundSteps().iterator();
+                steps = scenario.getBackgroundSteps();
             } else if (scenario.isBackgroundDone()) {
-                iterator = scenario.getSteps().iterator();
+                steps = scenario.getSteps();
             } else {
-                iterator = scenario.getStepsIncludingBackground().iterator();
+                steps = scenario.getStepsIncludingBackground();
             }
         }
-    }       
+        iterator = steps.iterator();
+    }
+
+    public List<Step> getSteps() {
+        return steps;
+    }
 
     public void setNext(Runnable next) {
         this.next = next;
-    }        
+    }
+
+    public void onStart() {
+        result.setThreadName(Thread.currentThread().getName());
+        result.setStartTime(System.currentTimeMillis() - exec.startTime);
+    }
+
+    // extracted for karate UI
+    public StepResult execute(Step step) {
+        StepResult stepResult;
+        if (stopped) {
+            stepResult = new StepResult(step, Result.skipped(), null, null, null);
+        } else {
+            Result execResult = Engine.executeStep(step, actions);
+            List<FeatureResult> callResults = actions.context.getAndClearCallResults();
+            // embed collection for each step happens here
+            Embed embed = actions.context.getAndClearEmbed();
+            if (execResult.isAborted()) { // we log only aborts for visibility
+                actions.context.logger.debug("abort at {}", step.getDebugInfo());
+            }
+            // log appender collection for each step happens here
+            String stepLog = StringUtils.trimToNull(exec.appender.collect());
+            stepResult = new StepResult(step, execResult, stepLog, embed, callResults);
+            if (stepResult.isStopped()) {
+                stopped = true;
+            }
+        }
+        result.addStepResult(stepResult);
+        return stepResult;
+    }
+
+    public void onStop() {
+        result.setEndTime(System.currentTimeMillis() - exec.startTime);
+        // gatling clean up            
+        actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
+        // after-scenario hook
+        actions.context.invokeAfterHookIfConfigured(false);
+        // stop browser automation if running
+        actions.context.stop();
+        if (next != null) {
+            next.run();
+        }
+    }
 
     @Override
     public void run() {
         if (!started) {
-            result.setThreadName(Thread.currentThread().getName());
-            result.setStartTime(System.currentTimeMillis() - exec.startTime);
+            onStart();
             started = true;
         }
         if (iterator.hasNext()) {
-            Step step = iterator.next();
-            if (stopped) {
-                result.addStepResult(new StepResult(step, Result.skipped(), null, null, null));
-                SYSTEM.accept(this);
-            } else {
-                Result execResult = Engine.executeStep(step, actions);
-                List<FeatureResult> callResults = actions.context.getAndClearCallResults();
-                // embed collection for each step happens here
-                Embed embed = actions.context.getAndClearEmbed();
-                if (execResult.isAborted()) { // we log only aborts for visibility
-                    actions.context.logger.debug("abort at {}", step.getDebugInfo());
-                }
-                // log appender collection for each step happens here
-                String stepLog = StringUtils.trimToNull(exec.appender.collect());
-                StepResult stepResult = new StepResult(step, execResult, stepLog, embed, callResults);
-                if (stepResult.isStopped()) {
-                    stopped = true;
-                }
-                result.addStepResult(stepResult);
-                SYSTEM.accept(this);
-            }
-        } else {            
-            result.setEndTime(System.currentTimeMillis() - exec.startTime);
-            // gatling clean up            
-            actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
-            // after-scenario hook
-            actions.context.invokeAfterHookIfConfigured(false);
-            // stop browser automation if running
-            actions.context.stop();
-            if (next != null) {
-                next.run();
-            }
+            execute(iterator.next());
+            SYSTEM.accept(this);
+        } else {
+            onStop();
         }
     }
 

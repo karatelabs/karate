@@ -76,7 +76,7 @@ public class Scenario {
         s.outline = exampleIndex != -1;
         s.steps = new ArrayList(steps.size());
         for (Step step : steps) {
-            Step temp = new Step(s, step.getIndex());
+            Step temp = new Step(feature, s, step.getIndex());
             s.steps.add(temp);
             temp.setLine(step.getLine());
             temp.setEndLine(step.getEndLine());
@@ -107,11 +107,11 @@ public class Scenario {
 
     public String getDisplayMeta() {
         int num = section.getIndex() + 1;
-        String meta = "[#" + num;
+        String meta = "[" + num;
         if (index != -1) {
-            meta = meta + " eg " + (index + 1);
+            meta = meta + "." + (index + 1);
         }
-        return meta + " line " + line + "]";
+        return meta + ":" + line + "]";
     }
 
     public List<Step> getBackgroundSteps() {

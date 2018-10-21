@@ -208,21 +208,11 @@ public class FeatureParser extends KarateParserBaseListener {
         return sb.toString().trim();
     }
 
-    private static int countLineFeeds(String text) {
-        int count = 0;
-        for (char c : text.toCharArray()) {
-            if (c == '\n') {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static List<Step> toSteps(Scenario scenario, List<KarateParser.StepContext> list) {
+    private static List<Step> toSteps(Feature feature, Scenario scenario, List<KarateParser.StepContext> list) {
         List<Step> steps = new ArrayList(list.size());
         int index = 0;
         for (KarateParser.StepContext sc : list) {
-            Step step = new Step(scenario, index++);
+            Step step = new Step(feature, scenario, index++);
             steps.add(step);
             int stepLine = sc.line().getStart().getLine();
             step.setLine(stepLine);
@@ -231,11 +221,11 @@ public class FeatureParser extends KarateParserBaseListener {
             if (sc.docString() != null) {
                 String raw = sc.docString().getText();
                 step.setDocString(fixDocString(raw));
-                step.setEndLine(stepLine + countLineFeeds(raw));
+                step.setEndLine(stepLine + StringUtils.countLineFeeds(raw));
             } else if (sc.table() != null) {
                 Table table = toTable(sc.table());
                 step.setTable(table);
-                step.setEndLine(stepLine + countLineFeeds(sc.table().getText()));
+                step.setEndLine(stepLine + StringUtils.countLineFeeds(sc.table().getText()));
             } else {
                 step.setEndLine(stepLine);
             }
@@ -263,7 +253,7 @@ public class FeatureParser extends KarateParserBaseListener {
         Background background = new Background();
         feature.setBackground(background);
         background.setLine(getActualLine(ctx.BACKGROUND()));
-        List<Step> steps = toSteps(null, ctx.step());
+        List<Step> steps = toSteps(feature, null, ctx.step());
         if (!steps.isEmpty()) {
             background.setSteps(steps);
         }
@@ -287,7 +277,7 @@ public class FeatureParser extends KarateParserBaseListener {
             scenario.setName(pair.left);
             scenario.setDescription(pair.right);
         }
-        List<Step> steps = toSteps(scenario, ctx.step());
+        List<Step> steps = toSteps(feature, scenario, ctx.step());
         scenario.setSteps(steps);
         if (logger.isTraceEnabled()) {
             logger.trace("scenario steps: {}", steps);
@@ -310,7 +300,7 @@ public class FeatureParser extends KarateParserBaseListener {
             outline.setName(pair.left);
             outline.setDescription(pair.right);
         }
-        List<Step> steps = toSteps(null, ctx.step());
+        List<Step> steps = toSteps(feature, null, ctx.step());
         outline.setSteps(steps);
         if (logger.isTraceEnabled()) {
             logger.trace("outline steps: {}", steps);

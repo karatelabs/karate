@@ -132,7 +132,7 @@ public class StringUtils {
                 }
                 startPos = pos + 1;
                 searchPos = startPos;
-            }            
+            }
             pos = s.indexOf(delimiter, searchPos);
         }
         if (startPos != s.length()) {
@@ -169,6 +169,30 @@ public class StringUtils {
 
     public static List<String> toStringLines(String text) {
         return new BufferedReader(new StringReader(text)).lines().collect(Collectors.toList());
+    }
+
+    public static int countLineFeeds(String text) {
+        int count = 0;
+        for (char c : text.toCharArray()) {
+            if (c == '\n') {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public static int wrappedLinesEstimate(String text, int colWidth) {
+        List<String> lines = toStringLines(text);
+        int estimate = 0;
+        for (String s : lines) {
+            int wrapEstimate = (int) Math.ceil(s.length() / colWidth);
+            if (wrapEstimate == 0) {
+                estimate++;
+            } else {
+                estimate += wrapEstimate;
+            }
+        }
+        return estimate;
     }
 
 }

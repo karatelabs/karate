@@ -56,7 +56,7 @@ public class ScenarioResult {
     }
     
     public void addError(String message, Throwable error) {
-        Step step = new Step(scenario, -1);
+        Step step = new Step(scenario.getFeature(), scenario, -1);
         step.setLine(scenario.getLine());
         step.setPrefix("*");
         step.setText(message);
@@ -76,7 +76,7 @@ public class ScenarioResult {
     private static void recurse(List<Map> list, StepResult stepResult, int depth) {        
         if (stepResult.getCallResults() != null) {            
             for (FeatureResult fr : stepResult.getCallResults()) {
-                Step call = new Step(stepResult.getStep().getScenario(), -1);
+                Step call = new Step(stepResult.getStep().getFeature(), stepResult.getStep().getScenario(), -1);
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallName());

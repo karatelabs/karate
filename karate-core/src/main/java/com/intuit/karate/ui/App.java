@@ -189,7 +189,7 @@ public class App extends Application {
     
     @Override
     public void start(Stage stage) throws Exception {        
-        String fileName = null;
+        String fileName;
         List<String> params = getParameters().getUnnamed();
         String envString = System.getProperty(ScriptBindings.KARATE_ENV);
         if (!params.isEmpty()) {

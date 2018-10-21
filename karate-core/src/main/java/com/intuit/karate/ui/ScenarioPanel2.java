@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,35 +23,51 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.Logger;
-import javafx.geometry.Insets;
-import javafx.scene.control.Button;
+import com.intuit.karate.core.ScenarioExecutionUnit;
+import com.intuit.karate.core.Step;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
-
+import javafx.scene.layout.VBox;
 
 /**
  *
  * @author pthomas3
  */
-public class LogPanel extends BorderPane {
+public class ScenarioPanel2 extends BorderPane {
 
-    private final TextArea textArea;
+    private final AppSession2 session;
+    private final ScenarioExecutionUnit unit;
+    private final VBox content;
+    private final VarsPanel2 varsPanel;
+    
+    private StepPanel2 lastStep;
 
-    public LogPanel(Logger logger) {
-        setPadding(App2.PADDING_ALL);
-        textArea = new TextArea();
-        TextAreaLogAppender.init(logger, textArea);
-        textArea.setFont(App2.getDefaultFont());
-        Button clearButton = new Button("Clear Log");
-        clearButton.setOnAction(e -> textArea.clear());
-        setCenter(textArea);
-        setBottom(clearButton);
-        setMargin(clearButton, new Insets(2.0, 0, 0, 0));
+    public ScenarioExecutionUnit getScenarioExecutionUnit() {
+        return unit;
+    }        
+
+    public ScenarioPanel2(AppSession2 session, ScenarioExecutionUnit unit) {
+        this.session = session;
+        this.unit = unit;
+        setPadding(App2.PADDING_TOP);
+        content = new VBox(0);    
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        setCenter(scrollPane);
+        varsPanel = new VarsPanel2(session, this);
+        setRight(varsPanel);
+        unit.getSteps().forEach(step -> addStepPanel(step)); 
+        lastStep.setLast(true);
     }
     
-    public void append(String s) {
-        textArea.appendText(s);
+    private void addStepPanel(Step step) {
+        lastStep = new StepPanel2(session, this, step);
+        content.getChildren().add(lastStep);
     }
     
+    public void refreshVars() {
+        varsPanel.refresh();
+    }
+
 }

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,42 +23,27 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
-import javafx.scene.control.TextArea;
+import com.intuit.karate.core.ScenarioExecutionUnit;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.Tooltip;
 
 /**
  *
  * @author pthomas3
  */
-public class TextAreaLogAppender implements LogAppender {
+public class FeatureOutlineCell extends ListCell<ScenarioExecutionUnit> {
 
-    private final TextArea textArea;
-
-    public static TextAreaLogAppender init(Logger logger, TextArea textArea) {
-        return new TextAreaLogAppender(logger, textArea);
-    }
-    
-    private TextAreaLogAppender(Logger logger, TextArea textArea) {
-        this.textArea = textArea;
-        logger.setLogAppender(this);
-    }
+    private final Tooltip tooltip = new Tooltip();
 
     @Override
-    public String collect() {
-        String text = textArea.getText();
-        textArea.clear();
-        return text;
+    public void updateItem(ScenarioExecutionUnit item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty) {
+            return;
+        }
+        setText(item.scenario.getDisplayMeta() + " " + item.scenario.getName());
+        tooltip.setText(item.scenario.getName());
+        setTooltip(tooltip);
     }
-
-    @Override
-    public void append(String text) {
-        textArea.appendText(text);
-    }
-
-    @Override
-    public void close() {
-
-    }    
 
 }

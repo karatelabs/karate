@@ -31,6 +31,7 @@ import com.intuit.karate.StringUtils;
  */
 public class Step {
         
+    private final Feature feature;
     private final Scenario scenario;
     private final int index;
             
@@ -50,7 +51,8 @@ public class Step {
         return message + ", line: " + line;        
     }
     
-    public Step(Scenario scenario, int index) {
+    public Step(Feature feature, Scenario scenario, int index) {
+        this.feature = feature;
         this.scenario = scenario;
         this.index = index;
     }
@@ -62,6 +64,10 @@ public class Step {
     public boolean isOutline() {
         return scenario != null && scenario.isOutline();
     }
+
+    public Feature getFeature() {
+        return feature;
+    }        
 
     public Scenario getScenario() {
         return scenario;
@@ -127,8 +133,9 @@ public class Step {
     public String toString() {
         String temp = prefix + " " + text;
         if (docString != null) {
-            temp  = temp + "\n\"\"\"" + docString + "\n\"\"\"";
-        } else if (table != null) {
+            temp  = temp + "\n\"\"\"\n" + docString + "\n\"\"\"";
+        }
+        if (table != null) {
             temp = temp + " " + table.toString();
         }
         return temp;

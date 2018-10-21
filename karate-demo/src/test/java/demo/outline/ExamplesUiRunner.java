@@ -1,6 +1,6 @@
 package demo.outline;
 
-import com.intuit.karate.ui.App;
+import com.intuit.karate.ui.App2;
 import org.junit.Test;
 
 /**
@@ -11,7 +11,7 @@ public class ExamplesUiRunner {
     
     @Test
     public void testApp() {
-        App.run("src/test/java/demo/outline/examples.feature", "mock");
+        App2.run("src/test/java/demo/outline/examples.feature", "mock");
     } 
     
 }

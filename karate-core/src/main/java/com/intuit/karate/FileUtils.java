@@ -525,6 +525,10 @@ public class FileUtils {
     public static boolean isWindows() {
         return getPlatform() == Platform.WINDOWS;
     }
+    
+    public static boolean isMac() {
+        return getPlatform() == Platform.MAC;
+    }
 
     public static Platform getPlatform() {
         String os = System.getProperty("os.name", "").toLowerCase();
