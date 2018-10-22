@@ -156,5 +156,14 @@ public class FeatureParserTest {
         Match.equalsText(map.get("name"), "Nyan");
         Match.equalsText(map.get("title"), "name is Nyan and age is 7");        
     }    
+    
+    @Test
+    public void testStepEditing() {
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/test-simple.feature");
+        Step step = feature.getStep(0, -1, 0);
+        assertEquals("def a = 1", step.getText());
+        FeatureParser.updateStepFromText(step, "* def a = 2 - 1");
+        assertEquals("def a = 2 - 1", step.getText());
+    }
 
 }

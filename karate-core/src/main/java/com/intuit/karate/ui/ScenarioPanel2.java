@@ -25,9 +25,14 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
+import java.util.ArrayList;
+import java.util.List;
+import javafx.application.Platform;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 /**
@@ -40,34 +45,67 @@ public class ScenarioPanel2 extends BorderPane {
     private final ScenarioExecutionUnit unit;
     private final VBox content;
     private final VarsPanel2 varsPanel;
-    
+
+    private final List<StepPanel2> stepPanels;
     private StepPanel2 lastStep;
 
     public ScenarioExecutionUnit getScenarioExecutionUnit() {
         return unit;
-    }        
+    }
+
+    private int index;
 
     public ScenarioPanel2(AppSession2 session, ScenarioExecutionUnit unit) {
         this.session = session;
         this.unit = unit;
-        setPadding(App2.PADDING_TOP);
-        content = new VBox(0);    
+        content = new VBox(App2.PADDING);
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         setCenter(scrollPane);
         varsPanel = new VarsPanel2(session, this);
         setRight(varsPanel);
-        unit.getSteps().forEach(step -> addStepPanel(step)); 
+        VBox header = new VBox(App2.PADDING);
+        header.setPadding(App2.PADDING_VER);
+        setTop(header);
+        String headerText = "Scenario: " + unit.scenario.getDisplayMeta() + " " + unit.scenario.getName();
+        Label headerLabel = new Label(headerText);
+        header.getChildren().add(headerLabel);
+        HBox hbox = new HBox(App2.PADDING);
+        header.getChildren().add(hbox);
+        Button resetButton = new Button("Reset");
+        resetButton.setOnAction(e -> reset());
+        Button runAllButton = new Button("Run All Steps");
+        runAllButton.setOnAction(e -> Platform.runLater(() -> runAll()));
+        hbox.getChildren().add(resetButton);
+        hbox.getChildren().add(runAllButton);
+        stepPanels = new ArrayList();
+        unit.getSteps().forEach(step -> addStepPanel(step));
         lastStep.setLast(true);
     }
-    
+
     private void addStepPanel(Step step) {
-        lastStep = new StepPanel2(session, this, step);
+        lastStep = new StepPanel2(session, this, step, index++);
         content.getChildren().add(lastStep);
+        stepPanels.add(lastStep);
     }
-    
+
     public void refreshVars() {
         varsPanel.refresh();
+    }
+
+    public void runAll() {
+        reset();
+        for (StepPanel2 stepPanel : stepPanels) {
+            stepPanel.run();
+        }      
+    }
+
+    public void reset() {
+        unit.reset();
+        for (StepPanel2 stepPanel : stepPanels) {
+            stepPanel.initStyles();
+        }
+        session.getFeatureOutlinePanel().refresh();
     }
 
 }

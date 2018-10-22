@@ -42,7 +42,7 @@ public class ScenarioExecutionUnit implements Runnable {
     private final ExecutionContext exec;
     private final List<Step> steps;
     private final Iterator<Step> iterator;
-    protected final ScenarioResult result;
+    public final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
 
     private Runnable next;
@@ -92,12 +92,15 @@ public class ScenarioExecutionUnit implements Runnable {
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - exec.startTime);
     }
+    
+    public void reset() {
+        result.reset();
+    }
 
     // extracted for karate UI
     public StepResult execute(Step step) {
-        StepResult stepResult;
         if (stopped) {
-            stepResult = new StepResult(step, Result.skipped(), null, null, null);
+            return new StepResult(step, Result.skipped(), null, null, null);
         } else {
             Result execResult = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
@@ -108,13 +111,8 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(exec.appender.collect());
-            stepResult = new StepResult(step, execResult, stepLog, embed, callResults);
-            if (stepResult.isStopped()) {
-                stopped = true;
-            }
-        }
-        result.addStepResult(stepResult);
-        return stepResult;
+            return new StepResult(step, execResult, stepLog, embed, callResults);
+        }        
     }
 
     public void onStop() {
@@ -137,7 +135,11 @@ public class ScenarioExecutionUnit implements Runnable {
             started = true;
         }
         if (iterator.hasNext()) {
-            execute(iterator.next());
+            StepResult stepResult = execute(iterator.next());
+            result.addStepResult(stepResult);
+            if (stepResult.isStopped()) {
+                stopped = true;
+            }            
             SYSTEM.accept(this);
         } else {
             onStop();

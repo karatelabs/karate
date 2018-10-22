@@ -35,7 +35,7 @@ import java.util.Map;
  */
 public class ScenarioResult {
 
-    private final List<StepResult> stepResults = new ArrayList();
+    private List<StepResult> stepResults = new ArrayList();
     private final Scenario scenario;
 
     private StepResult failedStep;
@@ -43,7 +43,34 @@ public class ScenarioResult {
     private String threadName;
     private long startTime;
     private long endTime;
-    private long durationNanos;        
+    private long durationNanos;     
+    
+    public void reset() {
+        stepResults = new ArrayList();
+        failedStep = null;
+    }
+    
+    public StepResult getStepResult(int index) {
+        if (stepResults.size() > index) {
+            return stepResults.get(index);
+        } else {
+            return null;
+        }
+    }
+    
+    public void setStepResult(int index, StepResult sr) {
+        if (sr.getResult().isFailed()) {
+            failedStep = sr;
+        }
+        if (stepResults.size() > index) {
+            stepResults.set(index, sr);
+        } else {
+            for (int i = stepResults.size(); i < index; i++) {
+                stepResults.add(null);
+            }
+            stepResults.add(sr);
+        }
+    }
 
     public String getFailureMessageForDisplay() {
         if (failedStep == null) {

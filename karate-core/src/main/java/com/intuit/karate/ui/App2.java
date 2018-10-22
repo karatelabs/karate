@@ -44,10 +44,11 @@ public class App2 extends Application {
 
     private static final String KARATE_LOGO = "karate-logo.png";
     public static final double PADDING = 3.0;
-    public static final Insets PADDING_ALL = new Insets(App.PADDING, App.PADDING, App.PADDING, App.PADDING);
-    public static final Insets PADDING_HOR = new Insets(0, App.PADDING, 0, App.PADDING);
-    public static final Insets PADDING_VER = new Insets(App.PADDING, 0, App.PADDING, 0);
-    public static final Insets PADDING_TOP = new Insets(App.PADDING, 0, 0, 0);
+    public static final Insets PADDING_ALL = new Insets(App2.PADDING, App2.PADDING, App2.PADDING, App2.PADDING);
+    public static final Insets PADDING_HOR = new Insets(0, App2.PADDING, 0, App2.PADDING);
+    public static final Insets PADDING_VER = new Insets(App2.PADDING, 0, App2.PADDING, 0);
+    public static final Insets PADDING_TOP = new Insets(App2.PADDING, 0, 0, 0);
+    public static final Insets PADDING_BOT = new Insets(0, 0, App2.PADDING, 0);
 
     public static Font getDefaultFont() {
         return Font.font("Courier");

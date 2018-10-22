@@ -26,7 +26,6 @@ package com.intuit.karate.ui;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScenarioExecutionUnit;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -36,7 +35,6 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 
-import static com.intuit.karate.ui.App.PADDING_INSET;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,7 +51,7 @@ public class VarsPanel2 extends BorderPane {
     public VarsPanel2(AppSession2 session, ScenarioPanel2 scenarioPanel) {
         this.session = session;
         this.scenarioPanel = scenarioPanel;
-        this.setPadding(PADDING_INSET);
+        this.setPadding(App2.PADDING_HOR);
         table = new TableView();
         table.setPrefWidth(300);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);

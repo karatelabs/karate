@@ -24,9 +24,10 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
-import java.util.List;
+import com.intuit.karate.core.StepResult;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.AnchorPane;
@@ -36,12 +37,22 @@ import javafx.scene.layout.AnchorPane;
  * @author pthomas3
  */
 public class StepPanel2 extends AnchorPane {
-    
+
     private final AppSession2 session;
     private final ScenarioPanel2 scenarioPanel;
+    private final ScenarioExecutionUnit unit;
     private final Step step;
     private final Button runButton;
+    private final int index;
+
+    private String text;
     private boolean last;
+
+    private static final String STYLE_PASS = "-fx-base: #53B700";
+    private static final String STYLE_FAIL = "-fx-base: #D52B1E";
+    private static final String STYLE_METHOD = "-fx-base: #34BFFF";
+    private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
+    private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
 
     public boolean isLast() {
         return last;
@@ -49,21 +60,31 @@ public class StepPanel2 extends AnchorPane {
 
     public void setLast(boolean last) {
         this.last = last;
-    }        
-    
-    public StepPanel2(AppSession2 session, ScenarioPanel2 scenarioPanel, Step step) {
+    }
+
+    public StepPanel2(AppSession2 session, ScenarioPanel2 scenarioPanel, Step step, int index) {
         this.session = session;
+        this.unit = scenarioPanel.getScenarioExecutionUnit();
         this.scenarioPanel = scenarioPanel;
-        this.step = step;        
-        setPadding(App2.PADDING_TOP);
+        this.step = step;
+        this.index = index;
         TextArea textArea = new TextArea();
         textArea.setFont(App2.getDefaultFont());
         textArea.setWrapText(true);
-        textArea.setMinHeight(0);       
-        String text = step.toString();
-        int lines = StringUtils.wrappedLinesEstimate(text, 25);
+        textArea.setMinHeight(0);
+        text = step.toString();
+        int lines = StringUtils.wrappedLinesEstimate(text, 30);
         textArea.setText(text);
-        textArea.setPrefRowCount(lines);        
+        textArea.setPrefRowCount(lines);
+        textArea.focusedProperty().addListener((val, before, after) -> {
+            if (!after) { // if we lost focus
+                String temp = textArea.getText();
+                if (!text.equals(temp)) {
+                    text = temp;
+                    FeatureParser.updateStepFromText(step, text);
+                }
+            }
+        });
         runButton = new Button("►");
         runButton.setOnAction(e -> run());
         // layout
@@ -72,15 +93,28 @@ public class StepPanel2 extends AnchorPane {
         setBottomAnchor(textArea, 0.0);
         setRightAnchor(runButton, 3.0);
         setTopAnchor(runButton, 0.0);
-        setBottomAnchor(runButton, 0.0);         
+        setBottomAnchor(runButton, 0.0);
         // add
         getChildren().addAll(textArea, runButton);
+        initStyles();
     }
-    
-    private void run() {
-        ScenarioExecutionUnit unit = session.getScenarioPanel().getScenarioExecutionUnit();
-        unit.execute(step);
+
+    public void initStyles() {
+        StepResult sr = unit.result.getStepResult(index);
+        if (sr == null) {
+            runButton.setStyle("");
+        } else if (sr.getResult().isFailed()) {
+            runButton.setStyle(STYLE_FAIL);
+        } else {
+            runButton.setStyle(STYLE_PASS);
+        }
+    }
+
+    public void run() {
+        StepResult sr = unit.execute(step);
+        unit.result.setStepResult(index, sr);
+        initStyles();
         scenarioPanel.refreshVars();
     }
-    
+
 }

@@ -32,6 +32,7 @@ import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import javafx.scene.layout.BorderPane;
 
@@ -43,43 +44,55 @@ public class AppSession2 {
     
     private final Logger logger = new Logger();
     private final ExecutionContext exec;
-    private final FeatureExecutionUnit unit;
+    private final FeatureExecutionUnit featureUnit;
     
     private final BorderPane rootPane = new BorderPane();
-    private final FeatureOutlinePanel featureTreePanel;
+    private final FeatureOutlinePanel featureOutlinePanel;
     private final LogPanel logPanel;
-    
-    private ScenarioPanel2 scenarioPanel;
+
+    private final List<ScenarioPanel2> scenarioPanels;
     
     public AppSession2(File featureFile, String envString) {
         Feature feature = FeatureParser.parse(featureFile);
         FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
         CallContext callContext = new CallContext(null, true);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
-        unit = new FeatureExecutionUnit(exec);
-        unit.init();
-        featureTreePanel = new FeatureOutlinePanel(this);
-        setSelectedScenario(unit.getScenarioExecutionUnits().get(0));
-        rootPane.setLeft(featureTreePanel);
+        featureUnit = new FeatureExecutionUnit(exec);
+        featureUnit.init();
+        featureOutlinePanel = new FeatureOutlinePanel(this);
+        List<ScenarioExecutionUnit> units = featureUnit.getScenarioExecutionUnits();
+        scenarioPanels = new ArrayList(units.size());
+        for (ScenarioExecutionUnit unit : units) {
+            ScenarioPanel2 scenarioPanel = new ScenarioPanel2(this, unit);
+            scenarioPanels.add(scenarioPanel);
+        }
+        rootPane.setLeft(featureOutlinePanel);
         logPanel = new LogPanel(logger);
         rootPane.setBottom(logPanel);        
     }
 
+    public void resetAll() {
+        for (ScenarioPanel2 scenarioPanel : scenarioPanels) {
+            scenarioPanel.reset();
+        }
+    }
+    
+    public void runAll() {
+        for (ScenarioPanel2 scenarioPanel : scenarioPanels) {
+            scenarioPanel.runAll();
+        }      
+    }
+    
     public BorderPane getRootPane() {
         return rootPane;
     }        
 
-    public FeatureOutlinePanel getFeatureTreePanel() {
-        return featureTreePanel;
-    }        
-
-    public ScenarioPanel2 getScenarioPanel() {
-        return scenarioPanel;
-    }        
+    public FeatureOutlinePanel getFeatureOutlinePanel() {
+        return featureOutlinePanel;
+    }               
     
-    public void setSelectedScenario(ScenarioExecutionUnit unit) {
-        scenarioPanel = new ScenarioPanel2(this, unit);
-        rootPane.setCenter(scenarioPanel);
+    public void setSelectedScenario(int index) {
+        rootPane.setCenter(scenarioPanels.get(index));
     }
 
     public Logger getLogger() {
@@ -87,11 +100,11 @@ public class AppSession2 {
     }        
     
     public FeatureExecutionUnit getFeatureExecutionUnit() {
-        return unit;
+        return featureUnit;
     }
     
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
-        return unit.getScenarioExecutionUnits();
+        return featureUnit.getScenarioExecutionUnits();
     }   
     
     public void logVar(Var var) {

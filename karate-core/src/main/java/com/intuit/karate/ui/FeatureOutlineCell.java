@@ -34,6 +34,9 @@ import javafx.scene.control.Tooltip;
 public class FeatureOutlineCell extends ListCell<ScenarioExecutionUnit> {
 
     private final Tooltip tooltip = new Tooltip();
+    
+    private static final String STYLE_PASS = "-fx-control-inner-background: #A9F5A9";
+    private static final String STYLE_FAIL = "-fx-control-inner-background: #F5A9A9";
 
     @Override
     public void updateItem(ScenarioExecutionUnit item, boolean empty) {
@@ -44,6 +47,13 @@ public class FeatureOutlineCell extends ListCell<ScenarioExecutionUnit> {
         setText(item.scenario.getDisplayMeta() + " " + item.scenario.getName());
         tooltip.setText(item.scenario.getName());
         setTooltip(tooltip);
+        if (item.result.isFailed()) {
+            setStyle(STYLE_FAIL);
+        } else if (!item.result.getStepResults().isEmpty()) {
+            setStyle(STYLE_PASS);
+        } else {
+            setStyle("");
+        }
     }
 
 }

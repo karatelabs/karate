@@ -23,13 +23,19 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 
 /**
  *
@@ -38,24 +44,49 @@ import javafx.scene.layout.BorderPane;
 public class FeatureOutlinePanel extends BorderPane {
 
     private final AppSession2 session;
+    private final ListView<ScenarioExecutionUnit> listView;
+    private final List<ScenarioExecutionUnit> units;
 
     public FeatureOutlinePanel(AppSession2 session) {
         this.session = session;
+        this.units = session.getScenarioExecutionUnits();
         setPadding(App2.PADDING_HOR);
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
+        VBox header = new VBox(App2.PADDING);
+        header.setPadding(App2.PADDING_VER);
+        setTop(header);
+        Feature feature = session.getFeatureExecutionUnit().exec.featureContext.feature;
+        Label featureLabel = new Label(feature.getPath().getFileName().toString());
+        header.getChildren().add(featureLabel);
+        HBox hbox = new HBox(App2.PADDING);
+        header.getChildren().add(hbox);
+        Button resetButton = new Button("Reset");
+        resetButton.setOnAction(e -> session.resetAll());
+        Button runAllButton = new Button("Run All Scenarios");
+        hbox.getChildren().add(resetButton);
+        hbox.getChildren().add(runAllButton);
         setCenter(scrollPane);
-        ListView<ScenarioExecutionUnit> listView = new ListView();
-        ObservableList<ScenarioExecutionUnit> data = FXCollections.observableArrayList(session.getScenarioExecutionUnits());
-        listView.setItems(data);
-        scrollPane.setContent(listView);
+        listView = new ListView(FXCollections.observableArrayList(units)); 
+        // see comment for refresh()
         listView.setCellFactory(lv -> new FeatureOutlineCell());
+        scrollPane.setContent(listView);
         listView.getSelectionModel()
-                .selectedItemProperty()
-                .addListener((o, prev, value) -> session.setSelectedScenario(value));
-        listView.getSelectionModel().select(0);
-        Platform.runLater(() -> listView.requestFocus());
+                .selectedIndexProperty()
+                .addListener((o, prev, value) -> session.setSelectedScenario(value.intValue()));
+        Platform.runLater(() -> {
+            listView.getSelectionModel().select(0);
+            listView.requestFocus();
+        });
+        runAllButton.setOnAction(e -> Platform.runLater(() -> session.runAll()));
+    }
+
+    public void refresh() {
+        // this sequence that does NOT add extra items to the list view on refresh()
+        // was arrived at after a lot of trial and error. is this a bug in javafx ?
+        listView.setCellFactory(lv -> new FeatureOutlineCell());
+        listView.refresh();                
     }
 
 }
