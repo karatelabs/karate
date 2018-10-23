@@ -58,9 +58,7 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     protected final boolean headless;
     private final long timeOut;
 
-    protected boolean open = true;
     protected String currentUrl;
-
     private int nextId;
 
     public int getNextId() {
@@ -166,14 +164,10 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
     @Override
     public void close() {
         method("Page.close").send();
-        open = false;
     }
 
     @Override
     public void quit() {
-        if (open) {
-            close();
-        }
         method("Browser.close").send(WaitState.CHROME_INSPECTOR_DETACHED);
         if (command != null) {
             command.close();
