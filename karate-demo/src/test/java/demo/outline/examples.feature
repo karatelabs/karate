@@ -3,8 +3,9 @@ Feature: patterns for using cucumber scenario-outline and examples with karate
 Background:
     * url demoBaseUrl
 
-Scenario Outline: avoid empty cells and use null in 'Examples' to work better with karate
-    and also consider stuffing whole chunks of json into cells
+Scenario Outline: name: <name> and country: <country>
+    avoid empty cells and use null in 'Examples' to work better with karate
+        and also consider stuffing whole chunks of json into cells
 
     Given path 'search'
     And params { name: <name>, country: <country>, active: <active>, limit: <limit> }
@@ -21,7 +22,8 @@ Scenario Outline: avoid empty cells and use null in 'Examples' to work better wi
         | null   | 'US'      | null   |     3 | { name: '#notnull', active: '#notnull' }                     |
         | null   | null      | false  |  null | { name: '#notnull', country: '#notnull', limit: '#notnull' } |
 
-Scenario Outline: combine 'Examples' embedded expressions and karate expression evaluation
+Scenario Outline: expressions - index: <index> and country: <country>
+    combine 'Examples' embedded expressions and karate expression evaluation
 
     * def names = { first: 'foo', second: 'bar', third: 'baz', fourth: null, fifth: null }
     * def missing =

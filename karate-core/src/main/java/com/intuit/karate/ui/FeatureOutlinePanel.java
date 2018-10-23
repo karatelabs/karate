@@ -44,14 +44,15 @@ import javafx.scene.layout.VBox;
 public class FeatureOutlinePanel extends BorderPane {
 
     private final AppSession2 session;
-    private final ListView<ScenarioExecutionUnit> listView;
-    private final List<ScenarioExecutionUnit> units;
+    private ListView<ScenarioExecutionUnit> listView;
+    private final ScrollPane scrollPane;
+    private final List<ScenarioExecutionUnit> units;    
 
     public FeatureOutlinePanel(AppSession2 session) {
         this.session = session;
         this.units = session.getScenarioExecutionUnits();
         setPadding(App2.PADDING_HOR);
-        ScrollPane scrollPane = new ScrollPane();
+        scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
         VBox header = new VBox(App2.PADDING);
@@ -68,13 +69,7 @@ public class FeatureOutlinePanel extends BorderPane {
         hbox.getChildren().add(resetButton);
         hbox.getChildren().add(runAllButton);
         setCenter(scrollPane);
-        listView = new ListView(FXCollections.observableArrayList(units)); 
-        // see comment for refresh()
-        listView.setCellFactory(lv -> new FeatureOutlineCell());
-        scrollPane.setContent(listView);
-        listView.getSelectionModel()
-                .selectedIndexProperty()
-                .addListener((o, prev, value) -> session.setSelectedScenario(value.intValue()));
+        refresh();
         Platform.runLater(() -> {
             listView.getSelectionModel().select(0);
             listView.requestFocus();
@@ -83,10 +78,15 @@ public class FeatureOutlinePanel extends BorderPane {
     }
 
     public void refresh() {
-        // this sequence that does NOT add extra items to the list view on refresh()
-        // was arrived at after a lot of trial and error. is this a bug in javafx ?
+        // unless we do ALL of this - the custom cell rendering has problems in javafx
+        // and starts duplicating the last row for some reason, spent a lot of time on this :(
+        listView = new ListView();
+        listView.setItems(FXCollections.observableArrayList(units));
         listView.setCellFactory(lv -> new FeatureOutlineCell());
-        listView.refresh();                
+        scrollPane.setContent(listView);
+        listView.getSelectionModel()
+                .selectedIndexProperty()
+                .addListener((o, prev, value) -> session.setSelectedScenario(value.intValue()));        
     }
 
 }

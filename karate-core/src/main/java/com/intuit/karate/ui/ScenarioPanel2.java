@@ -81,6 +81,7 @@ public class ScenarioPanel2 extends BorderPane {
         stepPanels = new ArrayList();
         unit.getSteps().forEach(step -> addStepPanel(step));
         lastStep.setLast(true);
+        reset(); // clear any background results if dynamic scenario
     }
 
     private void addStepPanel(Step step) {

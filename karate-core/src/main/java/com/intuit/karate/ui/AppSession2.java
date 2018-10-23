@@ -41,17 +41,17 @@ import javafx.scene.layout.BorderPane;
  * @author pthomas3
  */
 public class AppSession2 {
-    
+
     private final Logger logger = new Logger();
     private final ExecutionContext exec;
     private final FeatureExecutionUnit featureUnit;
-    
+
     private final BorderPane rootPane = new BorderPane();
     private final FeatureOutlinePanel featureOutlinePanel;
     private final LogPanel logPanel;
 
     private final List<ScenarioPanel2> scenarioPanels;
-    
+
     public AppSession2(File featureFile, String envString) {
         Feature feature = FeatureParser.parse(featureFile);
         FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
@@ -68,7 +68,7 @@ public class AppSession2 {
         }
         rootPane.setLeft(featureOutlinePanel);
         logPanel = new LogPanel(logger);
-        rootPane.setBottom(logPanel);        
+        rootPane.setBottom(logPanel);
     }
 
     public void resetAll() {
@@ -76,39 +76,42 @@ public class AppSession2 {
             scenarioPanel.reset();
         }
     }
-    
+
     public void runAll() {
         for (ScenarioPanel2 scenarioPanel : scenarioPanels) {
             scenarioPanel.runAll();
-        }      
+        }
     }
-    
+
     public BorderPane getRootPane() {
         return rootPane;
-    }        
+    }
 
     public FeatureOutlinePanel getFeatureOutlinePanel() {
         return featureOutlinePanel;
-    }               
-    
+    }
+
     public void setSelectedScenario(int index) {
+        if (index == -1) {
+            return;
+        }
         rootPane.setCenter(scenarioPanels.get(index));
     }
 
     public Logger getLogger() {
         return logger;
-    }        
-    
+    }
+
     public FeatureExecutionUnit getFeatureExecutionUnit() {
         return featureUnit;
     }
-    
+
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
         return featureUnit.getScenarioExecutionUnits();
-    }   
-    
+    }
+
     public void logVar(Var var) {
         logPanel.append(var.toString());
     }
-    
+
 }
