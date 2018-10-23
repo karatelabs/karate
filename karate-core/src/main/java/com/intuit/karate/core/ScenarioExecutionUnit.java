@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.util.Collections;
@@ -37,14 +38,14 @@ import java.util.function.Consumer;
 public class ScenarioExecutionUnit implements Runnable {
 
     public final Scenario scenario;
-    public final Tags tags;
-    public final StepActions actions;
+    public final Tags tags;    
     private final ExecutionContext exec;
     private final List<Step> steps;
     private final Iterator<Step> iterator;
     public final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
 
+    private StepActions actions;
     private Runnable next;
     private boolean started;
     private boolean stopped = false;
@@ -84,6 +85,14 @@ public class ScenarioExecutionUnit implements Runnable {
         return steps;
     }
 
+    public StepActions getActions() {
+        return actions;
+    }        
+
+    public void setActions(StepActions actions) {
+        this.actions = actions;
+    }        
+
     public void setNext(Runnable next) {
         this.next = next;
     }
@@ -93,8 +102,10 @@ public class ScenarioExecutionUnit implements Runnable {
         result.setStartTime(System.currentTimeMillis() - exec.startTime);
     }
     
-    public void reset() {
+    // for karate ui
+    public void reset(ScenarioContext context) {
         result.reset();
+        actions = new StepActions(context);
     }
 
     // extracted for karate UI

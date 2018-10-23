@@ -154,10 +154,6 @@ public class ScenarioContext {
         return featureContext;
     }
 
-    public ScriptValueMap getVars() {
-        return vars;
-    }
-
     public HttpConfig getConfig() {
         return config;
     }
@@ -256,6 +252,10 @@ public class ScenarioContext {
     public ScenarioContext copy(ScenarioInfo info) {
         return new ScenarioContext(this, info);
     }
+    
+    public ScenarioContext copy() {
+        return new ScenarioContext(this, scenarioInfo);
+    }    
     
     private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
         featureContext = sc.featureContext;

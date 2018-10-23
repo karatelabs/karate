@@ -109,7 +109,7 @@ public class FeatureExecutionUnit implements Runnable {
             unit.setNext(() -> {
                 // we also hold a reference to the last scenario-context that executed
                 // for cases where the caller needs a result
-                lastContextExecuted = unit.actions.context;
+                lastContextExecuted = unit.getActions().context;
                 if (parallelScenarios) {
                     latch.countDown();
                 } else { // yield next scenario only when previous completes                    
@@ -145,7 +145,7 @@ public class FeatureExecutionUnit implements Runnable {
             }
             if (lastContextExecuted != null) {
                 // set result map that caller will see
-                exec.result.setResultVars(lastContextExecuted.getVars());
+                exec.result.setResultVars(lastContextExecuted.vars);
                 lastContextExecuted.invokeAfterHookIfConfigured(true);
             }
             exec.appender.close();

@@ -57,7 +57,7 @@ public class FeatureBackend {
 
     private static void putBinding(String name, ScenarioContext context) {
         String function = "function(s){ return " + ScriptBindings.KARATE + "." + name + "(s) }";
-        context.getVars().put(name, Script.evalJsExpression(function, context));
+        context.vars.put(name, Script.evalJsExpression(function, context));
     }
 
     public boolean isCorsEnabled() {
@@ -86,8 +86,7 @@ public class FeatureBackend {
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
         putBinding(ScriptBindings.BODY_PATH, context);
         if (vars != null) {
-            ScriptValueMap backendVars = context.getVars();
-            vars.forEach((k, v) -> backendVars.put(k, v));
+            vars.forEach((k, v) -> context.vars.put(k, v));
         }
         // the background is evaluated one-time
         if (feature.isBackgroundPresent()) {
@@ -108,8 +107,7 @@ public class FeatureBackend {
 
     public ScriptValueMap handle(ScriptValueMap args) {
         boolean matched = false;
-        ScriptValueMap vars = context.getVars();
-        vars.putAll(args);
+        context.vars.putAll(args);
         for (FeatureSection fs : feature.getSections()) {
             if (fs.isOutline()) {
                 context.logger.warn("skipping scenario outline - {}:{}", featureName, fs.getScenarioOutline().getLine());
@@ -136,7 +134,7 @@ public class FeatureBackend {
         if (!matched) {
             context.logger.warn("no scenarios matched");
         }
-        return vars;
+        return context.vars;
     }
 
     private boolean isMatchingScenario(Scenario scenario) {

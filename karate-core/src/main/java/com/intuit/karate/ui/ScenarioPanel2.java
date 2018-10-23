@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.ui;
 
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
 import java.util.ArrayList;
@@ -53,11 +54,13 @@ public class ScenarioPanel2 extends BorderPane {
         return unit;
     }
 
+    private final ScenarioContext initialContext;
     private int index;
 
     public ScenarioPanel2(AppSession2 session, ScenarioExecutionUnit unit) {
         this.session = session;
         this.unit = unit;
+        initialContext = unit.getActions().context.copy();
         content = new VBox(App2.PADDING);
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
@@ -102,7 +105,8 @@ public class ScenarioPanel2 extends BorderPane {
     }
 
     public void reset() {
-        unit.reset();
+        unit.reset(initialContext.copy());
+        refreshVars();
         for (StepPanel2 stepPanel : stepPanels) {
             stepPanel.initStyles();
         }

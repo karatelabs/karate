@@ -3,7 +3,6 @@ package com.intuit.karate.ui;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
-import com.intuit.karate.StepActions;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
@@ -24,7 +23,7 @@ public class VarLists {
         if (context == null) {
             varList = requestVarList = responseVarList = FXCollections.emptyObservableList();
         } else {
-            ScriptValueMap map = context.getVars();
+            ScriptValueMap map = context.vars;
             Var var;
             List<Var> vars = new ArrayList();
             List<Var> requestVars = new ArrayList();

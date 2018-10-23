@@ -83,10 +83,10 @@ public class VarsPanel2 extends BorderPane {
     }
     
     private ObservableList<Var> getVarList() {
-        ScenarioContext context = scenarioPanel.getScenarioExecutionUnit().actions.context;
+        ScenarioContext context = scenarioPanel.getScenarioExecutionUnit().getActions().context;
         ScriptValueMap vars = context.vars;        
         List<Var> list = new ArrayList(vars.size());
-        context.getVars().forEach((k, v) -> list.add(new Var(k, v)));
+        context.vars.forEach((k, v) -> list.add(new Var(k, v)));
         return FXCollections.observableList(list);        
     }
     
