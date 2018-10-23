@@ -91,6 +91,7 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             stopFunction.run();
         }
+        String streamId = getStreamId(msg);
         if (provider.isCorsEnabled() && msg.method().equals(HttpMethod.OPTIONS)) {
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
             HttpHeaders responseHeaders = response.headers();
@@ -101,7 +102,10 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
             if (requestHeaders != null) {
                 responseHeaders.set(HttpUtils.HEADER_AC_ALLOW_HEADERS, requestHeaders);
             }
+            setStreamId(response, streamId);
             ctx.write(response);
+            if(streamId != null)
+                ctx.flush();
         } else {
             StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
             HttpRequest request = new HttpRequest();
@@ -124,13 +128,15 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
                 content.readBytes(bytes);
                 request.setBody(bytes);
             }
-            writeResponse(request, ctx);
+            writeResponse(request, streamId, ctx);
         }
+        if(streamId == null)
+            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
 
     private static final String VAR_AFTER_SCENARIO = "afterScenario";
 
-    private void writeResponse(HttpRequest request, ChannelHandlerContext ctx) {
+    private void writeResponse(HttpRequest request, String streamId, ChannelHandlerContext ctx) {
         Match match = Match.init()
                 .defText(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
                 .defText(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
@@ -210,7 +216,7 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
         if (afterScenario != null && afterScenario.isFunction()) {
             afterScenario.invokeFunction(provider.getContext());
         }
-        sendResponse(ctx, getStreamId(request), 0, response);
+        sendResponse(ctx, streamId, 0, response);
     }
 
     @Override
@@ -223,16 +229,16 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
     protected void sendResponse(final ChannelHandlerContext ctx, String streamId, int latency,
             final FullHttpResponse response) {
         setContentLength(response, response.content().readableBytes());
-        if(streamId != null)
-            setStreamId(response, streamId);
+        setStreamId(response, streamId);
         ctx.writeAndFlush(response);
     }
 
-    private String getStreamId(HttpRequest request) {
-        return request.getHeader(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text().toString());
+    private String getStreamId(FullHttpRequest msg) {
+        return msg.headers().get(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text().toString());
     }
 
     private void setStreamId(FullHttpResponse response, String streamId) {
-        response.headers().set(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text(), streamId);
+        if(streamId != null)
+            response.headers().set(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text(), streamId);
     }
 }
