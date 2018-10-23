@@ -100,7 +100,9 @@ public class ScenarioPanel2 extends BorderPane {
     public void runAll() {
         reset();
         for (StepPanel2 stepPanel : stepPanels) {
-            stepPanel.run();
+            if (stepPanel.run()) {
+                break;
+            }
         }      
     }
 

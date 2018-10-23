@@ -1,6 +1,6 @@
 package driver.core;
 
-import com.intuit.karate.ui.App;
+import com.intuit.karate.ui.App2;
 import org.junit.Test;
 
 /**
@@ -12,7 +12,7 @@ public class Test01UiRunner {
     @Test
     public void testUi() {
         System.setProperty("web.url.base", "http://localhost:8080");
-        App.run("src/test/java/driver/core/test-01.feature", "mock");
+        App2.run("src/test/java/driver/core/test-01.feature", "mock");
     }
 
 }

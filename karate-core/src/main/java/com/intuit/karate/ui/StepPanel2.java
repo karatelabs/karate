@@ -110,11 +110,12 @@ public class StepPanel2 extends AnchorPane {
         }
     }
 
-    public void run() {
+    public boolean run() {
         StepResult sr = unit.execute(step);
         unit.result.setStepResult(index, sr);
         initStyles();
         scenarioPanel.refreshVars();
+        return sr.isStopped();
     }
 
 }
