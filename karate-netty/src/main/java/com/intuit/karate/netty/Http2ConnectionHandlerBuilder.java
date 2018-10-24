@@ -47,10 +47,10 @@ public final class Http2ConnectionHandlerBuilder
                                            Http2Settings initialSettings) {
         FeatureServerHttp2ConnectionHandler handler = new FeatureServerHttp2ConnectionHandler(decoder, encoder, initialSettings);
         InboundHttp2ToHttpAdapter listener = new InboundHttp2ToHttpAdapterBuilder(handler.connection())
-        		.maxContentLength(1048576)
-        		.validateHttpHeaders(false)
-        		.propagateSettings(true)
-        		.build();
+                .maxContentLength(1048576)
+                .validateHttpHeaders(false)
+                .propagateSettings(true)
+                .build();
         frameListener(listener);
         return handler;
     }

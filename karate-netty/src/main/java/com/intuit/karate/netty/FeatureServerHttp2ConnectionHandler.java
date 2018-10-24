@@ -38,13 +38,13 @@ public final class FeatureServerHttp2ConnectionHandler extends Http2ConnectionHa
     private static final Logger logger = LoggerFactory.getLogger(FeatureServerHttp2ConnectionHandler.class);
 
     FeatureServerHttp2ConnectionHandler(Http2ConnectionDecoder decoder, Http2ConnectionEncoder encoder, 
-    		Http2Settings initialSettings) {
+            Http2Settings initialSettings) {
         super(decoder, encoder, initialSettings);
     }
 
-	@Override
+    @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-   		logger.info("ConnectionHandler channelReadComplete: ) ");
+        logger.info("ConnectionHandler channelReadComplete: ) ");
         ctx.flush();
         super.channelReadComplete(ctx);
     }
@@ -52,17 +52,17 @@ public final class FeatureServerHttp2ConnectionHandler extends Http2ConnectionHa
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         logger.debug("ConnectionHandler write: ({}) ", msg);
-    	if (msg instanceof FullHttpResponse) {
-    		FullHttpResponse response = (FullHttpResponse)msg;
-    		Http2Headers headers = HttpConversionUtil.toHttp2Headers(response, false);
+        if (msg instanceof FullHttpResponse) {
+            FullHttpResponse response = (FullHttpResponse)msg;
+            Http2Headers headers = HttpConversionUtil.toHttp2Headers(response, false);
             int streamId = getStreamId(response);
             encoder().writeHeaders(ctx, streamId, headers, 0, false, ctx.newPromise());
             encoder().writeData(ctx, streamId, response.content(), 0, true, ctx.newPromise());
-    		
+            
             return;
-    	}
-    	
-    	ctx.write(msg, promise);
+        }
+        
+        ctx.write(msg, promise);
     }
 
     /**
@@ -74,7 +74,7 @@ public final class FeatureServerHttp2ConnectionHandler extends Http2ConnectionHa
         return streamId;
     }
 
-	
+    
     /**
      * Handles the cleartext HTTP upgrade event. If an upgrade occurred, pushes the embedded, 
      * aggregated HTTP request to the feature server request handler).
@@ -91,7 +91,7 @@ public final class FeatureServerHttp2ConnectionHandler extends Http2ConnectionHa
         super.userEventTriggered(ctx, evt);
     }
 
-	@Override
+    @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         logger.error("ConnectionHandler exceptionCaught: ({}) ", cause);
         super.exceptionCaught(ctx, cause);

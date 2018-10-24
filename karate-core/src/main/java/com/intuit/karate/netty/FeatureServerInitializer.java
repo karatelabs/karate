@@ -66,10 +66,10 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
     private final Runnable stopFunction;
     
     private class FeatureServerUpgradeCodecFactory implements UpgradeCodecFactory {
-		@Override
-		public UpgradeCodec newUpgradeCodec(CharSequence protocol) {
+        @Override
+        public UpgradeCodec newUpgradeCodec(CharSequence protocol) {
             if (AsciiString.contentEquals(Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME, protocol)) {
-          	    return new Http2ServerUpgradeCodec(new Http2ConnectionHandlerBuilder().build());
+                return new Http2ServerUpgradeCodec(new Http2ConnectionHandlerBuilder().build());
             } else {
                 return null;
             }
@@ -85,19 +85,19 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
     
     @Override
     public void initChannel(SocketChannel ch) {
-    	
-    	ChannelPipeline p = ch.pipeline();
-    	if (sslCtx != null) {
-        	setupForSSL(ch);
+        
+        ChannelPipeline p = ch.pipeline();
+        if (sslCtx != null) {
+            setupForSSL(ch);
         }
         else {
-        	setupForClearText(p);
+            setupForClearText(p);
         }
     }
 
-	private void setupForClearText(ChannelPipeline p) {
-		logger.info("server setup for ClearText");
-		
+    private void setupForClearText(ChannelPipeline p) {
+        logger.info("server setup for ClearText");
+        
         final HttpServerCodec sourceCodec = new HttpServerCodec();
         final HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(sourceCodec, new FeatureServerUpgradeCodecFactory(), UPGRADE_REQ_LENGTH_MAX);
         final ChannelHandler featureServerConnectionHandler = new Http2ConnectionHandlerBuilder().build();
@@ -108,14 +108,14 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
         p.addLast(cleartextHttp2ServerUpgradeHandler);
         // HTTP/1 requests fall-through or HTTP/2 requests are converted 
         // and pushed through to the feature server request handling
-        p.addLast(new HttpObjectAggregator(1048576));
+        p.addLast(new HttpObjectAggregator(Http2OrHttpHandler.MAX_CONTENT_LENGTH));
         p.addLast(new FeatureServerRequestHandler(provider, stopFunction));
-	}
+    }
 
-	private void setupForSSL(SocketChannel ch) {
-		logger.info("server setup for SSL");
-		ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()), new Http2OrHttpHandler(provider, stopFunction));
-		
-	}
+    private void setupForSSL(SocketChannel ch) {
+        logger.info("server setup for SSL");
+        ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()), new Http2OrHttpHandler(provider, stopFunction));
+        
+    }
     
 }

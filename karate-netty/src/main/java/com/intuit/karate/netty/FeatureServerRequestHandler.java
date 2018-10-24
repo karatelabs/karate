@@ -73,7 +73,7 @@ public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<Ful
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) {
-        provider.getContext().logger.debug("FeatureServerHandlerHttp1 channelReadComplete: {}", ctx);
+        provider.getContext().logger.debug("FeatureServerRequestHandler channelReadComplete: {}", ctx);
         ctx.flush();
     }
 

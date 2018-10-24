@@ -34,10 +34,11 @@ import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
 public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(Http2OrHttpHandler.class);
-    private static final int MAX_CONTENT_LENGTH = 1024 * 100;
     private final FeatureProvider provider;
     private final Runnable stopFunction;
 
+    public static final int MAX_CONTENT_LENGTH = 1024 * 1024;
+    
     protected Http2OrHttpHandler(FeatureProvider provider, Runnable stopFunction) {
         super(ApplicationProtocolNames.HTTP_1_1);
         this.provider = provider;
@@ -46,7 +47,7 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
   
     @Override
     protected void configurePipeline(ChannelHandlerContext ctx, String protocol) throws Exception {
-	    logger.info("configurePipeline: {} ", protocol);
+        logger.info("configurePipeline: {} ", protocol);
         if (ApplicationProtocolNames.HTTP_2.equals(protocol)) {
             configureHttp2(ctx);
             return;
@@ -61,14 +62,14 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
     }
 
     private void configureHttp2(ChannelHandlerContext ctx) {
-	    logger.info("configureHttp2");
-	    
+        logger.info("configureHttp2");
+        
         ctx.pipeline().addLast(new Http2ConnectionHandlerBuilder().build());
         ctx.pipeline().addLast(new FeatureServerRequestHandler(provider, stopFunction));
     }
 
     private void configureHttp1(ChannelHandlerContext ctx) throws Exception {
-	    logger.info("configureHttp1");
+        logger.info("configureHttp1");
         ctx.pipeline().addLast(new HttpServerCodec(),
                                new HttpObjectAggregator(MAX_CONTENT_LENGTH),
                                new FeatureServerRequestHandler(provider, stopFunction));
