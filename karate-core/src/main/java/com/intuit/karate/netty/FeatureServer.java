@@ -91,7 +91,7 @@ public class FeatureServer {
     }
 
     private static SslContext getSelfSignedSslContext() {
-        try {
+        try {            
             SelfSignedCertificate ssc = new SelfSignedCertificate();
             return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey())
                     .sslProvider(OpenSsl.isAlpnSupported() ? SslProvider.OPENSSL : SslProvider.JDK)
@@ -111,20 +111,17 @@ public class FeatureServer {
     
     private static SslContext getSslContextFromFiles(File sslCert, File sslPrivateKey) {
         try {
-            // TODO - remove debug logs
-            if(OpenSsl.isAvailable()){
+            if(OpenSsl.isAvailable()) {
                 if(OpenSsl.isAlpnSupported()){
-                    logger.info("getSslContextFromFiles OpenSSL: ALPN IS SUPPORTED ");
+                    logger.debug("getSslContextFromFiles OpenSSL: ALPN IS SUPPORTED ");
                 }
                 else{
-                    logger.info("getSslContextFromFiles OpenSSL: ALPN IS NOT supported ");
-                    
+                    logger.debug("getSslContextFromFiles OpenSSL: ALPN IS NOT supported ");
                 }
             }
-            else{
-                logger.info("getSslContextFromFiles OpenSSL: Not Available ");
+            else {
+                logger.debug("getSslContextFromFiles OpenSSL: Not Available ");
             }
-                
             
             return SslContextBuilder.forServer(sslCert, sslPrivateKey)
                     .sslProvider(OpenSsl.isAlpnSupported() ? SslProvider.OPENSSL : SslProvider.JDK)
