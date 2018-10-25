@@ -45,7 +45,7 @@ public class ExecutionContext {
     public final ExecutorService scenarioExecutor;
     public final ExecutorService singleExecutor;
 
-    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, 
+    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDir,
             Consumer<Runnable> system, ExecutorService scenarioExecutor, ExecutorService singleExecutor) {
         this.scenarioExecutor = scenarioExecutor;
         this.singleExecutor = singleExecutor;
@@ -53,6 +53,7 @@ public class ExecutionContext {
         result = new FeatureResult(featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;
+        reportDir = reportDir == null ? Engine.getBuildDir() + File.separator + "surefire-reports" : reportDir;
         if (system == null) {
             this.system = r -> r.run();
         } else {
@@ -61,7 +62,7 @@ public class ExecutionContext {
         if (callContext.perfMode) {
             appender = LogAppender.NO_OP;
         } else {            
-            File logFileDir = new File(Engine.getBuildDir() + File.separator + "surefire-reports");
+            File logFileDir = new File(reportDir);
             if (!logFileDir.exists()) {
                 logFileDir.mkdirs();
             }

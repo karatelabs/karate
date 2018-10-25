@@ -56,7 +56,7 @@ public class AppSession2 {
         Feature feature = FeatureParser.parse(featureFile);
         FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
         CallContext callContext = new CallContext(null, true);
-        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();
         featureOutlinePanel = new FeatureOutlinePanel(this);
