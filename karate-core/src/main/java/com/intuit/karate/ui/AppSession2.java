@@ -62,25 +62,18 @@ public class AppSession2 {
         featureOutlinePanel = new FeatureOutlinePanel(this);
         List<ScenarioExecutionUnit> units = featureUnit.getScenarioExecutionUnits();
         scenarioPanels = new ArrayList(units.size());
-        for (ScenarioExecutionUnit unit : units) {
-            ScenarioPanel2 scenarioPanel = new ScenarioPanel2(this, unit);
-            scenarioPanels.add(scenarioPanel);
-        }
+        units.forEach(unit -> scenarioPanels.add(new ScenarioPanel2(this, unit)));
         rootPane.setLeft(featureOutlinePanel);
         logPanel = new LogPanel(logger);
         rootPane.setBottom(logPanel);
     }
 
     public void resetAll() {
-        for (ScenarioPanel2 scenarioPanel : scenarioPanels) {
-            scenarioPanel.reset();
-        }
+    	scenarioPanels.forEach(scenarioPanel -> scenarioPanel.reset());
     }
 
     public void runAll() {
-        for (ScenarioPanel2 scenarioPanel : scenarioPanels) {
-            scenarioPanel.runAll();
-        }
+    	scenarioPanels.forEach(scenarioPanel -> scenarioPanel.runAll());
     }
 
     public BorderPane getRootPane() {
