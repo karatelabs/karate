@@ -69,15 +69,11 @@ public class AppSession2 {
     }
 
     public void resetAll() {
-        for (ScenarioPanel2 scenarioPanel : scenarioPanels) {
-            scenarioPanel.reset();
-        }
+    	scenarioPanels.forEach(scenarioPanel -> scenarioPanel.reset());
     }
 
     public void runAll() {
-        for (ScenarioPanel2 scenarioPanel : scenarioPanels) {
-            scenarioPanel.runAll();
-        }
+    	scenarioPanels.forEach(scenarioPanel -> scenarioPanel.runAll());
     }
 
     public BorderPane getRootPane() {
