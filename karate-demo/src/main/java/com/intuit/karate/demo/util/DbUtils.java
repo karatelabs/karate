@@ -41,6 +41,10 @@ public class DbUtils {
     
     public List<Map<String, Object>> readRows(String query) {
         return jdbc.queryForList(query);
-    }     
-    
+    }
+
+    public int updateRows(String query) {
+        return jdbc.update(query);
+    }
+
 }
