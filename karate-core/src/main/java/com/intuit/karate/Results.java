@@ -25,6 +25,7 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.ScenarioResult;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +36,9 @@ import java.util.Map;
  */
 public class Results {
 
+    private final int threadCount;
     private int featureCount;
-    private int testCount;
+    private int scenarioCount;
     private int failCount;
     private int skipCount;
     private double timeTakenMillis;
@@ -47,8 +49,44 @@ public class Results {
     private String reportDir;
     private final List<ScenarioResult> scenarioResults = new ArrayList();
 
-    private Results(long startTime) {
+    public void printStats(int threadCount) {
+        System.out.println("Karate version: " + FileUtils.getKarateVersion());
+        System.out.println("======================================================");
+        System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
+                getElapsedTime() / 1000, threadCount, timeTakenMillis / 1000));
+        System.out.println(String.format("features: %5d | ignored: %4d | efficiency: %.2f", featureCount, skipCount, getEfficiency()));
+        System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
+                scenarioCount, getPassCount(), failCount));
+        System.out.println("======================================================");
+        System.out.println(getErrorMessages());
+        if (failureReason != null) {
+            if (failCount == 0) {
+                failCount = 1;
+            }
+            System.out.println("*** runner exception stack trace ***");
+            failureReason.printStackTrace();
+        }
+    }
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put("version", FileUtils.getKarateVersion());
+        map.put("threads", threadCount);
+        map.put("features", featureCount);
+        map.put("ignored", skipCount);
+        map.put("scenarios", scenarioCount);
+        map.put("failed", failCount);
+        map.put("passed", getPassCount());
+        map.put("elapsedTime", getElapsedTime());
+        map.put("totalTime", getTimeTakenMillis());
+        map.put("efficiency", getEfficiency());        
+        map.put("failures", failedMap);
+        return map;
+    }
+
+    private Results(long startTime, int threadCount) {
         this.startTime = startTime;
+        this.threadCount = threadCount;
     }
 
     public void addToFailedList(String name, String errorMessage) {
@@ -58,8 +96,8 @@ public class Results {
         failedMap.put(name, errorMessage);
     }
 
-    public static Results startTimer() {
-        return new Results(System.currentTimeMillis());
+    public static Results startTimer(int threadCount) {
+        return new Results(System.currentTimeMillis(), threadCount);
     }
 
     public String getReportDir() {
@@ -78,8 +116,8 @@ public class Results {
         return failureReason;
     }
 
-    public void addToTestCount(int count) {
-        testCount += count;
+    public void addToScenarioCount(int count) {
+        scenarioCount += count;
     }
 
     public void addToFailCount(int count) {
@@ -117,25 +155,20 @@ public class Results {
         return sb.toString();
     }
 
-    public void printStats(int threadCount) {
-        double elapsedTime = endTime - startTime;
-        System.out.println("Karate version: " + FileUtils.getKarateVersion());
-        System.out.println("======================================================");
-        double efficiency = timeTakenMillis / (elapsedTime * threadCount);
-        System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
-                elapsedTime / 1000, threadCount, timeTakenMillis / 1000));
-        System.out.println(String.format("features: %5d | ignored: %4d | efficiency: %.2f", featureCount, skipCount, efficiency));
-        System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
-                testCount, testCount - failCount, failCount));
-        System.out.println("======================================================");
-        System.out.println(getErrorMessages());
-        if (failureReason != null) {
-            if (failCount == 0) {
-                failCount = 1;
-            }
-            System.out.println("*** runner exception stack trace ***");
-            failureReason.printStackTrace();
-        }
+    public double getElapsedTime() {
+        return endTime - startTime;
+    }
+
+    public double getEfficiency() {
+        return timeTakenMillis / (getElapsedTime() * threadCount);
+    }
+
+    public int getPassCount() {
+        return scenarioCount - failCount;
+    }
+
+    public int getThreadCount() {
+        return threadCount;
     }
 
     public void setFeatureCount(int featureCount) {
@@ -146,8 +179,8 @@ public class Results {
         return featureCount;
     }
 
-    public int getTestCount() {
-        return testCount;
+    public int getScenarioCount() {
+        return scenarioCount;
     }
 
     public int getFailCount() {

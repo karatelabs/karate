@@ -83,7 +83,7 @@ public class Runner {
         }
         final String finalReportDir = reportDir;
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
-        Results results = Results.startTimer();
+        Results results = Results.startTimer(threadCount);
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount);
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
         ExecutorService singleExecutor = Executors.newSingleThreadExecutor();
@@ -122,7 +122,7 @@ public class Runner {
             results.stopTimer();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
-                results.addToTestCount(scenarioCount);
+                results.addToScenarioCount(scenarioCount);
                 if (scenarioCount != 0) {
                     executedFeatureCount++;
                 }
@@ -143,6 +143,7 @@ public class Runner {
         }
         results.setFeatureCount(executedFeatureCount);
         results.printStats(threadCount);
+        Engine.saveStatsJson(reportDir, results, null);
         Engine.saveTimelineHtml(reportDir, results, null);
         results.setReportDir(reportDir);
         return results;

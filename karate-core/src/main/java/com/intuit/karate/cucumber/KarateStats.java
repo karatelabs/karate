@@ -48,7 +48,7 @@ public class KarateStats {
     
     protected KarateStats(Results from) {
         featureCount = from.getFeatureCount();
-        testCount = from.getTestCount();
+        testCount = from.getScenarioCount();
         failCount = from.getFailCount();
         timeTakenMillis = from.getTimeTakenMillis();
         startTime = from.getStartTime();

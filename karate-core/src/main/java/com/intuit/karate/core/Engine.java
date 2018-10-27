@@ -163,9 +163,9 @@ public class Engine {
         List<Map> single = Collections.singletonList(result.toMap());
         String json = JsonUtils.toJson(single);
         if (fileName == null) {
-            fileName = File.separator + result.getPackageQualifiedName() + ".json";
+            fileName = result.getPackageQualifiedName() + ".json";
         }
-        File file = new File(targetDir + fileName);
+        File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, json);
         return file;
     }
@@ -386,9 +386,9 @@ public class Engine {
             }
         }
         if (fileName == null) {
-            fileName = File.separator + baseName + ".html";
+            fileName = baseName + ".html";
         }
-        File file = new File(targetDir + fileName);
+        File file = new File(targetDir + File.separator + fileName);
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
             FileUtils.writeToFile(file, xml);
@@ -405,8 +405,18 @@ public class Engine {
     private static long getElapsedTime(long startTime) {
         return System.nanoTime() - startTime;
     }
+    
+    public static File saveStatsJson(String targetDir, Results results, String fileName) {
+        String json = JsonUtils.toJson(results.toMap());
+        if (fileName == null) {
+            fileName = "results.json";
+        }
+        File file = new File(targetDir + File.separator + fileName);
+        FileUtils.writeToFile(file, json);
+        return file;        
+    }
 
-    public static void saveTimelineHtml(String targetDir, Results results, String fileName) {
+    public static File saveTimelineHtml(String targetDir, Results results, String fileName) {
         Map<String, Integer> groupsMap = new LinkedHashMap();
         List<ScenarioResult> scenarioResults = results.getScenarioResults();
         List<Map> items = new ArrayList(scenarioResults.size());
@@ -452,6 +462,7 @@ public class Engine {
         String html = getClasspathResource("timeline-template.html");
         html = html.replaceFirst("//timeline//", sb.toString());
         FileUtils.writeToFile(htmlFile, html);
+        return htmlFile;
     }
 
     private static List<MethodMatch> findMethodsMatching(String text) {

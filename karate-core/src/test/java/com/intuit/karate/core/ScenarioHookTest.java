@@ -48,7 +48,7 @@ public class ScenarioHookTest {
         String path = "classpath:com/intuit/karate/core/test-hook-multiexample.feature";
         Results results = Runner.parallel(null, Collections.singletonList(path), new MandatoryTagHook(), 1, null);
         assertEquals(1, results.getFeatureCount());
-        assertEquals(7, results.getTestCount());
+        assertEquals(7, results.getScenarioCount());
         assertEquals(0, results.getFailCount());
     }    
     
