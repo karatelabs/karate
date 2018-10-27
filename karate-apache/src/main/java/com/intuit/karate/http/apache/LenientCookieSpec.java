@@ -30,6 +30,7 @@ import org.apache.http.cookie.CookieOrigin;
 import org.apache.http.cookie.CookieSpecProvider;
 import org.apache.http.cookie.MalformedCookieException;
 import org.apache.http.impl.cookie.DefaultCookieSpec;
+import org.apache.http.impl.cookie.NetscapeDraftSpec;
 import org.apache.http.protocol.HttpContext;
 
 /**
@@ -39,6 +40,10 @@ import org.apache.http.protocol.HttpContext;
 public class LenientCookieSpec extends DefaultCookieSpec {
     
     public static String KARATE = "karate";
+    
+    public LenientCookieSpec() {
+        super(new String[]{"EEE, dd-MMM-yy HH:mm:ss z", "EEE, dd MMM yyyy HH:mm:ss Z"}, false);
+    }
 
     @Override
     public boolean match(Cookie cookie, CookieOrigin origin) {
