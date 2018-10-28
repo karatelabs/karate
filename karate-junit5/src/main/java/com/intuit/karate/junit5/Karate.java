@@ -54,7 +54,7 @@ public class Karate {
         private List<String> features;
         private Class clazz;
 
-        public KarateBuilder forTags(String ... tags) {
+        public KarateBuilder tags(String ... tags) {
             if (this.tags == null) {
                 this.tags = new ArrayList(tags.length);
             }
@@ -62,7 +62,7 @@ public class Karate {
             return this;
         }
 
-        public KarateBuilder withFeatures(String ... features) {
+        public KarateBuilder feature(String ... features) {
             if (this.features == null) {
                 this.features = new ArrayList(features.length);
             }
@@ -86,12 +86,12 @@ public class Karate {
         return new KarateBuilder().relativeTo(clazz);
     }
 
-    public static KarateBuilder withFeatures(String ... features) {
-        return new KarateBuilder().withFeatures(features);
+    public static KarateBuilder feature(String ... features) {
+        return new KarateBuilder().feature(features);
     }
 
-    public static KarateBuilder forTags(String ... tags) {
-        return new KarateBuilder().forTags(tags);
+    public static KarateBuilder tags(String ... tags) {
+        return new KarateBuilder().tags(tags);
     }
 
     private Karate(List<String> featureNames, List<String> tags, Class clazz) {

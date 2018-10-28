@@ -421,6 +421,9 @@ public class FileUtils {
         for (String path : paths) {
             boolean classpath = isClassPath(path);
             if (!classpath) { // convert from relative path
+                if (!path.endsWith(".feature")) {
+                    path = path + ".feature";
+                }
                 path = toRelativeClassPath(clazz) + "/" + path;
             }
             list.addAll(scanForFeatureFiles(true, path, clazz.getClassLoader()));
