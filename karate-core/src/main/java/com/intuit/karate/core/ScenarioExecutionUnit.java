@@ -23,9 +23,9 @@
  */
 package com.intuit.karate.core;
 
-import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -37,26 +37,63 @@ import java.util.function.Consumer;
  */
 public class ScenarioExecutionUnit implements Runnable {
 
+    public final Tags tags;
     public final Scenario scenario;
-    public final Tags tags;    
     private final ExecutionContext exec;
-    private final List<Step> steps;
-    private final Iterator<Step> iterator;
     public final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
 
+    private List<Step> steps;
+    private Iterator<Step> iterator;
     private StepActions actions;
     private Runnable next;
-    private boolean started;
     private boolean stopped = false;
 
-    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, Tags tags, StepActions actions, ExecutionContext exec) {
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec) {
+        this(scenario, results, exec, null);
+    }
+
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, ScenarioContext context) {
         this.scenario = scenario;
-        this.tags = tags;
-        this.actions = actions;
+        this.tags = new Tags(scenario.getTagsEffective());
         this.exec = exec;
         result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
+        if (context != null) {
+            actions = new StepActions(context);
+        }
+    }
+
+    public ScenarioContext getContext() {
+        return actions.context;
+    }
+
+    public List<Step> getSteps() {
+        return steps;
+    }
+
+    public StepActions getActions() {
+        return actions;
+    }
+
+    public void setActions(StepActions actions) {
+        this.actions = actions;
+    }
+
+    public void setNext(Runnable next) {
+        this.next = next;
+    }
+
+    public void init() {
+        if (actions == null) {
+            // some metadata init needed for scenarios            
+            Path featurePath = exec.featureContext.feature.getPath();
+            exec.callContext.setScenarioInfo(scenario.toInfo(featurePath));
+            exec.callContext.setTags(tags);             
+            // karate-config.js will be processed here 
+            // when the script-context constructor is called          
+            actions = new StepActions(exec.featureContext, exec.callContext);
+        }
         // before-scenario hook
         boolean hookFailed = false;
         if (actions.context.executionHook != null) {
@@ -79,29 +116,10 @@ public class ScenarioExecutionUnit implements Runnable {
             }
         }
         iterator = steps.iterator();
-    }
-
-    public List<Step> getSteps() {
-        return steps;
-    }
-
-    public StepActions getActions() {
-        return actions;
-    }        
-
-    public void setActions(StepActions actions) {
-        this.actions = actions;
-    }        
-
-    public void setNext(Runnable next) {
-        this.next = next;
-    }
-
-    public void onStart() {
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - exec.startTime);
     }
-    
+
     // for karate ui
     public void reset(ScenarioContext context) {
         result.reset();
@@ -123,7 +141,7 @@ public class ScenarioExecutionUnit implements Runnable {
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(exec.appender.collect());
             return new StepResult(step, execResult, stepLog, embed, callResults);
-        }        
+        }
     }
 
     public void onStop() {
@@ -141,16 +159,15 @@ public class ScenarioExecutionUnit implements Runnable {
 
     @Override
     public void run() {
-        if (!started) {
-            onStart();
-            started = true;
+        if (iterator == null) {
+            init();
         }
         if (iterator.hasNext()) {
             StepResult stepResult = execute(iterator.next());
             result.addStepResult(stepResult);
             if (stepResult.isStopped()) {
                 stopped = true;
-            }            
+            }
             SYSTEM.accept(this);
         } else {
             onStop();

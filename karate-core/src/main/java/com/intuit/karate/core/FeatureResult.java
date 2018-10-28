@@ -54,11 +54,13 @@ public class FeatureResult {
     private Map<String, Object> callArg;
     private int loopIndex;
 
-    public void printStats(String featurePath, String reportPath) {
+    public void printStats(String reportPath) {
         StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
-        sb.append("feature: ").append(featurePath).append('\n');
-        sb.append("report: ").append(reportPath).append('\n');
+        sb.append("feature: ").append(feature.getRelativePath()).append('\n');
+        if (reportPath != null) {
+            sb.append("report: ").append(reportPath).append('\n');
+        }
         sb.append(String.format("scenarios: %2d | passed: %2d | failed: %2d | time: %.4f\n", scenarioCount, scenarioCount - failedCount, failedCount, durationMillis / 1000));
         sb.append("---------------------------------------------------------\n");
         System.out.println(sb);

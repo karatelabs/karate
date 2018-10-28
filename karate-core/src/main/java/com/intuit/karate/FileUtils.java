@@ -412,6 +412,22 @@ public class FileUtils {
         return list;
     }
     
+    public static List<Resource> scanForFeatureFiles(List<String> paths, Class clazz) {
+        if (clazz == null) {
+            return scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
+        }
+        // this resolves paths relative to the passed-in class
+        List<Resource> list = new ArrayList();
+        for (String path : paths) {
+            boolean classpath = isClassPath(path);
+            if (!classpath) { // convert from relative path
+                path = toRelativeClassPath(clazz) + "/" + path;
+            }
+            list.addAll(scanForFeatureFiles(true, path, clazz.getClassLoader()));
+        }
+        return list;
+    }    
+    
     public static boolean isJarPath(URI uri) {
         return uri.toString().contains("!/");
     }

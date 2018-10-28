@@ -63,29 +63,17 @@ public class Feature {
         return background != null && background.getSteps() != null;
     }
 
-    private static ScenarioExecutionUnit toExecutionUnit(Scenario scenario, ExecutionContext exec) {
-        // karate-config.js will be processed here 
-        // when the script-context constructor is called
-        Tags tags = new Tags(scenario.getTagsEffective());
-        Path featurePath = exec.featureContext.feature.getPath();
-        exec.callContext.setScenarioInfo(scenario.toInfo(featurePath));
-        exec.callContext.setTags(tags);
-        StepActions actions = new StepActions(exec.featureContext, exec.callContext);
-        return new ScenarioExecutionUnit(scenario, null, tags, actions, exec);
-    }
-
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
         List<ScenarioExecutionUnit> units = new ArrayList();
         for (FeatureSection section : sections) {
             if (section.isOutline()) {
                 for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
-                    if (scenario.isDynamic()) {
-                        StepActions bgActions = new StepActions(exec.featureContext, exec.callContext);
-                        Tags tagsEffective = new Tags(scenario.getTagsEffective());
-                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, tagsEffective, bgActions, exec);
+                    if (scenario.isDynamic()) {                        
+                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec);
                         bgUnit.run();
+                        ScenarioContext bgContext = bgUnit.getContext();
                         String expression = scenario.getDynamicExpression();
-                        ScriptValue listValue = Script.evalKarateExpression(expression, bgActions.context);
+                        ScriptValue listValue = Script.evalKarateExpression(expression, bgContext);
                         if (listValue.isListLike()) {
                             List list = listValue.getAsList();
                             int count = list.size();
@@ -100,9 +88,8 @@ public class Feature {
                                         dynamic.replace("<" + k + ">", sv.getAsString());
                                     });
                                     ScenarioInfo info = dynamic.toInfo(exec.featureContext.feature.getPath());
-                                    ScenarioContext context = bgActions.context.copy(info);
-                                    StepActions actions = new StepActions(context);
-                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), tagsEffective, actions, exec);
+                                    ScenarioContext context = bgContext.copy(info);
+                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, context);
                                     units.add(unit);
                                 } else {
                                     exec.featureContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
@@ -112,11 +99,11 @@ public class Feature {
                             exec.featureContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                         }
                     } else {
-                        units.add(toExecutionUnit(scenario, exec));
+                        units.add(new ScenarioExecutionUnit(scenario, null, exec));
                     }
                 }
             } else {
-                units.add(toExecutionUnit(section.getScenario(), exec));
+                units.add(new ScenarioExecutionUnit(section.getScenario(), null, exec));
             }
         }
         return units;

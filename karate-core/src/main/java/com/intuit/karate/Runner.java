@@ -109,7 +109,7 @@ public class Runner {
                         Engine.saveResultXml(finalReportDir, result, null);
                         String status = result.isFailed() ? "fail" : "pass";
                         logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
-                        result.printStats(feature.getRelativePath(), file.getPath());
+                        result.printStats(file.getPath());
                     } else {
                         results.addToSkipCount(1);
                         logger.info("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());

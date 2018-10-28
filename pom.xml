@@ -35,7 +35,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
-        <maven.surefire.version>2.10</maven.surefire.version>
+        <maven.surefire.version>2.22.1</maven.surefire.version>
         <maven.shade.version>3.1.1</maven.shade.version>
         <junit.version>4.12</junit.version>
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
@@ -49,6 +49,7 @@
         <module>karate-core</module>
         <module>karate-apache</module>              
         <module>karate-junit4</module>
+        <module>karate-junit5</module>
         <module>karate-netty</module>
         <module>karate-gatling</module>             
         <module>karate-demo</module>

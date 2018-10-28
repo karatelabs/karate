@@ -53,16 +53,16 @@ public class AppSessionTest {
             if (section.isOutline()) {
                 ScenarioOutline outline = section.getScenarioOutline();
                 for (Scenario scenario : outline.getScenarios()) {
-                    call(scenario, session, ec);
+                    call(scenario, ec);
                 }
             } else {
-                call(section.getScenario(), session, ec);
+                call(section.getScenario(), ec);
             }
         }
     }
 
-    private static void call(Scenario scenario, AppSession session, ExecutionContext ec) {
-        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, null, Tags.EMPTY, session.getActions(), ec);
+    private static void call(Scenario scenario, ExecutionContext ec) {
+        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, null, ec);
         exec.run();
     }
 

@@ -125,7 +125,11 @@ public class RunnerOptions {
             tags = Arrays.asList(ko.tags());
             features = Arrays.asList(ko.features());
         }
-        if (features == null || features.isEmpty()) {
+        return fromAnnotationAndSystemProperties(features, tags, clazz);
+    }
+
+    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, Class clazz) {
+        if (clazz != null && (features == null || features.isEmpty())) {
             String relative = FileUtils.toRelativeClassPath(clazz);
             features = Collections.singletonList(relative);
         }

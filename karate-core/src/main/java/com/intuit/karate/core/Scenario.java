@@ -138,7 +138,7 @@ public class Scenario {
     public Collection<Tag> getTagsEffective() {
         if (tagsEffective == null) {
             tagsEffective = Tags.merge(feature.getTags(), tags);
-        }
+    }
         return tagsEffective;
     }
 
