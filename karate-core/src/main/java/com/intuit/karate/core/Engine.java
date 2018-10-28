@@ -409,7 +409,7 @@ public class Engine {
     public static File saveStatsJson(String targetDir, Results results, String fileName) {
         String json = JsonUtils.toJson(results.toMap());
         if (fileName == null) {
-            fileName = "results.json";
+            fileName = "results-json.txt";
         }
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, json);

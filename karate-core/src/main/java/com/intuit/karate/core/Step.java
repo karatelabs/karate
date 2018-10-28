@@ -51,6 +51,14 @@ public class Step {
         return message + ", line: " + line;        
     }
     
+    public boolean isPrint() {
+        return text != null && text.startsWith("print");
+    }
+    
+    public boolean isPrefixStar() {
+        return "*".equals(prefix);
+    }
+    
     public Step(Feature feature, Scenario scenario, int index) {
         this.feature = feature;
         this.scenario = scenario;

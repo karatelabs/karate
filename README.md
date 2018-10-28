@@ -1805,8 +1805,6 @@ By default, when the [parallel runner](#parallel-execution) is used Karate will 
 
 The configure key here is `report` and it takes a JSON value. For example:
 
-> IMPORTANT: `showAllSteps` is *not* implemented yet. It was attempted but reverted due to some technical challenges. The documentation has been left in-place below. If you have some thoughts on how this feature should work, do comment or discuss [here](https://github.com/intuit/karate/issues/397).
-
 ```cucumber
 * configure report = { showLog: true, showAllSteps: false }
 ```

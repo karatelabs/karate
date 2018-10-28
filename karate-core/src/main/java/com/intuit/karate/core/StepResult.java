@@ -41,6 +41,7 @@ public class StepResult  {
     private final String stepLog;
     private final Embed embed;
     private final List<FeatureResult> callResults;
+    private final boolean hidden;
 
     static {
         DUMMY_MATCH = new HashMap(2);
@@ -84,12 +85,17 @@ public class StepResult  {
         }
         return map;
     }
+
+    public boolean isHidden() {
+        return hidden;
+    }        
         
     public boolean isStopped() {
         return result.isFailed() || result.isAborted();
     }    
 
-    public StepResult(Step step, Result result, String stepLog, Embed embed, List<FeatureResult> callResults) {
+    public StepResult(boolean hidden, Step step, Result result, String stepLog, Embed embed, List<FeatureResult> callResults) {
+        this.hidden = hidden;
         this.step = step;
         this.result = result;
         this.stepLog = stepLog;

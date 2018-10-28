@@ -165,5 +165,22 @@ public class FeatureParserTest {
         FeatureParser.updateStepFromText(step, "* def a = 2 - 1");
         assertEquals("def a = 2 - 1", step.getText());
     }
+    
+    @Test
+    public void testHide() {
+        Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/test-hide.feature");
+        Step step = feature.getStep(0, -1, 0);
+        assertTrue(step.isPrefixStar());
+        assertFalse(step.isPrint());
+        assertEquals("def a = 1", step.getText());
+        step = feature.getStep(0, -1, 1);
+        assertTrue(step.isPrefixStar());
+        assertTrue(step.isPrint());
+        assertEquals("print a", step.getText());
+        step = feature.getStep(0, -1, 2);
+        assertFalse(step.isPrefixStar());
+        assertTrue(step.isPrint());
+        assertEquals("print a", step.getText());        
+    }    
 
 }

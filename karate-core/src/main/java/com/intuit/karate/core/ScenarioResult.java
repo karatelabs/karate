@@ -87,7 +87,7 @@ public class ScenarioResult {
         step.setLine(scenario.getLine());
         step.setPrefix("*");
         step.setText(message);
-        StepResult sr = new StepResult(step, Result.failed(0, error, step), null, null, null);
+        StepResult sr = new StepResult(false, step, Result.failed(0, error, step), null, null, null);
         addStepResult(sr);
     }
 
@@ -108,9 +108,12 @@ public class ScenarioResult {
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallName());
                 call.setDocString(fr.getCallArgPretty());                     
-                StepResult callResult = new StepResult(call, Result.passed(0), null, null, null);
+                StepResult callResult = new StepResult(stepResult.isHidden(), call, Result.passed(0), null, null, null);
                 list.add(callResult.toMap());
                 for (StepResult sr : fr.getStepResults()) { // flattened
+                    if (sr.isHidden()) {
+                        continue;
+                    }
                     Map<String, Object> map = sr.toMap();
                     String temp = (String) map.get("keyword");
                     map.put("keyword", StringUtils.repeat('>', depth + 1) + ' ' + temp);
@@ -124,6 +127,9 @@ public class ScenarioResult {
     private List<Map> getStepResults(boolean background) {
         List<Map> list = new ArrayList(stepResults.size());
         for (StepResult stepResult : stepResults) {
+            if (stepResult.isHidden()) {
+                continue;
+            }
             if (background == stepResult.getStep().isBackground()) {
                 list.add(stepResult.toMap());
                 recurse(list, stepResult, 0);

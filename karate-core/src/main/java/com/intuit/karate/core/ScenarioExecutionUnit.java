@@ -128,8 +128,9 @@ public class ScenarioExecutionUnit implements Runnable {
 
     // extracted for karate UI
     public StepResult execute(Step step) {
+        boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
         if (stopped) {
-            return new StepResult(step, Result.skipped(), null, null, null);
+            return new StepResult(hidden, step, Result.skipped(), null, null, null);
         } else {
             Result execResult = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
@@ -140,7 +141,8 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(exec.appender.collect());
-            return new StepResult(step, execResult, stepLog, embed, callResults);
+            boolean showLog = actions.context.getConfig().isShowLog();
+            return new StepResult(hidden, step, execResult, showLog ? stepLog : null, embed, callResults);
         }
     }
 
