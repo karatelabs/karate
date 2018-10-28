@@ -142,7 +142,11 @@ public class Feature {
 
     public Step getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
         Scenario scenario = getScenario(sectionIndex, scenarioIndex);
-        return scenario.getSteps().get(stepIndex);
+        List<Step> steps = scenario.getSteps();
+        if(stepIndex == -1 || steps.size() == 0 || steps.size() <= stepIndex) {
+        	return null;
+        }
+        return steps.get(stepIndex);
     }
 
     public Feature replaceStep(Step step, String text) {

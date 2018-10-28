@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.antlr.v4.runtime.CharStream;
@@ -81,21 +82,29 @@ public class FeatureParser extends KarateParserBaseListener {
         return feature;
     }
     
-    public static void updateStepFromText(Step step, String text) {
+    public static boolean updateStepFromText(Step step, String text) {
         Feature feature = new Feature(step.getFeature().getResource());
+        final List<String> prefix = Arrays.asList("*","Given","When","Then","And","But");
+        final String stepText = text;
+        boolean hasPrefix = prefix.stream().anyMatch(prefixValue -> stepText.trim().startsWith(prefixValue));
+        // to avoid parser considering text without prefix as Scenario comments/Doc-string
+        if(!hasPrefix){
+        	return false;
+        }
         text = "Feature:\nScenario:\n" + text;
         FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
         if(!fp.errorListener.isFail()) {
         	feature = fp.feature;
-            Step temp = feature.getStep(0, -1, step.getLine());
-        	step.setPrefix(temp.getPrefix());
-            step.setText(temp.getText());
-            step.setDocString(temp.getDocString());
-            step.setTable(temp.getTable());
+            Step temp = feature.getStep(0, -1, step.getIndex());
+        	if(temp != null) {
+        		step.setPrefix(temp.getPrefix());
+                step.setText(temp.getText());
+                step.setDocString(temp.getDocString());
+                step.setTable(temp.getTable());
+                return true;
+        	}
         }
-        else {
-        	step = null;
-        }
+        return false;
     }
 
     private static InputStream toStream(File file) {

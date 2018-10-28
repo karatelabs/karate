@@ -39,8 +39,9 @@ public class ConsolePanel extends BorderPane{
 	private final String syntaxError = "● Syntax Error";
 	private final String passed = "● Passed";
 	private final String failed = "● Failed";
-	private String text;
-	private boolean stepModified = false;
+	private static String text;
+	private static boolean stepModified = false;
+	private static boolean stepParseSuccess = false;
 	
 	public ConsolePanel(AppSession2 session, ScenarioPanel2 scenarioPanel) {
 		this.session = session;
@@ -65,8 +66,8 @@ public class ConsolePanel extends BorderPane{
                 String temp = textArea.getText();
                 if (!text.equals(temp) && !temp.trim().equals("")) {
                     text = temp;
-                    FeatureParser.updateStepFromText(step, text);
-                    if(step.getText().equals("null")) {
+                    stepParseSuccess = FeatureParser.updateStepFromText(step, text);
+                    if(!stepParseSuccess) {
                     	resultLabel.setText(syntaxError);
             			resultLabel.setTextFill(Color.web("#D52B1E"));
             		}
@@ -85,7 +86,7 @@ public class ConsolePanel extends BorderPane{
         	if(stepModified) {
         		boolean runStatus = false;
         		// if updateStepFromText got a null step due to parse error (Invalid step inbound)
-        		if(step.getText().equals("null")) { 
+        		if(!stepParseSuccess) { 
         			resultLabel.setText(syntaxError);
         			resultLabel.setTextFill(Color.web("#D52B1E"));
         		}
