@@ -84,12 +84,18 @@ public class FeatureParser extends KarateParserBaseListener {
     public static void updateStepFromText(Step step, String text) {
         Feature feature = new Feature(step.getFeature().getResource());
         text = "Feature:\nScenario:\n" + text;
-        feature = new FeatureParser(feature, FileUtils.toInputStream(text)).feature;
-        Step temp = feature.getStep(0, -1, 0);
-        step.setPrefix(temp.getPrefix());
-        step.setText(temp.getText());
-        step.setDocString(temp.getDocString());
-        step.setTable(temp.getTable());
+        FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
+        if(!fp.errorListener.isFail()) {
+        	feature = fp.feature;
+            Step temp = feature.getStep(0, -1, step.getLine());
+        	step.setPrefix(temp.getPrefix());
+            step.setText(temp.getText());
+            step.setDocString(temp.getDocString());
+            step.setTable(temp.getTable());
+        }
+        else {
+        	step = null;
+        }
     }
 
     private static InputStream toStream(File file) {
@@ -109,7 +115,7 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     private FeatureParser(Feature feature, InputStream is) {
-        this.feature = feature;
+    	this.feature = feature;
         CharStream stream;
         try {
             stream = CharStreams.fromStream(is, StandardCharsets.UTF_8);
