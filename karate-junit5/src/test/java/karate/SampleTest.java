@@ -1,5 +1,6 @@
-package com.intuit.karate.junit5;
+package karate;
 
+import com.intuit.karate.junit5.Karate;
 import org.junit.jupiter.api.TestFactory;
 
 public class SampleTest {
@@ -17,7 +18,7 @@ public class SampleTest {
     @TestFactory
     public Object testFullPath() {
         return Karate
-                .feature("classpath:com/intuit/karate/junit5/tags.feature")
+                .feature("classpath:karate/tags.feature")
                 .tags("@first").run();
     }
 
