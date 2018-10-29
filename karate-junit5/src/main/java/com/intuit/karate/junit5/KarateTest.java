@@ -10,5 +10,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @TestFactory
-public @interface KarateFactory {
+public @interface KarateTest {
+    
 }
