@@ -36,7 +36,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
-
 /**
  *
  * @author pthomas3
@@ -87,9 +86,6 @@ public class ScenarioPanel2 extends BorderPane {
         VBox vbox = new VBox(App2.PADDING);
         varsPanel = new VarsPanel2(session, this);
         vbox.getChildren().add(varsPanel);
-        Label consoleLabel = new Label(" Console");
-        consoleLabel.setStyle("-fx-font-weight: bold");
-        vbox.getChildren().add(consoleLabel);
         consolePanel = new ConsolePanel(session, this);
         vbox.getChildren().add(consolePanel);
         setRight(vbox);

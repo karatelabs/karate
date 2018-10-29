@@ -95,7 +95,7 @@ public class FeatureParser extends KarateParserBaseListener {
         FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
         if(!fp.errorListener.isFail()) {
         	feature = fp.feature;
-            Step temp = feature.getStep(0, -1, step.getIndex());
+            Step temp = feature.getStep(0, -1, 0);
         	if(temp != null) {
         		step.setPrefix(temp.getPrefix());
                 step.setText(temp.getText());

@@ -1,8 +1,5 @@
 package com.intuit.karate.ui;
 
-
-
-
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.ScenarioExecutionUnit;
@@ -26,94 +23,95 @@ import javafx.scene.text.TextAlignment;
  * @author babusekaran
  *
  */
-public class ConsolePanel extends BorderPane{
-	
+public class ConsolePanel extends BorderPane {
+
 	private final AppSession2 session;
-    private final ScenarioPanel2 scenarioPanel;
-    private final ScenarioExecutionUnit unit;
+	private final ScenarioPanel2 scenarioPanel;
+	private final ScenarioExecutionUnit unit;
 	private final TextArea textArea;
 	private final Step step;
 	private final int index;
 	private final String consolePlaceHolder = "Enter your step here for debugging...";
 	private final String idle = "●";
-	private final String syntaxError = "● Syntax Error";
-	private final String passed = "● Passed";
-	private final String failed = "● Failed";
-	private static String text;
-	private static boolean stepModified = false;
-	private static boolean stepParseSuccess = false;
-	
+	private final String syntaxError = "● syntax error";
+	private final String passed = "● passed";
+	private final String failed = "● failed";
+	private String text;
+	private boolean stepModified = false;
+	private boolean stepParseSuccess = false;
+
 	public ConsolePanel(AppSession2 session, ScenarioPanel2 scenarioPanel) {
 		this.session = session;
-        this.unit = scenarioPanel.getScenarioExecutionUnit();
-        // Creating a dummy step for console
-        this.index = unit.scenario.getIndex()+1;
-        this.step = new Step(unit.scenario.getFeature(), unit.scenario, index);
-        this.scenarioPanel = scenarioPanel;
-        setPadding(App2.PADDING_ALL);
-        textArea = new TextArea();
-        textArea.setFont(App2.getDefaultFont());
-        textArea.setWrapText(true);
-        textArea.setMinHeight(0);
-        textArea.setPromptText(consolePlaceHolder);
-        text = "";
-        Label resultLabel = new Label(idle);
-        resultLabel.setTextFill(Color.web("#8c8c8c"));
-        resultLabel.setFont(new Font(17));
-        resultLabel.setAlignment(Pos.CENTER_RIGHT);
-        textArea.focusedProperty().addListener((val, before, after) -> {
-            if (!after) { // if we lost focus
-                String temp = textArea.getText();
-                if (!text.equals(temp) && !temp.trim().equals("")) {
-                    text = temp;
-                    stepParseSuccess = FeatureParser.updateStepFromText(step, text);
-                    if(!stepParseSuccess) {
-                    	resultLabel.setText(syntaxError);
-            			resultLabel.setTextFill(Color.web("#D52B1E"));
-            		}
-                    else {
-                    	resultLabel.setText(idle);
-                    	resultLabel.setTextFill(Color.web("#8c8c8c"));
-                    	stepModified = true;
-                    }
-                }
-            }
-        });
-        setCenter(textArea);
-        Button runButton = new Button("Run Code");
-        runButton.setAlignment(Pos.CENTER_RIGHT);
-        runButton.setOnAction(e -> {
-        	if(stepModified) {
-        		boolean runStatus = false;
-        		// if updateStepFromText got a null step due to parse error (Invalid step inbound)
-        		if(!stepParseSuccess) { 
-        			resultLabel.setText(syntaxError);
-        			resultLabel.setTextFill(Color.web("#D52B1E"));
-        		}
-        		else {
-        			if(run().getStatus().equals("passed")) {
-        				resultLabel.setText(passed);
-        				resultLabel.setTextFill(Color.web("#53B700"));
-                	}
-        			else {
-        				resultLabel.setText(failed);
-            			resultLabel.setTextFill(Color.web("#D52B1E"));
-        			}
-        		}
-        	}
-        });
-        HBox hbox = new HBox(App2.PADDING);
-        hbox.getChildren().add(runButton);
-        hbox.getChildren().add(resultLabel);
-        setBottom(hbox);
-        setMargin(runButton, new Insets(2.0, 0, 0, 0));
-    }
-	
+		this.unit = scenarioPanel.getScenarioExecutionUnit();
+		// Creating a dummy step for console
+		this.index = unit.scenario.getIndex() + 1;
+		this.step = new Step(unit.scenario.getFeature(), unit.scenario, index);
+		this.scenarioPanel = scenarioPanel;
+		setPadding(App2.PADDING_ALL);
+		Label consoleLabel = new Label("Console");
+		consoleLabel.setStyle("-fx-font-weight: bold");
+		consoleLabel.setPadding(new Insets(0, 0, 3.0, 3.0));
+		setTop(consoleLabel);
+		setPadding(App2.PADDING_ALL);
+		textArea = new TextArea();
+		textArea.setFont(App2.getDefaultFont());
+		textArea.setWrapText(true);
+		textArea.setMinHeight(0);
+		textArea.setPromptText(consolePlaceHolder);
+		text = "";
+		Label resultLabel = new Label(idle);
+		resultLabel.setTextFill(Color.web("#8c8c8c"));
+		resultLabel.setPadding(new Insets(3.0, 0, 0, 0));
+		resultLabel.setFont(new Font(15));
+		textArea.focusedProperty().addListener((val, before, after) -> {
+			if (!after) { // if we lost focus
+				String temp = textArea.getText();
+				if (!text.equals(temp) && !temp.trim().equals("")) {
+					text = temp;
+					stepParseSuccess = FeatureParser.updateStepFromText(step, text);
+					if (!stepParseSuccess) {
+						resultLabel.setText(syntaxError);
+						resultLabel.setTextFill(Color.web("#D52B1E"));
+					} else {
+						resultLabel.setText(idle);
+						resultLabel.setTextFill(Color.web("#8c8c8c"));
+						stepModified = true;
+					}
+				}
+			}
+		});
+		setCenter(textArea);
+		Button runButton = new Button("Run Code");
+		runButton.setOnAction(e -> {
+			if (stepModified) {
+				if (!stepParseSuccess) {
+					resultLabel.setText(syntaxError);
+					resultLabel.setTextFill(Color.web("#D52B1E"));
+				} else {
+					if (run().getStatus().equals("passed")) {
+						resultLabel.setText(passed);
+						resultLabel.setTextFill(Color.web("#53B700"));
+					} else {
+						resultLabel.setText(failed);
+						resultLabel.setTextFill(Color.web("#D52B1E"));
+					}
+				}
+			}
+		});
+		HBox hbox = new HBox(App2.PADDING);
+		hbox.setSpacing(5);
+		hbox.getChildren().addAll(runButton, resultLabel);
+		hbox.setMargin(runButton, new Insets(1.0, 0, 0, 0));
+		hbox.setMargin(resultLabel, new Insets(1.0, 0, 0, 0));
+		setBottom(hbox);
+		setMargin(hbox, App2.PADDING_TOP);
+	}
+
 	public Result run() {
 		StepResult sr = unit.execute(step);
-        unit.result.setStepResult(index, sr);
-        scenarioPanel.refreshVars();
-        return sr.getResult();
+		unit.result.setStepResult(index, sr);
+		scenarioPanel.refreshVars();
+		return sr.getResult();
 	}
-	
+
 }
