@@ -23,27 +23,25 @@
  */
 package com.intuit.karate.junit5;
 
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.DynamicContainer.dynamicContainer;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
+
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.core.*;
 import org.junit.jupiter.api.DynamicNode;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.DynamicContainer.dynamicContainer;
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
-
 import org.junit.jupiter.api.DynamicTest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
-public class Karate {
-
-    private static final Logger logger = LoggerFactory.getLogger(Karate.class);
+public class Karate implements Iterable<DynamicNode> {
 
     private final List<Feature> features;
     private final String tagSelector;
@@ -56,7 +54,7 @@ public class Karate {
 
         public KarateBuilder tags(String ... tags) {
             if (this.tags == null) {
-                this.tags = new ArrayList(tags.length);
+                this.tags = new ArrayList<>(tags.length);
             }
             this.tags.addAll(Arrays.asList(tags));
             return this;
@@ -64,7 +62,7 @@ public class Karate {
 
         public KarateBuilder feature(String ... features) {
             if (this.features == null) {
-                this.features = new ArrayList(features.length);
+                this.features = new ArrayList<>(features.length);
             }
             this.features.addAll(Arrays.asList(features));
             return this;
@@ -75,9 +73,8 @@ public class Karate {
             return this;
         }
 
-        public Collection<DynamicNode> run() {
-            Karate karate = new Karate(features, tags, clazz);
-            return karate.run();
+        public Karate build() {
+            return new Karate(features, tags, clazz);
         }
 
     }
@@ -97,7 +94,7 @@ public class Karate {
     private Karate(List<String> featureNames, List<String> tags, Class clazz) {
         RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(featureNames, tags, clazz);
         List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz);
-        features = new ArrayList(resources.size());
+        features = new ArrayList<>(resources.size());
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             features.add(feature);
@@ -105,13 +102,8 @@ public class Karate {
         tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
     }
 
-    private Karate(List<Feature> features, String tagSelector) {
-        this.features = features;
-        this.tagSelector = tagSelector;
-    }
-
-    public Collection<DynamicNode> run() {
-        List<DynamicNode> list = new ArrayList(features.size());
+    private Collection<DynamicNode> createDynamicTests() {
+        List<DynamicNode> list = new ArrayList<>(features.size());
         for (Feature feature : features) {
             FeatureContext featureContext = new FeatureContext(feature, tagSelector);
             CallContext callContext = new CallContext(null, true);
@@ -122,7 +114,7 @@ public class Karate {
             Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
             String testName = feature.getResource().getFileNameWithoutExtension();
             List<ScenarioResult> results = exec.result.getScenarioResults();
-            List<DynamicTest> scenarios = new ArrayList(results.size());
+            List<DynamicTest> scenarios = new ArrayList<>(results.size());
             for (ScenarioResult sr : results) {
                 Scenario scenario = sr.getScenario();
                 String displayName = scenario.getDisplayMeta() + " " + scenario.getName();
@@ -138,4 +130,8 @@ public class Karate {
         return list;
     }
 
+    @Override
+    public Iterator<DynamicNode> iterator() {
+        return createDynamicTests().iterator();
+    }
 }

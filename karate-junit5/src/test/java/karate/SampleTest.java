@@ -1,25 +1,26 @@
 package karate;
 
 import com.intuit.karate.junit5.Karate;
-import org.junit.jupiter.api.TestFactory;
+import com.intuit.karate.junit5.KarateFactory;
 
 class SampleTest {
 
-    @TestFactory
-    Object testSample() {
-        return Karate.feature("sample").relativeTo(getClass()).run();
+    @KarateFactory
+    Karate testSample() {
+        return Karate.feature("sample").relativeTo(getClass()).build();
     }
     
-    @TestFactory
-    Object testTags() {
-        return Karate.feature("tags").tags("@second").relativeTo(getClass()).run();
+    @KarateFactory
+    Karate testTags() {
+        return Karate.feature("tags").tags("@second").relativeTo(getClass()).build();
     }
 
-    @TestFactory
-    Object testFullPath() {
+    @KarateFactory
+    Karate testFullPath() {
         return Karate
                 .feature("classpath:karate/tags.feature")
-                .tags("@first").run();
+                .tags("@first")
+                .build();
     }
 
 }
