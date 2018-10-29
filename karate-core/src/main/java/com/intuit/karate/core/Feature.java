@@ -143,7 +143,7 @@ public class Feature {
     public Step getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
         Scenario scenario = getScenario(sectionIndex, scenarioIndex);
         List<Step> steps = scenario.getSteps();
-        if(stepIndex == -1 || steps.size() == 0 || steps.size() <= stepIndex) {
+        if (stepIndex == -1 || steps.size() == 0 || steps.size() <= stepIndex) {
         	return null;
         }
         return steps.get(stepIndex);

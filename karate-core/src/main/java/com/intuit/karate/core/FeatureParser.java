@@ -57,6 +57,8 @@ public class FeatureParser extends KarateParserBaseListener {
     private final ParserErrorListener errorListener = new ParserErrorListener();
 
     private final Feature feature;
+    
+    static final List<String> prefix = Arrays.asList("*","Given","When","Then","And","But");
 
     public static Feature parse(File file) {
         Resource resource = new Resource(file, file.getPath());
@@ -84,19 +86,18 @@ public class FeatureParser extends KarateParserBaseListener {
     
     public static boolean updateStepFromText(Step step, String text) {
         Feature feature = new Feature(step.getFeature().getResource());
-        final List<String> prefix = Arrays.asList("*","Given","When","Then","And","But");
         final String stepText = text;
         boolean hasPrefix = prefix.stream().anyMatch(prefixValue -> stepText.trim().startsWith(prefixValue));
         // to avoid parser considering text without prefix as Scenario comments/Doc-string
-        if(!hasPrefix){
+        if (!hasPrefix) {
         	return false;
         }
         text = "Feature:\nScenario:\n" + text;
         FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
-        if(!fp.errorListener.isFail()) {
+        if (!fp.errorListener.isFail()) {
         	feature = fp.feature;
             Step temp = feature.getStep(0, -1, 0);
-        	if(temp != null) {
+        	if (temp != null) {
         		step.setPrefix(temp.getPrefix());
                 step.setText(temp.getText());
                 step.setDocString(temp.getDocString());
