@@ -254,7 +254,7 @@ public class FeatureBackend {
         // functions here are outside of the 'transaction' and should not mutate global state !
         // typically this is where users can set up an artificial delay or sleep
         if (afterScenario != null && afterScenario.isFunction()) {
-            afterScenario.invokeFunction(context);
+            afterScenario.invokeFunction(context, null);
         }
         return response;
     }    

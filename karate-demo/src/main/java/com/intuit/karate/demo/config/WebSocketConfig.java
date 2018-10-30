@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,35 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.demo.controller;
+package com.intuit.karate.demo.config;
 
-import com.intuit.karate.demo.domain.Greeting;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import com.intuit.karate.demo.controller.WebSocketHandler;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
 /**
  *
  * @author pthomas3
  */
-@RestController
-@RequestMapping("/greeting")
-public class GreetingController {
+@Configuration
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
 
-    private final AtomicInteger counter = new AtomicInteger();
-
-    @GetMapping("/reset")
-    public String reset() {
-        int value = 0;
-        counter.set(value);
-        return "{ counter: 0 }";
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(handler(), "/websocket");
     }
 
-    @GetMapping
-    public Greeting getGreeting(@RequestParam(value = "name", defaultValue = "World") String name) {
-        return new Greeting(counter.incrementAndGet(), "Hello " + name + "!");
+    @Bean
+    WebSocketHandler handler() {
+        return new WebSocketHandler();
     }
 
 }

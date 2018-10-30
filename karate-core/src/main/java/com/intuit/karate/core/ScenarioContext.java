@@ -55,6 +55,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
@@ -492,7 +494,7 @@ public class ScenarioContext {
         ScriptValue sv = afterFeature ? config.getAfterFeature() : config.getAfterScenario();
         if (sv.isFunction()) {
             try {
-                sv.invokeFunction(this);
+                sv.invokeFunction(this, null);
             } catch (Exception e) {
                 String prefix = afterFeature ? "afterFeature" : "afterScenario";
                 logger.warn("{} hook failed: {}", prefix, e.getMessage());
@@ -812,6 +814,40 @@ public class ScenarioContext {
         prevEmbed = embed;
     }
     
+    private final Object LOCK = new Object();
+    private ExecutorService executor;
+    
+    public void signal() {
+        logger.info("signal called");
+        synchronized(LOCK) {
+            LOCK.notify();
+        }
+    } 
+    
+    public void listen(long timeout, Runnable runnable) {
+        if (executor == null) {
+            executor = Executors.newSingleThreadExecutor();
+        }        
+        logger.trace("submitting listen function");
+        executor.submit(runnable);
+        synchronized(LOCK) {
+            try {
+                logger.info("entered listen wait state");
+                LOCK.wait(timeout);
+                logger.info("exit listen wait state");
+            } catch (InterruptedException e) {
+                logger.error("listen timed out: {}", e.getMessage());
+            }
+        }
+    }    
+    
+    public void listen(long timeout, ScriptValue callback) {
+        if (!callback.isFunction()) {
+            throw new RuntimeException("listen expression - expected function, but was: " + callback);
+        }
+        listen(timeout, () -> callback.invokeFunction(this, null));
+    }
+    
     //==========================================================================
 
     public void driver(String expression) {
@@ -847,6 +883,9 @@ public class ScenarioContext {
     }    
     
     public void stop() {
+        if (executor != null) {
+            executor.shutdownNow();
+        }
         if (driver != null) {
             driver.quit();
             driver = null;

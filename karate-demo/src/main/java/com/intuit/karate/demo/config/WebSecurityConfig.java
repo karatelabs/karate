@@ -44,7 +44,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 "/redirect/**",
                 "/graphql/**",
                 "/soap/**",
-                "/echo/**"
+                "/echo/**",
+                "/websocket/**",
+                "/websocket-controller/**"
         );
     }
 

@@ -19,7 +19,7 @@
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
-            <version>3.8.0</version>
+            <version>${cucumber.reporting.version}</version>
         </dependency>                                             
         <dependency>
             <groupId>com.intuit.karate</groupId>

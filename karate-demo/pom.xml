@@ -27,7 +27,7 @@
         </dependency>        
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
             <version>${spring.boot.version}</version>
         </dependency>        
         <dependency>
@@ -71,7 +71,7 @@
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
-            <version>3.8.0</version>
+            <version>${cucumber.reporting.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

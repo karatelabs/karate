@@ -139,6 +139,14 @@ public class ScriptValue {
     public boolean isPrimitive() {
         return type == Type.PRIMITIVE;
     }
+    
+    public Number getAsNumber() {
+        return getValue(Number.class);
+    }
+    
+    public boolean isNumber() {
+        return type == Type.PRIMITIVE && Number.class.isAssignableFrom(value.getClass());
+    }    
 
     public boolean isFunction() {
         return type == Type.JS_FUNCTION;
@@ -264,14 +272,14 @@ public class ScriptValue {
         }
     }
 
-    public ScriptValue invokeFunction(ScenarioContext context) {
+    public ScriptValue invokeFunction(ScenarioContext context, Object callArg) {
         ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
-        return Script.evalFunctionCall(som, null, context);
+        return Script.evalFunctionCall(som, callArg, context);
     }
 
     public Map<String, Object> evalAsMap(ScenarioContext context) {
         if (isFunction()) {
-            ScriptValue sv = invokeFunction(context);
+            ScriptValue sv = invokeFunction(context, null);
             return sv.isMapLike() ? sv.getAsMap() : null;
         } else {
             return isMapLike() ? getAsMap() : null;

@@ -50,6 +50,18 @@ public class ScriptValueTest {
         assertEquals(JSON, sv.getType());  
         Object temp = doc.read("$");
         assertTrue(temp instanceof List);
+        sv = new ScriptValue(1);
+        assertTrue(sv.isPrimitive());
+        assertTrue(sv.isNumber());
+        assertEquals(1, sv.getAsNumber().intValue());
+        sv = new ScriptValue(100L);
+        assertTrue(sv.isPrimitive());
+        assertTrue(sv.isNumber());
+        assertEquals(100, sv.getAsNumber().longValue());
+        sv = new ScriptValue(1.0);
+        assertTrue(sv.isPrimitive());
+        assertTrue(sv.isNumber());
+        assertEquals(1.0, sv.getAsNumber().doubleValue(), 0);         
     }
     
 }

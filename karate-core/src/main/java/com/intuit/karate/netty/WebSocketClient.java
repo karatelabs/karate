@@ -57,7 +57,6 @@ public class WebSocketClient {
     private final Channel channel;
     private final EventLoopGroup group;
     
-
     private boolean waiting;
 
     public WebSocketClient(String url, WebSocketListener listener) {

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,15 @@
  */
 package com.intuit.karate.demo.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intuit.karate.demo.domain.Greeting;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.springframework.web.bind.annotation.GetMapping;
+import com.intuit.karate.demo.domain.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -35,21 +39,23 @@ import org.springframework.web.bind.annotation.RestController;
  * @author pthomas3
  */
 @RestController
-@RequestMapping("/greeting")
-public class GreetingController {
+@RequestMapping("/websocket-controller")
+public class WebSocketController {
 
-    private final AtomicInteger counter = new AtomicInteger();
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketController.class);
 
-    @GetMapping("/reset")
-    public String reset() {
-        int value = 0;
-        counter.set(value);
-        return "{ counter: 0 }";
-    }
+    @Autowired(required = true)
+    private WebSocketHandler handler;
+    
+    private final ObjectMapper mapper = new ObjectMapper();
 
-    @GetMapping
-    public Greeting getGreeting(@RequestParam(value = "name", defaultValue = "World") String name) {
-        return new Greeting(counter.incrementAndGet(), "Hello " + name + "!");
-    }
-
+    @PostMapping
+    public String greet(@RequestBody Message message) throws Exception {
+        long time = System.currentTimeMillis();
+        Greeting greeting = new Greeting(time, "hello " + message.getText() + " !");
+        String json = mapper.writeValueAsString(greeting);
+        handler.broadcast(json);
+        return "{ \"id\": " + time + " }";
+    }    
+    
 }

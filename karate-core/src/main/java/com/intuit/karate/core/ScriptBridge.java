@@ -40,6 +40,8 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
+import com.intuit.karate.netty.WebSocketClient;
+import com.intuit.karate.netty.WebSocketListener;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
@@ -352,7 +354,40 @@ public class ScriptBridge implements PerfContext {
         ScriptValue sv = new ScriptValue(o);
         path = Engine.getBuildDir() + File.separator + path;
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
+    }      
+    
+    public WebSocketClient websocket(String url, ScriptObjectMirror som) {
+        if (!som.isFunction()) {
+            throw new RuntimeException("not a JS function: " + som);
+        }        
+        ScriptValue sv = new ScriptValue(som);
+        WebSocketClient client = new WebSocketClient(url, new WebSocketListener() {
+            @Override
+            public void onMessage(String text) {
+                sv.invokeFunction(context, text);
+            }
+            @Override
+            public void onMessage(byte[] bytes) {
+                this.onMessage(FileUtils.toString(bytes));
+            }
+        });
+        return client;
     }
+    
+    public void signal() {
+        context.signal();
+    }
+    
+    public void listen(long timeout, ScriptObjectMirror som) {
+        if (!som.isFunction()) {
+            throw new RuntimeException("not a JS function: " + som);
+        }
+        context.listen(timeout, new ScriptValue(som));
+    }
+    
+    public void listen(long timeout) {
+        context.listen(timeout, () -> {});
+    }    
     
     private ScriptValue getValue(String name) {
         ScriptValue sv = context.vars.get(name);
