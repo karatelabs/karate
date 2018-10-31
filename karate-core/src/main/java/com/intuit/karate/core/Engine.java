@@ -391,11 +391,11 @@ public class Engine {
         File file = new File(targetDir + File.separator + fileName);
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
-            FileUtils.writeToFile(file, xml);
-            System.out.println("Karate version: " + FileUtils.getKarateVersion());
-            System.out.println("html report: (paste into browser to view)\n"
-                    + "-----------------------------------------\n"
-                    + file.toURI() + '\n');
+            FileUtils.writeToFile(file, xml);            
+            System.out.println("HTML report: (paste into browser to view) | Karate version: " 
+                    + FileUtils.getKarateVersion() + "\n"
+                    + file.toURI()
+                    + "\n---------------------------------------------------------\n");
         } catch (Exception e) {
             System.out.println("html report output failed: " + e.getMessage());
         }
