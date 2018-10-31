@@ -48,6 +48,8 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverUtils;
+import com.intuit.karate.netty.WebSocketClient;
+import com.intuit.karate.netty.WebSocketListener;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.Charset;
@@ -55,8 +57,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
@@ -79,9 +80,8 @@ public class ScenarioContext {
     public final ScenarioInfo scenarioInfo;
 
     // these can get re-built or swapped, so cannot be final
-    private HttpClient client;
     private HttpConfig config;
-    
+    private HttpClient client;
     private Driver driver;
 
     private HttpRequestBuilder request = new HttpRequestBuilder();
@@ -95,9 +95,14 @@ public class ScenarioContext {
 
     // gatling integration    
     private PerfEvent prevPerfEvent;
-    
+
     // report embed
     protected Embed prevEmbed;
+
+    // websocket
+    private final Object LOCK = new Object();
+    private WebSocketClient webSocketClient;
+    private Object signalResult;
 
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHook != null) {
@@ -134,7 +139,7 @@ public class ScenarioContext {
 
     public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
-    }      
+    }
 
     public HttpRequestBuilder getRequest() {
         return request;
@@ -148,6 +153,10 @@ public class ScenarioContext {
         return client;
     }
 
+    public WebSocketClient getWebSocketClient() {
+        return webSocketClient;
+    }        
+    
     public int getCallDepth() {
         return callDepth;
     }
@@ -250,15 +259,15 @@ public class ScenarioContext {
         }
         logger.trace("karate context init - initial properties: {}", vars);
     }
-    
+
     public ScenarioContext copy(ScenarioInfo info) {
         return new ScenarioContext(this, info);
     }
-    
+
     public ScenarioContext copy() {
         return new ScenarioContext(this, scenarioInfo);
-    }    
-    
+    }
+
     private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
         featureContext = sc.featureContext;
         logger = sc.logger;
@@ -280,6 +289,8 @@ public class ScenarioContext {
         prevRequest = sc.prevRequest;
         prevPerfEvent = sc.prevPerfEvent;
         callResults = sc.callResults;
+        webSocketClient = sc.webSocketClient;
+        signalResult = sc.signalResult;
     }
 
     public void configure(HttpConfig config) {
@@ -800,13 +811,13 @@ public class ScenarioContext {
     public void eval(String exp) {
         Script.evalJsExpression(exp, this);
     }
-    
+
     public Embed getAndClearEmbed() {
         Embed temp = prevEmbed;
         prevEmbed = null;
         return temp;
     }
-    
+
     public void embed(byte[] bytes, String contentType) {
         Embed embed = new Embed();
         embed.setBytes(bytes);
@@ -814,42 +825,53 @@ public class ScenarioContext {
         prevEmbed = embed;
     }
     
-    private final Object LOCK = new Object();
-    private ExecutorService executor;
+    // websocket / async =======================================================
+
+    public void websocket(String url, Consumer<String> consumer) {
+        webSocketClient = new WebSocketClient(url, new WebSocketListener() {
+            @Override
+            public void onMessage(String text) {
+                consumer.accept(text);
+            }
+            @Override
+            public void onMessage(byte[] bytes) {
+                this.onMessage(FileUtils.toString(bytes));
+            }
+        });        
+    }
     
-    public void signal() {
-        logger.info("signal called");
-        synchronized(LOCK) {
+    public void signal(Object result) {
+        logger.trace("signal called: {}", result);
+        synchronized (LOCK) {
+            signalResult = result;
             LOCK.notify();
         }
-    } 
-    
-    public void listen(long timeout, Runnable runnable) {
-        if (executor == null) {
-            executor = Executors.newSingleThreadExecutor();
-        }        
+    }
+
+    public Object listen(long timeout, Runnable runnable) {
         logger.trace("submitting listen function");
-        executor.submit(runnable);
-        synchronized(LOCK) {
+        new Thread(runnable).start();
+        synchronized (LOCK) {
             try {
-                logger.info("entered listen wait state");
+                logger.trace("entered listen wait state");
                 LOCK.wait(timeout);
-                logger.info("exit listen wait state");
+                logger.trace("exit listen wait state, result: {}", signalResult);
             } catch (InterruptedException e) {
                 logger.error("listen timed out: {}", e.getMessage());
             }
+            return signalResult;
         }
-    }    
-    
-    public void listen(long timeout, ScriptValue callback) {
+    }
+
+    public Object listen(long timeout, ScriptValue callback) {
         if (!callback.isFunction()) {
             throw new RuntimeException("listen expression - expected function, but was: " + callback);
         }
-        listen(timeout, () -> callback.invokeFunction(this, null));
+        return listen(timeout, () -> callback.invokeFunction(this, null));
     }
-    
-    //==========================================================================
 
+    // driver ==================================================================
+    
     public void driver(String expression) {
         Map<String, Object> options = config.getDriverOptions();
         ScriptValue sv = Script.evalKarateExpression(expression, this);
@@ -860,7 +882,7 @@ public class ScenarioContext {
         bindings.setDriver(driver);
     }
 
-    public void location(String expression) {        
+    public void location(String expression) {
         if (driver == null) {
             driver = DriverUtils.construct(config.getDriverOptions());
             bindings.setDriver(driver);
@@ -868,23 +890,23 @@ public class ScenarioContext {
         String temp = Script.evalKarateExpression(expression, this).getAsString();
         driver.setLocation(temp);
     }
-    
+
     public void input(String name, String value) {
         String temp = Script.evalKarateExpression(value, this).getAsString();
         driver.input(name, temp);
     }
-    
+
     public void click(String name) {
         driver.click(name);
     }
-    
+
     public void submit(String name) {
         driver.submit(name);
-    }    
-    
+    }
+
     public void stop() {
-        if (executor != null) {
-            executor.shutdownNow();
+        if (webSocketClient != null) {
+            webSocketClient.close();
         }
         if (driver != null) {
             driver.quit();

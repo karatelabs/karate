@@ -1,10 +1,10 @@
 package mock.contract;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
 import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -38,20 +38,25 @@ public class ConsumerUsingProxyHttpTest {
     }    
     
     @Test
-    public void testPaymentCreate() {
+    public void testPaymentCreate() throws Exception {
         Payment payment = new Payment();
         payment.setAmount(5.67);
         payment.setDescription("test one");
-        payment = consumer.create(payment);
-        assertTrue(payment.getId() > 0);
-        assertEquals(payment.getAmount(), 5.67, 0);
-        assertEquals(payment.getDescription(), "test one"); 
-        consumer.waitUntilFirstMessage();
-        List<Shipment> shipments = consumer.getShipments();
-        assertEquals(1, shipments.size());
-        Shipment shipment = shipments.get(0);
-        assertEquals(payment.getId(), shipment.getPaymentId());
-        assertEquals("shipped", shipment.getStatus());        
+        Payment result = consumer.create(payment);
+        assertTrue(result.getId() > 0);
+        assertEquals(result.getAmount(), 5.67, 0);
+        assertEquals(result.getDescription(), "test one");
+        consumer.listen((json) -> {
+            Shipment shipment = JsonUtils.fromJson(json, Shipment.class);
+            assertEquals(result.getId(), shipment.getPaymentId());
+            assertEquals("shipped", shipment.getStatus()); 
+            synchronized(this) {
+                notify();
+            }
+        });
+        synchronized(this) {
+            wait();
+        }       
     }
     
     @AfterClass

@@ -1,6 +1,6 @@
 package mock.contract;
 
-import java.util.List;
+import com.intuit.karate.JsonUtils;
 import org.junit.AfterClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -21,7 +21,7 @@ public class ConsumerIntegrationTest {
         String queueName = "DEMO.INTEGRATION";
         context = PaymentService.start(queueName, false);
         String paymentServiceUrl = "http://localhost:" + PaymentService.getPort(context);
-        consumer = new Consumer(paymentServiceUrl, queueName);       
+        consumer = new Consumer(paymentServiceUrl, queueName); 
     }
     
     @Test
@@ -29,16 +29,21 @@ public class ConsumerIntegrationTest {
         Payment payment = new Payment();
         payment.setAmount(5.67);
         payment.setDescription("test one");
-        payment = consumer.create(payment);
-        assertTrue(payment.getId() > 0);
-        assertEquals(payment.getAmount(), 5.67, 0);
-        assertEquals(payment.getDescription(), "test one");
-        consumer.waitUntilFirstMessage();
-        List<Shipment> shipments = consumer.getShipments();
-        assertEquals(1, shipments.size());
-        Shipment shipment = shipments.get(0);
-        assertEquals(payment.getId(), shipment.getPaymentId());
-        assertEquals("shipped", shipment.getStatus());
+        Payment result = consumer.create(payment);
+        assertTrue(result.getId() > 0);
+        assertEquals(result.getAmount(), 5.67, 0);
+        assertEquals(result.getDescription(), "test one");
+        consumer.listen((json) -> {
+            Shipment shipment = JsonUtils.fromJson(json, Shipment.class);
+            assertEquals(result.getId(), shipment.getPaymentId());
+            assertEquals("shipped", shipment.getStatus()); 
+            synchronized(this) {
+                notify();
+            }
+        });
+        synchronized(this) {
+            wait();
+        }
     }
     
     @AfterClass

@@ -5,10 +5,6 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import javax.jms.Message;
-import javax.jms.MessageListener;
 import javax.jms.TextMessage;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
@@ -18,14 +14,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class Consumer implements MessageListener {
-    
+public class Consumer {
+
     private static final Logger logger = LoggerFactory.getLogger(Consumer.class);
 
     private final String paymentServiceUrl;
     private final String proxyHost;
     private final Integer proxyPort;
-    private final List<Shipment> shipments = new ArrayList();
     private final QueueConsumer queueConsumer;
 
     public Consumer(String paymentServiceUrl, String queueName) {
@@ -37,7 +32,6 @@ public class Consumer implements MessageListener {
         this.proxyHost = proxyHost;
         this.proxyPort = proxyPort;
         queueConsumer = new QueueConsumer(queueName);
-        queueConsumer.setMessageListener(this);
     }
 
     private HttpURLConnection getConnection(String path) throws Exception {
@@ -69,29 +63,21 @@ public class Consumer implements MessageListener {
         }
     }
 
-    public List<Shipment> getShipments() {
-        return shipments;
-    }        
+    public void listen(java.util.function.Consumer<String> handler) {
+        queueConsumer.setMessageListener((message) -> {
+            try {
+                TextMessage tm = (TextMessage) message;
+                String json = tm.getText();
+                logger.info("*** received message: {}", json);
+                handler.accept(json);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
 
-    @Override
-    public void onMessage(Message message) {
-        try {
-            TextMessage tm = (TextMessage) message;
-            String json = tm.getText();
-            logger.info("*** received message: {}", json);
-            Shipment shipment = JsonUtils.fromJson(json, Shipment.class);
-            shipments.add(shipment);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-    
-    public void waitUntilFirstMessage() {
-        QueueUtils.waitUntilCondition(200, () -> !shipments.isEmpty());
-    }
-    
     public void stopQueueConsumer() {
-        queueConsumer.stop();        
+        queueConsumer.stop();
     }
 
 }

@@ -361,32 +361,23 @@ public class ScriptBridge implements PerfContext {
             throw new RuntimeException("not a JS function: " + som);
         }        
         ScriptValue sv = new ScriptValue(som);
-        WebSocketClient client = new WebSocketClient(url, new WebSocketListener() {
-            @Override
-            public void onMessage(String text) {
-                sv.invokeFunction(context, text);
-            }
-            @Override
-            public void onMessage(byte[] bytes) {
-                this.onMessage(FileUtils.toString(bytes));
-            }
-        });
-        return client;
+        context.websocket(url, (text) -> sv.invokeFunction(context, text));
+        return context.getWebSocketClient();
     }
     
-    public void signal() {
-        context.signal();
+    public void signal(Object result) {
+        context.signal(result);
     }
     
-    public void listen(long timeout, ScriptObjectMirror som) {
+    public Object listen(long timeout, ScriptObjectMirror som) {
         if (!som.isFunction()) {
             throw new RuntimeException("not a JS function: " + som);
         }
-        context.listen(timeout, new ScriptValue(som));
+        return context.listen(timeout, new ScriptValue(som));
     }
     
-    public void listen(long timeout) {
-        context.listen(timeout, () -> {});
+    public Object listen(long timeout) {
+        return context.listen(timeout, () -> {});
     }    
     
     private ScriptValue getValue(String name) {

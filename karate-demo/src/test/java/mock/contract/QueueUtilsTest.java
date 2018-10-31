@@ -34,13 +34,16 @@ public class QueueUtilsTest {
                 logger.info("*** received message: {}", tm.getText());
                 assertEquals("foo", tm.getText());
                 passed = true;
-                consumer.stop();
+                synchronized (consumer) {
+                    consumer.notify();
+                }
             } catch (JMSException e) {
                 throw new RuntimeException(e);
             }
-
         });
-        QueueUtils.waitUntilStopped();
+        synchronized (consumer) {
+            consumer.wait();
+        }
         assertTrue(passed);
     }
 

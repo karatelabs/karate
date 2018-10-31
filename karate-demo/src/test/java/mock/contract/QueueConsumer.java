@@ -16,14 +16,12 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class QueueConsumer {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(QueueConsumer.class);
 
     private final Connection connection;
     private final MessageConsumer consumer;
     private final String queueName;
-    
-    private boolean stopped = false;
 
     public QueueConsumer(String queueName) {
         this.queueName = queueName;
@@ -37,20 +35,23 @@ public class QueueConsumer {
         }
     }
 
-    public void setMessageListener(MessageListener ml) {
-        QueueUtils.submit(() -> {
+    public void listen(java.util.function.Consumer<String> handler) {
+        setMessageListener((message) -> {
+            TextMessage tm = (TextMessage) message;
             try {
-                consumer.setMessageListener(ml);
-                logger.info("*** started listener: {}", queueName);
-                while (!stopped) {
-                    logger.info("*** listening: {} ..", queueName);
-                    Thread.sleep(50);
-                }
-                logger.info("*** stopped listening: {}", queueName);
+                handler.accept(tm.getText());
             } catch (Exception e) {
-                throw new RuntimeException();
+                throw new RuntimeException(e);
             }
         });
+    }
+
+    public void setMessageListener(MessageListener ml) {
+        try {
+            consumer.setMessageListener(ml);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String waitForNextMessage() {
@@ -61,7 +62,7 @@ public class QueueConsumer {
             throw new RuntimeException(e);
         }
     }
-    
+
     public void purgeMessages() {
         try {
             consumer.setMessageListener(null);
@@ -76,10 +77,9 @@ public class QueueConsumer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
+    }
 
     public void stop() {
-        stopped = true;
         try {
             connection.close();
         } catch (Exception e) {
