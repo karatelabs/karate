@@ -31,7 +31,6 @@ import com.intuit.karate.http.HttpResponse;
 import org.apache.commons.io.IOUtils;
 import org.apache.hc.client5.http.async.methods.AbstractCharResponseConsumer;
 import org.apache.hc.client5.http.async.methods.AsyncRequestBuilder;
-import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.CredentialsStore;
@@ -45,19 +44,21 @@ import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.ssl.*;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.nio.AsyncRequestProducer;
 import org.apache.hc.core5.http.nio.entity.BasicAsyncEntityProducer;
+import org.apache.hc.core5.http.nio.ssl.TlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.ShutdownType;
 import org.apache.hc.core5.net.URIBuilder;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
 
-import javax.net.ssl.SSLContext;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -87,7 +88,6 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
     private AsyncRequestBuilder requestBuilder;
     private CookieStore cookieStore;
     private Charset charset;
-    private SimpleHttpRequest simpleHttpRequest;
 
     private void build() {
         try {
@@ -116,43 +116,17 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
         clientBuilder.addResponseInterceptorLast(requestInterceptor);
         clientBuilder.addResponseInterceptorLast(new ResponseLoggingInterceptor(requestInterceptor, context));
 
-        if (config.isSslEnabled()) {
-            // System.setProperty("jsse.enableSNIExtension", "false");
-            String algorithm = config.getSslAlgorithm(); // could be null
-            KeyStore trustStore = HttpUtils.getKeyStore(context,
-                    config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
-            KeyStore keyStore = HttpUtils.getKeyStore(context,
-                    config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
-            SSLContext sslContext;
-            try {
-                SSLContextBuilder builder = SSLContexts.custom()
-                        .setProtocol(algorithm); // will default to TLS if null
-                if (trustStore == null && config.isSslTrustAll()) {
-                    builder = builder.loadTrustMaterial(new TrustAllStrategy());
-                } else {
-                    if (config.isSslTrustAll()) {
-                        builder = builder.loadTrustMaterial(trustStore, new TrustSelfSignedStrategy());
-                    } else {
-                        builder = builder.loadTrustMaterial(trustStore, null); // will use system / java default
-                    }
-                }
-                if (keyStore != null) {
-                    char[] keyPassword = config.getSslKeyStorePassword() == null ? null : config.getSslKeyStorePassword().toCharArray();
-                    builder = builder.loadKeyMaterial(keyStore, keyPassword);
-                }
-                sslContext = builder.build();
-            } catch (Exception e) {
-                context.logger.error("ssl context init failed: {}", e.getMessage());
-                throw new RuntimeException(e);
-            }
-            SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
-            //clientBuilder.setSSLSocketFactory(socketFactory);
-        }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
                 .setCookieSpec(LenientCookieSpec.KARATE)
                 .setConnectTimeout(config.getConnectTimeout(), TimeUnit.MILLISECONDS);
                 //.setSocketTimeout(config.getReadTimeout());
-        clientBuilder.setDefaultRequestConfig(configBuilder.build());
+        
+        final PoolingAsyncClientConnectionManager connManager = PoolingAsyncClientConnectionManagerBuilder.create()
+                .setTlsStrategy(getTlsStrategy(context, config))
+                .build();
+        
+        clientBuilder.setDefaultRequestConfig(configBuilder.build())
+                .setConnectionManager(connManager);
         if (config.getProxyUri() != null) {
             try {
                 URI proxyUri = new URIBuilder(config.getProxyUri()).build();
@@ -184,6 +158,48 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private TlsStrategy getTlsStrategy(ScriptContext context, HttpConfig config) {
+        if (config.isSslEnabled()) {
+            // System.setProperty("jsse.enableSNIExtension", "false");
+            String algorithm = config.getSslAlgorithm(); // could be null
+            KeyStore trustStore = HttpUtils.getKeyStore(context,
+                    config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
+            KeyStore keyStore = HttpUtils.getKeyStore(context,
+                    config.getSslKeyStore(), config.getSslKeyStorePassword(), config.getSslKeyStoreType());
+            try {
+                SSLContextBuilder sslCxtBuilder = SSLContexts.custom()
+                        .setProtocol(algorithm); // will default to TLS if null
+                if (trustStore == null && config.isSslTrustAll()) {
+                    sslCxtBuilder = sslCxtBuilder.loadTrustMaterial(new TrustAllStrategy());
+                } else {
+                    if (config.isSslTrustAll()) {
+                        sslCxtBuilder = sslCxtBuilder.loadTrustMaterial(trustStore, new TrustSelfSignedStrategy());
+                    } else {
+                        sslCxtBuilder = sslCxtBuilder.loadTrustMaterial(trustStore, null); // will use system / java default
+                    }
+                }
+                if (keyStore != null) {
+                    char[] keyPassword = config.getSslKeyStorePassword() == null ? null : config.getSslKeyStorePassword().toCharArray();
+                    sslCxtBuilder = sslCxtBuilder.loadKeyMaterial(keyStore, keyPassword);
+                }
+                
+                //return new H2TlsStrategy(sslCxtBuilder.build(), H2TlsStrategy.getDefaultHostnameVerifier()) {
+                return new H2TlsStrategy(sslCxtBuilder.build(), new NoopHostnameVerifier()) {
+                    // IMPORTANT uncomment the following method when running Java 9 or older
+                    // in order to avoid the illegal reflective access operation warning
+//                  @Override
+//                  protected TlsDetails createTlsDetails(final SSLEngine sslEngine) {
+//                      return new TlsDetails(sslEngine.getSession(), sslEngine.getApplicationProtocol());
+//                  }
+                };
+                } catch (Exception e) {
+                context.logger.error("ssl context init failed: {}", e.getMessage());
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
     }
 
     @Override
@@ -276,7 +292,7 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
         if (entity != null) {
             try {
                 byte[] bytes = IOUtils.toByteArray(entity.getContent());
-                requestBuilder.setEntity(new BasicAsyncEntityProducer(bytes, ContentType.getByMimeType(entity.getContentType()) ));
+                requestBuilder.setEntity(new BasicAsyncEntityProducer(bytes, ContentType.parse(entity.getContentType()) ));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -328,7 +344,6 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
                     body += charBuffer.toString();
 
                 }
-
             }
 
             @Override
@@ -356,7 +371,7 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
 
                         }
                     });
-            SimpleHttpResponse res =  future.get();
+            future.get();
 
             if(responseConsumer == null || responseConsumer.getResult() == null) {
                 bytes = new byte[0];
@@ -366,14 +381,6 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
                 bytes = FileUtils.toBytes(is);
             }
 
-
-            /*HttpEntity responseEntity = httpResponse.getEntity();
-            if (responseEntity == null || responseEntity.getContent() == null) {
-                bytes = new byte[0];
-            } else {
-                InputStream is = responseEntity.getContent();
-                bytes = FileUtils.toBytes(is);
-            }*/
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

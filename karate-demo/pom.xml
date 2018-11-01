@@ -67,7 +67,7 @@
         </dependency>
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
+            <artifactId>karate-apache-async</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>                
@@ -75,7 +75,7 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
             <version>${netty.version}</version>
-            <!--scope>test</scope-->
+            <scope>test</scope>
         </dependency>                
         <dependency>
             <groupId>io.netty</groupId>
@@ -198,7 +198,27 @@
                 <configuration>
                     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
-            </plugin>                        
+            </plugin>
+            <plugin>
+                <groupId>io.gatling</groupId>
+                <artifactId>gatling-maven-plugin</artifactId>
+                <version>${gatling.plugin.version}</version>
+                <configuration>
+                    <simulationsFolder>src/test/java</simulationsFolder>
+                </configuration>
+            </plugin>                         
+            <plugin>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <executable>${java.home}/bin/java</executable>
+                    <commandlineArgs>
+                        -classpath %classpath:${project.build.directory}/test-classes
+                        com.intuit.karate.netty.Main
+                        ${mock-server-args}
+                    </commandlineArgs>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
     
