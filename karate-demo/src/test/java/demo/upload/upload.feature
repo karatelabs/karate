@@ -27,6 +27,7 @@ Scenario: upload file
     * json fileInfo = FileChecker.getMetadata(id)
     * match fileInfo == { id: '#(id)', filename: 'myFile', message: 'hello world', contentType: 'application/octet-stream' }
 
+@mock-servlet-todo
 Scenario: upload with filename and content-type specified
     Given path 'files'
     And multipart file myFile = { read: 'test.pdf', filename: 'upload-name.pdf', contentType: 'application/pdf' }
