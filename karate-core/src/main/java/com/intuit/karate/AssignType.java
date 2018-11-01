@@ -13,6 +13,7 @@ public enum AssignType {
     JSON,
     STRING,
     XML,
-    XML_STRING
+    XML_STRING,
+    BYTE_ARRAY
     
 }

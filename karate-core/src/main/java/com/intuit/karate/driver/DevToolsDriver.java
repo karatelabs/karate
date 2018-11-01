@@ -27,7 +27,6 @@ import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
-import com.intuit.karate.netty.WebSocketListener;
 import com.intuit.karate.shell.CommandThread;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +39,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public abstract class DevToolsDriver implements Driver, WebSocketListener {
+public abstract class DevToolsDriver implements Driver {
 
     protected static final Logger logger = LoggerFactory.getLogger(DevToolsDriver.class);
 
@@ -74,7 +73,12 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
         int pos = webSocketUrl.lastIndexOf('/');
         pageId = webSocketUrl.substring(pos + 1);
         logger.debug("page id: {}", pageId);
-        client = new WebSocketClient(webSocketUrl, this);
+        client = new WebSocketClient(webSocketUrl, text -> {
+            logger.debug("received raw: {}", text);
+            Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
+            DevToolsMessage dtm = new DevToolsMessage(this, map);
+            receive(dtm);
+        });
     }
 
     public int waitSync() {
@@ -103,19 +107,6 @@ public abstract class DevToolsDriver implements Driver, WebSocketListener {
 
     public void receive(DevToolsMessage dtm) {
         waitState.receive(dtm);
-    }
-
-    @Override
-    public void onMessage(String text) {
-        logger.debug("received raw: {}", text);
-        Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
-        DevToolsMessage dtm = new DevToolsMessage(this, map);
-        receive(dtm);
-    }
-
-    @Override
-    public void onMessage(byte[] bytes) {
-        logger.warn("ignoring binary message");
     }
 
     //==========================================================================

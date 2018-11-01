@@ -48,8 +48,8 @@ import org.slf4j.LoggerFactory;
 public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketClientHandler.class);
-    
-    private final WebSocketClientHandshaker handshaker;    
+
+    private final WebSocketClientHandshaker handshaker;
     private final WebSocketListener listener;
     private ChannelPromise handshakeFuture;
 
@@ -76,7 +76,7 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
     public void channelInactive(ChannelHandlerContext ctx) {
         logger.debug("websocket client disconnected");
     }
-    
+
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
         Channel ch = ctx.channel();
@@ -94,16 +94,20 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
         if (msg instanceof FullHttpResponse) {
             FullHttpResponse response = (FullHttpResponse) msg;
             throw new IllegalStateException(
-                    "unexpected FullHttpResponse (getStatus=" + response.status() +
-                            ", content=" + response.content().toString(CharsetUtil.UTF_8) + ')');
+                    "unexpected FullHttpResponse (getStatus=" + response.status()
+                    + ", content=" + response.content().toString(CharsetUtil.UTF_8) + ')');
         }
         WebSocketFrame frame = (WebSocketFrame) msg;
         if (frame instanceof TextWebSocketFrame) {
-            logger.debug("websocket received text");
+            if (logger.isTraceEnabled()) {
+                logger.trace("websocket received text");
+            }
             TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
             listener.onMessage(textFrame.text());
         } else if (frame instanceof PongWebSocketFrame) {
-            logger.debug("websocket received pong");
+            if (logger.isTraceEnabled()) {
+                logger.trace("websocket received pong");
+            }
         } else if (frame instanceof CloseWebSocketFrame) {
             logger.debug("websocket closing");
             ch.close();
@@ -112,7 +116,7 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
             BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
             ByteBuf buf = binaryFrame.content();
             byte[] bytes = new byte[buf.readableBytes()];
-            buf.readBytes(bytes);            
+            buf.readBytes(bytes);
             listener.onMessage(bytes);
         }
     }
@@ -128,6 +132,6 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
             handshakeFuture.setFailure(cause);
         }
         ctx.close();
-    }    
+    }
 
 }

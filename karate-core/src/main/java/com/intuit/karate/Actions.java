@@ -45,6 +45,8 @@ public interface Actions {
     void xml(String name, String expression);
 
     void xmlstring(String name, String expression);
+    
+    void bytes(String name, String expression);
 
     void configure(String key, String exp);
 

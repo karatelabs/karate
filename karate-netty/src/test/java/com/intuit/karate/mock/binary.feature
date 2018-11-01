@@ -4,19 +4,11 @@ Background:
     * def Runner = Java.type('com.intuit.karate.mock.MockServerTest')
 
 Scenario: get binary result and make sure it hasn't been corrupted
-    * def checkBinaryResult =
-    """
-    function(actual){
-      var expected = Runner.testBytes;
-      print('expected byte count: ' + expected.length + ', response byte count: ' + actual.length);
-      return java.util.Arrays.equals(expected, actual);
-    }
-    """
     Given url mockServerUrl
     And path 'binary', 'download'
     When method get
     Then status 200
-    Then assert checkBinaryResult(responseBytes)
+    Then match responseBytes == Runner.testBytes
 
 Scenario: send binary content and make sure the server can see it
     Given url mockServerUrl

@@ -79,6 +79,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#type-json"><code>json</code></a>
     | <a href="#type-xml"><code>xml</code></a>
     | <a href="#type-xmlstring"><code>xmlstring</code></a>
+    | <a href="#type-bytes"><code>bytes</code></a>
     | <a href="#type-copy"><code>copy</code></a>
   </td>
 </tr>
@@ -1352,6 +1353,7 @@ So you have the following type markers you can use instead of [`def`](#def) (or 
 * <a name="type-json"><code>json</code></a> - convert XML, a map-like or list-like object, a string, or even a Java object into JSON
 * <a name="type-xml"><code>xml</code></a> - convert JSON, a map-like object, a string, or even a Java object into XML
 * <a name="type-xmlstring"><code>xmlstring</code></a> - specifically for converting the map-like Karate internal representation of XML into a string
+* <a name="type-bytes"><code>bytes</code></a> - convert to a byte-array, useful for binary payloads or comparisons, see [example](karate-demo/src/test/java/demo/websocket/echo.feature)
 * <a name="type-copy"><code>copy</code></a> - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
 
 These are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
@@ -2170,8 +2172,8 @@ Then match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }
 Then match response == 'Health Check OK'
 And match response != 'Error'
 
-# when the response is a file (stream)
-Then match response == read('test.pdf')
+# when the response is binary (byte-array)
+Then match responseBytes == read('test.pdf')
 
 # incidentally, match and assert behave exactly the same way for strings
 * def hello = 'Hello World!'
@@ -2186,7 +2188,7 @@ Checking if a string is contained within another string is a very common need an
 * match hello !contains 'blah'
 ```
 
-For case-insensitive string comparisons, see how to create [custom utilities](#commonly-needed-utilities) or [`karate.lowerCase()`](#karate-lowercase).
+For case-insensitive string comparisons, see how to create [custom utilities](#commonly-needed-utilities) or [`karate.lowerCase()`](#karate-lowercase). And for dealing with binary content - see [`bytes`](#type-bytes).
 
 ### `match header`
 Since asserting against header values in the response is a common task - `match header` has a special meaning.  It short-cuts to the pre-defined variable [`responseHeaders`](#responseheaders) and reduces some complexity - because strictly, HTTP headers are a 'multi-valued map' or a 'map of lists' - the Java-speak equivalent being `Map<String, List<String>>`.

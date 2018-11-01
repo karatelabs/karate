@@ -32,7 +32,7 @@ Scenario: upload image - binary request body
     Given path 'files', id
     When method get
     Then status 200
-    And match response == read('karate-logo.jpg')
+    And match responseBytes == read('karate-logo.jpg')
     And match header Content-Disposition contains 'karate-logo.jpg'
 
 @mock-servlet-todo

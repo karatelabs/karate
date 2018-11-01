@@ -39,7 +39,7 @@ Scenario: upload with filename and content-type specified
     Given path 'files', id
     When method get
     Then status 200
-    And match response == read('test.pdf')
+    And match responseBytes == read('test.pdf')
     And match header Content-Disposition contains 'attachment'
     And match header Content-Disposition contains 'upload-name.pdf'
     And match header Content-Type == 'application/pdf'

@@ -39,6 +39,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.net.URI;
+import java.util.function.Consumer;
 import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +48,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class WebSocketClient {
+public class WebSocketClient implements WebSocketListener {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketClient.class);
 
@@ -57,9 +58,32 @@ public class WebSocketClient {
     private final Channel channel;
     private final EventLoopGroup group;
     
-    private boolean waiting;
+    private Consumer<String> textHandler;
+    private Consumer<byte[]> binaryHandler;
+    
+    @Override
+    public void onMessage(String text) {
+        if (textHandler != null) {
+            textHandler.accept(text);
+        }
+    }
 
-    public WebSocketClient(String url, WebSocketListener listener) {
+    @Override
+    public void onMessage(byte[] bytes) {
+        if (binaryHandler != null) {
+            binaryHandler.accept(bytes);
+        }
+    }    
+    
+    private boolean waiting;
+    
+    public WebSocketClient(String url, Consumer<String> textHandler) {
+        this(url, textHandler, null);
+    }
+
+    public WebSocketClient(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+        this.textHandler = textHandler;
+        this.binaryHandler = binaryHandler;
         uri = URI.create(url);
         ssl = "wss".equalsIgnoreCase(uri.getScheme());
         SslContext sslContext;
@@ -75,7 +99,7 @@ public class WebSocketClient {
         port = uri.getPort() == -1 ? (ssl ? 443 : 80) : uri.getPort();
         group = new NioEventLoopGroup();
         try {
-            WebSocketClientInitializer initializer = new WebSocketClientInitializer(uri, port, sslContext, listener);
+            WebSocketClientInitializer initializer = new WebSocketClientInitializer(uri, port, sslContext, this);
             Bootstrap b = new Bootstrap();
             b.group(group)
                     .channel(NioSocketChannel.class)
@@ -87,6 +111,14 @@ public class WebSocketClient {
             throw new RuntimeException(e);            
         }
     }
+
+    public void setBinaryHandler(Consumer<byte[]> binaryHandler) {
+        this.binaryHandler = binaryHandler;
+    }
+
+    public void setTextHandler(Consumer<String> textHandler) {
+        this.textHandler = textHandler;
+    }        
 
     public void waitSync() {
         if (waiting) {
@@ -119,7 +151,7 @@ public class WebSocketClient {
         }
     }
     
-    public void send(byte[] msg) {
+    public void sendBytes(byte[] msg) {
         ByteBuf byteBuf = Unpooled.copiedBuffer(msg);
         BinaryWebSocketFrame frame = new BinaryWebSocketFrame(byteBuf);
         channel.writeAndFlush(frame);

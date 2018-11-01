@@ -41,7 +41,6 @@ import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
 import com.intuit.karate.netty.WebSocketClient;
-import com.intuit.karate.netty.WebSocketListener;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
@@ -51,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -354,14 +354,14 @@ public class ScriptBridge implements PerfContext {
         ScriptValue sv = new ScriptValue(o);
         path = Engine.getBuildDir() + File.separator + path;
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
-    }      
+    }    
     
-    public WebSocketClient websocket(String url, ScriptObjectMirror som) {
-        if (!som.isFunction()) {
-            throw new RuntimeException("not a JS function: " + som);
-        }        
-        ScriptValue sv = new ScriptValue(som);
-        context.websocket(url, (text) -> sv.invokeFunction(context, text));
+    public WebSocketClient websocket(String url, Consumer<String> textHandler) {
+        return websocket(url, textHandler, null);
+    }
+    
+    public WebSocketClient websocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+        context.websocket(url, textHandler, binaryHandler);
         return context.getWebSocketClient();
     }
     

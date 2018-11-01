@@ -49,6 +49,7 @@ import com.jayway.jsonpath.PathNotFoundException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -616,6 +617,10 @@ public class Script {
                 Node xmlStringDoc = toXmlDoc(evalKarateExpression(exp, context), context);
                 sv = new ScriptValue(XmlUtils.toString(xmlStringDoc));
                 break;
+            case BYTE_ARRAY:
+                ScriptValue tempBytes = evalKarateExpression(exp, context);
+                sv = new ScriptValue(tempBytes.getAsByteArray());
+                break;
             case COPY:
                 sv = evalKarateExpression(exp, context).copy();
                 break;
@@ -1077,6 +1082,21 @@ public class Script {
                     return matchFailed(matchType, path, null, expectedNull.getValue(), "actual value is null but expected is " + expectedNull);
                 } else {
                     return matchStringOrPattern('.', path, matchType, null, null, actual, expectedNull.getAsString(), context);
+                }
+            case BYTE_ARRAY:
+                ScriptValue expectedBytesValue = evalKarateExpression(expression, context);
+                byte[] expectedBytes = expectedBytesValue.getAsByteArray();
+                byte[] actualBytes = actual.getAsByteArray();
+                if (Arrays.equals(expectedBytes, actualBytes)) {
+                    if (matchType == MatchType.NOT_EQUALS) {
+                        return matchFailed(matchType, path, actualBytes, expectedBytes, "actual and expected byte-arrays are not equal");
+                    }
+                    return AssertionResult.PASS;
+                } else {
+                    if (matchType == MatchType.NOT_EQUALS) {
+                        return AssertionResult.PASS;
+                    }
+                    return matchFailed(matchType, path, actualBytes, expectedBytes, "actual and expected byte-arrays are not equal");
                 }
             default:
                 throw new RuntimeException("not json, cannot do json path for value: " + actual + ", path: " + path);

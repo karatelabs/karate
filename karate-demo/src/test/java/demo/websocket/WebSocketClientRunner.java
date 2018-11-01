@@ -1,7 +1,6 @@
 package demo.websocket;
 
 import com.intuit.karate.netty.WebSocketClient;
-import com.intuit.karate.netty.WebSocketListener;
 import demo.TestBase;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
@@ -13,12 +12,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class WebSocketClientRunner implements WebSocketListener {
+public class WebSocketClientRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketClientRunner.class);
 
     private WebSocketClient client;
-    private String received;
+    private String result;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -28,26 +27,18 @@ public class WebSocketClientRunner implements WebSocketListener {
     @Test
     public void testWebSocketClient() throws Exception {
         String port = System.getProperty("demo.server.port");
-        client = new WebSocketClient("ws://localhost:" + port + "/websocket", this);
+        client = new WebSocketClient("ws://localhost:" + port + "/websocket", text -> {
+            logger.debug("websocket listener text: {}", text);
+            synchronized (this) {
+                result = text;
+                notify();
+            }
+        });
         client.send("Billie");
         synchronized (this) {
-            wait();
-            assertEquals("hello Billie !", received);
-        }        
-    }
-
-    @Override
-    public void onMessage(String text) {
-        logger.debug("websocket listener text: {}", text);        
-        synchronized (this) {
-            received = text;
-            notify();
+            wait();            
         }
-    }
-
-    @Override
-    public void onMessage(byte[] bytes) {
-        
+        assertEquals("hello Billie !", result);
     }
 
 }

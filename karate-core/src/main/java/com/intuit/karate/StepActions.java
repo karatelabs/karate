@@ -247,6 +247,12 @@ public class StepActions implements Actions {
     public void xmlstring(String name, String expression) {
         context.assign(AssignType.XML_STRING, name, expression);
     }
+    
+    @Override
+    @When("^bytes (.+) = (.+)")
+    public void bytes(String name, String expression) {
+        context.assign(AssignType.BYTE_ARRAY, name, expression);
+    }    
 
     @Override
     @When("^assert (.+)")

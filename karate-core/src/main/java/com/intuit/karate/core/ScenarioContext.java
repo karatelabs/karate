@@ -49,7 +49,6 @@ import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverUtils;
 import com.intuit.karate.netty.WebSocketClient;
-import com.intuit.karate.netty.WebSocketListener;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.Charset;
@@ -827,17 +826,15 @@ public class ScenarioContext {
     
     // websocket / async =======================================================
 
-    public void websocket(String url, Consumer<String> consumer) {
-        webSocketClient = new WebSocketClient(url, new WebSocketListener() {
-            @Override
-            public void onMessage(String text) {
-                consumer.accept(text);
-            }
-            @Override
-            public void onMessage(byte[] bytes) {
-                this.onMessage(FileUtils.toString(bytes));
-            }
-        });        
+    public void websocket(String url, Consumer<String> textHandler) {
+        websocket(url, textHandler, null);
+    }
+    
+    public void websocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+        if (webSocketClient != null) {
+            webSocketClient.close();
+        }
+        webSocketClient = new WebSocketClient(url, textHandler, binaryHandler);
     }
     
     public void signal(Object result) {

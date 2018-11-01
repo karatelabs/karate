@@ -512,7 +512,7 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml/root/nope", null, "'#notpresent'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "xml/root/nope", null, "'#present'", ctx).pass);
     }
-    
+
     @Test
     public void testJsonEmptyAndNotPresent() {
         ScenarioContext ctx = getContext();
@@ -522,7 +522,7 @@ public class ScriptTest {
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "'#notpresent'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'#notpresent'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'#present'", ctx).pass);
-    }    
+    }
 
     @Test
     public void testAssignAndMatchXmlText() {
@@ -1094,14 +1094,14 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ baz: [1, 2, 3] }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ foo: 'bar' }", ctx).pass);
     }
-    
+
     @Test
     public void testMatchJsonObjectPartialNotContains() {
         ScenarioContext ctx = getContext();
         Script.assign("json", "{ a: 1, b: 2}", ctx);
         assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: 1, b: 3 }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: 1, b: '#string' }", ctx).pass);
-    }    
+    }
 
     @Test
     public void testMatchJsonArrayContains() {
@@ -1651,6 +1651,13 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "[]", ctx).pass);
         Script.assign(AssignType.JSON, "foo", "{}", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{}", ctx).pass);
+    }
+
+    @Test
+    public void testBinaryMatching() {
+        ScenarioContext ctx = getContext();
+        Script.assign(AssignType.BYTE_ARRAY, "data", "read('file:src/main/resources/karate-logo.png')", ctx, true);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "data", null, "read('file:src/main/resources/karate-logo.png')", ctx).pass);
     }
 
 }
