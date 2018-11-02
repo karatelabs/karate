@@ -826,11 +826,11 @@ public class ScenarioContext {
     
     // websocket / async =======================================================
 
-    public void websocket(String url, Consumer<String> textHandler) {
-        websocket(url, textHandler, null);
+    public void webSocket(String url, Consumer<String> textHandler) {
+        webSocket(url, textHandler, null);
     }
     
-    public void websocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+    public void webSocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
         if (webSocketClient != null) {
             webSocketClient.close();
         }

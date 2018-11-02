@@ -356,12 +356,12 @@ public class ScriptBridge implements PerfContext {
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
     }    
     
-    public WebSocketClient websocket(String url, Consumer<String> textHandler) {
-        return websocket(url, textHandler, null);
+    public WebSocketClient webSocket(String url, Consumer<String> textHandler) {
+        return webSocket(url, textHandler, null);
     }
     
-    public WebSocketClient websocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        context.websocket(url, textHandler, binaryHandler);
+    public WebSocketClient webSocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+        context.webSocket(url, textHandler, binaryHandler);
         return context.getWebSocketClient();
     }
     

@@ -64,7 +64,7 @@ public class Consumer {
     }
 
     public void listen(java.util.function.Consumer<String> handler) {
-        queueConsumer.setMessageListener((message) -> {
+        queueConsumer.setMessageListener(message -> {
             try {
                 TextMessage tm = (TextMessage) message;
                 String json = tm.getText();

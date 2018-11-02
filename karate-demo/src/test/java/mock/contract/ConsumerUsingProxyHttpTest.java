@@ -46,7 +46,7 @@ public class ConsumerUsingProxyHttpTest {
         assertTrue(result.getId() > 0);
         assertEquals(result.getAmount(), 5.67, 0);
         assertEquals(result.getDescription(), "test one");
-        consumer.listen((json) -> {
+        consumer.listen(json -> {
             Shipment shipment = JsonUtils.fromJson(json, Shipment.class);
             assertEquals(result.getId(), shipment.getPaymentId());
             assertEquals("shipped", shipment.getStatus()); 

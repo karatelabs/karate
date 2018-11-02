@@ -36,7 +36,7 @@ public class QueueConsumer {
     }
 
     public void listen(java.util.function.Consumer<String> handler) {
-        setMessageListener((message) -> {
+        setMessageListener(message -> {
             TextMessage tm = (TextMessage) message;
             try {
                 handler.accept(tm.getText());

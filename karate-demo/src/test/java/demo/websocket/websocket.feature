@@ -3,7 +3,7 @@ Feature: websocket testing
 
 Scenario: only listening to websocket messages
     * def handler = function(msg){ if (msg.startsWith('{')) karate.signal(msg) }
-    * eval karate.websocket(demoBaseUrl + '/websocket', handler)
+    * eval karate.webSocket(demoBaseUrl + '/websocket', handler)
 
     # first we post to the /websocket-controller end-point which will broadcast a message
     # to any websocket clients that are connected - but after a delay of 1 second    
@@ -20,7 +20,7 @@ Scenario: only listening to websocket messages
 
 Scenario: using the websocket instance to send as well as receive messages
     * def handler = function(msg){ if (msg.startsWith('hello')) karate.signal(msg) }
-    * def socket = karate.websocket(demoBaseUrl + '/websocket', handler)
+    * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
     * eval socket.send('Billie')
     * def result = karate.listen(5000)
     * match result == 'hello Billie !'
