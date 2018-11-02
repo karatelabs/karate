@@ -100,7 +100,7 @@ public class ScenarioContext {
 
     // websocket
     private final Object LOCK = new Object();
-    private WebSocketClient webSocketClient;
+    private List<WebSocketClient> webSocketClients;
     private Object signalResult;
 
     public void logLastPerfEvent(String failureMessage) {
@@ -150,11 +150,7 @@ public class ScenarioContext {
 
     public HttpClient getHttpClient() {
         return client;
-    }
-
-    public WebSocketClient getWebSocketClient() {
-        return webSocketClient;
-    }        
+    }       
     
     public int getCallDepth() {
         return callDepth;
@@ -288,7 +284,7 @@ public class ScenarioContext {
         prevRequest = sc.prevRequest;
         prevPerfEvent = sc.prevPerfEvent;
         callResults = sc.callResults;
-        webSocketClient = sc.webSocketClient;
+        webSocketClients = sc.webSocketClients;
         signalResult = sc.signalResult;
     }
 
@@ -825,16 +821,22 @@ public class ScenarioContext {
     }
     
     // websocket / async =======================================================
+    
+    private WebSocketClient createWebSocketClient(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+        WebSocketClient webSocketClient = new WebSocketClient(url, textHandler, binaryHandler);
+        if (webSocketClients == null) {
+            webSocketClients = new ArrayList();
+        }
+        webSocketClients.add(webSocketClient);
+        return webSocketClient;
+    }
 
-    public void webSocket(String url, Consumer<String> textHandler) {
-        webSocket(url, textHandler, null);
+    public WebSocketClient webSocket(String url, Consumer<String> textHandler) {
+        return webSocket(url, textHandler, null);
     }
     
-    public void webSocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        if (webSocketClient != null) {
-            webSocketClient.close();
-        }
-        webSocketClient = new WebSocketClient(url, textHandler, binaryHandler);
+    public WebSocketClient webSocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+        return createWebSocketClient(url, textHandler, binaryHandler);
     }
     
     public void signal(Object result) {
@@ -902,8 +904,8 @@ public class ScenarioContext {
     }
 
     public void stop() {
-        if (webSocketClient != null) {
-            webSocketClient.close();
+        if (webSocketClients != null) {
+            webSocketClients.forEach(WebSocketClient::close);
         }
         if (driver != null) {
             driver.quit();

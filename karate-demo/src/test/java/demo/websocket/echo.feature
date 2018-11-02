@@ -3,7 +3,7 @@ Feature: public test at
     http://www.websocket.org/echo.html
 
 Scenario: text messages
-    Given def handler = function(msg) { karate.signal(msg) }
+    Given def handler = function(msg){ karate.signal(msg) }
     And def socket = karate.webSocket('ws://echo.websocket.org', handler)
     When eval socket.send('hello world!')
     And def result = karate.listen(5000)
@@ -14,7 +14,7 @@ Scenario: text messages
     Then match result == 'another test'
 
 Scenario: binary message
-    Given def handler = function(msg) { karate.signal(msg) }
+    Given def handler = function(msg){ karate.signal(msg) }
     And def socket = karate.webSocket('ws://echo.websocket.org', null, handler)
     And bytes data = read('../upload/test.pdf')
     When eval socket.sendBytes(data)

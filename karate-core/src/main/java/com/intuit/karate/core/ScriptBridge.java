@@ -361,8 +361,7 @@ public class ScriptBridge implements PerfContext {
     }
     
     public WebSocketClient webSocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        context.webSocket(url, textHandler, binaryHandler);
-        return context.getWebSocketClient();
+        return context.webSocket(url, textHandler, binaryHandler);
     }
     
     public void signal(Object result) {
