@@ -285,7 +285,9 @@ public class ScriptTest {
         right.put("foo", "bar");
         assertTrue(matchJsonObject(left, right, ctx).pass);
         right.put("baz", "#ignore");
-        assertTrue(matchJsonObject(left, right, ctx).pass);
+        assertFalse(matchJsonObject(left, right, ctx).pass);
+        right.put("baz", "#notpresent");
+        assertTrue(matchJsonObject(left, right, ctx).pass);        
         left.put("baz", Arrays.asList(1, 2, 3));
         right.put("baz", Arrays.asList(1, 2, 3));
         assertTrue(matchJsonObject(left, right, ctx).pass);

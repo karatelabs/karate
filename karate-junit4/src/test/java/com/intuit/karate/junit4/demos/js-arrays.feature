@@ -204,7 +204,7 @@ Scenario: #null, ##null, #present and #notpresent
     * def foo = { }
     * match foo != { a: '#present' }
     * match foo == { a: '#notpresent' }
-    * match foo == { a: '#ignore' }
+    * match foo != { a: '#ignore' }
     * match foo == { a: '##null' }
     * match foo != { a: '#null' }
     * match foo != { a: '#notnull' }
