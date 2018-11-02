@@ -102,6 +102,10 @@ public class ScenarioPanel2 extends BorderPane {
     public void refreshVars() {
         varsPanel.refresh();
     }
+    
+    public void refreshConsole() {
+		consolePanel.refresh();
+	}
 
     public void runAll() {
         reset();
@@ -115,6 +119,7 @@ public class ScenarioPanel2 extends BorderPane {
     public void reset() {
         unit.reset(initialContext.copy());
         refreshVars();
+        refreshConsole();
         for (StepPanel2 stepPanel : stepPanels) {
             stepPanel.initStyles();
         }

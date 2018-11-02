@@ -29,6 +29,7 @@ public class ConsolePanel extends BorderPane {
 	private final ScenarioPanel2 scenarioPanel;
 	private final ScenarioExecutionUnit unit;
 	private final TextArea textArea;
+	private final Label resultLabel;
 	private final Step step;
 	private final int index;
 	private final String consolePlaceHolder = "Enter your step here for debugging...";
@@ -59,7 +60,7 @@ public class ConsolePanel extends BorderPane {
 		textArea.setMinHeight(0);
 		textArea.setPromptText(consolePlaceHolder);
 		text = "";
-		Label resultLabel = new Label(idle);
+		resultLabel = new Label(idle);
 		resultLabel.setTextFill(Color.web("#8c8c8c"));
 		resultLabel.setPadding(new Insets(3.0, 0, 0, 0));
 		resultLabel.setFont(new Font(15));
@@ -112,6 +113,13 @@ public class ConsolePanel extends BorderPane {
 		unit.result.setStepResult(index, sr);
 		scenarioPanel.refreshVars();
 		return sr.getResult();
+	}
+	
+	public void refresh() {
+		textArea.clear();
+		text = "";
+		resultLabel.setText(idle);
+		resultLabel.setTextFill(Color.web("#8c8c8c"));
 	}
 
 }
