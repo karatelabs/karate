@@ -72,10 +72,11 @@ public class App2 extends Application {
         File file = new File(fileName);
         AppSession2 session = new AppSession2(file, envString);
         rootPane = session.getRootPane();
-        Scene scene = new Scene(rootPane, 900, 750);
+        Scene scene = new Scene(rootPane, 900, 700);
         stage.setScene(scene);
         stage.setTitle("Karate UI");
         stage.getIcons().add(new Image(getClass().getClassLoader().getResourceAsStream(KARATE_LOGO)));
+        stage.setMaximized(true);
         setDockIconForMac();
         stage.show();
     }

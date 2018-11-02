@@ -86,7 +86,14 @@ public class StepPanel2 extends AnchorPane {
             }
         });
         runButton = new Button("►");
-        runButton.setOnAction(e -> run());
+        runButton.setOnAction(e -> {
+        	if(FeatureParser.updateStepFromText(step, text)) {
+        		run();
+        	}
+        	else {
+        		runButton.setStyle(STYLE_FAIL);
+        	}
+        });
         // layout
         setLeftAnchor(textArea, 0.0);
         setRightAnchor(textArea, 32.0);
@@ -103,10 +110,10 @@ public class StepPanel2 extends AnchorPane {
         StepResult sr = unit.result.getStepResult(index);
         if (sr == null) {
             runButton.setStyle("");
-        } else if (sr.getResult().isFailed()) {
-            runButton.setStyle(STYLE_FAIL);
+        } else if (sr.getResult().getStatus().equals("passed")) {
+        	runButton.setStyle(STYLE_PASS);
         } else {
-            runButton.setStyle(STYLE_PASS);
+        	runButton.setStyle(STYLE_FAIL);
         }
     }
 

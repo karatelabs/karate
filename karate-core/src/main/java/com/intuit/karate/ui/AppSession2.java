@@ -85,7 +85,7 @@ public class AppSession2 {
     }
 
     public void setSelectedScenario(int index) {
-        if (index == -1) {
+        if (index == -1 || index > scenarioPanels.size() || scenarioPanels.size() == 0) {
             return;
         }
         rootPane.setCenter(scenarioPanels.get(index));

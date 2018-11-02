@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.antlr.v4.runtime.CharStream;
@@ -56,6 +57,8 @@ public class FeatureParser extends KarateParserBaseListener {
     private final ParserErrorListener errorListener = new ParserErrorListener();
 
     private final Feature feature;
+    
+    static final List<String> prefix = Arrays.asList("*","Given","When","Then","And","But");
 
     public static Feature parse(File file) {
         Resource resource = new Resource(file, file.getPath());
@@ -81,15 +84,28 @@ public class FeatureParser extends KarateParserBaseListener {
         return feature;
     }
     
-    public static void updateStepFromText(Step step, String text) {
+    public static boolean updateStepFromText(Step step, String text) {
         Feature feature = new Feature(step.getFeature().getResource());
+        final String stepText = text;
+        boolean hasPrefix = prefix.stream().anyMatch(prefixValue -> stepText.trim().startsWith(prefixValue));
+        // to avoid parser considering text without prefix as Scenario comments/Doc-string
+        if (!hasPrefix) {
+        	return false;
+        }
         text = "Feature:\nScenario:\n" + text;
-        feature = new FeatureParser(feature, FileUtils.toInputStream(text)).feature;
-        Step temp = feature.getStep(0, -1, 0);
-        step.setPrefix(temp.getPrefix());
-        step.setText(temp.getText());
-        step.setDocString(temp.getDocString());
-        step.setTable(temp.getTable());
+        FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
+        if (!fp.errorListener.isFail()) {
+        	feature = fp.feature;
+            Step temp = feature.getStep(0, -1, 0);
+        	if (temp != null) {
+        		step.setPrefix(temp.getPrefix());
+                step.setText(temp.getText());
+                step.setDocString(temp.getDocString());
+                step.setTable(temp.getTable());
+                return true;
+        	}
+        }
+        return false;
     }
 
     private static InputStream toStream(File file) {
@@ -109,7 +125,7 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     private FeatureParser(Feature feature, InputStream is) {
-        this.feature = feature;
+    	this.feature = feature;
         CharStream stream;
         try {
             stream = CharStreams.fromStream(is, StandardCharsets.UTF_8);

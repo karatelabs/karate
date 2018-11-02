@@ -46,6 +46,7 @@ public class ScenarioPanel2 extends BorderPane {
     private final ScenarioExecutionUnit unit;
     private final VBox content;
     private final VarsPanel2 varsPanel;
+    private final ConsolePanel consolePanel;
 
     private final List<StepPanel2> stepPanels;
     private StepPanel2 lastStep;
@@ -65,8 +66,6 @@ public class ScenarioPanel2 extends BorderPane {
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         setCenter(scrollPane);
-        varsPanel = new VarsPanel2(session, this);
-        setRight(varsPanel);
         VBox header = new VBox(App2.PADDING);
         header.setPadding(App2.PADDING_VER);
         setTop(header);
@@ -84,6 +83,12 @@ public class ScenarioPanel2 extends BorderPane {
         stepPanels = new ArrayList();
         unit.getSteps().forEach(step -> addStepPanel(step));
         lastStep.setLast(true);
+        VBox vbox = new VBox(App2.PADDING);
+        varsPanel = new VarsPanel2(session, this);
+        vbox.getChildren().add(varsPanel);
+        consolePanel = new ConsolePanel(session, this);
+        vbox.getChildren().add(consolePanel);
+        setRight(vbox);
         reset(); // clear any background results if dynamic scenario
     }
 
