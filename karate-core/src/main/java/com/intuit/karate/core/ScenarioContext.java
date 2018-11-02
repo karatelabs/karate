@@ -69,6 +69,8 @@ public class ScenarioContext {
     public final Logger logger;
     public final ScriptBindings bindings;
     public final int callDepth;
+    public final boolean reuseParentContext;
+    public final ScenarioContext parentContext;
     public final List<String> tags;
     public final Map<String, List<String>> tagValues;
     public final ScriptValueMap vars;
@@ -185,21 +187,27 @@ public class ScenarioContext {
         this.featureContext = featureContext; // make sure references below to env.env use the updated one
         logger = featureContext.logger;
         callDepth = call.callDepth;
+        reuseParentContext = call.reuseParentContext;
         executionHook = call.executionHook;
         perfMode = call.perfMode;
         tags = call.getTags().getTags();
         tagValues = call.getTags().getTagValues();
         scenarioInfo = call.getScenarioInfo();
-        if (call.reuseParentContext) {
+        if (reuseParentContext) {
+            parentContext = call.parentContext;
             vars = call.parentContext.vars; // shared context !
             config = call.parentContext.config;
             rootFeatureContext = call.parentContext.rootFeatureContext;
+            driver = call.parentContext.driver;
+            webSocketClients = call.parentContext.webSocketClients;
         } else if (call.parentContext != null) {
+            parentContext = call.parentContext;
             // complex objects like JSON and XML are "global by reference" TODO           
             vars = call.parentContext.vars.copy(false);
             config = new HttpConfig(call.parentContext.config);
             rootFeatureContext = call.parentContext.rootFeatureContext;
         } else {
+            parentContext = null;
             vars = new ScriptValueMap();
             config = new HttpConfig();
             config.setClientClass(call.httpClientClass);
@@ -267,6 +275,8 @@ public class ScenarioContext {
         featureContext = sc.featureContext;
         logger = sc.logger;
         callDepth = sc.callDepth;
+        reuseParentContext = sc.reuseParentContext;
+        parentContext = sc.parentContext;
         executionHook = sc.executionHook;
         perfMode = sc.perfMode;
         tags = sc.tags;
@@ -871,20 +881,23 @@ public class ScenarioContext {
 
     // driver ==================================================================
     
+    private void initDriver(Driver driver) {
+        this.driver = driver;
+        bindings.setDriver(driver);
+    }
+    
     public void driver(String expression) {
         Map<String, Object> options = config.getDriverOptions();
         ScriptValue sv = Script.evalKarateExpression(expression, this);
         if (sv.isMapLike()) {
             options.putAll(sv.getAsMap());
         }
-        driver = DriverUtils.construct(options);
-        bindings.setDriver(driver);
+        initDriver(DriverUtils.construct(options));
     }
 
     public void location(String expression) {
         if (driver == null) {
-            driver = DriverUtils.construct(config.getDriverOptions());
-            bindings.setDriver(driver);
+            initDriver(DriverUtils.construct(config.getDriverOptions()));
         }
         String temp = Script.evalKarateExpression(expression, this).getAsString();
         driver.setLocation(temp);
@@ -904,6 +917,13 @@ public class ScenarioContext {
     }
 
     public void stop() {
+        if (reuseParentContext) {
+            if (driver != null) {
+                parentContext.initDriver(driver);
+            }
+            parentContext.webSocketClients = webSocketClients;
+            return;
+        }
         if (webSocketClients != null) {
             webSocketClients.forEach(WebSocketClient::close);
         }
