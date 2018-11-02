@@ -61,6 +61,7 @@ public class ScenarioPanel2 extends BorderPane {
     public ScenarioPanel2(AppSession2 session, ScenarioExecutionUnit unit) {
         this.session = session;
         this.unit = unit;
+        unit.init();
         initialContext = unit.getActions().context.copy();
         content = new VBox(App2.PADDING);
         ScrollPane scrollPane = new ScrollPane(content);
