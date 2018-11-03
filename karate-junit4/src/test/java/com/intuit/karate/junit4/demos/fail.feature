@@ -19,3 +19,6 @@ Scenario: called outline failed
 
 Scenario: calling feature file that does not exist
 * call read('waldo.feature')
+
+Scenario: match on variable that does not exist
+* match blah == true

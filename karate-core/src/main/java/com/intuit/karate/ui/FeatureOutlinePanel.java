@@ -28,7 +28,6 @@ import com.intuit.karate.core.ScenarioExecutionUnit;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;

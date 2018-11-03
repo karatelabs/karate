@@ -30,20 +30,24 @@ import com.intuit.karate.ScriptValue;
  * @author pthomas3
  */
 public class VarValueCell extends TooltipCell<Var, ScriptValue> {
-    
 
     @Override
     protected String getCellText(ScriptValue sv) {
         if (sv.isStream()) {
             return sv.getAsPrettyString();
-        } else {
+        }
+        try {
             return sv.getAsString();
+        } catch (Exception e) {
+            // JSON may contain Java objects or byte-arrays
+            // that the minidev string-writer cannot handle
+            return sv.getAsPrettyString();
         }
     }
 
     @Override
     protected String getTooltipText(ScriptValue sv) {
         return sv.getAsPrettyString();
-    }    
+    }
 
 }

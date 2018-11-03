@@ -126,8 +126,9 @@ public class Karate extends ParentRunner<Feature> {
             notifier.fireTestStarted(scenarioDescription);
             if (sr.isFailed()) {
                 notifier.fireTestFailure(new Failure(scenarioDescription, sr.getError()));
+            } else {
+                notifier.fireTestFinished(scenarioDescription);
             }
-            notifier.fireTestFinished(scenarioDescription);
         }
         result.printStats(null);
         Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", result, null);

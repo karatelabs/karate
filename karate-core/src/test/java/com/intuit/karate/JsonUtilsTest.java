@@ -184,6 +184,19 @@ public class JsonUtilsTest {
         doc = JsonUtils.emptyJsonArray(2);
         json = doc.jsonString();
         assertEquals("[{},{}]", json);         
-    }      
+    }     
+    
+    @Test
+    public void testWriteJsonWithByteArrayValueWillFail() {
+        Map<String, Object> map = new HashMap();
+        byte[] bytes = "hello".getBytes();
+        map.put("foo", bytes);
+        try {
+            JsonUtils.toJson(map);
+            fail("we should not have reached here");
+        } catch (Exception e) {
+            assertTrue(e instanceof ClassCastException);
+        }
+    }
 
 }

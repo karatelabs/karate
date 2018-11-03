@@ -86,10 +86,10 @@ public class ScenarioContext {
     private Driver driver;
 
     private HttpRequestBuilder request = new HttpRequestBuilder();
-    private HttpResponse response;
 
-    // the actual http request last sent on the wire
+    // the actual http request/response last sent on the wire    
     private HttpRequest prevRequest;
+    private HttpResponse prevResponse;
 
     // pass call result to engine via this variable (hack)
     private List<FeatureResult> callResults;
@@ -141,6 +141,10 @@ public class ScenarioContext {
     public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
     }
+    
+    public void setPrevResponse(HttpResponse prevResponse) {
+        this.prevResponse= prevResponse;
+    }    
 
     public HttpRequestBuilder getRequest() {
         return request;
@@ -148,7 +152,7 @@ public class ScenarioContext {
 
     public HttpRequest getPrevRequest() {
         return prevRequest;
-    }
+    }        
 
     public HttpClient getHttpClient() {
         return client;
@@ -289,9 +293,9 @@ public class ScenarioContext {
         bindings = new ScriptBindings(this);
         // state
         request = sc.request.copy();
-        response = sc.response;
         driver = sc.driver;
         prevRequest = sc.prevRequest;
+        prevResponse = sc.prevResponse;
         prevPerfEvent = sc.prevPerfEvent;
         callResults = sc.callResults;
         webSocketClients = sc.webSocketClients;
@@ -471,19 +475,19 @@ public class ScenarioContext {
         return o == null ? null : o.toString();
     }
 
-    public void updateResponseVars(HttpResponse response) {
-        vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, response.getStatus());
-        vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, response.getStartTime());
-        vars.put(ScriptValueMap.VAR_RESPONSE_TIME, response.getResponseTime());
-        vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, response.getCookies());
+    public void updateResponseVars() {
+        vars.put(ScriptValueMap.VAR_RESPONSE_STATUS, prevResponse.getStatus());
+        vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, prevResponse.getStartTime());
+        vars.put(ScriptValueMap.VAR_RESPONSE_TIME, prevResponse.getResponseTime());
+        vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, prevResponse.getCookies());
         if (config.isLowerCaseResponseHeaders()) {
-            Object temp = new ScriptValue(response.getHeaders()).toLowerCase();
+            Object temp = new ScriptValue(prevResponse.getHeaders()).toLowerCase();
             vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, temp);
         } else {
-            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, response.getHeaders());
+            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, prevResponse.getHeaders());
         }
-        byte[] responseBytes = response.getBody();
-        vars.put(ScriptValueMap.VAR_RESPONSE_BYTES, responseBytes);
+        byte[] responseBytes = prevResponse.getBody();
+        bindings.putAdditionalVariable(ScriptValueMap.VAR_RESPONSE_BYTES, responseBytes);
         String responseString = FileUtils.toString(responseBytes);
         Object responseBody = responseString;
         responseString = StringUtils.trimToEmpty(responseString);
@@ -681,13 +685,13 @@ public class ScenarioContext {
         }
         request.setMethod(method);
         try {
-            response = client.invoke(request, this);
+            prevResponse = client.invoke(request, this);
         } catch (Exception e) {
             String message = e.getMessage();
             logger.error("http request failed: {}", message);
             throw new KarateException(message); // reduce log verbosity
         }
-        updateResponseVars(response);
+        updateResponseVars();
         String prevUrl = request.getUrl();
         request = new HttpRequestBuilder();
         request.setUrl(prevUrl);
@@ -779,11 +783,11 @@ public class ScenarioContext {
     }
 
     public void status(int status) {
-        if (status != response.getStatus()) {
+        if (status != prevResponse.getStatus()) {
             String rawResponse = vars.get(ScriptValueMap.VAR_RESPONSE).getAsString();
             String responseTime = vars.get(ScriptValueMap.VAR_RESPONSE_TIME).getAsString();
-            String message = "status code was: " + response.getStatus() + ", expected: " + status
-                    + ", response time: " + responseTime + ", url: " + response.getUri() + ", response: " + rawResponse;
+            String message = "status code was: " + prevResponse.getStatus() + ", expected: " + status
+                    + ", response time: " + responseTime + ", url: " + prevResponse.getUri() + ", response: " + rawResponse;
             logger.error(message);
             throw new KarateException(message);
         }
@@ -883,7 +887,7 @@ public class ScenarioContext {
     
     private void initDriver(Driver driver) {
         this.driver = driver;
-        bindings.setDriver(driver);
+        bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
     }
     
     public void driver(String expression) {

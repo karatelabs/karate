@@ -1,6 +1,6 @@
 package demo.callfeature;
 
-import com.intuit.karate.ui.App;
+import com.intuit.karate.ui.App2;
 import org.junit.Test;
 
 /**
@@ -11,7 +11,7 @@ public class CallFeatureUiRunner {
     
     @Test
     public void testApp() {
-        App.run("src/test/java/demo/callfeature/call-feature.feature", "mock");
+        App2.run("src/test/java/demo/callfeature/call-feature.feature", "mock");
     }     
     
 }

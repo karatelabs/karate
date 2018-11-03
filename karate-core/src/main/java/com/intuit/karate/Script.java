@@ -46,6 +46,7 @@ import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
+import io.netty.handler.codec.http.HttpResponse;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -228,7 +229,7 @@ public class Script {
             context.logger.info(">> lock acquired, begin callonce: {}", text);
             ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
             result = new CallResult(resultValue.copy(), new HttpConfig(context.getConfig())); // snapshot for safety
-            featureContext.callCache.put(text, result); 
+            featureContext.callCache.put(text, result);
             context.logger.info("<< lock released, cached callonce: {}", text);
             return resultValue;
         }
@@ -669,8 +670,8 @@ public class Script {
         }
     }
 
-    public static AssertionResult matchNamed(MatchType matchType, String name, String path, String expected, ScenarioContext context) {
-        name = StringUtils.trimToEmpty(name);
+    public static AssertionResult matchNamed(MatchType matchType, String expression, String path, String expected, ScenarioContext context) {
+        String name = StringUtils.trimToEmpty(expression);
         if (isJsonPath(name) || isXmlPath(name)) { // short-cut for operating on response
             path = name;
             name = ScriptValueMap.VAR_RESPONSE;
@@ -678,22 +679,20 @@ public class Script {
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
             name = name.substring(1);
         }
-        if (name.startsWith(ScriptBindings.DRIVER_DOT)) { // ui driver, don't proceed with jsonPath / xpath
-            ScriptValue actual = evalKarateExpression(name, context);
-            return matchScriptValue(matchType, actual, path, expected, context);
-        }
         path = StringUtils.trimToNull(path);
         if (path == null) {
             StringUtils.Pair pair = parseVariableAndPath(name);
             name = pair.left;
             path = pair.right;
         }
-        if (VAR_HEADER.equals(name)) { // convenience shortcut for asserting against response header
-            return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
-        }
         ScriptValue actual = context.vars.get(name);
         if (actual == null) {
-            throw new RuntimeException("variable not initialized: " + name);
+            if (VAR_HEADER.equals(name)) { // convenience shortcut for asserting against response header
+                return matchNamed(matchType, ScriptValueMap.VAR_RESPONSE_HEADERS, "$['" + path + "'][0]", expected, context);
+            }
+            // evaluate ANY karate expression even on LHS
+            // will throw exception if variable does not exist
+            actual = evalKarateExpression(expression, context);
         }
         return matchScriptValue(matchType, actual, path, expected, context);
     }

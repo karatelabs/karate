@@ -83,7 +83,7 @@ public class ScriptBindings implements Bindings {
 
     public ScriptBindings(ScenarioContext context) {
         this.vars = context.vars;
-        this.adds = new HashMap(7); // read, karate, self, root, parent, nashorn.global, driver
+        this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
         bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
         // the next line calls an eval with 'incomplete' bindings
@@ -157,9 +157,9 @@ public class ScriptBindings implements Bindings {
         return NASHORN.createBindings();
     }
     
-    public void setDriver(Driver driver) {
-        adds.put(DRIVER, driver);
-    }
+    public void putAdditionalVariable(String name, Object value) {
+        adds.put(name, value);
+    }   
     
     @Override
     public Object get(Object key) {
