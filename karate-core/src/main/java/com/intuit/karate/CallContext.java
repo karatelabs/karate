@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.ExecutionHook;
+import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioInfo;
 import java.util.Map;
@@ -35,7 +36,8 @@ import com.intuit.karate.core.Tags;
  */
 public class CallContext {
 
-    public final ScenarioContext parentContext;
+    public final Feature feature;
+    public final ScenarioContext context;
     public final int callDepth;
     public final Map<String, Object> callArg;
     public final boolean reuseParentContext;
@@ -48,21 +50,21 @@ public class CallContext {
     private Tags tags = Tags.EMPTY;
     private ScenarioInfo scenarioInfo;
 
-    public static CallContext forCall(ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        return new CallContext(context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.perfMode);
+    public static CallContext forCall(Feature feature, ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
+        return new CallContext(feature, context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.perfMode);
     }
 
-    public static CallContext forAsync(ExecutionHook hook, Map<String, Object> arg, boolean perfMode) {
-       return new CallContext(null, 0, arg, -1, false, true, null, hook, perfMode);    
+    public static CallContext forAsync(Feature feature, ExecutionHook hook, Map<String, Object> arg, boolean perfMode) {
+        return new CallContext(feature, null, 0, arg, -1, false, true, null, hook, perfMode);
     }
-    
+
     public Tags getTags() {
         return tags;
     }
 
     public void setTags(Tags tags) {
         this.tags = tags;
-    }        
+    }
 
     public void setScenarioInfo(ScenarioInfo scenarioInfo) {
         this.scenarioInfo = scenarioInfo;
@@ -77,13 +79,14 @@ public class CallContext {
     }
 
     public CallContext(Map<String, Object> callArg, boolean evalKarateConfig) {
-        this(null, 0, callArg, -1, false, evalKarateConfig, null, null, false);
+        this(null, null, 0, callArg, -1, false, evalKarateConfig, null, null, false);
     }
 
-    public CallContext(ScenarioContext parentContext, int callDepth, Map<String, Object> callArg, int loopIndex,
+    public CallContext(Feature feature, ScenarioContext context, int callDepth, Map<String, Object> callArg, int loopIndex,
             boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass,
             ExecutionHook executionHook, boolean perfMode) {
-        this.parentContext = parentContext;
+        this.feature = feature;
+        this.context = context;
         this.callDepth = callDepth;
         this.callArg = callArg;
         this.loopIndex = loopIndex;

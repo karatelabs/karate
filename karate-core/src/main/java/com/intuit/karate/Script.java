@@ -60,6 +60,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -1689,7 +1692,8 @@ public class Script {
                 if (rowArg instanceof Map) {
                     Map rowArgMap = (Map) rowArg;
                     try {
-                        ScriptValue rowResult = evalFeatureCall(feature, context, rowArgMap, i, reuseParentConfig);
+                        CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig);
+                        ScriptValue rowResult = evalFeatureCall(callContext);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
                         String message = "feature call (loop) failed at index: " + i + "\ncaller: "
@@ -1715,7 +1719,8 @@ public class Script {
         } else if (callArg == null || callArg instanceof Map) {
             Map<String, Object> argAsMap = (Map) callArg;
             try {
-                return evalFeatureCall(feature, context, argAsMap, -1, reuseParentConfig);
+                CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig);
+                return evalFeatureCall(callContext);
             } catch (KarateException ke) {
                 String message = "feature call failed: " + feature.getRelativePath()
                         + "\narg: " + callArg + "\n" + ke.getMessage();
@@ -1727,19 +1732,27 @@ public class Script {
         }
     }
 
-    private static ScriptValue evalFeatureCall(Feature feature, ScenarioContext context,
-            Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        // the call is always going to execute synchronously ! TODO improve       
-        CallContext callContext = CallContext.forCall(context, callArg, loopIndex, reuseParentConfig);
-        FeatureResult result = Engine.executeFeatureSync(feature, null, callContext);
+    private static ScriptValue evalFeatureCall(CallContext callContext) {
+        // the call is always going to execute synchronously ! TODO improve  
+        FeatureResult result;
+        Function<CallContext, FeatureResult> callable = callContext.context.getCallable();
+        if (callable != null) { // only for ui called feature support
+            try {
+                result = callable.apply(callContext);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            result = Engine.executeFeatureSync(callContext.feature, null, callContext);            
+        } 
         // hack to pass call result back to caller step
-        context.addCallResult(result);
-        result.setCallArg(callArg);
-        result.setLoopIndex(loopIndex);
+        callContext.context.addCallResult(result);
+        result.setCallArg(callContext.callArg);
+        result.setLoopIndex(callContext.loopIndex);
         if (result.isFailed()) {
             throw result.getErrorsCombined();
         }
-        return new ScriptValue(result.getResultAsPrimitiveMap());
+        return new ScriptValue(result.getResultAsPrimitiveMap()); 
     }
 
     public static void callAndUpdateConfigAndAlsoVarsIfMapReturned(boolean callOnce, String name, String arg, ScenarioContext context) {

@@ -146,7 +146,7 @@ public class ScenarioExecutionUnit implements Runnable {
         }
     }
 
-    public void onStop() {
+    public void stop() {
         result.setEndTime(System.currentTimeMillis() - exec.startTime);
         // gatling clean up            
         actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
@@ -172,7 +172,7 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             SYSTEM.accept(this);
         } else {
-            onStop();
+            stop();
         }
     }
 

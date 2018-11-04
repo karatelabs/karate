@@ -75,7 +75,7 @@ public class Match {
 
     private Match(boolean httpEnabled) {
         FeatureContext featureContext = FeatureContext.forEnv();
-        CallContext callContext = new CallContext(null, 0, null, -1, false, false,
+        CallContext callContext = new CallContext(null, null, 0, null, -1, false, false,
                 httpEnabled ? null : DummyHttpClient.class.getName(), null, false);
         context = new ScenarioContext(featureContext, callContext);
     }

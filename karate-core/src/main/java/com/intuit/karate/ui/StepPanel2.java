@@ -25,12 +25,16 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
-import javafx.scene.control.Button;
+import javafx.scene.Scene;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.AnchorPane;
+import javafx.stage.Stage;
 
 /**
  *
@@ -42,7 +46,7 @@ public class StepPanel2 extends AnchorPane {
     private final ScenarioPanel2 scenarioPanel;
     private final ScenarioExecutionUnit unit;
     private final Step step;
-    private final Button runButton;
+    private final SplitMenuButton runButton;
     private final int index;
 
     private String text;
@@ -61,6 +65,19 @@ public class StepPanel2 extends AnchorPane {
     public void setLast(boolean last) {
         this.last = last;
     }
+
+    private final MenuItem runMenuItem;
+    private final MenuItem calledMenuItem;
+    private boolean runUpto;
+    private boolean showCalled;
+    
+    private String getRunMenuText() {
+        return runUpto ? "run this step" : "TODO: run upto this step";
+    }
+    
+    private String getCalledMenuText() {
+        return showCalled ? "hide called" : "show called";
+    }    
 
     public StepPanel2(AppSession2 session, ScenarioPanel2 scenarioPanel, Step step, int index) {
         this.session = session;
@@ -85,14 +102,18 @@ public class StepPanel2 extends AnchorPane {
                 }
             }
         });
-        runButton = new Button("►");
+        runMenuItem = new MenuItem(getRunMenuText());
+        runMenuItem.setOnAction(e -> { runUpto = !runUpto; runMenuItem.setText(getRunMenuText());});
+        calledMenuItem = new MenuItem(getCalledMenuText());
+        calledMenuItem.setOnAction(e -> { showCalled = !showCalled; calledMenuItem.setText(getCalledMenuText());});
+        runButton = new SplitMenuButton(runMenuItem, calledMenuItem);
+        runButton.setText("►");
         runButton.setOnAction(e -> {
-        	if(FeatureParser.updateStepFromText(step, text)) {
-        		run();
-        	}
-        	else {
-        		runButton.setStyle(STYLE_FAIL);
-        	}
+            if (FeatureParser.updateStepFromText(step, text)) {
+                run(false);
+            } else {
+                runButton.setStyle(STYLE_FAIL);
+            }
         });
         // layout
         setLeftAnchor(textArea, 0.0);
@@ -111,18 +132,33 @@ public class StepPanel2 extends AnchorPane {
         if (sr == null) {
             runButton.setStyle("");
         } else if (sr.getResult().getStatus().equals("passed")) {
-        	runButton.setStyle(STYLE_PASS);
+            runButton.setStyle(STYLE_PASS);
         } else {
-        	runButton.setStyle(STYLE_FAIL);
+            runButton.setStyle(STYLE_FAIL);
         }
     }
 
-    public boolean run() {
-        StepResult sr = unit.execute(step);
-        unit.result.setStepResult(index, sr);
+    public boolean run(boolean nonStop) {
+        if (!nonStop && showCalled) {
+            unit.getContext().setCallable(callContext -> {
+                AppSession2 calledSession = new AppSession2(callContext.feature, null, callContext);
+                Stage stage = new Stage();
+                stage.setTitle(callContext.feature.getRelativePath());
+                stage.setScene(new Scene(calledSession.getRootPane(), 700, 450));
+                stage.showAndWait();
+                FeatureResult result = calledSession.getFeatureExecutionUnit().exec.result;
+                result.setResultVars(calledSession.getCurrentlyExecutingScenario().getContext().vars);
+                return result;
+            });
+        } else {
+            unit.getContext().setCallable(null);
+        }
+        StepResult stepResult = unit.execute(step);
+        unit.result.setStepResult(index, stepResult);
+        session.setCurrentlyExecutingScenario(unit);
         initStyles();
         scenarioPanel.refreshVars();
-        return sr.isStopped();
+        return stepResult.isStopped();
     }
 
 }

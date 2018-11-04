@@ -50,12 +50,16 @@ public class AppSession2 {
     private final FeatureOutlinePanel featureOutlinePanel;
     private final LogPanel logPanel;
 
-    private final List<ScenarioPanel2> scenarioPanels;
-
+    private final List<ScenarioPanel2> scenarioPanels;  
+    
+    private ScenarioExecutionUnit currentlyExecutingScenario;
+    
     public AppSession2(File featureFile, String envString) {
-        Feature feature = FeatureParser.parse(featureFile);
+        this(FeatureParser.parse(featureFile), envString, new CallContext(null, true));
+    }    
+
+    public AppSession2(Feature feature, String envString, CallContext callContext) {
         FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
-        CallContext callContext = new CallContext(null, true);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();
@@ -84,6 +88,14 @@ public class AppSession2 {
         return featureOutlinePanel;
     }
 
+    public void setCurrentlyExecutingScenario(ScenarioExecutionUnit unit) {
+        this.currentlyExecutingScenario = unit;
+    }
+
+    public ScenarioExecutionUnit getCurrentlyExecutingScenario() {
+        return currentlyExecutingScenario;
+    }        
+    
     public void setSelectedScenario(int index) {
         if (index == -1 || index > scenarioPanels.size() || scenarioPanels.isEmpty()) {
             return;

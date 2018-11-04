@@ -56,7 +56,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
@@ -99,6 +102,9 @@ public class ScenarioContext {
 
     // report embed
     protected Embed prevEmbed;
+    
+    // ui support
+    private Function<CallContext, FeatureResult> callable;
 
     // websocket
     private final Object LOCK = new Object();
@@ -170,6 +176,14 @@ public class ScenarioContext {
         return config;
     }
 
+    public void setCallable(Function<CallContext, FeatureResult> callable) {
+        this.callable = callable;
+    }
+
+    public Function<CallContext, FeatureResult> getCallable() {
+        return callable;
+    }        
+
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
             return;
@@ -198,18 +212,18 @@ public class ScenarioContext {
         tagValues = call.getTags().getTagValues();
         scenarioInfo = call.getScenarioInfo();
         if (reuseParentContext) {
-            parentContext = call.parentContext;
-            vars = call.parentContext.vars; // shared context !
-            config = call.parentContext.config;
-            rootFeatureContext = call.parentContext.rootFeatureContext;
-            driver = call.parentContext.driver;
-            webSocketClients = call.parentContext.webSocketClients;
-        } else if (call.parentContext != null) {
-            parentContext = call.parentContext;
+            parentContext = call.context;
+            vars = call.context.vars; // shared context !
+            config = call.context.config;
+            rootFeatureContext = call.context.rootFeatureContext;
+            driver = call.context.driver;
+            webSocketClients = call.context.webSocketClients;
+        } else if (call.context != null) {
+            parentContext = call.context;
             // complex objects like JSON and XML are "global by reference" TODO           
-            vars = call.parentContext.vars.copy(false);
-            config = new HttpConfig(call.parentContext.config);
-            rootFeatureContext = call.parentContext.rootFeatureContext;
+            vars = call.context.vars.copy(false);
+            config = new HttpConfig(call.context.config);
+            rootFeatureContext = call.context.rootFeatureContext;
         } else {
             parentContext = null;
             vars = new ScriptValueMap();
@@ -219,7 +233,7 @@ public class ScenarioContext {
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
-        if (call.parentContext == null && call.evalKarateConfig) {
+        if (call.context == null && call.evalKarateConfig) {
             // base config is only looked for in the classpath
             try {
                 Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, ScriptBindings.READ_KARATE_CONFIG_BASE, null, this);
@@ -260,7 +274,7 @@ public class ScenarioContext {
             }
             vars.put(Script.VAR_ARG, call.callArg);
             vars.put(Script.VAR_LOOP, call.loopIndex);
-        } else if (call.parentContext != null) {
+        } else if (call.context != null) {
             vars.put(Script.VAR_ARG, ScriptValue.NULL);
             vars.put(Script.VAR_LOOP, -1);
         }

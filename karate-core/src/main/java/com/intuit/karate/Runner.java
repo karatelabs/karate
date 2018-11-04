@@ -97,7 +97,7 @@ public class Runner {
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
                 FeatureContext featureContext = new FeatureContext(feature, tagSelector);
-                CallContext callContext = CallContext.forAsync(hook, null, false);
+                CallContext callContext = CallContext.forAsync(feature, hook, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir, 
                         r -> featureExecutor.submit(r), scenarioExecutor, singleExecutor);
                 featureResults.add(execContext.result);
@@ -174,7 +174,7 @@ public class Runner {
     public static void callAsync(String path, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(feature, null);
-        CallContext callContext = CallContext.forAsync(hook, arg, true);
+        CallContext callContext = CallContext.forAsync(feature, hook, arg, true);
         ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, system, null, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.setNext(next);
