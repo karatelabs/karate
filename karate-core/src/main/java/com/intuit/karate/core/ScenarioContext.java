@@ -102,7 +102,7 @@ public class ScenarioContext {
 
     // report embed
     protected Embed prevEmbed;
-    
+
     // ui support
     private Function<CallContext, FeatureResult> callable;
 
@@ -147,10 +147,10 @@ public class ScenarioContext {
     public void setPrevRequest(HttpRequest prevRequest) {
         this.prevRequest = prevRequest;
     }
-    
+
     public void setPrevResponse(HttpResponse prevResponse) {
-        this.prevResponse= prevResponse;
-    }    
+        this.prevResponse = prevResponse;
+    }
 
     public HttpRequestBuilder getRequest() {
         return request;
@@ -158,12 +158,12 @@ public class ScenarioContext {
 
     public HttpRequest getPrevRequest() {
         return prevRequest;
-    }        
+    }
 
     public HttpClient getHttpClient() {
         return client;
-    }       
-    
+    }
+
     public int getCallDepth() {
         return callDepth;
     }
@@ -182,7 +182,7 @@ public class ScenarioContext {
 
     public Function<CallContext, FeatureResult> getCallable() {
         return callable;
-    }        
+    }
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
@@ -439,7 +439,10 @@ public class ScenarioContext {
                 config.setProxyUri((String) map.get("uri"));
                 config.setProxyUsername((String) map.get("username"));
                 config.setProxyPassword((String) map.get("password"));
-                config.setNonProxyHosts(((List) ((ScriptObjectMirror) map.get("nonProxyHosts")).values()));
+                ScriptObjectMirror temp = (ScriptObjectMirror) map.get("nonProxyHosts");
+                if (temp != null) {
+                    config.setNonProxyHosts((List) temp.values());
+                }
             }
         } else if (key.equals("userDefined")) {
             config.setUserDefined(value.getAsMap());
@@ -537,7 +540,6 @@ public class ScenarioContext {
     }
 
     //==========================================================================
-    
     public void configure(String key, String exp) {
         configure(key, Script.evalKarateExpression(exp, this));
     }
@@ -847,9 +849,8 @@ public class ScenarioContext {
         embed.setMimeType(contentType);
         prevEmbed = embed;
     }
-    
+
     // websocket / async =======================================================
-    
     private WebSocketClient createWebSocketClient(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
         WebSocketClient webSocketClient = new WebSocketClient(url, textHandler, binaryHandler);
         if (webSocketClients == null) {
@@ -862,11 +863,11 @@ public class ScenarioContext {
     public WebSocketClient webSocket(String url, Consumer<String> textHandler) {
         return webSocket(url, textHandler, null);
     }
-    
+
     public WebSocketClient webSocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
         return createWebSocketClient(url, textHandler, binaryHandler);
     }
-    
+
     public void signal(Object result) {
         logger.trace("signal called: {}", result);
         synchronized (LOCK) {
@@ -898,12 +899,11 @@ public class ScenarioContext {
     }
 
     // driver ==================================================================
-    
     private void initDriver(Driver driver) {
         this.driver = driver;
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
     }
-    
+
     public void driver(String expression) {
         Map<String, Object> options = config.getDriverOptions();
         ScriptValue sv = Script.evalKarateExpression(expression, this);
