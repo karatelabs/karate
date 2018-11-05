@@ -119,7 +119,9 @@ public class Table {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
+        sb.append('\n');
         for (List<String> row : rows) {
+        	sb.append('|').append('\t');
             for (String s : row) {
                 sb.append(s).append('\t').append('|');
             }
