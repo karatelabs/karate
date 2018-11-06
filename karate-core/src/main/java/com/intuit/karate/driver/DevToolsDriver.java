@@ -29,6 +29,7 @@ import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.shell.CommandThread;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -307,7 +308,40 @@ public abstract class DevToolsDriver implements Driver {
     public List<Map> getCookies() {
         DevToolsMessage dtm = method("Network.getAllCookies").send();
         return dtm.getResult("cookies").getAsList();
-    }       
+    }
+
+    @Override
+    public Map<String, Object> cookie(String name) {
+        List<Map> list = getCookies();
+        if (list == null) {
+            return null;
+        }
+        for (Map<String, Object> map : list) {
+            if (map != null && name.equals(map.get("name"))) {
+                return map;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void setCookie(Map<String, Object> cookie) {
+        if (cookie.get("url") == null && cookie.get("domain") == null) {
+            cookie = new HashMap(cookie); // don't mutate test
+            cookie.put("url", currentUrl);
+        }
+        method("Network.setCookie").params(cookie).send();
+    }        
+
+    @Override
+    public void deleteCookie(String name) {
+        method("Network.deleteCookies").param("name", name).param("url", currentUrl).send();
+    }        
+
+    @Override
+    public void clearCookies() {
+        method("Network.clearBrowserCookies").send();
+    }        
 
     public void enableNetworkEvents() {
         method("Network.enable").send();

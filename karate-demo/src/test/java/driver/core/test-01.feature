@@ -8,8 +8,9 @@ Scenario Outline: using <config>
 
   Given location webUrlBase + '/page-01'
     
-  * def cookieExpected = { name: 'foo', value: 'bar' }
-  And match driver.cookies contains '#(^cookieExpected)'
+  * def cookie1 = { name: 'foo', value: 'bar' }
+  And match driver.cookies contains '#(^cookie1)'
+  And match driver.cookie('foo') contains cookie1
 
   And eval driver.maximize()
   And eval driver.dimensions = <dimensions>
@@ -31,6 +32,16 @@ Scenario Outline: using <config>
   And match driver.title == 'Page Two'
   And match driver.location == webUrlBase + '/page-02'
 
+  Given def cookie2 = { name: 'hello', value: 'world' }
+  When eval driver.cookie = cookie2
+  Then match driver.cookies contains '#(^cookie2)'
+
+  When eval driver.deleteCookie('foo')
+  Then match driver.cookies !contains '#(^cookie1)'
+
+  When eval driver.clearCookies()
+  Then match driver.cookies == '#[0]'
+
   When eval driver.back()
   Then match driver.location == webUrlBase + '/page-01'
   And match driver.title == 'Page One'
@@ -44,7 +55,7 @@ Examples:
     | { type: 'chrome', start: true } | { left: 0, top: 0, width: 300, height: 800 } |
     | { type: 'chromedriver', start: true } | { left: 300, top: 0, width: 300, height: 800 } |
     | { type: 'geckodriver', start: true } | { left: 600, top: 0, width: 300, height: 800 } |
-    | { type: 'safaridriver', start: true } | { left: 700, top: 0, width: 300, height: 800 } |
+    # | { type: 'safaridriver', start: true } | { left: 700, top: 0, width: 300, height: 800 } |
     # | { type: 'mswebdriver', port: 17556, start: true } |
     # | { type: 'msedge', timeout: 5000, start: true } |
     

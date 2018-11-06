@@ -122,6 +122,11 @@ public class DevToolsMessage {
         params.put(key, value);
         return this;
     }
+    
+    public DevToolsMessage params(Map<String, Object> params) {
+        this.params = params;
+        return this;
+    }
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(4);

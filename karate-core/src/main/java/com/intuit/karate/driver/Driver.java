@@ -69,8 +69,13 @@ public interface Driver {
 
     void waitForEvalTrue(String expression);
 
-    // javabean naming convention is intentional ===============================
+    Map<String, Object> cookie(String name);
+
+    void deleteCookie(String name);
     
+    void clearCookies();
+
+    // javabean naming convention is intentional ===============================
     void setLocation(String expression);
 
     void setDimensions(Map<String, Object> map);
@@ -80,7 +85,9 @@ public interface Driver {
     String getLocation();
 
     String getTitle();
-    
+
+    void setCookie(Map<String, Object> cookie);
+
     List<Map> getCookies();
 
 }

@@ -27,6 +27,7 @@ import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -230,6 +231,26 @@ public abstract class WebDriver implements Driver {
     @Override
     public List<Map> getCookies() {
         return http.path("cookie").get().jsonPath("$.value").asList();
+    }    
+
+    @Override
+    public Map<String, Object> cookie(String name) {
+        return http.path("cookie", name).get().jsonPath("$.value").asMap();
+    }
+
+    @Override
+    public void setCookie(Map<String, Object> cookie) {
+        http.path("cookie").post(Collections.singletonMap("cookie", cookie));
+    }    
+
+    @Override
+    public void deleteCookie(String name) {
+        http.path("cookie", name).delete();
+    }
+
+    @Override
+    public void clearCookies() {
+        http.path("cookie").delete();
     }        
 
 }
