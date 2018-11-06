@@ -303,6 +303,12 @@ public abstract class DevToolsDriver implements Driver {
         return currentUrl;
     }
 
+    @Override
+    public List<Map> getCookies() {
+        DevToolsMessage dtm = method("Network.getAllCookies").send();
+        return dtm.getResult("cookies").getAsList();
+    }       
+
     public void enableNetworkEvents() {
         method("Network.enable").send();
     }

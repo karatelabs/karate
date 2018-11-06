@@ -7,6 +7,9 @@ Scenario Outline: using <config>
   * configure driver = <config>
 
   Given location webUrlBase + '/page-01'
+    
+  * def cookieExpected = { name: 'foo', value: 'bar' }
+  And match driver.cookies contains '#(^cookieExpected)'
 
   And eval driver.maximize()
   And eval driver.dimensions = <dimensions>

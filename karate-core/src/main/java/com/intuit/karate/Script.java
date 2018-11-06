@@ -46,7 +46,6 @@ import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
-import io.netty.handler.codec.http.HttpResponse;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -60,8 +59,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -696,6 +693,9 @@ public class Script {
             // evaluate ANY karate expression even on LHS
             // will throw exception if variable does not exist
             actual = evalKarateExpression(expression, context);
+            if (actual.isJsonLike()) { // we have eval-ed the LHS, so match RHS to the entire LHS doc
+                path = VAR_ROOT;
+            }
         }
         return matchScriptValue(matchType, actual, path, expected, context);
     }

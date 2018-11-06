@@ -6,6 +6,7 @@ Background:
 
 Scenario: pathMatches('/page-01')
   * def response = read('page-01.html')
+  * def responseHeaders = { 'Set-Cookie': 'foo=bar' }
 
 Scenario: pathMatches('/page-02')
   * def response = read('page-02.html')

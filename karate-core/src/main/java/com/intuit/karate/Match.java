@@ -165,7 +165,7 @@ public class Match {
         return prevValue.getAsList();
     }
 
-    public List<Object> asList() {
+    public List asList() {
         return prevValue.getAsList();
     }
 

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -79,5 +80,7 @@ public interface Driver {
     String getLocation();
 
     String getTitle();
+    
+    List<Map> getCookies();
 
 }
