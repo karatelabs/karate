@@ -1743,7 +1743,7 @@ public class Script {
                 throw new RuntimeException(e);
             }
         } else {
-            result = Engine.executeFeatureSync(callContext.feature, null, callContext);            
+            result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);            
         } 
         // hack to pass call result back to caller step
         callContext.context.addCallResult(result);

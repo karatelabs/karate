@@ -81,8 +81,8 @@ public class FeatureContext {
         return new FeatureContext(env, null, file, new Logger());
     }
 
-    public FeatureContext(Feature feature, String tagSelector) {
-        this(null, feature, null, tagSelector, new Logger());
+    public FeatureContext(String env, Feature feature, String tagSelector) {
+        this(env, feature, null, tagSelector, new Logger());
     }
     
     public FeatureContext(String env, Feature feature, File workingDir, Logger logger) {

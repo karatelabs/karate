@@ -105,7 +105,7 @@ public class Karate implements Iterable<DynamicNode> {
     private Collection<DynamicNode> createDynamicTests() {
         List<DynamicNode> list = new ArrayList<>(features.size());
         for (Feature feature : features) {
-            FeatureContext featureContext = new FeatureContext(feature, tagSelector);
+            FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
             CallContext callContext = new CallContext(null, true);
             ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null, null);
             FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);

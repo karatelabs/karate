@@ -46,7 +46,7 @@ public class FeatureResultTest {
     
     private static FeatureResult result(String name) {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/" + name);
-        return Engine.executeFeatureSync(feature, null, null);     
+        return Engine.executeFeatureSync(null, feature, null, null);     
     }     
     
     private static String xml(FeatureResult result) {

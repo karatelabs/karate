@@ -76,7 +76,7 @@ public class FeatureBackend {
         this.feature = feature;
         featureName = feature.getPath().toFile().getName();
         CallContext callContext = new CallContext(null, false);
-        FeatureContext featureContext = new FeatureContext(feature, null);
+        FeatureContext featureContext = new FeatureContext(null, feature, null);
         actions = new StepActions(featureContext, callContext);
         context = actions.context;
         putBinding(ScriptBindings.PATH_MATCHES, context);

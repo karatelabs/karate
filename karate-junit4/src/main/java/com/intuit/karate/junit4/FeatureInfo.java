@@ -55,7 +55,7 @@ public class FeatureInfo {
     public FeatureInfo(Feature feature, String tagSelector) {
         this.feature = feature;
         description = Description.createSuiteDescription(getFeatureName(feature), feature.getResource().getPackageQualifiedName());
-        FeatureContext featureContext = new FeatureContext(feature, tagSelector);
+        FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null, null);
         unit = new FeatureExecutionUnit(exec);

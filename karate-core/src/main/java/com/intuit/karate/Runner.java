@@ -96,7 +96,7 @@ public class Runner {
                 Resource resource = resources.get(i);
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
-                FeatureContext featureContext = new FeatureContext(feature, tagSelector);
+                FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(feature, hook, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir, 
                         r -> featureExecutor.submit(r), scenarioExecutor, singleExecutor);
@@ -151,7 +151,7 @@ public class Runner {
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         CallContext callContext = new CallContext(vars, evalKarateConfig);
-        FeatureResult result = Engine.executeFeatureSync(feature, null, callContext);
+        FeatureResult result = Engine.executeFeatureSync(null, feature, null, callContext);
         return result.getResultAsPrimitiveMap();
     }
 
@@ -173,7 +173,7 @@ public class Runner {
     // this is called by karate-gatling !
     public static void callAsync(String path, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
-        FeatureContext featureContext = new FeatureContext(feature, null);
+        FeatureContext featureContext = new FeatureContext(null, feature, null);
         CallContext callContext = CallContext.forAsync(feature, hook, arg, true);
         ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, system, null, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);

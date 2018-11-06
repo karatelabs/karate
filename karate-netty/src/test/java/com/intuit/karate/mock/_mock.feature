@@ -58,3 +58,6 @@ Scenario: pathMatches('/v1/spaces')
 
 Scenario: pathMatches('/v1/noheaders')    
     * def responseStatus = 404
+
+Scenario: pathMatches('/v1/cookies')    
+    * def responseHeaders = { 'Set-Cookie': 'foo=bar' }

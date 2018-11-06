@@ -104,8 +104,8 @@ public class Engine {
         return command.contains("org.gradle.") ? "build" : "target";
     }
 
-    public static FeatureResult executeFeatureSync(Feature feature, String tagSelector, CallContext callContext) {
-        FeatureContext featureContext = new FeatureContext(feature, tagSelector);
+    public static FeatureResult executeFeatureSync(String env, Feature feature, String tagSelector, CallContext callContext) {
+        FeatureContext featureContext = new FeatureContext(env, feature, tagSelector);
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
