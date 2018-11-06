@@ -105,11 +105,11 @@ web ? | prefix | means | example
 ----- | ------ | ----- | -------
 web | (none) | css selector | `input[name=someName]`
 web | `/` | xpath | `//input[@name='commit']`
+web | `^` | link text | `^Click Me`
+web | `*` | partial link text | `*Click Me`
 win | (none) | name | `Submit`
 win | `@` | accessibility id | `@CalculatorResults`
 win | `#` | id | `#MyButton`
-
-> TODO other selectors like link text and partial link text
 
 ## `click`
 Just triggers a click event on the DOM element, does *not* wait for a page load.
@@ -124,17 +124,7 @@ And submit #myButtonId
 ```
 
 # JS API
-In some cases, especially when using dynamic data in scope as Karate variables, the built-in `driver` object can be used instead of the DSL keywords listed above.
-
-## `karate.location`
-This is the only one that is on the `karate` object, the rest are on the `driver` object. Because this switches Karate into "driver" mode for UI testing.
-
-```cucumber
-* eval karate.location = 'https://google.com'
-```
-
-## `karate.driver()`
-Similar to the above, and equivalent to [`driver`](#driver).
+In some cases, especially when using dynamic data in scope as Karate variables, the built-in `driver` object can be used instead of the DSL keywords listed above. As a convenience, you can omit the [`eval`](https://github.com/intuit/karate#eval) keyword when executing an action - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
 
 ## `driver.location`
 Get the current URL / address for matching. Example:
@@ -152,28 +142,28 @@ Then match driver.title == 'Test Page'
 
 ## `driver.dimensions`
 ```cucumber
- And eval driver.dimensions = { left: 0, top: 0, width: 300, height: 800 }
+ And driver.dimensions = { left: 0, top: 0, width: 300, height: 800 }
  ```
 
 ## `driver.input()`
 ```cucumber
-* eval driver.input('input[name=someName]', 'test input')
+* driver.input('input[name=someName]', 'test input')
 ```
 
 ## `driver.click()`
 ```cucumber
-* eval driver.click('input[name=someName]')
+* driver.click('input[name=someName]')
 ```
 
 ## `driver.submit()`
 The difference from `click` is that it would wait for a new page to load.
 ```cucumber
-* eval driver.submit('.myClass')
+* driver.submit('.myClass')
 ```
 
 ## `driver.focus()`
 ```cucumber
-* eval driver.focus('.myClass')
+* driver.focus('.myClass')
 ```
 
 ## `driver.close()`
@@ -217,3 +207,11 @@ Including cache
 ## `driver.minimize()`
 
 ## `driver.fullscreen()`
+
+## `driver.cookie` 
+
+## `driver.cookie()
+
+## `driver.cookies`
+
+## `driver.clearCookies()`

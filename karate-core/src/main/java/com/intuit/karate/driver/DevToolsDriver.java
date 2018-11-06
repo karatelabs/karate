@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,6 +112,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     //==========================================================================
+    //
     protected int getWaitInterval() {
         return 0;
     }
@@ -241,7 +243,12 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void click(String id) {
-        eval(DriverUtils.selectorScript(id) + ".click()", null);
+        click(id, true);
+    }
+
+    @Override
+    public void click(String id, boolean wait) {
+        eval(DriverUtils.selectorScript(id) + ".click()", wait ? null : WaitState.NO_WAIT);
     }
 
     @Override
@@ -331,17 +338,32 @@ public abstract class DevToolsDriver implements Driver {
             cookie.put("url", currentUrl);
         }
         method("Network.setCookie").params(cookie).send();
-    }        
+    }
 
     @Override
     public void deleteCookie(String name) {
         method("Network.deleteCookies").param("name", name).param("url", currentUrl).send();
-    }        
+    }
 
     @Override
     public void clearCookies() {
         method("Network.clearBrowserCookies").send();
-    }        
+    }
+    
+    @Override
+    public void dialog(boolean accept) {
+        dialog(accept, null);
+    }   
+
+    @Override
+    public void dialog(boolean accept, String text) {
+        DevToolsMessage temp = method("Page.handleJavaScriptDialog").param("accept", accept);
+        if (text == null) {
+            temp.send();
+        } else {
+            temp.param("promptText", text).send();
+        }
+    }
 
     public void enableNetworkEvents() {
         method("Network.enable").send();

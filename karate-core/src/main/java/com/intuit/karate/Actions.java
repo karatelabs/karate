@@ -132,6 +132,8 @@ public interface Actions {
     
     //==========================================================================
 
+    void evalDriver(String expression);
+    
     void driver(String expression);
 
     void location(String expression);

@@ -30,6 +30,7 @@ import com.intuit.karate.shell.CommandThread;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -163,8 +164,13 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void click(String id) {
-        eval(DriverUtils.selectorScript(id) + ".click()");
+        click(id, true);
     }
+
+    @Override
+    public void click(String id, boolean wait) {
+        eval(DriverUtils.selectorScript(id) + ".click()");
+    }        
 
     @Override
     public void submit(String name) {
@@ -251,6 +257,16 @@ public abstract class WebDriver implements Driver {
     @Override
     public void clearCookies() {
         http.path("cookie").delete();
+    }        
+
+    @Override
+    public void dialog(boolean accept) {
+        dialog(accept, null);
+    }
+
+    @Override
+    public void dialog(boolean accept, String text) {
+        http.path("alert", accept ? "accept" : "dismiss").post("{}");
     }        
 
 }

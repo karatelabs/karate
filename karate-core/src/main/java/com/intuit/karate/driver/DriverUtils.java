@@ -91,11 +91,15 @@ public class DriverUtils {
     }
 
     public static String selectorScript(String id) {
+        if (id.startsWith("^")) {
+            id = "//a[text()='" + id.substring(1) + "']";
+        } else if (id.startsWith("*")) {
+            id = "//a[contains(text(),'" + id.substring(1) + "')]";
+        }
         if (id.startsWith("/")) {
             return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
-        } else {
-            return "document.querySelector(\"" + id + "\")";
         }
+        return "document.querySelector(\"" + id + "\")";
     }
 
     public static void sleep(int millis) {
@@ -113,20 +117,20 @@ public class DriverUtils {
     public static boolean waitForPort(String host, int port) {
         int attempts = 0;
         do {
-            SocketAddress address = new InetSocketAddress(host, port);            
+            SocketAddress address = new InetSocketAddress(host, port);
             try {
                 logger.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
                 SocketChannel sock = SocketChannel.open(address);
                 sock.close();
                 return true;
-            } catch (IOException e) {                
+            } catch (IOException e) {
                 sleep(250);
             }
         } while (attempts++ < 3);
         return false;
     }
-    
-    public static Map<String, Object> putSelected(Map<String, Object> map, String ... keys) {
+
+    public static Map<String, Object> putSelected(Map<String, Object> map, String... keys) {
         Map<String, Object> out = new HashMap(keys.length);
         for (String key : keys) {
             Object o = map.get(key);

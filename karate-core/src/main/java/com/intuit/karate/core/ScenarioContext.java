@@ -540,6 +540,7 @@ public class ScenarioContext {
     }
 
     //==========================================================================
+    //
     public void configure(String key, String exp) {
         configure(key, Script.evalKarateExpression(exp, this));
     }
@@ -898,10 +899,15 @@ public class ScenarioContext {
         return listen(timeout, () -> callback.invokeFunction(this, null));
     }
 
-    // driver ==================================================================
+    // driver ==================================================================       
+    //
     private void initDriver(Driver driver) {
         this.driver = driver;
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
+    }
+    
+    public void evalDriver(String expression) {
+        eval(ScriptBindings.DRIVER_DOT + expression);
     }
 
     public void driver(String expression) {

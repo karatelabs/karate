@@ -33,6 +33,12 @@ public class KarateException extends RuntimeException {
         super(message);
     }
     
+    public KarateException withLineNumber(int line) {
+        KarateException ke = new KarateException("line: " + line + ", " + getMessage());
+        ke.setStackTrace(getStackTrace());
+        return ke;
+    }
+    
     public KarateException(String message, Throwable cause) {
         super(message + cause == null ? "" : "\n" + cause.getMessage());
     }

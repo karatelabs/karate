@@ -60,6 +60,8 @@ public class WaitState {
         return false;
     };
     
+    public static final Predicate<DevToolsMessage> NO_WAIT = m -> true;
+    
     public WaitState(long timeOut) {
         this.timeOut = timeOut;
     }

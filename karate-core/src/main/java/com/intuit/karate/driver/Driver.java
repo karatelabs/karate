@@ -25,6 +25,7 @@ package com.intuit.karate.driver;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  *
@@ -54,6 +55,8 @@ public interface Driver {
     void input(String name, String value);
 
     void click(String expression);
+    
+    void click(String expression, boolean wait);
 
     void submit(String expression);
 
@@ -74,6 +77,10 @@ public interface Driver {
     void deleteCookie(String name);
     
     void clearCookies();
+    
+    void dialog(boolean accept);
+    
+    void dialog(boolean accept, String text);
 
     // javabean naming convention is intentional ===============================
     void setLocation(String expression);

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.exception.KarateException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -86,6 +87,10 @@ public class Result {
             new StackTraceElement("✽", step.getPrefix() + ' ' + step.getText() + ' ', featureName, step.getLine())
         };
         error.setStackTrace(newTrace);
+        if (error instanceof KarateException) {
+            KarateException ke = (KarateException) error;
+            error = ke.withLineNumber(step.getLine());
+        }
         return new Result(FAILED, nanos, error, false);
     }
 
