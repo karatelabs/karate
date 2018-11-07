@@ -4,7 +4,8 @@ Background:
   * def webUrlBase = karate.properties['web.url.base']
 
 Scenario Outline: using <config>
-  * configure driver = <config>
+  * def config = <config>
+  * configure driver = config
 
   Given location webUrlBase + '/page-01'
     
@@ -67,6 +68,9 @@ Scenario Outline: using <config>
   Then match driver.dialog == 'this is a prompt'
   And driver.dialog(true, 'hello world')
   And match driver.text('#eg02DivId') == 'hello world'
+
+  * def bytes = driver.screenshot('#eg02DivId')
+  * eval karate.write(bytes, 'partial-' + config.type + '.png')
 
   When submit *Page Three
   And match driver.title == 'Page Three'

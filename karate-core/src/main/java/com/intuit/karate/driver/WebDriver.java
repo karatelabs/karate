@@ -28,6 +28,7 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -291,6 +292,29 @@ public abstract class WebDriver implements Driver {
             http.path("alert", "text").post(Collections.singletonMap("text", text));
             http.path("alert", "accept").post("{}");
         }
+    }       
+
+    @Override
+    public byte[] pdf(Map<String, Object> options) {
+        logger.warn("pdf export only supported for type: 'chrome'");
+        return null;
+    }        
+
+    @Override
+    public byte[] screenshot() {
+        return screenshot(null);
+    }
+
+    @Override
+    public byte[] screenshot(String locator) {
+        String id = locator == null ? null : getElementId(locator);
+        String temp;
+        if (id == null) {
+            temp = http.path("screenshot").get().jsonPath("$.value").asString();
+        } else {
+            temp = http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
+        }
+        return Base64.getDecoder().decode(temp); 
     }        
 
 }

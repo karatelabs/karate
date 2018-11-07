@@ -96,7 +96,9 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
         ChromeDevToolsDriver chrome = new ChromeDevToolsDriver(command, http, webSocketUrl, headless, timeOut);
         chrome.activate();
         chrome.enablePageEvents();
-        chrome.initWindowIdAndState();
+        if (!headless) {
+            chrome.initWindowIdAndState();
+        }
         return chrome;
     }
 

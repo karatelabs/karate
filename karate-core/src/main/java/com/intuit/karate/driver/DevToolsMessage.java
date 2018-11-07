@@ -26,6 +26,7 @@ package com.intuit.karate.driver;
 import com.intuit.karate.ScriptValue;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -80,6 +81,16 @@ public class DevToolsMessage {
     public Map<String, Object> getResult() {
         return result;
     }
+    
+    private static Map<String, Object> toMap(List<Map<String, Object>> list) {
+        Map<String, Object> res = new HashMap();
+        for (Map<String, Object> map : list) {
+            String key = (String) map.get("name");
+            Map<String, Object> valMap = (Map) map.get("value");
+            res.put(key, valMap == null ? null : valMap.get("value"));
+        }
+        return res;
+    }
 
     public boolean isResultError() {
         if (result == null) {
@@ -120,7 +131,12 @@ public class DevToolsMessage {
         params = (Map) map.get("params");
         Map temp = (Map) map.get("result");
         if (temp != null && temp.containsKey("result")) {
-            result = (Map) temp.get("result");
+            Object inner = temp.get("result");
+            if (inner instanceof List) {
+                result = toMap((List) inner);
+            } else {
+                result = (Map) inner;
+            }
         } else {
             result = temp;
         }

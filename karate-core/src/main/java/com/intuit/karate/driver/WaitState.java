@@ -41,26 +41,15 @@ public class WaitState {
     private Predicate<DevToolsMessage> condition;
     private DevToolsMessage lastReceived;
 
-    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.getResult() != null;
-    
-    public static final Predicate<DevToolsMessage> CHROME_FRAME_RESIZED = forEvent("Page.frameResized");
-    
-    public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");
-    
+    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.getResult() != null;    
+    public static final Predicate<DevToolsMessage> CHROME_FRAME_RESIZED = forEvent("Page.frameResized");    
+    public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");    
     public static final Predicate<DevToolsMessage> CHROME_DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
+    public static final Predicate<DevToolsMessage> CHROME_DOM_CONTENT = forEvent("Page.domContentEventFired");
     
     public static Predicate<DevToolsMessage> forEvent(String name) {
         return m -> name.equals(m.getMethod());
-    }
-
-    public static final Predicate<DevToolsMessage> CHROME_FRAME_NAVIGATED = m -> {
-        if ("Page.frameNavigated".equals(m.getMethod())) {
-            if (m.getFrameUrl().startsWith("http")) {
-                return true;
-            }
-        }
-        return false;
-    };
+    }  
     
     public static final Predicate<DevToolsMessage> NO_WAIT = m -> true;
     

@@ -51,7 +51,7 @@ public class WebSocketClientInitializer extends ChannelInitializer<SocketChannel
         this.uri = uri;
         this.port = port;
         this.sslContext = sslContext;
-        WebSocketClientHandshaker handShaker = WebSocketClientHandshakerFactory.newHandshaker(uri, WebSocketVersion.V13, null, true, new DefaultHttpHeaders());
+        WebSocketClientHandshaker handShaker = WebSocketClientHandshakerFactory.newHandshaker(uri, WebSocketVersion.V13, null, true, new DefaultHttpHeaders(), 4194304);
         handler = new WebSocketClientHandler(handShaker, listener);        
     }
 

@@ -21,4 +21,7 @@ Scenario: try to login to github
   And input //input[@name='q'] = 'karate dsl'
   When submit //input[@name='btnI']
   Then match driver.location == 'https://github.com/intuit/karate'
+
+  * def bytes = driver.screenshot()
+  * eval karate.write(bytes, 'github-karate.png')
    

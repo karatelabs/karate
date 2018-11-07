@@ -28,11 +28,11 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.shell.CommandThread;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,6 +113,9 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.isMethod("Page.javascriptDialogOpening")) {
             currentDialogText = dtm.getParam("message").getAsString();
         }
+        if (dtm.isMethod("Page.frameNavigated") && dtm.getFrameUrl().startsWith("http")) {
+            currentUrl = dtm.getFrameUrl();
+        }
     }
 
     //==========================================================================
@@ -126,10 +129,17 @@ public abstract class DevToolsDriver implements Driver {
         DevToolsMessage dtm;
         do {
             logger.debug("eval try #{}", count + 1);
-            dtm = method("Runtime.evaluate").param("expression", expression).send(condition);
+            dtm = method("Runtime.evaluate")
+                    .param("expression", expression).send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
         } while (dtm != null && dtm.isResultError() && count++ < 3);
         return dtm;
+    }
+
+    protected DevToolsMessage evalValue(String expression, Predicate<DevToolsMessage> condition) {
+        DevToolsMessage dtm = eval(expression, condition);
+        String objectId = dtm.getResult("objectId").getAsString();
+        return method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
     }
 
     @Override
@@ -166,7 +176,9 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void quit() {
-        method("Browser.close").send(WaitState.CHROME_INSPECTOR_DETACHED);
+        if (!headless) {
+            method("Browser.close").send(WaitState.CHROME_INSPECTOR_DETACHED);
+        }
         if (command != null) {
             command.close();
         }
@@ -174,8 +186,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void setLocation(String url) {
-        DevToolsMessage dtm = method("Page.navigate").param("url", url).send(WaitState.CHROME_FRAME_NAVIGATED);
-        currentUrl = dtm.getFrameUrl();
+        DevToolsMessage dtm = method("Page.navigate").param("url", url).send(WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
@@ -257,8 +268,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void submit(String id) {
-        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_FRAME_NAVIGATED);
-        currentUrl = dtm.getFrameUrl();
+        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
@@ -353,11 +363,11 @@ public abstract class DevToolsDriver implements Driver {
     public void clearCookies() {
         method("Network.clearBrowserCookies").send();
     }
-    
+
     @Override
     public void dialog(boolean accept) {
         dialog(accept, null);
-    }   
+    }
 
     @Override
     public void dialog(boolean accept, String text) {
@@ -372,7 +382,34 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public String getDialog() {
         return currentDialogText;
-    }        
+    }
+
+    @Override
+    public byte[] pdf(Map<String, Object> options) {
+        DevToolsMessage dtm = method("Page.printToPDF").params(options).send();
+        String temp = dtm.getResult("data").getAsString();
+        return Base64.getDecoder().decode(temp);
+    }
+
+    @Override
+    public byte[] screenshot() {
+        return screenshot(null);
+    }
+
+    @Override
+    public byte[] screenshot(String id) {
+        DevToolsMessage dtm;
+        if (id == null) {
+            dtm = method("Page.captureScreenshot").send();
+        } else {
+            dtm = evalValue(DriverUtils.selectorScript(id) + ".getBoundingClientRect()", null);
+            Map<String, Object> map = DriverUtils.putSelected(dtm.getResult(), "x", "y", "width", "height");
+            map.put("scale", 1);
+            dtm = method("Page.captureScreenshot").params(map).send();
+        }
+        String temp = dtm.getResult("data").getAsString();
+        return Base64.getDecoder().decode(temp);
+    }
 
     public void enableNetworkEvents() {
         method("Network.enable").send();
