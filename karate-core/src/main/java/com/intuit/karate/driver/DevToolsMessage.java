@@ -53,6 +53,10 @@ public class DevToolsMessage {
     public String getMethod() {
         return method;
     }
+    
+    public boolean isMethod(String method) {
+        return method.equals(this.method);
+    }
 
     public String getFrameUrl() {
         if (params == null) {
@@ -90,6 +94,13 @@ public class DevToolsMessage {
             return null;
         }
         return new ScriptValue(result.get(key));
+    }
+    
+    public ScriptValue getParam(String key) {
+        if (params == null) {
+            return ScriptValue.NULL;
+        }
+        return new ScriptValue(params.get(key));
     }
 
     public void setResult(Map<String, Object> result) {

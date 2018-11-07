@@ -25,6 +25,7 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
 import java.util.Collections;
@@ -79,15 +80,28 @@ public abstract class WebDriver implements Driver {
         return "property";
     }
 
-    protected String getElementId(String id) {
+    protected String getElementId(String id) { // TODO refactor
         String body;
-        if (id.startsWith("/")) {
+        if (id.startsWith("^")) {
+            body = "{ using: 'link text', value: \"" + id.substring(1) + "\" }";
+        } else if (id.startsWith("*")) {
+            body = "{ using: 'partial link text', value: \"" + id.substring(1) + "\" }";
+        } else if (id.startsWith("/")) {
             body = "{ using: 'xpath', value: \"" + id + "\" }";
         } else {
             body = "{ using: 'css selector', value: \"" + id + "\" }";
         }
-        logger.debug("body: {}", body);
         return http.path("element").post(body).jsonPath(getJsonPathForElementId()).asString();
+//        int attempts = 0;
+//        while (attempts < 3) {
+//            try {                
+//                return http.path("element").post(body).jsonPath(getJsonPathForElementId()).asString();
+//            } catch (Exception e) {
+//                logger.debug("get element attempt: {}", attempts++);
+//                DriverUtils.sleep(getWaitInterval());
+//            }
+//        }
+//        throw new RuntimeException("failed to get element: " + id);
     }
 
     @Override
@@ -164,11 +178,11 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void click(String id) {
-        click(id, true);
+        click(id, false);
     }
 
     @Override
-    public void click(String id, boolean wait) {
+    public void click(String id, boolean ignored) {
         eval(DriverUtils.selectorScript(id) + ".click()");
     }        
 
@@ -265,8 +279,18 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
+    public String getDialog() {
+        return http.path("alert", "text").get().jsonPath("$.value").asString();
+    }        
+
+    @Override
     public void dialog(boolean accept, String text) {
-        http.path("alert", accept ? "accept" : "dismiss").post("{}");
+        if (text == null) {
+            http.path("alert", accept ? "accept" : "dismiss").post("{}");
+        } else {
+            http.path("alert", "text").post(Collections.singletonMap("text", text));
+            http.path("alert", "accept").post("{}");
+        }
     }        
 
 }

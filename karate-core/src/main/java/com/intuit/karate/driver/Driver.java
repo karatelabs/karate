@@ -56,7 +56,7 @@ public interface Driver {
 
     void click(String expression);
     
-    void click(String expression, boolean wait);
+    void click(String expression, boolean waitForDialog);
 
     void submit(String expression);
 
@@ -83,6 +83,7 @@ public interface Driver {
     void dialog(boolean accept, String text);
 
     // javabean naming convention is intentional ===============================
+    //
     void setLocation(String expression);
 
     void setDimensions(Map<String, Object> map);
@@ -96,5 +97,7 @@ public interface Driver {
     void setCookie(Map<String, Object> cookie);
 
     List<Map> getCookies();
+    
+    String getDialog();
 
 }

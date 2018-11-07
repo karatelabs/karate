@@ -2,14 +2,18 @@
 <html>
   <head>
     <title>Page Two</title>
+    <script src="karate.js"></script>    
   </head>
   <body>
     <div id="eg01">
       <div class="eg01Cls"><span>Class Locator Test</span></div>
     </div>
     <div id="eg02">
-      <a href="#" onclick="alert('hello world')">Show Alert</a><br/>
+      <a href="#" onclick="alert('this is an alert')">Show Alert</a><br/>
+      <a href="#" onclick="karate.setHtml('eg02DivId', confirm('this is a confirm') ? 'OK' : 'Cancel')">Show Confirm</a><br/>
+      <a href="#" onclick="karate.setHtml('eg02DivId', prompt('this is a prompt'))">Show Prompt</a><br/>
       <a href="page-03">Go to Page Three</a>
+      <div id="eg02DivId"></div>
     </div>    
   </body>
 </html>

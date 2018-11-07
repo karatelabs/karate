@@ -123,6 +123,11 @@ public class Match {
         return prevValue;
     }
     
+    public boolean statusIs(Integer expected) {
+        prevValue = Script.evalKarateExpression("responseStatus", context);
+        return expected.equals(prevValue.getValue());
+    }
+    
     public boolean isBooleanTrue() {
         return prevValue.isBooleanTrue();
     }

@@ -215,3 +215,6 @@ Including cache
 ## `driver.cookies`
 
 ## `driver.clearCookies()`
+
+## `driver.dialog()`
+

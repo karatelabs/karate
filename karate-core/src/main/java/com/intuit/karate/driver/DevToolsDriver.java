@@ -60,6 +60,7 @@ public abstract class DevToolsDriver implements Driver {
     private final long timeOut;
 
     protected String currentUrl;
+    protected String currentDialogText;
     private int nextId;
 
     public int getNextId() {
@@ -109,6 +110,9 @@ public abstract class DevToolsDriver implements Driver {
 
     public void receive(DevToolsMessage dtm) {
         waitState.receive(dtm);
+        if (dtm.isMethod("Page.javascriptDialogOpening")) {
+            currentDialogText = dtm.getParam("message").getAsString();
+        }
     }
 
     //==========================================================================
@@ -243,12 +247,12 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void click(String id) {
-        click(id, true);
+        click(id, false);
     }
 
     @Override
-    public void click(String id, boolean wait) {
-        eval(DriverUtils.selectorScript(id) + ".click()", wait ? null : WaitState.NO_WAIT);
+    public void click(String id, boolean waitForDialog) {
+        eval(DriverUtils.selectorScript(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
     }
 
     @Override
@@ -364,6 +368,11 @@ public abstract class DevToolsDriver implements Driver {
             temp.param("promptText", text).send();
         }
     }
+
+    @Override
+    public String getDialog() {
+        return currentDialogText;
+    }        
 
     public void enableNetworkEvents() {
         method("Network.enable").send();

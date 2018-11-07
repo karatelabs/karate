@@ -71,6 +71,8 @@ public class ScenarioOutline {
         for (Step original : steps) {
             Step step = new Step(feature, s, original.getIndex());
             temp.add(step);
+            step.setLine(original.getLine());
+            step.setEndLine(original.getEndLine());
             step.setPrefix(original.getPrefix());
             step.setText(original.getText());
             step.setDocString(original.getDocString());

@@ -47,6 +47,8 @@ public class WaitState {
     
     public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");
     
+    public static final Predicate<DevToolsMessage> CHROME_DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
+    
     public static Predicate<DevToolsMessage> forEvent(String name) {
         return m -> name.equals(m.getMethod());
     }

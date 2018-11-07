@@ -50,8 +50,23 @@ Scenario Outline: using <config>
   Then match driver.location == webUrlBase + '/page-02'
   And match driver.title == 'Page Two'
 
-  When driver.click('^Show Alert', false)
+  When driver.click('^Show Alert', true)
+  Then match driver.dialog == 'this is an alert'
   And driver.dialog(true)
+
+  When driver.click('^Show Confirm', true)
+  Then match driver.dialog == 'this is a confirm'
+  And driver.dialog(false)
+  And match driver.text('#eg02DivId') == 'Cancel'
+
+  When driver.click('^Show Confirm', true)
+  And driver.dialog(true)
+  And match driver.text('#eg02DivId') == 'OK'
+
+  When driver.click('^Show Prompt', true)
+  Then match driver.dialog == 'this is a prompt'
+  And driver.dialog(true, 'hello world')
+  And match driver.text('#eg02DivId') == 'hello world'
 
   When submit *Page Three
   And match driver.title == 'Page Three'
