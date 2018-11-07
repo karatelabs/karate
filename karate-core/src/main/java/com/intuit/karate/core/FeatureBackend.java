@@ -174,10 +174,10 @@ public class FeatureBackend {
             }            
             return response;
         }
-        Match match = Match.init()
-                .defText(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
-                .defText(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
-                .defText(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
+        Match match = new Match()
+                .text(ScriptValueMap.VAR_REQUEST_URL_BASE, request.getUrlBase())
+                .text(ScriptValueMap.VAR_REQUEST_URI, request.getUri())
+                .text(ScriptValueMap.VAR_REQUEST_METHOD, request.getMethod())
                 .def(ScriptValueMap.VAR_REQUEST_HEADERS, request.getHeaders())
                 .def(ScriptValueMap.VAR_RESPONSE_STATUS, 200)
                 .def(ScriptValueMap.VAR_REQUEST_PARAMS, request.getParams());

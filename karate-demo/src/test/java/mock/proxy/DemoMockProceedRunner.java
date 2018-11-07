@@ -28,7 +28,7 @@ public class DemoMockProceedRunner {
     @BeforeClass
     public static void beforeClass() throws Exception {
         int port = TestBase.startServer();
-        Map map = Match.init().def("demoServerPort", port).allAsMap();
+        Map map = new Match().def("demoServerPort", port).allAsMap();
         File file = FileUtils.getFileRelativeTo(DemoMockProceedRunner.class, "demo-mock-proceed.feature");
         server = FeatureServer.start(file, 0, false, map);
     }

@@ -29,7 +29,7 @@ public class DemoMockProxyRunner {
     @BeforeClass
     public static void beforeClass() throws Exception {
         demoServerPort = TestBase.startServer();
-        Map map = Match.init().def("demoServerPort", null).allAsMap(); // don't rewrite url
+        Map map = new Match().def("demoServerPort", null).allAsMap(); // don't rewrite url
         File file = FileUtils.getFileRelativeTo(DemoMockProxyRunner.class, "demo-mock-proceed.feature");
         server = FeatureServer.start(file, 0, false, map);
     }

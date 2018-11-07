@@ -58,7 +58,7 @@ public class Http {
     }    
     
     public static Http forUrl(String url) {
-        Http http = new Http(Match.init(true));
+        Http http = new Http(Match.withHttp());
         return http.url(url);
     }
     

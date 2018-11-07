@@ -42,8 +42,8 @@ public class FeatureBackendTest {
     private static final Logger logger = LoggerFactory.getLogger(FeatureBackendTest.class);
 
     private ScriptValueMap getRequest(String name) {
-        return Match.init()
-                .defText("name", name)
+        return new Match()
+                .text("name", name)
                 .def("request", "{ name: '#(name)' }").vars();
     }
 

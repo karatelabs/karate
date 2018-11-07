@@ -139,14 +139,14 @@ public class ScriptValue {
     public boolean isPrimitive() {
         return type == Type.PRIMITIVE;
     }
-    
+
     public Number getAsNumber() {
         return getValue(Number.class);
     }
-    
+
     public boolean isNumber() {
         return type == Type.PRIMITIVE && Number.class.isAssignableFrom(value.getClass());
-    }    
+    }
 
     public boolean isFunction() {
         return type == Type.JS_FUNCTION;
@@ -246,8 +246,10 @@ public class ScriptValue {
 
     public boolean isMapLike() {
         switch (type) {
-            case MAP:
             case JSON:
+                DocumentContext doc = (DocumentContext) value;
+                return doc.json() instanceof Map;
+            case MAP:
             case XML:
             case JS_OBJECT:
                 return true;
@@ -374,7 +376,7 @@ public class ScriptValue {
                 return value.toString();
         }
     }
-    
+
     public byte[] getAsByteArray() {
         switch (type) {
             case NULL:
@@ -385,7 +387,7 @@ public class ScriptValue {
                 return getValue(byte[].class);
             default:
                 return getAsString().getBytes();
-        }        
+        }
     }
 
     public InputStream getAsStream() {

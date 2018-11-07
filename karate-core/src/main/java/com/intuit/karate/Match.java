@@ -41,43 +41,29 @@ public class Match {
     protected final ScenarioContext context;
     private ScriptValue prevValue = ScriptValue.NULL;
 
-    public static Match init() {
-        return new Match();
+    public static Match withHttp() {
+        return new Match(true, null);
     }
 
-    public static Match init(boolean httpEnabled) {
-        return new Match(httpEnabled);
+    public Match(String exp) {
+        this(false, exp);
     }
 
-    public static Match init(String exp) {
-        Match m = new Match();
-        ScriptValue sv = Script.evalKarateExpression(exp, m.context);
-        return m.putAll(sv.evalAsMap(m.context));
+    public Match() {
+        this(false, null);
     }
 
-    public static Match json(String exp) {
-        return parse(exp);
-    }
-
-    public static Match xml(String exp) {
-        return parse(exp);
-    }
-
-    private static Match parse(String exp) {
-        Match m = new Match();
-        m.prevValue = Script.evalKarateExpression(exp, m.context);
-        return m;
-    }
-
-    private Match() {
-        this(false);
-    }
-
-    private Match(boolean httpEnabled) {
+    private Match(boolean httpEnabled, String exp) {
         FeatureContext featureContext = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, null, 0, null, -1, false, false,
                 httpEnabled ? null : DummyHttpClient.class.getName(), null, false);
         context = new ScenarioContext(featureContext, callContext);
+        if (exp != null) {            
+            prevValue = Script.evalKarateExpression(exp, context);
+            if (prevValue.isMapLike()) {
+                putAll(prevValue.evalAsMap(context));
+            }
+        }
     }
 
     private void handleFailure(AssertionResult ar) {
@@ -87,7 +73,7 @@ public class Match {
         }
     }
 
-    public Match defText(String name, String exp) {
+    public Match text(String name, String exp) {
         prevValue = Script.assign(AssignType.TEXT, name, exp, context, false);
         return this;
     }
@@ -118,24 +104,24 @@ public class Match {
         prevValue = Script.evalKarateExpression(exp, context);
         return this;
     }
-    
+
     public ScriptValue value() {
         return prevValue;
     }
-    
+
     public boolean statusIs(Integer expected) {
         prevValue = Script.evalKarateExpression("responseStatus", context);
         return expected.equals(prevValue.getValue());
     }
-    
+
     public boolean isBooleanTrue() {
         return prevValue.isBooleanTrue();
     }
-    
+
     public String asString() {
         return prevValue.getAsString();
     }
-    
+
     public <T> T asType(Class<T> clazz) {
         return prevValue.getValue(clazz);
     }
@@ -216,7 +202,7 @@ public class Match {
     }
 
     // http ====================================================================
-    
+    //
     public Http http() {
         return new Http(this);
     }
@@ -239,18 +225,18 @@ public class Match {
         context.method("get");
         return this;
     }
-    
+
     public Match httpPost(Object body) {
         ScriptValue sv = new ScriptValue(body);
         context.request(sv.getAsString());
         context.method("post");
         return this;
-    } 
-    
+    }
+
     public Match httpDelete() {
         context.method("delete");
         return this;
-    }    
+    }
 
     public Match response() {
         jsonPath("response");
@@ -258,7 +244,7 @@ public class Match {
     }
 
     // static ==================================================================
-    
+    //
     public static Match equals(Object o, String exp) {
         return match(o, exp, MatchType.EQUALS);
     }
@@ -276,13 +262,13 @@ public class Match {
     }
 
     private static Match match(Object o, String exp, MatchType matchType) {
-        Match m = Match.init();
+        Match m = new Match();
         m.prevValue = new ScriptValue(o);
         return m.match(exp, matchType);
     }
 
     private static Match matchText(Object o, String exp, MatchType matchType) {
-        Match m = Match.init();
+        Match m = new Match();
         m.prevValue = new ScriptValue(o);
         return m.matchText(exp, matchType);
     }
