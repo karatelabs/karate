@@ -878,9 +878,17 @@ public class ScenarioContext {
     }
 
     public Object listen(long timeout, Runnable runnable) {
-        logger.trace("submitting listen function");
-        new Thread(runnable).start();
+        if (runnable != null) {
+            logger.trace("submitting listen function");
+            new Thread(runnable).start();
+        }
         synchronized (LOCK) {
+            if (signalResult != null) {
+                logger.debug("signal arrived early ! result: {}", signalResult);
+                Object temp = signalResult;
+                signalResult = null;
+                return temp;
+            }
             try {
                 logger.trace("entered listen wait state");
                 LOCK.wait(timeout);
@@ -890,13 +898,6 @@ public class ScenarioContext {
             }
             return signalResult;
         }
-    }
-
-    public Object listen(long timeout, ScriptValue callback) {
-        if (!callback.isFunction()) {
-            throw new RuntimeException("listen expression - expected function, but was: " + callback);
-        }
-        return listen(timeout, () -> callback.invokeFunction(this, null));
     }
 
     // driver ==================================================================       

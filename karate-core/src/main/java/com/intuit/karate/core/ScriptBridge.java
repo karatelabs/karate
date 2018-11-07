@@ -373,11 +373,11 @@ public class ScriptBridge implements PerfContext {
         if (!som.isFunction()) {
             throw new RuntimeException("not a JS function: " + som);
         }
-        return context.listen(timeout, new ScriptValue(som));
+        return context.listen(timeout, () -> Script.evalFunctionCall(som, null, context));
     }
     
     public Object listen(long timeout) {
-        return context.listen(timeout, () -> {});
+        return context.listen(timeout, null);
     }    
     
     private ScriptValue getValue(String name) {
