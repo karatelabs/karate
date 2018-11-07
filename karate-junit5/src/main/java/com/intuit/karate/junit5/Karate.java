@@ -41,7 +41,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import org.junit.jupiter.api.TestFactory;
@@ -55,66 +54,35 @@ public class Karate implements Iterable<DynamicNode> {
 
     }
 
-    private final List<Feature> features;
-    private final String tagSelector;
+    private final List<String> tags = new ArrayList();
+    private final List<String> paths = new ArrayList();
+    private Class clazz;
 
-    public static class KarateBuilder {
-
-        private List<String> tags;
-        private List<String> features;
-        private Class clazz;
-
-        public KarateBuilder tags(String... tags) {
-            if (this.tags == null) {
-                this.tags = new ArrayList<>(tags.length);
-            }
-            this.tags.addAll(Arrays.asList(tags));
-            return this;
-        }
-
-        public KarateBuilder feature(String... features) {
-            if (this.features == null) {
-                this.features = new ArrayList<>(features.length);
-            }
-            this.features.addAll(Arrays.asList(features));
-            return this;
-        }
-
-        public KarateBuilder relativeTo(Class clazz) {
-            this.clazz = clazz;
-            return this;
-        }
-
-        public Karate build() {
-            return new Karate(features, tags, clazz);
-        }
-
+    public Karate relativeTo(Class clazz) {
+        this.clazz = clazz;
+        return this;
     }
 
-    public static KarateBuilder relativeTo(Class clazz) {
-        return new KarateBuilder().relativeTo(clazz);
+    public Karate feature(String... paths) {
+        this.paths.addAll(Arrays.asList(paths));
+        return this;
     }
 
-    public static KarateBuilder feature(String... features) {
-        return new KarateBuilder().feature(features);
+    public Karate tags(String... tags) {
+        this.tags.addAll(Arrays.asList(tags));
+        return this;
     }
 
-    public static KarateBuilder tags(String... tags) {
-        return new KarateBuilder().tags(tags);
-    }
-
-    private Karate(List<String> featureNames, List<String> tags, Class clazz) {
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(featureNames, tags, clazz);
+    @Override
+    public Iterator<DynamicNode> iterator() {
+        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, clazz);
         List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz);
-        features = new ArrayList<>(resources.size());
+        List<Feature> features = new ArrayList(resources.size());
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             features.add(feature);
         }
-        tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
-    }
-
-    private Collection<DynamicNode> createDynamicTests() {
+        String tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
         List<DynamicNode> list = new ArrayList<>(features.size());
         for (Feature feature : features) {
             FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
@@ -139,12 +107,7 @@ public class Karate implements Iterable<DynamicNode> {
             DynamicNode node = dynamicContainer(testName, scenarios.stream());
             list.add(node);
         }
-        return list;
-    }
-
-    @Override
-    public Iterator<DynamicNode> iterator() {
-        return createDynamicTests().iterator();
+        return list.iterator();
     }
 
 }

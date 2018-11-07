@@ -6,20 +6,19 @@ class SampleTest {
 
     @Karate.Test
     Karate testSample() {
-        return Karate.feature("sample").relativeTo(getClass()).build();
+        return new Karate().feature("sample").relativeTo(getClass());
     }
     
     @Karate.Test
     Karate testTags() {
-        return Karate.feature("tags").tags("@second").relativeTo(getClass()).build();
+        return new Karate().feature("tags").tags("@second").relativeTo(getClass());
     }
 
     @Karate.Test
     Karate testFullPath() {
-        return Karate
+        return new Karate()
                 .feature("classpath:karate/tags.feature")
-                .tags("@first")
-                .build();
+                .tags("@first");
     }
 
 }
