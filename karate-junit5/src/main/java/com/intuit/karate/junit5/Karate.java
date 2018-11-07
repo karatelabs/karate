@@ -35,13 +35,25 @@ import com.intuit.karate.core.*;
 import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.api.DynamicTest;
 import java.io.File;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import org.junit.jupiter.api.TestFactory;
 
 public class Karate implements Iterable<DynamicNode> {
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @TestFactory
+    public @interface Test {
+
+    }
 
     private final List<Feature> features;
     private final String tagSelector;
@@ -52,7 +64,7 @@ public class Karate implements Iterable<DynamicNode> {
         private List<String> features;
         private Class clazz;
 
-        public KarateBuilder tags(String ... tags) {
+        public KarateBuilder tags(String... tags) {
             if (this.tags == null) {
                 this.tags = new ArrayList<>(tags.length);
             }
@@ -60,7 +72,7 @@ public class Karate implements Iterable<DynamicNode> {
             return this;
         }
 
-        public KarateBuilder feature(String ... features) {
+        public KarateBuilder feature(String... features) {
             if (this.features == null) {
                 this.features = new ArrayList<>(features.length);
             }
@@ -83,11 +95,11 @@ public class Karate implements Iterable<DynamicNode> {
         return new KarateBuilder().relativeTo(clazz);
     }
 
-    public static KarateBuilder feature(String ... features) {
+    public static KarateBuilder feature(String... features) {
         return new KarateBuilder().feature(features);
     }
 
-    public static KarateBuilder tags(String ... tags) {
+    public static KarateBuilder tags(String... tags) {
         return new KarateBuilder().tags(tags);
     }
 
