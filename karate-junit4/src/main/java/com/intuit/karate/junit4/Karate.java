@@ -32,17 +32,17 @@ import org.slf4j.LoggerFactory;
 
 /**
  * implementation adapted from cucumber.api.junit.Cucumber
- * 
+ *
  * @author pthomas3
  */
 public class Karate extends ParentRunner<FeatureRunner> {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
-    
+
     private final List<FeatureRunner> children;
-    
+
     private final JUnitReporter reporter;
-    private final KarateHtmlReporter htmlReporter;    
+    private final KarateHtmlReporter htmlReporter;
     private final Map<Integer, KarateFeatureRunner> featureMap;
 
     public Karate(Class clazz) throws InitializationError, IOException {
@@ -56,22 +56,22 @@ public class Karate extends ParentRunner<FeatureRunner> {
         JUnitOptions junitOptions = new JUnitOptions(ro.getJunitOptions());
         htmlReporter = new KarateHtmlReporter(new DummyReporter(), new DummyFormatter());
         reporter = new JUnitReporter(htmlReporter, htmlReporter, ro.isStrict(), junitOptions) {
-            final List<Step> steps = new ArrayList();
-            final List<Match> matches = new ArrayList();
+            final List<Step> steps = new ArrayList<>();
+            final List<Match> matches = new ArrayList<>();
             @Override
             public void startOfScenarioLifeCycle(Scenario scenario) {
                 steps.clear();
                 matches.clear();
                 super.startOfScenarioLifeCycle(scenario);
-            }                       
+            }
             @Override
             public void step(Step step) {
-                steps.add(step);                
+                steps.add(step);
             }
             @Override
             public void match(Match match) {
                 matches.add(match);
-            }            
+            }
             @Override
             public void result(Result result) {
                 Step step = steps.remove(0);
@@ -92,10 +92,10 @@ public class Karate extends ParentRunner<FeatureRunner> {
                     logger.warn("WARNING: cucumber native plugin / formatter failed: " + e.getMessage());
                 }
             }
-        };  
+        };
         List<KarateFeature> list = KarateFeature.loadFeatures(kro);
-        children = new ArrayList(list.size());
-        featureMap = new HashMap(list.size());
+        children = new ArrayList<>(list.size());
+        featureMap = new HashMap<>(list.size());
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
         for (KarateFeature kf : list) {
             KarateRuntime kr = kf.getRuntime(htmlReporter);
@@ -104,12 +104,12 @@ public class Karate extends ParentRunner<FeatureRunner> {
             featureMap.put(runner.hashCode(), new KarateFeatureRunner(kf, kr));
         }
     }
-    
+
     @Override
     public List<FeatureRunner> getChildren() {
         return children;
-    }        
-    
+    }
+
     @Override
     protected Description describeChild(FeatureRunner child) {
         return child.getDescription();
@@ -133,6 +133,6 @@ public class Karate extends ParentRunner<FeatureRunner> {
             reporter.done();
             reporter.close();
         }
-    }   
+    }
 
 }

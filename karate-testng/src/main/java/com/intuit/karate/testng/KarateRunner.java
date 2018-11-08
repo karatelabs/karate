@@ -15,6 +15,8 @@ import gherkin.formatter.Formatter;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -41,7 +43,7 @@ public abstract class KarateRunner {
     @AfterClass(alwaysRun = true)
     public void tearDownClass() throws Exception {
         RuntimeOptions ro = runtimeOptions.getRuntimeOptions();
-        Formatter formatter = ro.formatter(runtimeOptions.getClassLoader());        
+        Formatter formatter = ro.formatter(runtimeOptions.getClassLoader());
         formatter.done();
         formatter.close();
     }
@@ -58,15 +60,16 @@ public abstract class KarateRunner {
         if (!resultListener.isPassed()) {
             throw new CucumberException(resultListener.getFirstError());
         }
-        runtime.printSummary();        
+        runtime.printSummary();
     }
 
     @DataProvider
     public Object[][] features() {
         try {
-            List<CucumberFeature> features = runtimeOptions.loadFeatures();
-            List<Object[]> featuresList = new ArrayList<Object[]>(features.size());
-            features.forEach(feature -> featuresList.add(new Object[]{new CucumberFeatureWrapperImpl(feature)}));
+            List<Object[]> featuresList = runtimeOptions.loadFeatures()
+                    .stream()
+                    .map(feature -> new Object[]{new CucumberFeatureWrapperImpl(feature)})
+                    .collect(Collectors.toList());
             return featuresList.toArray(new Object[][]{});
         } catch (CucumberException e) {
             return new Object[][]{new Object[]{new CucumberExceptionWrapper(e)}};
