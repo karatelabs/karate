@@ -65,6 +65,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
@@ -157,6 +158,8 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                 .setConnectTimeout(config.getConnectTimeout())
                 .setSocketTimeout(config.getReadTimeout());
         clientBuilder.setDefaultRequestConfig(configBuilder.build());
+        SocketConfig.Builder socketBuilder = SocketConfig.custom().setSoTimeout(config.getConnectTimeout());
+        clientBuilder.setDefaultSocketConfig(socketBuilder.build());
         if (config.getProxyUri() != null) {
             try {
                 URI proxyUri = new URIBuilder(config.getProxyUri()).build();
