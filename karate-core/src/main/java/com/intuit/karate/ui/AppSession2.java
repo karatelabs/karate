@@ -64,11 +64,13 @@ public class AppSession2 {
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();
         featureOutlinePanel = new FeatureOutlinePanel(this);
+        DragResizer.makeResizable(featureOutlinePanel, false, false, false, true);
         List<ScenarioExecutionUnit> units = featureUnit.getScenarioExecutionUnits();
         scenarioPanels = new ArrayList(units.size());
         units.forEach(unit -> scenarioPanels.add(new ScenarioPanel2(this, unit)));
-        rootPane.setLeft(featureOutlinePanel);
+        rootPane.setLeft(featureOutlinePanel);        
         logPanel = new LogPanel(logger);
+        DragResizer.makeResizable(logPanel, false, false, true, false);
         rootPane.setBottom(logPanel);
     }
 

@@ -312,6 +312,8 @@ public class ScriptValue {
                 return "(..bytes..)";
             case INPUT_STREAM:
                 return "(..stream..)";
+            case UNKNOWN:
+                return "(..???..)";
             default:
                 return value.toString();
         }

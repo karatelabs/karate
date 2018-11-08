@@ -33,7 +33,7 @@ public class VarValueCell extends TooltipCell<Var, ScriptValue> {
 
     @Override
     protected String getCellText(ScriptValue sv) {
-        if (sv.isStream()) {
+        if (sv.isStream() || sv.isByteArray() || sv.isUnknownType()) {
             return sv.getAsPrettyString();
         }
         try {

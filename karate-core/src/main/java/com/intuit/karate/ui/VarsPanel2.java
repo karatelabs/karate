@@ -53,12 +53,10 @@ public class VarsPanel2 extends BorderPane {
         this.scenarioPanel = scenarioPanel;
         this.setPadding(App2.PADDING_HOR);
         table = new TableView();
-        table.setPrefWidth(300);
+        table.setPrefWidth(280);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         setCenter(table);
         TableColumn nameCol = new TableColumn("Variable");
-        nameCol.setMinWidth(120);
-        nameCol.setMaxWidth(250);
         nameCol.setCellValueFactory(new PropertyValueFactory("name"));
         nameCol.setCellFactory(c -> new StringTooltipCell());
         TableColumn typeCol = new TableColumn("Type");
@@ -79,7 +77,7 @@ public class VarsPanel2 extends BorderPane {
                 }
             });
             return row ;
-        });
+        });        
     }
     
     private ObservableList<Var> getVarList() {
