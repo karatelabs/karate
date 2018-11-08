@@ -900,49 +900,33 @@ public class ScenarioContext {
 
     // driver ==================================================================       
     //
-    private void initDriver(Driver driver) {
+    private void setDriver(Driver driver) {
         this.driver = driver;
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
     }
-    
-    public void evalDriver(String expression) {
-        eval(ScriptBindings.DRIVER_DOT + expression);
-    }
 
     public void driver(String expression) {
-        Map<String, Object> options = config.getDriverOptions();
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        if (sv.isMapLike()) {
-            options.putAll(sv.getAsMap());
-        }
-        initDriver(DriverUtils.construct(options));
-    }
-
-    public void location(String expression) {
         if (driver == null) {
-            initDriver(DriverUtils.construct(config.getDriverOptions()));
+            Map<String, Object> options = config.getDriverOptions();            
+            if (sv.isMapLike()) {
+                options.putAll(sv.getAsMap());
+            }
+            setDriver(DriverUtils.construct(options));
         }
-        String temp = Script.evalKarateExpression(expression, this).getAsString();
-        driver.setLocation(temp);
+        if (sv.isString()) {
+            driver.setLocation(sv.getAsString());
+        }
     }
 
-    public void input(String name, String value) {
-        String temp = Script.evalKarateExpression(value, this).getAsString();
-        driver.input(name, temp);
-    }
-
-    public void click(String name) {
-        driver.click(name);
-    }
-
-    public void submit(String name) {
-        driver.submit(name);
+    public void driverDot(String expression) {
+        eval(ScriptBindings.DRIVER_DOT + expression);
     }
 
     public void stop() {
         if (reuseParentContext) {
             if (driver != null) {
-                parentContext.initDriver(driver);
+                parentContext.setDriver(driver);
             }
             parentContext.webSocketClients = webSocketClients;
             return;

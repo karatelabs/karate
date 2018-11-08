@@ -131,17 +131,9 @@ public interface Actions {
     void yaml(String name, String expression);
     
     //==========================================================================
-
-    void evalDriver(String expression);
-    
+    //
     void driver(String expression);
-
-    void location(String expression);
     
-    void input(String name, String value);
-    
-    void click(String expression);
-    
-    void submit(String expression);
+    void driverDot(String expression);
 
 }

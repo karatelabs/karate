@@ -7,7 +7,7 @@ Scenario Outline: using <config>
   * def config = <config>
   * configure driver = config
 
-  Given location webUrlBase + '/page-01'
+  Given driver webUrlBase + '/page-01'
     
   * def cookie1 = { name: 'foo', value: 'bar' }
   And match driver.cookies contains '#(^cookie1)'
@@ -16,8 +16,8 @@ Scenario Outline: using <config>
   And driver.maximize()
   And driver.dimensions = <dimensions>
 
-  And input #eg01InputId = 'hello world'
-  When click input[name=eg01SubmitName]
+  And driver.input('#eg01InputId', 'hello world')
+  When driver.click('input[name=eg01SubmitName]')
   Then match driver.text('#eg01DivId') == 'hello world'
   And match driver.value('#eg01InputId') == 'hello world'  
   
@@ -27,7 +27,7 @@ Scenario Outline: using <config>
   And match driver.value('#eg01InputId') == ''
   And match driver.title == 'Page One'
 
-  When location webUrlBase + '/page-02'
+  When driver webUrlBase + '/page-02'
   Then match driver.text('.eg01Cls') == 'Class Locator Test'
   And match driver.html('.eg01Cls') == '<span>Class Locator Test</span>'
   And match driver.title == 'Page Two'
@@ -72,7 +72,7 @@ Scenario Outline: using <config>
   * def bytes = driver.screenshot('#eg02DivId')
   * eval karate.write(bytes, 'partial-' + config.type + '.png')
 
-  When submit *Page Three
+  When driver.submit('*Page Three')
   And match driver.title == 'Page Three'
   And match driver.location == webUrlBase + '/page-03'
 

@@ -462,7 +462,7 @@ public class ScriptBridge implements PerfContext {
     }
     
     public void setLocation(String expression) {
-        context.location(expression);
+        context.driver(expression);
     }
     
     public void log(Object ... objects) {

@@ -397,39 +397,15 @@ public class StepActions implements Actions {
     //==========================================================================
 
     @Override
-    @When("^driver\\.(.+)")
-    public void evalDriver(String expression) {
-        context.evalDriver(expression);
-    }   
-    
-    @Override
     @When("^driver (.+)")
     public void driver(String expression) {
         context.driver(expression);
-    }
-
-    @Override
-    @When("^location (.+)")
-    public void location(String url) {
-        context.location(url);
-    }
-
-    @Override
-    @When("^input ([^\\s]+) = (.+)")
-    public void input(String name, String value) {
-        context.input(name, value);
-    }
+    }    
     
     @Override
-    @When("^click (.+)")
-    public void click(String name) {
-        context.click(name);
-    }  
-    
-    @Override
-    @When("^submit (.+)")
-    public void submit(String name) {
-        context.submit(name);
-    }  
+    @When("^driver\\.(.+)")
+    public void driverDot(String expression) {
+        context.driverDot(expression);
+    }
 
 }

@@ -75,26 +75,20 @@ key | description
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
 `headless` | (not ready yet, nearly done for `chrome`, but needs some testing)
 
-## `location`
-Navigate to a web-address. And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [config](https://github.com/intuit/karate#configuration). Example:
+## `driver`
+Navigate to a web-address and initializes the `driver` instance for future step operations. And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [config](https://github.com/intuit/karate#configuration). Example:
 
 ```cucumber
-Given location webUrlBase + '/page-01'
+Given driver webUrlBase + '/page-01'
 ```
-
-## `driver`
-Used (instead of `location`) only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
+### `driver` JSON
+A variation where the argument is JSON instead of a URL / address-string, used only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
 
 ```cucumber
 Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
 ```
 
-## `input`
-```cucumber
-And input #myDivId = 'hello world'
-```
-
-### Locators
+# Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
 
 ```cucumber
@@ -111,20 +105,10 @@ win | (none) | name | `Submit`
 win | `@` | accessibility id | `@CalculatorResults`
 win | `#` | id | `#MyButton`
 
-## `click`
-Just triggers a click event on the DOM element, does *not* wait for a page load.
-```cucumber
-And click #myButtonId
-```
-
-## `submit`
-Triggers a click event on the DOM element, *and* waits for the next page to load.
-```cucumber
-And submit #myButtonId
-```
-
 # JS API
-In some cases, especially when using dynamic data in scope as Karate variables, the built-in `driver` object can be used instead of the DSL keywords listed above. As a convenience, you can omit the [`eval`](https://github.com/intuit/karate#eval) keyword when executing an action - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
+You use the built-in `driver` object to script UI automation.
+
+>> Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and as a convenience, you can omit the `eval` keyword when executing an action - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
 
 ## `driver.location`
 Get the current URL / address for matching. Example:
@@ -151,12 +135,13 @@ Then match driver.title == 'Test Page'
 ```
 
 ## `driver.click()`
+Just triggers a click event on the DOM element, does *not* wait for a page load.
 ```cucumber
 * driver.click('input[name=someName]')
 ```
 
 ## `driver.submit()`
-The difference from `click` is that it would wait for a new page to load.
+Triggers a click event on the DOM element, *and* waits for the next page to load.
 ```cucumber
 * driver.submit('.myClass')
 ```
@@ -217,4 +202,3 @@ Including cache
 ## `driver.clearCookies()`
 
 ## `driver.dialog()`
-

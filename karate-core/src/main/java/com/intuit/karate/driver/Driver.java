@@ -90,7 +90,7 @@ public interface Driver {
 
     // javabean naming convention is intentional ===============================
     //
-    void setLocation(String expression);
+    void setLocation(String expression);    
 
     void setDimensions(Map<String, Object> map);
 
