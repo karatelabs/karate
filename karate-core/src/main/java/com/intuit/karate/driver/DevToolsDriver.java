@@ -124,7 +124,7 @@ public abstract class DevToolsDriver implements Driver {
         return 0;
     }
 
-    protected DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
+    protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
         DevToolsMessage dtm;
         do {
@@ -136,8 +136,8 @@ public abstract class DevToolsDriver implements Driver {
         return dtm;
     }
 
-    protected DevToolsMessage evalValue(String expression, Predicate<DevToolsMessage> condition) {
-        DevToolsMessage dtm = eval(expression, condition);
+    protected DevToolsMessage evaluateAndGetResult(String expression, Predicate<DevToolsMessage> condition) {
+        DevToolsMessage dtm = evaluate(expression, condition);
         String objectId = dtm.getResult("objectId").getAsString();
         return method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
     }
@@ -263,17 +263,17 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void click(String id, boolean waitForDialog) {
-        eval(DriverUtils.selectorScript(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
+        evaluate(DriverUtils.selectorScript(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
     }
 
     @Override
     public void submit(String id) {
-        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
     public void focus(String id) {
-        eval(DriverUtils.selectorScript(id) + ".focus()", null);
+        evaluate(DriverUtils.selectorScript(id) + ".focus()", null);
     }
 
     @Override
@@ -286,37 +286,42 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public String text(String id) {
-        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".textContent", null);
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".textContent", null);
         return dtm.getResult("value").getAsString();
     }
 
     @Override
     public String html(String id) {
-        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".innerHTML", null);
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".innerHTML", null);
         return dtm.getResult("value").getAsString();
     }
 
     @Override
     public String value(String id) {
-        DevToolsMessage dtm = eval(DriverUtils.selectorScript(id) + ".value", null);
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".value", null);
         return dtm.getResult("value").getAsString();
     }
 
     @Override
-    public void waitForEvalTrue(String expression) {
+    public void waitUntil(String expression) {
         int count = 0;
         ScriptValue sv;
         do {
             DriverUtils.sleep(getWaitInterval());
             logger.debug("poll try #{}", count + 1);
-            DevToolsMessage dtm = eval(expression, null);
+            DevToolsMessage dtm = evaluate(expression, null);
             sv = dtm.getResult("value");
         } while (!sv.isBooleanTrue() && count++ < 3);
     }
 
     @Override
+    public Object eval(String expression) {
+        return evaluate(expression, null).getResult().getValue();
+    }
+        
+    @Override
     public String getTitle() {
-        DevToolsMessage dtm = eval("document.title", null);
+        DevToolsMessage dtm = evaluate("document.title", null);
         return dtm.getResult("value").getAsString();
     }
 
@@ -402,8 +407,8 @@ public abstract class DevToolsDriver implements Driver {
         if (id == null) {
             dtm = method("Page.captureScreenshot").send();
         } else {
-            dtm = evalValue(DriverUtils.selectorScript(id) + ".getBoundingClientRect()", null);
-            Map<String, Object> map = DriverUtils.putSelected(dtm.getResult(), "x", "y", "width", "height");
+            dtm = evaluateAndGetResult(DriverUtils.selectorScript(id) + ".getBoundingClientRect()", null);
+            Map<String, Object> map = DriverUtils.putSelected(dtm.getResult().getAsMap(), "x", "y", "width", "height");
             map.put("scale", 1);
             dtm = method("Page.captureScreenshot").params(map).send();
         }

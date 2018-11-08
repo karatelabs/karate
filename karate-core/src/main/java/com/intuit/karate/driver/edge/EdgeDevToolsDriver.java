@@ -94,14 +94,14 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
 
     @Override
     public void setLocation(String url) {
-        DevToolsMessage dtm = method("Page.navigate").param("url", url).send();
-        waitForEvalTrue("document.readyState=='complete'");
+        method("Page.navigate").param("url", url).send();
+        waitUntil("document.readyState=='complete'");
         currentUrl = url;
     }
 
     @Override
     public void input(String id, String value) {
-        eval(DriverUtils.selectorScript(id) + ".value = \"" + value + "\"", null);
+        evaluate(DriverUtils.selectorScript(id) + ".value = \"" + value + "\"", null);
     }
 
     @Override

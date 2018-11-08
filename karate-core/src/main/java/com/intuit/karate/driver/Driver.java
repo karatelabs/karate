@@ -25,7 +25,6 @@ package com.intuit.karate.driver;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 /**
  *
@@ -70,7 +69,9 @@ public interface Driver {
 
     String value(String id);
 
-    void waitForEvalTrue(String expression);
+    void waitUntil(String expression);
+    
+    Object eval(String expression);
 
     Map<String, Object> cookie(String name);
 
@@ -86,7 +87,7 @@ public interface Driver {
     
     byte[] screenshot();
     
-    byte[] screenshot(String id);
+    byte[] screenshot(String id);    
 
     // javabean naming convention is intentional ===============================
     //

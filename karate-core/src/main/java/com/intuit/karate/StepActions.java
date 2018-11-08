@@ -55,33 +55,6 @@ public class StepActions implements Actions {
         this.context = context;
     }
 
-    public static MatchType toMatchType(String eqSymbol, String each, String notContains, String only, boolean contains) {
-        boolean notEquals = eqSymbol.startsWith("!");
-        if (each == null) {
-            if (notContains != null) {
-                return MatchType.NOT_CONTAINS;
-            }
-            if (only != null) {
-                return only.contains("only") ? MatchType.CONTAINS_ONLY : MatchType.CONTAINS_ANY;
-            }
-            return contains ? MatchType.CONTAINS : notEquals ? MatchType.NOT_EQUALS : MatchType.EQUALS;
-        } else {
-            if (notContains != null) {
-                return MatchType.EACH_NOT_CONTAINS;
-            }
-            if (only != null) {
-                return only.contains("only") ? MatchType.EACH_CONTAINS_ONLY : MatchType.EACH_CONTAINS_ANY;
-            }
-            return contains ? MatchType.EACH_CONTAINS : notEquals ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
-        }
-    }
-
-    private static void validateEqualsSign(String eqSymbol) {
-        if (eqSymbol.equals("=")) {
-            throw new RuntimeException("use '==' for match (not '=')");
-        }
-    }
-
     @Override
     @When("^configure ([^\\s]+) =$")
     public void configureDocstring(String key, String exp) {
@@ -313,32 +286,19 @@ public class StepActions implements Actions {
     public void status(int status) {
         context.status(status);
     }
-
+    
     @Override
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=)$")
-    public void matchEqualsDocstring(String each, String name, String path, String eqSymbol, String expected) {
-        matchEquals(each, name, path, eqSymbol, expected);
+    @When("^match (.+)(=|contains|any|only)$")
+    public void matchDocstring(String expression, String operators, String rhs) {
+        MatchStep m = new MatchStep(expression + operators);
+        context.match(m.type, m.name, m.path, rhs);
     }
 
     @Override
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only| any)?$")
-    public void matchContainsDocstring(String each, String name, String path, String not, String only, String expected) {
-        matchContains(each, name, path, not, only, expected);
-    }
-
-    @Override
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (==?|!=) (.+)")
-    public void matchEquals(String each, String name, String path, String eqSymbol, String expected) {
-        validateEqualsSign(eqSymbol);
-        MatchType mt = toMatchType(eqSymbol, each, null, null, false);
-        context.match(mt, name, path, expected);
-    }
-
-    @Override
-    @When("^match (each )?([^\\s]+)( [^\\s]+)? (!)?contains( only| any)?(.+)")
-    public void matchContains(String each, String name, String path, String not, String only, String expected) {
-        MatchType mt = toMatchType("==", each, not, only, true);
-        context.match(mt, name, path, expected);
+    @When("^match (.+)(=|contains|any|only)( .+)$")
+    public void match(String expression, String operators, String rhs) {
+        MatchStep m = new MatchStep(expression + operators + rhs);
+        context.match(m.type, m.name, m.path, m.expected);
     }
 
     @Override

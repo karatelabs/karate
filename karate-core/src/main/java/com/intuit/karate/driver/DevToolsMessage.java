@@ -41,7 +41,7 @@ public class DevToolsMessage {
     private Integer id;
     private final String method;
     private Map<String, Object> params;
-    private Map<String, Object> result;
+    private ScriptValue result;
 
     public Integer getId() {
         return id;
@@ -78,9 +78,13 @@ public class DevToolsMessage {
         this.params = params;
     }
 
-    public Map<String, Object> getResult() {
+    public ScriptValue getResult() {
         return result;
     }
+
+    public void setResult(ScriptValue result) {
+        this.result = result;
+    }        
     
     private static Map<String, Object> toMap(List<Map<String, Object>> list) {
         Map<String, Object> res = new HashMap();
@@ -93,18 +97,18 @@ public class DevToolsMessage {
     }
 
     public boolean isResultError() {
-        if (result == null) {
+        if (result == null || !result.isMapLike()) {
             return false;
         }
-        String error = (String) result.get("subtype");
+        String error = (String) result.getAsMap().get("subtype");
         return "error".equals(error);
     }
 
     public ScriptValue getResult(String key) {
-        if (result == null) {
+        if (result == null || !result.isMapLike()) {
             return null;
         }
-        return new ScriptValue(result.get(key));
+        return new ScriptValue(result.getAsMap().get(key));
     }
     
     public ScriptValue getParam(String key) {
@@ -112,10 +116,6 @@ public class DevToolsMessage {
             return ScriptValue.NULL;
         }
         return new ScriptValue(params.get(key));
-    }
-
-    public void setResult(Map<String, Object> result) {
-        this.result = result;
     }
 
     public DevToolsMessage(DevToolsDriver driver, String method) {
@@ -133,12 +133,12 @@ public class DevToolsMessage {
         if (temp != null && temp.containsKey("result")) {
             Object inner = temp.get("result");
             if (inner instanceof List) {
-                result = toMap((List) inner);
+                result = new ScriptValue(toMap((List) inner));
             } else {
-                result = (Map) inner;
+                result = new ScriptValue(((Map) inner).get("value"));
             }
         } else {
-            result = temp;
+            result = new ScriptValue(temp);
         }
     }
 

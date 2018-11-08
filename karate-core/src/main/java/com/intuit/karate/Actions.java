@@ -74,13 +74,9 @@ public interface Actions {
 
     void headers(String expr);
 
-    void matchContains(String each, String name, String path, String not, String only, String expected);
+    void matchDocstring(String expression, String operators, String rhs);
 
-    void matchContainsDocstring(String each, String name, String path, String not, String only, String expected);
-
-    void matchEquals(String each, String name, String path, String eqSymbol, String expected);
-
-    void matchEqualsDocstring(String each, String name, String path, String eqSymbol, String expected);
+    void match(String expression, String operators, String rhs);
 
     void method(String method);
 

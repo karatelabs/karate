@@ -25,14 +25,12 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,9 +56,9 @@ public abstract class WebDriver implements Driver {
         this.http = http;
         this.sessionId = sessionId;
         this.windowId = windowId;
-    }
+    }        
 
-    private ScriptValue eval(String expression) {
+    private ScriptValue evalInternal(String expression) {
         String body = "{ script: \"" + JsonUtils.escapeValue(expression) + "\", args: [] }";
         return http.path("execute", "sync").post(body).jsonPath("$.value").value();
     }
@@ -93,16 +91,6 @@ public abstract class WebDriver implements Driver {
             body = "{ using: 'css selector', value: \"" + id + "\" }";
         }
         return http.path("element").post(body).jsonPath(getJsonPathForElementId()).asString();
-//        int attempts = 0;
-//        while (attempts < 3) {
-//            try {                
-//                return http.path("element").post(body).jsonPath(getJsonPathForElementId()).asString();
-//            } catch (Exception e) {
-//                logger.debug("get element attempt: {}", attempts++);
-//                DriverUtils.sleep(getWaitInterval());
-//            }
-//        }
-//        throw new RuntimeException("failed to get element: " + id);
     }
 
     @Override
@@ -168,7 +156,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void focus(String id) {
-        eval(DriverUtils.selectorScript(id) + ".focus()");
+        evalInternal(DriverUtils.selectorScript(id) + ".focus()");
     }
 
     @Override
@@ -184,13 +172,13 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void click(String id, boolean ignored) {
-        eval(DriverUtils.selectorScript(id) + ".click()");
+        evalInternal(DriverUtils.selectorScript(id) + ".click()");
     }        
 
     @Override
     public void submit(String name) {
         click(name);
-        waitForEvalTrue("return document.readyState == 'complete'");
+        waitUntil("return document.readyState == 'complete'");
     }
 
     @Override
@@ -235,14 +223,22 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void waitForEvalTrue(String expression) {
+    public void waitUntil(String expression) {
         int count = 0;
         ScriptValue sv;
         do {
             DriverUtils.sleep(getWaitInterval());
-            sv = eval(expression);
+            sv = evalInternal(expression);
         } while (!sv.isBooleanTrue() && count++ < 3);
     }
+
+    @Override
+    public Object eval(String expression) {
+        if (!expression.startsWith("return ")) {
+            expression = "return " + expression;
+        }
+        return evalInternal(expression).getValue();
+    }        
 
     @Override
     public String getTitle() {
