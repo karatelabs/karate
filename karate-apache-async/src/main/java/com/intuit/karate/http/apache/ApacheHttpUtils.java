@@ -39,6 +39,7 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -182,13 +183,21 @@ public class ApacheHttpUtils {
                             cs = charset;
                         }
                         contentType = contentType.withCharset(cs);                         
-                    }                   
+                    }    
                     FormBodyPartBuilder formBuilder = FormBodyPartBuilder.create().setName(name);
                     ContentBody contentBody;
                     String filename = item.getFilename();
                     if (filename != null) {
                         InputStream is = sv.getAsStream();
-                        contentBody = new InputStreamBody(is, contentType, filename);
+                        long contentLength = -1L;
+                        try {
+                            contentLength = is.available();
+                        } catch (IOException e) {
+                            // A failure to get the content length should result in Content length is unknown error
+                            e.printStackTrace();
+                            contentLength = -1;
+                        }
+                        contentBody = new InputStreamBody(is, contentType, filename, contentLength);
                     } else if (sv.isStream()) {
                         contentBody = new InputStreamBody(sv.getAsStream(), contentType);
                     } else {
