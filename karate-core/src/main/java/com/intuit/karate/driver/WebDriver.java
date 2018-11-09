@@ -226,7 +226,13 @@ public abstract class WebDriver implements Driver {
     public String property(String locator, String name) {
         String id = getElementId(locator);
         return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
-    }    
+    }   
+    
+    @Override
+    public String css(String locator, String name) {
+        String id = getElementId(locator);
+        return http.path("element", id, "css", name).get().jsonPath("$.value").asString();
+    }     
 
     @Override
     public void waitUntil(String expression) {

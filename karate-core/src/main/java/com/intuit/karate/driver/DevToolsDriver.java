@@ -308,6 +308,12 @@ public abstract class DevToolsDriver implements Driver {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + "['" + name + "']", null);
         return dtm.getResult().getAsString();
     }      
+    
+    @Override
+    public String css(String id, String name) {
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".style['" + name + "']", null);
+        return dtm.getResult().getAsString();
+    }     
 
     @Override
     public void waitUntil(String expression) {

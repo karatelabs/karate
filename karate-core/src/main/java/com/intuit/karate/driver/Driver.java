@@ -72,6 +72,8 @@ public interface Driver {
     String attribute(String id, String name);
     
     String property(String id, String name);
+    
+    String css(String id, String name);
 
     void waitUntil(String expression);
     
