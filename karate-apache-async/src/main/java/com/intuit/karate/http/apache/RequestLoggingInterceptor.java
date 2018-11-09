@@ -23,18 +23,17 @@
  */
 package com.intuit.karate.http.apache;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
-import com.intuit.karate.http.HttpRequest;
-import org.apache.hc.core5.http.EntityDetails;
-import org.apache.hc.core5.http.HttpEntity;
-import org.apache.hc.core5.http.HttpException;
-import org.apache.hc.core5.http.HttpRequestInterceptor;
-import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
-import org.apache.hc.core5.http.protocol.HttpContext;
-
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.hc.core5.http.EntityDetails;
+import org.apache.hc.core5.http.HttpException;
+import org.apache.hc.core5.http.HttpRequestInterceptor;
+import org.apache.hc.core5.http.message.BasicHttpRequest;
+import org.apache.hc.core5.http.protocol.HttpContext;
+
+import com.intuit.karate.ScriptContext;
+import com.intuit.karate.http.HttpRequest;
 
 
 
@@ -65,26 +64,33 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
     public void process(org.apache.hc.core5.http.HttpRequest request, EntityDetails entityDetails, HttpContext httpContext) throws HttpException, IOException {
         HttpRequest actual = new HttpRequest();
         int id = counter.incrementAndGet();
-        String uri = (String) httpContext.getAttribute(ApacheHttpAsyncClient.URI_CONTEXT_KEY);
-        String method = request.getMethod();
-        actual.setUri(uri);
-        actual.setMethod(method);
+        
+        // FIXME: Getting the URI from the context is broken
+//        String uri = (String) httpContext.getAttribute(ApacheHttpAsyncClient.URI_CONTEXT_KEY);
+//        String method = request.getMethod();
+//        actual.setUri(uri);
+//        actual.setMethod(method);
+        
         StringBuilder sb = new StringBuilder();
-        sb.append("request:\n").append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
-        LoggingUtils.logHeaders(sb, id, '>', request, actual);
-        if (request instanceof BasicClassicHttpRequest) {
-        BasicClassicHttpRequest entityRequest = (BasicClassicHttpRequest) request;
-            HttpEntity entity = entityRequest.getEntity();
-            if (LoggingUtils.isPrintable(entityDetails)) {
-                LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
-                String buffer = FileUtils.toString(wrapper.getContent());
-                if (context.getConfig().isLogPrettyRequest()) {
-                    buffer = FileUtils.toPrettyString(buffer);
-                }
-                sb.append(buffer).append('\n');
-                actual.setBody(wrapper.getBytes());
-                entityRequest.setEntity(wrapper);
-            }
+        if (request instanceof BasicHttpRequest) {
+        	sb.append("request:\n").append(id).append(" > ").append(request.toString()).append('\n');
+            LoggingUtils.logHeaders(sb, id, '>', request, actual);
+//        	BasicHttpRequest entityRequest = (BasicHttpRequest) request;
+//        	entityRequest.g
+//            HttpEntity entity = entityRequest.getEntity();
+//            if (LoggingUtils.isPrintable(entityDetails)) {
+//        	request.toString()
+//                LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
+//                String buffer = FileUtils.toString(wrapper.getContent());
+//                
+//                request.get
+//                if (context.getConfig().isLogPrettyRequest()) {
+//                    buffer = FileUtils.toPrettyString(buffer);
+//                }
+//                sb.append(buffer).append('\n');
+//                actual.setBody(wrapper.getBytes());
+//                entityRequest.setEntity(wrapper);
+//            }
         }
         context.setPrevRequest(actual);
         context.logger.debug(sb.toString());
