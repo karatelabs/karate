@@ -209,9 +209,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         Map<String, Object> entry = list.get(targetIndex);
         Integer id = (Integer) entry.get("id");
-        String url = (String) entry.get("url");
-        method("Page.navigateToHistoryEntry").param("entryId", id).send();
-        currentUrl = url;
+        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
@@ -286,27 +284,30 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public String text(String id) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".textContent", null);
-        return dtm.getResult().getAsString();
+        return property(id, "textContent");
     }
 
     @Override
     public String html(String id) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".innerHTML", null);
-        return dtm.getResult().getAsString();
+        return property(id, "innerHTML");
     }
 
     @Override
     public String value(String id) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".value", null);
-        return dtm.getResult().getAsString();
+        return property(id, "value");
     }
 
     @Override
     public String attribute(String id, String name) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".getAttribute('" + name + "')", null);
         return dtm.getResult().getAsString();
-    }        
+    }   
+    
+    @Override
+    public String property(String id, String name) {
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + "['" + name + "']", null);
+        return dtm.getResult().getAsString();
+    }      
 
     @Override
     public void waitUntil(String expression) {

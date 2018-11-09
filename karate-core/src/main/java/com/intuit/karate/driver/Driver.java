@@ -70,6 +70,8 @@ public interface Driver {
     String value(String id);
     
     String attribute(String id, String name);
+    
+    String property(String id, String name);
 
     void waitUntil(String expression);
     

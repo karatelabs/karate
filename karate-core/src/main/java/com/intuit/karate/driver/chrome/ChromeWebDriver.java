@@ -52,7 +52,7 @@ public class ChromeWebDriver extends WebDriver {
         String executable = (String) options.get("executable");
         if (executable == null && start != null && start) {
             executable = "chromedriver";
-        }        
+        }
         CommandThread command;
         if (executable != null) {
             String targetPath = Engine.getBuildDir() + File.separator + System.currentTimeMillis() + "-chrome";
@@ -90,9 +90,14 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    protected String getPathForProperty() {
-        return "attribute";
-    }        
+    public String html(String locator) {
+        return attribute(locator, "innerHTML");
+    }
+
+    @Override
+    public String value(String locator) {
+        return attribute(locator, "value");
+    }
 
     @Override
     public void activate() {

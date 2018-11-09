@@ -85,11 +85,6 @@ public class MicrosoftWebDriver extends WebDriver {
     }
 
     @Override
-    protected String getPathForProperty() {
-        return "attribute";
-    }
-
-    @Override
     public void activate() {
         logger.warn("activate not implemented for mswebdriver");
     }

@@ -80,7 +80,7 @@ public class GeckoWebDriver extends WebDriver {
     @Override
     protected int getWaitInterval() {
         return 1000;
-    }
+    }   
 
     @Override
     public void activate() {

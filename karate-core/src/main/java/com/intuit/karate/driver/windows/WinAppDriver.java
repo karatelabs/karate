@@ -108,9 +108,4 @@ public class WinAppDriver extends WebDriver {
         http.path("element", id, "click").post("{}");
     }
 
-    @Override
-    protected String getPathForProperty() {
-        return "attribute";
-    }
-
 }

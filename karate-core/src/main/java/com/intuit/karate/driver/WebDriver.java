@@ -75,10 +75,6 @@ public abstract class WebDriver implements Driver {
         return "{ text: '" + text + "' }";
     }
 
-    protected String getPathForProperty() {
-        return "property";
-    }
-
     protected String getElementId(String id) { // TODO refactor
         String body;
         if (id.startsWith("^")) {
@@ -206,8 +202,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String html(String locator) {
-        String id = getElementId(locator);
-        return http.path("element", id, getPathForProperty(), "innerHTML").get().jsonPath("$.value").asString();
+        return property(locator, "innerHTML");
     }
 
     @Override
@@ -218,14 +213,19 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String value(String locator) {
-        String id = getElementId(locator);
-        return http.path("element", id, getPathForProperty(), "value").get().jsonPath("$.value").asString();
+        return property(locator, "value");
     }
     
     @Override
     public String attribute(String locator, String name) {
         String id = getElementId(locator);
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
+    }   
+    
+    @Override
+    public String property(String locator, String name) {
+        String id = getElementId(locator);
+        return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
     }    
 
     @Override
