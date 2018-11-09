@@ -74,6 +74,8 @@ public interface Driver {
     String property(String id, String name);
     
     String css(String id, String name);
+    
+    String name(String id);
 
     void waitUntil(String expression);
     

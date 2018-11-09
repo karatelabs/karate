@@ -313,7 +313,12 @@ public abstract class DevToolsDriver implements Driver {
     public String css(String id, String name) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".style['" + name + "']", null);
         return dtm.getResult().getAsString();
-    }     
+    }
+    
+    @Override
+    public String name(String id) {
+        return property(id, "tagName");
+    }    
 
     @Override
     public void waitUntil(String expression) {

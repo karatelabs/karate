@@ -232,7 +232,12 @@ public abstract class WebDriver implements Driver {
     public String css(String locator, String name) {
         String id = getElementId(locator);
         return http.path("element", id, "css", name).get().jsonPath("$.value").asString();
-    }     
+    }   
+    
+    @Override
+    public String name(String locator) {
+        return property(locator, "tagName");
+    }    
 
     @Override
     public void waitUntil(String expression) {

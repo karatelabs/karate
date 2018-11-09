@@ -98,6 +98,11 @@ public class ChromeWebDriver extends WebDriver {
     public String value(String locator) {
         return attribute(locator, "value");
     }
+    
+    @Override
+    public String name(String locator) {
+        return attribute(locator, "tagName");
+    }    
 
     @Override
     public void activate() {

@@ -21,6 +21,7 @@ Scenario Outline: using <config>
   Then match driver.text('#eg01DivId') == 'hello world'
   And match driver.value('#eg01InputId') == 'hello world'  
   And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
+  And match driver.name('#eg01SubmitId') == 'INPUT'
   
   When driver.refresh()
   Then match driver.location == webUrlBase + '/page-01'
