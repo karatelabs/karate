@@ -25,14 +25,10 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.Logger;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.DevToolsDriver;
-import com.intuit.karate.driver.DriverUtils;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import com.intuit.karate.driver.DriverOptions;
 import java.util.Map;
 
 /**
@@ -47,56 +43,26 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
 
-    public ChromeDevToolsDriver(CommandThread command, Http http, String webSocketUrl, boolean headless, long timeOut) {
-        super(command, http, webSocketUrl, headless, timeOut);
+    public ChromeDevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
+        super(options, command, webSocketUrl);
     }
 
-    public static ChromeDevToolsDriver start(Map<String, Object> options) {
-        Integer port = (Integer) options.get("port");
-        if (port == null) {
-            port = 9222;
+    public static ChromeDevToolsDriver start(Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(map, logger, 9222, FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
+        options.arg("--remote-debugging-port=" + options.port);
+        options.arg("--no-first-run");
+        options.arg("--user-data-dir=" + options.workingDirPath);
+        if (options.headless) {
+            options.arg("--headless");
         }
-        String host = (String) options.get("host");
-        if (host == null) {
-            host = "localhost";
-        }
-        Boolean start = (Boolean) options.get("start");
-        String executable = (String) options.get("executable");
-        if (executable == null && start != null && start) {
-            executable = FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC;
-        }
-        Boolean headless = (Boolean) options.get("headless");
-        if (headless == null) {
-            headless = false;
-        }
-        CommandThread command;
-        if (executable != null) {
-            String uniqueName = System.currentTimeMillis() + "";
-            File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome-" + uniqueName);
-            List<String> args = Arrays.asList(executable,
-                    "--remote-debugging-port=" + port,
-                    "--no-first-run",
-                    "--user-data-dir=" + profileDir.getAbsolutePath());
-
-            if (headless) {
-                args = new ArrayList(args);
-                args.add("--headless");
-            }
-            String logFile = profileDir.getPath() + File.separator + "chrome.log";
-            command = new CommandThread(DevToolsDriver.class, logFile, profileDir, args.toArray(new String[]{}));
-            command.start();
-            DriverUtils.waitForPort(host, port);
-        } else {
-            command = null;
-        }
-        Http http = Http.forUrl("http://" + host + ":" + port);
+        CommandThread command = options.startProcess();
+        Http http = Http.forUrl(options.driverLogger, "http://" + options.host + ":" + options.port);
         String webSocketUrl = http.path("json").get()
-                .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();
-        Long timeOut = DriverUtils.getTimeOut(options);
-        ChromeDevToolsDriver chrome = new ChromeDevToolsDriver(command, http, webSocketUrl, headless, timeOut);
+                .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        
+        ChromeDevToolsDriver chrome = new ChromeDevToolsDriver(options, command, webSocketUrl);
         chrome.activate();
         chrome.enablePageEvents();
-        if (!headless) {
+        if (!options.headless) {
             chrome.initWindowIdAndState();
         }
         return chrome;

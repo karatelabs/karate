@@ -23,7 +23,7 @@ public class Demo01JavaRunner {
         options.put("type", "chrome");
         options.put("start", true);
         // options.put("headless", true);
-        Driver driver = ChromeDevToolsDriver.start(options);        
+        Driver driver = ChromeDevToolsDriver.start(options, null);        
         driver.setLocation("https://github.com/login");
         driver.input("#login_field", "hello");
         driver.input("#password", "world");

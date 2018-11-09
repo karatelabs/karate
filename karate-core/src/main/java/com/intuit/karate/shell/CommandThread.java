@@ -47,28 +47,33 @@ public class CommandThread extends Thread {
     private int exitCode = -1;
 
     public CommandThread(String... args) {
-        this(null, null, null, args);
+        this(null, null, null, null, args);
     }
 
     public CommandThread(File workingDir, String... args) {
-        this(null, null, workingDir, args);
+        this(null, null, null, workingDir, args);
     }
 
-    public CommandThread(Class logClass, String logFile, File workingDir, String... args) {
+    public CommandThread(Logger logger, String uniqueName, String logFile, File workingDir, String... args) {
         setDaemon(true);
-        this.uniqueName = System.currentTimeMillis() + "";
-        setName("command-" + uniqueName);
-        logger = logClass == null ? new Logger() : new Logger(logClass);
+        this.uniqueName = uniqueName == null ? System.currentTimeMillis() + "" : uniqueName;
+        setName(this.uniqueName);
+        this.logger = logger == null ? new Logger() : logger;
         this.workingDir = workingDir == null ? new File(".") : workingDir;
         this.args = args;
         this.workingDir.mkdirs();
         argList = Arrays.asList(args);
         if (logFile == null) {
             appender = LogAppender.NO_OP;
-        } else {
-            appender = new FileLogAppender(logFile, logger);
+        } else { // don't create new file if re-using an existing appender
+            LogAppender temp = this.logger.getLogAppender();
+            appender = temp == null ? new FileLogAppender(logFile, this.logger) : temp;
         }
     }
+
+    public Logger getLogger() {
+        return logger;
+    }        
 
     public LogAppender getAppender() {
         return appender;

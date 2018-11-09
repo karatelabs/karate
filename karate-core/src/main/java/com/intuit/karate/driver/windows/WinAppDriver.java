@@ -24,15 +24,11 @@
 package com.intuit.karate.driver.windows;
 
 import com.intuit.karate.Http;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.Logger;
+import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
-import com.intuit.karate.driver.DriverUtils;
 import com.intuit.karate.driver.WebDriver;
-import com.intuit.karate.driver.safari.SafariWebDriver;
-
-import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -41,42 +37,25 @@ import java.util.Map;
  */
 public class WinAppDriver extends WebDriver {
 
-    public WinAppDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
-        super(command, headless, http, sessionId, windowId);
+    public WinAppDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+        super(options, command, http, sessionId, windowId);
     }
 
-    public static WinAppDriver start(Map<String, Object> options) {
-        Integer port = (Integer) options.get("port");
-        if (port == null) {
-            port = 4727;
-        }
-        String host = "localhost";
-        Boolean start = (Boolean) options.get("start");
-        String executable = (String) options.get("executable");
-        if (executable == null && start != null && start) {
-            executable = "C:/Program Files (x86)/Windows Application Driver/WinAppDriver";
-        }
-        CommandThread command;
-        if (executable != null) {
-            String targetDir = Engine.getBuildDir() + File.separator;
-            String logFile = targetDir + "winappdriver.log";
-            command = new CommandThread(WinAppDriver.class, logFile, new File(targetDir), executable, port + "");
-            command.start();
-            DriverUtils.waitForPort(host, port);
-        } else {
-            command = null;
-        }
-        String urlBase = "http://" + host + ":" + port;
-        Http http = Http.forUrl(urlBase);
-        Map<String, Object> capabilities = DriverUtils.newMapWithSelectedKeys(options, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
+    public static WinAppDriver start(Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(map, logger, 4727, "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
+        options.arg(options.port + "");
+        CommandThread command = options.startProcess();
+        String urlBase = "http://" + options.host + ":" + options.port;
+        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Map<String, Object> capabilities = options.newMapWithSelectedKeys(map, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
         String sessionId = http.path("session")
                 .post(Collections.singletonMap("desiredCapabilities", capabilities))
                 .jsonPath("get[0] response..sessionId").asString();
-        logger.debug("init session id: {}", sessionId);
+        options.driverLogger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
-        logger.debug("init window id: {}", windowId);
-        WinAppDriver driver = new WinAppDriver(command, false, http, sessionId, windowId);
+        options.driverLogger.debug("init window id: {}", windowId);
+        WinAppDriver driver = new WinAppDriver(options, command, http, sessionId, windowId);
         // driver.activate();
         return driver;
     }

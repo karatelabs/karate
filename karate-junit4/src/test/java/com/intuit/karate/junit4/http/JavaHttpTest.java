@@ -24,7 +24,7 @@ public class JavaHttpTest {
 
     @Test
     public void testHttp() {
-        Http http = Http.forUrl("http://localhost:" + server.getPort());
+        Http http = Http.forUrl(null, "http://localhost:" + server.getPort());
         http.path("echo").get().response().equals("{ uri: '/echo' }");
         String expected = "ws://127.0.0.1:9222/devtools/page/E54102F8004590484CC9FF85E2ECFCD0";
         http.path("chrome").get().response()

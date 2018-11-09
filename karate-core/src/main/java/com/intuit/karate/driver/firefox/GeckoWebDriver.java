@@ -25,11 +25,10 @@ package com.intuit.karate.driver.firefox;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.Logger;
+import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
-import com.intuit.karate.driver.DriverUtils;
 import com.intuit.karate.driver.WebDriver;
-import java.io.File;
 import java.util.Map;
 
 /**
@@ -38,41 +37,24 @@ import java.util.Map;
  */
 public class GeckoWebDriver extends WebDriver {
 
-    public GeckoWebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
-        super(command, headless, http, sessionId, windowId);
+    public GeckoWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+        super(options, command, http, sessionId, windowId);
     }
 
-    public static GeckoWebDriver start(Map<String, Object> options) {
-        Integer port = (Integer) options.get("port");
-        if (port == null) {
-            port = 4444;
-        }
-        String host = "localhost";
-        Boolean start = (Boolean) options.get("start");
-        String executable = (String) options.get("executable");
-        if (executable == null && start != null && start) {
-            executable = "geckodriver";
-        }
-        CommandThread command;
-        if (executable != null) {
-            String targetDir = Engine.getBuildDir() + File.separator;
-            String logFile = targetDir + "geckodriver.log";
-            command = new CommandThread(WebDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
-            command.start();
-            DriverUtils.waitForPort(host, port);
-        } else {
-            command = null;
-        }
-        String urlBase = "http://" + host + ":" + port;
-        Http http = Http.forUrl(urlBase);
+    public static GeckoWebDriver start(Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(map, logger, 4444, "geckodriver");
+        options.arg("--port=" + options.port);
+        CommandThread command = options.startProcess();
+        String urlBase = "http://" + options.host + ":" + options.port;
+        Http http = Http.forUrl(options.driverLogger, urlBase);
         String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Firefox' } }")
                 .jsonPath("get[0] response..sessionId").asString();
-        logger.debug("init session id: {}", sessionId);
+        options.driverLogger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
-        logger.debug("init window id: {}", windowId);
-        GeckoWebDriver driver = new GeckoWebDriver(command, false, http, sessionId, windowId);
+        options.driverLogger.debug("init window id: {}", windowId);
+        GeckoWebDriver driver = new GeckoWebDriver(options, command, http, sessionId, windowId);
         driver.activate();
         return driver;
     }
@@ -84,7 +66,7 @@ public class GeckoWebDriver extends WebDriver {
 
     @Override
     public void activate() {
-        if (!headless) {
+        if (!options.headless) {
             try {
                 switch (FileUtils.getPlatform()) {
                     case MAC:

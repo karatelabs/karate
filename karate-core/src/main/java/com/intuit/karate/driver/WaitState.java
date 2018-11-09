@@ -23,9 +23,8 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Logger;
 import java.util.function.Predicate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -33,58 +32,58 @@ import org.slf4j.LoggerFactory;
  */
 public class WaitState {
 
-    private static final Logger logger = LoggerFactory.getLogger(WaitState.class);
-    
-    private final long timeOut;
+    private final DriverOptions options;
+    private final Logger logger;
 
     private DevToolsMessage lastSent;
     private Predicate<DevToolsMessage> condition;
     private DevToolsMessage lastReceived;
 
-    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.getResult() != null;    
-    public static final Predicate<DevToolsMessage> CHROME_FRAME_RESIZED = forEvent("Page.frameResized");    
-    public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");    
+    private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.getResult() != null;
+    public static final Predicate<DevToolsMessage> CHROME_FRAME_RESIZED = forEvent("Page.frameResized");
+    public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");
     public static final Predicate<DevToolsMessage> CHROME_DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
     public static final Predicate<DevToolsMessage> CHROME_DOM_CONTENT = forEvent("Page.domContentEventFired");
-    
+
     public static Predicate<DevToolsMessage> forEvent(String name) {
         return m -> name.equals(m.getMethod());
-    }  
-    
-    public static final Predicate<DevToolsMessage> NO_WAIT = m -> true;
-    
-    public WaitState(long timeOut) {
-        this.timeOut = timeOut;
     }
 
-    public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
+    public static final Predicate<DevToolsMessage> NO_WAIT = m -> true;
+
+    public WaitState(DriverOptions options) {
+        this.options = options;
+        logger = options.driverLogger;
+    }
+
+    public DevToolsMessage waitAfterSend(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         lastReceived = null;
         lastSent = dtm;
         this.condition = condition == null ? DEFAULT : condition;
         synchronized (this) {
-            logger.debug(">> wait: {}", dtm);
+            logger.trace(">> wait: {}", dtm);
             try {
-                wait(timeOut);
+                wait(options.timeout);
             } catch (InterruptedException e) {
                 logger.error("interrupted: {} wait: {}", e.getMessage(), dtm);
             }
         }
         if (lastReceived != null) {
-            logger.debug("<< notified: {}", dtm);
+            logger.trace("<< notified: {}", dtm);
         } else {
             logger.warn("<< timed out: {}", dtm);
-        }        
+        }
         return lastReceived;
     }
 
     public void receive(DevToolsMessage dtm) {
         synchronized (this) {
             if (condition.test(dtm)) {
-                logger.debug("<< notify: {}", dtm);
+                logger.trace("<< notify: {}", dtm);
                 lastReceived = dtm;
                 notify();
             } else {
-                logger.debug("<< ignore: {}", dtm);
+                logger.trace("<< ignore: {}", dtm);
             }
         }
     }

@@ -35,8 +35,7 @@ Scenario Outline: using <config>
   And match driver.html('.eg01Cls') == '<span>Class Locator Test</span>'
   And match driver.title == 'Page Two'
   And match driver.location == webUrlBase + '/page-02'
-  * def yellow = config.type == 'chrome' ? 'yellow' : '(255, 255, 0'
-  And match driver.css('.eg01Cls', 'background-color') contains yellow
+  And match driver.css('.eg01Cls', 'background-color') contains '(255, 255, 0'
 
   Given def cookie2 = { name: 'hello', value: 'world' }
   When driver.cookie = cookie2

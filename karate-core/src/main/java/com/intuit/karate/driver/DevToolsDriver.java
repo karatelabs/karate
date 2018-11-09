@@ -23,8 +23,8 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.shell.CommandThread;
@@ -34,8 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -43,21 +41,16 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class DevToolsDriver implements Driver {
 
-    protected static final Logger logger = LoggerFactory.getLogger(DevToolsDriver.class);
-
+    protected final Logger logger;
+    protected final DriverOptions options;
     protected final CommandThread command;
-    protected final Http http;
     protected final WebSocketClient client;
 
     private final WaitState waitState;
-
     protected final String pageId;
 
     private Integer windowId;
     private String windowState;
-
-    protected final boolean headless;
-    private final long timeOut;
 
     protected String currentUrl;
     protected String currentDialogText;
@@ -67,17 +60,16 @@ public abstract class DevToolsDriver implements Driver {
         return ++nextId;
     }
 
-    protected DevToolsDriver(CommandThread command, Http http, String webSocketUrl, boolean headless, long timeOut) {
+    protected DevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
+        this.options = options;
+        this.logger = options.driverLogger;
         this.command = command;
-        this.http = http;
-        this.headless = headless;
-        this.timeOut = timeOut;
-        this.waitState = new WaitState(timeOut);
+        this.waitState = new WaitState(options);
         int pos = webSocketUrl.lastIndexOf('/');
         pageId = webSocketUrl.substring(pos + 1);
         logger.debug("page id: {}", pageId);
         client = new WebSocketClient(webSocketUrl, text -> {
-            logger.debug("received raw: {}", text);
+            logger.debug("<< {}", text);
             Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
@@ -103,9 +95,9 @@ public abstract class DevToolsDriver implements Driver {
 
     public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         String json = JsonUtils.toJson(dtm.toMap());
-        client.send(json);
-        logger.debug(">> sent: {}", dtm);
-        return waitState.sendAndWait(dtm, condition);
+        logger.debug(">> {}", json);
+        client.send(json);        
+        return waitState.waitAfterSend(dtm, condition);
     }
 
     public void receive(DevToolsMessage dtm) {
@@ -176,7 +168,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void quit() {
-        if (!headless) {
+        if (!options.headless) {
             method("Browser.close").send(WaitState.CHROME_INSPECTOR_DETACHED);
         }
         if (command != null) {
@@ -186,7 +178,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void setLocation(String url) {
-        DevToolsMessage dtm = method("Page.navigate").param("url", url).send(WaitState.CHROME_DOM_CONTENT);
+        method("Page.navigate").param("url", url).send(WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
@@ -261,17 +253,17 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void click(String id, boolean waitForDialog) {
-        evaluate(DriverUtils.selectorScript(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
+        evaluate(options.selectorScript(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
     }
 
     @Override
     public void submit(String id) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
+        DevToolsMessage dtm = evaluate(options.selectorScript(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
     public void focus(String id) {
-        evaluate(DriverUtils.selectorScript(id) + ".focus()", null);
+        evaluate(options.selectorScript(id) + ".focus()", null);
     }
 
     @Override
@@ -299,19 +291,19 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public String attribute(String id, String name) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".getAttribute('" + name + "')", null);
+        DevToolsMessage dtm = evaluate(options.selectorScript(id) + ".getAttribute('" + name + "')", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + "['" + name + "']", null);
+        DevToolsMessage dtm = evaluate(options.selectorScript(id) + "['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String css(String id, String name) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".style['" + name + "']", null);
+        DevToolsMessage dtm = evaluate("getComputedStyle(" + options.selectorScript(id) + ")['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
@@ -322,13 +314,13 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Map<String, Object> rect(String id) {
-        DevToolsMessage dtm = evaluateAndGetResult(DriverUtils.selectorScript(id) + ".getBoundingClientRect()", null);
-        return DriverUtils.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
+        DevToolsMessage dtm = evaluateAndGetResult(options.selectorScript(id) + ".getBoundingClientRect()", null);
+        return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
     }
 
     @Override
     public boolean enabled(String id) {
-        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".disabled", null);
+        DevToolsMessage dtm = evaluate(options.selectorScript(id) + ".disabled", null);
         return !dtm.getResult().isBooleanTrue();
     }        
 
@@ -337,7 +329,7 @@ public abstract class DevToolsDriver implements Driver {
         int count = 0;
         ScriptValue sv;
         do {
-            DriverUtils.sleep(getWaitInterval());
+            options.sleep(getWaitInterval());
             logger.debug("poll try #{}", count + 1);
             DevToolsMessage dtm = evaluate(expression, null);
             sv = dtm.getResult("value");

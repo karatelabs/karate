@@ -25,14 +25,13 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -40,19 +39,19 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class WebDriver implements Driver {
 
-    protected static final Logger logger = LoggerFactory.getLogger(WebDriver.class);
-
+    protected final DriverOptions options;
+    protected final Logger logger;
     protected final CommandThread command;
-    protected final boolean headless;
     protected final Http http;
     private final String sessionId;
     private final String windowId;
     
     protected boolean open = true;
 
-    protected WebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
+    protected WebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+        this.options = options;
+        this.logger = options.driverLogger;
         this.command = command;
-        this.headless = headless;
         this.http = http;
         this.sessionId = sessionId;
         this.windowId = windowId;
@@ -152,7 +151,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void focus(String id) {
-        evalInternal(DriverUtils.selectorScript(id) + ".focus()");
+        evalInternal(options.selectorScript(id) + ".focus()");
     }
 
     @Override
@@ -168,7 +167,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void click(String id, boolean ignored) {
-        evalInternal(DriverUtils.selectorScript(id) + ".click()");
+        evalInternal(options.selectorScript(id) + ".click()");
     }        
 
     @Override
@@ -256,7 +255,7 @@ public abstract class WebDriver implements Driver {
         int count = 0;
         ScriptValue sv;
         do {
-            DriverUtils.sleep(getWaitInterval());
+            options.sleep(getWaitInterval());
             sv = evalInternal(expression);
         } while (!sv.isBooleanTrue() && count++ < 3);
     }

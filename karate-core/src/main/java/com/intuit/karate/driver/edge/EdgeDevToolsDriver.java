@@ -24,15 +24,11 @@
 package com.intuit.karate.driver.edge;
 
 import com.intuit.karate.Http;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.Logger;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.DevToolsDriver;
-import com.intuit.karate.driver.DevToolsMessage;
-import com.intuit.karate.driver.DriverUtils;
+import com.intuit.karate.driver.DriverOptions;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,42 +37,20 @@ import java.util.Map;
  */
 public class EdgeDevToolsDriver extends DevToolsDriver {
 
-    public EdgeDevToolsDriver(CommandThread command, Http http, String webSocketUrl, boolean headless, long timeOut) {
-        super(command, http, webSocketUrl, headless, timeOut);
+    public EdgeDevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
+        super(options, command, webSocketUrl);
     }
 
-    public static EdgeDevToolsDriver start(Map<String, Object> options) {
-        Integer port = (Integer) options.get("port");
-        if (port == null) {
-            port = 9222;
-        }
-        String host = (String) options.get("host");
-        if (host == null) {
-            host = "localhost";
-        }
-        Boolean start = (Boolean) options.get("start");
-        String executable = (String) options.get("executable");
-        if (executable == null && start != null && start) {
-            executable = "MicrosoftEdge";
-        }
-        CommandThread command;
-        if (executable != null) {
-            String uniqueName = System.currentTimeMillis() + "";
-            File profileDir = new File(Engine.getBuildDir() + File.separator + "chrome" + uniqueName);
-            List<String> args = Arrays.asList(executable,
-                    "--devtools-server-port", port + "", "about:blank");
-            String logFile = profileDir.getPath() + File.separator + "karate.log";
-            command = new CommandThread(DevToolsDriver.class, logFile, profileDir, args.toArray(new String[]{}));
-            command.start();
-            DriverUtils.waitForPort(host, port);
-        } else {
-            command = null;
-        }
-        Http http = Http.forUrl("http://" + host + ":" + port);
+    public static EdgeDevToolsDriver start(Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(map, logger, 9222, "MicrosoftEdge");
+        options.arg("--devtools-server-port");
+        options.arg(options.port + "");
+        options.arg("about:blank");
+        CommandThread command = options.startProcess();
+        Http http = Http.forUrl(options.driverLogger, "http://" + options.host + ":" + options.port);
         String webSocketUrl = http.path("json", "list").get()
                 .jsonPath("get[0] $[?(@.type=='Page')].webSocketDebuggerUrl").asString();
-        Long timeOut = DriverUtils.getTimeOut(options);
-        EdgeDevToolsDriver edge = new EdgeDevToolsDriver(command, http, webSocketUrl, false, timeOut);
+        EdgeDevToolsDriver edge = new EdgeDevToolsDriver(options, command, webSocketUrl);
         // edge.activate(); // not supported
         edge.enablePageEvents();
         return edge;
@@ -101,7 +75,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
 
     @Override
     public void input(String id, String value) {
-        evaluate(DriverUtils.selectorScript(id) + ".value = \"" + value + "\"", null);
+        evaluate(options.selectorScript(id) + ".value = \"" + value + "\"", null);
     }
 
     @Override

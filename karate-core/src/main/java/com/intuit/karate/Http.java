@@ -31,7 +31,8 @@ public class Http {
     
     private final Match match;
     
-    public Http(Match match) {
+    // used in Match
+    protected Http(Match match) {
         this.match = match;
     }
     
@@ -57,8 +58,8 @@ public class Http {
         return match.httpDelete();
     }    
     
-    public static Http forUrl(String url) {
-        Http http = new Http(Match.withHttp());
+    public static Http forUrl(Logger logger, String url) {
+        Http http = new Http(Match.withHttp(logger));
         return http.url(url);
     }
     

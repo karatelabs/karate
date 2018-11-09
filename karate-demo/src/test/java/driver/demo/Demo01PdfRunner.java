@@ -25,7 +25,7 @@ public class Demo01PdfRunner {
         options.put("type", "chrome");
         options.put("start", true);
         options.put("headless", true);
-        Driver driver = ChromeDevToolsDriver.start(options);        
+        Driver driver = ChromeDevToolsDriver.start(options, null);        
         driver.setLocation("https://github.com/login");
         Thread.sleep(2000);
         byte[] bytes = driver.pdf(Collections.EMPTY_MAP);

@@ -66,6 +66,10 @@ public class FeatureContext {
         return FeatureContext.forWorkingDir(env, null);
     }    
     
+    public static FeatureContext forLogger(Logger logger) {
+        return FeatureContext.forWorkingDir(null, null, logger);
+    }    
+    
     public static FeatureContext forEnv() {
         return FeatureContext.forWorkingDir(null, null);
     }    
@@ -75,11 +79,18 @@ public class FeatureContext {
     }
     
     public static FeatureContext forWorkingDir(String env, File file) {
+        return forWorkingDir(env, file, null);
+    }
+    
+    public static FeatureContext forWorkingDir(String env, File file, Logger logger) {
         if (file == null) {
             file = new File("");
         }
-        return new FeatureContext(env, null, file, new Logger());
-    }
+        if (logger == null) {
+            logger = new Logger();
+        }
+        return new FeatureContext(env, null, file, logger);
+    }    
 
     public FeatureContext(String env, Feature feature, String tagSelector) {
         this(env, feature, null, tagSelector, new Logger());

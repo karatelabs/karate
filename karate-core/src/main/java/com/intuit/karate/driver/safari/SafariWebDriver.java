@@ -26,11 +26,10 @@ package com.intuit.karate.driver.safari;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.core.Engine;
+import com.intuit.karate.Logger;
+import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
-import com.intuit.karate.driver.DriverUtils;
 import com.intuit.karate.driver.WebDriver;
-import java.io.File;
 import java.util.Map;
 
 /**
@@ -39,41 +38,24 @@ import java.util.Map;
  */
 public class SafariWebDriver extends WebDriver {
 
-    public SafariWebDriver(CommandThread command, boolean headless, Http http, String sessionId, String windowId) {
-        super(command, headless, http, sessionId, windowId);
+    public SafariWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+        super(options, command, http, sessionId, windowId);
     }
 
-    public static SafariWebDriver start(Map<String, Object> options) {
-        Integer port = (Integer) options.get("port");
-        if (port == null) {
-            port = 5555;
-        }
-        String host = "localhost";
-        Boolean start = (Boolean) options.get("start");
-        String executable = (String) options.get("executable");
-        if (executable == null && start != null && start) {
-            executable = "safaridriver";
-        }
-        CommandThread command;
-        if (executable != null) {
-            String targetDir = Engine.getBuildDir() + File.separator;
-            String logFile = targetDir + "safaridriver.log";
-            command = new CommandThread(SafariWebDriver.class, logFile, new File(targetDir), executable, "--port=" + port);
-            command.start();
-            DriverUtils.waitForPort(host, port);
-        } else {
-            command = null;
-        }
-        String urlBase = "http://" + host + ":" + port;
-        Http http = Http.forUrl(urlBase);
+    public static SafariWebDriver start(Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(map, logger, 5555, "safaridriver");
+        options.arg("--port=" + options.port);
+        CommandThread command = options.startProcess();
+        String urlBase = "http://" + options.host + ":" + options.port;
+        Http http = Http.forUrl(options.driverLogger, urlBase);
         String sessionId = http.path("session")
                 .post("{ capabilities: { browserName: 'Safari' } }")
                 .jsonPath("get[0] response..sessionId").asString();
-        logger.debug("init session id: {}", sessionId);
+        options.driverLogger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
         String windowId = http.path("window").get().jsonPath("$.value").asString();
-        logger.debug("init window id: {}", windowId);
-        SafariWebDriver driver = new SafariWebDriver(command, false, http, sessionId, windowId);
+        options.driverLogger.debug("init window id: {}", windowId);
+        SafariWebDriver driver = new SafariWebDriver(options, command, http, sessionId, windowId);
         driver.activate();
         return driver;
     }
@@ -100,7 +82,7 @@ public class SafariWebDriver extends WebDriver {
 
     @Override
     public void activate() {
-        if (!headless) {
+        if (!options.headless) {
             try {
                 switch (FileUtils.getPlatform()) {
                     case MAC:

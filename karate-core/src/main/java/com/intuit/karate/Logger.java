@@ -50,6 +50,10 @@ public class Logger {
         this.logAppender = logAppender;
     }
 
+    public LogAppender getLogAppender() {
+        return logAppender;
+    }        
+
     public Logger(Class clazz) {
         LOGGER = LoggerFactory.getLogger(clazz);
     }

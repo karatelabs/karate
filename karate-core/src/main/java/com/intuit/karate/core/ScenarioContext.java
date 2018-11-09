@@ -46,7 +46,7 @@ import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
-import com.intuit.karate.driver.DriverUtils;
+import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.netty.WebSocketClient;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -909,7 +909,7 @@ public class ScenarioContext {
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }
-            setDriver(DriverUtils.construct(options));
+            setDriver(DriverOptions.construct(options, logger));
         }
         if (sv.isString()) {
             driver.setLocation(sv.getAsString());

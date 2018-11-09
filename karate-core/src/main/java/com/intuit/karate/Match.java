@@ -42,24 +42,28 @@ public class Match {
     protected final ScenarioContext context;
     private ScriptValue prevValue = ScriptValue.NULL;
 
-    public static Match withHttp() {
-        return new Match(true, null);
+    public static Match withHttp(Logger logger) {
+        if (logger == null) {
+            logger = new Logger();
+        }
+        return new Match(logger, null);
     }
 
     public Match(String exp) {
-        this(false, exp);
+        this(null, exp);
     }
 
     public Match() {
-        this(false, null);
+        this(null, null);
     }
 
-    private Match(boolean httpEnabled, String exp) {
-        FeatureContext featureContext = FeatureContext.forEnv();
+    private Match(Logger logger, String exp) {
+        FeatureContext featureContext = FeatureContext.forLogger(logger);
+        String httpClass = logger == null ? DummyHttpClient.class.getName() : null;
         CallContext callContext = new CallContext(null, null, 0, null, -1, false, false,
-                httpEnabled ? null : DummyHttpClient.class.getName(), null, false);
+                httpClass, null, false);
         context = new ScenarioContext(featureContext, callContext);
-        if (exp != null) {            
+        if (exp != null) {
             prevValue = Script.evalKarateExpression(exp, context);
             if (prevValue.isMapLike()) {
                 putAll(prevValue.evalAsMap(context));
