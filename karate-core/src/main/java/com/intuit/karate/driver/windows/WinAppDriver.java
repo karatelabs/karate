@@ -68,7 +68,7 @@ public class WinAppDriver extends WebDriver {
         }
         String urlBase = "http://" + host + ":" + port;
         Http http = Http.forUrl(urlBase);
-        Map<String, Object> capabilities = DriverUtils.putSelected(options, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
+        Map<String, Object> capabilities = DriverUtils.newMapWithSelectedKeys(options, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
         String sessionId = http.path("session")
                 .post(Collections.singletonMap("desiredCapabilities", capabilities))
                 .jsonPath("get[0] response..sessionId").asString();

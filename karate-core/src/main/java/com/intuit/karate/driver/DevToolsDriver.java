@@ -301,24 +301,30 @@ public abstract class DevToolsDriver implements Driver {
     public String attribute(String id, String name) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".getAttribute('" + name + "')", null);
         return dtm.getResult().getAsString();
-    }   
-    
+    }
+
     @Override
     public String property(String id, String name) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + "['" + name + "']", null);
         return dtm.getResult().getAsString();
-    }      
-    
+    }
+
     @Override
     public String css(String id, String name) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".style['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
-    
+
     @Override
     public String name(String id) {
         return property(id, "tagName");
-    }    
+    }
+
+    @Override
+    public Map<String, Object> rect(String id) {
+        DevToolsMessage dtm = evaluateAndGetResult(DriverUtils.selectorScript(id) + ".getBoundingClientRect()", null);
+        return DriverUtils.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
+    }
 
     @Override
     public void waitUntil(String expression) {
@@ -336,7 +342,7 @@ public abstract class DevToolsDriver implements Driver {
     public Object eval(String expression) {
         return evaluate(expression, null).getResult().getValue();
     }
-        
+
     @Override
     public String getTitle() {
         DevToolsMessage dtm = evaluate("document.title", null);
@@ -425,8 +431,7 @@ public abstract class DevToolsDriver implements Driver {
         if (id == null) {
             dtm = method("Page.captureScreenshot").send();
         } else {
-            dtm = evaluateAndGetResult(DriverUtils.selectorScript(id) + ".getBoundingClientRect()", null);
-            Map<String, Object> map = DriverUtils.putSelected(dtm.getResult().getAsMap(), "x", "y", "width", "height");
+            Map<String, Object> map = rect(id);
             map.put("scale", 1);
             dtm = method("Page.captureScreenshot").params(map).send();
         }

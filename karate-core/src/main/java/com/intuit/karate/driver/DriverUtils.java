@@ -130,7 +130,7 @@ public class DriverUtils {
         return false;
     }
 
-    public static Map<String, Object> putSelected(Map<String, Object> map, String... keys) {
+    public static Map<String, Object> newMapWithSelectedKeys(Map<String, Object> map, String... keys) {
         Map<String, Object> out = new HashMap(keys.length);
         for (String key : keys) {
             Object o = map.get(key);

@@ -75,6 +75,7 @@ Scenario Outline: using <config>
 
   * def bytes = driver.screenshot('#eg02DivId')
   * eval karate.write(bytes, 'partial-' + config.type + '.png')
+  * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
 
   When driver.submit('*Page Three')
   And match driver.title == 'Page Three'
