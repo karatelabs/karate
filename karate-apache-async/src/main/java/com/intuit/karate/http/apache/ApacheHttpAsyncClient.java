@@ -291,6 +291,7 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
             try {
                 byte[] bytes = IOUtils.toByteArray(entity.getContent());
                 requestBuilder.setEntity(new BasicAsyncEntityProducer(bytes, ContentType.parse(entity.getContentType()) ));
+                requestBuilder.setHeader(HttpUtils.HEADER_CONTENT_TYPE, requestBuilder.getEntity().getContentType());
             } catch (IOException e) {
                 e.printStackTrace();
             }
