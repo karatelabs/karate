@@ -29,7 +29,7 @@ import com.intuit.karate.http.*;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import org.apache.commons.io.IOUtils;
-import org.apache.hc.client5.http.async.methods.AbstractCharResponseConsumer;
+import org.apache.hc.client5.http.async.methods.AbstractBinResponseConsumer;
 import org.apache.hc.client5.http.async.methods.AsyncRequestBuilder;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.auth.AuthScope;
@@ -63,7 +63,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.*;
-import java.nio.CharBuffer;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
 import java.util.Arrays;
@@ -113,7 +113,7 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
         clientBuilder.setDefaultCookieStore(cookieStore);
         clientBuilder.setDefaultCookieSpecRegistry(LenientCookieSpec.registry());
         RequestLoggingInterceptor requestInterceptor = new RequestLoggingInterceptor(context);
-        clientBuilder.addResponseInterceptorLast(requestInterceptor);
+        clientBuilder.addRequestInterceptorFirst(requestInterceptor);
         clientBuilder.addResponseInterceptorLast(new ResponseLoggingInterceptor(requestInterceptor, context));
 
         RequestConfig.Builder configBuilder = RequestConfig.custom()
@@ -162,7 +162,6 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
 
     private TlsStrategy getTlsStrategy(ScriptContext context, HttpConfig config) {
         if (config.isSslEnabled()) {
-            // System.setProperty("jsse.enableSNIExtension", "false");
             String algorithm = config.getSslAlgorithm(); // could be null
             KeyStore trustStore = HttpUtils.getKeyStore(context,
                     config.getSslTrustStore(), config.getSslTrustStorePassword(), config.getSslTrustStoreType());
@@ -185,7 +184,6 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
                     sslCxtBuilder = sslCxtBuilder.loadKeyMaterial(keyStore, keyPassword);
                 }
                 
-                //return new H2TlsStrategy(sslCxtBuilder.build(), H2TlsStrategy.getDefaultHostnameVerifier()) {
                 return new H2TlsStrategy(sslCxtBuilder.build(), new NoopHostnameVerifier()) {
                     // IMPORTANT uncomment the following method when running Java 9 or older
                     // in order to avoid the illegal reflective access operation warning
@@ -313,17 +311,18 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
         byte[] bytes;
         SimpleHttpResponse httpResponse = null;
 
-        AbstractCharResponseConsumer<SimpleHttpResponse> responseConsumer = new AbstractCharResponseConsumer<SimpleHttpResponse>() {
+        AbstractBinResponseConsumer<SimpleHttpResponse> binResponseConsumer = new AbstractBinResponseConsumer<SimpleHttpResponse>() {
             SimpleHttpResponse httpResponse;
-            String body = new String();
+            // TODO: further test buffer size implications
+            ByteBuffer bodyBuffer = ByteBuffer.allocate(0xFFFF);
             @Override
             protected void start(org.apache.hc.core5.http.HttpResponse response, ContentType contentType) throws HttpException, IOException {
                 httpResponse = SimpleHttpResponse.copy(response);
             }
 
             @Override
-            protected SimpleHttpResponse buildResult() throws IOException {
-                httpResponse.setBodyText(body, httpResponse.getContentType());
+            protected SimpleHttpResponse buildResult() {
+                httpResponse.setBodyBytes(toByteArray(), httpResponse.getContentType());
                 return httpResponse;
             }
 
@@ -334,15 +333,13 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
 
             @Override
             protected int capacity() {
-                return Integer.MAX_VALUE;
+                return bodyBuffer.capacity();
             }
 
             @Override
-            protected void data(CharBuffer charBuffer, boolean b) throws IOException {
-
-                if(!b){
-                    body += charBuffer.toString();
-
+            protected void data(ByteBuffer data, boolean endOfStream) throws IOException {
+                if(!endOfStream){
+                	bodyBuffer.put(data);
                 }
             }
 
@@ -350,12 +347,21 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
             public void releaseResources() {
 
             }
+
+            private byte[] toByteArray() {
+            	bodyBuffer.flip();
+                final byte[] bytes = new byte[bodyBuffer.remaining()];
+                bodyBuffer.get(bytes);
+                bodyBuffer.clear();
+                return bytes;
+            }
+
         };
 
         Future<SimpleHttpResponse> future;
         try {
             client.start();
-            future =  client.execute(requestProducer, responseConsumer, new FutureCallback<SimpleHttpResponse>() {
+            future =  client.execute(requestProducer, binResponseConsumer, new FutureCallback<SimpleHttpResponse>() {
                         @Override
                         public void completed(SimpleHttpResponse simpleHttpResponse) {
 
@@ -373,10 +379,10 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
                     });
             future.get();
 
-            if(responseConsumer == null || responseConsumer.getResult() == null) {
+            if(binResponseConsumer == null || binResponseConsumer.getResult() == null) {
                 bytes = new byte[0];
             }else {
-                httpResponse = responseConsumer.getResult();
+                httpResponse = binResponseConsumer.getResult();
                 InputStream is = new ByteArrayInputStream(httpResponse.getBodyBytes());
                 bytes = FileUtils.toBytes(is);
             }
