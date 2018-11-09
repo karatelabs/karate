@@ -327,6 +327,12 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
+    public boolean enabled(String id) {
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".disabled", null);
+        return !dtm.getResult().isBooleanTrue();
+    }        
+
+    @Override
     public void waitUntil(String expression) {
         int count = 0;
         ScriptValue sv;

@@ -243,6 +243,12 @@ public abstract class WebDriver implements Driver {
     public Map<String, Object> rect(String locator) {
         String id = getElementId(locator);
         return http.path("element", id, "rect").get().jsonPath("$.value").asMap();        
+    }   
+
+    @Override
+    public boolean enabled(String locator) {
+        String id = getElementId(locator);
+        return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();         
     }        
 
     @Override

@@ -78,6 +78,8 @@ public interface Driver {
     String name(String id);
     
     Map<String, Object> rect(String id);
+    
+    boolean enabled(String id);
 
     void waitUntil(String expression);
     
