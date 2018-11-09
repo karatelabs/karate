@@ -29,7 +29,6 @@ import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.MatchType;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptValue;

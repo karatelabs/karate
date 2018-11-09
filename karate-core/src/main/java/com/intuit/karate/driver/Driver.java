@@ -68,6 +68,8 @@ public interface Driver {
     String text(String id);
 
     String value(String id);
+    
+    String attribute(String id, String name);
 
     void waitUntil(String expression);
     

@@ -1,4 +1,4 @@
-package com.intuit.karate;
+package com.intuit.karate.core;
 
 /**
  *

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.MatchStep;
 import com.intuit.karate.core.Action;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ScenarioContext;

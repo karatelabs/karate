@@ -26,7 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.AssertionResult;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.MatchType;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;

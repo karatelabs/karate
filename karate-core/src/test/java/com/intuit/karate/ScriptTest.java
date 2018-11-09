@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.core.MatchType;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ScenarioContext;
 import com.jayway.jsonpath.DocumentContext;

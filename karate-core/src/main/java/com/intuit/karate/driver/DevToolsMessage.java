@@ -54,7 +54,7 @@ public class DevToolsMessage {
     public String getMethod() {
         return method;
     }
-    
+
     public boolean isMethod(String method) {
         return method.equals(this.method);
     }
@@ -84,8 +84,8 @@ public class DevToolsMessage {
 
     public void setResult(ScriptValue result) {
         this.result = result;
-    }        
-    
+    }
+
     private static Map<String, Object> toMap(List<Map<String, Object>> list) {
         Map<String, Object> res = new HashMap();
         for (Map<String, Object> map : list) {
@@ -110,7 +110,7 @@ public class DevToolsMessage {
         }
         return new ScriptValue(result.getAsMap().get(key));
     }
-    
+
     public ScriptValue getParam(String key) {
         if (params == null) {
             return ScriptValue.NULL;
@@ -134,8 +134,15 @@ public class DevToolsMessage {
             Object inner = temp.get("result");
             if (inner instanceof List) {
                 result = new ScriptValue(toMap((List) inner));
-            } else {
-                result = new ScriptValue(((Map) inner).get("value"));
+            } else { // TODO improve this logic
+                Map innerMap = (Map) inner;
+                String type = (String) innerMap.get("type");
+                String subtype = (String) innerMap.get("subtype");
+                if ("object".equals(type) || "error".equals(subtype)) {
+                    result = new ScriptValue(innerMap);
+                } else {
+                    result = new ScriptValue(innerMap.get("value"));
+                }
             }
         } else {
             result = new ScriptValue(temp);
@@ -149,7 +156,7 @@ public class DevToolsMessage {
         params.put(key, value);
         return this;
     }
-    
+
     public DevToolsMessage params(Map<String, Object> params) {
         this.params = params;
         return this;

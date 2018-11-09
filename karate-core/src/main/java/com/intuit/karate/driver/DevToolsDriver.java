@@ -191,7 +191,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void refresh() {
-        method("Page.reload").send();
+        method("Page.reload").send(WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
@@ -287,20 +287,26 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public String text(String id) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".textContent", null);
-        return dtm.getResult("value").getAsString();
+        return dtm.getResult().getAsString();
     }
 
     @Override
     public String html(String id) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".innerHTML", null);
-        return dtm.getResult("value").getAsString();
+        return dtm.getResult().getAsString();
     }
 
     @Override
     public String value(String id) {
         DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".value", null);
-        return dtm.getResult("value").getAsString();
+        return dtm.getResult().getAsString();
     }
+
+    @Override
+    public String attribute(String id, String name) {
+        DevToolsMessage dtm = evaluate(DriverUtils.selectorScript(id) + ".getAttribute('" + name + "')", null);
+        return dtm.getResult().getAsString();
+    }        
 
     @Override
     public void waitUntil(String expression) {
@@ -322,7 +328,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public String getTitle() {
         DevToolsMessage dtm = evaluate("document.title", null);
-        return dtm.getResult("value").getAsString();
+        return dtm.getResult().getAsString();
     }
 
     @Override

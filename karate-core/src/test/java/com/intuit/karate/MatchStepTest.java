@@ -1,8 +1,10 @@
 package com.intuit.karate;
 
+import com.intuit.karate.core.MatchStep;
+import com.intuit.karate.core.MatchType;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import static com.intuit.karate.MatchType.*;
+import static com.intuit.karate.core.MatchType.*;
 
 /**
  *
