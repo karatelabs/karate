@@ -200,7 +200,7 @@ public class ScenarioContext {
     }
 
     public ScenarioContext(FeatureContext featureContext, CallContext call) {
-        this.featureContext = featureContext; // make sure references below to env.env use the updated one
+        this.featureContext = featureContext;
         logger = featureContext.logger;
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;
@@ -267,9 +267,7 @@ public class ScenarioContext {
             }
         }
         if (call.callArg != null) { // if call.reuseParentContext is true, arg will clobber parent context
-            for (Map.Entry<String, Object> entry : call.callArg.entrySet()) {
-                vars.put(entry.getKey(), entry.getValue());
-            }
+            call.callArg.forEach((k, v) -> vars.put(k, v));
             vars.put(Script.VAR_ARG, call.callArg);
             vars.put(Script.VAR_LOOP, call.loopIndex);
         } else if (call.context != null) {
