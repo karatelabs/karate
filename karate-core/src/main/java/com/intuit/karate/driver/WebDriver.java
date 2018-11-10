@@ -158,7 +158,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void focus(String id) {
-        evalInternal(options.selectorScript(id) + ".focus()");
+        evalInternal(options.elementSelector(id) + ".focus()");
     }
 
     @Override
@@ -174,7 +174,12 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void click(String id, boolean ignored) {
-        evalInternal(options.selectorScript(id) + ".click()");
+        evalInternal(options.elementSelector(id) + ".click()");
+    }        
+
+    @Override
+    public void select(String id, String text) {
+        evalInternal(options.optionSelector(id, text));
     }        
 
     @Override

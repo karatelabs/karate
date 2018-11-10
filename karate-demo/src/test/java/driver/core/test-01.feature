@@ -28,7 +28,7 @@ Scenario Outline: using <config>
   Then match driver.location == webUrlBase + '/page-01'
   And match driver.text('#eg01DivId') == ''
   And match driver.value('#eg01InputId') == ''
-  And match driver.title == 'Page One'
+  And match driver.title == 'Page One' 
 
   When driver webUrlBase + '/page-02'
   Then match driver.text('.eg01Cls') == 'Class Locator Test'
@@ -80,6 +80,11 @@ Scenario Outline: using <config>
   When driver.submit('*Page Three')
   And match driver.title == 'Page Three'
   And match driver.location == webUrlBase + '/page-03'
+
+  Given driver.select('select[name=data1]', 'Option Two')
+  When driver.submit('#eg02SubmitId')
+  Then match driver.title == 'Page Three'
+  And match driver.text('#eg01Data1') == 'option2'
 
 Examples:
     | config | dimensions |

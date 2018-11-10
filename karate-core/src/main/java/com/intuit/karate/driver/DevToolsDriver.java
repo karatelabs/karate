@@ -255,17 +255,22 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void click(String id, boolean waitForDialog) {
-        evaluate(options.selectorScript(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
+        evaluate(options.elementSelector(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
     }
 
     @Override
+    public void select(String id, String text) {
+        evaluate(options.optionSelector(id, text), null);
+    }        
+
+    @Override
     public void submit(String id) {
-        DevToolsMessage dtm = evaluate(options.selectorScript(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
+        DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
     public void focus(String id) {
-        evaluate(options.selectorScript(id) + ".focus()", null);
+        evaluate(options.elementSelector(id) + ".focus()", null);
     }
 
     @Override
@@ -293,19 +298,19 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public String attribute(String id, String name) {
-        DevToolsMessage dtm = evaluate(options.selectorScript(id) + ".getAttribute('" + name + "')", null);
+        DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".getAttribute('" + name + "')", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
-        DevToolsMessage dtm = evaluate(options.selectorScript(id) + "['" + name + "']", null);
+        DevToolsMessage dtm = evaluate(options.elementSelector(id) + "['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String css(String id, String name) {
-        DevToolsMessage dtm = evaluate("getComputedStyle(" + options.selectorScript(id) + ")['" + name + "']", null);
+        DevToolsMessage dtm = evaluate("getComputedStyle(" + options.elementSelector(id) + ")['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
@@ -316,13 +321,13 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Map<String, Object> rect(String id) {
-        DevToolsMessage dtm = evaluateAndGetResult(options.selectorScript(id) + ".getBoundingClientRect()", null);
+        DevToolsMessage dtm = evaluateAndGetResult(options.elementSelector(id) + ".getBoundingClientRect()", null);
         return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
     }
 
     @Override
     public boolean enabled(String id) {
-        DevToolsMessage dtm = evaluate(options.selectorScript(id) + ".disabled", null);
+        DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".disabled", null);
         return !dtm.getResult().isBooleanTrue();
     }        
 

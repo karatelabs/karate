@@ -1792,6 +1792,9 @@ public class Script {
         } catch (Exception e) {
             throw new RuntimeException("expression error (replace string values need to be within quotes): " + e.getMessage());
         }
+        if (replaceWith == null) { // ignore if eval result is null
+            return text;
+        }
         token = StringUtils.trimToNull(token);
         if (token == null) {
             return text;

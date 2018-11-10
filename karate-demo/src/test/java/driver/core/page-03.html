@@ -5,7 +5,24 @@
   </head>
   <body>
     <div id="eg01">
+      <div id="eg01Data1">@@data1@@</div>
+      <div id="eg01Data2">@@data2@@</div>
+      <div id="eg01Data3">@@data3@@</div>
       <a href="page-01">Go to Page One</a>
     </div>
+    <div id="eg02">
+      <form action="page-03">
+        <select name="data1">
+          <option value="option1">Option One</option>
+          <option value="option2">Option Two</option>
+          <option value="option3" selected="true">Option Three</option>
+        </select><br/>
+        <input type="checkbox" name="data2" value="check1">Check One<br>
+        <input type="checkbox" name="data2" value="check2">Check Two<br>
+        <input type="checkbox" name="data2" value="check3">Check Three<br><br/>
+        <input name="data3" value="Some Text"/><br/>
+        <input id="eg02SubmitId" type="submit" value="Submit"/><br/>
+      </form>
+    </div>    
   </body>
 </html>

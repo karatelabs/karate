@@ -174,6 +174,7 @@ And you don't need to create additional Java classes for any of the payloads tha
       <a href="#polling">Polling</a>
     | <a href="#conditional-logic">Conditional Logic</a>
     | <a href="#hooks">Before / After Hooks</a>
+    | <a href="#json-transforms">JSON Transforms</a>
     | <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
     | <a href="#http-header-manipulation">Header Manipulation</a> 
     | <a href="#text">GraphQL</a>    
@@ -2559,7 +2560,7 @@ JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-opera
 You usually won't need this, but the second-last line above shows how the `karate` object can be used to [evaluate JsonPath](#karate-jsonpath) if the filter expression depends on a variable. If you find yourself struggling to write [dynamic JsonPath filters](https://stackoverflow.com/a/52741196/143475), look at [`karate.filter()`](#karate-filter) as an alternative, described just below.
 
 ## JSON Transforms
-Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can help in some advanced situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have expected data available as ready-made JSON but it is in a different "shape" from the HTTP `response`.
+Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can help in some advanced situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have expected data available as ready-made JSON but it is in a different "shape" from the HTTP `response`. This is a good reminder that a single JS function is sufficient to transform a given JSON object into a completely new one, and you can use complex conditional logic if needed.
 
 ```cucumber
 Scenario: karate map operation

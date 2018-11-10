@@ -139,7 +139,7 @@ public class DriverOptions {
         }
     }  
     
-    public String selectorScript(String id) {
+    public String elementSelector(String id) {
         if (id.startsWith("^")) {
             id = "//a[text()='" + id.substring(1) + "']";
         } else if (id.startsWith("*")) {
@@ -149,6 +149,18 @@ public class DriverOptions {
             return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
         }
         return "document.querySelector(\"" + id + "\")";
+    }
+    
+    public String wrapInFunctionInvoke(String text) {
+        return "(function(){ " + text + " })()";
+    }
+    
+    public String optionSelector(String id, String text) {
+        String e = elementSelector(id);
+        String temp = "var e = " + e + "; var t = \"" + text + "\";"
+                + " for (var i = 0; i < e.options.length; ++i)"
+                + " if (e.options[i].text === t) e.options[i].selected = true";
+        return wrapInFunctionInvoke(temp);
     }
 
     public void sleep(int millis) {

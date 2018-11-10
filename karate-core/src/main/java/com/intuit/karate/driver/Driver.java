@@ -56,6 +56,8 @@ public interface Driver {
     void click(String expression);
     
     void click(String expression, boolean waitForDialog);
+    
+    void select(String expression, String text);
 
     void submit(String expression);
 

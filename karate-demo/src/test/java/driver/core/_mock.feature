@@ -11,8 +11,11 @@ Scenario: pathMatches('/page-01')
 Scenario: pathMatches('/page-02')
   * def response = read('page-02.html')
 
-Scenario: pathMatches('/page-03')
+Scenario: pathMatches('/page-03')  
   * def response = read('page-03.html')
+  * replace response.@@data1@@ = paramValue('data1')
+  * replace response.@@data2@@ = paramValue('data2')
+  * replace response.@@data3@@ = paramValue('data3')
 
 Scenario: pathMatches('/karate.js')
   * def responseHeaders = { 'Content-Type': 'text/javascript; charset=utf-8' }
