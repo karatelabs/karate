@@ -24,6 +24,7 @@
 package com.intuit.karate.driver.edge;
 
 import com.intuit.karate.Http;
+import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
@@ -60,7 +61,7 @@ public class MicrosoftWebDriver extends WebDriver {
 
     @Override
     protected String getJsonForInput(String text) {
-        return "{ keysToSend: [\"" + text + "\"] }";
+        return new Json().set("keysToSend[0]", text).toString();
     }
 
     @Override

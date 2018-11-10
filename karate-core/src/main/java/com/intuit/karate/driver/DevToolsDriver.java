@@ -120,7 +120,9 @@ public abstract class DevToolsDriver implements Driver {
         int count = 0;
         DevToolsMessage dtm;
         do {
-            logger.debug("eval try #{}", count + 1);
+            if (count > 0) {
+                logger.debug("evaluate attempt #{}", count + 1);
+            }
             dtm = method("Runtime.evaluate")
                     .param("expression", expression).send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
@@ -332,7 +334,7 @@ public abstract class DevToolsDriver implements Driver {
             options.sleep(getWaitInterval());
             logger.debug("poll try #{}", count + 1);
             DevToolsMessage dtm = evaluate(expression, null);
-            sv = dtm.getResult("value");
+            sv = dtm.getResult();
         } while (!sv.isBooleanTrue() && count++ < 3);
     }
 

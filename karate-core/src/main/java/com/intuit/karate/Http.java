@@ -50,6 +50,10 @@ public class Http {
         return match.httpGet();
     }
     
+    public Match post(Json json) { // avoid extra eval
+        return match.httpPost(json.getValue());
+    }    
+    
     public Match post(Object body) {
         return match.httpPost(body);
     }

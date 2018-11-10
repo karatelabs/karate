@@ -231,9 +231,14 @@ public class Match {
         return this;
     }
 
+    public Match httpPost(ScriptValue body) {
+        context.request(body);
+        context.method("post");
+        return this;
+    }
+
     public Match httpPost(Object body) {
-        ScriptValue sv = new ScriptValue(body);
-        context.request(sv.getAsString());
+        context.request(new ScriptValue(body).getAsString());
         context.method("post");
         return this;
     }

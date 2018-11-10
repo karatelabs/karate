@@ -24,6 +24,7 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
+import com.intuit.karate.Json;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
@@ -58,8 +59,8 @@ public abstract class WebDriver implements Driver {
     }        
 
     private ScriptValue evalInternal(String expression) {
-        String body = "{ script: \"" + JsonUtils.escapeValue(expression) + "\", args: [] }";
-        return http.path("execute", "sync").post(body).jsonPath("$.value").value();
+        Json json = new Json().set("script", expression).set("args", "[]");
+        return http.path("execute", "sync").post(json).jsonPath("$.value").value();
     }
 
     protected int getWaitInterval() {
@@ -71,26 +72,32 @@ public abstract class WebDriver implements Driver {
     }
 
     protected String getJsonForInput(String text) {
-        return "{ text: '" + text + "' }";
+        return new Json().set("text", text).toString();
+    }
+    
+    protected String getElementLocator(String id) {
+        Json json = new Json();        
+        if (id.startsWith("^")) {
+            json.set("using", "link text").set("value", id.substring(1));
+        } else if (id.startsWith("*")) {
+            json.set("using", "partial link text").set("value", id.substring(1));
+        } else if (id.startsWith("/")) {
+            json.set("using", "xpath").set("value", id);
+        } else {
+            json.set("using", "css selector").set("value", id);
+        }
+        return json.toString();
     }
 
     protected String getElementId(String id) { // TODO refactor
-        String body;
-        if (id.startsWith("^")) {
-            body = "{ using: 'link text', value: \"" + id.substring(1) + "\" }";
-        } else if (id.startsWith("*")) {
-            body = "{ using: 'partial link text', value: \"" + id.substring(1) + "\" }";
-        } else if (id.startsWith("/")) {
-            body = "{ using: 'xpath', value: \"" + id + "\" }";
-        } else {
-            body = "{ using: 'css selector', value: \"" + id + "\" }";
-        }
+        String body = getElementLocator(id);
         return http.path("element").post(body).jsonPath(getJsonPathForElementId()).asString();
     }
 
     @Override
     public void setLocation(String url) {
-        http.path("url").post("{ url: '" + url + "'}");
+        Json json = new Json().set("url", url);
+        http.path("url").post(json);
     }
 
     @Override
@@ -109,7 +116,7 @@ public abstract class WebDriver implements Driver {
         Integer y = (Integer) map.remove("top");
         map.put("x", x);
         map.put("y", y);
-        String json = JsonUtils.toJson(map);
+        Json json = new Json(map);
         http.path("window", "rect").post(json);
     }
 
@@ -173,7 +180,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void submit(String name) {
         click(name);
-        waitUntil("return document.readyState == 'complete'");
+        waitUntil("document.readyState == 'complete'");
     }
 
     @Override
@@ -249,9 +256,14 @@ public abstract class WebDriver implements Driver {
         String id = getElementId(locator);
         return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();         
     }        
+    
+    private String prefixReturn(String expression) {
+        return expression.startsWith("return ") ? expression : "return " + expression;
+    }
 
     @Override
     public void waitUntil(String expression) {
+        expression = prefixReturn(expression);
         int count = 0;
         ScriptValue sv;
         do {
@@ -262,9 +274,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Object eval(String expression) {
-        if (!expression.startsWith("return ")) {
-            expression = "return " + expression;
-        }
+        expression = prefixReturn(expression);
         return evalInternal(expression).getValue();
     }        
 

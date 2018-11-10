@@ -24,6 +24,7 @@
 package com.intuit.karate.driver.windows;
 
 import com.intuit.karate.Http;
+import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
@@ -64,20 +65,24 @@ public class WinAppDriver extends WebDriver {
     public void activate() {
         // TODO
     }
+    
+    private String getElementSelector(String id) {
+        Json json = new Json();
+        if (id.startsWith("/")) {
+            json.set("using", "xpath").set("value", id);
+        } else if (id.startsWith("@")){
+            json.set("using", "accessibility id").set("value", id.substring(1));
+        } else if (id.startsWith("#")){
+            json.set("using", "id").set("value", id.substring(1));
+        } else {
+            json.set("using", "name").set("value", id);
+        }
+        return json.toString();
+    }
 
     @Override
     protected String getElementId(String id) {
-        String body;
-        if (id.startsWith("/")) {
-            body = "{ using: 'xpath', value: \"" + id + "\" }";
-        } else if (id.startsWith("@")){
-            body = "{ using: 'accessibility id', value: \"" + id.substring(1) + "\" }";
-        } else if (id.startsWith("#")){
-            body = "{ using: 'id', value: \"" + id.substring(1) + "\" }";
-        } else {
-            body = "{ using: 'name', value: \"" + id + "\" }";
-        }
-        logger.debug("body: {}", body);
+        String body = getElementSelector(id);
         return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
     }
 

@@ -37,7 +37,7 @@ public class Json {
     private final boolean array;
     private final String prefix;
 
-    private String prefix(String path) {        
+    private String prefix(String path) {
         return path.charAt(0) == '$' ? path : prefix + path;
     }
 
@@ -56,15 +56,33 @@ public class Json {
     public Json(Object o) {
         this(JsonUtils.toJsonDoc(o));
     }
-    
+
     private Json(DocumentContext doc) {
         this.doc = doc;
         array = (doc.json() instanceof List);
         prefix = array ? "$" : "$.";
     }
 
+    public DocumentContext getDoc() {
+        return doc;
+    }     
+    
+    public ScriptValue getValue() {
+        return new ScriptValue(doc);
+    }
+
     public Json set(String path, Object value) {
         JsonUtils.setValueByPath(doc, prefix(path), value);
+        return this;
+    }
+
+    public Json set(String path, String value) {
+        Object temp = value;
+        String trimmed = StringUtils.trimToNull(value);        
+        if (Script.isJson(trimmed)) {
+            temp = JsonUtils.toJsonDoc(trimmed).read("$");
+        }
+        set(path, temp);
         return this;
     }
 
@@ -80,7 +98,7 @@ public class Json {
     public String toString() {
         return doc.jsonString();
     }
-    
+
     public boolean isArray() {
         return array;
     }

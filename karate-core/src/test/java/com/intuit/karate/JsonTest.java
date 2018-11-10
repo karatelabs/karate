@@ -14,6 +14,8 @@ public class JsonTest {
         new Json("{ hello: 'world' }").equals("{ hello: '#string' }");
         new Json().set("hello", "world").equals("{ hello: 'world' }");
         new Json().set("foo.bar", "world").equals("{ foo: { bar: 'world' }}");
+        new Json().set("foo.bar", "[]").equals("{ foo: { bar: [] }}");
+        new Json().set("foo.bar", "{ ban: 'baz' }").equals("{ foo: { bar: { ban: 'baz' } }}");
     }
     
 }

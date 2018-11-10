@@ -650,9 +650,13 @@ public class ScenarioContext {
         }
     }
 
+    public void request(ScriptValue body) {
+        request.setBody(body);
+    }    
+    
     public void request(String requestBody) {
         ScriptValue temp = Script.evalKarateExpression(requestBody, this);
-        request.setBody(temp);
+        request(temp);
     }
 
     public void table(String name, List<Map<String, String>> table) {
