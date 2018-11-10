@@ -1,4 +1,4 @@
-function() {
+function fn() {
   var config = {
     demoBaseUrl: 'http://localhost:8080'
   };

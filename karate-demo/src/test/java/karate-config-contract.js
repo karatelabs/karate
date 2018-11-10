@@ -1,4 +1,4 @@
-function() {
+function fn() {
   var config = {};
   config.paymentServiceUrl = karate.properties['payment.service.url'];    
   config.queueName = karate.properties['shipping.queue.name'];

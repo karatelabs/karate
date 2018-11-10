@@ -687,8 +687,10 @@ The only 'rule' is that on start-up Karate expects a file called `karate-config.
 
 And that's all there is to Karate configuration ! You can easily get the value of the [current 'environment' or 'profile'](#switching-the-environment), and then set up 'global' variables using some simple JavaScript. Here is an example:
 
+> Tip: some IDE-s (e.g. IntelliJ) complain that a JavaScript file that starts with `function() {` is invalid syntax - but you can use any name (which will be ignored) as follows: `function fn() { return { myKey: 'myValue' } }`
+
 ```javascript    
-function() {   
+function fn() {   
   var env = karate.env; // get java system property 'karate.env'
   karate.log('karate.env system property was:', env);
   if (!env) {
@@ -728,8 +730,6 @@ Karate's approach frees you from Maven, is far more expressive, allows you to ey
 This approach is indeed slightly more complicated than traditional `*.properties` files - but you _need_ this complexity. Keep in mind that these are tests (not production code) and this config is going to be maintained more by the dev or QE team instead of the 'ops' or operations team.
 
 And there is no more worrying about Maven profiles and whether the 'right' `*.properties` file has been copied to the proper place.
-
-> Tip: some IDE-s (e.g. IntelliJ) complain that a JavaScript file that starts with `function() {` is invalid syntax - but you can use any name (which will be ignored) as follows: `function fn() { return { myKey: 'myValue' } }`
 
 ## Switching the Environment
 There is only one thing you need to do to switch the environment - which is to set a Java system property.
@@ -1224,7 +1224,7 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 JavaScript Functions are also 'native'. And yes, functions can take arguments.
 
 > Standard JavaScript syntax rules apply, but the right-hand-side (or contents of the `*.js` file if applicable) should begin with the `function` keyword. This means that JavaScript comments are *not* supported if they appear *before* the function body. Also note that [ES6 arrow functions](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/Arrow_functions) 
-are **not** supported.
+are **not** supported. Finally, especially when using stand-alone `*.js` files, you can use `fn` as the function name, so that your IDE does not complain about JavaScript syntax errors, e.g. `function fn(x){ return x + 1 }`
 
 ```cucumber
 * def greeter = function(name){ return 'hello ' + name }
@@ -2556,7 +2556,41 @@ JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-opera
 * match temp == bob
 ```
 
-You usually won't need this, but the second-last line above shows how the `karate` object can be used to [evaluate a JsonPath](#karate-jsonpath) if the filter expression depends on a variable.
+You usually won't need this, but the second-last line above shows how the `karate` object can be used to [evaluate JsonPath](#karate-jsonpath) if the filter expression depends on a variable. If you find yourself struggling to write [dynamic JsonPath filters](https://stackoverflow.com/a/52741196/143475), look at [`karate.filter()`](#karate-filter) as an alternative, described just below.
+
+## JSON Transforms
+Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can help in some advanced situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have expected data available as ready-made JSON but it is in a different "shape" from the HTTP `response`.
+
+```cucumber
+Scenario: karate map operation
+    * def fun = function(x){ return x * x }
+    * def list = [1, 2, 3]
+    * def res = karate.map(list, fun)
+    * match res == [1, 4, 9]
+
+Scenario: convert an array into a different shape
+    * def before = [{ foo: 1 }, { foo: 2 }, { foo: 3 }]
+    * def fun = function(x){ return { bar: x.foo } }
+    * def after = karate.map(before, fun)
+    * match after == [{ bar: 1 }, { bar: 2 }, { bar: 3 }]
+
+Scenario: karate filter operation
+    * def fun = function(x){ return x % 2 == 0 }
+    * def list = [1, 2, 3, 4]
+    * def res = karate.filter(list, fun)
+    * match res == [2, 4]
+
+Scenario: forEach works even on object key-values, not just arrays
+    * def keys = []
+    * def vals = []
+    * def idxs = []
+    * def fun = function(x, y, i){ keys.add(x); vals.add(y); idxs.add(i) }
+    * def map = { a: 2, b: 4, c: 6 }
+    * eval karate.forEach(map, fun)
+    * match keys == ['a', 'b', 'c']
+    * match vals == [2, 4, 6]
+    * match idxs == [0, 1, 2]
+```
 
 ## XPath Functions
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. Any valid XPath expression is allowed on the left-hand-side of a [`match`](#match) statement.
@@ -2728,7 +2762,7 @@ Here is an example JavaScript function that uses some variables in the context (
 > In the example below, note the use of the [`karate.get()`](#karate-get) helper for getting the value of a dynamic variable. This is preferred because it takes care of situations such as if the value is `undefined` in JavaScript.
 
 ```javascript
-function() {
+function fn() {
   var uuid = '' + java.util.UUID.randomUUID(); // convert to string
   var out = { // so now the txid_header would be a unique uuid for each request
     txid_header: uuid,
@@ -3032,7 +3066,7 @@ This should make it clear why Karate does not provide 'out of the box' support f
 
 First the JavaScript file, `basic-auth.js`:
 ```javascript
-function(creds) {
+function fn(creds) {
   var temp = creds.username + ':' + creds.password;
   var Base64 = Java.type('java.util.Base64');
   var encoded = Base64.getEncoder().encodeToString(temp.bytes);
@@ -3207,7 +3241,7 @@ As a demonstration of Karate's power and flexibility, here is an example that re
 Here we have this JavaScript utlity function `replacer.js` that uses a regular-expression to replace-inject a criteria expression into the right place, given a GraphQL query.
 
 ```javascript
-function(args) {
+function fn(args) {
   var query = args.query;  
   var regex = new RegExp('\\s' + args.field + '\\s*{'); // the RegExp object is standard JavaScript
   return query.replace(regex, ' ' + args.field + '(' + args.criteria + ') {');

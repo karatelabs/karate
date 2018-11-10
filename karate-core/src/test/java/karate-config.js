@@ -1,3 +1,3 @@
-function() {   
+function fn() {   
   return { someConfig: 'someValue' }
 }

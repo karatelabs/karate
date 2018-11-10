@@ -1,4 +1,4 @@
-function() {   
+function fn() {   
   var env = karate.env; // get system property 'karate.env'
   if (!env) {
     env = 'dev';

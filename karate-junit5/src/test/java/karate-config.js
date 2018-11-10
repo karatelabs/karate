@@ -1,1 +1,1 @@
-function(){ return {} }
+function fn(){ return {} }

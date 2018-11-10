@@ -48,7 +48,25 @@ Scenario: karate forEach operation on lists
     * eval karate.forEach(list, fun)
     * match res == [1, 4, 9]
 
-Scenario: karate forEach operation on maps (json)
+Scenario: karate map operation
+    * def fun = function(x){ return x * x }
+    * def list = [1, 2, 3]
+    * def res = karate.map(list, fun)
+    * match res == [1, 4, 9]
+
+Scenario: convert an array into a different shape
+    * def before = [{ foo: 1 }, { foo: 2 }, { foo: 3 }]
+    * def fun = function(x){ return { bar: x.foo } }
+    * def after = karate.map(before, fun)
+    * match after == [{ bar: 1 }, { bar: 2 }, { bar: 3 }]
+
+Scenario: karate filter operation
+    * def fun = function(x){ return x % 2 == 0 }
+    * def list = [1, 2, 3, 4]
+    * def res = karate.filter(list, fun)
+    * match res == [2, 4]
+
+Scenario: karate forEach operation on maps
     * def keys = []
     * def vals = []
     * def idxs = []
@@ -58,18 +76,6 @@ Scenario: karate forEach operation on maps (json)
     * match keys == ['a', 'b', 'c']
     * match vals == [2, 4, 6]
     * match idxs == [0, 1, 2]
-
-Scenario: karate map operation
-    * def fun = function(x){ return x * x }
-    * def list = [1, 2, 3]
-    * def res = karate.map(list, fun)
-    * match res == [1, 4, 9]
-
-Scenario: karate filter operation
-    * def fun = function(x){ return x % 2 == 0 }
-    * def list = [1, 2, 3, 4]
-    * def res = karate.filter(list, fun)
-    * match res == [2, 4]
 
 Scenario: karate filter operation, using array indexes
     * def fun = function(x, i){ return i % 2 == 0 }
