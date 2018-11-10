@@ -729,6 +729,8 @@ This approach is indeed slightly more complicated than traditional `*.properties
 
 And there is no more worrying about Maven profiles and whether the 'right' `*.properties` file has been copied to the proper place.
 
+> Tip: some IDE-s (e.g. IntelliJ) complain that a JavaScript file that starts with `function() {` is invalid syntax - but you can use any name (which will be ignored) as follows: `function fn() { return { myKey: 'myValue' } }`
+
 ## Switching the Environment
 There is only one thing you need to do to switch the environment - which is to set a Java system property.
 

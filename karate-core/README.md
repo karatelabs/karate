@@ -197,7 +197,7 @@ Including cache
 
 ## `driver.cookie` 
 
-## `driver.cookie()
+## `driver.cookie()`
 
 ## `driver.cookies`
 
