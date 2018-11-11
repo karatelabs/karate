@@ -43,8 +43,9 @@ public class CommandThread extends Thread {
     private final String[] args;
     private final List argList;
     private Process process;
+    private final boolean sharedAppender;
     private final LogAppender appender;
-    private int exitCode = -1;
+    private int exitCode = -1;    
 
     public CommandThread(String... args) {
         this(null, null, null, null, args);
@@ -65,9 +66,11 @@ public class CommandThread extends Thread {
         argList = Arrays.asList(args);
         if (logFile == null) {
             appender = LogAppender.NO_OP;
+            sharedAppender = false;
         } else { // don't create new file if re-using an existing appender
             LogAppender temp = this.logger.getLogAppender();
-            appender = temp == null ? new FileLogAppender(logFile, this.logger) : temp;
+            sharedAppender = temp != null;
+            appender = sharedAppender ? temp : new FileLogAppender(logFile, this.logger);
         }
     }
 
@@ -117,7 +120,9 @@ public class CommandThread extends Thread {
                 logger.debug("{}", line);
             }
             exitCode = process.waitFor();
-            appender.close();
+            if (!sharedAppender) {
+                appender.close();
+            }
             LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);
         } catch (Exception e) {
             LOGGER.error("command error: {} - {}", argList, e.getMessage());

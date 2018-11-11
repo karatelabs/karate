@@ -48,6 +48,7 @@ public class ScenarioExecutionUnit implements Runnable {
     private StepActions actions;
     private Runnable next;
     private boolean stopped = false;
+    private StepResult lastStepResult;
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec) {
         this(scenario, results, exec, null);
@@ -89,7 +90,7 @@ public class ScenarioExecutionUnit implements Runnable {
             // some metadata init needed for scenarios            
             Path featurePath = exec.featureContext.feature.getPath();
             exec.callContext.setScenarioInfo(scenario.toInfo(featurePath));
-            exec.callContext.setTags(tags);             
+            exec.callContext.setTags(tags);
             // karate-config.js will be processed here 
             // when the script-context constructor is called          
             actions = new StepActions(exec.featureContext, exec.callContext);
@@ -154,8 +155,9 @@ public class ScenarioExecutionUnit implements Runnable {
         actions.context.invokeAfterHookIfConfigured(false);
         // stop browser automation if running
         actions.context.stop();
-        if (next != null) {
-            next.run();
+        if (lastStepResult != null) {
+            String stepLog = StringUtils.trimToNull(exec.appender.collect());
+            lastStepResult.appendToStepLog(stepLog);
         }
     }
 
@@ -165,14 +167,17 @@ public class ScenarioExecutionUnit implements Runnable {
             init();
         }
         if (iterator.hasNext()) {
-            StepResult stepResult = execute(iterator.next());
-            result.addStepResult(stepResult);
-            if (stepResult.isStopped()) {
+            lastStepResult = execute(iterator.next());
+            result.addStepResult(lastStepResult);
+            if (lastStepResult.isStopped()) {
                 stopped = true;
             }
             SYSTEM.accept(this);
         } else {
             stop();
+            if (next != null) {
+                next.run();
+            }
         }
     }
 

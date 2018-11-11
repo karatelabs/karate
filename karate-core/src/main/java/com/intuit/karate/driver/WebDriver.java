@@ -180,7 +180,12 @@ public abstract class WebDriver implements Driver {
     @Override
     public void select(String id, String text) {
         evalInternal(options.optionSelector(id, text));
-    }        
+    }     
+    
+   @Override
+    public void select(String id, int index) {
+        evalInternal(options.optionSelector(id, index));
+    }    
 
     @Override
     public void submit(String name) {

@@ -48,7 +48,7 @@ import java.util.Map;
  * @author pthomas3
  */
 public class DriverOptions {
-    
+
     public static final long DEFAULT_TIMEOUT = 30 * 1000; // 30 seconds
 
     public final Map<String, Object> options;
@@ -92,12 +92,12 @@ public class DriverOptions {
         driverLogger = showDriverLog ? this.logger : new Logger(packageName + "." + uniqueName);
         if (executable != null) {
             args.add(executable);
-        }        
+        }
         workingDir = new File(Engine.getBuildDir() + File.separator + uniqueName);
         workingDirPath = workingDir.getAbsolutePath();
-        processLogFile = workingDir.getPath() + File.separator + type + ".log";        
-    }        
-    
+        processLogFile = workingDir.getPath() + File.separator + type + ".log";
+    }
+
     public void arg(String arg) {
         args.add(arg);
     }
@@ -111,7 +111,7 @@ public class DriverOptions {
         waitForPort(host, port);
         return command;
     }
-    
+
     public static Driver construct(Map<String, Object> options, Logger logger) {
         String type = (String) options.get("type");
         if (type == null) {
@@ -137,8 +137,8 @@ public class DriverOptions {
                 logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                 return ChromeDevToolsDriver.start(options, logger);
         }
-    }  
-    
+    }
+
     public String elementSelector(String id) {
         if (id.startsWith("^")) {
             id = "//a[text()='" + id.substring(1) + "']";
@@ -150,16 +150,33 @@ public class DriverOptions {
         }
         return "document.querySelector(\"" + id + "\")";
     }
-    
+
     public String wrapInFunctionInvoke(String text) {
         return "(function(){ " + text + " })()";
     }
-    
+
     public String optionSelector(String id, String text) {
+        boolean textEquals = text.startsWith("^");
+        boolean textContains = text.startsWith("*");
+        String condition;
+        if (textEquals || textContains) {
+            text = text.substring(1);
+            condition = textContains ? "e.options[i].text.indexOf(t) !== -1" : "e.options[i].text === t";
+        } else {
+            condition = "e.options[i].value === t";
+        }
         String e = elementSelector(id);
         String temp = "var e = " + e + "; var t = \"" + text + "\";"
                 + " for (var i = 0; i < e.options.length; ++i)"
-                + " if (e.options[i].text === t) e.options[i].selected = true";
+                + " if (" + condition + ") e.options[i].selected = true";
+        return wrapInFunctionInvoke(temp);
+    }
+
+    public String optionSelector(String id, int index) {
+        String e = elementSelector(id);
+        String temp = "var e = " + e + "; var t = " + index + ";"
+                + " for (var i = 0; i < e.options.length; ++i)"
+                + " if (i === t) e.options[i].selected = true";
         return wrapInFunctionInvoke(temp);
     }
 
@@ -189,8 +206,8 @@ public class DriverOptions {
             }
         } while (attempts++ < 3);
         return false;
-    } 
-    
+    }
+
     public Map<String, Object> newMapWithSelectedKeys(Map<String, Object> map, String... keys) {
         Map<String, Object> out = new HashMap(keys.length);
         for (String key : keys) {
@@ -200,6 +217,6 @@ public class DriverOptions {
             }
         }
         return out;
-    }    
+    }
 
 }

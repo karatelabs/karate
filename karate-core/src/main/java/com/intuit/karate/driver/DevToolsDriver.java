@@ -261,7 +261,12 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void select(String id, String text) {
         evaluate(options.optionSelector(id, text), null);
-    }        
+    }   
+    
+    @Override
+    public void select(String id, int index) {
+        evaluate(options.optionSelector(id, index), null);
+    }     
 
     @Override
     public void submit(String id) {

@@ -37,11 +37,19 @@ public class StepResult  {
     private static final Map<String, Object> DUMMY_MATCH;
     
     private final Step step;
-    private final Result result;
-    private final String stepLog;
+    private final Result result;    
     private final Embed embed;
     private final List<FeatureResult> callResults;
     private final boolean hidden;
+    
+    private String stepLog;
+    
+    public void appendToStepLog(String log) {
+        if (log == null || stepLog == null) {
+            return;
+        }
+        stepLog = stepLog + log;
+    }
 
     static {
         DUMMY_MATCH = new HashMap(2);
