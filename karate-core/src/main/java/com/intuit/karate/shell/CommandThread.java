@@ -106,10 +106,13 @@ public class CommandThread extends Thread {
 
     public void run() {
         try {
-            LOGGER.debug("command: {}", argList);
+            logger.debug("command: {}", argList);
             ProcessBuilder pb = new ProcessBuilder(args);
-            Map env = pb.environment();
+            Map<String, String> env = pb.environment();
+            String path = env.get("PATH");
+            logger.debug("env PATH: {}", path);
             env.clear();
+            env.put("PATH", path);
             pb.directory(workingDir);
             pb.redirectErrorStream(true);
             process = pb.start();            

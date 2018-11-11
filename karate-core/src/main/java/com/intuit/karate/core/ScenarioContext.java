@@ -53,6 +53,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -909,7 +910,10 @@ public class ScenarioContext {
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
         if (driver == null) {
-            Map<String, Object> options = config.getDriverOptions();            
+            Map<String, Object> options = config.getDriverOptions();
+            if (options == null) {
+                options = new HashMap();
+            }
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }
