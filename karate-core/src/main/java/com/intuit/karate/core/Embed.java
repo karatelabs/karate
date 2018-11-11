@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
 import java.util.Base64;
 
 /**
@@ -52,6 +53,10 @@ public class Embed {
     
     public String getBase64() {
         return Base64.getEncoder().encodeToString(bytes);
+    }
+    
+    public String getAsString() {
+        return FileUtils.toString(bytes);
     }
     
 }

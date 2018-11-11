@@ -23,5 +23,5 @@ Scenario: try to login to github
   Then match driver.location == 'https://github.com/intuit/karate'
 
   * def bytes = driver.screenshot()
-  * eval karate.write(bytes, 'github-karate.png')
+  * eval karate.embed(bytes, 'image/png')
    

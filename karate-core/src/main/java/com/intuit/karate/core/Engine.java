@@ -349,6 +349,29 @@ public class Engine {
         if (sb.length() > 0) {
             parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
         }
+        Embed embed = stepResult.getEmbed();
+        if (embed != null) {
+            Node embedNode;
+            String mimeType = embed.getMimeType().toLowerCase();
+            if (mimeType.contains("image")) {
+                embedNode = node(doc, "img", null);
+                String src = "data:" + embed.getMimeType() + ";base64," + embed.getBase64();
+                XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
+            } else if (mimeType.contains("html")) {
+                Node html;
+                try {
+                    html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
+                } catch (Exception e) {
+                    html = div(doc, null, e.getMessage());
+                }
+                html = doc.importNode(html, true);
+                embedNode = div(doc, null, html);
+            } else {
+                embedNode = div(doc, null);
+                embedNode.setTextContent(embed.getAsString());
+            }
+            parent.appendChild(div(doc, "embed", embedNode));
+        }
         List<FeatureResult> callResults = stepResult.getCallResults();
         if (callResults != null) { // this is a 'call'
             for (FeatureResult callResult : callResults) {
@@ -391,8 +414,8 @@ public class Engine {
         File file = new File(targetDir + File.separator + fileName);
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
-            FileUtils.writeToFile(file, xml);            
-            System.out.println("HTML report: (paste into browser to view) | Karate version: " 
+            FileUtils.writeToFile(file, xml);
+            System.out.println("HTML report: (paste into browser to view) | Karate version: "
                     + FileUtils.getKarateVersion() + "\n"
                     + file.toURI()
                     + "\n---------------------------------------------------------\n");
@@ -405,7 +428,7 @@ public class Engine {
     private static long getElapsedTime(long startTime) {
         return System.nanoTime() - startTime;
     }
-    
+
     public static File saveStatsJson(String targetDir, Results results, String fileName) {
         String json = JsonUtils.toJson(results.toMap());
         if (fileName == null) {
@@ -413,7 +436,7 @@ public class Engine {
         }
         File file = new File(targetDir + File.separator + fileName);
         FileUtils.writeToFile(file, json);
-        return file;        
+        return file;
     }
 
     public static File saveTimelineHtml(String targetDir, Results results, String fileName) {
@@ -431,7 +454,7 @@ public class Engine {
             Map<String, Object> item = new LinkedHashMap(7);
             items.add(item);
             item.put("id", id++);
-            item.put("group", groupId);            
+            item.put("group", groupId);
             Scenario s = sr.getScenario();
             String featureName = s.getFeature().getResource().getFileNameWithoutExtension();
             String content = featureName + s.getDisplayMeta();

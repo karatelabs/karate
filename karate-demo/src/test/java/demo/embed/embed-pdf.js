@@ -1,4 +1,4 @@
-function(o) {
+function fn(o) {
     var time = java.lang.System.currentTimeMillis();
     var pdfPath = time + '.pdf';
     karate.write(o, pdfPath);
