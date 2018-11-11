@@ -1,4 +1,4 @@
-function(name) {
+function fn(name) {
   var response = karate.get('response');
   var list = response[name];
   if (!list) {

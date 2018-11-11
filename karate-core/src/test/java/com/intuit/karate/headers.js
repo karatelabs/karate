@@ -1,4 +1,4 @@
-function() {
+function fn() {
   var out = {
     foo: 'bar_' + someConfig // someConfig is 'start-up' config, will never change
   };

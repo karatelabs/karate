@@ -1,4 +1,4 @@
-function() {
+function fn() {
   var token = karate.get('token');
   var time = karate.get('time');
   if (token && time) {

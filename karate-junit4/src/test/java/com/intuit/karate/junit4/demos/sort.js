@@ -1,4 +1,4 @@
-function(array) {
+function fn(array) {
   var ArrayList = Java.type('java.util.ArrayList')
   var Collections = Java.type('java.util.Collections')
   var list = new ArrayList();
