@@ -81,7 +81,7 @@ public class DriverOptions {
         timeout = get("timeout", DEFAULT_TIMEOUT);
         type = get("type", null);
         port = get("port", defaultPort);
-        start = get("start", false);
+        start = get("start", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
         showProcessLog = get("showProcessLog", false);

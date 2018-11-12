@@ -1,11 +1,11 @@
 Feature: browser automation
 
 Background:
-  * configure driver = { type: 'chrome', start: true }
-  # * configure driver = { type: 'chromedriver', start: true }
-  # * configure driver = { type: 'geckodriver', start: true }
-  # * configure driver = { type: 'safaridriver', start: true }
-  # * configure driver = { type: 'mswebdriver', start: true }
+  * configure driver = { type: 'chrome' }
+  # * configure driver = { type: 'chromedriver' }
+  # * configure driver = { type: 'geckodriver' }
+  # * configure driver = { type: 'safaridriver' }
+  # * configure driver = { type: 'mswebdriver' }
 
 Scenario: try to login to github
     and then do a google search

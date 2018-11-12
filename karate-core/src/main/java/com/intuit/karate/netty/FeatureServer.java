@@ -123,7 +123,7 @@ public class FeatureServer {
                     .childHandler(initializer);
             channel = b.bind(requestedPort).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
-            host = isa.getHostString();
+            host = "127.0.0.1"; //isa.getHostString();
             port = isa.getPort();
             logger.info("server started - {}://{}:{}", ssl ? "https" : "http", host, port);
         } catch (Exception e) {

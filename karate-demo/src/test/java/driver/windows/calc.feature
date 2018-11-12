@@ -1,7 +1,7 @@
 Feature:
 
   Background:
-    * configure driver = { type: 'winappdriver', start: true }
+    * configure driver = { type: 'winappdriver' }
 
     Scenario:
       Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }

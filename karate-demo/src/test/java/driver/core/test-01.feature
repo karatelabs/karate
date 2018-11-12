@@ -100,10 +100,10 @@ Scenario Outline: using <config>
 
 Examples:
     | config | dimensions |
-    | { type: 'chrome', start: true } | { left: 0, top: 0, width: 300, height: 800 } |
-    | { type: 'chromedriver', start: true } | { left: 300, top: 0, width: 300, height: 800 } |
-    | { type: 'geckodriver', start: true } | { left: 600, top: 0, width: 300, height: 800 } |
-    # | { type: 'safaridriver', start: true } | { left: 700, top: 0, width: 300, height: 800 } |
-    # | { type: 'mswebdriver', port: 17556, start: true } |
-    # | { type: 'msedge', timeout: 5000, start: true } |
+    | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
+    | { type: 'chromedriver' } | { left: 300, top: 0, width: 300, height: 800 } |
+    | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
+    # | { type: 'safaridriver' } | { left: 700, top: 0, width: 300, height: 800 } |
+    # | { type: 'mswebdriver' } |
+    # | { type: 'msedge' } |
     

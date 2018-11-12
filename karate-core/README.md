@@ -69,13 +69,24 @@ Another example for WebDriver, again assuming that `chromedriver` is in the `PAT
 
 key | description
 --- | -----------
-`type` | [`chrome`](https://chromedevtools.github.io/devtools-protocol/) - "native" Chrome automation via the DevTools protocol <br/>[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) <br/>[`geckodriver`](https://github.com/mozilla/geckodriver) <br/>[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) <br/>[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) <br/>[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) (*Very* Experimental - using the DevTools protocol) <br/>[`winappdriver`](https://github.com/Microsoft/WinAppDriver) - Windows Desktop automation, similar to Appium 
+`type` | see [driver types](#driver-types)
 `executable` | if present, Karate will attempt to invoke this, if not in the system `PATH`, you can use a full-path instead of just the name of the executable. batch files should also work
-`start` | if `true`, you can omit the `executable` and Karate will try to use the default for the OS in use
+`start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
 `headless` | only applies to `type: 'chrome'` for now
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
+
+# Driver Types
+type | description
+---- | -----------
+[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | "native" Chrome automation via the DevTools protocol
+[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) |
+[`geckodriver`](https://github.com/mozilla/geckodriver) |
+[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) |
+[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) |
+[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | *Very* Experimental - using the DevTools protocol) |
+[`winappdriver`](https://github.com/Microsoft/WinAppDriver) | Windows Desktop automation, similar to Appium
 
 ## `driver`
 Navigate to a web-address and initializes the `driver` instance for future step operations. And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [config](https://github.com/intuit/karate#configuration). Example:
