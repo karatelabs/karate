@@ -33,7 +33,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature)
 
-# Syntax Guide
+# Driver Configuration
 
 ## `configure driver`
 
@@ -41,7 +41,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 This will actually start Chrome on both Mac OS and Windows from the default installed location.
 
 ```cucumber
-* configure driver = { type: 'chrome', start: true }
+* configure driver = { type: 'chrome' }
 ```
 
 If you want to customize the start-up, you can use a batch-file:
@@ -80,26 +80,13 @@ key | description
 # Driver Types
 type | description
 ---- | -----------
-[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | "native" Chrome automation via the DevTools protocol
+[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) |
 [`geckodriver`](https://github.com/mozilla/geckodriver) |
 [`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) |
 [`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) |
-[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | *Very* Experimental - using the DevTools protocol) |
+[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | *very* experimental - using the DevTools protocol
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | Windows Desktop automation, similar to Appium
-
-## `driver`
-Navigate to a web-address and initializes the `driver` instance for future step operations. And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [config](https://github.com/intuit/karate#configuration). Example:
-
-```cucumber
-Given driver webUrlBase + '/page-01'
-```
-### `driver` JSON
-A variation where the argument is JSON instead of a URL / address-string, used only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
-
-```cucumber
-Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
-```
 
 # Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
@@ -118,10 +105,28 @@ win | (none) | name | `Submit`
 win | `@` | accessibility id | `@CalculatorResults`
 win | `#` | id | `#MyButton`
 
-# JS API
-You use the built-in `driver` object to script UI automation.
+# Keywords
+Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
->> Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and as a convenience, you can omit the `eval` keyword when executing an action - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
+## `driver`
+Navigate to a web-address and initializes the `driver` instance for future step operations. And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [config](https://github.com/intuit/karate#configuration). Example:
+
+```cucumber
+Given driver webUrlBase + '/page-01'
+```
+### `driver` JSON
+A variation where the argument is JSON instead of a URL / address-string, used only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
+
+```cucumber
+Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
+```
+
+# JS API
+The built-in `driver` JS object is where you script UI automation.
+
+Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and as a convenience, you can omit the `eval` keyword when executing an action - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
+
+You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
 ## `driver.location`
 Get the current URL / address for matching. Example:
