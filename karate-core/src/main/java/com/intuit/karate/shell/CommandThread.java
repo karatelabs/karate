@@ -112,7 +112,6 @@ public class CommandThread extends Thread {
             String path = env.get("PATH");
             logger.debug("env PATH: {}", path);
             env.clear();
-            env.put("PATH", path);
             pb.directory(workingDir);
             pb.redirectErrorStream(true);
             process = pb.start();            
