@@ -204,6 +204,8 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
     protected void buildUrl(String url) {
         try {
             uriBuilder = new URIBuilder(url);
+            // Resetting the path to enable allow correct build of uriBuilder.buildstring()
+            uriBuilder.setPath(uriBuilder.getPath());
             build();
         } catch (Exception e) {
             throw new RuntimeException(e);
