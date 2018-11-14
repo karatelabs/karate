@@ -23,15 +23,9 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.CallContext;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.FeatureSection;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioExecutionUnit;
-import com.intuit.karate.core.ScenarioOutline;
-import com.intuit.karate.core.Tags;
 import java.io.File;
-import java.util.Collections;
+import javafx.embed.swing.JFXPanel;
+import javafx.scene.layout.BorderPane;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,30 +34,16 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class AppSessionTest {
+public class AppSessionRunner {
 
-    private static final Logger logger = LoggerFactory.getLogger(AppSessionTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(AppSessionRunner.class);
 
     @Test
     public void testRunning() {
         File tempFile = new File("src/test/java/com/intuit/karate/ui/test.feature");
-        AppSession session = new AppSession(tempFile, null, true);
-        ExecutionContext ec = new ExecutionContext(System.currentTimeMillis(), session.getFeatureContext(), new CallContext(null, true), null, null, null, null);
-        for (FeatureSection section : session.getFeature().getSections()) {
-            if (section.isOutline()) {
-                ScenarioOutline outline = section.getScenarioOutline();
-                for (Scenario scenario : outline.getScenarios()) {
-                    call(scenario, ec);
-                }
-            } else {
-                call(section.getScenario(), ec);
-            }
-        }
-    }
-
-    private static void call(Scenario scenario, ExecutionContext ec) {
-        ScenarioExecutionUnit exec = new ScenarioExecutionUnit(scenario, null, ec);
-        exec.run();
+        JFXPanel fxPanel = new JFXPanel();
+        AppSession session = new AppSession(new BorderPane(), new File("."), tempFile, null);
+        
     }
 
 }

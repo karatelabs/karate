@@ -217,11 +217,11 @@ public class Feature {
     }
 
     public Path getPath() {
-        return resource.getPath();
+        return resource == null ? null: resource.getPath();
     }
 
     public String getRelativePath() {
-        return resource.getRelativePath();
+        return resource == null ? null : resource.getRelativePath();
     }
 
     public int getLine() {

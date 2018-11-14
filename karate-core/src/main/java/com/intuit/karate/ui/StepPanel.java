@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,22 +23,19 @@
  */
 package com.intuit.karate.ui;
 
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.Result;
+import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.collections.ObservableList;
-import javafx.scene.Node;
-import javafx.scene.control.*;
+import com.intuit.karate.core.StepResult;
+import javafx.scene.Scene;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SplitMenuButton;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.AnchorPane;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Optional;
-import java.util.regex.Pattern;
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
 
 /**
  *
@@ -46,176 +43,123 @@ import java.util.regex.Pattern;
  */
 public class StepPanel extends AnchorPane {
 
-    private static final Logger logger = LoggerFactory.getLogger(StepPanel.class);
-
     private final AppSession session;
-    private final TextArea textArea;
-    private final Button runButton;
-    private Button stepIntoFeatureButton;
-    private Optional<Button> runAllUptoButton = Optional.empty();
-    private final Optional<StepPanel> previousPanel;
-    private String oldText;
-    private Step step;
-    private Boolean pass = null;
-    private BooleanProperty nonFeature = new SimpleBooleanProperty(Boolean.TRUE);
-    private BooleanBinding featureCall = nonFeature.not();
-    private VarLists stepVarLists;
+    private final ScenarioPanel scenarioPanel;
+    private final ScenarioExecutionUnit unit;
+    private final Step step;
+    private final SplitMenuButton runButton;
+    private final int index;
+
+    private String text;
+    private boolean last;
 
     private static final String STYLE_PASS = "-fx-base: #53B700";
     private static final String STYLE_FAIL = "-fx-base: #D52B1E";
     private static final String STYLE_METHOD = "-fx-base: #34BFFF";
     private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
     private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
-    private static final Pattern callPattern = Pattern.compile("\\s*(.*=)?\\s*call\\s*read.*");
 
-    public StepPanel(AppSession session, Step step, Optional<StepPanel> previousPanel) {
+    public boolean isLast() {
+        return last;
+    }
+
+    public void setLast(boolean last) {
+        this.last = last;
+    }
+
+    private final MenuItem runMenuItem;
+    private final MenuItem calledMenuItem;
+    private boolean runUpto;
+    private boolean showCalled;
+    
+    private String getRunMenuText() {
+        return runUpto ? "run this step" : "TODO: run upto this step";
+    }
+    
+    private String getCalledMenuText() {
+        return showCalled ? "hide called" : "show called";
+    }    
+
+    public StepPanel(AppSession session, ScenarioPanel scenarioPanel, Step step, int index) {
         this.session = session;
-        this.previousPanel = previousPanel;
-        runButton = new Button("►");
-        textArea = new TextArea();
+        this.unit = scenarioPanel.getScenarioExecutionUnit();
+        this.scenarioPanel = scenarioPanel;
+        this.step = step;
+        this.index = index;
+        TextArea textArea = new TextArea();
         textArea.setFont(App.getDefaultFont());
-        textArea.setMinHeight(0);
         textArea.setWrapText(true);
+        textArea.setMinHeight(0);
+        text = step.toString();
+        int lines = StringUtils.wrappedLinesEstimate(text, 30);
+        textArea.setText(text);
+        textArea.setPrefRowCount(lines);
         textArea.focusedProperty().addListener((val, before, after) -> {
             if (!after) { // if we lost focus
-                rebuildFeatureIfTextChanged();
-            } else {
-                session.refreshVarsTable(stepVarLists);
+                String temp = textArea.getText();
+                if (!text.equals(temp)) {
+                    text = temp;
+                    FeatureParser.updateStepFromText(step, text);
+                }
             }
         });
-        this.step = step;
-        initTextArea();
-        runButton.disableProperty().bind(session.isRunningNow());
-        runButton.setOnAction(e -> run());
-        stepIntoFeatureButton = new Button("⇲");
-        stepIntoFeatureButton.visibleProperty().bind(featureCall);
-        stepIntoFeatureButton.setTooltip(new Tooltip("Step into feature"));
-        stepIntoFeatureButton.setOnAction(e -> session.stepIntoFeature(this));
-        setUpTextAndRunButtons(previousPanel, getChildren());
-    }
-
-    private void setUpTextAndRunButtons(Optional<StepPanel> previousPanel, ObservableList<Node> children) {
-        children.addAll(textArea, runButton, stepIntoFeatureButton);
-        setUpRunAllUptoButton(previousPanel, children);
+        runMenuItem = new MenuItem(getRunMenuText());
+        runMenuItem.setOnAction(e -> { runUpto = !runUpto; runMenuItem.setText(getRunMenuText());});
+        calledMenuItem = new MenuItem(getCalledMenuText());
+        calledMenuItem.setOnAction(e -> { showCalled = !showCalled; calledMenuItem.setText(getCalledMenuText());});
+        runButton = new SplitMenuButton(runMenuItem, calledMenuItem);
+        runButton.setText("►");
+        runButton.setOnAction(e -> {
+            if (FeatureParser.updateStepFromText(step, text)) {
+                run(false);
+            } else {
+                runButton.setStyle(STYLE_FAIL);
+            }
+        });
+        // layout
         setLeftAnchor(textArea, 0.0);
-        setRightAnchor(textArea, 104.0);
+        setRightAnchor(textArea, 32.0);
         setBottomAnchor(textArea, 0.0);
-        setRightAnchor(runButton, 32.0);
-        setTopAnchor(runButton, 2.0);
+        setRightAnchor(runButton, 3.0);
+        setTopAnchor(runButton, 0.0);
         setBottomAnchor(runButton, 0.0);
-        setRightAnchor(stepIntoFeatureButton, 0.0);
-        setTopAnchor(stepIntoFeatureButton, 2.0);
-        setBottomAnchor(stepIntoFeatureButton, 0.0);
+        // add
+        getChildren().addAll(textArea, runButton);
+        initStyles();
     }
 
-    private void setUpRunAllUptoButton(Optional<StepPanel> previousPanel, ObservableList<Node> children) {
-        if (previousPanel.isPresent()) {
-            final Button button = new Button("►►");
-            button.disableProperty().bind(session.isRunningNow());
-            runAllUptoButton = Optional.of(button);
-            button.setTooltip(new Tooltip("Run all steps upto current step"));
-            button.setOnAction(e -> session.runUpto(this));
-            children.add(button);
-            setRightAnchor(button, 64.0);
-            setTopAnchor(button, 2.0);
-            setBottomAnchor(button, 0.0);
-        }
-    }
-    
-    private void rebuildFeatureIfTextChanged() {
-        String newText = textArea.getText();
-        if (!newText.equals(oldText)) {
-            nonFeature.setValue(callPattern.matcher(oldText).matches() ? false : true);
-            session.replace(step, newText);
-        }        
-    }
-    
-    private void run() {
-        rebuildFeatureIfTextChanged();
-        Feature feature = session.getFeature();
-        Result result = Engine.executeStep(step, session.getActions());
-        pass = !result.isFailed();
-        initStyleColor();
-        stepVarLists = session.getVars();
-        session.refreshVarsTable(stepVarLists);
-        if (!pass) {
-            throw new StepException(result);
-        }
-    }
-
-    void runAllUpto() {
-        previousPanel.ifPresent(p -> p.runAllUpto());
-        if (pass == null) {
-            run();
-        }
-    }
-
-    private void setStyleForRunAllUptoButton(String style) {
-        runAllUptoButton.ifPresent(b -> b.setStyle(style));
-    }
-
-    public void action(AppAction action) {
-        switch (action) {
-            case REFRESH:
-                step = session.refresh(step);
-                initTextArea();
-                break;
-            case RESET:
-                pass = null;
-                stepVarLists = null;
-                initStyleColor();
-                break;
-            case RUN:
-                if (pass == null) {
-                    run();
-                }
-                break;
-        }
-    }
-    
-    private void initStyleColor() {
-        if (pass == null) {
+    public void initStyles() {
+        StepResult sr = unit.result.getStepResult(index);
+        if (sr == null) {
             runButton.setStyle("");
-            setStyleForRunAllUptoButton("");
-        } else if (pass) {
+        } else if (sr.getResult().getStatus().equals("passed")) {
             runButton.setStyle(STYLE_PASS);
-            setStyleForRunAllUptoButton(STYLE_PASS);
         } else {
             runButton.setStyle(STYLE_FAIL);
-            setStyleForRunAllUptoButton(STYLE_FAIL);
-        }       
+        }
     }
 
-    private void initTextArea() {
-        oldText = step.getPrefix() + " " + step.getText();
-        nonFeature.setValue(callPattern.matcher(oldText).matches() ? false : true);
-        textArea.setText(oldText);
-        int lineCount = step.getLineCount();
-        if (lineCount == 1) {
-            int wrapEstimate = (int) Math.ceil(oldText.length() / 35);
-            if (wrapEstimate > 1) {
-                lineCount = wrapEstimate;
-            } else {
-                lineCount = 0;
-            }
-        }
-        textArea.setPrefRowCount(lineCount);
-        String stepText = step.getText();
-        boolean isMethod = stepText.startsWith("method") || stepText.startsWith("soap");
-        if (isMethod) {
-            setStyle(STYLE_METHOD);
-            textArea.setStyle(STYLE_METHOD);
+    public boolean run(boolean nonStop) {
+        if (!nonStop && showCalled) {
+            unit.getContext().setCallable(callContext -> {
+                AppSession calledSession = new AppSession(new BorderPane(), session.getWorkingDir(), callContext.feature, null, callContext);
+                Stage stage = new Stage();
+                stage.setTitle(callContext.feature.getRelativePath());
+                stage.setScene(new Scene(calledSession.getRootPane(), 700, 450));
+                stage.showAndWait();
+                FeatureResult result = calledSession.getFeatureExecutionUnit().exec.result;
+                result.setResultVars(calledSession.getCurrentlyExecutingScenario().getContext().vars);
+                return result;
+            });
         } else {
-            setStyle(STYLE_DEFAULT);
+            unit.getContext().setCallable(null);
         }
-        if (step.isBackground()) {
-            textArea.setStyle(STYLE_BACKGROUND);
-        }
-        initStyleColor();
-    }
-
-    public int getStepIndex() {
-        return step.getIndex();
+        StepResult stepResult = unit.execute(step);
+        unit.result.setStepResult(index, stepResult);
+        session.setCurrentlyExecutingScenario(unit);
+        initStyles();
+        scenarioPanel.refreshVars();
+        return stepResult.isStopped();
     }
 
 }

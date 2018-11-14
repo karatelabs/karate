@@ -77,9 +77,11 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     public static Feature parseText(Feature old, String text) {
-        Feature feature = new Feature(old.getResource());
+        Feature feature = old == null ? new Feature(null) : new Feature(old.getResource());
         feature = new FeatureParser(feature, FileUtils.toInputStream(text)).feature;
-        feature.setCallTag(old.getCallTag());
+        if (old != null) {
+            feature.setCallTag(old.getCallTag());
+        }
         feature.setLines(StringUtils.toStringLines(text));
         return feature;
     }

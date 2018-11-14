@@ -43,7 +43,8 @@ public class FeatureContext {
     public final Feature feature;
     public final Logger logger;
     public final Path parentPath;
-    public final Map<String, CallResult> callCache;  
+    public final Map<String, CallResult> callCache;
+    public final String packageQualifiedName;
 
     private static String getEnv(String envString) {
         String temp = StringUtils.trimToNull(envString);
@@ -58,8 +59,9 @@ public class FeatureContext {
         this.tagSelector = tagSelector;
         this.feature = feature;
         this.callCache = new HashMap(1);
-        this.logger = logger;
+        this.logger = logger;        
         this.parentPath = workingDir == null ? feature.getPath().getParent() : workingDir.toPath();
+        this.packageQualifiedName = workingDir == null ? feature.getResource().getPackageQualifiedName() : "";
     }
     
     public static FeatureContext forEnv(String env) {

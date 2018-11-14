@@ -39,10 +39,10 @@ public class LogPanel extends BorderPane {
     private final TextArea textArea;
 
     public LogPanel(Logger logger) {
-        setPadding(App2.PADDING_ALL);
+        setPadding(App.PADDING_ALL);
         textArea = new TextArea();
         TextAreaLogAppender.init(logger, textArea);
-        textArea.setFont(App2.getDefaultFont());
+        textArea.setFont(App.getDefaultFont());
         Button clearButton = new Button("Clear Log");
         clearButton.setOnAction(e -> textArea.clear());
         setCenter(textArea);

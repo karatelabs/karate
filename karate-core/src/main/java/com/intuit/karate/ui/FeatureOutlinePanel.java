@@ -25,6 +25,7 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+import java.nio.file.Path;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -42,25 +43,26 @@ import javafx.scene.layout.VBox;
  */
 public class FeatureOutlinePanel extends BorderPane {
 
-    private final AppSession2 session;
+    private final AppSession session;
     private ListView<ScenarioExecutionUnit> listView;
     private final ScrollPane scrollPane;
     private final List<ScenarioExecutionUnit> units;    
 
-    public FeatureOutlinePanel(AppSession2 session) {
+    public FeatureOutlinePanel(AppSession session) {
         this.session = session;
         this.units = session.getScenarioExecutionUnits();
-        setPadding(App2.PADDING_HOR);
+        setPadding(App.PADDING_HOR);
         scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
-        VBox header = new VBox(App2.PADDING);
-        header.setPadding(App2.PADDING_VER);
+        VBox header = new VBox(App.PADDING);
+        header.setPadding(App.PADDING_VER);
         setTop(header);
         Feature feature = session.getFeatureExecutionUnit().exec.featureContext.feature;
-        Label featureLabel = new Label(feature.getPath().getFileName().toString());
+        Path path = feature.getPath();
+        Label featureLabel = new Label(path == null ? "" : path.getFileName().toString());
         header.getChildren().add(featureLabel);
-        HBox hbox = new HBox(App2.PADDING);
+        HBox hbox = new HBox(App.PADDING);
         header.getChildren().add(hbox);
         Button resetButton = new Button("Reset");
         resetButton.setOnAction(e -> session.resetAll());

@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Intuit Inc.
+ * Copyright 2018 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,174 +25,115 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.StepActions;
+import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureSection;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioOutline;
-import com.intuit.karate.core.Step;
+import com.intuit.karate.core.ScenarioExecutionUnit;
 import java.io.File;
-
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.collections.FXCollections;
+import java.util.ArrayList;
+import java.util.List;
+import javafx.scene.layout.BorderPane;
 
 /**
  *
  * @author pthomas3
  */
 public class AppSession {
+
+    private final Logger logger = new Logger();
+    private final ExecutionContext exec;
+    private final FeatureExecutionUnit featureUnit;
+
+    private final BorderPane rootPane;
+    private final File workingDir;
+    private final FeatureOutlinePanel featureOutlinePanel;
+    private final LogPanel logPanel;
+
+    private final List<ScenarioPanel> scenarioPanels;  
     
-    private Feature feature; // mutable, can be re-built    
-    private String envString; // can be changed
+    private ScenarioExecutionUnit currentlyExecutingScenario;
     
-    public final File featureFile;
-    public final HeaderPanel headerPanel;
-    public final FeaturePanel featurePanel;
-    public final VarsPanel varsPanel;
-    public final LogPanel logPanel;
-    public final HttpPanel httpPanel;
-    public final Logger logger = new Logger();
+    public AppSession(BorderPane rootPane, File workingDir, File featureFile, String env) {
+        this(rootPane, workingDir, FeatureParser.parse(featureFile), env);
+    }     
     
-    private StepActions actions;
+    public AppSession(BorderPane rootPane, File workingDir, String featureText, String env) {
+        this(rootPane, workingDir, FeatureParser.parseText(null, featureText), env);
+    }  
     
-    RunService runner;
-    BooleanBinding runningNow;
-    BooleanProperty notRunning;
-    
-    public Feature getFeature() {
-        return feature;
+    public AppSession(BorderPane rootPane, File workingDir, Feature feature, String envString) {
+        this(rootPane, workingDir, feature, envString, new CallContext(null, true));
+    }     
+
+    public AppSession(BorderPane rootPane, File workingDir, Feature feature, String env, CallContext callContext) {
+        this.rootPane = rootPane;
+        this.workingDir = workingDir;
+        FeatureContext featureContext = new FeatureContext(env, feature, workingDir, logger);
+        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null, null);
+        featureUnit = new FeatureExecutionUnit(exec);
+        featureUnit.init();
+        featureOutlinePanel = new FeatureOutlinePanel(this);
+        DragResizer.makeResizable(featureOutlinePanel, false, false, false, true);
+        List<ScenarioExecutionUnit> units = featureUnit.getScenarioExecutionUnits();
+        scenarioPanels = new ArrayList(units.size());
+        units.forEach(unit -> scenarioPanels.add(new ScenarioPanel(this, unit)));
+        rootPane.setLeft(featureOutlinePanel);        
+        logPanel = new LogPanel(logger);
+        DragResizer.makeResizable(logPanel, false, false, true, false);
+        rootPane.setBottom(logPanel);
     }
 
-    public AppSession(File featureFile, String envString) {
-        this(featureFile, envString, false);
+    public void resetAll() {
+    	scenarioPanels.forEach(scenarioPanel -> scenarioPanel.reset());
     }
 
-    public StepActions getActions() {
-        return actions;
-    }    
-
-    public FeatureContext getFeatureContext() {
-        return actions.context.getFeatureContext();
-    }
-    
-    public void resetBackendAndVarsTable(String envString) {
-        if (envString == null) {
-            envString = this.envString;
-        }
-        FeatureContext featureContext = new FeatureContext(envString, feature, null, logger);
-        actions = new StepActions(featureContext, new CallContext(null, true));
-        refreshVarsTable();        
-    }
-
-    public void resetAll(String env) {
-        resetBackendAndVarsTable(env);
-        featurePanel.action(AppAction.RESET);
-    }
-    
     public void runAll() {
-        synchronized (notRunning) {
-            notRunning.setValue(false);
-            runner.runUptoStep(null);
-        }
+    	scenarioPanels.forEach(scenarioPanel -> scenarioPanel.runAll());
     }
 
-    public void runUpto(StepPanel stepPanel) {
-        synchronized (notRunning) {
-            notRunning.setValue(false);
-            runner.runUptoStep(stepPanel);
-        }
+    public BorderPane getRootPane() {
+        return rootPane;
     }
 
-    public AppSession(File featureFile, String envString, boolean test) {
-        this.featureFile = featureFile;
-        feature = FeatureParser.parse(featureFile);
-        this.envString = envString;
-        resetBackendAndVarsTable(envString);
-        if (!test) {
-            notRunning = new SimpleBooleanProperty(Boolean.TRUE);
-            runningNow = notRunning.not();
-            runner = new RunService(this);
-            headerPanel = new HeaderPanel(this);
-            featurePanel = new FeaturePanel(this);
-            varsPanel = new VarsPanel(this, FXCollections.emptyObservableList());
-            logPanel = new LogPanel(logger);
-            httpPanel = new HttpPanel();
-        } else {
-            headerPanel = null;
-            featurePanel = null;
-            varsPanel = null;
-            logPanel = null;
-            httpPanel = null;
+    public FeatureOutlinePanel getFeatureOutlinePanel() {
+        return featureOutlinePanel;
+    }
+
+    public void setCurrentlyExecutingScenario(ScenarioExecutionUnit unit) {
+        this.currentlyExecutingScenario = unit;
+    }
+
+    public ScenarioExecutionUnit getCurrentlyExecutingScenario() {
+        return currentlyExecutingScenario;
+    }        
+    
+    public void setSelectedScenario(int index) {
+        if (index == -1 || scenarioPanels == null || index > scenarioPanels.size() || scenarioPanels.isEmpty()) {
+            return;
         }
+        rootPane.setCenter(scenarioPanels.get(index));
+    }
+
+    public Logger getLogger() {
+        return logger;
+    }
+
+    public FeatureExecutionUnit getFeatureExecutionUnit() {
+        return featureUnit;
+    }
+
+    public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
+        return featureUnit.getScenarioExecutionUnits();
     }
 
     public void logVar(Var var) {
-        if (logPanel != null) {
-            logPanel.append(var.toString());
-        }
+        logPanel.append(var.toString());
     }
 
-    public void refreshVarsTable() {
-        // show session vars (last executed step)
-        refreshVarsTable(getVars());
-    }
+    public File getWorkingDir() {
+        return workingDir;
+    }        
 
-    public void refreshVarsTable(VarLists stepVarLists) {
-        if (varsPanel != null) { // just in case called from constructor
-            varsPanel.refresh(stepVarLists);
-            httpPanel.refresh(stepVarLists);
-        }
-    }
-
-    public FeatureSection refresh(FeatureSection section) {
-        return feature.getSection(section.getIndex());
-    }
-
-    public ScenarioOutline refresh(ScenarioOutline outline) {
-        return feature.getSection(outline.getSection().getIndex()).getScenarioOutline();
-    }
-
-    public Scenario refresh(Scenario scenario) {
-        return feature.getScenario(scenario.getSection().getIndex(), scenario.getIndex());
-    }
-
-    public Step refresh(Step step) {
-        int stepIndex = step.getIndex();
-        int scenarioIndex = step.getScenario().getIndex();
-        int sectionIndex = step.getScenario().getSection().getIndex();
-        return feature.getStep(sectionIndex, scenarioIndex, stepIndex);
-    }
-
-    public void replace(Step step, String text) {
-        feature = feature.replaceStep(step, text);
-        featurePanel.action(AppAction.REFRESH);
-        headerPanel.initTextContent();
-    }
-
-    public void replaceFeature(String text) {
-        feature = feature.replaceText(text);
-        featurePanel.refresh();
-    }
-
-    public VarLists getVars() {
-        return new VarLists(actions == null ? null : actions.context);
-    }
-
-    public BooleanBinding isRunningNow() {
-        return runningNow;
-    }
-
-    public void markRunStopped() {
-        synchronized (notRunning) {
-            notRunning.setValue(true);
-        }
-    }
-
-    public void stepIntoFeature(StepPanel stepPanel) {
-        logPanel.append("TODO: stepIntoFeature coming soon to karate-ui");
-    }
 }

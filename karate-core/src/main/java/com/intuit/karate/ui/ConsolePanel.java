@@ -22,8 +22,8 @@ import javafx.scene.layout.HBox;
  */
 public class ConsolePanel extends BorderPane {
 
-	private final AppSession2 session;
-	private final ScenarioPanel2 scenarioPanel;
+	private final AppSession session;
+	private final ScenarioPanel scenarioPanel;
 	private final ScenarioExecutionUnit unit;
 	private final TextArea textArea;
 	private final Label resultLabel;
@@ -38,21 +38,21 @@ public class ConsolePanel extends BorderPane {
 	private boolean stepModified = false;
 	private boolean stepParseSuccess = false;
 
-	public ConsolePanel(AppSession2 session, ScenarioPanel2 scenarioPanel) {
+	public ConsolePanel(AppSession session, ScenarioPanel scenarioPanel) {
 		this.session = session;
 		this.unit = scenarioPanel.getScenarioExecutionUnit();
 		// Creating a dummy step for console
 		this.index = unit.scenario.getIndex() + 1;
 		this.step = new Step(unit.scenario.getFeature(), unit.scenario, index);
 		this.scenarioPanel = scenarioPanel;
-		setPadding(App2.PADDING_ALL);
+		setPadding(App.PADDING_ALL);
 		Label consoleLabel = new Label("Console");
 		consoleLabel.setStyle("-fx-font-weight: bold");
 		consoleLabel.setPadding(new Insets(0, 0, 3.0, 3.0));
 		setTop(consoleLabel);
-		setPadding(App2.PADDING_ALL);
+		setPadding(App.PADDING_ALL);
 		textArea = new TextArea();
-		textArea.setFont(App2.getDefaultFont());
+		textArea.setFont(App.getDefaultFont());
 		textArea.setWrapText(true);
 		textArea.setMinHeight(0);
 		textArea.setPromptText(consolePlaceHolder);
@@ -96,13 +96,13 @@ public class ConsolePanel extends BorderPane {
 				}
 			}
 		});
-		HBox hbox = new HBox(App2.PADDING);
+		HBox hbox = new HBox(App.PADDING);
 		hbox.setSpacing(5);
 		hbox.getChildren().addAll(runButton, resultLabel);
 		hbox.setMargin(runButton, new Insets(1.0, 0, 0, 0));
 		hbox.setMargin(resultLabel, new Insets(1.0, 0, 0, 0));
 		setBottom(hbox);
-		setMargin(hbox, App2.PADDING_TOP);
+		setMargin(hbox, App.PADDING_TOP);
 	}
 
 	public Result run() {

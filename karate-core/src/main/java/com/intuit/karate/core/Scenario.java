@@ -59,8 +59,10 @@ public class Scenario {
 
     public ScenarioInfo toInfo(Path featurePath) {
         ScenarioInfo info = new ScenarioInfo();
-        info.setFeatureDir(featurePath.getParent().toString());
-        info.setFeatureFileName(featurePath.getFileName().toString());
+        if (featurePath != null) {
+            info.setFeatureDir(featurePath.getParent().toString());
+            info.setFeatureFileName(featurePath.getFileName().toString());
+        }
         info.setScenarioName(name);
         info.setScenarioDescription(description);
         info.setScenarioType(getKeyword());
@@ -138,7 +140,7 @@ public class Scenario {
     public Collection<Tag> getTagsEffective() {
         if (tagsEffective == null) {
             tagsEffective = Tags.merge(feature.getTags(), tags);
-    }
+        }
         return tagsEffective;
     }
 
