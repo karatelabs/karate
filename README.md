@@ -177,7 +177,8 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#json-transforms">JSON Transforms</a>
     | <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
     | <a href="#http-header-manipulation">Header Manipulation</a> 
-    | <a href="#text">GraphQL</a>    
+    | <a href="#text">GraphQL</a>
+    | <a href="#async">Async</a>
   </td>
 </tr>
 <tr>
@@ -224,6 +225,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that deeply assert that server responses are OK under load
 * Gatling integration can even test [*any* Java code](https://github.com/intuit/karate/tree/master/karate-gatling#custom) which enables being able to test non-HTTP protocols such as [gRPC](https://thinkerou.com/karate-grpc/)
 * [API mock server](karate-netty) for test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
+* [Websocket](http://www.websocket.org) and [async](#async) support that even allows you to include listening to message-queues within a test
 * [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:
   * [SOAP](#soap-action) / XML requests
@@ -1769,7 +1771,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `ssl` | JSON | see [X509 certificate authentication](#x509-certificate-authentication)
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
-`connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds).
+`connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds). Note that for `karate-apache`, this sets the [socket timeout](https://stackoverflow.com/a/22722260/143475) to the same value as well.
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
@@ -3236,43 +3238,20 @@ Scenario: function re-use, isolated / name-spaced scope
     * assert utils.world() == 'world'
 ```
 
-## GraphQL / RegEx replacement example
-As a demonstration of Karate's power and flexibility, here is an example that reads a GraphQL string (which could be from a file) and manipulates it to build custom dynamic queries and filter criteria.
+## Async
+The JS API has a couple of methods - [`karate.signal(result)`](#karate-signal) and [`karate.listen(timeout)`](#karate-listen) that are useful for involving asynchronous flows into a test. Karate also has built-in support for [websocket](http://www.websocket.org) that is based on this async capability.
 
-Here we have this JavaScript utlity function `replacer.js` that uses a regular-expression to replace-inject a criteria expression into the right place, given a GraphQL query.
-
-```javascript
-function fn(args) {
-  var query = args.query;  
-  var regex = new RegExp('\\s' + args.field + '\\s*{'); // the RegExp object is standard JavaScript
-  return query.replace(regex, ' ' + args.field + '(' + args.criteria + ') {');
-} 
-```
-
-Once the function is declared, observe how calling it and performing the replacement is an elegant one-liner.
+This code is able to send as well as receive websocket messages. Note how you can ignore messages you aren't interested in:
 
 ```cucumber
-* def replacer = read('replacer.js')
-
-# this 'base GraphQL query' would also likely be read from a file in real-life
-* def query = 'query q { company { taxAgencies { edges { node { id, name } } } } }'
-
-# the next line is where the criteria is injected using the regex function
-* def query = call replacer { query: '#(query)', field: 'taxAgencies', criteria: 'first: 5' }
-
-# and here is the result of the 'replace'
-* assert query == 'query q { company { taxAgencies(first: 5) { edges { node { id, name } } } } }'
-
-Given request { query: '#(query)' }
-And header Accept = 'application/json'
-When method post
-Then status 200
-
-* def agencies = $.data.company.taxAgencies.edges
-* match agencies[0].node == { id: '#uuid', name: 'John Smith' }
+* def handler = function(msg){ if (msg.startsWith('hello')) karate.signal(msg) }
+* def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
+* eval socket.send('Billie')
+* def result = karate.listen(5000)
+* match result == 'hello Billie !'
 ```
 
-The example above is more for demonstration purposes and it is better practice to use [GraphQL variables](http://graphql.org/learn/queries/#variables) for dynamic queries. This example is a good reference: [`graphql.feature`](karate-demo/src/test/java/demo/graphql/graphql.feature). Also the [`replace`](#replace) keyword may be all you need for simple text placeholder substitution.
+For more details, please refer to [this discussion](https://github.com/intuit/karate/issues/395#issuecomment-434745214) which has links to the message-queue listener example as well.
 
 ## Cucumber Tags
 Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.

@@ -92,7 +92,8 @@ type | description
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
 
 ```cucumber
-And input input[name=someName] = 'test input'
+And driver.input('input[name=someName]', 'test input')
+When driver.submit("//input[@name='commit']")
 ```
 
 web ? | prefix | means | example

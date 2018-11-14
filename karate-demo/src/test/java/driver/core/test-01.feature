@@ -88,8 +88,8 @@ Scenario Outline: using <config>
   And match driver.text('#eg01Data2') == 'check2'
 
   Given driver.select('select[name=data1]', '*Two')
-  And driver.click('input[value=check2]')
-  And driver.click('input[value=check1]')
+  And driver.click('[value=check2]')
+  And driver.click('[value=check1]')
   When driver.submit('#eg02SubmitId')
   And match driver.text('#eg01Data1') == 'option2'
   And match driver.text('#eg01Data2') == '["check1","check2"]'
