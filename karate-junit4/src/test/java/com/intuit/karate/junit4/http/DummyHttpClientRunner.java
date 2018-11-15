@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.junit4.http;
 
+import com.intuit.karate.KarateOptions;
 import com.intuit.karate.junit4.Karate;
 import org.junit.runner.RunWith;
 
@@ -31,6 +32,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
+@KarateOptions(tags = "~@ignore")
 public class DummyHttpClientRunner {
     
 }

@@ -25,10 +25,12 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.StringUtils;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
 /**
  *
@@ -68,12 +70,128 @@ public class HttpConfig {
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
 
+    // retry config
+    private int retryInterval = 3000;
+    private int retryCount = 3;
+
     // report config
     private boolean showLog = true;
     private boolean showAllSteps = true;
 
     public HttpConfig() {
         // zero arg constructor
+    }
+
+    public boolean configure(String key, ScriptValue value) { // TODO use enum
+        key = StringUtils.trimToEmpty(key);
+        switch (key) {
+            case "headers":
+                headers = value;
+                return false;
+            case "cookies":
+                cookies = value;
+                return false;
+            case "responseHeaders":
+                responseHeaders = value;
+                return false;
+            case "lowerCaseResponseHeaders":
+                lowerCaseResponseHeaders = value.isBooleanTrue();
+                return false;
+            case "cors":
+                corsEnabled = value.isBooleanTrue();
+                return false;
+            case "logPrettyResponse":
+                logPrettyResponse = value.isBooleanTrue();
+                return false;
+            case "logPrettyRequest":
+                logPrettyRequest = value.isBooleanTrue();
+                return false;
+            case "printEnabled":
+                printEnabled = value.isBooleanTrue();
+                return false;
+            case "afterScenario":
+                afterScenario = value;
+                return false;
+            case "afterFeature":
+                afterFeature = value;
+                return false;
+            case "report":
+                if (value.isMapLike()) {
+                    Map<String, Object> map = value.getAsMap();
+                    showLog = (Boolean) map.get("showLog");
+                    showAllSteps = (Boolean) map.get("showAllSteps");
+                } else if (value.isBooleanTrue()) {
+                    showLog = true;
+                    showAllSteps = true;
+                } else {
+                    showLog = false;
+                    showAllSteps = false;
+                }
+                return false;
+            case "driver":
+                driverOptions = value.getAsMap();
+                return false;
+            // here on the http client has to be re-constructed ================
+            case "httpClientClass":
+                clientClass = value.getAsString();
+                return true;
+            case "httpClientInstance":
+                clientInstance = value.getValue(HttpClient.class);
+                return true;
+            case "charset":
+                charset = value.isNull() ? null : Charset.forName(value.getAsString());
+                return true;
+            case "ssl":
+                if (value.isString()) {
+                    sslEnabled = true;
+                    sslAlgorithm = value.getAsString();
+                } else if (value.isMapLike()) {
+                    sslEnabled = true;
+                    Map<String, Object> map = value.getAsMap();
+                    sslKeyStore = (String) map.get("keyStore");
+                    sslKeyStorePassword = (String) map.get("keyStorePassword");
+                    sslKeyStoreType = (String) map.get("keyStoreType");
+                    sslTrustStore = (String) map.get("trustStore");
+                    sslTrustStorePassword = (String) map.get("trustStorePassword");
+                    sslTrustStoreType = (String) map.get("trustStoreType");
+                    String trustAll = (String) map.get("trustAll");
+                    if (trustAll != null) {
+                        sslTrustAll = Boolean.valueOf(trustAll);
+                    }
+                    sslAlgorithm = (String) map.get("algorithm");
+                } else {
+                    sslEnabled = value.isBooleanTrue();
+                }
+                return true;
+            case "followRedirects":
+                followRedirects = value.isBooleanTrue();
+                return true;
+            case "connectTimeout":
+                connectTimeout = Integer.valueOf(value.getAsString());
+                return true;
+            case "readTimeout":
+                readTimeout = Integer.valueOf(value.getAsString());
+                return true;
+            case "proxy":
+                if (value.isString()) {
+                    proxyUri = value.getAsString();
+                } else {
+                    Map<String, Object> map = value.getAsMap();
+                    proxyUri = (String) map.get("uri");
+                    proxyUsername = (String) map.get("username");
+                    proxyPassword = (String) map.get("password");
+                    ScriptObjectMirror temp = (ScriptObjectMirror) map.get("nonProxyHosts");
+                    if (temp != null) {
+                        nonProxyHosts = (List) temp.values();
+                    }
+                }
+                return true;
+            case "userDefined":
+                userDefined = value.getAsMap();
+                return true;
+            default:
+                throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
+        }
     }
 
     public HttpConfig(HttpConfig parent) {
@@ -110,233 +228,130 @@ public class HttpConfig {
         afterFeature = parent.afterFeature;
         showLog = parent.showLog;
         showAllSteps = parent.showAllSteps;
+        retryInterval = parent.retryInterval;
+        retryCount = parent.retryCount;
     }
+        
+    public void setCookies(ScriptValue cookies) {
+        this.cookies = cookies;
+    }   
+    
+    public void setClientClass(String clientClass) {
+        this.clientClass = clientClass;
+    }    
 
+    //==========================================================================
+    //
     public boolean isSslEnabled() {
         return sslEnabled;
-    }
-
-    public void setSslEnabled(boolean sslEnabled) {
-        this.sslEnabled = sslEnabled;
     }
 
     public String getSslAlgorithm() {
         return sslAlgorithm;
     }
 
-    public void setSslAlgorithm(String sslAlgorithm) {
-        this.sslAlgorithm = sslAlgorithm;
-    }
-
     public String getSslKeyStore() {
         return sslKeyStore;
-    }
-
-    public void setSslKeyStore(String sslKeyStore) {
-        this.sslKeyStore = sslKeyStore;
     }
 
     public String getSslKeyStorePassword() {
         return sslKeyStorePassword;
     }
 
-    public void setSslKeyStorePassword(String sslKeyStorePassword) {
-        this.sslKeyStorePassword = sslKeyStorePassword;
-    }
-
     public String getSslKeyStoreType() {
         return sslKeyStoreType;
-    }
-
-    public void setSslKeyStoreType(String sslKeyStoreType) {
-        this.sslKeyStoreType = sslKeyStoreType;
     }
 
     public String getSslTrustStore() {
         return sslTrustStore;
     }
 
-    public void setSslTrustStore(String sslTrustStore) {
-        this.sslTrustStore = sslTrustStore;
-    }
-
     public String getSslTrustStorePassword() {
         return sslTrustStorePassword;
-    }
-
-    public void setSslTrustStorePassword(String sslTrustStorePassword) {
-        this.sslTrustStorePassword = sslTrustStorePassword;
     }
 
     public String getSslTrustStoreType() {
         return sslTrustStoreType;
     }
 
-    public void setSslTrustStoreType(String sslTrustStoreType) {
-        this.sslTrustStoreType = sslTrustStoreType;
-    }
-
     public boolean isSslTrustAll() {
         return sslTrustAll;
-    }
-
-    public void setSslTrustAll(boolean sslTrustAll) {
-        this.sslTrustAll = sslTrustAll;
     }
 
     public boolean isFollowRedirects() {
         return followRedirects;
     }
 
-    public void setFollowRedirects(boolean followRedirects) {
-        this.followRedirects = followRedirects;
-    }
-
     public int getReadTimeout() {
         return readTimeout;
-    }
-
-    public void setReadTimeout(int readTimeout) {
-        this.readTimeout = readTimeout;
     }
 
     public int getConnectTimeout() {
         return connectTimeout;
     }
 
-    public void setConnectTimeout(int connectTimeout) {
-        this.connectTimeout = connectTimeout;
-    }
-
     public Charset getCharset() {
         return charset;
-    }
-
-    public void setCharset(Charset charset) {
-        this.charset = charset;
     }
 
     public String getProxyUri() {
         return proxyUri;
     }
 
-    public void setProxyUri(String proxyUri) {
-        this.proxyUri = proxyUri;
-    }
-
     public String getProxyUsername() {
         return proxyUsername;
-    }
-
-    public void setProxyUsername(String proxyUsername) {
-        this.proxyUsername = proxyUsername;
     }
 
     public String getProxyPassword() {
         return proxyPassword;
     }
 
-    public void setProxyPassword(String proxyPassword) {
-        this.proxyPassword = proxyPassword;
-    }
-
     public List<String> getNonProxyHosts() {
         return nonProxyHosts;
     }
-
-    public void setNonProxyHosts(List<String> nonProxyHosts) {
-        this.nonProxyHosts = nonProxyHosts;
-    }
-
+    
     public ScriptValue getHeaders() {
         return headers;
-    }
-
-    public void setHeaders(ScriptValue headers) {
-        this.headers = headers;
     }
 
     public ScriptValue getCookies() {
         return cookies;
     }
 
-    public void setCookies(ScriptValue cookies) {
-        this.cookies = cookies;
-    }
-
     public ScriptValue getResponseHeaders() {
         return responseHeaders;
-    }
-
-    public void setResponseHeaders(ScriptValue responseHeaders) {
-        this.responseHeaders = responseHeaders;
     }
 
     public boolean isLowerCaseResponseHeaders() {
         return lowerCaseResponseHeaders;
     }
 
-    public void setLowerCaseResponseHeaders(boolean lowerCaseResponseHeaders) {
-        this.lowerCaseResponseHeaders = lowerCaseResponseHeaders;
-    }
-
     public boolean isCorsEnabled() {
         return corsEnabled;
-    }
-
-    public void setCorsEnabled(boolean corsEnabled) {
-        this.corsEnabled = corsEnabled;
     }
 
     public boolean isLogPrettyRequest() {
         return logPrettyRequest;
     }
 
-    public void setLogPrettyRequest(boolean logPrettyRequest) {
-        this.logPrettyRequest = logPrettyRequest;
-    }
-
     public boolean isLogPrettyResponse() {
         return logPrettyResponse;
-    }
-
-    public void setLogPrettyResponse(boolean logPrettyResponse) {
-        this.logPrettyResponse = logPrettyResponse;
     }
 
     public boolean isPrintEnabled() {
         return printEnabled;
     }
 
-    public void setPrintEnabled(boolean printEnabled) {
-        this.printEnabled = printEnabled;
-    }
-
     public String getClientClass() {
         return clientClass;
-    }
-
-    public void setClientClass(String clientClass) {
-        this.clientClass = clientClass;
     }
 
     public Map<String, Object> getUserDefined() {
         return userDefined;
     }
 
-    public void setUserDefined(Map<String, Object> userDefined) {
-        this.userDefined = userDefined;
-    }
-
     public Map<String, Object> getDriverOptions() {
-        if (driverOptions == null) {
-            driverOptions = new HashMap();
-        }
         return driverOptions;
-    }
-
-    public void setDriverOptions(Map<String, Object> driverOptions) {
-        this.driverOptions = driverOptions;
     }
 
     public HttpClient getClientInstance() {
@@ -377,6 +392,22 @@ public class HttpConfig {
 
     public void setShowAllSteps(boolean showAllSteps) {
         this.showAllSteps = showAllSteps;
+    }
+
+    public int getRetryInterval() {
+        return retryInterval;
+    }
+
+    public void setRetryInterval(int retryInterval) {
+        this.retryInterval = retryInterval;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
     }
 
 }

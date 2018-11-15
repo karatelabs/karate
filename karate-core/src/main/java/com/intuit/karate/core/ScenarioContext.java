@@ -50,7 +50,6 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.netty.WebSocketClient;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,7 +58,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
 /**
  *
@@ -319,133 +317,14 @@ public class ScenarioContext {
 
     public void configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
-        if (key.equals("headers")) {
-            config.setHeaders(value);
-            return;
-        }
-        if (key.equals("cookies")) {
-            config.setCookies(value);
-            return;
-        }
-        if (key.equals("responseHeaders")) {
-            config.setResponseHeaders(value);
-            return;
-        }
-        if (key.equals("lowerCaseResponseHeaders")) {
-            config.setLowerCaseResponseHeaders(value.isBooleanTrue());
-            return;
-        }
-        if (key.equals("cors")) {
-            config.setCorsEnabled(value.isBooleanTrue());
-            return;
-        }
-        if (key.equals("logPrettyResponse")) {
-            config.setLogPrettyResponse(value.isBooleanTrue());
-            return;
-        }
-        if (key.equals("logPrettyRequest")) {
-            config.setLogPrettyRequest(value.isBooleanTrue());
-            return;
-        }
-        if (key.equals("printEnabled")) {
-            config.setPrintEnabled(value.isBooleanTrue());
-            return;
-        }
-        if (key.equals("afterScenario")) {
-            config.setAfterScenario(value);
-            return;
-        }
-        if (key.equals("afterFeature")) {
-            config.setAfterFeature(value);
-            return;
-        }
-        if (key.equals("httpClientClass")) {
-            config.setClientClass(value.getAsString());
-            // re-construct all the things ! and we exit early
-            client = HttpClient.construct(config, this);
-            return;
-        }
-        if (key.equals("httpClientInstance")) {
-            config.setClientInstance(value.getValue(HttpClient.class));
-            // here too, re-construct client - and exit early
-            client = HttpClient.construct(config, this);
-            return;
-        }
-        if (key.equals("charset")) {
-            if (value.isNull()) {
-                config.setCharset(null);
+        // if next line returns true, http-client needs re-building
+        if (config.configure(key, value)) {
+            if (key.startsWith("httpClient")) { // special case
+                client = HttpClient.construct(config, this);
             } else {
-                config.setCharset(Charset.forName(value.getAsString()));
+                client.configure(config, this);
             }
-            // here again, re-construct client - and exit early
-            client = HttpClient.construct(config, this);
-            return;
         }
-        if (key.equals("report")) {
-            if (value.isMapLike()) {
-                Map<String, Object> map = value.getAsMap();
-                config.setShowLog((Boolean) map.get("showLog"));
-                config.setShowAllSteps((Boolean) map.get("showAllSteps"));
-            } else if (value.isBooleanTrue()) {
-                config.setShowLog(true);
-                config.setShowAllSteps(true);
-            } else {
-                config.setShowLog(false);
-                config.setShowAllSteps(false);
-            }
-            return;
-        }
-        if (key.equals("driver")) {
-            config.setDriverOptions(value.getAsMap());
-            return;
-        }
-        // beyond this point, we don't exit early and we have to re-configure the http client
-        if (key.equals("ssl")) {
-            if (value.isString()) {
-                config.setSslEnabled(true);
-                config.setSslAlgorithm(value.getAsString());
-            } else if (value.isMapLike()) {
-                config.setSslEnabled(true);
-                Map<String, Object> map = value.getAsMap();
-                config.setSslKeyStore((String) map.get("keyStore"));
-                config.setSslKeyStorePassword((String) map.get("keyStorePassword"));
-                config.setSslKeyStoreType((String) map.get("keyStoreType"));
-                config.setSslTrustStore((String) map.get("trustStore"));
-                config.setSslTrustStorePassword((String) map.get("trustStorePassword"));
-                config.setSslTrustStoreType((String) map.get("trustStoreType"));
-                String trustAll = (String) map.get("trustAll");
-                if (trustAll != null) {
-                    config.setSslTrustAll(Boolean.valueOf(trustAll));
-                }
-                config.setSslAlgorithm((String) map.get("algorithm"));
-            } else {
-                config.setSslEnabled(value.isBooleanTrue());
-            }
-        } else if (key.equals("followRedirects")) {
-            config.setFollowRedirects(value.isBooleanTrue());
-        } else if (key.equals("connectTimeout")) {
-            config.setConnectTimeout(Integer.valueOf(value.getAsString()));
-        } else if (key.equals("readTimeout")) {
-            config.setReadTimeout(Integer.valueOf(value.getAsString()));
-        } else if (key.equals("proxy")) {
-            if (value.isString()) {
-                config.setProxyUri(value.getAsString());
-            } else {
-                Map<String, Object> map = value.getAsMap();
-                config.setProxyUri((String) map.get("uri"));
-                config.setProxyUsername((String) map.get("username"));
-                config.setProxyPassword((String) map.get("password"));
-                ScriptObjectMirror temp = (ScriptObjectMirror) map.get("nonProxyHosts");
-                if (temp != null) {
-                    config.setNonProxyHosts((List) temp.values());
-                }
-            }
-        } else if (key.equals("userDefined")) {
-            config.setUserDefined(value.getAsMap());
-        } else {
-            throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
-        }
-        client.configure(config, this);
     }
 
     private List<String> evalList(List<String> values) {
@@ -653,8 +532,8 @@ public class ScenarioContext {
 
     public void request(ScriptValue body) {
         request.setBody(body);
-    }    
-    
+    }
+
     public void request(String requestBody) {
         ScriptValue temp = Script.evalKarateExpression(requestBody, this);
         request(temp);

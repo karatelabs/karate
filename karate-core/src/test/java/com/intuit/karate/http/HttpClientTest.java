@@ -25,6 +25,7 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.FeatureContext;
 import java.io.File;
@@ -50,7 +51,7 @@ public class HttpClientTest {
         HttpConfig config = new HttpConfig();
         Map<String, Object> map = new HashMap<>();
         map.put("name", "John");
-        config.setUserDefined(map);
+        config.configure("userDefined", new ScriptValue(map));
         config.setClientClass("com.intuit.karate.http.CustomDummyHttpClient");
         HttpClient client = HttpClient.construct(config, getContext());
         HttpResponse response = client.makeHttpRequest(null, null);
