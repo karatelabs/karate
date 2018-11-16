@@ -109,7 +109,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#method"><code>method</code></a>
     | <a href="#status"><code>status</code></a>
     | <a href="#soap-action"><code>soap action</code></a>
-    | <a href="#retry"><code>retry</code></a>
+    | <a href="#retry-until"><code>retry until</code></a>
   </td>
 </tr>
 <tr>
