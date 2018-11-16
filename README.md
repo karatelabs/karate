@@ -1755,10 +1755,10 @@ A [working example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/s
 More examples are available that showcase various ways of parameter-izing and dynamically manipulating SOAP requests in a data-driven fashion. Karate is quite flexible, and provides multiple options for you to evolve patterns that fit your environment, as you can see here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 ## `retry until`
-Karate has built-in support for re-trying an HTTP request until a certain condition has been met. The default setting for the max retry-attempts is 3 with a poll interval of 1000 milliseconds (1 second). If needed, this can be changed by using [`configure`](#configure) - any time during a test, or set globally via [`karate-config.js`](#configuration)
+Karate has built-in support for re-trying an HTTP request until a certain condition has been met. The default setting for the max retry-attempts is 3 with a poll interval of 3000 milliseconds (3 seconds). If needed, this can be changed by using [`configure`](#configure) - any time during a test, or set globally via [`karate-config.js`](#configuration)
 
 ```cucumber
-* configure retry = { count: 5, interval: 3000 }
+* configure retry = { count: 10, interval: 5000 }
 ```
 
 The `retry` keyword is designed to extend the existing [`method`](#method) syntax (and should appear before a `method` step) as follows:
@@ -1771,7 +1771,14 @@ When method get
 Then status 200
 ```
 
-Any JavaScript expression that uses any variable in scope can be placed after the "`retry until`" part. So you can refer to the [`response`](#response), [`responseStatus`](#responsestatus) or even [`responseHeaders`](#responseheaders) if needed.
+Any JavaScript expression that uses any variable in scope can be placed after the "`retry until`" part. So you can refer to the [`response`](#response), [`responseStatus`](#responsestatus) or even [`responseHeaders`](#responseheaders) if needed. For example:
+
+```cucumber
+Given url demoBaseUrl
+And path 'greeting'
+And retry until responseStatus == 200 && response.id > 3
+When method get
+```
 
 Refer to [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature) for an example, and also see the alternative way to achieve [polling](#polling).
 
@@ -1798,7 +1805,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
 `charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
-`retry` | JSON | see [`retry until`](#retry-until)
+`retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
 `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
 `httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)

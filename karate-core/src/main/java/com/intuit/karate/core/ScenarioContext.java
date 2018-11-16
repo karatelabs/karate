@@ -585,40 +585,50 @@ public class ScenarioContext {
         }
     }
 
+    private void clientInvokeWithRetries() {
+        int maxRetries = config.getRetryCount();
+        int sleep = config.getRetryInterval();
+        int retryCount = 0;
+        while (true) {
+            if (retryCount == maxRetries) {
+                logger.warn("reached max retry attempts: {}", maxRetries);
+                break;
+            }
+            if (retryCount > 0) {
+                try {
+                    logger.debug("sleeping before retry #{}", retryCount);
+                    Thread.sleep(sleep);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            clientInvoke();
+            ScriptValue sv;
+            try {
+                sv = Script.evalKarateExpression(request.getRetryUntil(), this);
+            } catch (Exception e) {
+                logger.warn("retry condition evaluation failed: {}", e.getMessage());
+                sv = ScriptValue.NULL;
+            }
+            if (sv.isBooleanTrue()) {
+                if (retryCount > 0) {
+                    logger.debug("retry condition satisfied");
+                }
+                break;
+            } else {
+                logger.debug("retry condition not satisfied: {}", request.getRetryUntil());
+            }
+            retryCount++;
+        }
+    }
+
     public void method(String method) {
         if (!HttpUtils.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
             method = Script.evalKarateExpression(method, this).getAsString();
         }
         request.setMethod(method);
         if (request.isRetry()) {
-            int maxRetries = config.getRetryCount();
-            int sleep = config.getRetryInterval();
-            int retryCount = 0;
-            while (true) {
-                if (retryCount == maxRetries) {
-                    logger.warn("reached max retry attempts: {}", maxRetries);
-                    break;
-                }
-                if (retryCount > 0) {
-                    try {
-                        logger.debug("sleeping before retry #{}", retryCount);
-                        Thread.sleep(sleep);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-                clientInvoke();
-                ScriptValue sv = Script.evalKarateExpression(request.getRetryUntil(), this);
-                if (sv.isBooleanTrue()) {
-                    if (retryCount > 0) {
-                        logger.debug("retry condition satisfied");
-                    }
-                    break;
-                } else {
-                    logger.debug("retry condition not satisfied: {}", request.getRetryUntil());
-                }
-                retryCount++;
-            }
+            clientInvokeWithRetries();
         } else {
             clientInvoke();
         }

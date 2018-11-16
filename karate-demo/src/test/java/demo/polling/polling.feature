@@ -36,10 +36,10 @@ Scenario: get greeting and keep polling until id is n + 5
     * call waitUntil target
 
 Scenario: using the karate retry syntax
-    # note that this defaults to { count: 3, interval: 1000 } (milliseconds)
+    # if not configured, 'retry' defaults to
+    # { count: 3, interval: 3000 } (milliseconds)
     * configure retry = { count: 5, interval: 0 }
     Given url demoBaseUrl
     And path 'greeting'
-    And retry until response.id > 3
+    And retry until responseStatus == 200 && response.id > 3
     When method get
-    Then status 200
