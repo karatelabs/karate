@@ -591,8 +591,7 @@ public class ScenarioContext {
         int retryCount = 0;
         while (true) {
             if (retryCount == maxRetries) {
-                logger.warn("reached max retry attempts: {}", maxRetries);
-                break;
+                throw new KarateException("too many retry attempts: " + maxRetries);
             }
             if (retryCount > 0) {
                 try {
