@@ -109,6 +109,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#method"><code>method</code></a>
     | <a href="#status"><code>status</code></a>
     | <a href="#soap-action"><code>soap action</code></a>
+    | <a href="#retry"><code>retry</code></a>
   </td>
 </tr>
 <tr>
@@ -1753,6 +1754,27 @@ A [working example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/s
 
 More examples are available that showcase various ways of parameter-izing and dynamically manipulating SOAP requests in a data-driven fashion. Karate is quite flexible, and provides multiple options for you to evolve patterns that fit your environment, as you can see here: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
+## `retry until`
+Karate has built-in support for re-trying an HTTP request until a certain condition has been met. The default setting for the max retry-attempts is 3 with a poll interval of 1000 milliseconds (1 second). If needed, this can be changed by using [`configure`](#configure) - any time during a test, or set globally via [`karate-config.js`](#configuration)
+
+```cucumber
+* configure retry = { count: 5, interval: 3000 }
+```
+
+The `retry` keyword is designed to extend the existing [`method`](#method) syntax (and should appear before a `method` step) as follows:
+
+```cucumber
+Given url demoBaseUrl
+And path 'greeting'
+And retry until response.id > 3
+When method get
+Then status 200
+```
+
+Any JavaScript expression that uses any variable in scope can be placed after the "`retry until`" part. So you can refer to the [`response`](#response), [`responseStatus`](#responsestatus) or even [`responseHeaders`](#responseheaders) if needed.
+
+Refer to [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature) for an example, and also see the alternative way to achieve [polling](#polling).
+
 # `configure`
 ## Managing Headers, SSL, Timeouts and HTTP Proxy
 You can adjust configuration settings for the HTTP client used by Karate using this keyword. The syntax is similar to [`def`](#def) but instead of a named variable, you update configuration. Here are the configuration keys supported:
@@ -1776,6 +1798,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
 `charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
+`retry` | JSON | see [`retry until`](#retry-until)
 `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
 `httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)
@@ -3135,7 +3158,7 @@ There are a few situations where this comes in handy:
 
 # Advanced / Tricks
 ## Polling
-Waiting or performing a 'sleep' until a certain condition is met is a common need, and this demo example should get you up and running: [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature).
+The built-in [`retry`](#retry) syntax should suffice for most needs, but if you have some specific needs, this demo example (using JavaScript) should get you up and running: [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature).
 
 ## Conditional Logic
 The keywords [`Given` `When` `Then`](#given-when-then) are only for decoration and should not be thought of as similar to an `if - then - else` statement. And as a testing framework, Karate [discourages tests](https://martinfowler.com/articles/nonDeterminism.html) that give different results on every run.

@@ -27,7 +27,6 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import java.nio.charset.Charset;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -81,6 +80,11 @@ public class HttpConfig {
     public HttpConfig() {
         // zero arg constructor
     }
+    
+    private static <T> T get(Map<String, Object> map, String key, T defaultValue) {
+        Object o = map.get(key);
+        return o == null ? defaultValue : (T) o;
+    }
 
     public boolean configure(String key, ScriptValue value) { // TODO use enum
         key = StringUtils.trimToEmpty(key);
@@ -118,8 +122,8 @@ public class HttpConfig {
             case "report":
                 if (value.isMapLike()) {
                     Map<String, Object> map = value.getAsMap();
-                    showLog = (Boolean) map.get("showLog");
-                    showAllSteps = (Boolean) map.get("showAllSteps");
+                    showLog = get(map, "showLog", showLog);
+                    showAllSteps = get(map, "showAllSteps", showAllSteps);
                 } else if (value.isBooleanTrue()) {
                     showLog = true;
                     showAllSteps = true;
@@ -130,6 +134,13 @@ public class HttpConfig {
                 return false;
             case "driver":
                 driverOptions = value.getAsMap();
+                return false;
+            case "retry":
+                if (value.isMapLike()) {
+                    Map<String, Object> map = value.getAsMap();
+                    retryInterval = get(map, "interval", retryInterval);
+                    retryCount = get(map, "count", retryCount);                    
+                }
                 return false;
             // here on the http client has to be re-constructed ================
             case "httpClientClass":
@@ -167,10 +178,10 @@ public class HttpConfig {
                 followRedirects = value.isBooleanTrue();
                 return true;
             case "connectTimeout":
-                connectTimeout = Integer.valueOf(value.getAsString());
+                connectTimeout = value.getAsInt();
                 return true;
             case "readTimeout":
-                readTimeout = Integer.valueOf(value.getAsString());
+                readTimeout = value.getAsInt();
                 return true;
             case "proxy":
                 if (value.isString()) {

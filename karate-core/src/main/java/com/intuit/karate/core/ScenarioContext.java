@@ -58,7 +58,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-
 /**
  *
  * @author pthomas3
@@ -575,22 +574,61 @@ public class ScenarioContext {
         }
     }
 
-    public void method(String method) {
-        if (!HttpUtils.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
-            method = Script.evalKarateExpression(method, this).getAsString();
-        }
-        request.setMethod(method);
+    private void clientInvoke() {
         try {
             prevResponse = client.invoke(request, this);
+            updateResponseVars();
         } catch (Exception e) {
             String message = e.getMessage();
             logger.error("http request failed: {}", message);
             throw new KarateException(message); // reduce log verbosity
         }
-        updateResponseVars();
+    }
+
+    public void method(String method) {
+        if (!HttpUtils.HTTP_METHODS.contains(method.toUpperCase())) { // support expressions also
+            method = Script.evalKarateExpression(method, this).getAsString();
+        }
+        request.setMethod(method);
+        if (request.isRetry()) {
+            int maxRetries = config.getRetryCount();
+            int sleep = config.getRetryInterval();
+            int retryCount = 0;
+            while (true) {
+                if (retryCount == maxRetries) {
+                    logger.warn("reached max retry attempts: {}", maxRetries);
+                    break;
+                }
+                if (retryCount > 0) {
+                    try {
+                        logger.debug("sleeping before retry #{}", retryCount);
+                        Thread.sleep(sleep);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                clientInvoke();
+                ScriptValue sv = Script.evalKarateExpression(request.getRetryUntil(), this);
+                if (sv.isBooleanTrue()) {
+                    if (retryCount > 0) {
+                        logger.debug("retry condition satisfied");
+                    }
+                    break;
+                } else {
+                    logger.debug("retry condition not satisfied: {}", request.getRetryUntil());
+                }
+                retryCount++;
+            }
+        } else {
+            clientInvoke();
+        }
         String prevUrl = request.getUrl();
         request = new HttpRequestBuilder();
         request.setUrl(prevUrl);
+    }
+
+    public void retry(String expression) {
+        request.setRetryUntil(expression);
     }
 
     public void soapAction(String action) {

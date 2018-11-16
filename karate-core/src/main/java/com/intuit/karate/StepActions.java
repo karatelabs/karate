@@ -239,6 +239,12 @@ public class StepActions implements Actions {
     public void method(String method) {
         context.method(method);
     }
+    
+    @Override
+    @When("^retry until (.+)")
+    public void retry(String until) {
+        context.retry(until);
+    }    
 
     @Override
     @When("^soap action( .+)?")

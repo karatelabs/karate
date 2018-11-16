@@ -76,9 +76,11 @@ public interface Actions {
 
     void matchDocstring(String expression, String operators, String rhs);
 
-    void match(String expression, String operators, String rhs);
+    void match(String expression, String operators, String rhs);        
 
     void method(String method);
+    
+    void retry(String until);
 
     void multipartEntity(String value);
 

@@ -46,6 +46,8 @@ public class HttpRequestBuilder {
     private ScriptValue body;
     private String method;
     private String soapAction;
+    private boolean retry;
+    private String retryUntil;
 
     public HttpRequestBuilder copy() {
         HttpRequestBuilder out = new HttpRequestBuilder();
@@ -275,6 +277,18 @@ public class HttpRequestBuilder {
 
     public String getSoapAction() {
         return soapAction;
+    }
+
+    public boolean isRetry() {
+        return retryUntil != null;
+    }
+
+    public String getRetryUntil() {
+        return retryUntil;
+    }
+
+    public void setRetryUntil(String retryUntil) {
+        this.retryUntil = retryUntil;
     }
 
 }

@@ -1,5 +1,4 @@
 Feature: demo of how to poll until a certain condition is met
-    using a javascript function
 
 Background:
     # first we re-set the counter to avoid collisions with other tests
@@ -29,8 +28,18 @@ Background:
     """
 
 Scenario: get greeting and keep polling until id is n + 5
+    using javascript, and a second feature
     * def result = call read('get.feature')
     * def current = result.response
     * print 'current: ' + current
     * def target = current.id + 5
     * call waitUntil target
+
+Scenario: using the karate retry syntax
+    # note that this defaults to { count: 3, interval: 1000 } (milliseconds)
+    * configure retry = { count: 5, interval: 0 }
+    Given url demoBaseUrl
+    And path 'greeting'
+    And retry until response.id > 3
+    When method get
+    Then status 200

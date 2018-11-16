@@ -345,6 +345,14 @@ public class ScriptValue {
         }
     }
 
+    public int getAsInt() {
+        if (isNumber()) {
+            return getAsNumber().intValue();
+        } else {
+            return Integer.valueOf(getAsString());
+        }
+    }
+    
     public String getAsString() {
         switch (type) {
             case NULL:
