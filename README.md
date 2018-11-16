@@ -3158,7 +3158,7 @@ There are a few situations where this comes in handy:
 
 # Advanced / Tricks
 ## Polling
-The built-in [`retry`](#retry) syntax should suffice for most needs, but if you have some specific needs, this demo example (using JavaScript) should get you up and running: [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature).
+The built-in [`retry until`](#retry-until) syntax should suffice for most needs, but if you have some specific needs, this demo example (using JavaScript) should get you up and running: [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature).
 
 ## Conditional Logic
 The keywords [`Given` `When` `Then`](#given-when-then) are only for decoration and should not be thought of as similar to an `if - then - else` statement. And as a testing framework, Karate [discourages tests](https://martinfowler.com/articles/nonDeterminism.html) that give different results on every run.
