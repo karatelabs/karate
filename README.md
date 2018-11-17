@@ -38,7 +38,7 @@ And you don't need to create additional Java classes for any of the payloads tha
       <a href="#running-with-junit">JUnit</a>
     | <a href="#command-line">Command Line</a>
     | <a href="#ide-support">IDE Support</a>    
-    | <a href="#cucumber-tags">Tags / Grouping</a>
+    | <a href="#tags">Tags / Grouping</a>
     | <a href="#parallel-execution">Parallel Execution</a>
     | <a href="#java-api">Java API</a>    
   </td>
@@ -213,7 +213,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Embedded JavaScript engine that allows you to build a library of [re-usable functions](#calling-javascript-functions) that suit your specific environment or organization
 * Re-use of payload-data and user-defined functions across tests is [so easy](#reading-files) - that it becomes a natural habit for the test-developer
 * Built-in support for [switching configuration](#switching-the-environment) across different environments (e.g. dev, QA, pre-prod)
-* Support for [data-driven tests](#data-driven-tests) and being able to [tag or group](#cucumber-tags) tests is built-in, no need to rely on an external framework
+* Support for [data-driven tests](#data-driven-tests) and being able to [tag or group](#tags) tests is built-in, no need to rely on an external framework
 * Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - and support for JUnit
 * Support for multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for HTTP integration tests
 * Built-in [test-reports](#test-reports) compatible with Cucumber so that you have the option of using third-party (open-source) maven-plugins for even [better-looking reports](karate-demo#example-report)
@@ -226,7 +226,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that deeply assert that server responses are OK under load
 * Gatling integration can even test [*any* Java code](https://github.com/intuit/karate/tree/master/karate-gatling#custom) which enables being able to test non-HTTP protocols such as [gRPC](https://thinkerou.com/karate-grpc/)
 * [API mock server](karate-netty) for test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
-* [Websocket](http://www.websocket.org) and [async](#async) support that even allows you to include listening to message-queues within a test
+* [Async](#async) support that even allows you to listen to message-queues within a test
 * [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:
   * [SOAP](#soap-action) / XML requests
@@ -236,6 +236,8 @@ And you don't need to create additional Java classes for any of the payloads tha
   * [Multi-part](#multipart-field) file-upload - including `multipart/mixed` and `multipart/related`
   * Browser-like [cookie](#cookie) handling
   * Full control over HTTP [headers](#header), [path](#path) and query [parameters](#param)
+  * [Re-try](#retry-until) until condition
+  * [Websocket](http://www.websocket.org) [support](#async)
   * Intelligent defaults
 
 ## Real World Examples
@@ -281,6 +283,8 @@ So you need two `<dependencies>`:
 ```
 
 And if you run into class-loading conflicts, for example if an older version of the Apache libraries are being used within your project - then use `karate-jersey` instead of `karate-apache`.
+
+If you want to use [JUnit 5](#junit-5), use `karate-junit5`.
 
 ## Gradle
 
@@ -394,7 +398,7 @@ src/test/java
 
 Assuming you use JUnit, there are some good reasons for the recommended (best practice) naming convention and choice of file-placement shown above:
 * Not using the `*Test.java` convention for the JUnit classes (e.g. `CatsRunner.java`) in the `cats` and `dogs` folder ensures that these tests will **not** be picked up when invoking `mvn test` (for the whole project) from the [command line](#command-line). But you can still invoke these tests from the IDE, which is convenient when in development mode.
-* `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder hierarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#cucumber-tags) to skip files.
+* `AnimalsTest.java` (the only file that follows the `*Test.java` naming convention) acts as the 'test suite' for the entire project. By default, Karate will load all `*.feature` files from sub-directories as well. But since `some-reusable.feature` is _above_ `AnimalsTest.java` in the folder hierarchy, it will **not** be picked-up. Which is exactly what we want, because `some-reusable.feature` is designed to be [called](#calling-other-feature-files) only from one of the other test scripts (perhaps with some parameters being passed). You can also use [tags](#tags) to skip files.
 * `some-classpath-function.js` and `some-classpath-payload.json` are in the 'root' of the Java ['classpath'](#classpath) which means they can be easily [read](#reading-files) (and re-used) from any test-script by using the `classpath:` prefix, for e.g: `read('classpath:some-classpath-function.js')`. Relative paths will also work.
 
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
@@ -449,6 +453,40 @@ Refer to your IDE documentation for how to run a JUnit class.  Typically right-c
 
 > Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be run. This is one reason why you may want to prefer a 'flat' directory structure as [explained above](#naming-conventions).
 
+## JUnit 5
+Karate supports JUnit 5 and the advantage is that you can have multiple methods in a test-class. Only one `import` is needed, and instead of a class-level annotation, you use a nice DRY and fluent-api to express which tests and tags you want to use.
+
+Note that the Java class does not need to be `public` and even the test methods do not need to be `public` - and tests are very concise.
+
+Here is an example:
+
+```java
+package karate;
+
+import com.intuit.karate.junit5.Karate;
+
+class SampleTest {
+
+    @Karate.Test
+    Karate testSample() {
+        return new Karate().feature("sample").relativeTo(getClass());
+    }
+    
+    @Karate.Test
+    Karate testTags() {
+        return new Karate().feature("tags").tags("@second").relativeTo(getClass());
+    }
+
+    @Karate.Test
+    Karate testFullPath() {
+        return new Karate()
+                .feature("classpath:karate/tags.feature")
+                .tags("@first");
+    }
+
+}
+```
+
 ### JUnit HTML report
 When you use the `@RunWith(Karate.class)` - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console (see [video](https://twitter.com/KarateDSL/status/935029435140489216)).
 
@@ -485,7 +523,7 @@ The `features` parameter in the annotation can take an array, so if you wanted t
     "classpath:animals/cats/cats-get.feature"})
 ```
 
-And most convenient of all, you can even point to a directory (or package). Combine this with [tags](#test-suites) to execute multiple features, without having to list every one of them.
+You can even point to a directory (or package). Combine this with [tags](#test-suites) to execute multiple features, without having to list every one of them.
 
 ```java
 @KarateOptions(features = "classpath:animals/cats", tags = "~@ignore") 
@@ -534,15 +572,15 @@ And then the above command in gradle would look like:
 ### Test Suites
 > The recommended way to define and run test-suites and reporting in Karate is to use the [parallel runner](#parallel-execution), described in the next section. The approach in this section is more suited for troubleshooting in dev-mode, using your IDE.
 
-One way to define 'test-suites' in Karate is to have a JUnit class with the `@RunWith(Karate.class)` annotation at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions), you can do this on the command-line:
+One way to define 'test-suites' in Karate is to have a JUnit class at a level 'above' (in terms of folder hierarchy) all the `*.feature` files in your project. So if you take the previous [folder structure example](#naming-conventions), you can do this on the command-line:
 
 ```
 mvn test -Dkarate.options="--tags ~@ignore" -Dtest=AnimalsTest
 ```
 
-Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. There is a neat way to [tag your tests](#cucumber-tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
+Here, `AnimalsTest` is the name of the Java class we designated to run the multiple `*.feature` files that make up your test-suite. There is a neat way to [tag your tests](#tags) and the above example demonstrates how to run all tests _except_ the ones tagged `@ignore`.
 
-The tag options can be specified in the test-class via the `@KarateOptions` annotation, in which case you don't need to pass the `-Dkarate.options` on the command-line:
+For JUnit 4, The tag options can be specified in the test-class via the `@KarateOptions` annotation, in which case you don't need to pass the `-Dkarate.options` on the command-line:
 
 ```java
 @KarateOptions(tags = {"~@ignore"})
@@ -627,6 +665,11 @@ features:    54 | ignored:   25 | efficiency: 0.42
 scenarios:  145 | passed:   145 | failed: 0
 ======================================================
 ```
+
+Karate will run `Scenario`-s in parallel, so if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so !
+
+### `@parallel=false`
+In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s but you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag on only those `Scenario`-s.
 
 > There is also an API to run a chosen set of features (and tags) which may be useful in cases where you dynamically want to select features at run time. Refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java)
 
@@ -807,7 +850,7 @@ Advanced users who build frameworks on top of Karate have the option to supply a
 ## Script Structure
 Karate scripts are technically in '[Gherkin](https://docs.cucumber.io/gherkin/reference/)' format - but all you need to grok as someone who needs to test web-services are the three sections: `Feature`, `Background` and `Scenario`. There can be multiple Scenario-s in a `*.feature` file, and at least one should be present. The `Background` is optional. 
 
-> Variables set using [`def`](#def) in the `Background` will be re-set before *every* `Scenario`. If you are looking for a way to do something only **once** per `Feature`, take a look at [`callonce`](#callonce). On the other hand, if you are expecting a variable in the `Background` to be modified by one `Scenario` so that later ones can see the updated value - that is *not* how you should think of them, and you should combine your 'flow' into one scenario. Keep in mind that you should be able to comment-out a `Scenario` or skip some via [`tags`](#cucumber-tags) without impacting any others.
+> Variables set using [`def`](#def) in the `Background` will be re-set before *every* `Scenario`. If you are looking for a way to do something only **once** per `Feature`, take a look at [`callonce`](#callonce). On the other hand, if you are expecting a variable in the `Background` to be modified by one `Scenario` so that later ones can see the updated value - that is *not* how you should think of them, and you should combine your 'flow' into one scenario. Keep in mind that you should be able to comment-out a `Scenario` or skip some via [`tags`](#tags) without impacting any others.
 
 Lines that start with a `#` are comments.
 ```cucumber
@@ -848,7 +891,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | :x: **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a [mini-programming language](https://hackernoon.com/yes-karate-is-not-true-bdd-698bf4a9be39). But it is [perfect for testing web-services](https://stackoverflow.com/a/47799207/143475) at the level of HTTP requests and responses.
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | :white_check_mark: [**Yes**](#calling-other-feature-files).
 **Dynamic Data-Driven Testing** | **No**. Cucumber's [`Scenario Outline`](#the-cucumber-way) expects the `Examples` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features) and you can even [use JSON directly in a data-driven `Scenario Outline`](https://twitter.com/KarateDSL/status/1051433711814627329).
-**Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find various discussions and third-party projects on the web that attempt to close this gap: [1](https://github.com/cucumber/cucumber-jvm/issues/630) [2](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [3](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) [4](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [5](https://github.com/temyers/cucumber-jvm-parallel-plugin) [6](https://github.com/trivago/cucable-plugin) [7](https://github.com/eu-evops/cucumber-runner-maven-plugin) [8](https://automationrhapsody.com/running-cucumber-tests-in-parallel/) | :white_check_mark: [**Yes**](#parallel-execution).
+**Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find various discussions and third-party projects on the web that attempt to close this gap: [1](https://github.com/cucumber/cucumber-jvm/issues/630) [2](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [3](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) [4](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [5](https://github.com/temyers/cucumber-jvm-parallel-plugin) [6](https://github.com/trivago/cucable-plugin) [7](https://github.com/eu-evops/cucumber-runner-maven-plugin) [8](https://automationrhapsody.com/running-cucumber-tests-in-parallel/) | :white_check_mark: [**Yes**](#parallel-execution). Karate runs even `Scenario`-s in parallel, not just `Feature`-s.
 **Run 'Set-Up' Routines Only Once** | **No**. Cucumber has a limitation where `Background` steps are re-run for every `Scenario` and worse - even for every `Examples` row within a `Scenario Outline`. This has been a [highly-requested open issue](https://github.com/cucumber/cucumber-jvm/issues/515) for a *long* time. | :white_check_mark: [**Yes**](#callonce).
 
 One nice thing about the design of the Gherkin syntax is that script-steps are treated the same no matter whether they start with the keyword `Given`, `And`, `When` or `Then`.  What this means is that you are free to use whatever makes sense for you.  You could even have all the steps start with `When` and Karate won't care.
@@ -1761,7 +1804,7 @@ Karate has built-in support for re-trying an HTTP request until a certain condit
 * configure retry = { count: 10, interval: 5000 }
 ```
 
-The `retry` keyword is designed to extend the existing [`method`](#method) syntax (and should appear before a `method` step) as follows:
+The `retry` keyword is designed to extend the existing [`method`](#method) syntax (and should appear before a `method` step) like so:
 
 ```cucumber
 Given url demoBaseUrl
@@ -3283,11 +3326,10 @@ This code is able to send as well as receive websocket messages. Note how you ca
 
 For more details, please refer to [this discussion](https://github.com/intuit/karate/issues/395#issuecomment-434745214) which has links to the message-queue listener example as well.
 
-## Cucumber Tags
-Cucumber has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.
+## Tags
+Gherkin has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.
 
-The documentation on how to run tests via the [command line](#test-suites) has an example of how to use tags to decide which tests to *not* run (or ignore). The [Cucumber wiki](https://github.com/cucumber/cucumber/wiki/Tags) 
-has more information on tags. Also see [`first.feature`](karate-demo/src/test/java/demo/tags/first.feature) and [`second.feature`](karate-demo/src/test/java/demo/tags/second.feature) in the [demos](karate-demo). If you find yourself juggling multiple tags with logical `AND` and `OR` complexity, refer to this [Stack Overflow answer](https://stackoverflow.com/a/34543352/143475) and this [blog post](https://testingneeds.wordpress.com/2015/09/15/junit-runner-with-cucumberoptions/).
+The documentation on how to run tests via the [command line](#test-suites) has an example of how to use tags to decide which tests to *not* run (or ignore). Also see [`first.feature`](karate-demo/src/test/java/demo/tags/first.feature) and [`second.feature`](karate-demo/src/test/java/demo/tags/second.feature) in the [demos](karate-demo). If you find yourself juggling multiple tags with logical `AND` and `OR` complexity, refer to this [Stack Overflow answer](https://stackoverflow.com/a/34543352/143475) and this [blog post](https://testingneeds.wordpress.com/2015/09/15/junit-runner-with-cucumberoptions/).
 
 > For advanced users, Karate supports being able to query for tags within a test, and even tags in a `@name=value` form. Refer to [`karate.tags`](#karate-tags) and [`karate.tagValues`](#karate-tagvalues).
 
