@@ -25,6 +25,7 @@ package com.intuit.karate.driver.edge;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
@@ -41,8 +42,8 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         super(options, command, webSocketUrl);
     }
 
-    public static EdgeDevToolsDriver start(Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(map, logger, 9222, "MicrosoftEdge");
+    public static EdgeDevToolsDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(context, map, logger, 9222, "MicrosoftEdge");
         options.arg("--devtools-server-port");
         options.arg(options.port + "");
         options.arg("about:blank");

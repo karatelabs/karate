@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.core.ScenarioContext;
 import java.io.InputStream;
 import java.util.List;
@@ -38,7 +39,7 @@ public class DummyHttpClient extends HttpClient<String> {
     private static final Logger logger = LoggerFactory.getLogger(DummyHttpClient.class);
 
     @Override
-    public void configure(HttpConfig config, ScenarioContext context) {
+    public void configure(Config config, ScenarioContext context) {
 
     }
 

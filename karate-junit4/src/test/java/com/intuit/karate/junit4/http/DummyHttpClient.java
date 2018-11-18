@@ -26,7 +26,7 @@ package com.intuit.karate.junit4.http;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpConfig;
+import com.intuit.karate.Config;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.http.MultiValuedMap;
@@ -47,7 +47,7 @@ public class DummyHttpClient extends HttpClient<String> {
     private Map<String, Object> userDefined;
 
     @Override
-    public void configure(HttpConfig config, ScenarioContext context) {
+    public void configure(Config config, ScenarioContext context) {
         userDefined = config.getUserDefined();
     }
 

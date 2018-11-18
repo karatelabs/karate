@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
 import com.intuit.karate.driver.edge.EdgeDevToolsDriver;
@@ -51,6 +53,7 @@ public class DriverOptions {
 
     public static final long DEFAULT_TIMEOUT = 30 * 1000; // 30 seconds
 
+    private final ScenarioContext context;
     public final Map<String, Object> options;
     public final long timeout;
     public final boolean start;
@@ -75,7 +78,8 @@ public class DriverOptions {
         return temp == null ? defaultValue : temp;
     }
 
-    public DriverOptions(Map<String, Object> options, Logger logger, int defaultPort, String defaultExecutable) {
+    public DriverOptions(ScenarioContext context, Map<String, Object> options, Logger logger, int defaultPort, String defaultExecutable) {
+        this.context = context;
         this.options = options;
         this.logger = logger == null ? new Logger(getClass()) : logger;
         timeout = get("timeout", DEFAULT_TIMEOUT);
@@ -112,7 +116,7 @@ public class DriverOptions {
         return command;
     }
 
-    public static Driver start(Map<String, Object> options, Logger logger) {
+    public static Driver start(ScenarioContext context, Map<String, Object> options, Logger logger) {
         String type = (String) options.get("type");
         if (type == null) {
             logger.warn("type was null, defaulting to 'chrome'");
@@ -120,22 +124,22 @@ public class DriverOptions {
         }
         switch (type) {
             case "chrome":
-                return Chrome.start(options, logger);
+                return Chrome.start(context, options, logger);
             case "msedge":
-                return EdgeDevToolsDriver.start(options, logger);
+                return EdgeDevToolsDriver.start(context, options, logger);
             case "chromedriver":
-                return ChromeWebDriver.start(options, logger);
+                return ChromeWebDriver.start(context, options, logger);
             case "geckodriver":
-                return GeckoWebDriver.start(options, logger);
+                return GeckoWebDriver.start(context, options, logger);
             case "safaridriver":
-                return SafariWebDriver.start(options, logger);
+                return SafariWebDriver.start(context, options, logger);
             case "mswebdriver":
-                return MicrosoftWebDriver.start(options, logger);
+                return MicrosoftWebDriver.start(context, options, logger);
             case "winappdriver":
-                return WinAppDriver.start(options, logger);
+                return WinAppDriver.start(context, options, logger);
             default:
                 logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-                return Chrome.start(options, logger);
+                return Chrome.start(context, options, logger);
         }
     }
 
@@ -150,6 +154,22 @@ public class DriverOptions {
         }
         return "document.querySelector(\"" + id + "\")";
     }
+    
+    public int getRetryInterval() {
+        if (context == null) {
+            return Config.DEFAULT_RETRY_INTERVAL;
+        } else {
+            return context.getConfig().getRetryInterval();
+        }
+    }
+    
+    public int getRetryCount() {
+        if (context == null) {
+            return Config.DEFAULT_RETRY_COUNT;
+        } else {
+            return context.getConfig().getRetryCount();
+        }
+    }    
 
     public String wrapInFunctionInvoke(String text) {
         return "(function(){ " + text + " })()";
@@ -178,6 +198,10 @@ public class DriverOptions {
                 + " for (var i = 0; i < e.options.length; ++i)"
                 + " if (i === t) e.options[i].selected = true";
         return wrapInFunctionInvoke(temp);
+    }
+    
+    public void sleep() {
+        sleep(getRetryInterval());
     }
 
     public void sleep(int millis) {

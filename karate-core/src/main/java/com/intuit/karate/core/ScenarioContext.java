@@ -39,7 +39,7 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpConfig;
+import com.intuit.karate.Config;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
@@ -79,7 +79,7 @@ public class ScenarioContext {
     public final ScenarioInfo scenarioInfo;
 
     // these can get re-built or swapped, so cannot be final
-    private HttpConfig config;
+    private Config config;
     private HttpClient client;
     private Driver driver;
 
@@ -167,7 +167,7 @@ public class ScenarioContext {
         return featureContext;
     }
 
-    public HttpConfig getConfig() {
+    public Config getConfig() {
         return config;
     }
 
@@ -217,12 +217,12 @@ public class ScenarioContext {
             parentContext = call.context;
             // complex objects like JSON and XML are "global by reference" TODO           
             vars = call.context.vars.copy(false);
-            config = new HttpConfig(call.context.config);
+            config = new Config(call.context.config);
             rootFeatureContext = call.context.rootFeatureContext;
         } else {
             parentContext = null;
             vars = new ScriptValueMap();
-            config = new HttpConfig();
+            config = new Config();
             config.setClientClass(call.httpClientClass);
             rootFeatureContext = featureContext;
         }
@@ -294,7 +294,7 @@ public class ScenarioContext {
         tagValues = sc.tagValues;
         scenarioInfo = info;
         vars = sc.vars.copy(true); // deep / snap-shot copy
-        config = new HttpConfig(sc.config); // safe copy
+        config = new Config(sc.config); // safe copy
         rootFeatureContext = sc.rootFeatureContext;
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
@@ -309,7 +309,7 @@ public class ScenarioContext {
         signalResult = sc.signalResult;
     }
 
-    public void configure(HttpConfig config) {
+    public void configure(Config config) {
         this.config = config;
         client = HttpClient.construct(config, this);
     }
@@ -843,7 +843,7 @@ public class ScenarioContext {
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }
-            setDriver(DriverOptions.start(options, logger));
+            setDriver(DriverOptions.start(this, options, logger));
         }
         if (sv.isString()) {
             driver.setLocation(sv.getAsString());

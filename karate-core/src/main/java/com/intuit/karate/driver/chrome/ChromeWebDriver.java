@@ -26,6 +26,7 @@ package com.intuit.karate.driver.chrome;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.WebDriver;
@@ -41,8 +42,8 @@ public class ChromeWebDriver extends WebDriver {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static ChromeWebDriver start(Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(map, logger, 9515, "chromedriver");
+    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(context, map, logger, 9515, "chromedriver");
         options.arg("--port=" + options.port);
         options.arg("--user-data-dir=" + options.workingDirPath);
         CommandThread command = options.startProcess();

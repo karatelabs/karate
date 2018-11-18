@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.core.ScenarioContext;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -39,7 +40,7 @@ public class CustomDummyHttpClient extends DummyHttpClient {
     private Map<String, Object> userDefined;
     
     @Override
-    public void configure(HttpConfig config, ScenarioContext context) {
+    public void configure(Config config, ScenarioContext context) {
         userDefined = config.getUserDefined();
     }        
 

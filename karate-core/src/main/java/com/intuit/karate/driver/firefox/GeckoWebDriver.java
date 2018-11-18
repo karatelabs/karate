@@ -26,6 +26,7 @@ package com.intuit.karate.driver.firefox;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.WebDriver;
@@ -41,8 +42,8 @@ public class GeckoWebDriver extends WebDriver {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static GeckoWebDriver start(Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(map, logger, 4444, "geckodriver");
+    public static GeckoWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(context, map, logger, 4444, "geckodriver");
         options.arg("--port=" + options.port);
         CommandThread command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
@@ -58,11 +59,6 @@ public class GeckoWebDriver extends WebDriver {
         driver.activate();
         return driver;
     }
-
-    @Override
-    protected int getWaitInterval() {
-        return 1000;
-    }   
 
     @Override
     public void activate() {

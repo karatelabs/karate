@@ -25,7 +25,6 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
-import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
@@ -61,10 +60,6 @@ public abstract class WebDriver implements Driver {
     private ScriptValue evalInternal(String expression) {
         Json json = new Json().set("script", expression).set("args", "[]");
         return http.path("execute", "sync").post(json).jsonPath("$.value").value();
-    }
-
-    protected int getWaitInterval() {
-        return 0;
     }
 
     protected String getJsonPathForElementId() {
@@ -274,12 +269,13 @@ public abstract class WebDriver implements Driver {
     @Override
     public void waitUntil(String expression) {
         expression = prefixReturn(expression);
+        int max = options.getRetryCount();
         int count = 0;
         ScriptValue sv;
         do {
-            options.sleep(getWaitInterval());
+            options.sleep();
             sv = evalInternal(expression);
-        } while (!sv.isBooleanTrue() && count++ < 3);
+        } while (!sv.isBooleanTrue() && count++ < max);
     }
 
     @Override

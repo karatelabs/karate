@@ -31,7 +31,6 @@ import static com.intuit.karate.ScriptValue.Type.*;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.validator.ArrayValidator;
 import com.intuit.karate.validator.BooleanValidator;
 import com.intuit.karate.validator.IgnoreValidator;
@@ -210,7 +209,7 @@ public class Script {
         if (result != null) {
             context.logger.trace("callonce cache hit for: {}", text);
             if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
-                context.configure(new HttpConfig(result.config)); // clone for safety
+                context.configure(new Config(result.config)); // clone for safety
             }
             return result.value.copy(); // clone for safety
         }
@@ -222,14 +221,14 @@ public class Script {
                 long endTime = System.currentTimeMillis() - startTime;
                 context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);
                 if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
-                    context.configure(new HttpConfig(result.config)); // clone for safety
+                    context.configure(new Config(result.config)); // clone for safety
                 }
                 return result.value.copy(); // clone for safety
             }
             // this thread is the 'winner'
             context.logger.info(">> lock acquired, begin callonce: {}", text);
             ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
-            result = new CallResult(resultValue.copy(), new HttpConfig(context.getConfig())); // snapshot for safety
+            result = new CallResult(resultValue.copy(), new Config(context.getConfig())); // snapshot for safety
             featureContext.callCache.put(text, result);
             context.logger.info("<< lock released, cached callonce: {}", text);
             return resultValue;

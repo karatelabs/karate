@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.core.ScenarioContext;
@@ -61,7 +62,7 @@ public abstract class HttpClient<T> {
      * @param config
      * @param context
      */
-    public abstract void configure(HttpConfig config, ScenarioContext context);
+    public abstract void configure(Config config, ScenarioContext context);
 
     protected abstract T getEntity(List<MultiPartItem> multiPartItems, String mediaType);
 
@@ -165,7 +166,7 @@ public abstract class HttpClient<T> {
                 }
             }
         }
-        HttpConfig config = context.getConfig();
+        Config config = context.getConfig();
         Map<String, Object> configHeaders = config.getHeaders().evalAsMap(context);
         if (configHeaders != null) {
             for (Map.Entry<String, Object> entry : configHeaders.entrySet()) {
@@ -245,7 +246,7 @@ public abstract class HttpClient<T> {
         }
     }
 
-    public static HttpClient construct(HttpConfig config, ScenarioContext context) {
+    public static HttpClient construct(Config config, ScenarioContext context) {
         if (config.getClientInstance() != null) {
             return config.getClientInstance();
         }

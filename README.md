@@ -4,9 +4,9 @@
 
 Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty) and [performance-testing](karate-gatling) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Besides powerful JSON & XML assertions, you can run tests in parallel - which is critical for HTTP API testing.
 
-You can quickly build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' (deep-equals) of two JSON or XML documents, and you can even ignore dynamic values if needed.
+You can easily build complex request payloads, traverse data within the responses, and chain data from responses into the next request. Karate's payload validation engine can perform a 'smart compare' (deep-equals) of two JSON or XML documents, and you can even ignore dynamic values if needed.
 
-Running tests and generating reports is just like any standard Java project. But there's also a [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. You write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. 
+With Karate - you run tests and generate reports just like any standard Java project. But there's also a [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. And you write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. 
 
 ## Hello World
 
@@ -222,10 +222,10 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
 * Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into existing Selenium / WebDriver test-suites](https://stackoverflow.com/q/47795762/143475).
-* [Cross-browser Web, Mobile and Desktop UI automation](karate-core) (experimental) so you can test (and even perf-test) all layers of your application with the same framwework
-* [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that deeply assert that server responses are OK under load
-* Gatling integration can even test [*any* Java code](https://github.com/intuit/karate/tree/master/karate-gatling#custom) which enables being able to test non-HTTP protocols such as [gRPC](https://thinkerou.com/karate-grpc/)
-* [API mock server](karate-netty) for test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
+* [Cross-browser Web, Mobile and Desktop UI automation](karate-core) (experimental) so you can test *all* layers of your application with the same framwework
+* [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that deeply assert that server responses are accurate under load
+* Gatling integration can even test [*any* Java code](https://github.com/intuit/karate/tree/master/karate-gatling#custom) - which means you can test non-HTTP protocols such as [gRPC](https://thinkerou.com/karate-grpc/)
+* [API mocks](karate-netty) or test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
 * [Async](#async) support that even allows you to listen to message-queues within a test
 * [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:
@@ -284,7 +284,7 @@ So you need two `<dependencies>`:
 
 And if you run into class-loading conflicts, for example if an older version of the Apache libraries are being used within your project - then use `karate-jersey` instead of `karate-apache`.
 
-If you want to use [JUnit 5](#junit-5), use `karate-junit5`.
+If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-junit4`.
 
 ## Gradle
 
@@ -434,7 +434,7 @@ In some cases, for large payloads and especially when the default system encodin
     </plugin>
 ``` 
 
-## Running With JUnit
+## Running With JUnit 4
 To run a script `*.feature` file from your Java IDE, you just need the following empty test-class in the same package. The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package. This comes in useful because depending on how you organize your files and folders - you can have multiple feature files executed by a single JUnit test-class.
 
 ```java
@@ -456,7 +456,7 @@ Refer to your IDE documentation for how to run a JUnit class.  Typically right-c
 ## JUnit 5
 Karate supports JUnit 5 and the advantage is that you can have multiple methods in a test-class. Only one `import` is needed, and instead of a class-level annotation, you use a nice DRY and fluent-api to express which tests and tags you want to use.
 
-Note that the Java class does not need to be `public` and even the test methods do not need to be `public` - and tests are very concise.
+Note that the Java class does not need to be `public` and even the test methods do not need to be `public` - and tests end up being very concise.
 
 Here is an example:
 
@@ -488,7 +488,7 @@ class SampleTest {
 ```
 
 ### JUnit HTML report
-When you use the `@RunWith(Karate.class)` - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console (see [video](https://twitter.com/KarateDSL/status/935029435140489216)).
+When you use a JUnit runner - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console (see [video](https://twitter.com/KarateDSL/status/935029435140489216)).
 
 ```
 html report: (paste into browser to view)
@@ -499,7 +499,9 @@ file:/projects/myproject/target/surefire-reports/TEST-mypackage.myfeature.html
 You can easily select (double-click), copy and paste this `file:` URL into your browser address bar. This report is useful for troubleshooting and debugging a test because all requests and responses are shown in-line with the steps, along with error messages and the output of [`print`](#print) statements. Just re-fresh your browser window if you re-run the test.
 
 ## Karate Options
-To run only a specific feature file from a JUnit test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the `@KarateOptions` annotation.
+To run only a specific feature file from a JUnit 4 test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the `@KarateOptions` annotation.
+
+> [JUnit 5](#junit-5) does not need an annotation.
 
 ```java
 package animals.cats;
@@ -515,7 +517,7 @@ public class CatsPostRunner {
 }
 ```
 
-The `features` parameter in the annotation can take an array, so if you wanted to associate multiple feature files with a JUnit test, you could do this:
+The `features` parameter in the annotation can take an array, so if you wanted to associate multiple feature files with a JUnit 4 test, you could do this:
 
 ```java
 @KarateOptions(features = {
@@ -805,7 +807,7 @@ Where `CatsRunner` is the JUnit class name (in any package) you wish to run.
 
 Karate is flexible, you can easily over-write config variables within each individual test-script - which is very convenient when in dev-mode or rapid-prototyping.
 
-Just for illustrative purposes, you could 'hard-code' the `karate.env` for a specific JUnit test like this. Since CI test-automation would typically use a [designated 'top-level suite' test-runner](#test-suites), you can actually have these individual test-runners lying around without any ill-effects. They are useful for running tests from the IDE and for dev-mode troubleshooting. To ensure that they don't get run by CI by mistake - just *don't* use the [`*Test.java` naming convention](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html).
+Just for illustrative purposes, you could 'hard-code' the `karate.env` for a specific JUnit 4 test like this. Since CI test-automation would typically use a [designated 'top-level suite' test-runner](#test-suites), you can actually have these individual test-runners lying around without any ill-effects. They are useful for running tests from the IDE and for dev-mode troubleshooting. To ensure that they don't get run by CI by mistake - just *don't* use the [`*Test.java` naming convention](http://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html).
 
 ```java
 package animals.cats;

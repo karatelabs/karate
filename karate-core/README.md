@@ -26,14 +26,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * Seamlessly mix API and UI tests in the same script
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
 
-# Examples
-## Web Browser
-* [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature)
-* [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature)
-## Windows
-* [Example](../karate-demo/src/test/java/driver/windows/calc.feature)
-
-# Chrome Java API
+### Chrome Java API
 Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 
 ```java
@@ -60,11 +53,20 @@ public class Test {
 The parameters that you can optionally customize via the `Map` argument to the `pdf()` method are documented here: [`Page.printToPDF
 `](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF).
 
-If Chrome is not installed in the defaut location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`.
+If Chrome is not installed in the default location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`.
 
-# Driver Configuration
+# Syntax Guide
 
-## `configure driver`
+## Examples
+## Web Browser
+* [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature)
+* [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature)
+## Windows
+* [Example](../karate-demo/src/test/java/driver/windows/calc.feature)
+
+## Driver Configuration
+
+### `configure driver`
 
 This will actually start Chrome (native) on both Mac OS and Windows from the default installed location.
 
@@ -105,7 +107,7 @@ key | description
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 
-# Driver Types
+## Driver Types
 type | description
 ---- | -----------
 [`chrome`](https://chromedevtools.github.io/devtools-protocol/) | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
@@ -116,7 +118,7 @@ type | description
 [`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | *very* experimental - using the DevTools protocol
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | Windows Desktop automation, similar to Appium
 
-# Locators
+## Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
 
 ```cucumber
@@ -134,118 +136,178 @@ win | (none) | name | `Submit`
 win | `@` | accessibility id | `@CalculatorResults`
 win | `#` | id | `#MyButton`
 
-# Keywords
+## Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
-## `driver`
+### `driver`
 Navigate to a web-address and initializes the `driver` instance for future step operations. And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [config](https://github.com/intuit/karate#configuration). Example:
 
 ```cucumber
 Given driver webUrlBase + '/page-01'
 ```
-### `driver` JSON
+#### `driver` JSON
 A variation where the argument is JSON instead of a URL / address-string, used only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
 
 ```cucumber
 Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
 ```
 
-# JS API
+## JS API
 The built-in `driver` JS object is where you script UI automation.
 
 Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and as a convenience, you can omit the `eval` keyword when executing an action - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
-## `driver.location`
+### `driver.location`
 Get the current URL / address for matching. Example:
 
 ```cucumber
 Then match driver.location == webUrlBase + '/page-02'
 ```
 
-## `driver.title`
+This can also be used as a "setter": 
+```cucumber
+* driver.location = 'http://localhost:8080/test'
+```
+
+### `driver.title`
 Get the current page title for matching. Example:
 
 ```cucumber
 Then match driver.title == 'Test Page'
 ```
 
-## `driver.dimensions`
+### `driver.dimensions`
 ```cucumber
  And driver.dimensions = { left: 0, top: 0, width: 300, height: 800 }
  ```
 
-## `driver.input()`
+### `driver.input()`
+2 string arguments: [locator](#locators) and value to enter.
 ```cucumber
 * driver.input('input[name=someName]', 'test input')
 ```
 
-## `driver.click()`
+### `driver.click()`
 Just triggers a click event on the DOM element, does *not* wait for a page load.
 ```cucumber
 * driver.click('input[name=someName]')
 ```
 
-## `driver.submit()`
+There is a second rarely used variant which will wait for a JavaScript [dialog](#driverdialog) to appear:
+```cucumber
+* driver.click('input[name=someName]', true)
+```
+
+### `driver.submit()`
 Triggers a click event on the DOM element, *and* waits for the next page to load.
 ```cucumber
 * driver.submit('.myClass')
 ```
 
-## `driver.focus()`
+### `driver.focus()`
 ```cucumber
 * driver.focus('.myClass')
 ```
 
-## `driver.close()`
-Close the page.
+### `driver.close()`
+Close the page / tab.
 
-## `driver.quit()`
+### `driver.quit()`
 Close the browser.
 
-## `driver.html()`
+### `driver.html()`
 Get the `innerHTML`. Example:
 ```cucumber
 And match driver.html('.myClass') == '<span>Class Locator Test</span>'
 ```
 
-## `driver.text()`
+### `driver.text()`
 Get the text-content. Example:
 ```cucumber
 And match driver.text('.myClass') == 'Class Locator Test'
 ```
 
-## `driver.value()`
+### `driver.value()`
 Get the HTML form-element value. Example:
 ```cucumber
 And match driver.value('.myClass') == 'some value'
 ```
 
-## `driver.waitForEvalTrue()`
-Wait for the JS expression to evaluate to `true`.
+### `driver.attribute()`
+Get the HTML element attribute value. Example:
+```cucumber
+And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
+```
 
-## `driver.refresh()`
+### `driver.waitUntil()`
+Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
+```cucumber
+* eval driver.waitUntil("document.readyState == 'complete'")
+```
 
-## `driver.reload()`
+### `driver.eval()`
+Will actually attempt to evaluate the given string as JavaScript within the browser.
+
+### `driver.refresh()`
+
+### `driver.reload()`
 Including cache
 
-## `driver.back()`
+### `driver.back()`
 
-## `driver.forward()`
+### `driver.forward()`
 
-## `driver.maximize()`
+### `driver.maximize()`
 
-## `driver.minimize()`
+### `driver.minimize()`
 
-## `driver.fullscreen()`
+### `driver.fullscreen()`
 
-## `driver.cookie` 
+### `driver.cookie` 
+Set a cookie:
+```cucumber
+Given def cookie2 = { name: 'hello', value: 'world' }
+When driver.cookie = cookie2
+Then match driver.cookies contains '#(^cookie2)'
+```
 
-## `driver.cookie()`
+### `driver.cookie()`
+Get a cookie by name:
+```cucumber
+* def cookie1 = { name: 'foo', value: 'bar' }
+And match driver.cookies contains '#(^cookie1)'
+And match driver.cookie('foo') contains cookie1
+```
 
-## `driver.cookies`
+### `driver.cookies`
+See above examples.
 
-## `driver.clearCookies()`
+### `driver.deleteCookie()`
+Delete a cookie by name:
+```cucumber
+When driver.deleteCookie('foo')
+Then match driver.cookies !contains '#(^cookie1)'
+```
 
-## `driver.dialog()`
+### `driver.clearCookies()`
+Clear all cookies.
+```cucumber
+When driver.clearCookies()
+Then match driver.cookies == '#[0]'
+```
+
+### `driver.dialog()`
+Two forms. The first takes a single boolean argument, whether to "accept" or "cancel". The second form has an additional string argument which is the text to enter for cases where the dialog is expecting user input.
+
+Also works as a "getter" to retrieve the text of the currently visible dialog:
+```cucumber
+* match driver.dialog == 'Please enter your name:'
+```
+
+### `driver.screenshot()`
+Two forms, if a [locator](#locators) is provided only that HTML element will be captured, else the browser viewport will be captured.
+
+### `driver.pdf()`
+Only supported for driver type [`chrome`](#driver-types).

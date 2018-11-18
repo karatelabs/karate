@@ -23,8 +23,6 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.http.HttpConfig;
-
 /**
  *
  * @author pthomas3
@@ -32,9 +30,9 @@ import com.intuit.karate.http.HttpConfig;
 public class CallResult {
     
     protected final ScriptValue value;
-    protected final HttpConfig config;
+    protected final Config config;
     
-    public CallResult(ScriptValue value, HttpConfig config) {
+    public CallResult(ScriptValue value, Config config) {
         this.value = value;
         this.config = config;
     }

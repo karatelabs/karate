@@ -26,6 +26,7 @@ package com.intuit.karate.driver.chrome;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
@@ -48,8 +49,9 @@ public class Chrome extends DevToolsDriver {
         super(options, command, webSocketUrl);
     }    
 
-    public static Chrome start(Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(map, logger, 9222, FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
+    public static Chrome start(ScenarioContext context, Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(context, map, logger, 9222, 
+                FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
         options.arg("--user-data-dir=" + options.workingDirPath);
@@ -75,7 +77,7 @@ public class Chrome extends DevToolsDriver {
         if (chromeExecutablePath != null) {
             options.put("executable", chromeExecutablePath);
         }
-        return Chrome.start(options, null);         
+        return Chrome.start(null, options, null);         
     }
     
     public static Chrome start() {

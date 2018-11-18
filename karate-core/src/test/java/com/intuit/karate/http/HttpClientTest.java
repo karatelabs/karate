@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.http;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.ScriptValue;
@@ -48,7 +49,7 @@ public class HttpClientTest {
     
     @Test
     public void testSwappingHttpClient() {
-        HttpConfig config = new HttpConfig();
+        Config config = new Config();
         Map<String, Object> map = new HashMap<>();
         map.put("name", "John");
         config.configure("userDefined", new ScriptValue(map));

@@ -26,6 +26,7 @@ package com.intuit.karate.driver.edge;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.WebDriver;
@@ -41,8 +42,8 @@ public class MicrosoftWebDriver extends WebDriver {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static MicrosoftWebDriver start(Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(map, logger, 17556, "MicrosoftWebDriver");
+    public static MicrosoftWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(context, map, logger, 17556, "MicrosoftWebDriver");
         options.arg("--port=" + options.port);
         CommandThread command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
@@ -67,11 +68,6 @@ public class MicrosoftWebDriver extends WebDriver {
     @Override
     public void activate() {
         logger.warn("activate not implemented for mswebdriver");
-    }
-
-    @Override
-    protected int getWaitInterval() {
-        return 1000;
     }
 
 }

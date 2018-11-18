@@ -21,11 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.http;
+package com.intuit.karate;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptValue;
-import com.intuit.karate.StringUtils;
+import com.intuit.karate.http.HttpClient;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +33,10 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  *
  * @author pthomas3
  */
-public class HttpConfig {
+public class Config {
+
+    public static final int DEFAULT_RETRY_INTERVAL = 3000;
+    public static final int DEFAULT_RETRY_COUNT = 3;    
 
     private boolean sslEnabled = false;
     private String sslAlgorithm = "TLS";
@@ -70,14 +71,14 @@ public class HttpConfig {
     private ScriptValue afterFeature = ScriptValue.NULL;
 
     // retry config
-    private int retryInterval = 3000;
-    private int retryCount = 3;
+    private int retryInterval = DEFAULT_RETRY_INTERVAL;
+    private int retryCount = DEFAULT_RETRY_COUNT;
 
     // report config
     private boolean showLog = true;
     private boolean showAllSteps = true;
 
-    public HttpConfig() {
+    public Config() {
         // zero arg constructor
     }
     
@@ -205,7 +206,7 @@ public class HttpConfig {
         }
     }
 
-    public HttpConfig(HttpConfig parent) {
+    public Config(Config parent) {
         sslEnabled = parent.sslEnabled;
         sslAlgorithm = parent.sslAlgorithm;
         sslTrustStore = parent.sslTrustStore;

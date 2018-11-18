@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.WebDriver;
@@ -42,8 +43,8 @@ public class SafariWebDriver extends WebDriver {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static SafariWebDriver start(Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(map, logger, 5555, "safaridriver");
+    public static SafariWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
+        DriverOptions options = new DriverOptions(context, map, logger, 5555, "safaridriver");
         options.arg("--port=" + options.port);
         CommandThread command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
@@ -58,12 +59,7 @@ public class SafariWebDriver extends WebDriver {
         SafariWebDriver driver = new SafariWebDriver(options, command, http, sessionId, windowId);
         driver.activate();
         return driver;
-    }
-
-    @Override
-    protected int getWaitInterval() {
-        return 1000;
-    }     
+    }    
     
     @Override
     public void setDimensions(Map<String, Object> map) {

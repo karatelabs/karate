@@ -23,11 +23,11 @@
  */
 package com.intuit.karate.http.jersey;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import static com.intuit.karate.http.Cookie.*;
 import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpConfig;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
@@ -72,7 +72,7 @@ public class JerseyHttpClient extends HttpClient<Entity> {
     private Charset charset;
 
     @Override
-    public void configure(HttpConfig config, ScenarioContext context) {
+    public void configure(Config config, ScenarioContext context) {
         ClientConfig cc = new ClientConfig();
         // support request body for DELETE (non-standard)
         cc.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true);
