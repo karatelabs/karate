@@ -99,8 +99,6 @@ public interface Driver {
     
     void dialog(boolean accept, String text);
     
-    byte[] pdf(Map<String, Object> options);
-    
     byte[] screenshot();
     
     byte[] screenshot(String id);    

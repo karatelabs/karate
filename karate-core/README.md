@@ -14,7 +14,7 @@ We know too well that UI automation is hard to get right and suffers from 2 big 
 
 With the help of the community, we would like to try valiantly - to see if we can get close to as ideal a state a possible. So wish us luck !
 
-### Capabilities
+## Capabilities
 
 * Direct-to-Chrome automation using the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support
@@ -33,12 +33,40 @@ With the help of the community, we would like to try valiantly - to see if we ca
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature)
 
+# Chrome Java API
+Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
+
+```java
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.driver.chrome.Chrome;
+import java.io.File;
+import java.util.Collections;
+
+public class Test {
+
+    public static void main(String[] args) {
+        Chrome chrome = Chrome.startHeadless();
+        chrome.setLocation("https://github.com/login");
+        byte[] bytes = chrome.pdf(Collections.EMPTY_MAP);
+        FileUtils.writeToFile(new File("target/github.pdf"), bytes);
+        bytes = chrome.screenshot();
+        FileUtils.writeToFile(new File("target/github.png"), bytes);
+        chrome.quit();
+    }
+    
+}
+```
+
+The parameters that you can optionally customize via the `Map` argument to the `pdf()` method are documented here: [`Page.printToPDF
+`](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF).
+
+If Chrome is not installed in the defaut location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`.
+
 # Driver Configuration
 
 ## `configure driver`
 
-### Direct to Chrome
-This will actually start Chrome on both Mac OS and Windows from the default installed location.
+This will actually start Chrome (native) on both Mac OS and Windows from the default installed location.
 
 ```cucumber
 * configure driver = { type: 'chrome' }

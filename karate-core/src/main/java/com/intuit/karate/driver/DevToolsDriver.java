@@ -96,7 +96,7 @@ public abstract class DevToolsDriver implements Driver {
     public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         String json = JsonUtils.toJson(dtm.toMap());
         logger.debug(">> {}", json);
-        client.send(json);        
+        client.send(json);
         return waitState.waitAfterSend(dtm, condition);
     }
 
@@ -261,12 +261,12 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void select(String id, String text) {
         evaluate(options.optionSelector(id, text), null);
-    }   
-    
+    }
+
     @Override
     public void select(String id, int index) {
         evaluate(options.optionSelector(id, index), null);
-    }     
+    }
 
     @Override
     public void submit(String id) {
@@ -334,7 +334,7 @@ public abstract class DevToolsDriver implements Driver {
     public boolean enabled(String id) {
         DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".disabled", null);
         return !dtm.getResult().isBooleanTrue();
-    }        
+    }
 
     @Override
     public void waitUntil(String expression) {
@@ -423,7 +423,6 @@ public abstract class DevToolsDriver implements Driver {
         return currentDialogText;
     }
 
-    @Override
     public byte[] pdf(Map<String, Object> options) {
         DevToolsMessage dtm = method("Page.printToPDF").params(options).send();
         String temp = dtm.getResult("data").getAsString();
@@ -443,10 +442,26 @@ public abstract class DevToolsDriver implements Driver {
         } else {
             Map<String, Object> map = rect(id);
             map.put("scale", 1);
-            dtm = method("Page.captureScreenshot").params(map).send();
+            dtm = method("Page.captureScreenshot").param("clip", map).send();
         }
         String temp = dtm.getResult("data").getAsString();
         return Base64.getDecoder().decode(temp);
+    }
+
+    public byte[] screenshot(boolean fullPage) {
+        if (fullPage) {
+            DevToolsMessage layout = method("Page.getLayoutMetrics").send();
+            Map<String, Object> size = layout.getResult("contentSize").getAsMap();
+            Map<String, Object> map = options.newMapWithSelectedKeys(size, "height", "width");
+            map.put("x", 0);
+            map.put("y", 0);
+            map.put("scale", 1);
+            DevToolsMessage dtm = method("Page.captureScreenshot").param("clip", map).send();
+            String temp = dtm.getResult("data").getAsString();
+            return Base64.getDecoder().decode(temp);
+        } else {
+            return screenshot();
+        }
     }
 
     public void enableNetworkEvents() {

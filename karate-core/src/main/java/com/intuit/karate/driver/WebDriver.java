@@ -336,13 +336,7 @@ public abstract class WebDriver implements Driver {
             http.path("alert", "text").post(Collections.singletonMap("text", text));
             http.path("alert", "accept").post("{}");
         }
-    }       
-
-    @Override
-    public byte[] pdf(Map<String, Object> options) {
-        logger.warn("pdf export only supported for type: 'chrome'");
-        return null;
-    }        
+    }     
 
     @Override
     public byte[] screenshot() {

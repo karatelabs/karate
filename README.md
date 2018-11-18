@@ -669,7 +669,7 @@ scenarios:  145 | passed:   145 | failed: 0
 Karate will run `Scenario`-s in parallel, so if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so !
 
 ### `@parallel=false`
-In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s but you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag on only those `Scenario`-s.
+In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s but you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag on only those `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
 
 > There is also an API to run a chosen set of features (and tags) which may be useful in cases where you dynamically want to select features at run time. Refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java)
 

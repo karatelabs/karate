@@ -29,6 +29,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -38,16 +39,16 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class ChromeDevToolsDriver extends DevToolsDriver {
+public class Chrome extends DevToolsDriver {
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
 
-    public ChromeDevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
+    public Chrome(DriverOptions options, CommandThread command, String webSocketUrl) {
         super(options, command, webSocketUrl);
-    }
+    }    
 
-    public static ChromeDevToolsDriver start(Map<String, Object> map, Logger logger) {
+    public static Chrome start(Map<String, Object> map, Logger logger) {
         DriverOptions options = new DriverOptions(map, logger, 9222, FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
@@ -59,7 +60,7 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
         Http http = Http.forUrl(options.driverLogger, "http://" + options.host + ":" + options.port);
         String webSocketUrl = http.path("json").get()
                 .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        
-        ChromeDevToolsDriver chrome = new ChromeDevToolsDriver(options, command, webSocketUrl);
+        Chrome chrome = new Chrome(options, command, webSocketUrl);
         chrome.activate();
         chrome.enablePageEvents();
         if (!options.headless) {
@@ -67,5 +68,22 @@ public class ChromeDevToolsDriver extends DevToolsDriver {
         }
         return chrome;
     }
+    
+    public static Chrome start(String chromeExecutablePath, boolean headless) {
+        Map<String, Object> options = new HashMap();
+        options.put("headless", headless);
+        if (chromeExecutablePath != null) {
+            options.put("executable", chromeExecutablePath);
+        }
+        return Chrome.start(options, null);         
+    }
+    
+    public static Chrome start() {
+        return start(null, false);
+    }
+    
+    public static Chrome startHeadless() {
+        return start(null, true);
+    }    
 
 }

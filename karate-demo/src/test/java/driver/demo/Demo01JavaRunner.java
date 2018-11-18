@@ -1,9 +1,7 @@
 package driver.demo;
 
 import com.intuit.karate.driver.Driver;
-import com.intuit.karate.driver.chrome.ChromeDevToolsDriver;
-import java.util.HashMap;
-import java.util.Map;
+import com.intuit.karate.driver.chrome.Chrome;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -19,23 +17,18 @@ public class Demo01JavaRunner {
     
     @Test
     public void testChrome() throws Exception {
-        Map<String, Object> options = new HashMap();
-        options.put("type", "chrome");
-        options.put("start", true);
-        // options.put("headless", true);
-        Driver driver = ChromeDevToolsDriver.start(options, null);        
+        Driver driver = Chrome.start();        
         driver.setLocation("https://github.com/login");
         driver.input("#login_field", "hello");
         driver.input("#password", "world");
-        driver.submit("//input[@name='commit']");
+        driver.submit("input[name=commit]");
         String html = driver.html("#js-flash-container");
         assertTrue(html.contains("Incorrect username or password."));
         driver.setLocation("https://google.com");
-        driver.input("//input[@name='q']", "karate dsl");
-        driver.submit("//input[@name='btnI']");
+        driver.input("input[name=q]", "karate dsl");
+        driver.submit("input[name=btnI]");
         assertEquals("https://github.com/intuit/karate", driver.getLocation());
         driver.quit();
-        // chrome.waitSync();
     }
     
 }

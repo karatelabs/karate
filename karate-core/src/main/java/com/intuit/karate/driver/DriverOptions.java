@@ -25,7 +25,7 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.Engine;
-import com.intuit.karate.driver.chrome.ChromeDevToolsDriver;
+import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
 import com.intuit.karate.driver.edge.EdgeDevToolsDriver;
 import com.intuit.karate.driver.edge.MicrosoftWebDriver;
@@ -112,7 +112,7 @@ public class DriverOptions {
         return command;
     }
 
-    public static Driver construct(Map<String, Object> options, Logger logger) {
+    public static Driver start(Map<String, Object> options, Logger logger) {
         String type = (String) options.get("type");
         if (type == null) {
             logger.warn("type was null, defaulting to 'chrome'");
@@ -120,7 +120,7 @@ public class DriverOptions {
         }
         switch (type) {
             case "chrome":
-                return ChromeDevToolsDriver.start(options, logger);
+                return Chrome.start(options, logger);
             case "msedge":
                 return EdgeDevToolsDriver.start(options, logger);
             case "chromedriver":
@@ -135,7 +135,7 @@ public class DriverOptions {
                 return WinAppDriver.start(options, logger);
             default:
                 logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-                return ChromeDevToolsDriver.start(options, logger);
+                return Chrome.start(options, logger);
         }
     }
 

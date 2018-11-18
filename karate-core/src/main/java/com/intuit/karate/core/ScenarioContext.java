@@ -843,7 +843,7 @@ public class ScenarioContext {
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }
-            setDriver(DriverOptions.construct(options, logger));
+            setDriver(DriverOptions.start(options, logger));
         }
         if (sv.isString()) {
             driver.setLocation(sv.getAsString());
