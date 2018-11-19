@@ -206,6 +206,23 @@ Triggers a click event on the DOM element, *and* waits for the next page to load
 * driver.submit('.myClass')
 ```
 
+### `driver.select()`
+Specially for select boxes. There are four variations and use the [selector](#selector) conventions.
+
+```cucumber
+# select by displayed text
+Given driver.select('select[name=data1]', '^Option Two')
+
+# select by partial displayed text
+And driver.select('select[name=data1]', '*Two')
+
+# select by `value`
+Given driver.select('select[name=data1]', 'option2')
+
+# select by index
+Given driver.select('select[name=data1]', 2)
+```
+
 ### `driver.focus()`
 ```cucumber
 * driver.focus('.myClass')

@@ -456,9 +456,9 @@ Refer to your IDE documentation for how to run a JUnit class.  Typically right-c
 ## JUnit 5
 Karate supports JUnit 5 and the advantage is that you can have multiple methods in a test-class. Only one `import` is needed, and instead of a class-level annotation, you use a nice DRY and fluent-api to express which tests and tags you want to use.
 
-Note that the Java class does not need to be `public` and even the test methods do not need to be `public` - and tests end up being very concise.
+Note that the Java class does not need to be `public` and even the test methods do not need to be `public` - so tests end up being very concise.
 
-Here is an example:
+Here is an [example](karate-junit5/src/test/java/karate/SampleTest.java):
 
 ```java
 package karate;
@@ -501,7 +501,7 @@ You can easily select (double-click), copy and paste this `file:` URL into your 
 ## Karate Options
 To run only a specific feature file from a JUnit 4 test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the `@KarateOptions` annotation.
 
-> [JUnit 5](#junit-5) does not need an annotation.
+> The [JUnit 5 support](#junit-5) does not require a class-level annotation to specify the feature(s) and tags to use.
 
 ```java
 package animals.cats;
