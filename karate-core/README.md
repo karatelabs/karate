@@ -58,10 +58,10 @@ If Chrome is not installed in the default location, you can pass a String argume
 # Syntax Guide
 
 ## Examples
-## Web Browser
+### Web Browser
 * [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature)
 * [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature)
-## Windows
+### Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature)
 
 ## Driver Configuration
