@@ -86,7 +86,6 @@ public class Runner {
         Results results = Results.startTimer(threadCount);
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount);
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
-        ExecutorService singleExecutor = Executors.newSingleThreadExecutor();
         int executedFeatureCount = 0;
         try {
             int count = resources.size();
@@ -99,7 +98,7 @@ public class Runner {
                 FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(feature, hook, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir, 
-                        r -> featureExecutor.submit(r), scenarioExecutor, singleExecutor);
+                        r -> featureExecutor.submit(r), scenarioExecutor);
                 featureResults.add(execContext.result);
                 FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
                 unit.setNext(() -> {
@@ -139,7 +138,6 @@ public class Runner {
         } finally {
             featureExecutor.shutdownNow();
             scenarioExecutor.shutdownNow();
-            singleExecutor.shutdownNow();
         }
         results.setFeatureCount(executedFeatureCount);
         results.printStats(threadCount);
@@ -175,7 +173,7 @@ public class Runner {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(null, feature, null);
         CallContext callContext = CallContext.forAsync(feature, hook, arg, true);
-        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, system, null, null);
+        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, system, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.setNext(next);
         system.accept(exec);

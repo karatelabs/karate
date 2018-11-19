@@ -105,27 +105,23 @@ public class FeatureExecutionUnit implements Runnable {
                 }
                 featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
-            boolean forceSequential = exec.singleExecutor != null && tags.valuesFor("parallel").isAnyOf("false");
+            boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
             unit.setNext(() -> {
+                latch.countDown();
                 // we also hold a reference to the last scenario-context that executed
                 // for cases where the caller needs a result
                 lastContextExecuted = unit.getActions().context;
-                if (parallelScenarios) {
-                    latch.countDown();
-                } else { // yield next scenario only when previous completes                    
-                    // and execute one-by-one in sequence order                    
+                if (sequential) { // yield next scenario only when previous completes                    
+                    // and execute one-by-one in sequence order 
                     SYSTEM.accept(this);
                 }
             });
             // this is an elegant solution to retaining the order of scenarios 
             // in the final report - even if they run in parallel !            
             results.add(unit.result);
-            if (forceSequential) {
-                exec.singleExecutor.submit(unit);
-            } else {
-                SYSTEM.accept(unit);
-            }
-            if (parallelScenarios) {
+            // main
+            SYSTEM.accept(unit);
+            if (!sequential) {
                 // loop immediately and submit all scenarios in parallel
                 SYSTEM.accept(this);
             }

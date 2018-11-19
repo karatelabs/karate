@@ -87,7 +87,7 @@ public class Karate implements Iterable<DynamicNode> {
         for (Feature feature : features) {
             FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
             CallContext callContext = new CallContext(null, true);
-            ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null, null);
+            ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
             FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
             unit.run();
             exec.result.printStats(null);

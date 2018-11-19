@@ -29,7 +29,7 @@ public class DemoTestSelected {
         String karateOutputPath = "target/surefire-reports";
         Results results = Runner.parallel(tags, features, 5, karateOutputPath);
         DemoTestParallel.generateReport(karateOutputPath);
-        assertTrue("there are scenario failures", results.getFailCount() == 0);
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
 
 }

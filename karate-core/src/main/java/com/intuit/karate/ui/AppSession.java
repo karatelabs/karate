@@ -71,7 +71,7 @@ public class AppSession {
         this.rootPane = rootPane;
         this.workingDir = workingDir;
         FeatureContext featureContext = new FeatureContext(env, feature, workingDir, logger);
-        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null, null);
+        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();
         featureOutlinePanel = new FeatureOutlinePanel(this);

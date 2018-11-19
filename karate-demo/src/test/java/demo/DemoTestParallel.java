@@ -30,7 +30,7 @@ public class DemoTestParallel {
     public void testParallel() {
         Results results = Runner.parallel(getClass(), 5);
         generateReport(results.getReportDir());
-        assertTrue("there are scenario failures", results.getFailCount() == 0);        
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
     }
     
     public static void generateReport(String karateOutputPath) {        

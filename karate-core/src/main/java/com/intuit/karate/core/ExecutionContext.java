@@ -43,12 +43,10 @@ public class ExecutionContext {
     public final LogAppender appender;
     public final Consumer<Runnable> system;
     public final ExecutorService scenarioExecutor;
-    public final ExecutorService singleExecutor;
 
     public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDir,
-            Consumer<Runnable> system, ExecutorService scenarioExecutor, ExecutorService singleExecutor) {
+            Consumer<Runnable> system, ExecutorService scenarioExecutor) {
         this.scenarioExecutor = scenarioExecutor;
-        this.singleExecutor = singleExecutor;
         this.startTime = startTime;
         result = new FeatureResult(featureContext.feature);
         this.featureContext = featureContext;
