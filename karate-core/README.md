@@ -207,7 +207,7 @@ Triggers a click event on the DOM element, *and* waits for the next page to load
 ```
 
 ### `driver.select()`
-Specially for select boxes. There are four variations and use the [selector](#selector) conventions.
+Specially for select boxes. There are four variations and use the [locator](#locators) conventions.
 
 ```cucumber
 # select by displayed text
