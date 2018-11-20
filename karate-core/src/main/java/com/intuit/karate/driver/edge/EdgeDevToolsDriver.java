@@ -63,11 +63,6 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     }
 
     @Override
-    protected int getWaitInterval() {
-        return 1000;
-    }
-
-    @Override
     public void setLocation(String url) {
         method("Page.navigate").param("url", url).send();
         waitUntil("document.readyState == 'complete'");

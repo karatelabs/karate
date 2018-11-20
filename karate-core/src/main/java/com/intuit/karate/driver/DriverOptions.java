@@ -174,6 +174,15 @@ public class DriverOptions {
     public String wrapInFunctionInvoke(String text) {
         return "(function(){ " + text + " })()";
     }
+    
+    public String highlighter(String id) {
+        String e = elementSelector(id);
+        String temp = "var e = " + e + ";"
+                + " var old = e.getAttribute('style');"
+                + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
+                + " setTimeout(function(){ e.setAttribute('style', old) }, 3000);";
+        return wrapInFunctionInvoke(temp); 
+    }
 
     public String optionSelector(String id, String text) {
         boolean textEquals = text.startsWith("^");

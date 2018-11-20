@@ -112,10 +112,6 @@ public abstract class DevToolsDriver implements Driver {
 
     //==========================================================================
     //
-    protected int getWaitInterval() {
-        return 0;
-    }
-
     protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
         DevToolsMessage dtm;
@@ -338,14 +334,15 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void waitUntil(String expression) {
+        int max = options.getRetryCount();
         int count = 0;
         ScriptValue sv;
         do {
-            options.sleep(getWaitInterval());
+            options.sleep();
             logger.debug("poll try #{}", count + 1);
             DevToolsMessage dtm = evaluate(expression, null);
             sv = dtm.getResult();
-        } while (!sv.isBooleanTrue() && count++ < 3);
+        } while (!sv.isBooleanTrue() && count++ < max);
     }
 
     @Override
@@ -462,6 +459,11 @@ public abstract class DevToolsDriver implements Driver {
         } else {
             return screenshot();
         }
+    }
+    
+    @Override
+    public void highlight(String id) {
+        eval(options.highlighter(id));
     }
 
     public void enableNetworkEvents() {

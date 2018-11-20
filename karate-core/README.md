@@ -328,3 +328,10 @@ Two forms, if a [locator](#locators) is provided only that HTML element will be 
 
 ### `driver.pdf()`
 Only supported for driver type [`chrome`](#driver-types).
+
+### `driver.highlight()`
+Useful to visually highlight an element in the browser, especially when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
+
+```cucumber
+* driver.highlight('#eg01DivId')
+```

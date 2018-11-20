@@ -101,7 +101,9 @@ public interface Driver {
     
     byte[] screenshot();
     
-    byte[] screenshot(String id);    
+    byte[] screenshot(String id);   
+    
+    void highlight(String id);
 
     // javabean naming convention is intentional ===============================
     //

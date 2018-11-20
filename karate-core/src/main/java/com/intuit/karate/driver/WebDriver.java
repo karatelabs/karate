@@ -349,6 +349,11 @@ public abstract class WebDriver implements Driver {
             temp = http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
         }
         return Base64.getDecoder().decode(temp); 
+    }
+
+    @Override
+    public void highlight(String id) {
+        eval(options.highlighter(id));
     }        
 
 }
