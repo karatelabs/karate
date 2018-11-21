@@ -26,6 +26,7 @@ package com.intuit.karate.ui;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
+import com.intuit.karate.core.StepResult;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.application.Platform;
@@ -115,6 +116,19 @@ public class ScenarioPanel extends BorderPane {
                 break;
             }
         }      
+    }
+    
+    public void runUpto(int index) {
+        for (StepPanel stepPanel : stepPanels) {
+            int stepIndex = stepPanel.getIndex();
+            StepResult sr = unit.result.getStepResult(stepPanel.getIndex());
+            if (sr != null) {
+                continue;
+            }
+            if (stepPanel.run(true) || stepIndex == index) {
+                break;
+            }
+        }          
     }
 
     public void reset() {

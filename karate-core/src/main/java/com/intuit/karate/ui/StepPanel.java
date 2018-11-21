@@ -29,6 +29,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitMenuButton;
@@ -59,6 +60,10 @@ public class StepPanel extends AnchorPane {
     private static final String STYLE_DEFAULT = "-fx-base: #F0F0F0";
     private static final String STYLE_BACKGROUND = "-fx-text-fill: #8D9096";
 
+    public int getIndex() {
+        return index;
+    }
+
     public boolean isLast() {
         return last;
     }
@@ -69,16 +74,19 @@ public class StepPanel extends AnchorPane {
 
     private final MenuItem runMenuItem;
     private final MenuItem calledMenuItem;
-    private boolean runUpto;
     private boolean showCalled;
-    
-    private String getRunMenuText() {
-        return runUpto ? "run this step" : "TODO: run upto this step";
-    }
-    
+
     private String getCalledMenuText() {
         return showCalled ? "hide called" : "show called";
-    }    
+    }
+
+    private String getRunButtonText() {
+        if (showCalled) {
+            return "►►";
+        } else {
+            return "►";
+        }
+    }
 
     public StepPanel(AppSession session, ScenarioPanel scenarioPanel, Step step, int index) {
         this.session = session;
@@ -103,15 +111,19 @@ public class StepPanel extends AnchorPane {
                 }
             }
         });
-        runMenuItem = new MenuItem(getRunMenuText());
-        runMenuItem.setOnAction(e -> { runUpto = !runUpto; runMenuItem.setText(getRunMenuText());});
+        runMenuItem = new MenuItem("run upto");
         calledMenuItem = new MenuItem(getCalledMenuText());
-        calledMenuItem.setOnAction(e -> { showCalled = !showCalled; calledMenuItem.setText(getCalledMenuText());});
         runButton = new SplitMenuButton(runMenuItem, calledMenuItem);
-        runButton.setText("►");
+        runMenuItem.setOnAction(e -> scenarioPanel.runUpto(index));
+        calledMenuItem.setOnAction(e -> {
+            showCalled = !showCalled;
+            calledMenuItem.setText(getCalledMenuText());
+            runButton.setText(getRunButtonText());
+        });
+        runButton.setText(getRunButtonText());
         runButton.setOnAction(e -> {
             if (FeatureParser.updateStepFromText(step, text)) {
-                run(false);
+                Platform.runLater(() -> run(false));
             } else {
                 runButton.setStyle(STYLE_FAIL);
             }
