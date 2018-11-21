@@ -114,7 +114,7 @@ public class StepPanel extends AnchorPane {
         runMenuItem = new MenuItem("run upto");
         calledMenuItem = new MenuItem(getCalledMenuText());
         runButton = new SplitMenuButton(runMenuItem, calledMenuItem);
-        runMenuItem.setOnAction(e -> scenarioPanel.runUpto(index));
+        runMenuItem.setOnAction(e -> Platform.runLater(() -> scenarioPanel.runUpto(index)));
         calledMenuItem.setOnAction(e -> {
             showCalled = !showCalled;
             calledMenuItem.setText(getCalledMenuText());
