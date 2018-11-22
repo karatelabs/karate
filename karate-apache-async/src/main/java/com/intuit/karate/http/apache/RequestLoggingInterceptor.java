@@ -24,13 +24,24 @@
 package com.intuit.karate.http.apache;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hc.core5.http.EntityDetails;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpRequestInterceptor;
+import org.apache.hc.core5.http.impl.nio.MessageState;
 import org.apache.hc.core5.http.message.BasicHttpRequest;
+import org.apache.hc.core5.http.nio.AsyncEntityProducer;
+import org.apache.hc.core5.http.nio.DataStreamChannel;
+import org.apache.hc.core5.http.nio.entity.BasicAsyncEntityProducer;
 import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.net.URIAuthority;
 
 import com.intuit.karate.ScriptContext;
 import com.intuit.karate.http.HttpRequest;
@@ -64,38 +75,70 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
     public void process(org.apache.hc.core5.http.HttpRequest request, EntityDetails entityDetails, HttpContext httpContext) throws HttpException, IOException {
         HttpRequest actual = new HttpRequest();
         int id = counter.incrementAndGet();
-        
-        // FIXME: Getting the URI from the context is broken
-//        String uri = (String) httpContext.getAttribute(ApacheHttpAsyncClient.URI_CONTEXT_KEY);
-//        String method = request.getMethod();
-//        actual.setUri(uri);
-//        actual.setMethod(method);
+        try {
+            actual.setUri(request.getUri().toString());
+        } catch (URISyntaxException e) {
+            actual.setUri(extractUri(request));
+        }
+        actual.setMethod(request.getMethod());
         
         StringBuilder sb = new StringBuilder();
-        if (request instanceof BasicHttpRequest) {
-        	sb.append("request:\n").append(id).append(" > ").append(request.toString()).append('\n');
-            LoggingUtils.logHeaders(sb, id, '>', request, actual);
-//        	BasicHttpRequest entityRequest = (BasicHttpRequest) request;
-//        	entityRequest.g
-//            HttpEntity entity = entityRequest.getEntity();
-//            if (LoggingUtils.isPrintable(entityDetails)) {
-//        	request.toString()
-//                LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity); // todo optimize, preserve if stream
-//                String buffer = FileUtils.toString(wrapper.getContent());
-//                
-//                request.get
-//                if (context.getConfig().isLogPrettyRequest()) {
-//                    buffer = FileUtils.toPrettyString(buffer);
-//                }
-//                sb.append(buffer).append('\n');
-//                actual.setBody(wrapper.getBytes());
-//                entityRequest.setEntity(wrapper);
-//            }
+        sb.append("request:\n").append(id).append(" > ").append(request.toString()).append('\n');
+        LoggingUtils.logHeaders(sb, id, '>', request, actual);
+        if (entityDetails instanceof AsyncEntityProducer) {
+            AsyncEntityProducer entityProducer = (AsyncEntityProducer)entityDetails;
+            
+            if (LoggingUtils.isPrintable(entityDetails)) {
+                entityProducer.produce(new DataStreamChannel() {
+    
+                    @Override
+                    public int write(final ByteBuffer src) throws IOException {
+                        actual.setBody(src.array());
+                        return src.limit();
+                    }
+    
+                    @Override
+                    public void requestOutput() {
+                    }
+    
+                    @Override
+                    public void endStream(final List<? extends Header> trailers) throws IOException {
+                    }
+    
+                    @Override
+                    public void endStream() throws IOException {
+                        endStream(null);
+                    }
+    
+                });
+            }
         }
+
         context.setPrevRequest(actual);
         context.logger.debug(sb.toString());
         startTime = System.currentTimeMillis();
         actual.setStartTime(startTime);
     }
 
+    private String extractUri(org.apache.hc.core5.http.HttpRequest request) {
+        final StringBuilder buf = new StringBuilder();
+        URIAuthority reqAuth = request.getAuthority();
+        if (reqAuth != null) {
+            buf.append(request.getScheme() != null ? request.getScheme() : "http").append("://");
+            buf.append(reqAuth.getHostName());
+            if (reqAuth.getPort() >= 0) {
+                buf.append(":").append(reqAuth.getPort());
+            }
+        }
+        String path = request.getPath();
+        if (path == null) {
+            buf.append("/");
+        } else {
+            if (buf.length() > 0 && !path.startsWith("/")) {
+                buf.append("/");
+            }
+            buf.append(path);
+        }
+        return buf.toString();
+    }
 }
