@@ -629,13 +629,13 @@ And most importantly - you can run tests in parallel without having to depend on
 ## Parallel Execution
 Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle.
 
-> Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit test class !
+> Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class !
 
 ```java
 import com.intuit.karate.KarateOptions;
-import com.intuit.karate.KarateStats;
+import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import org.junit.Test;
 
 @KarateOptions(tags = {"~@ignore"})
@@ -643,8 +643,8 @@ public class TestParallel {
     
     @Test
     public void testParallel() {
-        KarateStats stats = Runner.parallel(getClass(), 5, "target/surefire-reports");
-        assertTrue("scenarios failed", stats.getFailCount() == 0);
+        Results results = Runner.parallel(getClass(), 5, "target/surefire-reports");
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
     
 }
@@ -732,11 +732,9 @@ The 'classpath' is a Java concept and is where some configuration files such as 
 
 ## `karate-config.js`
 
-The only 'rule' is that on start-up Karate expects a file called `karate-config.js` to exist on the 'classpath' and contain a JavaScript function. The function is expected to return a JSON object and all keys and values in that JSON object will be made available as script variables.
+The only 'rule' is that on start-up Karate expects a file called `karate-config.js` to exist on the 'classpath' and contain a [JavaScript function](#javascript-functions). The function is expected to return a JSON object and all keys and values in that JSON object will be made available as script variables.
 
 And that's all there is to Karate configuration ! You can easily get the value of the [current 'environment' or 'profile'](#switching-the-environment), and then set up 'global' variables using some simple JavaScript. Here is an example:
-
-> Tip: some IDE-s (e.g. IntelliJ) complain that a JavaScript file that starts with `function() {` is invalid syntax - but you can use any name (which will be ignored) as follows: `function fn() { return { myKey: 'myValue' } }`
 
 ```javascript    
 function fn() {   
@@ -1698,7 +1696,8 @@ Then status 200
 
 Note that `multipart file` takes a JSON argument so that you can easily set the `filename` and the `contentType` (mime-type) in one step.
 
-* `read`: mandatory, - the name of a file, and the [`classpath:`](#reading-files) prefix also is allowed.
+* `read`: the name of a file, and the [`classpath:`](#reading-files) prefix also is allowed. mandatory unless `value` is used, see below.
+* `value`: alternative to `read` in rare cases where something like a JSON or XML file is being uploaded and you want to create it dynamically.
 * `filename`: optional, will default to the multipart field name if not specified
 * `contentType`: optional, will default to `application/octet-stream`
 

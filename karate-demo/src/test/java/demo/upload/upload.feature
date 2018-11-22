@@ -45,6 +45,24 @@ Scenario: upload with filename and content-type specified
     And match header Content-Disposition contains 'upload-name.pdf'
     And match header Content-Type == 'application/pdf'
 
+Scenario: upload with content created dynamically
+    Given path 'files'
+    And def value = 'lorem ipsum'
+    And multipart file myFile = { value: '#(value)', filename: 'hello.txt', contentType: 'text/plain' }
+    And multipart field message = 'hello world'
+    When method post
+    Then status 200
+    And match response contains { id: '#uuid', filename: 'hello.txt', message: 'hello world' }
+    And def id = response.id
+
+    Given path 'files', id
+    When method get
+    Then status 200
+    And match response == 'lorem ipsum'
+    And match header Content-Disposition contains 'attachment'
+    And match header Content-Disposition contains 'hello.txt'
+    And match header Content-Type contains 'text/plain'
+
 Scenario: upload multipart/mixed
     Given path 'files', 'mixed'
     And multipart field myJson = { text: 'hello world' }

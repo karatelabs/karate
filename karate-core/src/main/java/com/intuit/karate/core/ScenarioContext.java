@@ -669,12 +669,18 @@ public class ScenarioContext {
         if (!sv.isMapLike()) {
             throw new RuntimeException("mutipart file value should be json");
         }
+        ScriptValue fileValue;
         Map<String, Object> map = sv.getAsMap();
         String read = asString(map, "read");
         if (read == null) {
-            throw new RuntimeException("mutipart file json should have a value for 'read'");
+            Object o = map.get("value");
+            fileValue = o == null ? null : new ScriptValue(o);
+        } else {
+            fileValue = FileUtils.readFile(read, this);
         }
-        ScriptValue fileValue = FileUtils.readFile(read, this);
+        if (fileValue == null) {
+            throw new RuntimeException("mutipart file json should have a value for 'read' or 'value'");
+        }
         MultiPartItem item = new MultiPartItem(name, fileValue);
         String filename = asString(map, "filename");
         if (filename == null) {

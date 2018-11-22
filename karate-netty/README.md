@@ -472,7 +472,7 @@ Just like the above, but you can set this "globally" for all route-handlers in t
 ```cucumber
 * configure afterScenario =
 """
-function(){
+function fn(){
     var millis = 200 + Math.random() * 400;
     karate.log('sleeping for:', millis, 'millis')
     java.lang.Thread.sleep(millis); 
