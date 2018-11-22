@@ -88,10 +88,11 @@ public class ScenarioPanel extends BorderPane {
         VBox vbox = new VBox(App.PADDING);
         varsPanel = new VarsPanel(session, this);
         vbox.getChildren().add(varsPanel);
-        consolePanel = new ConsolePanel(session, this);
-        vbox.getChildren().add(consolePanel);
-        DragResizer.makeResizable(vbox, false, false, false, true);
+        consolePanel = new ConsolePanel(session, this);        
+        vbox.getChildren().add(consolePanel);        
         setRight(vbox);
+        DragResizer.makeResizable(vbox, false, false, false, true);
+        DragResizer.makeResizable(consolePanel, false, false, true, false);        
         reset(); // clear any background results if dynamic scenario
     }
 
