@@ -147,6 +147,9 @@ public class Config {
                 }
                 return false;
             // here on the http client has to be re-constructed ================
+            case "httpVersion":
+            	setHttpVersion(Double.valueOf(value.getAsString()));
+                return true;
             case "httpClientClass":
                 clientClass = value.getAsString();
                 return true;

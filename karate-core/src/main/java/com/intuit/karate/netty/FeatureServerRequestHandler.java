@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.netty;
 
+import static io.netty.handler.codec.http.HttpUtil.setContentLength;
+
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.http.HttpRequest;
@@ -42,19 +44,20 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http2.HttpConversionUtil;
 import io.netty.util.CharsetUtil;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class FeatureServerRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final FeatureBackend backend;
     private final Runnable stopFunction;
     private final boolean ssl;
 
-    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Runnable stopFunction) {
+    public FeatureServerRequestHandler(FeatureBackend backend, boolean ssl, Runnable stopFunction) {
         this.backend = backend;
         this.ssl = ssl;
         this.stopFunction = stopFunction;
@@ -72,6 +75,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         long startTime = System.currentTimeMillis();
         backend.getContext().logger.debug("handling method: {}, uri: {}", msg.method(), msg.uri());
         FullHttpResponse nettyResponse;
+        String streamId = getStreamId(msg);
         if (msg.uri().startsWith(STOP_URI)) {
             backend.getContext().logger.info("stop uri invoked, shutting down");
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
@@ -114,8 +118,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 karateHeaders.forEach((k, v) -> nettyHeaders.add(k, v));
             }            
         }        
-        ctx.write(nettyResponse);
-        ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        sendResponse(ctx, streamId, 0, nettyResponse);
     }
 
     @Override
@@ -127,5 +130,25 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
         ctx.close();
     }
+    
+    protected void sendResponse(final ChannelHandlerContext ctx, String streamId, int latency,
+            final FullHttpResponse response) {
+        setContentLength(response, response.content().readableBytes());
+        setStreamId(response, streamId);
+        if(streamId != null){
+        	ctx.writeAndFlush(response);
+        } else {
+        	ctx.write(response);
+        	ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        }
+    }
 
+    private String getStreamId(FullHttpRequest msg) {
+        return msg.headers().get(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text().toString());
+    }
+
+    private void setStreamId(FullHttpResponse response, String streamId) {
+        if(streamId != null)
+            response.headers().set(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text(), streamId);
+    }
 }

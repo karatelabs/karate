@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.netty;
 
-import com.intuit.karate.cucumber.FeatureProvider;
-import com.intuit.karate.cucumber.FeatureWrapper;
+
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureBackend;
+import com.intuit.karate.core.FeatureParser;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
@@ -109,12 +111,12 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
         // HTTP/1 requests fall-through or HTTP/2 requests are converted 
         // and pushed through to the feature server request handling
         p.addLast(new HttpObjectAggregator(Http2OrHttpHandler.MAX_CONTENT_LENGTH));
-        p.addLast(new FeatureServerRequestHandler(provider, stopFunction));
+        p.addLast(new FeatureServerRequestHandler(backend, false, stopFunction));
     }
 
     private void setupForSSL(SocketChannel ch) {
         logger.info("server setup for SSL");
-        ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()), new Http2OrHttpHandler(provider, stopFunction));
+        ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()), new Http2OrHttpHandler(backend, stopFunction));
         
     }
     

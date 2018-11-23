@@ -19,15 +19,12 @@ package com.intuit.karate.netty;
 import io.netty.handler.codec.http2.AbstractHttp2ConnectionHandlerBuilder;
 import io.netty.handler.codec.http2.Http2ConnectionDecoder;
 import io.netty.handler.codec.http2.Http2ConnectionEncoder;
-import io.netty.handler.codec.http2.Http2FrameListener;
 import io.netty.handler.codec.http2.Http2FrameLogger;
 import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapter;
 import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
 
 import static io.netty.handler.logging.LogLevel.INFO;
-
-import com.intuit.karate.cucumber.FeatureProvider;
 
 public final class Http2ConnectionHandlerBuilder
         extends AbstractHttp2ConnectionHandlerBuilder<FeatureServerHttp2ConnectionHandler, Http2ConnectionHandlerBuilder> {

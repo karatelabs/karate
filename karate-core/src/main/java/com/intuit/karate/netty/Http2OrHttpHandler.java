@@ -19,7 +19,7 @@ package com.intuit.karate.netty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.intuit.karate.cucumber.FeatureProvider;
+import com.intuit.karate.core.FeatureBackend;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -34,14 +34,14 @@ import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
 public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(Http2OrHttpHandler.class);
-    private final FeatureProvider provider;
+    private final FeatureBackend backend;
     private final Runnable stopFunction;
 
     public static final int MAX_CONTENT_LENGTH = 1024 * 1024;
     
-    protected Http2OrHttpHandler(FeatureProvider provider, Runnable stopFunction) {
+    protected Http2OrHttpHandler(FeatureBackend backend, Runnable stopFunction) {
         super(ApplicationProtocolNames.HTTP_1_1);
-        this.provider = provider;
+        this.backend = backend;
         this.stopFunction = stopFunction;        
     }
   
@@ -65,13 +65,13 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
         logger.info("configureHttp2");
         
         ctx.pipeline().addLast(new Http2ConnectionHandlerBuilder().build());
-        ctx.pipeline().addLast(new FeatureServerRequestHandler(provider, stopFunction));
+        ctx.pipeline().addLast(new FeatureServerRequestHandler(backend, true, stopFunction));
     }
 
     private void configureHttp1(ChannelHandlerContext ctx) throws Exception {
         logger.info("configureHttp1");
         ctx.pipeline().addLast(new HttpServerCodec(),
                                new HttpObjectAggregator(MAX_CONTENT_LENGTH),
-                               new FeatureServerRequestHandler(provider, stopFunction));
+                               new FeatureServerRequestHandler(backend, true, stopFunction));
     }
 }

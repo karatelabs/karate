@@ -14,6 +14,10 @@
     <properties>
         <antlr.version>4.7.1</antlr.version>
         <netty.version>4.1.18.Final</netty.version>
+        <netty.tcnative.boringssl.version>2.0.12.Final</netty.tcnative.boringssl.version>
+        <jetty.alpn.api.version>1.1.2.v20150522</jetty.alpn.api.version>
+        <jetty.alpn.agent.version>2.0.7</jetty.alpn.agent.version>
+        <conscrypt.version>1.1.3</conscrypt.version>
     </properties>    
 
     <dependencies>
@@ -24,9 +28,29 @@
         </dependency>                
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http</artifactId>
+            <artifactId>netty-codec-http2</artifactId>
             <version>${netty.version}</version>
         </dependency>       
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-boringssl-static</artifactId>
+            <version>${netty.tcnative.boringssl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.conscrypt</groupId>
+            <artifactId>conscrypt-openjdk-uber</artifactId>
+            <version>${conscrypt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.alpn</groupId>
+            <artifactId>alpn-api</artifactId>
+            <version>${jetty.alpn.api.version}</version>
+        </dependency>
+        <dependency>
+              <groupId>org.mortbay.jetty.alpn</groupId>
+              <artifactId>jetty-alpn-agent</artifactId>
+              <version>${jetty.alpn.agent.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4-runtime</artifactId>
