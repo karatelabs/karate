@@ -130,7 +130,7 @@ public class ScriptBridge implements PerfContext {
         try {
             sv = Script.evalKarateExpression(exp, context); // even json path expressions will work
         } catch (Exception e) {
-            context.logger.warn("karate.get failed for expression: '{}': {}", exp, e.getMessage());
+            context.logger.trace("karate.get failed for expression: '{}': {}", exp, e.getMessage());
             return null;
         }
         if (sv != null) {
