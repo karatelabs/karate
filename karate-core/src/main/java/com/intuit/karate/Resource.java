@@ -28,6 +28,8 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -50,7 +52,7 @@ public class Resource {
         this.relativePath = relativePath;
         packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
     }
-    
+
     public String getFileNameWithoutExtension() {
         return FileUtils.removeFileExtension(path.getFileName().toString());
     }
@@ -61,18 +63,36 @@ public class Resource {
 
     public String getPackageQualifiedName() {
         return packageQualifiedName;
-    }        
+    }
 
     public Path getPath() {
         return path;
     }
+
+    private static final Map<String, InputStream> STREAM_CACHE = new HashMap();
 
     public InputStream getStream() {
         try {
             if (file) {
                 return new FileInputStream(path.toFile());
             } else {
-                return Files.newInputStream(path);
+                InputStream stream = STREAM_CACHE.get(relativePath);
+                if (stream != null) {
+                    return stream;
+                }
+                synchronized (STREAM_CACHE) {
+                    stream = STREAM_CACHE.get(relativePath); // re-try
+                    if (stream != null) {
+                        return stream;
+                    }
+                    // since the nio newInputStream has concurrency problems :(
+                    // plus a performance boost for karate-base.js if in JAR
+                    InputStream tempStream = Files.newInputStream(path);
+                    String tempString = FileUtils.toString(tempStream);
+                    stream = FileUtils.toInputStream(tempString);
+                    STREAM_CACHE.put(relativePath, stream);
+                    return stream;
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -80,11 +100,7 @@ public class Resource {
     }
 
     public String getAsString() {
-        if (file) {
-            return FileUtils.toString(path.toFile());
-        } else {
-            return FileUtils.toString(getStream());
-        }
+        return FileUtils.toString(getStream());
     }
 
     @Override

@@ -148,7 +148,7 @@ public class FileUtils {
 
     private static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
-            ClassLoader cl = context.getClass().getClassLoader();
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
             return new Resource(fromRelativeClassPath(path, cl), path);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
@@ -176,6 +176,7 @@ public class FileUtils {
             return toString(is);
         } catch (Exception e) {
             String message = String.format("could not find or read file: %s", path);
+            context.logger.trace("{}", message);
             throw new KarateFileNotFoundException(message);
         }
     }

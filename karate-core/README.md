@@ -4,7 +4,7 @@
 ## Introduction
 > This is new, and this first version 0.9.0 should be considered experimental.
 
-Especially after [the Gherkin parser and execution engine were re-written from the ground-up](https://github.com/intuit/karate/issues/444#issuecomment-406877530), Karate is arguably a mature framework that elegantly solves quite a few test-automation engineering challenges, such as [parallel execution](https://twitter.com/KarateDSL/status/1049321708241317888), [data-driven testing](https://github.com/intuit/karate#data-driven-tests), [environment-switching](https://github.com/intuit/karate#switching-the-environment) and [easy-yet-powerful assertions](https://github.com/intuit/karate#contains-short-cuts).
+Especially after [the Gherkin parser and execution engine were re-written from the ground-up](https://github.com/intuit/karate/issues/444#issuecomment-406877530), Karate is arguably a mature framework that elegantly solves quite a few test-automation engineering challenges - with capabilities such as [parallel execution](https://twitter.com/KarateDSL/status/1049321708241317888), [data-driven testing](https://github.com/intuit/karate#data-driven-tests), [environment-switching](https://github.com/intuit/karate#switching-the-environment), [powerful assertions](https://github.com/intuit/karate#contains-short-cuts), and an [innovative UI for debugging](https://twitter.com/KarateDSL/status/1065602097591156736).
 
 Which led us to think, what if we could add UI automation without disturbing the core HTTP API testing capabilities. So we gave it a go, and we are releasing the results so far as this experimental version.
 
@@ -23,7 +23,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * The Windows example above proves that the approach would work for Appium with minimal changes (please contribute !)
 * Karate can start the executable (WebDriver / Chrome, WinAppDriver, Appium Server) automatically for you
-* Seamlessly mix API and UI tests in the same script
+* Seamlessly mix API and UI tests within the same script
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
 
 ### Chrome Java API
@@ -268,9 +268,10 @@ Wait for the JS expression to evaluate to `true`. Will poll using the retry sett
 Will actually attempt to evaluate the given string as JavaScript within the browser.
 
 ### `driver.refresh()`
+Normal page reload, does not clear cache.
 
 ### `driver.reload()`
-Including cache
+Hard page reload, after clearing the cache.
 
 ### `driver.back()`
 
@@ -327,7 +328,7 @@ Also works as a "getter" to retrieve the text of the currently visible dialog:
 Two forms, if a [locator](#locators) is provided only that HTML element will be captured, else the browser viewport will be captured.
 
 ### `driver.pdf()`
-Only supported for driver type [`chrome`](#driver-types).
+Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
 
 ### `driver.highlight()`
 Useful to visually highlight an element in the browser, especially when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
