@@ -61,6 +61,11 @@
             <version>1.18</version>
         </dependency>
         <dependency>
+            <groupId>de.siegmar</groupId>
+            <artifactId>fastcsv</artifactId>
+            <version>1.0.3</version>
+        </dependency>        
+        <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>3.0.1</version>

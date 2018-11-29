@@ -1662,5 +1662,7 @@ public class ScriptTest {
         Script.assign(AssignType.BYTE_ARRAY, "data", "read('file:src/main/resources/karate-logo.png')", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "data", null, "read('file:src/main/resources/karate-logo.png')", ctx).pass);
     }
+    
+    
 
 }

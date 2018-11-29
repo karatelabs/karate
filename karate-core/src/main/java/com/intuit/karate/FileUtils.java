@@ -5,6 +5,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
+import de.siegmar.fastcsv.reader.CsvReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -85,6 +86,10 @@ public class FileUtils {
     public static final boolean isTextFile(String text) {
         return text.endsWith(".txt");
     }
+    
+    public static final boolean isCsvFile(String text) {
+        return text.endsWith(".csv");
+    }    
 
     public static final boolean isGraphQlFile(String text) {
         return text.endsWith(".graphql") || text.endsWith(".gql");
@@ -109,6 +114,10 @@ public class FileUtils {
             Feature feature = FeatureParser.parse(fr);
             feature.setCallTag(pair.right);
             return new ScriptValue(feature, text);
+        } else if (isCsvFile(text)) {
+            String contents = readFileAsString(text, context);
+            DocumentContext doc = JsonUtils.fromCsv(contents);
+            return new ScriptValue(doc, text);
         } else if (isYamlFile(text)) {
             String contents = readFileAsString(text, context);
             DocumentContext doc = JsonUtils.fromYaml(contents);
