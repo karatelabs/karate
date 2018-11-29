@@ -198,5 +198,12 @@ public class JsonUtilsTest {
             assertTrue(e instanceof ClassCastException);
         }
     }
+    
+    @Test
+    public void testCsv() {
+        String raw = FileUtils.toString(getClass().getResourceAsStream("test.csv"));
+        DocumentContext doc = JsonUtils.fromCsv(raw);
+        Match.equals(doc, "[{ foo: 'goodbye', bar: '10', baz: 'true' }, { foo: 'cruel', bar: '20', baz: 'false' }, { foo: 'world', bar: '30', baz: 'true' }]");
+    }
 
 }

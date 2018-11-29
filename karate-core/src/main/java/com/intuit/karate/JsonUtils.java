@@ -33,7 +33,11 @@ import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.json.JsonSmartJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JsonSmartMappingProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
+import de.siegmar.fastcsv.reader.CsvContainer;
+import de.siegmar.fastcsv.reader.CsvReader;
+import de.siegmar.fastcsv.reader.CsvRow;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -342,6 +346,21 @@ public class JsonUtils {
     public static DocumentContext fromYaml(String raw) {
         Yaml yaml = new Yaml();
         return JsonPath.parse(yaml.load(raw));
+    }
+    
+    public static DocumentContext fromCsv(String raw) {
+        CsvReader reader = new CsvReader();
+        reader.setContainsHeader(true);
+        try {
+            CsvContainer csv = reader.read(new StringReader(raw));
+            List<Map> rows = new ArrayList(csv.getRowCount());
+            for (CsvRow row : csv.getRows()) {
+                rows.add(row.getFieldMap());
+            }
+            return toJsonDoc(rows);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

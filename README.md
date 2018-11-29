@@ -1265,6 +1265,9 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 * def bar = read('data.yaml')
 ```
 
+## CSV Files
+Karate can read `*.csv` files and will auto-convert them to JSON. A header row is always expected. See the section on [reading files](#reading-files) - and this example [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature), which also shows off the convenience of [dynamic `Scenario Outline`-s](#dynamic-scenario-outline).
+
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.
 
@@ -1325,6 +1328,9 @@ Prefer [`classpath:`](#classpath) when a file is expected to be heavily re-used 
 
 # import yaml (will be converted to json)
 * def jsonFromYaml = read('some-data.yaml')
+
+# csv (will be converted to json)
+* def jsonFromCsv = read('some-data.csv')
 
 # string
 * def someString = read('classpath:messages.txt')
@@ -3452,4 +3458,4 @@ Scenario Outline: cat name: <name>
     | kittens |
 ```
 
-The great thing about this approach is that you can set-up the JSON array using the `Background` section. Any [Karate expression](#karate-expressions) can be used in the "cell expression", and you can even use [Java-interop](#calling-java) to use external data-sources such as a database, spread-sheet or CSV file.
+The great thing about this approach is that you can set-up the JSON array using the `Background` section. Any [Karate expression](#karate-expressions) can be used in the "cell expression", and you can even use [Java-interop](#calling-java) to use external data-sources such as a database. Note that Karate has built-in support for [CSV files](#csv-files) and here is an example: [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature).
