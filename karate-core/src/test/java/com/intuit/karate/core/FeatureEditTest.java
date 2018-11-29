@@ -2,14 +2,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
-import com.intuit.karate.core.Background;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioOutline;
-import com.intuit.karate.core.Step;
 import java.io.InputStream;
-import java.nio.file.Paths;
 import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -27,7 +20,7 @@ public class FeatureEditTest {
     private Feature parse(String name) {
         InputStream is = getClass().getResourceAsStream(name);
         String text = FileUtils.toString(is);
-        Resource resource = new Resource(Paths.get(""), "");
+        Resource resource = Resource.EMPTY;
         return FeatureParser.parseText(new Feature(resource), text);
     }
     
@@ -127,7 +120,7 @@ public class FeatureEditTest {
     @Test
     public void testIdentifyingStepWhichIsAnHttpCall() {
         String text = "Feature:\nScenario:\n*  method post";
-        Resource resource = new Resource(Paths.get(""), "");
+        Resource resource = Resource.EMPTY;
         Feature feature = FeatureParser.parseText(new Feature(resource), text);
         Step step = feature.getSections().get(0).getScenario().getSteps().get(0);
         logger.debug("step name: '{}'", step.getText());

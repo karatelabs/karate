@@ -23,11 +23,13 @@
  */
 package com.intuit.karate;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,6 +43,8 @@ public class Resource {
     private final Path path;
     private final String relativePath;
     private final String packageQualifiedName;
+    
+    public static final Resource EMPTY = new Resource(Paths.get(""), "");
 
     public Resource(File file, String relativePath) {
         this(file.toPath(), relativePath);
@@ -69,29 +73,28 @@ public class Resource {
         return path;
     }
 
-    private static final Map<String, InputStream> STREAM_CACHE = new HashMap();
+    private static final Map<String, byte[]> STREAM_CACHE = new HashMap();
 
     public InputStream getStream() {
         try {
             if (file) {
                 return new FileInputStream(path.toFile());
             } else {
-                InputStream stream = STREAM_CACHE.get(relativePath);
-                if (stream != null) {
-                    return stream;
+                byte[] bytes = STREAM_CACHE.get(relativePath);
+                if (bytes != null) {
+                    return new ByteArrayInputStream(bytes);
                 }
                 synchronized (STREAM_CACHE) {
-                    stream = STREAM_CACHE.get(relativePath); // re-try
-                    if (stream != null) {
-                        return stream;
+                    bytes = STREAM_CACHE.get(relativePath); // re-try
+                    if (bytes != null) {
+                        return new ByteArrayInputStream(bytes);
                     }
                     // since the nio newInputStream has concurrency problems :(
                     // plus a performance boost for karate-base.js if in JAR
                     InputStream tempStream = Files.newInputStream(path);
-                    String tempString = FileUtils.toString(tempStream);
-                    stream = FileUtils.toInputStream(tempString);
-                    STREAM_CACHE.put(relativePath, stream);
-                    return stream;
+                    bytes = FileUtils.toBytes(tempStream);
+                    STREAM_CACHE.put(relativePath, bytes);
+                    return new ByteArrayInputStream(bytes);
                 }
             }
         } catch (Exception e) {

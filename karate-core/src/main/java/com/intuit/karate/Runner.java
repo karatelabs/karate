@@ -150,6 +150,9 @@ public class Runner {
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
         CallContext callContext = new CallContext(vars, evalKarateConfig);
         FeatureResult result = Engine.executeFeatureSync(null, feature, null, callContext);
+        if (result.isFailed()) {
+            throw result.getErrorsCombined();
+        }
         return result.getResultAsPrimitiveMap();
     }
 
