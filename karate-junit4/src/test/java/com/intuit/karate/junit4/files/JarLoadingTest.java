@@ -26,7 +26,7 @@ public class JarLoadingTest {
 
     private static final Logger logger = LoggerFactory.getLogger(JarLoadingTest.class);
     
-    private ClassLoader getJarClassLoader() throws Exception {
+    private static ClassLoader getJarClassLoader() throws Exception {
         File jar = new File("../karate-core/src/test/resources/karate-test.jar");
         assertTrue(jar.exists());
         return new URLClassLoader(new URL[]{jar.toURI().toURL()});        
@@ -61,11 +61,26 @@ public class JarLoadingTest {
         ClassLoader cl = getJarClassLoader();
         Class main = cl.loadClass("demo.jar1.Main");
         Path path = FileUtils.getPathContaining(main);
-        assertFalse(!FileUtils.isJarPath(path.toUri()));
+        assertTrue(FileUtils.isJarPath(path.toUri()));
         String relativePath = FileUtils.toRelativeClassPath(path, cl);
         assertEquals("classpath:", relativePath); // TODO doesn't matter but fix in future if possible
         path = FileUtils.fromRelativeClassPath("classpath:demo/jar1", cl);
         assertEquals(path.toString(), "/demo/jar1");
     }
 
+    @Test
+    public void testUsingKarateBase() throws Exception {
+        String relativePath = "classpath:demo/jar1/caller.feature";
+        ClassLoader cl = getJarClassLoader();
+        Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
+        Resource resource = new Resource(path, relativePath);
+        Feature feature = FeatureParser.parse(resource);
+        // first instance
+        Map<String, Object> map = Runner.runFeature(feature, null, true);
+        assertEquals(true, map.get("success"));
+        // second instance
+        map = Runner.runFeature(feature, null, true);
+        assertEquals(true, map.get("success"));        
+    }    
+    
 }

@@ -148,7 +148,7 @@ public class FileUtils {
 
     private static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            ClassLoader cl = context.getClass().getClassLoader();
             return new Resource(fromRelativeClassPath(path, cl), path);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
@@ -264,7 +264,7 @@ public class FileUtils {
             throw new RuntimeException(e);
         }
     }
-    
+
     public static void writeToFile(File file, byte[] data) {
         try {
             if (file.getParentFile() != null) {
@@ -276,7 +276,7 @@ public class FileUtils {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }    
+    }
 
     public static void writeToFile(File file, String data) {
         writeToFile(file, data.getBytes(UTF8));
@@ -412,7 +412,7 @@ public class FileUtils {
         }
         return list;
     }
-    
+
     public static List<Resource> scanForFeatureFiles(List<String> paths, Class clazz) {
         if (clazz == null) {
             return scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
@@ -430,8 +430,8 @@ public class FileUtils {
             list.addAll(scanForFeatureFiles(true, path, clazz.getClassLoader()));
         }
         return list;
-    }    
-    
+    }
+
     public static boolean isJarPath(URI uri) {
         return uri.toString().contains("!/");
     }
@@ -545,7 +545,7 @@ public class FileUtils {
     public static boolean isWindows() {
         return getPlatform() == Platform.WINDOWS;
     }
-    
+
     public static boolean isMac() {
         return getPlatform() == Platform.MAC;
     }

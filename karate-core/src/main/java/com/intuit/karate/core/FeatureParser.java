@@ -118,7 +118,7 @@ public class FeatureParser extends KarateParserBaseListener {
         }
     }
 
-    private FeatureParser(File file, String relativePath) {
+    private FeatureParser(File file, String relativePath, ClassLoader cl) {
         this(new Feature(new Resource(file, relativePath)), toStream(file));
     }
 
