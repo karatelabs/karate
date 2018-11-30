@@ -5,7 +5,6 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.jayway.jsonpath.DocumentContext;
-import de.siegmar.fastcsv.reader.CsvReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -27,8 +26,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 import org.slf4j.LoggerFactory;
@@ -86,10 +87,10 @@ public class FileUtils {
     public static final boolean isTextFile(String text) {
         return text.endsWith(".txt");
     }
-    
+
     public static final boolean isCsvFile(String text) {
         return text.endsWith(".csv");
-    }    
+    }
 
     public static final boolean isGraphQlFile(String text) {
         return text.endsWith(".graphql") || text.endsWith(".gql");
@@ -485,16 +486,32 @@ public class FileUtils {
         }
     }
 
+    private static final Map<URI, FileSystem> FILE_SYSTEM_CACHE = new HashMap();
+
     private static FileSystem getFileSystem(URI uri) {
-        try {
-            return FileSystems.getFileSystem(uri);
-        } catch (Exception e) {
-            logger.trace("creating file system for URI: {} - {}", uri, e.getMessage());
-            try {
-                return FileSystems.newFileSystem(uri, Collections.emptyMap());
-            } catch (IOException ioe) {
-                throw new RuntimeException(ioe);
+        FileSystem fs = FILE_SYSTEM_CACHE.get(uri);
+        if (fs != null) {
+            return fs;
+        }
+        // java nio has some problems here !
+        synchronized (FILE_SYSTEM_CACHE) {
+            fs = FILE_SYSTEM_CACHE.get(uri); // retry with lock
+            if (fs != null) {
+                return fs;
             }
+            try {
+                fs = FileSystems.getFileSystem(uri);
+            } catch (Exception e) {
+                try {
+                    logger.trace("creating file system for URI: {} - {}", uri, e.getMessage());
+                    fs = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                } catch (IOException ioe) {
+                    logger.error("file system creation failed for URI: {} - {}", uri, ioe.getMessage());
+                    throw new RuntimeException(ioe);
+                }
+            }
+            FILE_SYSTEM_CACHE.put(uri, fs);
+            return fs;
         }
     }
 
