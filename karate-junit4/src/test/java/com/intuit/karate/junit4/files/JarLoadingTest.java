@@ -10,9 +10,15 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -25,11 +31,11 @@ import org.slf4j.LoggerFactory;
 public class JarLoadingTest {
 
     private static final Logger logger = LoggerFactory.getLogger(JarLoadingTest.class);
-    
+
     private static ClassLoader getJarClassLoader() throws Exception {
         File jar = new File("../karate-core/src/test/resources/karate-test.jar");
         assertTrue(jar.exists());
-        return new URLClassLoader(new URL[]{jar.toURI().toURL()});        
+        return new URLClassLoader(new URL[]{jar.toURI().toURL()});
     }
 
     @Test
@@ -53,7 +59,7 @@ public class JarLoadingTest {
         Map<String, Object> map = Runner.runFeature(feature, null, false);
         assertEquals(true, map.get("success"));
     }
-    
+
     @Test
     public void testFileUtilsForJarFile() throws Exception {
         File file = new File("src/test/java/common.feature");
@@ -72,15 +78,25 @@ public class JarLoadingTest {
     public void testUsingKarateBase() throws Exception {
         String relativePath = "classpath:demo/jar1/caller.feature";
         ClassLoader cl = getJarClassLoader();
-        Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
-        Resource resource = new Resource(path, relativePath);
-        Feature feature = FeatureParser.parse(resource);
-        // first instance
-        Map<String, Object> map = Runner.runFeature(feature, null, true);
-        assertEquals(true, map.get("success"));
-        // second instance
-        map = Runner.runFeature(feature, null, true);
-        assertEquals(true, map.get("success"));        
-    }    
-    
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        List<Callable<Boolean>> list = new ArrayList();
+        for (int i = 0; i < 10; i++) {
+            list.add(() -> {
+                Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
+                logger.debug("path: {}", path);
+                Resource resource = new Resource(path, relativePath);
+                Feature feature = FeatureParser.parse(resource);
+                Map<String, Object> map = Runner.runFeature(feature, null, true);
+                Boolean result = (Boolean) map.get("success");
+                logger.debug("done: {}", result);
+                return result;
+            });
+        }
+        List<Future<Boolean>> futures = executor.invokeAll(list);
+        for (Future<Boolean> f : futures) {
+            assertTrue(f.get());
+        }
+        executor.shutdownNow();
+    }
+
 }

@@ -214,6 +214,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Re-use of payload-data and user-defined functions across tests is [so easy](#reading-files) - that it becomes a natural habit for the test-developer
 * Built-in support for [switching configuration](#switching-the-environment) across different environments (e.g. dev, QA, pre-prod)
 * Support for [data-driven tests](#data-driven-tests) and being able to [tag or group](#tags) tests is built-in, no need to rely on an external framework
+* Native support for reading [YAML](#yaml) and even [CSV](#csv-files) files - and you can use them for data-driven tests
 * Standard Java / Maven project structure, and [seamless integration](#command-line) into CI / CD pipelines - and support for [JUnit 5](#junit-5)
 * Support for multi-threaded [parallel execution](#parallel-execution), which is a huge time-saver, especially for HTTP integration tests
 * Built-in [test-reports](#test-reports) compatible with Cucumber so that you have the option of using third-party (open-source) maven-plugins for even [better-looking reports](karate-demo#example-report)
@@ -1266,7 +1267,7 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 ```
 
 ## CSV Files
-Karate can read `*.csv` files and will auto-convert them to JSON. A header row is always expected. See the section on [reading files](#reading-files) - and this example [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature), which also shows off the convenience of [dynamic `Scenario Outline`-s](#dynamic-scenario-outline).
+Karate can read `*.csv` files and will auto-convert them to JSON. A header row is always expected. See the section on [reading files](#reading-files) - and also this example [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature), which shows off the convenience of [dynamic `Scenario Outline`-s](#dynamic-scenario-outline).
 
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.
@@ -1401,15 +1402,14 @@ In some rare cases, for e.g. if you acquired a string from some external source,
 
 One example of when you may want to convert JSON (or XML) to a string is when you are passing a payload to custom code via [Java interop](#calling-java). Do note that when passing JSON, the default `Map` and `List` representations should suffice for most needs ([see example](karate-demo/src/test/java/demo/java/cats-java.feature)), and using them would avoid un-necessary string-conversion.
 
-So you have the following type markers you can use instead of [`def`](#def) (or the rarely used [`text`](#text)):
+So you have the following type markers you can use instead of [`def`](#def) (or the rarely used [`text`](#text)). The first four below are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature).
+
 * <a name="type-string"><code>string</code></a> - convert JSON or any other data-type (except XML) to a string
 * <a name="type-json"><code>json</code></a> - convert XML, a map-like or list-like object, a string, or even a Java object into JSON
 * <a name="type-xml"><code>xml</code></a> - convert JSON, a map-like object, a string, or even a Java object into XML
 * <a name="type-xmlstring"><code>xmlstring</code></a> - specifically for converting the map-like Karate internal representation of XML into a string
 * <a name="type-bytes"><code>bytes</code></a> - convert to a byte-array, useful for binary payloads or comparisons, see [example](karate-demo/src/test/java/demo/websocket/echo.feature)
 * <a name="type-copy"><code>copy</code></a> - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
-
-These are best explained in this example file: [`type-conv.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature)
 
 If you want to 'pretty print' a JSON or XML value with indenting, refer to the documentation of the [`print`](#print) keyword.
 
