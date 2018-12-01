@@ -159,6 +159,8 @@ karate.set('temp', squares);
 * match json == { a: 1, b: 2 }
 * eval karate.remove('json', '$.' + key)
 * match json == { a: 1 }
+* eval karate.set('json', '$.c[]', { d: 'e' })
+* match json == { a: 1, c: [{ d: 'e' }] }
 
 # #null and #notpresent
 * def foo = { }
