@@ -33,6 +33,11 @@ Scenario: json-path can be performed in js
     * def res = call fun
     * match res == [1, 2, 3]
 
+Scenario: set via json-path can be done in js
+    * def json = { foo: [] }
+    * eval karate.set('json', '$.foo[]', { bar: 'baz' })
+    * match json == { foo: [{ bar: 'baz' }] }
+
 Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/karate/issues/225
     adding this test to detect if ever the JDK behavior changes
     * def actual = ({ a: [1, 2, 3]})
