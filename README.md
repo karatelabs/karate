@@ -403,14 +403,14 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
 ## IDE Support
-Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://github.com/cucumber/cucumber/wiki/Gherkin) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
+Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://docs.cucumber.io/gherkin/) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
 
 ### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
 
 If you use [IntelliJ IDEA](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html), and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time. If you are using the free [Community Edition](https://www.jetbrains.com/idea/download/), you can easily install the "Gherkin" and "Cucumber for Java" plugins.
 
-> Important: For IntelliJ Community Edition, the "Substeps IntelliJ Plugin" is not compatible and should *not* be installed.
+> Important: For the IntelliJ Community Edition, the "Substeps IntelliJ Plugin" is not compatible and should *not* be installed.
 
 For both Eclipse and IntelliJ, when you run a feature (or package with multiple features) via the IDE - you will get the [JUnit HTML report](#junit-html-report).
 
@@ -892,7 +892,7 @@ The following table summmarizes some key differences between Cucumber and Karate
 **Single Layer of Code To Maintain** | **No**. There are 2 Layers. The [Gherkin](https://docs.cucumber.io/gherkin/reference/) spec or `*.feature` files make up one layer, and you will also have the corresponding Java step-definitions. | :white_check_mark: **Yes**. Only 1 layer of Karate-script (based on Gherkin).
 **Readable Specification** | **Yes**. Cucumber will read like natural language _if_ you implement the step-definitions right. | :x: **No**. Although Karate is simple, and a [true DSL](https://ayende.com/blog/2984/dsl-vs-fluent-interface-compare-contrast), it is ultimately a [mini-programming language](https://hackernoon.com/yes-karate-is-not-true-bdd-698bf4a9be39). But it is [perfect for testing web-services](https://stackoverflow.com/a/47799207/143475) at the level of HTTP requests and responses.
 **Re-Use Feature Files** | **No**. Cucumber does not support being able to call (and thus re-use) other `*.feature` files from a test-script. | :white_check_mark: [**Yes**](#calling-other-feature-files).
-**Dynamic Data-Driven Testing** | **No**. Cucumber's [`Scenario Outline`](#the-cucumber-way) expects the `Examples` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features) and you can even [use JSON directly in a data-driven `Scenario Outline`](https://twitter.com/KarateDSL/status/1051433711814627329).
+**Dynamic Data-Driven Testing** | **No**. Cucumber's [`Scenario Outline`](#the-cucumber-way) expects the `Examples` to contain a fixed set of rows. | :white_check_mark: **Yes**. Karate's support for calling other `*.feature` files allows you to use a [JSON array as the data-source](#data-driven-features) and you can [use JSON](https://twitter.com/KarateDSL/status/1051433711814627329) or [even CSV](#csv-files) directly in a data-driven `Scenario Outline`.
 **Parallel Execution** | **No**. There are some challenges (especially with reporting) and you can find various discussions and third-party projects on the web that attempt to close this gap: [1](https://github.com/cucumber/cucumber-jvm/issues/630) [2](https://opencredo.com/test-automation-concepts-parallel-test-execution/) [3](http://stackoverflow.com/questions/41034116/how-to-execute-cucumber-feature-file-parallel) [4](https://github.com/DisneyStudios/cucumber-slices-maven-plugin) [5](https://github.com/temyers/cucumber-jvm-parallel-plugin) [6](https://github.com/trivago/cucable-plugin) [7](https://github.com/eu-evops/cucumber-runner-maven-plugin) [8](https://automationrhapsody.com/running-cucumber-tests-in-parallel/) | :white_check_mark: [**Yes**](#parallel-execution). Karate runs even `Scenario`-s in parallel, not just `Feature`-s.
 **Run 'Set-Up' Routines Only Once** | **No**. Cucumber has a limitation where `Background` steps are re-run for every `Scenario` and worse - even for every `Examples` row within a `Scenario Outline`. This has been a [highly-requested open issue](https://github.com/cucumber/cucumber-jvm/issues/515) for a *long* time. | :white_check_mark: [**Yes**](#hooks).
 **Embedded JavaScript Engine** | **No**. And you have to roll your own approach to environment-specific configuration and worry about [dependency-injection](https://docs.cucumber.io/cucumber/state/#dependency-injection). | :white_check_mark: **Yes**. Easily define all environments in a [single file](#configuration) and share variables across all scenarios. Full script-ability via [JS](#calling-javascript-functions) or [Java interop](#java-interop).
@@ -2252,7 +2252,7 @@ Then match temperature == { celsius: '#number', fahrenheit: '#? _ == $.celsius *
 Then match temperature contains { fahrenheit: '#($.celsius * 1.8 + 32)' }
 ```
 
-### `match` for Text and Streams
+### `match` text or binary
 ```cucumber
 # when the response is plain-text
 Then match response == 'Health Check OK'
@@ -2780,7 +2780,7 @@ The [`$varName` form](#get-short-cut) is used on the right-hand-side of [Karate 
 > There is no need to prefix variable names with `$` on the left-hand-side of [`match`](#match) statements because it is implied. You *can* if you want to, but since [*only* JsonPath (on variables)](#match-and-variables) is allowed here, Karate ignores the `$` and looks only at the variable name. None of the examples in the documentation use the `$varName` form on the LHS, and this is the recommended best-practice.
 
 ## `responseBytes`
-This will always hold the contents of the response as a byte-array. This is rarely used, unless you are expecting binary content returned by the server. Here is an example: [`binary.feature`](karate-netty/src/test/java/com/intuit/karate/mock/binary.feature).
+This will always hold the contents of the response as a byte-array. This is rarely used, unless you are expecting binary content returned by the server. The `match` keyword will [work as you expect](#match-text-or-binary). Here is an example: [`binary.feature`](karate-netty/src/test/java/com/intuit/karate/mock/binary.feature).
 
 ## `responseCookies`
 The `responseCookies` variable is set upon any HTTP response and is a map-like (or JSON-like) object. It can be easily inspected or used in expressions.

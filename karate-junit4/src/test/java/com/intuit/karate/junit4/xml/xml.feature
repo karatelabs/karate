@@ -244,6 +244,45 @@ Scenario: karate.set() is another way to conditionally modify xml
     * call fun data[2]
     * match temp == <query><name><lastName>Waldo</lastName></name></query>  
 
+Scenario: creating xml with repeating elements in a loop
+    * table users
+      | accountNo   | subsID         | mobile       | subsType  |
+      | '113888572' | '113985218890' | '1135288836' | 'asd'     |
+      | '113888573' | '113985218891' | '1135288837' | 'qwe'     |
+      | '113888582' | '113985218810' | '1135288846' | 'asd'     |
+    
+    * def xml = <users></users>
+    * def fun =
+    """
+    function(u, i) {
+      var base = '/users/user[' + (i + 1) + ']/';
+      karate.set('xml', base + 'account', u.accountNo);
+      karate.set('xml', base + 'mobile', u.mobile);
+      karate.set('xml', base + 'type', u.subsType);
+    }
+    """
+    * eval karate.forEach(users, fun)
+    * match xml ==
+    """
+    <users>
+      <user>
+        <account>113888572</account>
+        <mobile>1135288836</mobile>
+        <type>asd</type>
+      </user>
+      <user>
+        <account>113888573</account>
+        <mobile>1135288837</mobile>
+        <type>qwe</type>
+      </user>
+      <user>
+        <account>113888582</account>
+        <mobile>1135288846</mobile>
+        <type>asd</type>
+      </user>
+    </users>
+    """
+
 Scenario: xml containing DTD reference
     * def xml = <!DOCTYPE USER SYSTEM "http://127.0.0.1:5000/login/dtd"><foo/>
     * match xml == <foo></foo>

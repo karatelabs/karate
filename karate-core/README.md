@@ -68,7 +68,7 @@ If Chrome is not installed in the default location, you can pass a String argume
 
 ### `configure driver`
 
-This will actually start Chrome (native) on both Mac OS and Windows from the default installed location.
+This below declares that the native (direct) Chrome integration should be used, on both Mac OS and Windows - from the default installed location.
 
 ```cucumber
 * configure driver = { type: 'chrome' }
@@ -80,13 +80,14 @@ If you want to customize the start-up, you can use a batch-file:
 * configure driver = { type: 'chrome', executable: 'chrome' }
 ```
 
-Here a batch-file called `chrome` was created in the system `PATH` (and made executable) with the following contents:
+Here a batch-file called `chrome` can be placed in the system `PATH` (and made executable) with the following contents:
 
 ```bash
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" $*
 ```
 
 For Windows it would be `chrome.bat` in the system `PATH` as follows:
+
 ```bat
 "C:\Program Files (x86)\Google\Chrome\Application\chrome" %*
 ```
@@ -111,10 +112,10 @@ key | description
 type | description
 ---- | -----------
 [`chrome`](https://chromedevtools.github.io/devtools-protocol/) | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
-[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) |
-[`geckodriver`](https://github.com/mozilla/geckodriver) |
-[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) |
-[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) |
+[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | W3C Chrome Driver
+[`geckodriver`](https://github.com/mozilla/geckodriver) | W3C Gecko Driver (Firefox)
+[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | W3C Safari Driver
+[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) | W3C MS WebDriver
 [`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | *very* experimental - using the DevTools protocol
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | Windows Desktop automation, similar to Appium
 
@@ -140,7 +141,7 @@ win | `#` | id | `#MyButton`
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
 ### `driver`
-Navigate to a web-address and initializes the `driver` instance for future step operations. And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [config](https://github.com/intuit/karate#configuration). Example:
+Navigate to a web-address and initializes the `driver` instance for future step operations as per what is [configured](#configure-driver). And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [`karate-config.js`](https://github.com/intuit/karate#configuration). For example:
 
 ```cucumber
 Given driver webUrlBase + '/page-01'
