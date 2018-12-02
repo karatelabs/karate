@@ -115,7 +115,7 @@ type | description
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | W3C Chrome Driver
 [`geckodriver`](https://github.com/mozilla/geckodriver) | W3C Gecko Driver (Firefox)
 [`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | W3C Safari Driver
-[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) | W3C MS WebDriver
+[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) | W3C Microsoft Edge WebDriver
 [`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | *very* experimental - using the DevTools protocol
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | Windows Desktop automation, similar to Appium
 
