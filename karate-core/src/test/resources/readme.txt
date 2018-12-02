@@ -1,4 +1,4 @@
-mvn versions:set -DnewVersion=0.7.0
+mvn versions:set -DnewVersion=1.0.0
 (edit archetype karate.version)
 (edit README.md maven 5 places)
 mvn versions:commit
