@@ -667,7 +667,9 @@ scenarios:  145 | passed:   145 | failed: 0
 ======================================================
 ```
 
-Karate will run `Scenario`-s in parallel, so if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so !
+Karate will run `Scenario`-s in parallel, so if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so ! 
+
+The parallel runner will output a `timeline.html` file in the report output directory mentioned above (`target/surefire-reports` by default) which is useful for visually verifying or troubleshooting the effectiveness of the test-run ([see video](https://twitter.com/KarateDSL/status/1049321708241317888)).
 
 ### `@parallel=false`
 In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s but you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag on only those `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
