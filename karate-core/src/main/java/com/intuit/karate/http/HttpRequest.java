@@ -130,7 +130,13 @@ public class HttpRequest {
         return headers;
     }
 
-    public void setHeaders(MultiValuedMap headers) {
+    @SuppressWarnings("rawtypes")
+	public List getHeaders(String key) {
+        return headers.get(key.toLowerCase());
+    }
+
+    @SuppressWarnings("unchecked")
+	public void setHeaders(MultiValuedMap headers) {
         if (headers != null) {
             this.headers = new MultiValuedMap();
             headers.forEach((k,l)->{
