@@ -10,7 +10,7 @@ First of all, thanks for thinking of contributing to this project. :smile:
 
     Please proceed with a Pull Request only after the project admins or owners are okay with your approach. It'd be sad if your Pull Request (and your hard work) isn't accepted just because it isn't ideologically compatible.
     
-## General Information about JPF
+## General Information about karate
 
 All the latest developments, changes, documentation can be found on our
 [README.md](https://github.com/intuit/karate/blob/master/README.md) page.
@@ -30,7 +30,7 @@ All the latest developments, changes, documentation can be found on our
  
 ## Documentation
 
-There is a constant effort to update and add JPF documentation on the wiki.
+There is a constant effort to update and add karate documentation on the wiki.
 If you would like to contribute in that, please, contact us at
 ---link to added.
 
