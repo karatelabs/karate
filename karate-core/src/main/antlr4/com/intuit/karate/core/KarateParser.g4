@@ -37,7 +37,7 @@ background: BACKGROUND scenarioDescription step* ;
 
 scenario: tags? SCENARIO scenarioDescription step* ;
 
-scenarioDescription: ~(STAR | GIVEN | WHEN | THEN | AND | BUT | SCENARIO | SCENARIO_OUTLINE)* ;
+scenarioDescription: ~(STAR | GIVEN | WHEN | THEN | AND | BUT | SCENARIO | SCENARIO_OUTLINE | TAGS)* ;
 
 scenarioOutline: tags? SCENARIO_OUTLINE scenarioDescription step* examples+ ;
 
