@@ -32,7 +32,7 @@ All the latest developments, changes, documentation can be found on our
 
 There is a constant effort to update and add karate documentation on the wiki.
 If you would like to contribute in that, please, contact us at
----link to added.
+[this link](https://github.com/intuit/karate/wiki/Support).
 
 Contributions are welcomed and we encourage you to get involved with the
 community.
