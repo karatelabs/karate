@@ -1275,6 +1275,8 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 ## CSV Files
 Karate can read `*.csv` files and will auto-convert them to JSON. A header row is always expected. See the section on [reading files](#reading-files) - and also this example [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature), which shows off the convenience of [dynamic `Scenario Outline`-s](#dynamic-scenario-outline).
 
+In rare cases you may want to use a csv-file as-is and *not* auto-convert it to JSON. A good example is when you want to use a CSV file as the request-body for a file-upload. You could get by by renaming the file-extension to say `*.txt` but an alternative is to use the [`karate.readAsString()`](#read-file-as-string) API.
+
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.
 
@@ -1397,6 +1399,17 @@ The rarely used `file:` prefix is also supported. You could use it for 'hard-cod
 ```
 
 Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for validating HTTP responses, like this one: [`read-files.feature`](karate-demo/src/test/java/demo/read/read-files.feature).
+
+### Read File As String
+In some rare cases where you don't want to auto-convert JSON, XML, YAML or CSV - and just get the raw string content, you can use the [`karate.readAsString()`](#karate-readasstring) API. Here is an example of using a CSV file as the request-body:
+
+```cucumber
+Given path 'upload'
+And header Content-Type = 'text/csv'
+And request karate.readAsString('classpath:my.csv')
+When method post
+Then status 202
+```
 
 ## Type Conversion
 
@@ -3042,6 +3055,7 @@ Operation | Description
 <a name="karate-prevrequest"><code>karate.prevRequest</code></a> | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)
 <a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
 <a name="karate-read"><code>karate.read(filename)</code></a> | read from a file, behaves exactly like [`read`](#reading-files)
+<a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | rarely used, behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
