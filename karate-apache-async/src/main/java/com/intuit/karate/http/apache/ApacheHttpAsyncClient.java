@@ -23,8 +23,9 @@
  */
 package com.intuit.karate.http.apache;
 
+import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.*;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
@@ -100,7 +101,7 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    public void configure(HttpConfig config, ScriptContext context) {
+    public void configure(Config config, ScenarioContext context) {
         clientBuilder = HttpAsyncClientBuilder.create();
         charset = config.getCharset();
         if (!config.isFollowRedirects()) {
@@ -160,7 +161,7 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
         }
     }
 
-    private TlsStrategy getTlsStrategy(ScriptContext context, HttpConfig config) {
+    private TlsStrategy getTlsStrategy(ScenarioContext context, Config config) {
         if (config.isSslEnabled()) {
             String algorithm = config.getSslAlgorithm(); // could be null
             KeyStore trustStore = HttpUtils.getKeyStore(context,
@@ -288,7 +289,7 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
     }
 
     @Override
-    protected HttpResponse makeHttpRequest(HttpEntity entity, ScriptContext context) {
+    protected HttpResponse makeHttpRequest(HttpEntity entity, ScenarioContext context) {
         if (entity != null) {
             try {
                 byte[] bytes = IOUtils.toByteArray(entity.getContent());

@@ -37,6 +37,7 @@ import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.hc.core5.net.URLEncodedUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -141,7 +142,12 @@ public class ApacheHttpUtils {
             if (cs == null) {
                 cs = charset;
             }            
-            return new UrlEncodedFormEntity(list, cs);
+            String raw = URLEncodedUtils.format(list, cs);
+            int pos = mediaType.indexOf(';');
+            if (pos != -1) { // strip out charset param from content-type
+                mediaType = mediaType.substring(0, pos);
+            }
+            return new StringEntity(raw, ContentType.create(mediaType, cs));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

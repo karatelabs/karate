@@ -24,10 +24,16 @@
 package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptContext;
-import org.apache.hc.core5.http.*;
-import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
+import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.http.HttpRequest;
+
+import org.apache.hc.core5.http.EntityDetails;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpException;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.HttpResponseInterceptor;
 import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 
 import java.io.IOException;
 
@@ -37,22 +43,21 @@ import java.io.IOException;
  */
 public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
 
-    private final ScriptContext context;
+    private final ScenarioContext context;
     private final RequestLoggingInterceptor requestInterceptor;
 
-    public ResponseLoggingInterceptor(RequestLoggingInterceptor requestInterceptor, ScriptContext context) {
+    public ResponseLoggingInterceptor(RequestLoggingInterceptor requestInterceptor, ScenarioContext context) {
         this.requestInterceptor = requestInterceptor;
         this.context = context;
     }
 
     @Override
     public void process(HttpResponse response, EntityDetails entityDetails, HttpContext httpContext) throws HttpException, IOException {
-        long endTime = System.currentTimeMillis();
-        long responseTime = endTime - requestInterceptor.getStartTime();
-        context.getPrevRequest().setEndTime(endTime);
+        HttpRequest actual = context.getPrevRequest();
+        actual.stopTimer();
         int id = requestInterceptor.getCounter().get();
         StringBuilder sb = new StringBuilder();
-        sb.append("response time in milliseconds: ").append(responseTime).append('\n');
+        sb.append("response time in milliseconds: ").append(actual.getResponseTimeFormatted()).append('\n');
         sb.append(id).append(" < ").append(response.getCode()).append('\n');
         LoggingUtils.logHeaders(sb, id, '<', response);
         if(response instanceof BasicClassicHttpResponse) {

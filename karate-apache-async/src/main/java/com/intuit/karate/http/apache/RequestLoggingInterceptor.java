@@ -24,7 +24,6 @@
 package com.intuit.karate.http.apache;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -32,21 +31,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.Header;
-import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpRequestInterceptor;
-import org.apache.hc.core5.http.impl.nio.MessageState;
-import org.apache.hc.core5.http.message.BasicHttpRequest;
 import org.apache.hc.core5.http.nio.AsyncEntityProducer;
 import org.apache.hc.core5.http.nio.DataStreamChannel;
-import org.apache.hc.core5.http.nio.entity.BasicAsyncEntityProducer;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URIAuthority;
 
-import com.intuit.karate.ScriptContext;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.HttpRequest;
-
-
 
 /**
  *
@@ -54,21 +47,16 @@ import com.intuit.karate.http.HttpRequest;
  */
 public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
-    private final ScriptContext context;
+    private final ScenarioContext context;
     private final AtomicInteger counter = new AtomicInteger();
 
-    private long startTime;
 
-    public RequestLoggingInterceptor(ScriptContext context) {
+    public RequestLoggingInterceptor(ScenarioContext context) {
         this.context = context;
     }
 
     public AtomicInteger getCounter() {
         return counter;
-    }
-
-    public long getStartTime() {
-        return startTime;
     }
 
     @Override
@@ -116,8 +104,7 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
         context.setPrevRequest(actual);
         context.logger.debug(sb.toString());
-        startTime = System.currentTimeMillis();
-        actual.setStartTime(startTime);
+        actual.startTimer();
     }
 
     private String extractUri(org.apache.hc.core5.http.HttpRequest request) {
