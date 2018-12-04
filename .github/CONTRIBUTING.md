@@ -2,7 +2,7 @@
 
 Welcome to your first contribution! :heart:
 
-First of all, thanks for thinking of contributing to this project. :smile:
+Thanks for thinking of contributing to this project. :smile:
 
 - Before sending a Pull Request, please make sure that you have had a discussion with the project admins.
     - If a relevant issue already exists, discuss on the issue and make sure that the admins are okay with your approach
@@ -36,5 +36,9 @@ If you would like to contribute in that, please, contact us at
 
 Contributions are welcomed and we encourage you to get involved with the
 community.
+
+## License
+
+By contributing, you agree that your contributions will be licensed under its [MIT License](https://github.com/intuit/karate/blob/master/LICENSE).
 
 - Send in your Pull Request(s) to the `develop` branch of this repository.
