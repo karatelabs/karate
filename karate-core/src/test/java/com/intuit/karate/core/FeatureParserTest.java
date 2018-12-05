@@ -167,6 +167,14 @@ public class FeatureParserTest {
     }
     
     @Test
+    public void testEmptyBackground() {
+        FeatureResult result = execute("test-empty-background.feature");
+        assertFalse(result.isFailed());
+        Map<String, Object> map = result.getResultAsPrimitiveMap();
+        Match.equals(map.get("temp"), "['foo']");
+    }    
+    
+    @Test
     public void testHide() {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/test-hide.feature");
         Step step = feature.getStep(0, -1, 0);
