@@ -22,12 +22,13 @@ import org.junit.Test;
 public class DemoTestParallel {
     
     @BeforeClass
-    public static void beforeClass() throws Exception {
+    public static void beforeClass() throws Exception {        
         TestBase.beforeClass();
     } 
     
     @Test
     public void testParallel() {
+        System.setProperty("karate.env", null); // ensure reset if other tests (e.g. mock) had set env in CI
         Results results = Runner.parallel(getClass(), 5);
         generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
