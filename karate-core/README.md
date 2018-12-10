@@ -109,15 +109,15 @@ key | description
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 
 ## Driver Types
-type | description
----- | -----------
-[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
-[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | W3C Chrome Driver
-[`geckodriver`](https://github.com/mozilla/geckodriver) | W3C Gecko Driver (Firefox)
-[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | W3C Safari Driver
-[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) | W3C Microsoft Edge WebDriver
-[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | *very* experimental - using the DevTools protocol
-[`winappdriver`](https://github.com/Microsoft/WinAppDriver) | Windows Desktop automation, similar to Appium
+type | default<br/>port | default<br/>executable | description
+---- | ---------------- | ---------------------- | -----------
+[`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
+[`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
+[`geckodriver`](https://github.com/mozilla/geckodriver) | 4444 | `geckodriver` | W3C Gecko Driver (Firefox)
+[`safaridriver`](https://webkit.org/blog/6900/webdriver-support-in-safari-10/) | 5555 | `safaridriver` | W3C Safari Driver
+[`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) | 17556 | `MicrosoftWebDriver` | W3C Microsoft Edge WebDriver
+[`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | 9222 | `MicrosoftEdge` | *very* experimental - using the DevTools protocol
+[`winappdriver`](https://github.com/Microsoft/WinAppDriver) | 4727 | `C:/Program Files (x86)/Windows Application Driver/WinAppDriver` | Windows Desktop automation, similar to Appium
 
 ## Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".

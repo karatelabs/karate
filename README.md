@@ -1275,7 +1275,7 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 ## CSV Files
 Karate can read `*.csv` files and will auto-convert them to JSON. A header row is always expected. See the section on [reading files](#reading-files) - and also this example [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature), which shows off the convenience of [dynamic `Scenario Outline`-s](#dynamic-scenario-outline).
 
-In rare cases you may want to use a csv-file as-is and *not* auto-convert it to JSON. A good example is when you want to use a CSV file as the request-body for a file-upload. You could get by by renaming the file-extension to say `*.txt` but an alternative is to use the [`karate.readAsString()`](#read-file-as-string) API.
+In rare cases you may want to use a csv-file as-is and *not* auto-convert it to JSON. A good example is when you want to use a CSV file as the [request-body](#request) for a file-upload. You could get by by renaming the file-extension to say `*.txt` but an alternative is to use the [`karate.readAsString()`](#read-file-as-string) API.
 
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.
@@ -1362,7 +1362,7 @@ You can also [re-use other `*.feature`](#calling-other-feature-files) files from
 * def result = call read('classpath:some-reusable-steps.feature')
 ```
 
-If a file does not end in `.json`, `.xml`, `.yaml`, `.js` or `.txt` - it is treated as a stream which is typically what you would need for [`multipart`](#multipart-field) file uploads.
+If a file does not end in `.json`, `.xml`, `.yaml`, `.js`, `.csv` or `.txt`, it is treated as a stream - which is typically what you would need for [`multipart`](#multipart-field) file uploads.
 
 ```cucumber
 * def someStream = read('some-pdf.pdf')
@@ -1401,7 +1401,7 @@ The rarely used `file:` prefix is also supported. You could use it for 'hard-cod
 Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for validating HTTP responses, like this one: [`read-files.feature`](karate-demo/src/test/java/demo/read/read-files.feature).
 
 ### Read File As String
-In some rare cases where you don't want to auto-convert JSON, XML, YAML or CSV - and just get the raw string content, you can use the [`karate.readAsString()`](#karate-readasstring) API. Here is an example of using a CSV file as the request-body:
+In some rare cases where you don't want to auto-convert JSON, XML, YAML or CSV, and just get the raw string content (without having to re-name the file to end with `.txt`) - you can use the [`karate.readAsString()`](#karate-readasstring) API. Here is an example of using a CSV file as the request-body:
 
 ```cucumber
 Given path 'upload'

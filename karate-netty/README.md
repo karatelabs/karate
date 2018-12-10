@@ -237,7 +237,7 @@ You can look at this demo example for reference: [ConsumerUsingMockTest.java](..
 Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using [Java interop](https://github.com/intuit/karate#calling-java). The code that starts a mock server is quite simple and can be wrapped in a JavaScript function as follows:
 
 ```javascript
-function() {
+function fn() {
   var Mock = Java.type('com.intuit.karate.netty.FeatureServer');
   var file = new java.io.File('src/test/java/mock/web/cats-mock.feature');
   var server = Mock.start(file, 0, false, null);
@@ -249,9 +249,9 @@ Now using this in a Karate test is simple. This example also shows how [conditio
 
 ```feature
 Background:
-    * def starter = read('start-mock.js')
-    * def port = karate.env == 'mock' ? starter() : 8080
-    * url 'http://localhost:' + port + '/cats'
+  * def starter = read('start-mock.js')
+  * def port = karate.env == 'mock' ? starter() : 8080
+  * url 'http://localhost:' + port + '/cats'
 ```
 
 For the full example, look at [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature).
@@ -274,9 +274,9 @@ Here's an example of setting up a [function to generate primary keys](https://gi
 Feature: stateful mock server
 
 Background:
-* configure cors = true
-* def uuid = function(){ return java.util.UUID.randomUUID() + '' }
-* def cats = {}
+  * configure cors = true
+  * def uuid = function(){ return java.util.UUID.randomUUID() + '' }
+  * def cats = {}
 
 Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request
@@ -472,7 +472,7 @@ Just like the above, but you can set this "globally" for all route-handlers in t
 ```cucumber
 * configure afterScenario =
 """
-function fn(){
+function(){
     var millis = 200 + Math.random() * 400;
     karate.log('sleeping for:', millis, 'millis')
     java.lang.Thread.sleep(millis); 
