@@ -45,6 +45,7 @@
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>
         <gatling.plugin.version>2.2.4</gatling.plugin.version>
         <cucumber.reporting.version>3.8.0</cucumber.reporting.version>
+        <apache.commons.io.version>2.5</apache.commons.io.version>
     </properties>
 
     <modules>
