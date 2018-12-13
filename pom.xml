@@ -46,6 +46,9 @@
         <gatling.plugin.version>2.2.4</gatling.plugin.version>
         <cucumber.reporting.version>3.8.0</cucumber.reporting.version>
         <apache.commons.io.version>2.5</apache.commons.io.version>
+        <netty.boringssl.version>2.0.20.Final</netty.boringssl.version>
+        <conscrypt.openjdk.uber.version>1.4.1</conscrypt.openjdk.uber.version>
+        <conscrypt.client.version>9.4.14.v20181114</conscrypt.client.version>
     </properties>
 
     <modules>
