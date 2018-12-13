@@ -45,6 +45,7 @@ import io.netty.handler.codec.http2.Http2ServerUpgradeCodec;
 import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandlerBuilder;
 import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapter;
 import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
+import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.AsciiString;
 
@@ -116,8 +117,12 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
 
     private void setupForSSL(SocketChannel ch) {
         logger.info("server setup for SSL");
-        ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()), new Http2OrHttpHandler(backend, stopFunction));
-        
+        String fallbackHttpVersion = ApplicationProtocolNames.HTTP_1_1;
+        if ((backend.getContext() != null) && (backend.getContext().getConfig() != null)) {
+        	fallbackHttpVersion = backend.getContext().getConfig().getMockServerFallbackHttpVersion();
+        }
+        ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()), 
+                new Http2OrHttpHandler(backend, fallbackHttpVersion, stopFunction));
     }
     
 }

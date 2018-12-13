@@ -39,10 +39,11 @@ public class Http2OrHttpHandler extends ApplicationProtocolNegotiationHandler {
 
     public static final int MAX_CONTENT_LENGTH = 1024 * 1024;
     
-    protected Http2OrHttpHandler(FeatureBackend backend, Runnable stopFunction) {
-        super(ApplicationProtocolNames.HTTP_1_1);
+    protected Http2OrHttpHandler(FeatureBackend backend, String fallbackHttpVersion, Runnable stopFunction) {
+        super(fallbackHttpVersion);
         this.backend = backend;
-        this.stopFunction = stopFunction;        
+        this.stopFunction = stopFunction;
+        logger.info("ALPN Handler setup with fallback to: " + fallbackHttpVersion);
     }
   
     @Override

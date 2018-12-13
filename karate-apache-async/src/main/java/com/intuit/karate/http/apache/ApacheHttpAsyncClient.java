@@ -25,6 +25,7 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Config.ClientProtocolNames;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.http.*;
 import com.intuit.karate.http.HttpRequest;
@@ -302,19 +303,20 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
         }
         AsyncRequestProducer requestProducer = requestBuilder.build();
 
-        if(context.getConfig().getHttpVersion() == 1.1) {
-            clientBuilder.setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_1);
-        }else if (context.getConfig().getHttpVersion() == 2.0){
-            clientBuilder.setVersionPolicy(HttpVersionPolicy.FORCE_HTTP_2);
-        }else {
-            clientBuilder.setVersionPolicy(HttpVersionPolicy.NEGOTIATE);
+        HttpVersionPolicy httpVersionPolicy = HttpVersionPolicy.NEGOTIATE;
+        if (context.getConfig() != null){
+        	if (context.getConfig().getClientHttpVersion().equals(ClientProtocolNames.HTTP_1)) {
+        		httpVersionPolicy = HttpVersionPolicy.FORCE_HTTP_1;
+        	}
+        	else if (context.getConfig().getClientHttpVersion().equals(ClientProtocolNames.HTTP_2)){
+        		httpVersionPolicy = HttpVersionPolicy.FORCE_HTTP_2;
+            }
         }
+        clientBuilder.setVersionPolicy(httpVersionPolicy);
         CloseableHttpAsyncClient client = clientBuilder.build();
-
-
+        
         byte[] bytes;
         SimpleHttpResponse httpResponse = null;
-
         AbstractBinResponseConsumer<SimpleHttpResponse> binResponseConsumer = new AbstractBinResponseConsumer<SimpleHttpResponse>() {
             SimpleHttpResponse httpResponse;
             // TODO: further test buffer size implications

@@ -24,6 +24,9 @@
 package com.intuit.karate;
 
 import com.intuit.karate.http.HttpClient;
+
+import io.netty.handler.ssl.ApplicationProtocolNames;
+
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,14 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  * @author pthomas3
  */
 public class Config {
+	
+	public final class ClientProtocolNames {
+
+	    public static final String HTTP_1 = "http1";
+	    public static final String HTTP_2 = "http2";
+	    public static final String NEGIOTIATE = "neg";
+	    private ClientProtocolNames() { }
+	}
 
     public static final int DEFAULT_RETRY_INTERVAL = 3000;
     public static final int DEFAULT_RETRY_COUNT = 3;    
@@ -75,7 +86,8 @@ public class Config {
     private int retryCount = DEFAULT_RETRY_COUNT;
 
     //Http Version
-    private double httpVersion = 1.1;
+    private String clientHttpVersion = ClientProtocolNames.HTTP_1;
+    private String mockServerFallbackHttpVersion = ApplicationProtocolNames.HTTP_1_1;
 
     // report config
     private boolean showLog = true;
@@ -148,7 +160,10 @@ public class Config {
                 return false;
             // here on the http client has to be re-constructed ================
             case "httpVersion":
-            	setHttpVersion(Double.valueOf(value.getAsString()));
+            	setClientHttpVersion(value.getAsString());
+                return true;
+            case "mockServerFallbackHttpVersion":
+            	setMockServerFallbackHttpVersion(value.getAsString());
                 return true;
             case "httpClientClass":
                 clientClass = value.getAsString();
@@ -248,7 +263,8 @@ public class Config {
         showAllSteps = parent.showAllSteps;
         retryInterval = parent.retryInterval;
         retryCount = parent.retryCount;
-        httpVersion = parent.httpVersion;
+        clientHttpVersion = parent.clientHttpVersion;
+        mockServerFallbackHttpVersion = parent.mockServerFallbackHttpVersion;
     }
         
     public void setCookies(ScriptValue cookies) {
@@ -429,11 +445,26 @@ public class Config {
         this.retryCount = retryCount;
     }
 
-    public double getHttpVersion() {
-        return httpVersion;
+    public String getClientHttpVersion() {
+        return clientHttpVersion;
     }
 
-    public void setHttpVersion(double httpVersion) {
-        this.httpVersion = httpVersion;
+    public void setClientHttpVersion(String httpVersion) {
+    	if (httpVersion.equals(ClientProtocolNames.HTTP_1) ||
+    			httpVersion.equals(ClientProtocolNames.HTTP_2) ||
+    			httpVersion.equals(ClientProtocolNames.NEGIOTIATE)){
+    		clientHttpVersion = httpVersion;
+    	}
+    }
+    
+    public String getMockServerFallbackHttpVersion() {
+        return mockServerFallbackHttpVersion;
+    }
+
+    public void setMockServerFallbackHttpVersion(String fallbackHttpVersion) {
+    	if (fallbackHttpVersion.equals(ApplicationProtocolNames.HTTP_2) ||
+    			fallbackHttpVersion.equals(ApplicationProtocolNames.HTTP_1_1)){
+    		mockServerFallbackHttpVersion = fallbackHttpVersion;
+    	}
     }
 }
