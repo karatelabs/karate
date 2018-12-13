@@ -59,6 +59,7 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
         StringBuilder sb = new StringBuilder();
         sb.append("response time in milliseconds: ").append(actual.getResponseTimeFormatted()).append('\n');
         sb.append(id).append(" < ").append(response.getCode()).append('\n');
+        sb.append(id).append(" < ").append(response.getVersion()).append('\n');
         LoggingUtils.logHeaders(sb, id, '<', response);
         if(response instanceof BasicClassicHttpResponse) {
             BasicClassicHttpResponse basicResponse = (BasicClassicHttpResponse) response;
