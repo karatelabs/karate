@@ -1280,6 +1280,7 @@ public class Script {
                 }
             }
             int matchedCount = 0;
+            AssertionResult firstMisMatch = null;
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
                 Object childExp = expEntry.getValue();
@@ -1324,6 +1325,9 @@ public class Script {
                     if (matchType == MatchType.NOT_CONTAINS) {
                         return AssertionResult.PASS; // exit early
                     }
+                    if (firstMisMatch == null) {
+                        firstMisMatch = ar;
+                    }
                 }
             }
             if (matchType == MatchType.CONTAINS_ANY) {
@@ -1338,7 +1342,8 @@ public class Script {
                 if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 }
-                return matchFailed(matchType, path, actObject, expObject, "all key-values did not match");
+                String extra = firstMisMatch == null ? "" : ", " + firstMisMatch.message;
+                return matchFailed(matchType, path, actObject, expObject, "all key-values did not match" + extra);
             } else {
                 // if we reached here, all map-entries matched
                 if (matchType == MatchType.NOT_CONTAINS) {
