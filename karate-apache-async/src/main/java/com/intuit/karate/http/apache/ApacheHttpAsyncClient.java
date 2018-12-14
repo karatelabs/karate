@@ -56,7 +56,7 @@ import org.apache.hc.core5.http.nio.AsyncRequestProducer;
 import org.apache.hc.core5.http.nio.entity.BasicAsyncEntityProducer;
 import org.apache.hc.core5.http.nio.ssl.TlsStrategy;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
-import org.apache.hc.core5.io.ShutdownType;
+import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.net.URIBuilder;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
@@ -186,15 +186,23 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
                     sslCxtBuilder = sslCxtBuilder.loadKeyMaterial(keyStore, keyPassword);
                 }
                 
-                return new H2TlsStrategy(sslCxtBuilder.build(), new NoopHostnameVerifier()) {
-                    // IMPORTANT uncomment the following method when running Java 9 or older
-                    // in order to avoid the illegal reflective access operation warning
-//                  @Override
-//                  protected TlsDetails createTlsDetails(final SSLEngine sslEngine) {
-//                      return new TlsDetails(sslEngine.getSession(), sslEngine.getApplicationProtocol());
-//                  }
-                };
-                } catch (Exception e) {
+                return ClientTlsStrategyBuilder.create()
+                        .setSslContext(sslCxtBuilder.build())
+                        // IMPORTANT uncomment the following method when running Java 9 or older
+                        // in order for ALPN support to work and avoid the illegal reflective
+                        // access operation warning
+                        /*
+                        .setTlsDetailsFactory(new Factory<SSLEngine, TlsDetails>() {
+
+                            @Override
+                            public TlsDetails create(final SSLEngine sslEngine) {
+                                return new TlsDetails(sslEngine.getSession(), sslEngine.getApplicationProtocol());
+                            }
+                        })
+                        */
+                        .setHostnameVerifier(new NoopHostnameVerifier())
+                        .build();
+            } catch (Exception e) {
                 context.logger.error("ssl context init failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
@@ -206,7 +214,6 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
     protected void buildUrl(String url) {
         try {
             uriBuilder = new URIBuilder(url);
-            // Resetting the path to enable allow correct build of uriBuilder.buildstring()
             uriBuilder.setPath(uriBuilder.getPath());
             build();
         } catch (Exception e) {
@@ -216,14 +223,20 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
 
     @Override
     protected void buildPath(String path) {
-        String temp = uriBuilder.getPath();
-        if (!temp.endsWith("/")) {
-            temp = temp + "/";
+        if (path != null){
+            String temp = uriBuilder.getPath();
+            if (temp == null) {
+                temp = new String("/");
+            } else if (!temp.endsWith("/")) {
+                temp = temp + "/";
+            }
+            
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            
+            uriBuilder.setPath(temp + path);
         }
-        if (path.startsWith("/")) {
-            path = path.substring(1);
-        }
-        uriBuilder.setPath(temp + path);
         build();
     }
 
@@ -305,11 +318,11 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
 
         HttpVersionPolicy httpVersionPolicy = HttpVersionPolicy.NEGOTIATE;
         if (context.getConfig() != null){
-        	if (context.getConfig().getClientHttpVersion().equals(ClientProtocolNames.HTTP_1)) {
-        		httpVersionPolicy = HttpVersionPolicy.FORCE_HTTP_1;
-        	}
-        	else if (context.getConfig().getClientHttpVersion().equals(ClientProtocolNames.HTTP_2)){
-        		httpVersionPolicy = HttpVersionPolicy.FORCE_HTTP_2;
+            if (context.getConfig().getClientHttpVersion().equals(ClientProtocolNames.HTTP_1)) {
+                httpVersionPolicy = HttpVersionPolicy.FORCE_HTTP_1;
+            }
+            else if (context.getConfig().getClientHttpVersion().equals(ClientProtocolNames.HTTP_2)){
+                httpVersionPolicy = HttpVersionPolicy.FORCE_HTTP_2;
             }
         }
         clientBuilder.setVersionPolicy(httpVersionPolicy);
@@ -338,14 +351,9 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
             }
 
             @Override
-            protected int capacity() {
-                return bodyBuffer.capacity();
-            }
-
-            @Override
             protected void data(ByteBuffer data, boolean endOfStream) throws IOException {
                 if(!endOfStream){
-                	bodyBuffer.put(data);
+                    bodyBuffer.put(data);
                 }
             }
 
@@ -355,11 +363,21 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
             }
 
             private byte[] toByteArray() {
-            	bodyBuffer.flip();
+                bodyBuffer.flip();
                 final byte[] bytes = new byte[bodyBuffer.remaining()];
                 bodyBuffer.get(bytes);
                 bodyBuffer.clear();
                 return bytes;
+            }
+
+            @Override
+            protected int capacityIncrement() {
+                return remainingCapacity();
+            }
+
+            @Override
+            protected int remainingCapacity() {
+                return bodyBuffer.remaining();
             }
 
         };
@@ -414,10 +432,10 @@ public class ApacheHttpAsyncClient extends HttpClient<HttpEntity> {
             response.addCookie(cookie);
         }
         cookieStore.clear(); // we rely on the StepDefs for cookie 'persistence'
-        for (Header header : httpResponse.getAllHeaders()) {
+        for (Header header : httpResponse.getHeaders()) {
             response.addHeader(header.getName(), header.getValue());
         }
-        client.shutdown(ShutdownType.GRACEFUL);
+        client.shutdown(CloseMode.GRACEFUL);
         return response;
     }
 
