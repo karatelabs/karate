@@ -64,7 +64,7 @@ public class Runner {
     }
 
     public static Results parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
-        String tagSelector = tags == null ? null : Tags.fromCucumberOptionsTags(tags);
+        String tagSelector = tags == null ? null : Tags.fromKarateOptionsTags(tags);
         List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
         return parallel(tagSelector, files, hook, threadCount, reportDir);
     }

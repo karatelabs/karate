@@ -82,7 +82,7 @@ public class Karate implements Iterable<DynamicNode> {
             Feature feature = FeatureParser.parse(resource);
             features.add(feature);
         }
-        String tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
+        String tagSelector = Tags.fromKarateOptionsTags(options.getTags());
         List<DynamicNode> list = new ArrayList<>(features.size());
         for (Feature feature : features) {
             FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);

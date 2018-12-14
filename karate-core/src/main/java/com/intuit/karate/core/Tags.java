@@ -200,14 +200,14 @@ public class Tags {
         return list;
     }
     
-    public static String fromCucumberOptionsTags(List<String> tags) {
+    public static String fromKarateOptionsTags(List<String> tags) {
         if (tags == null || tags.isEmpty()) {
             return null;
         }
-        return fromCucumberOptionsTags(tags.toArray(new String[]{}));
+        return fromKarateOptionsTags(tags.toArray(new String[]{}));
     }    
     
-    public static String fromCucumberOptionsTags(String... tags) {
+    public static String fromKarateOptionsTags(String... tags) {
         if (tags == null || tags.length == 0) {
             return null;
         }
@@ -218,7 +218,7 @@ public class Tags {
         }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < tags.length; i++) {
-            String and = tags[i];
+            String and = StringUtils.trimToEmpty(tags[i]);
             if (and.startsWith("~")) {
                 sb.append("not('").append(and.substring(1)).append("')");
             } else {

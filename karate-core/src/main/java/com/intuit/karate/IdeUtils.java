@@ -57,7 +57,7 @@ public class IdeUtils {
         List<String> features = options.getFeatures();
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         List<Resource> resources = FileUtils.scanForFeatureFiles(features, cl);
-        String tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
+        String tagSelector = Tags.fromKarateOptionsTags(options.getTags());
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             feature.setCallName(name);

@@ -75,7 +75,7 @@ public class Karate extends ParentRunner<Feature> {
             Feature feature = FeatureParser.parse(resource);
             children.add(feature);
         }
-        tagSelector = Tags.fromCucumberOptionsTags(options.getTags());
+        tagSelector = Tags.fromKarateOptionsTags(options.getTags());
     }
 
     @Override
