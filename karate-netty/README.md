@@ -26,12 +26,32 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Configure a 'global' response header routine, ideal for browser consumers to add headers common for *all* responses - yet dynamic if needed
 * Provider service dev team can practice TDD using the mock + contract-test
 * The mock + contract-test serves as the ultimate form of documentation of the 'contract' including payload / schema details.
+* Supports HTTP/1.1 and HTTP/2 requests including
+  * Cleartext upgrade and prior-knowledge and
+  * Over SSL with upgrade and prior-knowledge (including supporting ALPN)
 
 ## Using
 Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
 
 ### Maven
 The [Netty](https://netty.io) based capabilities are included when you use `karate-apache` (or `karate-jersey`), so there is no extra dependency needed besides what is outlined in the [main documentation](https://github.com/intuit/karate#maven).
+
+For `karate-apache-async` requires the following dependencies:
+
+```xml
+<dependency>
+    <groupId>io.netty</groupId>
+    <artifactId>netty-tcnative-boringssl-static</artifactId>
+    <version>${netty.boringssl.version}</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>org.conscrypt</groupId>
+    <artifactId>conscrypt-openjdk-uber</artifactId>
+    <version>${conscrypt.openjdk.uber.version}</version>
+    <scope>test</scope>
+</dependency>
+```
 
 ## Consumer-Provider Example
 
@@ -438,6 +458,15 @@ Many times you want a set of "common" headers to be returned for *every* end-poi
 Background:
     * configure responseHeaders = { 'Content-Type': 'application/json' }
 ```
+## `configure-mockServerFallbackHttpVersion`
+This allows configures the mock server to default to using the specified HTTP protocol version when protocol negiotiation fails.
+The default is to fallback back to HTTP/1.1
+This is useful in the case that the client is not enabled to use protocol negotiation
+
+```cucumber
+Background:
+    * configure mockServerFallbackHttpVersion = 'h2'
+````
 
 ## `configure cors`
 This allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). And this is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.

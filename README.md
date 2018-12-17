@@ -227,6 +227,8 @@ And you don't need to create additional Java classes for any of the payloads tha
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that deeply assert that server responses are accurate under load
 * Gatling integration can hook into [*any* custom Java code](https://github.com/intuit/karate/tree/master/karate-gatling#custom) - which means that you can test even non-HTTP protocols such as [gRPC](https://thinkerou.com/karate-grpc/)
 * [API mocks](karate-netty) or test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
+  * HTTP/1.1 and HTTP/2 supported with mock server
+  * HTTP/2 Upgrade and prior-knowledge supported both with cleartext and SLL (supporting ALPN)
 * [Async](#async) support that allows you to seamlessly integrate listening to message-queues within a test
 * [Mock HTTP Servlet](karate-mock-servlet) that enables you to test __any__ controller servlet such as Spring Boot / MVC or Jersey / JAX-RS - without having to boot an app-server, and you can use your HTTP integration tests un-changed
 * Comprehensive support for different flavors of HTTP calls:
@@ -240,6 +242,9 @@ And you don't need to create additional Java classes for any of the payloads tha
   * [Re-try](#retry-until) until condition
   * [Websocket](http://www.websocket.org) [support](#async)
   * Intelligent defaults
+* Supports HTTP/2 and HTTP/1.1 with the use of the Apache Async client API (via httpcomponents-client-5.0.x):
+  * supports cleartext upgrade and HTTP/2 with prior-knowledge
+  * supports HTTP/2 with SSL with the limitation that the server defaults to using HTTP/2 (without upgrade or ALPN)
 
 ## Real World Examples
 
@@ -262,7 +267,7 @@ Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/i
 
 ## Maven
 
-Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
+Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html), [Apache Async (Beta)](https://hc.apache.org/httpcomponents-client-5.0.x/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
 
 So you need two `<dependencies>`:
 
@@ -282,6 +287,7 @@ So you need two `<dependencies>`:
 ```
 
 And if you run into class-loading conflicts, for example if an older version of the Apache libraries are being used within your project - then use `karate-jersey` instead of `karate-apache`.
+For targeting HTTP/2 requests then use `karate-apache-async` instead of `karate-apache`.
 
 If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-junit4`.
 
@@ -1851,6 +1857,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `ssl` | boolean | Enable HTTPS calls without needing to configure a trusted certificate or key-store.
 `ssl` | string | Like above, but force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). (The above form internally defaults to `TLS` if simply set to `true`).
 `ssl` | JSON | see [X509 certificate authentication](#x509-certificate-authentication)
+`httpVersion` | string | See [`configure http version`](#configure-httpVersion)
 `followRedirects` | boolean | Whether the HTTP client automatically follows redirects - (default `true`), refer to this [example](karate-demo/src/test/java/demo/redirect/redirect.feature).
 `connectTimeout` | integer | Set the connect timeout (milliseconds). The default is 30000 (30 seconds). Note that for `karate-apache`, this sets the [socket timeout](https://stackoverflow.com/a/22722260/143475) to the same value as well.
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
@@ -1864,7 +1871,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `userDefined` | JSON | See [karate-mock-servlet](karate-mock-servlet)
 `responseHeaders` | JSON / JS function | See [karate-netty](karate-netty#configure-responseheaders)
 `cors` | boolean | See [karate-netty](karate-netty##configure-cors)
-
+`mockServerFallbackHttpVersion` | boolean | See [karate-netty](karate-netty##configure-mockServerFallbackHttpVersion)
 
 Examples:
 ```cucumber
@@ -1876,6 +1883,9 @@ Examples:
 
 # enable ssl and force the algorithm to TLSv1.2
 * configure ssl = 'TLSv1.2'
+
+# enable http client to use HTTP/2 (Apache Async only)
+* configure httpVersion = 'http2'
 
 # time-out if the response is not received within 10 seconds (after the connection is established)
 * configure readTimeout = 10000
@@ -2830,6 +2840,19 @@ And assert responseTime < 1000
 
 ## `requestTimeStamp`
 Very rarely used - but you can get the Java system-time (for the current [`response`](#response)) at the point when the HTTP request was initiated (the value of `System.currentTimeMillis()`) which can be used for detailed logging or custom framework / stats calculations.
+
+# HTTP Version Selection
+## `configure httpVersion`
+Selection of the HTTP version used in the HTTP request is possible when using the [Apache Async client](#maven)
+There are two selections supported:
+* HTTP/1.1
+```cucumber
+configure httpVersion = 'http1'
+```
+* HTTP/2
+```cucumber
+configure httpVersion = 'http2'
+```
 
 # HTTP Header Manipulation
 ## `configure headers`
