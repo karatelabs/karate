@@ -136,7 +136,7 @@ public class Main implements Callable<Void> {
                 }
                 String configDir = System.getProperty(ScriptBindings.KARATE_CONFIG_DIR);
                 if (configDir == null) {
-                    System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File(".").getPath());
+                    System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File(".").getAbsolutePath());
                 }
                 List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
                 Results results = Runner.parallel(tags, fixed, threads, output);
