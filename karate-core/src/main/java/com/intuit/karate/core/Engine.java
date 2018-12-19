@@ -391,7 +391,7 @@ public class Engine {
         String html = getClasspathResource("report-template.html");
         String img = getClasspathResource("karate-logo.svg");
         Node svg = XmlUtils.toXmlDoc(img);
-        String js = getClasspathResource("report-template.js");
+        String js = getClasspathResource("report-template-js.txt");
         Document doc = XmlUtils.toXmlDoc(html);
         XmlUtils.setByPath(doc, "/html/body/img", svg);
         String baseName = result.getPackageQualifiedName();
