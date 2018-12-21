@@ -1289,7 +1289,9 @@ public class Script {
                     boolean equal = false;
                     if (childExp instanceof String) {
                         String childMacro = (String) childExp;
-                        if (isOptionalMacro(childMacro) || childMacro.equals("#notpresent")) { // logical match
+                        if (isOptionalMacro(childMacro) 
+                                || childMacro.equals("#notpresent") 
+                                || childMacro.equals("#ignore")) { // logical match
                             if (matchType == MatchType.NOT_CONTAINS) {
                                 return matchFailed(matchType, childPath, "(not present)", childExp, "actual value contains expected");
                             }

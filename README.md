@@ -2201,6 +2201,7 @@ These examples (all exact matches) can make things more clear:
 * match foo == { a: '##null' }
 * match foo == { a: '##notnull' }
 * match foo == { a: '#notpresent' }
+* match foo == { a: '#ignore' }
 
 * def foo = { a: null }
 * match foo == { a: '#null' }    
