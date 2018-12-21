@@ -1342,8 +1342,11 @@ public class Script {
                 if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
                 }
-                String extra = firstMisMatch == null ? "" : ", " + firstMisMatch.message;
-                return matchFailed(matchType, path, actObject, expObject, "all key-values did not match" + extra);
+                if (firstMisMatch != null) {
+                    return firstMisMatch;
+                } else {
+                    return matchFailed(matchType, path, actObject, expObject, "all key-values did not match");
+                }                
             } else {
                 // if we reached here, all map-entries matched
                 if (matchType == MatchType.NOT_CONTAINS) {

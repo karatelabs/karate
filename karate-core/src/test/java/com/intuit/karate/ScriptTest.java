@@ -742,8 +742,7 @@ public class ScriptTest {
         assertTrue(Script.matchXml(MatchType.EQUALS, xml, "/", "<hello foo=\"bar\">world</hello>", ctx).pass);
         AssertionResult ar = Script.matchXml(MatchType.EQUALS, xml, "/", "<hello foo=\"baz\">world</hello>", ctx);
         assertFalse(ar.pass);
-        // assertTrue(ar.message.contains("/hello/@foo"));
-        assertTrue(ar.message.contains("all key-values did not match"));
+        assertTrue(ar.message.contains("/hello/@foo"));
     }
 
     @Test
@@ -1140,7 +1139,7 @@ public class ScriptTest {
         Script.assign("json", "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]", ctx);
         AssertionResult ar = Script.matchNamed(MatchType.EQUALS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);
         assertFalse(ar.pass);
-        assertTrue(ar.message.contains("all key-values did not match"));
+        assertTrue(ar.message.contains("actual: 3, expected: 4"));
         ar = Script.matchNamed(MatchType.CONTAINS, "json", null, "[{ foo: 1 }, { foo: 2 }, { foo: 4 }]", ctx);
         assertFalse(ar.pass);
         assertTrue(ar.message.contains("$[*]"));
