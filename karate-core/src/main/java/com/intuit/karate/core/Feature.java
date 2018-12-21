@@ -26,7 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.Resource;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
-import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -92,11 +91,11 @@ public class Feature {
                                     ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, context);
                                     units.add(unit);
                                 } else {
-                                    exec.featureContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
+                                    bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
                                 }
                             }
                         } else {
-                            exec.featureContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
+                            bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                         }
                     } else {
                         units.add(new ScenarioExecutionUnit(scenario, null, exec));

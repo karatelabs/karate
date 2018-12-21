@@ -115,6 +115,15 @@ public class Scenario {
         }
         return meta + ":" + line + "]";
     }
+    
+    public String getUniqueId() {
+        int num = section.getIndex() + 1;
+        String meta = "-" + num;
+        if (index != -1) {
+            meta = meta + "_" + (index + 1);
+        }
+        return meta;
+    }    
 
     public List<Step> getBackgroundSteps() {
         return feature.isBackgroundPresent() ? feature.getBackground().getSteps() : Collections.EMPTY_LIST;

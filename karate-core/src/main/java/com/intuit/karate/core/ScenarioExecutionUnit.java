@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.nio.file.Path;
@@ -42,6 +44,8 @@ public class ScenarioExecutionUnit implements Runnable {
     private final ExecutionContext exec;
     public final ScenarioResult result;
     private final Consumer<Runnable> SYSTEM;
+    private final LogAppender appender;
+    public final Logger logger;
 
     private List<Step> steps;
     private Iterator<Step> iterator;
@@ -57,11 +61,16 @@ public class ScenarioExecutionUnit implements Runnable {
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, ScenarioContext context) {
         this.scenario = scenario;
         this.tags = new Tags(scenario.getTagsEffective());
-        this.exec = exec;
+        this.exec = exec;        
         result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
         if (context != null) {
             actions = new StepActions(context);
+            logger = actions.context.logger;
+            appender = exec.getLogAppender(scenario.getUniqueId(), logger);
+        } else {
+            logger = new Logger();
+            appender = exec.getLogAppender(scenario.getUniqueId(), logger);
         }
     }
 
@@ -93,7 +102,7 @@ public class ScenarioExecutionUnit implements Runnable {
             exec.callContext.setTags(tags);
             // karate-config.js will be processed here 
             // when the script-context constructor is called          
-            actions = new StepActions(exec.featureContext, exec.callContext);
+            actions = new StepActions(exec.featureContext, exec.callContext, logger);
         }
         // before-scenario hook
         boolean hookFailed = false;
@@ -141,7 +150,7 @@ public class ScenarioExecutionUnit implements Runnable {
                 actions.context.logger.debug("abort at {}", step.getDebugInfo());
             }
             // log appender collection for each step happens here
-            String stepLog = StringUtils.trimToNull(exec.appender.collect());
+            String stepLog = StringUtils.trimToNull(appender.collect());
             boolean showLog = actions.context.getConfig().isShowLog();
             return new StepResult(hidden, step, execResult, showLog ? stepLog : null, embed, callResults);
         }
@@ -156,9 +165,10 @@ public class ScenarioExecutionUnit implements Runnable {
         // stop browser automation if running
         actions.context.stop();
         if (lastStepResult != null) {
-            String stepLog = StringUtils.trimToNull(exec.appender.collect());
+            String stepLog = StringUtils.trimToNull(appender.collect());
             lastStepResult.appendToStepLog(stepLog);
         }
+        appender.close();
     }
 
     @Override

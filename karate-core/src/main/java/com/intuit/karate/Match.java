@@ -58,11 +58,11 @@ public class Match {
     }
 
     private Match(Logger logger, String exp) {
-        FeatureContext featureContext = FeatureContext.forLogger(logger);
+        FeatureContext featureContext = FeatureContext.forEnv();
         String httpClass = logger == null ? DummyHttpClient.class.getName() : null;
         CallContext callContext = new CallContext(null, null, 0, null, -1, false, false,
                 httpClass, null, false);
-        context = new ScenarioContext(featureContext, callContext);
+        context = new ScenarioContext(featureContext, callContext, logger);
         if (exp != null) {
             prevValue = Script.evalKarateExpression(exp, context);
             if (prevValue.isMapLike()) {

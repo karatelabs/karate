@@ -41,7 +41,6 @@ public class FeatureContext {
     public final String env;
     public final String tagSelector;    
     public final Feature feature;
-    public final Logger logger;
     public final Path parentPath;
     public final Map<String, CallResult> callCache;
     public final String packageQualifiedName;
@@ -54,23 +53,18 @@ public class FeatureContext {
         return temp;
     }
 
-    public FeatureContext(String envString, Feature feature, File workingDir, String tagSelector, Logger logger) {
+    public FeatureContext(String envString, Feature feature, File workingDir, String tagSelector) {
         this.env = getEnv(envString);        
         this.tagSelector = tagSelector;
         this.feature = feature;
-        this.callCache = new HashMap(1);
-        this.logger = logger;        
+        this.callCache = new HashMap(1);       
         this.parentPath = workingDir == null ? feature.getPath().getParent() : workingDir.toPath();
         this.packageQualifiedName = workingDir == null ? feature.getResource().getPackageQualifiedName() : "";
     }
     
     public static FeatureContext forEnv(String env) {
         return FeatureContext.forWorkingDir(env, null);
-    }    
-    
-    public static FeatureContext forLogger(Logger logger) {
-        return FeatureContext.forWorkingDir(null, null, logger);
-    }    
+    } 
     
     public static FeatureContext forEnv() {
         return FeatureContext.forWorkingDir(null, null);
@@ -81,25 +75,22 @@ public class FeatureContext {
     }
     
     public static FeatureContext forWorkingDir(String env, File file) {
-        return forWorkingDir(env, file, null);
-    }
-    
-    public static FeatureContext forWorkingDir(String env, File file, Logger logger) {
         if (file == null) {
             file = new File("");
         }
-        if (logger == null) {
-            logger = new Logger();
-        }
-        return new FeatureContext(env, null, file, logger);
-    }    
+        return new FeatureContext(env, null, file);
+    } 
+    
+    public static FeatureContext forFeatureAndWorkingDir(String env, Feature feature, File file) {
+        return new FeatureContext(env, feature, file);
+    }
 
     public FeatureContext(String env, Feature feature, String tagSelector) {
-        this(env, feature, null, tagSelector, new Logger());
+        this(env, feature, null, tagSelector);
     }
     
-    public FeatureContext(String env, Feature feature, File workingDir, Logger logger) {
-        this(env, feature, workingDir, null, logger);
+    private FeatureContext(String env, Feature feature, File workingDir) {
+        this(env, feature, workingDir, null);
     }    
 
     @Override

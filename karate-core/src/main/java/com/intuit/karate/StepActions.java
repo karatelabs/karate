@@ -48,8 +48,8 @@ public class StepActions implements Actions {
 
     public final ScenarioContext context;
 
-    public StepActions(FeatureContext featureContext, CallContext callContext) {
-        context = new ScenarioContext(featureContext, callContext);
+    public StepActions(FeatureContext featureContext, CallContext callContext, Logger logger) {
+        context = new ScenarioContext(featureContext, callContext, logger);
     }
     
     public StepActions(ScenarioContext context) {

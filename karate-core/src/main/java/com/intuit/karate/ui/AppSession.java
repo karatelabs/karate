@@ -70,7 +70,7 @@ public class AppSession {
     public AppSession(BorderPane rootPane, File workingDir, Feature feature, String env, CallContext callContext) {
         this.rootPane = rootPane;
         this.workingDir = workingDir;
-        FeatureContext featureContext = new FeatureContext(env, feature, workingDir, logger);
+        FeatureContext featureContext = FeatureContext.forFeatureAndWorkingDir(env, feature, workingDir);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();

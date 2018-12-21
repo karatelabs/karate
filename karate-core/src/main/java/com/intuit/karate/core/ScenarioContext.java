@@ -196,9 +196,12 @@ public class ScenarioContext {
         return config.isPrintEnabled();
     }
 
-    public ScenarioContext(FeatureContext featureContext, CallContext call) {
+    public ScenarioContext(FeatureContext featureContext, CallContext call, Logger logger) {
         this.featureContext = featureContext;
-        logger = featureContext.logger;
+        if (logger == null) { // ensure this.logger is set properly
+            logger = new Logger();
+        }
+        this.logger = logger;
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;
         executionHook = call.executionHook;

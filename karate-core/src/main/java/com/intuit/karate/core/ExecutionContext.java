@@ -26,6 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.shell.FileLogAppender;
 import com.intuit.karate.LogAppender;
+import com.intuit.karate.Logger;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -40,33 +41,42 @@ public class ExecutionContext {
     public final FeatureContext featureContext;
     public final CallContext callContext;
     public final FeatureResult result;
-    public final LogAppender appender;
     public final Consumer<Runnable> system;
     public final ExecutorService scenarioExecutor;
 
-    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDir,
+    private final File reportDir;
+
+    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
             Consumer<Runnable> system, ExecutorService scenarioExecutor) {
         this.scenarioExecutor = scenarioExecutor;
         this.startTime = startTime;
         result = new FeatureResult(featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;
-        reportDir = reportDir == null ? Engine.getBuildDir() + File.separator + "surefire-reports" : reportDir;
+        if (callContext.perfMode) {
+            reportDir = null;
+        } else {
+            if (reportDirString == null) {
+                reportDirString = Engine.getBuildDir() + File.separator + "surefire-reports";
+            }
+            reportDir = new File(reportDirString);
+            if (!reportDir.exists()) {
+                reportDir.mkdirs();
+            }
+        }
         if (system == null) {
             this.system = r -> r.run();
         } else {
             this.system = system;
         }
-        if (callContext.perfMode) {
-            appender = LogAppender.NO_OP;
-        } else {            
-            File logFileDir = new File(reportDir);
-            if (!logFileDir.exists()) {
-                logFileDir.mkdirs();
-            }
-            String basePath = featureContext.packageQualifiedName;
-            appender = new FileLogAppender(logFileDir.getPath() + File.separator + basePath + ".log", featureContext.logger);            
+    }
+
+    public LogAppender getLogAppender(String suffix, Logger logger) {
+        if (reportDir == null) {
+            return LogAppender.NO_OP;
         }
+        String basePath = featureContext.packageQualifiedName;
+        return new FileLogAppender(reportDir + File.separator + basePath + suffix + ".log", logger);
     }
 
 }

@@ -81,16 +81,16 @@ public class FeatureExecutionUnit implements Runnable {
             Scenario scenario = unit.scenario;
             if (callName != null) {
                 if (!scenario.getName().matches(callName)) {
-                    featureContext.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+                    unit.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
                     latch.countDown();
                     SYSTEM.accept(this);
                     return;
                 }
-                featureContext.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
             }
             Tags tags = unit.tags;
             if (!tags.evaluate(featureContext.tagSelector)) {
-                featureContext.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+                unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 latch.countDown();
                 SYSTEM.accept(this);
                 return;
@@ -98,12 +98,12 @@ public class FeatureExecutionUnit implements Runnable {
             String callTag = scenario.getFeature().getCallTag();
             if (callTag != null) {
                 if (!tags.contains(callTag)) {
-                    featureContext.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                    unit.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
                     latch.countDown();
                     SYSTEM.accept(this);
                     return;
                 }
-                featureContext.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+                unit.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
             boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
             unit.setNext(() -> {
@@ -131,7 +131,7 @@ public class FeatureExecutionUnit implements Runnable {
                 try {
                     latch.await();
                 } catch (InterruptedException e) {
-                    featureContext.logger.error("feature failed: {}", e.getMessage());
+                    throw new RuntimeException(e);
                 }
             }
             // this is where the feature gets "populated" with stats
@@ -144,7 +144,6 @@ public class FeatureExecutionUnit implements Runnable {
                 exec.result.setResultVars(lastContextExecuted.vars);
                 lastContextExecuted.invokeAfterHookIfConfigured(true);
             }
-            exec.appender.close();
             if (next != null) {
                 next.run();
             }

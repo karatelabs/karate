@@ -25,11 +25,10 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.Config;
 import com.intuit.karate.CallContext;
-import com.intuit.karate.FileUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.FeatureContext;
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -44,7 +43,7 @@ public class HttpClientTest {
     private ScenarioContext getContext() {
         FeatureContext featureContext = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, true);
-        return new ScenarioContext(featureContext, callContext);
+        return new ScenarioContext(featureContext, callContext, null);
     }    
     
     @Test
