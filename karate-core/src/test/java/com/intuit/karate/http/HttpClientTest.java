@@ -25,7 +25,6 @@ package com.intuit.karate.http;
 
 import com.intuit.karate.Config;
 import com.intuit.karate.CallContext;
-import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.FeatureContext;

@@ -3421,7 +3421,7 @@ At the end of the `Feature` | [`configure afterFeature`](#configure) (see [examp
 ### The Cucumber Way
 Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines) where you can re-use a set of data-driven steps and assertions, and the data can be declared in a very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the new `Examples:` section.
 
-You should take a minute to compare this with the [exact same example implemented in REST-assured and TestNG](https://github.com/basdijkstra/workshops/blob/466e6842cd2438b416888a79e6e0bc9a9bf6395f/rest-assured/RestAssuredWorkshop/src/test/java/com/ontestautomation/restassured/workshop/answers/RestAssuredAnswers2.java).
+You should take a minute to compare this with the [exact same example implemented in REST-assured and TestNG](https://github.com/basdijkstra/rest-assured-workshop/blob/d9734da98bfcd8087055bdcd78545581dd23cb77/src/test/java/answers/RestAssuredAnswers2Test.java). Note that this example only does a "string equals" check on *parts* of the JSON, but with Karate you are always encouraged to match the *entire* payload in one step.
 
 ```cucumber
 Feature: karate answers 2

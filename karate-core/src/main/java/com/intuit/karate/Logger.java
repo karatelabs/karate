@@ -45,10 +45,6 @@ public class Logger {
     private final DateFormat dateFormatter = new SimpleDateFormat("HH:mm:ss.SSS");
 
     private LogAppender logAppender;
-    
-    public Logger copy() {
-        return new Logger(LOGGER);
-    }
 
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;
@@ -56,11 +52,7 @@ public class Logger {
 
     public LogAppender getLogAppender() {
         return logAppender;
-    }      
-    
-    private Logger(org.slf4j.Logger logger) {
-        LOGGER = logger;
-    }    
+    }
 
     public Logger(Class clazz) {
         LOGGER = LoggerFactory.getLogger(clazz);
