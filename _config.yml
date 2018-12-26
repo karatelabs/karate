@@ -1,0 +1,14 @@
+# Site settings
+title: Karate
+description: Web-Services Testing Made Simple.
+twitter_username: KarateDSL
+github_username: intuit
+
+# Theme
+remote_theme: pmarsceill/just-the-docs
+
+# Theme settings
+search_enabled: true
+aux_links:
+    "Karate on Github":
+        - "//github.com/intuit/karate"
