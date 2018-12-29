@@ -209,9 +209,9 @@ public class Script {
         if (result != null) {
             context.logger.trace("callonce cache hit for: {}", text);
             if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
-                context.configure(new Config(result.config)); // clone for safety
+                context.configure(new Config(result.config)); // clone config for safety
             }
-            return result.value.copy(); // clone for safety
+            return result.value;
         }
         long startTime = System.currentTimeMillis();
         context.logger.trace("callonce waiting for lock: {}", text);
@@ -221,14 +221,14 @@ public class Script {
                 long endTime = System.currentTimeMillis() - startTime;
                 context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);
                 if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
-                    context.configure(new Config(result.config)); // clone for safety
+                    context.configure(new Config(result.config)); // clone config for safety
                 }
-                return result.value.copy(); // clone for safety
+                return result.value;
             }
             // this thread is the 'winner'
             context.logger.info(">> lock acquired, begin callonce: {}", text);
             ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
-            result = new CallResult(resultValue.copy(), new Config(context.getConfig())); // snapshot for safety
+            result = new CallResult(resultValue, new Config(context.getConfig())); // clone config for safety
             featureContext.callCache.put(text, result);
             context.logger.info("<< lock released, cached callonce: {}", text);
             return resultValue;
