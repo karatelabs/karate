@@ -2126,7 +2126,7 @@ Also take a look at how a special case of [embedded-expressions](#embedded-expre
 
 ## Fuzzy Matching
 ### Ignore or Validate
-When expressing expected results (in JSON or XML) you can mark some fields to be ignored when the match (comparison) is performed.  You can even use a regular-expression so that instead of checking for equality, Karate will just validate that the actual value conforms to the expected pattern.
+When expressing expected results (in JSON or [XML](#match-and-xml)) you can mark some fields to be ignored when the match (comparison) is performed.  You can even use a regular-expression so that instead of checking for equality, Karate will just validate that the actual value conforms to the expected pattern.
 
 This means that even when you have dynamic server-side generated values such as UUID-s and time-stamps appearing in the response, you can still assert that the full-payload matched in one step.
 
@@ -2309,6 +2309,18 @@ Then match header Content-Type contains 'application'
 Note the extra convenience where you don't have to enclose the LHS key in quotes.
 
 You can always directly access the variable called [`responseHeaders`](#responseheaders) if you wanted to do more checks, but you typically won't need to.
+
+### `match` and XML
+All the [fuzzy matching](#fuzzy-matching) markers will work in XML as well. Here are some examples:
+
+```cucumber
+  * def xml = <root><hello>world</hello><foo>bar</foo></root>
+  * match xml == <root><hello>world</hello><foo>#ignore</foo></root>
+  * def xml = <root><hello foo="bar">world</hello></root>
+  * match xml == <root><hello foo="#ignore">world</hello></root>
+```
+
+Refer to this file for a comprehensive set of XML examples: [`xml.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 ## Matching Sub-Sets of JSON Keys and Arrays
 ### `match contains`

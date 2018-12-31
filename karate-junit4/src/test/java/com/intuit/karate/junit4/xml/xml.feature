@@ -10,6 +10,12 @@ Scenario: xml empty elements and null
     # check if a path does not exist
     * match foo/root/nope == '#notpresent'
 
+Scenario: simple fuzzy matching
+    * def xml = <root><hello>world</hello><foo>bar</foo></root>
+    * match xml == <root><hello>world</hello><foo>#ignore</foo></root>
+    * def xml = <root><hello foo="bar">world</hello></root>
+    * match xml == <root><hello foo="#ignore">world</hello></root>
+
 Scenario: pretty print xml
     * def search = { number: '123456', wireless: true, voip: false, tollFree: false }
     * def xml = read('soap1.xml')
