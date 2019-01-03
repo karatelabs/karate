@@ -148,6 +148,8 @@ public class ScenarioExecutionUnit implements Runnable {
             Embed embed = actions.context.getAndClearEmbed();
             if (execResult.isAborted()) { // we log only aborts for visibility
                 actions.context.logger.debug("abort at {}", step.getDebugInfo());
+            } else if (execResult.isFailed()) {
+                actions.context.setScenarioError(execResult.getError());
             }
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(appender.collect());

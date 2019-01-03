@@ -40,6 +40,7 @@ public class FileLogAppender implements LogAppender {
     private final FileChannel file;
     private final Logger logger;
     private int prevPos;
+    private boolean closed;
     
     public FileLogAppender(String in, Logger logger) {
         this(in == null ? null : new File(in), logger);
@@ -78,6 +79,9 @@ public class FileLogAppender implements LogAppender {
 
     @Override
     public void append(String text) {
+        if (closed) {
+            return;
+        }
         try {
             file.write(ByteBuffer.wrap(text.getBytes(FileUtils.UTF8)));
         } catch (Exception e) {
@@ -89,6 +93,7 @@ public class FileLogAppender implements LogAppender {
     public void close() {
         try {
             file.close();
+            closed = true;
         } catch (Exception e) {
             logger.warn("log appender close failed: {}", e.getMessage());
         }
