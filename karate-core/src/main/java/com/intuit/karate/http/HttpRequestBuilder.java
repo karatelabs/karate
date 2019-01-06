@@ -29,6 +29,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  *
@@ -139,6 +141,17 @@ public class HttpRequestBuilder {
         }
         headers.remove(name);
     }
+    
+    public void removeHeaderIgnoreCase(String name) {
+        if (headers == null || name == null) {
+            return;
+        }
+        List<String> list = headers.keySet().stream()
+                .filter(k -> name.equalsIgnoreCase(k))
+                .collect(Collectors.toList());
+        // has to be separate step else concurrent modification exception
+        list.forEach(k -> headers.remove(k));
+    }    
 
     public void setHeaders(MultiValuedMap headers) {
         this.headers = headers;

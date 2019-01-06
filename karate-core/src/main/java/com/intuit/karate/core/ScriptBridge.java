@@ -328,7 +328,7 @@ public class ScriptBridge implements PerfContext {
         request.setUrl(url);
         request.setMethod(getAsString(ScriptValueMap.VAR_REQUEST_METHOD));
         request.setHeaders(getValue(ScriptValueMap.VAR_REQUEST_HEADERS).getValue(MultiValuedMap.class));
-        request.removeHeader(HttpUtils.HEADER_CONTENT_LENGTH);
+        request.removeHeaderIgnoreCase(HttpUtils.HEADER_CONTENT_LENGTH);
         request.setBody(getValue(ScriptValueMap.VAR_REQUEST));
         HttpResponse response = context.getHttpClient().invoke(request, context);
         context.setPrevResponse(response);
