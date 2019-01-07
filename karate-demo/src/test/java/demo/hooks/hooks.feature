@@ -31,6 +31,8 @@ function(){
 
 # for an explanation of 'karate.info' above: https://github.com/intuit/karate#the-karate-object
 # note that 'karate.info' will not work within features invoked using the 'call' or 'callonce' keywords
+# one limitation of afterScenario and afterFeature is that any feature steps involved will NOT appear
+# in the JSON report output and HTML reports
 
 * configure afterFeature = function(){ karate.call('after-feature.feature'); }
 
