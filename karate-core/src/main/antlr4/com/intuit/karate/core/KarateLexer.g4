@@ -23,10 +23,11 @@
  */
 lexer grammar KarateLexer;
 
-FEATURE_COMMENT: [\r\n]* WS* '#' ~[\r\n]* BOL+ -> channel(HIDDEN) ;
-FEATURE_TAGS: [\r\n]* WS* '@' ~[\r\n]+ BOL+ ;
-FEATURE: [\r\n]* WS* 'Feature:' WS* -> pushMode(MAIN) ; // we never popMode !
+FEATURE_COMMENT: WSLF* '#' ~[\r\n]* BOL+ -> channel(HIDDEN) ;
+FEATURE_TAGS: WSLF* '@' ~[\r\n]+ BOL+ ;
+FEATURE: WSLF* 'Feature:' WS* -> pushMode(MAIN) ; // we never popMode !
 
+fragment WSLF: [\r\n \t] ;     // White Space or Line Feed
 fragment BOL: [\r\n]+ [ \t]* ; // Beginning Of Line
 fragment WS: [ \t] ;           // White Space
 
