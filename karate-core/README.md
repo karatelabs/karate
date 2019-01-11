@@ -1,8 +1,8 @@
 # Karate Driver
-## UI Test Automation Made Simple
+## UI Test Automation Made `Simple.`
 
 ## Introduction
-> This is new, and this first version 0.9.0 should be considered experimental.
+> This is new, and this first version 0.9.X should be considered experimental.
 
 Especially after [the Gherkin parser and execution engine were re-written from the ground-up](https://github.com/intuit/karate/issues/444#issuecomment-406877530), Karate is arguably a mature framework that elegantly solves quite a few test-automation engineering challenges - with capabilities such as [parallel execution](https://twitter.com/KarateDSL/status/1049321708241317888), [data-driven testing](https://github.com/intuit/karate#data-driven-tests), [environment-switching](https://github.com/intuit/karate#switching-the-environment), [powerful assertions](https://github.com/intuit/karate#contains-short-cuts), and an [innovative UI for debugging](https://twitter.com/KarateDSL/status/1065602097591156736).
 

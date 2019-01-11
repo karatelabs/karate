@@ -23,9 +23,9 @@
  */
 lexer grammar KarateLexer;
 
-FEATURE_COMMENT: WS* '#' ~[\r\n]* BOL+ -> channel(HIDDEN) ;
-FEATURE_TAGS: WS* '@' ~[\r\n]+ BOL+ ;
-FEATURE: WS* 'Feature:' WS* -> pushMode(MAIN) ; // we never popMode !
+FEATURE_COMMENT: [\r\n]* WS* '#' ~[\r\n]* BOL+ -> channel(HIDDEN) ;
+FEATURE_TAGS: [\r\n]* WS* '@' ~[\r\n]+ BOL+ ;
+FEATURE: [\r\n]* WS* 'Feature:' WS* -> pushMode(MAIN) ; // we never popMode !
 
 fragment BOL: [\r\n]+ [ \t]* ; // Beginning Of Line
 fragment WS: [ \t] ;           // White Space
