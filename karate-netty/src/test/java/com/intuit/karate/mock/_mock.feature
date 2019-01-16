@@ -61,3 +61,13 @@ Scenario: pathMatches('/v1/noheaders')
 
 Scenario: pathMatches('/v1/cookies')    
     * def responseHeaders = { 'Set-Cookie': 'foo=bar' }
+
+Scenario: pathMatches('/v1/download')
+    * def response = read('test.pdf.zip')
+
+Scenario: pathMatches('/v1/upload')
+    * def response = { size: '#(requestBytes.length)' }
+
+Scenario: pathMatches('/v1/multipart')
+    # TODO multipart handling on server side !
+    * def response = { success: true }

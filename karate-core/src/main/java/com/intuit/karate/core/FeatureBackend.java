@@ -223,11 +223,7 @@ public class FeatureBackend {
         HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
         response.setStatus(responseStatus);
         if (responseValue != null && !responseValue.isNull()) {
-            if (responseValue.isByteArray()) {
-                response.setBody(responseValue.getValue(byte[].class));
-            } else {
-                response.setBody(FileUtils.toBytes(responseValue.getAsString()));
-            }
+            response.setBody(responseValue.getAsByteArray());
         }
         // trying to avoid creating a map unless absolutely necessary
         if (responseHeadersMap != null) {
