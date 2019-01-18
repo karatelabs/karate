@@ -51,7 +51,7 @@ public class MatchStep {
         boolean any = false;
         int spacePos = raw.indexOf(' ');
         int leftParenPos = raw.indexOf('(');
-        int rightParenPos = raw.indexOf(')');        
+        int rightParenPos = raw.indexOf(')');
         int lhsEndPos = raw.indexOf(" contains");
         if (lhsEndPos == -1) {
             lhsEndPos = raw.indexOf(" !contains");
@@ -90,7 +90,10 @@ public class MatchStep {
             not = lhsEndPos == notEqualPos;
             searchPos = lhsEndPos + 3;
         }
-        String lhs = raw.substring(0, lhsEndPos).trim();                
+        String lhs = raw.substring(0, lhsEndPos).trim();
+        if (leftParenPos == -1) {
+            leftParenPos = lhs.indexOf('[');
+        }
         if (spacePos != -1 && (leftParenPos > spacePos || leftParenPos == -1)) {
             name = lhs.substring(0, spacePos);
             path = StringUtils.trimToNull(lhs.substring(spacePos));
