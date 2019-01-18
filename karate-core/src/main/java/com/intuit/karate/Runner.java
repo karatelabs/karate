@@ -97,7 +97,7 @@ public class Runner {
                 Feature feature = FeatureParser.parse(resource);
                 FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(feature, hook, null, false);
-                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir, 
+                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir,
                         r -> featureExecutor.submit(r), scenarioExecutor);
                 featureResults.add(execContext.result);
                 FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
@@ -111,9 +111,11 @@ public class Runner {
                         result.printStats(file.getPath());
                     } else {
                         results.addToSkipCount(1);
-                        logger.info("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
+                        }
                     }
-                    latch.countDown();                    
+                    latch.countDown();
                 });
                 featureExecutor.submit(unit);
             }
