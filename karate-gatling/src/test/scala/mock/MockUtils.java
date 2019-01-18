@@ -15,10 +15,14 @@ import java.util.Map;
  */
 public class MockUtils {
     
-    public static void startServer() {
+    public static void main(String[] args) {
+        startServer(8080);
+    }
+    
+    public static void startServer(int port) {
         File file = FileUtils.getFileRelativeTo(MockUtils.class, "mock.feature");
-        FeatureServer server = FeatureServer.start(file, 0, false, null);
-        System.setProperty("mock.cats.url", "http://localhost:" + server.getPort() + "/cats");        
+        FeatureServer server = FeatureServer.start(file, port, false, null);
+        System.setProperty("mock.port", server.getPort() + "");        
     }
 
     public static Map<String, Object> myRpc(Map<String, Object> map, PerfContext context) {

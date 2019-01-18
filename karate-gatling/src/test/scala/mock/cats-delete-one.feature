@@ -2,7 +2,7 @@
 Feature: delete cat by id and verify
 
   Scenario:
-    Given url karate.properties['mock.cats.url']
+    Given url baseUrl
     And path id
     When method delete
     Then status 200

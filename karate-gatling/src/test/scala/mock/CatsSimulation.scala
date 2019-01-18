@@ -6,7 +6,7 @@ import scala.concurrent.duration._
 
 class CatsSimulation extends Simulation {
 
-  MockUtils.startServer()
+  MockUtils.startServer(0)
 
   val protocol = karateProtocol(
     "/cats/{id}" -> Nil,

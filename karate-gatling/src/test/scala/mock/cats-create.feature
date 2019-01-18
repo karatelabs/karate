@@ -1,7 +1,7 @@
 Feature: cats crud
 
   Background:
-    * url karate.properties['mock.cats.url']
+    * url baseUrl
     * print 'gatling userId:', __gatling.userId
 
   Scenario: create, get and update cat
