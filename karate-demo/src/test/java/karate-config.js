@@ -12,7 +12,7 @@ function fn() {
   }  
   var config = { demoBaseUrl: protocol + '://127.0.0.1:' + port };
   if (karate.env == 'proxy') {
-    var proxyPort = karate.properties['demo.proxy.port']
+    var proxyPort = karate.properties['demo.proxy.port'];
     karate.configure('proxy', 'http://127.0.0.1:' + proxyPort);
   }
   if (karate.env != 'mock' && karate.env != 'proxy' && karate.env != 'contract') {
