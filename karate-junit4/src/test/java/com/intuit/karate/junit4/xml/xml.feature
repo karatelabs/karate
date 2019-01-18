@@ -437,3 +437,5 @@ Scenario: repeated xml elements and fuzzy matching
     * json bar = <bar><msg name="Hello"/><msg name="World"/></bar>
     * match each response.response.foo.bar == bar.bar
     * match response == { response: { foo: { bar: '#[] bar.bar' } } }
+    # so yes, we can express expected data in xml
+    * match response == <response><foo><bar>#[] bar.bar</bar></foo></response>

@@ -1234,6 +1234,9 @@ public class Script {
 
     public static AssertionResult matchNestedObject(char delimiter, String path, MatchType matchType,
             Object actRoot, Object actParent, Object actObject, Object expObject, ScenarioContext context) {
+        if (expObject instanceof Node) { // edge case for xml on rhs
+            expObject = XmlUtils.toObject((Node) expObject);
+        }
         if (expObject == null) {
             if (actObject != null) {
                 if (matchType == MatchType.NOT_EQUALS) {
