@@ -26,9 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScenarioInfo;
 import java.util.Map;
-import com.intuit.karate.core.Tags;
 
 /**
  *
@@ -47,31 +45,12 @@ public class CallContext {
     public final ExecutionHook executionHook;
     public final boolean perfMode;
 
-    private Tags tags = Tags.EMPTY;
-    private ScenarioInfo scenarioInfo;
-
     public static CallContext forCall(Feature feature, ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
         return new CallContext(feature, context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.perfMode);
     }
 
     public static CallContext forAsync(Feature feature, ExecutionHook hook, Map<String, Object> arg, boolean perfMode) {
         return new CallContext(feature, null, 0, arg, -1, false, true, null, hook, perfMode);
-    }
-
-    public Tags getTags() {
-        return tags;
-    }
-
-    public void setTags(Tags tags) {
-        this.tags = tags;
-    }
-
-    public void setScenarioInfo(ScenarioInfo scenarioInfo) {
-        this.scenarioInfo = scenarioInfo;
-    }
-
-    public ScenarioInfo getScenarioInfo() {
-        return scenarioInfo;
     }
 
     public boolean isCalled() {

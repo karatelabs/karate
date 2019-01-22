@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.MatchStep;
 import com.intuit.karate.core.Action;
 import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
 import cucumber.api.DataTable;
 import cucumber.api.java.en.When;
@@ -48,8 +49,8 @@ public class StepActions implements Actions {
 
     public final ScenarioContext context;
 
-    public StepActions(FeatureContext featureContext, CallContext callContext, Logger logger) {
-        context = new ScenarioContext(featureContext, callContext, logger);
+    public StepActions(FeatureContext featureContext, CallContext callContext, Scenario scenario, Logger logger) {
+        context = new ScenarioContext(featureContext, callContext, scenario, logger);
     }
     
     public StepActions(ScenarioContext context) {

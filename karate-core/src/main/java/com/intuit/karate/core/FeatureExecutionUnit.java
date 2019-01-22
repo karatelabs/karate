@@ -88,7 +88,7 @@ public class FeatureExecutionUnit implements Runnable {
                 }
                 unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
             }
-            Tags tags = unit.tags;
+            Tags tags = scenario.getTagsEffective();
             if (!tags.evaluate(featureContext.tagSelector)) {
                 unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 latch.countDown();

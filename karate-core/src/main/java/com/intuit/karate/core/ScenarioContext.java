@@ -196,7 +196,7 @@ public class ScenarioContext {
         return config.isPrintEnabled();
     }
 
-    public ScenarioContext(FeatureContext featureContext, CallContext call, Logger logger) {
+    public ScenarioContext(FeatureContext featureContext, CallContext call, Scenario scenario, Logger logger) {
         this.featureContext = featureContext;
         if (logger == null) { // ensure this.logger is set properly
             logger = new Logger();
@@ -206,9 +206,16 @@ public class ScenarioContext {
         reuseParentContext = call.reuseParentContext;
         executionHook = call.executionHook;
         perfMode = call.perfMode;
-        tags = call.getTags().getTags();
-        tagValues = call.getTags().getTagValues();
-        scenarioInfo = call.getScenarioInfo();
+        if (scenario != null) {
+            Tags tagsEffective = scenario.getTagsEffective();
+            tags = tagsEffective.getTags();
+            tagValues = tagsEffective.getTagValues();
+            scenarioInfo = scenario.toInfo(featureContext.feature.getPath());
+        } else {
+            tags = null;
+            tagValues = null;
+            scenarioInfo = null;
+        }
         if (reuseParentContext) {
             parentContext = call.context;
             vars = call.context.vars; // shared context !

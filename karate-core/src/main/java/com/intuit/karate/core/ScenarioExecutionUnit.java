@@ -27,7 +27,6 @@ import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -39,7 +38,6 @@ import java.util.function.Consumer;
  */
 public class ScenarioExecutionUnit implements Runnable {
 
-    public final Tags tags;
     public final Scenario scenario;
     private final ExecutionContext exec;
     public final ScenarioResult result;
@@ -60,7 +58,6 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, ScenarioContext context) {
         this.scenario = scenario;
-        this.tags = new Tags(scenario.getTagsEffective());
         this.exec = exec;        
         result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
@@ -95,14 +92,10 @@ public class ScenarioExecutionUnit implements Runnable {
     }
 
     public void init() {
-        if (actions == null) {
-            // some metadata init needed for scenarios            
-            Path featurePath = exec.featureContext.feature.getPath();
-            exec.callContext.setScenarioInfo(scenario.toInfo(featurePath));
-            exec.callContext.setTags(tags);
+        if (actions == null) {    
             // karate-config.js will be processed here 
             // when the script-context constructor is called          
-            actions = new StepActions(exec.featureContext, exec.callContext, logger);
+            actions = new StepActions(exec.featureContext, exec.callContext, scenario, logger);
         }
         // before-scenario hook
         boolean hookFailed = false;

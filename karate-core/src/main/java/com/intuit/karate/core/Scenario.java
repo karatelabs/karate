@@ -25,7 +25,6 @@ package com.intuit.karate.core;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -144,9 +143,9 @@ public class Scenario {
         return outline ? ScenarioOutline.KEYWORD : KEYWORD;
     }
 
-    private Collection<Tag> tagsEffective; // cache
+    private Tags tagsEffective; // cache
 
-    public Collection<Tag> getTagsEffective() {
+    public Tags getTagsEffective() {
         if (tagsEffective == null) {
             tagsEffective = Tags.merge(feature.getTags(), tags);
         }

@@ -42,7 +42,7 @@ public class HttpClientTest {
     private ScenarioContext getContext() {
         FeatureContext featureContext = FeatureContext.forEnv();
         CallContext callContext = new CallContext(null, true);
-        return new ScenarioContext(featureContext, callContext, null);
+        return new ScenarioContext(featureContext, callContext, null, null);
     }    
     
     @Test

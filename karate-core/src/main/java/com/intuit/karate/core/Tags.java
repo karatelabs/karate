@@ -46,6 +46,7 @@ public class Tags {
 
     public static final Tags EMPTY = new Tags(Collections.EMPTY_LIST);
 
+    private final Collection<Tag> tagsOriginal;
     private final List<String> tags;
     private Map<String, List<String>> tagValues;
     private final Bindings bindings;
@@ -97,14 +98,14 @@ public class Tags {
 
     }
 
-    public static Collection<Tag> merge(List<Tag>... lists) {
+    public static Tags merge(List<Tag>... lists) {
         Set<Tag> tags = new HashSet();
         for (List<Tag> list : lists) {
             if (list != null) {
                 tags.addAll(list);
             }
         }
-        return tags;
+        return new Tags(tags);
     }
 
     public boolean evaluate(String tagSelector) {
@@ -127,10 +128,16 @@ public class Tags {
         return tagValues;
     }
 
+    public Collection<Tag> getTagsOriginal() {
+        return tagsOriginal;
+    }        
+
     public Tags(Collection<Tag> in) {
         if (in == null) {
+            tagsOriginal = Collections.EMPTY_LIST;
             tags = Collections.EMPTY_LIST;
         } else {
+            tagsOriginal = in;
             tags = new ArrayList(in.size());
             tagValues = new HashMap(in.size());
             for (Tag tag : in) {

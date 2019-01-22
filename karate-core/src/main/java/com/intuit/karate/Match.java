@@ -62,7 +62,7 @@ public class Match {
         String httpClass = logger == null ? DummyHttpClient.class.getName() : null;
         CallContext callContext = new CallContext(null, null, 0, null, -1, false, false,
                 httpClass, null, false);
-        context = new ScenarioContext(featureContext, callContext, logger);
+        context = new ScenarioContext(featureContext, callContext, null, logger);
         if (exp != null) {
             prevValue = Script.evalKarateExpression(exp, context);
             if (prevValue.isMapLike()) {

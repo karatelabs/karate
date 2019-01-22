@@ -37,9 +37,9 @@ public class MandatoryTagHook implements ExecutionHook {
         if (context.getCallDepth() > 0) {
             return true; // only enforce tags for top-level scenarios (not called ones)
         }
-        Collection<Tag> tags = scenario.getTagsEffective();
+        Tags tags = scenario.getTagsEffective();
         boolean found = false;
-        for (Tag tag : tags) {
+        for (Tag tag : tags.getTagsOriginal()) {
             if ("testId".equals(tag.getName())) {
                 found = true;
                 break;
