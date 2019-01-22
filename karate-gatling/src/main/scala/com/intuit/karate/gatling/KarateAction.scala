@@ -14,7 +14,6 @@ import io.gatling.commons.util.Clock
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
-import io.gatling.core.stats.message.ResponseTimings
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
