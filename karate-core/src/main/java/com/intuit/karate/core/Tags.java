@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,14 +43,19 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  *
  * @author pthomas3
  */
-public class Tags {
+public class Tags implements Iterable<Tag> {
 
     public static final Tags EMPTY = new Tags(Collections.EMPTY_LIST);
 
-    private final Collection<Tag> tagsOriginal;
+    private final Collection<Tag> original;
     private final List<String> tags;
     private Map<String, List<String>> tagValues;
     private final Bindings bindings;
+
+    @Override
+    public Iterator<Tag> iterator() {
+        return original.iterator();
+    }
 
     public static class Values {
 
@@ -128,16 +134,16 @@ public class Tags {
         return tagValues;
     }
 
-    public Collection<Tag> getTagsOriginal() {
-        return tagsOriginal;
+    public Collection<Tag> getOriginal() {
+        return original;
     }        
 
     public Tags(Collection<Tag> in) {
         if (in == null) {
-            tagsOriginal = Collections.EMPTY_LIST;
+            original = Collections.EMPTY_LIST;
             tags = Collections.EMPTY_LIST;
         } else {
-            tagsOriginal = in;
+            original = in;
             tags = new ArrayList(in.size());
             tagValues = new HashMap(in.size());
             for (Tag tag : in) {

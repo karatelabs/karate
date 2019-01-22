@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.http.HttpRequestBuilder;
-import java.util.Collection;
 
 /**
  *
@@ -39,7 +38,7 @@ public class MandatoryTagHook implements ExecutionHook {
         }
         Tags tags = scenario.getTagsEffective();
         boolean found = false;
-        for (Tag tag : tags.getTagsOriginal()) {
+        for (Tag tag : tags) {
             if ("testId".equals(tag.getName())) {
                 found = true;
                 break;
