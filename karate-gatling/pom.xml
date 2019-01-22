@@ -10,10 +10,6 @@
     <artifactId>karate-gatling</artifactId>
     <packaging>jar</packaging>
 
-    <properties>
-        <gatling.version>2.3.1</gatling.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>com.intuit.karate</groupId>
@@ -23,7 +19,7 @@
         <dependency>
             <groupId>io.gatling.highcharts</groupId>
             <artifactId>gatling-charts-highcharts</artifactId>
-            <version>${gatling.version}</version>
+            <version>3.0.2</version>
         </dependency>
         <dependency>
             <groupId>org.scala-lang</groupId>
@@ -58,7 +54,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>3.3.2</version>
+                <version>3.4.4</version>
                 <executions>
                     <execution>
                         <goals>
@@ -83,13 +79,14 @@
             <plugin>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-maven-plugin</artifactId>
-                <version>${gatling.plugin.version}</version>
+                <version>3.0.1</version>
                 <configuration>
                     <disableCompiler>true</disableCompiler>
-                    <skip>${skipTests}</skip>
+                    <!--<skip>${skipTests}</skip>-->
                 </configuration>
                 <executions>
                     <execution>
+                        <phase>test</phase>
                         <goals>
                             <goal>test</goal>
                         </goals>

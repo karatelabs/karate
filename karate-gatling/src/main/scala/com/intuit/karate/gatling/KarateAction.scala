@@ -10,6 +10,7 @@ import com.intuit.karate.Runner
 import com.intuit.karate.core._
 import com.intuit.karate.http.HttpRequestBuilder
 import io.gatling.commons.stats.{KO, OK}
+import io.gatling.commons.util.Clock
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
@@ -34,7 +35,7 @@ class KarateActor extends Actor {
   }
 }
 
-class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val next: Action) extends ExitableAction {
+class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
 
   def getActor(): ActorRef = {
     val actorName = "karate-" + protocol.actorCount.incrementAndGet()
@@ -62,9 +63,8 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
       override def reportPerfEvent(event: PerfEvent): Unit = {
         val okOrNot = if (event.isFailed) KO else OK
-        val timings = ResponseTimings(event.getStartTime, event.getEndTime);
         val message = if (event.getMessage == null) None else Option(event.getMessage)
-        statsEngine.logResponse(session, event.getName, timings, okOrNot, Option(event.getStatusCode + ""), message)
+        statsEngine.logResponse(session, event.getName, event.getStartTime, event.getEndTime, okOrNot, Option(event.getStatusCode + ""), message)
       }
 
     }
@@ -72,7 +72,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
     val asyncNext: Runnable = () => next ! session
     val attribs: Object = (session.attributes + ("userId" -> session.userId)).asInstanceOf[Map[String, AnyRef]].asJava
-    val arg = Collections.singletonMap("__gatling", attribs);
+    val arg = Collections.singletonMap("__gatling", attribs)
     Runner.callAsync(name, arg, executionHook, asyncSystem, asyncNext)
 
   }

@@ -28,17 +28,15 @@ class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Pro
 }
 
 object KarateProtocol {
-  val KarateProtocolKey = new ProtocolKey {
-    type Protocol = KarateProtocol
-    type Components = KarateComponents
+  val KarateProtocolKey = new ProtocolKey[KarateProtocol, KarateComponents] {
     override def defaultProtocolValue(configuration: GatlingConfiguration) = new KarateProtocol(Map.empty)
-    override def newComponents(system: ActorSystem, coreComponents: CoreComponents)=
-      karateProtocol => KarateComponents(karateProtocol, system)
+    override def newComponents(coreComponents: CoreComponents)=
+      karateProtocol => KarateComponents(karateProtocol, coreComponents.actorSystem)
     override def protocolClass= classOf[KarateProtocol].asInstanceOf[Class[io.gatling.core.protocol.Protocol]]
   }
 }
 
 case class KarateComponents(val protocol: KarateProtocol, val system: ActorSystem) extends ProtocolComponents {
-  def onStart: Option[Session => Session] = None
-  def onExit: Option[Session => Unit] = None
+  override def onStart: Session => Session = ProtocolComponents.NoopOnStart
+  override def onExit: Session => Unit = ProtocolComponents.NoopOnExit
 }
