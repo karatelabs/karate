@@ -59,7 +59,7 @@ public class FeatureInfo {
         CallContext callContext = new CallContext(null, true);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         unit = new FeatureExecutionUnit(exec);
-        unit.init();
+        unit.init(null);
         for (ScenarioExecutionUnit u : unit.getScenarioExecutionUnits()) {
             Description scenarioDescription = getScenarioDescription(u.scenario);
             description.addChild(scenarioDescription);

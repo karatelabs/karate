@@ -52,17 +52,23 @@ public class ScenarioExecutionUnit implements Runnable {
     private boolean stopped = false;
     private StepResult lastStepResult;
 
-    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec) {
-        this(scenario, results, exec, null);
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
+        this(scenario, results, exec, null, logger);
     }
 
-    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, ScenarioContext backgroundContext) {
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, 
+            ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
         this.scenario = scenario;
         this.exec = exec;
         result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
-        logger = new Logger();
-        appender = exec.getLogAppender(scenario.getUniqueId(), logger);        
+        if (logger == null) {
+            logger = new Logger();
+            appender = exec.getLogAppender(scenario.getUniqueId(), logger);
+        } else {            
+            appender = LogAppender.NO_OP;
+        }
+        this.logger = logger;
         if (backgroundContext != null) { // re-build for dynamic scenario
             ScenarioInfo info = scenario.toInfo(exec.featureContext.feature.getPath());
             ScenarioContext context = backgroundContext.copy(info, logger);

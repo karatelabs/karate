@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Logger;
 import com.intuit.karate.Resource;
 import com.intuit.karate.Script;
 import com.intuit.karate.ScriptValue;
@@ -62,13 +63,13 @@ public class Feature {
         return background != null && background.getSteps() != null;
     }
 
-    public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
+    public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec, Logger logger) {
         List<ScenarioExecutionUnit> units = new ArrayList();
         for (FeatureSection section : sections) {
             if (section.isOutline()) {
                 for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
                     if (scenario.isDynamic()) {                        
-                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec);
+                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec, logger);
                         bgUnit.run();
                         ScenarioContext bgContext = bgUnit.getContext();
                         String expression = scenario.getDynamicExpression();
@@ -86,7 +87,7 @@ public class Feature {
                                         ScriptValue sv = new ScriptValue(v);
                                         dynamic.replace("<" + k + ">", sv.getAsString());
                                     });                                                                        
-                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext);
+                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext, logger);
                                     units.add(unit);
                                 } else {
                                     bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
@@ -96,11 +97,11 @@ public class Feature {
                             bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                         }
                     } else {
-                        units.add(new ScenarioExecutionUnit(scenario, null, exec));
+                        units.add(new ScenarioExecutionUnit(scenario, null, exec, logger));
                     }
                 }
             } else {
-                units.add(new ScenarioExecutionUnit(section.getScenario(), null, exec));
+                units.add(new ScenarioExecutionUnit(section.getScenario(), null, exec, logger));
             }
         }
         return units;

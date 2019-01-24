@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Logger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -55,8 +56,8 @@ public class FeatureExecutionUnit implements Runnable {
         return units;
     }        
     
-    public void init() {
-        units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
+    public void init(Logger logger) { // logger applies only if called from ui
+        units = exec.featureContext.feature.getScenarioExecutionUnits(exec, logger);
         int count = units.size();
         results = new ArrayList(count);
         latch = new CountDownLatch(count);
@@ -72,7 +73,7 @@ public class FeatureExecutionUnit implements Runnable {
     @Override
     public void run() {
         if (iterator == null) {
-            init();
+            init(null);
         }
         FeatureContext featureContext = exec.featureContext;
         String callName = featureContext.feature.getCallName();

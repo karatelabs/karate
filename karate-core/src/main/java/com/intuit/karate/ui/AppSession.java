@@ -70,17 +70,17 @@ public class AppSession {
     public AppSession(BorderPane rootPane, File workingDir, Feature feature, String env, CallContext callContext) {
         this.rootPane = rootPane;
         this.workingDir = workingDir;
+        logPanel = new LogPanel(logger);
         FeatureContext featureContext = FeatureContext.forFeatureAndWorkingDir(env, feature, workingDir);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
-        featureUnit = new FeatureExecutionUnit(exec);
-        featureUnit.init();
+        featureUnit = new FeatureExecutionUnit(exec);       
+        featureUnit.init(logger);
         featureOutlinePanel = new FeatureOutlinePanel(this);
         DragResizer.makeResizable(featureOutlinePanel, false, false, false, true);
         List<ScenarioExecutionUnit> units = featureUnit.getScenarioExecutionUnits();
         scenarioPanels = new ArrayList(units.size());
         units.forEach(unit -> scenarioPanels.add(new ScenarioPanel(this, unit)));
-        rootPane.setLeft(featureOutlinePanel);        
-        logPanel = new LogPanel(logger);
+        rootPane.setLeft(featureOutlinePanel);                
         DragResizer.makeResizable(logPanel, false, false, true, false);
         rootPane.setBottom(logPanel);
     }
@@ -114,10 +114,6 @@ public class AppSession {
             return;
         }
         rootPane.setCenter(scenarioPanels.get(index));
-    }
-
-    public Logger getLogger() {
-        return logger;
     }
 
     public FeatureExecutionUnit getFeatureExecutionUnit() {
