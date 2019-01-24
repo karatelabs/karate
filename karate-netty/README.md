@@ -154,12 +154,6 @@ If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists i
 java -jar -Dkarate.config.dir=parentdir/somedir karate.jar my-test.feature
 ```
 
-And you can even set or over-ride variable values via the command line by using the `-a` (args) option:
-
-```
-java -jar karate.jar -a myKey1=myValue1 -a myKey2=myValue2 my-test.feature
-```
-
 #### Parallel Execution
 If you provide a directory in which multiple feature files are present (even in sub-folders), they will be all run. You can even specify the number of threads to run in parallel using `-T` or `--threads` (not to be confused with `-t` for tags):
 

@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import net.masterthought.cucumber.Configuration;
@@ -98,9 +97,6 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-u", "--ui"}, description = "show user interface")
     boolean ui;
-
-    @Option(names = {"-a", "--args"}, description = "variables as key=value pair arguments")
-    Map<String, Object> args;
 
     public static void main(String[] args) {
         // ensure we init logback before anything else
