@@ -85,10 +85,8 @@ public class Feature {
                                     map.forEach((k, v) -> {
                                         ScriptValue sv = new ScriptValue(v);
                                         dynamic.replace("<" + k + ">", sv.getAsString());
-                                    });
-                                    ScenarioInfo info = dynamic.toInfo(exec.featureContext.feature.getPath());
-                                    ScenarioContext context = bgContext.copy(info);
-                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, context);
+                                    });                                                                        
+                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext);
                                     units.add(unit);
                                 } else {
                                     bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);

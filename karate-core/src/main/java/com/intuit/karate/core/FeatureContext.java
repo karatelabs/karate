@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallResult;
-import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.StringUtils;
 import java.io.File;

@@ -56,18 +56,17 @@ public class ScenarioExecutionUnit implements Runnable {
         this(scenario, results, exec, null);
     }
 
-    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, ScenarioContext context) {
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, ScenarioContext backgroundContext) {
         this.scenario = scenario;
-        this.exec = exec;        
+        this.exec = exec;
         result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
-        if (context != null) {
+        logger = new Logger();
+        appender = exec.getLogAppender(scenario.getUniqueId(), logger);        
+        if (backgroundContext != null) { // re-build for dynamic scenario
+            ScenarioInfo info = scenario.toInfo(exec.featureContext.feature.getPath());
+            ScenarioContext context = backgroundContext.copy(info, logger);
             actions = new StepActions(context);
-            logger = actions.context.logger;
-            appender = exec.getLogAppender(scenario.getUniqueId(), logger);
-        } else {
-            logger = new Logger();
-            appender = exec.getLogAppender(scenario.getUniqueId(), logger);
         }
     }
 
@@ -92,7 +91,7 @@ public class ScenarioExecutionUnit implements Runnable {
     }
 
     public void init() {
-        if (actions == null) {    
+        if (actions == null) {
             // karate-config.js will be processed here 
             // when the script-context constructor is called          
             actions = new StepActions(exec.featureContext, exec.callContext, scenario, logger);

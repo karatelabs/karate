@@ -284,17 +284,17 @@ public class ScenarioContext {
         logger.trace("karate context init - initial properties: {}", vars);
     }
 
-    public ScenarioContext copy(ScenarioInfo info) {
-        return new ScenarioContext(this, info);
+    public ScenarioContext copy(ScenarioInfo info, Logger logger) {
+        return new ScenarioContext(this, info, logger);
     }
 
     public ScenarioContext copy() {
-        return new ScenarioContext(this, scenarioInfo);
+        return new ScenarioContext(this, scenarioInfo, logger);
     }
 
-    private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
+    private ScenarioContext(ScenarioContext sc, ScenarioInfo info, Logger logger) {
         featureContext = sc.featureContext;
-        logger = sc.logger;
+        this.logger = logger;
         callDepth = sc.callDepth;
         reuseParentContext = sc.reuseParentContext;
         parentContext = sc.parentContext;
