@@ -27,7 +27,7 @@ public class WebSocketClientRunner {
     @Test
     public void testWebSocketClient() throws Exception {
         String port = System.getProperty("demo.server.port");
-        client = new WebSocketClient("ws://localhost:" + port + "/websocket", text -> {
+        client = new WebSocketClient("ws://localhost:" + port + "/websocket", null, text -> {
             logger.debug("websocket listener text: {}", text);
             synchronized (this) {
                 result = text;

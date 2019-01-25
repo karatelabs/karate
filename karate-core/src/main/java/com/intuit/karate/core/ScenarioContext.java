@@ -793,22 +793,13 @@ public class ScenarioContext {
         prevEmbed = embed;
     }
 
-    // websocket / async =======================================================
-    private WebSocketClient createWebSocketClient(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        WebSocketClient webSocketClient = new WebSocketClient(url, textHandler, binaryHandler);
+    public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+        WebSocketClient webSocketClient = new WebSocketClient(url, subProtocol, textHandler, binaryHandler);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
         }
         webSocketClients.add(webSocketClient);
         return webSocketClient;
-    }
-
-    public WebSocketClient webSocket(String url, Consumer<String> textHandler) {
-        return webSocket(url, textHandler, null);
-    }
-
-    public WebSocketClient webSocket(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        return createWebSocketClient(url, textHandler, binaryHandler);
     }
 
     public void signal(Object result) {
@@ -838,7 +829,9 @@ public class ScenarioContext {
             } catch (InterruptedException e) {
                 logger.error("listen timed out: {}", e.getMessage());
             }
-            return signalResult;
+            Object temp = signalResult;
+            signalResult = null;
+            return temp;
         }
     }
 

@@ -77,11 +77,11 @@ public class WebSocketClient implements WebSocketListener {
     
     private boolean waiting;
     
-    public WebSocketClient(String url, Consumer<String> textHandler) {
-        this(url, textHandler, null);
+    public WebSocketClient(String url, String subProtocol, Consumer<String> textHandler) {
+        this(url, subProtocol, textHandler, null);
     }
 
-    public WebSocketClient(String url, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+    public WebSocketClient(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
         this.textHandler = textHandler;
         this.binaryHandler = binaryHandler;
         uri = URI.create(url);
@@ -99,7 +99,7 @@ public class WebSocketClient implements WebSocketListener {
         port = uri.getPort() == -1 ? (ssl ? 443 : 80) : uri.getPort();
         group = new NioEventLoopGroup();
         try {
-            WebSocketClientInitializer initializer = new WebSocketClientInitializer(uri, port, sslContext, this);
+            WebSocketClientInitializer initializer = new WebSocketClientInitializer(uri, port, subProtocol, sslContext, this);
             Bootstrap b = new Bootstrap();
             b.group(group)
                     .channel(NioSocketChannel.class)

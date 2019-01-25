@@ -17,7 +17,7 @@ public class WebSocketClientRunner  {
     @Test
     public void testWebSockets() throws Exception {
         String url = "ws://echo.websocket.org";
-        WebSocketClient client = new WebSocketClient(url, text -> {
+        WebSocketClient client = new WebSocketClient(url, null, text -> {
             synchronized(this) {
                 result = text;
                 notify();

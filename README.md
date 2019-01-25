@@ -3080,7 +3080,7 @@ Operation | Description
 <a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 <a name="karate-tagvalues"><code>karate.tagValues</code></a> | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 <a name="karate-tobean"><code>karate.toBean(json, className)</code></a> | converts a JSON string or map-like object into a Java object, given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
-<a name="karate-websocket"><code>karate.webSocket(url, handler)</code></a> | start a [websocket](#async) instance that can be used to send messages or listen for one, see [example](karate-demo/src/test/java/demo/websocket/websocket.feature)
+<a name="karate-websocket"><code>karate.webSocket(url, handler)</code></a> | start a [websocket](#async) instance that can be used to send messages or listen for one, see [example](karate-demo/src/test/java/demo/websocket/echo.feature)
 <a name="karate-xmlpath"><code>karate.xmlPath(xml, expression)</code></a> | Just like [`karate.jsonPath()`](#karate-jsonpath) - but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 ### JS function argument rules for `call`

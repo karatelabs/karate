@@ -68,7 +68,7 @@ public abstract class DevToolsDriver implements Driver {
         int pos = webSocketUrl.lastIndexOf('/');
         pageId = webSocketUrl.substring(pos + 1);
         logger.debug("page id: {}", pageId);
-        client = new WebSocketClient(webSocketUrl, text -> {
+        client = new WebSocketClient(webSocketUrl, null, text -> {
             logger.debug("<< {}", text);
             Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
             DevToolsMessage dtm = new DevToolsMessage(this, map);
