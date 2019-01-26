@@ -38,8 +38,8 @@ public class FeatureExecutionUnit implements Runnable {
 
     public final ExecutionContext exec;
     private final Consumer<Runnable> SYSTEM;
-    private final boolean parallelScenarios;    
-    
+    private final boolean parallelScenarios;
+
     private List<ScenarioExecutionUnit> units;
     private Iterator<ScenarioExecutionUnit> iterator;
     private List<ScenarioResult> results;
@@ -50,18 +50,18 @@ public class FeatureExecutionUnit implements Runnable {
         this.exec = exec;
         parallelScenarios = exec.scenarioExecutor != null;
         SYSTEM = parallelScenarios ? r -> exec.scenarioExecutor.submit(r) : r -> r.run();
-    }       
-    
+    }
+
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
         return units;
-    }        
-    
+    }
+
     public void init(Logger logger) { // logger applies only if called from ui
         units = exec.featureContext.feature.getScenarioExecutionUnits(exec, logger);
         int count = units.size();
         results = new ArrayList(count);
         latch = new CountDownLatch(count);
-        iterator = units.iterator();        
+        iterator = units.iterator();
     }
 
     public void setNext(Runnable next) {
@@ -77,15 +77,14 @@ public class FeatureExecutionUnit implements Runnable {
         }
         FeatureContext featureContext = exec.featureContext;
         String callName = featureContext.feature.getCallName();
-        if (iterator.hasNext()) {
+        while (iterator.hasNext()) {
             ScenarioExecutionUnit unit = iterator.next();
             Scenario scenario = unit.scenario;
             if (callName != null) {
                 if (!scenario.getName().matches(callName)) {
                     unit.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
                     latch.countDown();
-                    SYSTEM.accept(this);
-                    return;
+                    continue;
                 }
                 unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
             }
@@ -93,16 +92,14 @@ public class FeatureExecutionUnit implements Runnable {
             if (!tags.evaluate(featureContext.tagSelector)) {
                 unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                 latch.countDown();
-                SYSTEM.accept(this);
-                return;
+                continue;
             }
             String callTag = scenario.getFeature().getCallTag();
             if (callTag != null) {
                 if (!tags.contains(callTag)) {
                     unit.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
                     latch.countDown();
-                    SYSTEM.accept(this);
-                    return;
+                    continue;
                 }
                 unit.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
             }
@@ -112,42 +109,35 @@ public class FeatureExecutionUnit implements Runnable {
                 // we also hold a reference to the last scenario-context that executed
                 // for cases where the caller needs a result
                 lastContextExecuted = unit.getActions().context;
-                if (sequential) { // yield next scenario only when previous completes                    
-                    // and execute one-by-one in sequence order 
-                    SYSTEM.accept(this);
-                }
             });
             // this is an elegant solution to retaining the order of scenarios 
             // in the final report - even if they run in parallel !            
             results.add(unit.result);
-            // main
-            SYSTEM.accept(unit);
-            if (!sequential) {
-                // loop immediately and submit all scenarios in parallel
-                SYSTEM.accept(this);
+            // main            
+            if (sequential) {
+                unit.run();
+            } else { // submit and loop immediately
+                SYSTEM.accept(unit);
             }
-        } else {
-            if (parallelScenarios) {
-                // wait for parallel scenario submissions to complete
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            // this is where the feature gets "populated" with stats
-            // but best of all, the original order is retained
-            for (ScenarioResult sr : results) {
-                exec.result.addResult(sr);
-            }
-            if (lastContextExecuted != null) {
-                // set result map that caller will see
-                exec.result.setResultVars(lastContextExecuted.vars);
-                lastContextExecuted.invokeAfterHookIfConfigured(true);
-            }
-            if (next != null) {
-                next.run();
-            }
+        }
+        // wait for parallel scenario submissions to complete
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        // this is where the feature gets "populated" with stats
+        // but best of all, the original order is retained
+        for (ScenarioResult sr : results) {
+            exec.result.addResult(sr);
+        }
+        if (lastContextExecuted != null) {
+            // set result map that caller will see
+            exec.result.setResultVars(lastContextExecuted.vars);
+            lastContextExecuted.invokeAfterHookIfConfigured(true);
+        }
+        if (next != null) {
+            next.run();
         }
     }
 
