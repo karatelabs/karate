@@ -27,8 +27,8 @@ And you don't need to create additional Java classes for any of the payloads tha
       <a href="#maven">Maven</a> 
     | <a href="#gradle">Gradle</a>
     | <a href="#quickstart">Quickstart</a>
-    | <a href="#folder-structure">Folder Structure</a>
-    | <a href="#naming-conventions">Naming Conventions</a>
+    | <a href="https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar">Standalone Executable</a>
+    | <a href="#folder-structure">Naming Conventions</a>
     | <a href="#script-structure">Script Structure</a>
   </td>
 </tr>

@@ -1662,6 +1662,17 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "data", null, "read('file:src/main/resources/karate-logo.png')", ctx).pass);
     }
     
-    
+    @Test
+    public void testJsonCyclicReferences() {
+        ScenarioContext ctx = getContext();
+        Script.assign("fun", "function(){ var env = 'dev'; var config = { env: env }; return config }", ctx);
+        Script.assign("json", "fun()", ctx);
+        Map value = (Map) ctx.vars.get("json").getValue();
+        value.put("child", value);
+        value = JsonUtils.removeCyclicReferences(value);
+        DocumentContext doc = JsonUtils.toJsonDoc(value);
+        Map temp = doc.read("$");
+        Match.equals(temp, "{ env: 'dev', child: { env: 'dev', child: '#jdk.nashorn.api.scripting.ScriptObjectMirror' } }");
+    }
 
 }

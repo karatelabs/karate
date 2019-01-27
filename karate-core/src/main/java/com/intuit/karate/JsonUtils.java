@@ -89,7 +89,7 @@ public class JsonUtils {
 
     }
 
-    static { 
+    static {
         // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
         JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
         JSONValue.registerWriter(Feature.class, new FeatureJsonWriter());
@@ -127,6 +127,44 @@ public class JsonUtils {
 
     public static String toJson(Object o) {
         return JSONValue.toJSONString(o);
+    }
+
+    public static Map removeCyclicReferences(Map map) {
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap());
+        seen.add(map);
+        map = new LinkedHashMap(map); // clone for safety
+        recurseCyclic(0, map, seen);
+        return map;
+    }
+
+    private static boolean recurseCyclic(int depth, Object o, Set<Object> seen) {
+        // we use a depth check because for some reason 
+        // ScriptObjectMirror has some object equality problems for entries
+        if (o instanceof Map) {
+            if (depth > 10 || !seen.add(o)) {
+                return true;
+            }
+            Map map = (Map) o;
+            map.forEach((k, v) -> {
+                if (recurseCyclic(depth + 1, v, seen)) {
+                    map.put(k, "#" + v.getClass().getName());
+                }
+            });
+
+        } else if (o instanceof List) {
+            if (depth > 10  || !seen.add(o)) {
+                return true;
+            }
+            List list = (List) o;
+            int count = list.size();
+            for (int i = 0; i < count; i++) {
+                Object v = list.get(i);
+                if (recurseCyclic(depth + 1, v, seen)) {
+                    list.set(i, "#" + v.getClass().getName());
+                }
+            }            
+        }
+        return false;
     }
 
     public static DocumentContext toJsonDoc(Object o) {
@@ -169,7 +207,7 @@ public class JsonUtils {
     public static String escapeValue(String raw) {
         return JSONValue.escape(raw, JSONStyle.LT_COMPRESS);
     }
-    
+
     private static void recursePretty(Object o, StringBuilder sb, int depth, Set<Object> seen) {
         if (o == null) {
             sb.append("null");
@@ -347,7 +385,7 @@ public class JsonUtils {
         Yaml yaml = new Yaml();
         return JsonPath.parse(yaml.load(raw));
     }
-    
+
     public static DocumentContext fromCsv(String raw) {
         CsvReader reader = new CsvReader();
         reader.setContainsHeader(true);

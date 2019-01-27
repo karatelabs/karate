@@ -155,7 +155,8 @@ public class FeatureResult {
         if (callArg == null) {
             return null;
         }
-        return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(callArg));
+        Map temp = JsonUtils.removeCyclicReferences(callArg);
+        return JsonUtils.toPrettyJsonString(JsonUtils.toJsonDoc(temp));
     }
 
     public Map<String, Object> getCallArg() {
