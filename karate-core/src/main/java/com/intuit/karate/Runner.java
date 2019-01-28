@@ -105,7 +105,10 @@ public class Runner {
                     FeatureResult result = execContext.result;
                     if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
                         File file = Engine.saveResultJson(finalReportDir, result, null);
-                        Engine.saveResultXml(finalReportDir, result, null);
+                        if (result.getScenarioCount() < 500) {
+                            // TODO this routine simply cannot handle that size
+                            Engine.saveResultXml(finalReportDir, result, null);    
+                        }                        
                         String status = result.isFailed() ? "fail" : "pass";
                         logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
                         result.printStats(file.getPath());

@@ -37,7 +37,8 @@ import java.nio.channels.FileChannel;
  */
 public class FileLogAppender implements LogAppender {
 
-    private final FileChannel file;
+    private final RandomAccessFile file;
+    private final FileChannel channel;
     private final Logger logger;
     private int prevPos;
     private boolean closed;
@@ -54,9 +55,9 @@ public class FileLogAppender implements LogAppender {
             } else {
                 in.getParentFile().mkdirs();
             }
-            RandomAccessFile raf = new RandomAccessFile(in, "rw");
-            file = raf.getChannel();
-            prevPos = (int) file.position();
+            file = new RandomAccessFile(in, "rw");
+            channel = file.getChannel();
+            prevPos = (int) channel.position();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -66,9 +67,9 @@ public class FileLogAppender implements LogAppender {
     @Override
     public String collect() {
         try {
-            int pos = (int) file.position();
+            int pos = (int) channel.position();
             ByteBuffer buf = ByteBuffer.allocate(pos - prevPos);
-            file.read(buf, prevPos);
+            channel.read(buf, prevPos);
             prevPos = pos;
             buf.flip();
             return FileUtils.toString(buf.array());
@@ -83,7 +84,7 @@ public class FileLogAppender implements LogAppender {
             return;
         }
         try {
-            file.write(ByteBuffer.wrap(text.getBytes(FileUtils.UTF8)));
+            channel.write(ByteBuffer.wrap(text.getBytes(FileUtils.UTF8)));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
