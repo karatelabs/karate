@@ -42,7 +42,7 @@ public class FileLogAppender implements LogAppender {
     private final Logger logger;
     private int prevPos;
     private boolean closed;
-    
+
     public FileLogAppender(String in, Logger logger) {
         this(in == null ? null : new File(in), logger);
     }
@@ -53,7 +53,9 @@ public class FileLogAppender implements LogAppender {
             if (in == null) {
                 in = File.createTempFile("karate", "tmp");
             } else {
-                in.getParentFile().mkdirs();
+                if (!in.getParentFile().exists()) {
+                    in.getParentFile().mkdirs();
+                }
             }
             file = new RandomAccessFile(in, "rw");
             channel = file.getChannel();
