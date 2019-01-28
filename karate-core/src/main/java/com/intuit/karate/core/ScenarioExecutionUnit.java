@@ -62,7 +62,9 @@ public class ScenarioExecutionUnit implements Runnable {
         this.exec = exec;
         result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
-        if (logger == null) {
+        // avoid creating log-files for scenario outlines beyond a limit
+        // trade-off is we won't see inline logs in the html report
+        if (logger == null && scenario.getIndex() < 500) {
             logger = new Logger();
             appender = exec.getLogAppender(scenario.getUniqueId(), logger);
         } else {            
