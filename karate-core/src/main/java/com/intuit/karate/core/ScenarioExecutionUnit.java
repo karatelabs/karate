@@ -31,7 +31,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.Consumer;
 
 /**
  *
@@ -49,7 +48,6 @@ public class ScenarioExecutionUnit implements Runnable {
     private List<Step> steps;
     private Iterator<Step> iterator;
     private StepActions actions;
-    private Runnable next;
     private boolean stopped = false;
     private StepResult lastStepResult;
 
@@ -97,10 +95,6 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public void setActions(StepActions actions) {
         this.actions = actions;
-    }
-
-    public void setNext(Runnable next) {
-        this.next = next;
     }
 
     public boolean isStopped() {
@@ -211,9 +205,6 @@ public class ScenarioExecutionUnit implements Runnable {
             }
         }
         stop();
-        if (next != null) {
-            next.run();
-        }
     }
 
 }
