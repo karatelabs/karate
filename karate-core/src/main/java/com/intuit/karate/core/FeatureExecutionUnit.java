@@ -113,6 +113,10 @@ public class FeatureExecutionUnit implements Runnable {
             // this is an elegant solution to retaining the order of scenarios 
             // in the final report - even if they run in parallel !            
             results.add(unit.result);
+            if (unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
+                latch.countDown();
+                continue;
+            }
             // main            
             if (sequential) {
                 unit.run();

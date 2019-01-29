@@ -56,18 +56,22 @@ public class ScenarioExecutionUnit implements Runnable {
         this(scenario, results, exec, null, logger);
     }
 
-    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, 
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results,
             ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
         this.scenario = scenario;
         this.exec = exec;
         result = new ScenarioResult(scenario, results);
         SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
-        // avoid creating log-files for scenario outlines beyond a limit
-        // trade-off is we won't see inline logs in the html report
-        if (logger == null && scenario.getIndex() < 500) {
+        if (logger == null) {
             logger = new Logger();
-            appender = exec.getLogAppender(scenario.getUniqueId(), logger);
-        } else {            
+            if (scenario.getIndex() < 500) {
+                appender = exec.getLogAppender(scenario.getUniqueId(), logger);
+            } else {
+                // avoid creating log-files for scenario outlines beyond a limit
+                // trade-off is we won't see inline logs in the html report                 
+                appender = LogAppender.NO_OP;
+            }
+        } else {
             appender = LogAppender.NO_OP;
         }
         this.logger = logger;
@@ -96,6 +100,10 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public void setNext(Runnable next) {
         this.next = next;
+    }
+
+    public boolean isStopped() {
+        return stopped;
     }
 
     public void init() {

@@ -72,6 +72,10 @@ public class Feature {
                         ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec, logger);
                         bgUnit.run();
                         ScenarioContext bgContext = bgUnit.getContext();
+                        if (bgUnit.isStopped()) { // background failed
+                            units.add(bgUnit);
+                            return units; // exit early
+                        }                        
                         String expression = scenario.getDynamicExpression();
                         ScriptValue listValue = Script.evalKarateExpression(expression, bgContext);
                         if (listValue.isListLike()) {
