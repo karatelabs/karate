@@ -82,7 +82,7 @@
                 <version>3.0.1</version>
                 <configuration>
                     <disableCompiler>true</disableCompiler>
-                    <!--<skip>${skipTests}</skip>-->
+                    <skip>${skipTests}</skip>
                 </configuration>
                 <executions>
                     <execution>

@@ -37,7 +37,6 @@ import java.util.function.Consumer;
 public class FeatureExecutionUnit implements Runnable {
 
     public final ExecutionContext exec;
-    private final Consumer<Runnable> SYSTEM;
     private final boolean parallelScenarios;
 
     private List<ScenarioExecutionUnit> units;
@@ -49,7 +48,6 @@ public class FeatureExecutionUnit implements Runnable {
     public FeatureExecutionUnit(ExecutionContext exec) {
         this.exec = exec;
         parallelScenarios = exec.scenarioExecutor != null;
-        SYSTEM = parallelScenarios ? r -> exec.scenarioExecutor.submit(r) : r -> r.run();
     }
 
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits() {
@@ -121,7 +119,7 @@ public class FeatureExecutionUnit implements Runnable {
             if (sequential) {
                 unit.run();
             } else { // submit and loop immediately
-                SYSTEM.accept(unit);
+                exec.scenarioExecutor.submit(unit);
             }
         }
         // wait for parallel scenario submissions to complete
