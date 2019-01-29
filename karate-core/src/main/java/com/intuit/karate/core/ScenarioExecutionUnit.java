@@ -30,6 +30,7 @@ import com.intuit.karate.StringUtils;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 /**
@@ -41,9 +42,9 @@ public class ScenarioExecutionUnit implements Runnable {
     public final Scenario scenario;
     private final ExecutionContext exec;
     public final ScenarioResult result;
-    private final Consumer<Runnable> SYSTEM;
     private final LogAppender appender;
     public final Logger logger;
+    private final boolean async;
 
     private List<Step> steps;
     private Iterator<Step> iterator;
@@ -60,8 +61,8 @@ public class ScenarioExecutionUnit implements Runnable {
             ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
         this.scenario = scenario;
         this.exec = exec;
+        this.async = exec.callContext.perfMode;
         result = new ScenarioResult(scenario, results);
-        SYSTEM = exec.callContext.perfMode ? exec.system : r -> r.run();
         if (logger == null) {
             logger = new Logger();
             if (scenario.getIndex() < 500) {
@@ -186,18 +187,32 @@ public class ScenarioExecutionUnit implements Runnable {
         if (iterator == null) {
             init();
         }
-        if (iterator.hasNext()) {
-            lastStepResult = execute(iterator.next());
-            result.addStepResult(lastStepResult);
-            if (lastStepResult.isStopped()) {
-                stopped = true;
+        while (iterator.hasNext()) {
+            CountDownLatch latch = async ? new CountDownLatch(1) : null;
+            Runnable command = () -> {
+                lastStepResult = execute(iterator.next());
+                result.addStepResult(lastStepResult);
+                if (lastStepResult.isStopped()) {
+                    stopped = true;
+                }
+                if (async) {
+                    latch.countDown();
+                }
+            };
+            if (async) {
+                exec.system.accept(command);
+                try {
+                    latch.await();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                command.run();
             }
-            SYSTEM.accept(this);
-        } else {
-            stop();
-            if (next != null) {
-                next.run();
-            }
+        }
+        stop();
+        if (next != null) {
+            next.run();
         }
     }
 
