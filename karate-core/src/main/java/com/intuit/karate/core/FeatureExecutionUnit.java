@@ -67,14 +67,15 @@ public class FeatureExecutionUnit implements Runnable {
         if (units == null) {
             init(null);
         }
+        CountDownLatch latch = new CountDownLatch(units.size());
         FeatureContext featureContext = exec.featureContext;
         String callName = featureContext.feature.getCallName();
-        List<ScenarioExecutionUnit> parallelUnits = new ArrayList();
         for (ScenarioExecutionUnit unit : units) {
             Scenario scenario = unit.scenario;
             if (callName != null) {
                 if (!scenario.getName().matches(callName)) {
                     unit.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+                    latch.countDown();
                     continue;
                 }
                 unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
@@ -82,12 +83,14 @@ public class FeatureExecutionUnit implements Runnable {
             Tags tags = scenario.getTagsEffective();
             if (!tags.evaluate(featureContext.tagSelector)) {
                 unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+                latch.countDown();
                 continue;
             }
             String callTag = scenario.getFeature().getCallTag();
             if (callTag != null) {
                 if (!tags.contains(callTag)) {
                     unit.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                    latch.countDown();
                     continue;
                 }
                 unit.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
@@ -96,36 +99,27 @@ public class FeatureExecutionUnit implements Runnable {
             // in the final report - even if they run in parallel !            
             results.add(unit.result);
             if (unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
+                latch.countDown();
                 continue;
             }
-            if (unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
-                continue;
-            }
+            unit.setNext(() -> {
+                latch.countDown(); // make sure we hold till async scenarios / steps
+                // we also hold a reference to the last scenario-context that executed
+                // for cases where the caller needs a result                  
+                lastContextExecuted = unit.getActions().context;
+            });
             boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
-            // main         
+            // main            
             if (sequential) {
                 unit.run();
-                // we also hold a reference to the last scenario-context that executed
-                // for cases where the caller needs a result                
-                lastContextExecuted = unit.getActions().context;
             } else { // submit and loop immediately
-                parallelUnits.add(unit);
+                exec.scenarioExecutor.submit(unit);
             }
         }
-        if (!parallelUnits.isEmpty()) {
-            CountDownLatch latch = new CountDownLatch(parallelUnits.size());
-            for (ScenarioExecutionUnit unit : parallelUnits) {
-                exec.scenarioExecutor.submit(() -> {
-                    unit.run();
-                    latch.countDown();
-                    lastContextExecuted = unit.getActions().context;                    
-                });
-            }
-            try {
-                latch.await();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            latch.await();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         // this is where the feature gets "populated" with stats
         // but best of all, the original order is retained

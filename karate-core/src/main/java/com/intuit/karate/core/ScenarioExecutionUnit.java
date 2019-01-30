@@ -30,7 +30,6 @@ import com.intuit.karate.StringUtils;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 
 /**
  *
@@ -50,6 +49,7 @@ public class ScenarioExecutionUnit implements Runnable {
     private StepActions actions;
     private boolean stopped = false;
     private StepResult lastStepResult;
+    private Runnable next;
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
         this(scenario, results, exec, null, logger);
@@ -59,7 +59,7 @@ public class ScenarioExecutionUnit implements Runnable {
             ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
         this.scenario = scenario;
         this.exec = exec;
-        this.async = exec.callContext.perfMode;
+        this.async = exec.callContext.perfMode && exec.callContext.callDepth == 0;
         result = new ScenarioResult(scenario, results);
         if (logger == null) {
             logger = new Logger();
@@ -100,6 +100,10 @@ public class ScenarioExecutionUnit implements Runnable {
     public boolean isStopped() {
         return stopped;
     }
+
+    public void setNext(Runnable next) {
+        this.next = next;
+    }        
 
     public void init() {
         if (actions == null) {
@@ -181,30 +185,26 @@ public class ScenarioExecutionUnit implements Runnable {
         if (iterator == null) {
             init();
         }
-        while (iterator.hasNext()) {
-            CountDownLatch latch = async ? new CountDownLatch(1) : null;
-            Runnable command = () -> {
-                lastStepResult = execute(iterator.next());
-                result.addStepResult(lastStepResult);
-                if (lastStepResult.isStopped()) {
-                    stopped = true;
-                }
-                if (async) {
-                    latch.countDown();
-                }
-            };
+        if (iterator.hasNext()) {
+            lastStepResult = execute(iterator.next());
+            result.addStepResult(lastStepResult);
+            if (lastStepResult.isStopped()) {
+                stopped = true;
+            }
+            // this is self-recursion but step counts will never cause stack overflows
+            // it is important that we preserve the order of step execution so this hack is necessary
+            // and it gives us the async / non-blocking behavior we need for gatling
             if (async) {
-                exec.system.accept(command);
-                try {
-                    latch.await();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+                exec.system.accept(this);
             } else {
-                command.run();
+                run();
+            }
+        } else {
+            stop();
+            if (next != null) {
+                next.run();
             }
         }
-        stop();
     }
 
 }
