@@ -10,7 +10,7 @@ class CatsSimulation extends Simulation {
 
   val protocol = karateProtocol(
     "/cats/{id}" -> Nil,
-    "/cats" -> pauseFor("get" -> 15, "post" -> 25)
+    "/cats" -> Nil // pauseFor("get" -> 15, "post" -> 25)
   )
 
   protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
