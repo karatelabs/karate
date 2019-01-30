@@ -103,28 +103,21 @@ public class FeatureExecutionUnit implements Runnable {
                 latch.countDown();
                 continue;
             }
-            boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
-            // CountDownLatch scenarioLatch = sequential ? new CountDownLatch(1) : null;
             unit.setNext(() -> {
                 latch.countDown();
-//                if (sequential) {
-//                    scenarioLatch.countDown(); // important for gatling cleanup !
-//                } 
+                // we also hold a reference to the last scenario-context that executed
+                // for cases where the caller needs a result                
                 lastContextExecuted = unit.getActions().context;
-            });            
+            });
+            boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
             // main            
             if (sequential) {
                 unit.run();
-//                try {
-//                    scenarioLatch.await();
-//                } catch (Exception e) {
-//                    throw new RuntimeException(e);
-//                }                
             } else {
                 exec.scenarioExecutor.submit(unit);
             }
         }
-        if (parallelScenarios) {
+        if (parallelScenarios) { // else gatling hangs
             try {
                 latch.await();
             } catch (Exception e) {
