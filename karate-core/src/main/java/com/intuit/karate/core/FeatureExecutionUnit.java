@@ -102,17 +102,27 @@ public class FeatureExecutionUnit implements Runnable {
                 latch.countDown();
                 continue;
             }
-            unit.setNext(() -> {
-                latch.countDown(); // make sure we hold till async scenarios / steps
-                // we also hold a reference to the last scenario-context that executed
-                // for cases where the caller needs a result                  
-                lastContextExecuted = unit.getActions().context;
-            });
+
             boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
             // main            
             if (sequential) {
+                CountDownLatch scenarioLatch = new CountDownLatch(1);
+                unit.setNext(() -> {
+                    latch.countDown();
+                    scenarioLatch.countDown(); // important for gatling cleanup !
+                    lastContextExecuted = unit.getActions().context;
+                });                
                 unit.run();
+                try {
+                    scenarioLatch.await();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             } else { // submit and loop immediately
+                unit.setNext(() -> {
+                    latch.countDown();           
+                    lastContextExecuted = unit.getActions().context;
+                });
                 exec.scenarioExecutor.submit(unit);
             }
         }
