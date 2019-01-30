@@ -37,6 +37,7 @@ public class FeatureExecutionUnit implements Runnable {
     public final ExecutionContext exec;
     private final boolean parallelScenarios;
 
+    private CountDownLatch latch;
     private List<ScenarioExecutionUnit> units;
     private List<ScenarioResult> results;
     private Runnable next;
@@ -54,6 +55,7 @@ public class FeatureExecutionUnit implements Runnable {
         units = exec.featureContext.feature.getScenarioExecutionUnits(exec, logger);
         int count = units.size();
         results = new ArrayList(count);
+        latch = new CountDownLatch(count);
     }
 
     public void setNext(Runnable next) {
@@ -67,7 +69,6 @@ public class FeatureExecutionUnit implements Runnable {
         if (units == null) {
             init(null);
         }
-        CountDownLatch latch = new CountDownLatch(units.size());
         FeatureContext featureContext = exec.featureContext;
         String callName = featureContext.feature.getCallName();
         for (ScenarioExecutionUnit unit : units) {
@@ -102,34 +103,33 @@ public class FeatureExecutionUnit implements Runnable {
                 latch.countDown();
                 continue;
             }
-
             boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
+            // CountDownLatch scenarioLatch = sequential ? new CountDownLatch(1) : null;
+            unit.setNext(() -> {
+                latch.countDown();
+//                if (sequential) {
+//                    scenarioLatch.countDown(); // important for gatling cleanup !
+//                } 
+                lastContextExecuted = unit.getActions().context;
+            });            
             // main            
             if (sequential) {
-                CountDownLatch scenarioLatch = new CountDownLatch(1);
-                unit.setNext(() -> {
-                    latch.countDown();
-                    scenarioLatch.countDown(); // important for gatling cleanup !
-                    lastContextExecuted = unit.getActions().context;
-                });                
                 unit.run();
-                try {
-                    scenarioLatch.await();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            } else { // submit and loop immediately
-                unit.setNext(() -> {
-                    latch.countDown();           
-                    lastContextExecuted = unit.getActions().context;
-                });
+//                try {
+//                    scenarioLatch.await();
+//                } catch (Exception e) {
+//                    throw new RuntimeException(e);
+//                }                
+            } else {
                 exec.scenarioExecutor.submit(unit);
             }
         }
-        try {
-            latch.await();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if (parallelScenarios) {
+            try {
+                latch.await();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
         // this is where the feature gets "populated" with stats
         // but best of all, the original order is retained
