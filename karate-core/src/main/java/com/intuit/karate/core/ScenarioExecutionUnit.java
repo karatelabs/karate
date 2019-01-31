@@ -103,25 +103,30 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public void setNext(Runnable next) {
         this.next = next;
-    }        
+    }
 
     public void init() {
+        boolean initFailed = false;
         if (actions == null) {
             // karate-config.js will be processed here 
-            // when the script-context constructor is called          
-            actions = new StepActions(exec.featureContext, exec.callContext, scenario, logger);
+            // when the script-context constructor is called
+            try {
+                actions = new StepActions(exec.featureContext, exec.callContext, scenario, logger);
+            } catch (Exception e) {
+                initFailed = true;
+                result.addError("scenario init failed", e);
+            }
         }
-        // before-scenario hook
-        boolean hookFailed = false;
-        if (actions.context.executionHook != null) {
+        // before-scenario hook        
+        if (!initFailed && actions.context.executionHook != null) {
             try {
                 actions.context.executionHook.beforeScenario(scenario, actions.context);
             } catch (Exception e) {
-                hookFailed = true;
+                initFailed = true;
                 result.addError("beforeScenario hook failed", e);
             }
         }
-        if (hookFailed) {
+        if (initFailed) {
             steps = Collections.EMPTY_LIST;
         } else {
             if (scenario.isDynamic()) {
@@ -167,12 +172,14 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public void stop() {
         result.setEndTime(System.currentTimeMillis() - exec.startTime);
-        // gatling clean up            
-        actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
-        // after-scenario hook
-        actions.context.invokeAfterHookIfConfigured(false);
-        // stop browser automation if running
-        actions.context.stop();
+        // gatling clean up
+        if (actions != null) { // edge case if karate-config.js itself failed
+            actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
+            // after-scenario hook
+            actions.context.invokeAfterHookIfConfigured(false);
+            // stop browser automation if running
+            actions.context.stop();
+        }
         if (lastStepResult != null) {
             String stepLog = StringUtils.trimToNull(appender.collect());
             lastStepResult.appendToStepLog(stepLog);

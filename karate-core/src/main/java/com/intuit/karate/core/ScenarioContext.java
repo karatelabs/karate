@@ -257,7 +257,9 @@ public class ScenarioContext {
                 if (e instanceof KarateFileNotFoundException) {
                     logger.warn("skipping bootstrap configuration: {}", e.getMessage());
                 } else {
-                    throw new RuntimeException("evaluation of '" + ScriptBindings.KARATE_CONFIG_JS + "' failed", e);
+                    String message = "evaluation of 'karate-config.js' failed: " + e.getMessage();
+                    logger.error("{}", message);
+                    throw new RuntimeException(message, e);
                 }
             }
             if (featureContext.env != null) {
