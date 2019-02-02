@@ -1832,7 +1832,7 @@ Karate has built-in support for re-trying an HTTP request until a certain condit
 * configure retry = { count: 10, interval: 5000 }
 ```
 
-The `retry` keyword is designed to extend the existing [`method`](#method) syntax (and should appear before a `method` step) like so:
+The `retry` keyword is designed to extend the existing [`method`](#method) syntax (and should appear **before** a `method` step) like so:
 
 ```cucumber
 Given url demoBaseUrl
