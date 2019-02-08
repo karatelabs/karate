@@ -11,3 +11,12 @@ Scenario: should be able to over-ride the content-type
     And def response = karate.lowerCase(response)
     And match response['content-type'][0] contains 'application/json'
 
+Scenario: normal form submit
+    Given url demoBaseUrl
+    And path 'echo'
+    And form field text = 'hello'
+    When method post
+    Then status 200
+    And match response == 'text=hello'
+    And match header Content-Type contains 'text/plain'
+
