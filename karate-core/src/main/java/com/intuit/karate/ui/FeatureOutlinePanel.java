@@ -25,8 +25,10 @@ package com.intuit.karate.ui;
 
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+
 import java.nio.file.Path;
 import java.util.List;
+
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.scene.control.Button;
@@ -84,7 +86,9 @@ public class FeatureOutlinePanel extends BorderPane {
         listView = new ListView();
         listView.setItems(FXCollections.observableArrayList(units));
         listView.setCellFactory(lv -> new FeatureOutlineCell());
-        scrollPane.setContent(listView);
+        Platform.runLater(() -> {
+        	scrollPane.setContent(listView);
+        });
         listView.getSelectionModel()
                 .selectedIndexProperty()
                 .addListener((o, prev, value) -> session.setSelectedScenario(value.intValue()));        

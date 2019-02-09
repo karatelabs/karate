@@ -149,6 +149,7 @@ public class StepPanel extends AnchorPane {
         } else {
             runButton.setStyle(STYLE_FAIL);
         }
+        enableRun();
     }
 
     public boolean run(boolean nonStop) {
@@ -173,5 +174,13 @@ public class StepPanel extends AnchorPane {
         scenarioPanel.refreshVars();
         return stepResult.isStopped();
     }
+
+	public void disableRun() {
+    	this.runButton.setDisable(true);
+	}
+    
+    public void enableRun() {
+    	this.runButton.setDisable(false);
+	}
 
 }

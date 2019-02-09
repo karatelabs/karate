@@ -49,7 +49,7 @@ public class FeatureOutlineCell extends ListCell<ScenarioExecutionUnit> {
         setTooltip(tooltip);
         if (item.result.isFailed()) {
             setStyle(STYLE_FAIL);
-        } else if (!item.result.getStepResults().isEmpty()) {
+        } else if (!item.result.getStepResults().isEmpty() && item.isExecuted()) {
             setStyle(STYLE_PASS);
         } else {
             setStyle("");

@@ -43,6 +43,7 @@ public class ScenarioExecutionUnit implements Runnable {
     private final LogAppender appender;
     public final Logger logger;
     private final boolean async;
+    private boolean executed = false;
 
     private List<Step> steps;
     private Iterator<Step> iterator;
@@ -144,6 +145,7 @@ public class ScenarioExecutionUnit implements Runnable {
 
     // for karate ui
     public void reset(ScenarioContext context) {
+    	setExecuted(false);
         result.reset();
         actions = new StepActions(context);
     }
@@ -213,5 +215,13 @@ public class ScenarioExecutionUnit implements Runnable {
             }
         }
     }
+
+	public boolean isExecuted() {
+		return executed;
+	}
+
+	public void setExecuted(boolean executed) {
+		this.executed = executed;
+	}
 
 }
