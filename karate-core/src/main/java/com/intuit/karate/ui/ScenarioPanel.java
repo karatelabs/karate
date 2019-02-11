@@ -27,9 +27,14 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
+
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.List;
+
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -112,24 +117,78 @@ public class ScenarioPanel extends BorderPane {
 
     public void runAll() {
         reset();
-        for (StepPanel stepPanel : stepPanels) {
-            if (stepPanel.run(true)) {
-                break;
-            }
-        }      
+        ExecutorService scenarioExecutorService = Executors.newSingleThreadExecutor();
+        Task<Boolean> runAllTask = new Task<Boolean>() {
+			@Override
+			protected Boolean call() throws Exception {
+				stepPanels.forEach(step -> {step.disableRun();});
+				for (StepPanel step : stepPanels) {
+					if (step.run(true)) {
+		                break;
+		            }
+				}
+				unit.setExecuted(true);
+				return true;
+			}
+		};
+		runAllTask.setOnSucceeded(onSuccess -> {
+			Platform.runLater(() -> {
+				session.getFeatureOutlinePanel().refresh();
+	        });
+		});
+		scenarioExecutorService.submit(runAllTask);
+    }
+    
+    public void runAll(ExecutorService stepExecutorService) {
+        reset();
+        Task<Boolean> runAllTask = new Task<Boolean>() {
+			@Override
+			protected Boolean call() throws Exception {
+				stepPanels.forEach(step -> {step.disableRun();});
+				for (StepPanel step : stepPanels) {
+					if (step.run(true)) {
+		                break;
+		            }
+				}
+				unit.setExecuted(true);
+				return true;
+			}
+		};
+		runAllTask.setOnSucceeded(onSuccess -> {
+			Platform.runLater(() -> {
+				session.getFeatureOutlinePanel().refresh();
+	        });
+		});
+		stepExecutorService.submit(runAllTask);
     }
     
     public void runUpto(int index) {
-        for (StepPanel stepPanel : stepPanels) {
-            int stepIndex = stepPanel.getIndex();
-            StepResult sr = unit.result.getStepResult(stepPanel.getIndex());
-            if (sr != null) {
-                continue;
-            }
-            if (stepPanel.run(true) || stepIndex == index) {
-                break;
-            }
-        }          
+    	ExecutorService scenarioExecutorService = Executors.newSingleThreadExecutor();
+    	Task<Boolean> runUptoTask = new Task<Boolean>() {
+			@Override
+			protected Boolean call() throws Exception {
+				stepPanels.forEach(step -> {step.disableRun();});
+				for (StepPanel stepPanel : stepPanels) {
+		            int stepIndex = stepPanel.getIndex();
+		            StepResult sr = unit.result.getStepResult(stepPanel.getIndex());
+		            //StepResult sr = stepPanel.getScenarioExecutionUnit().result.getStepResult(stepPanel.getIndex());
+		            if (sr != null) {
+		                continue;
+		            }
+		            if (stepPanel.run(true) || stepIndex == index) {
+		                break;
+		            }
+		        }
+				stepPanels.forEach(step -> {step.enableRun();});
+				return true;
+			}
+		};
+		runUptoTask.setOnSucceeded(onSuccess -> {
+			Platform.runLater(() -> {
+				session.getFeatureOutlinePanel().refresh();
+	        });
+		});
+		scenarioExecutorService.submit(runUptoTask); 
     }
 
     public void reset() {

@@ -31,9 +31,14 @@ import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+
 import java.io.File;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.List;
+
+import javafx.concurrent.Task;
 import javafx.scene.layout.BorderPane;
 
 /**
@@ -90,7 +95,18 @@ public class AppSession {
     }
 
     public void runAll() {
-    	scenarioPanels.forEach(scenarioPanel -> scenarioPanel.runAll());
+    	ExecutorService scenarioExecutorService = Executors.newSingleThreadExecutor();
+    	Task<Boolean> runAllTask = new Task<Boolean>() {
+			@Override
+			protected Boolean call() throws Exception {
+				for (ScenarioPanel scenarioPanel : scenarioPanels) {
+					setCurrentlyExecutingScenario(scenarioPanel.getScenarioExecutionUnit());
+					scenarioPanel.runAll(scenarioExecutorService);
+				}
+				return true;
+			}
+		};
+		scenarioExecutorService.submit(runAllTask);
     }
 
     public BorderPane getRootPane() {
@@ -99,6 +115,10 @@ public class AppSession {
 
     public FeatureOutlinePanel getFeatureOutlinePanel() {
         return featureOutlinePanel;
+    }
+    
+    public List<ScenarioPanel> getScenarioPanels() {
+        return scenarioPanels;
     }
 
     public void setCurrentlyExecutingScenario(ScenarioExecutionUnit unit) {
