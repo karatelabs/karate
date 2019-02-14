@@ -9,6 +9,7 @@ public class AdhocCoverageTool {
     public static HashMap<String, Boolean[]> m = new HashMap<>();
     static {
         // Initialize boolean arrays here:
-        // Ex: AdhocCoverageTool.m.put("ParseUriPattern", new Boolean[10]);
+        // Ex: m.put("ParseUriPattern", new Boolean[10]);
+        m.put("stepHtml", new Boolean[22]);
     }
 }

@@ -53,6 +53,7 @@ import cucumber.api.java.en.When;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import com.intuit.karate.core.AdhocCoverageTool;
 
 /**
  *
@@ -305,14 +306,18 @@ public class Engine {
     }
 
     private static void stepHtml(Document doc, DecimalFormat formatter, StepResult stepResult, Node parent) {
+        AdhocCoverageTool.m.get("stepHtml")[0] = true;
         Step step = stepResult.getStep();
         Result result = stepResult.getResult();
         String extraClass;
         if (result.isFailed()) {
+            AdhocCoverageTool.m.get("stepHtml")[1] = true;
             extraClass = "failed";
         } else if (result.isSkipped()) {
+            AdhocCoverageTool.m.get("stepHtml")[2] = true;
             extraClass = "skipped";
         } else {
+            AdhocCoverageTool.m.get("stepHtml")[3] = true;
             extraClass = "passed";
         }
         Node stepRow = div(doc, "step-row",
@@ -320,53 +325,68 @@ public class Engine {
                 div(doc, "time-cell " + extraClass, formatNanos(result.getDurationNanos(), formatter)));
         parent.appendChild(stepRow);
         if (step.getTable() != null) {
+            AdhocCoverageTool.m.get("stepHtml")[4] = true;
             Node table = node(doc, "table", null);
             parent.appendChild(table);
             for (List<String> row : step.getTable().getRows()) {
+                AdhocCoverageTool.m.get("stepHtml")[5] = true;
                 Node tr = node(doc, "tr", null);
                 table.appendChild(tr);
                 for (String cell : row) {
+                    AdhocCoverageTool.m.get("stepHtml")[6] = true;
                     tr.appendChild(node(doc, "td", null, cell));
                 }
             }
         }
         StringBuilder sb = new StringBuilder();
         if (step.getDocString() != null) {
+            AdhocCoverageTool.m.get("stepHtml")[7] = true;
             sb.append(step.getDocString());
         }
         if (stepResult.getStepLog() != null) {
+            AdhocCoverageTool.m.get("stepHtml")[8] = true;
             if (sb.length() > 0) {
+                AdhocCoverageTool.m.get("stepHtml")[9] = true;
                 sb.append('\n');
             }
             sb.append(stepResult.getStepLog());
         }
         if (result.isFailed()) {
+            AdhocCoverageTool.m.get("stepHtml")[10] = true;
             if (sb.length() > 0) {
+                AdhocCoverageTool.m.get("stepHtml")[11] = true;
                 sb.append('\n');
             }
             sb.append(result.getError().getMessage());
         }
         if (sb.length() > 0) {
+            AdhocCoverageTool.m.get("stepHtml")[12] = true;
             parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
         }
         Embed embed = stepResult.getEmbed();
         if (embed != null) {
+            AdhocCoverageTool.m.get("stepHtml")[13] = true;
             Node embedNode;
             String mimeType = embed.getMimeType().toLowerCase();
             if (mimeType.contains("image")) {
+                AdhocCoverageTool.m.get("stepHtml")[14] = true;
                 embedNode = node(doc, "img", null);
                 String src = "data:" + embed.getMimeType() + ";base64," + embed.getBase64();
                 XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
             } else if (mimeType.contains("html")) {
+                AdhocCoverageTool.m.get("stepHtml")[15] = true;
                 Node html;
                 try {
+                    AdhocCoverageTool.m.get("stepHtml")[16] = true;
                     html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
                 } catch (Exception e) {
+                    AdhocCoverageTool.m.get("stepHtml")[17] = true;
                     html = div(doc, null, e.getMessage());
                 }
                 html = doc.importNode(html, true);
                 embedNode = div(doc, null, html);
             } else {
+                AdhocCoverageTool.m.get("stepHtml")[18] = true;
                 embedNode = div(doc, null);
                 embedNode.setTextContent(embed.getAsString());
             }
@@ -374,11 +394,14 @@ public class Engine {
         }
         List<FeatureResult> callResults = stepResult.getCallResults();
         if (callResults != null) { // this is a 'call'
+            AdhocCoverageTool.m.get("stepHtml")[19] = true;
             for (FeatureResult callResult : callResults) {
+                AdhocCoverageTool.m.get("stepHtml")[20] = true;
                 callHtml(doc, formatter, callResult, parent);
                 Node calledStepsDiv = div(doc, "scenario-steps-nested");
                 parent.appendChild(calledStepsDiv);
                 for (StepResult sr : callResult.getStepResults()) { // flattens all steps in called feature
+                    AdhocCoverageTool.m.get("stepHtml")[21] = true;
                     stepHtml(doc, formatter, sr, calledStepsDiv);
                 }
             }
