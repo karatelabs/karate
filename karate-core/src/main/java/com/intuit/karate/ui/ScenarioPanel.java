@@ -121,9 +121,10 @@ public class ScenarioPanel extends BorderPane {
         Task<Boolean> runAllTask = new Task<Boolean>() {
 			@Override
 			protected Boolean call() throws Exception {
-				stepPanels.forEach(step -> {step.disableRun();});
+				disableAllSteps();
 				for (StepPanel step : stepPanels) {
 					if (step.run(true)) {
+						enableAllSteps();
 		                break;
 		            }
 				}
@@ -144,9 +145,10 @@ public class ScenarioPanel extends BorderPane {
         Task<Boolean> runAllTask = new Task<Boolean>() {
 			@Override
 			protected Boolean call() throws Exception {
-				stepPanels.forEach(step -> {step.disableRun();});
+				disableAllSteps();
 				for (StepPanel step : stepPanels) {
 					if (step.run(true)) {
+						enableAllSteps();
 		                break;
 		            }
 				}
@@ -167,11 +169,10 @@ public class ScenarioPanel extends BorderPane {
     	Task<Boolean> runUptoTask = new Task<Boolean>() {
 			@Override
 			protected Boolean call() throws Exception {
-				stepPanels.forEach(step -> {step.disableRun();});
+				disableAllSteps();
 				for (StepPanel stepPanel : stepPanels) {
 		            int stepIndex = stepPanel.getIndex();
 		            StepResult sr = unit.result.getStepResult(stepPanel.getIndex());
-		            //StepResult sr = stepPanel.getScenarioExecutionUnit().result.getStepResult(stepPanel.getIndex());
 		            if (sr != null) {
 		                continue;
 		            }
@@ -179,7 +180,7 @@ public class ScenarioPanel extends BorderPane {
 		                break;
 		            }
 		        }
-				stepPanels.forEach(step -> {step.enableRun();});
+				enableAllSteps();
 				return true;
 			}
 		};
@@ -200,5 +201,13 @@ public class ScenarioPanel extends BorderPane {
         }
         session.getFeatureOutlinePanel().refresh();
     }
+    
+    public void enableAllSteps() {
+    	stepPanels.forEach(step -> {step.enableRun();});
+	}
+    
+    public void disableAllSteps() {
+    	stepPanels.forEach(step -> {step.disableRun();});
+	}
 
 }
