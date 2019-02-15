@@ -132,6 +132,12 @@
           <excludes>
             <exclude>**/IT*.java</exclude>
           </excludes>
+          <properties>
+              <property>
+                  <name>listener</name>
+                  <value>com.intuit.karate.TestListener</value>
+              </property>
+          </properties>
         </configuration>
       </plugin>
       <plugin>
