@@ -4,6 +4,7 @@ import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
+import com.intuit.karate.core.AdhocCoverageTool;
 
 /**
  * {@link DragResizer} can be used to add mouse listeners to a {@link Region}
@@ -210,7 +211,9 @@ public class DragResizer {
     }
 
     protected void mouseDragged(MouseEvent event) {
+        AdhocCoverageTool.m.get("mouseDragged")[0] = true;
         if (!dragging) {
+            AdhocCoverageTool.m.get("mouseDragged")[1] = true;
             return;
         }
 
@@ -225,41 +228,49 @@ public class DragResizer {
 
         switch (zone) {
             case N: {
+                AdhocCoverageTool.m.get("mouseDragged")[2] = true;
                 originY += deltaY;
                 newHeight -= deltaY;
                 break;
             }
             case NE: {
+                AdhocCoverageTool.m.get("mouseDragged")[3] = true;
                 originY += deltaY;
                 newHeight -= deltaY;
                 newWidth += deltaX;
                 break;
             }
             case E: {
+                AdhocCoverageTool.m.get("mouseDragged")[4] = true;
                 newWidth += deltaX;
                 break;
             }
             case SE: {
+                AdhocCoverageTool.m.get("mouseDragged")[5] = true;
                 newHeight += deltaY;
                 newWidth += deltaX;
                 break;
             }
             case S: {
+                AdhocCoverageTool.m.get("mouseDragged")[6] = true;
                 newHeight += deltaY;
                 break;
             }
             case SW: {
+                AdhocCoverageTool.m.get("mouseDragged")[7] = true;
                 originX += deltaX;
                 newHeight += deltaY;
                 newWidth -= deltaX;
                 break;
             }
             case W: {
+                AdhocCoverageTool.m.get("mouseDragged")[8] = true;
                 originX += deltaX;
                 newWidth -= deltaX;
                 break;
             }
             case NW: {
+                AdhocCoverageTool.m.get("mouseDragged")[9] = true;
                 originY += deltaY;
                 originX += deltaX;
                 newWidth -= deltaX;
@@ -267,6 +278,7 @@ public class DragResizer {
                 break;
             }
             case C: {
+                AdhocCoverageTool.m.get("mouseDragged")[10] = true;
                 originY += deltaY;
                 originX += deltaX;
                 break;
@@ -274,61 +286,90 @@ public class DragResizer {
         }
 
         if (constrainToParent) {
+            AdhocCoverageTool.m.get("mouseDragged")[11] = true;
 
             if (originX < 0) {
+                AdhocCoverageTool.m.get("mouseDragged")[12] = true;
                 if (!Zone.C.equals(zone)) {
+                    AdhocCoverageTool.m.get("mouseDragged")[13] = true;
                     newWidth -= Math.abs(originX);
                 }
                 originX = 0;
             }
             if (originY < 0) {
+                AdhocCoverageTool.m.get("mouseDragged")[14] = true;
                 if (!Zone.C.equals(zone)) {
+                    AdhocCoverageTool.m.get("mouseDragged")[15] = true;
                     newHeight -= Math.abs(originY);
                 }
                 originY = 0;
             }
 
             if (Zone.C.equals(zone)) {
+                AdhocCoverageTool.m.get("mouseDragged")[16] = true;
                 if ((newHeight + originY) > region.getParent().getBoundsInLocal().getHeight()) {
+                    AdhocCoverageTool.m.get("mouseDragged")[17] = true;
                     originY = region.getParent().getBoundsInLocal().getHeight() - newHeight;
                 }
                 if ((newWidth + originX) > region.getParent().getBoundsInLocal().getWidth()) {
+                    AdhocCoverageTool.m.get("mouseDragged")[18] = true;
                     originX = region.getParent().getBoundsInLocal().getWidth() - newWidth;
                 }
             } else {
+                AdhocCoverageTool.m.get("mouseDragged")[19] = true;
                 if ((newHeight + originY) > region.getParent().getBoundsInLocal().getHeight()) {
+                    AdhocCoverageTool.m.get("mouseDragged")[20] = true;
                     newHeight = region.getParent().getBoundsInLocal().getHeight() - originY;
                 }
                 if ((newWidth + originX) > region.getParent().getBoundsInLocal().getWidth()) {
+                    AdhocCoverageTool.m.get("mouseDragged")[21] = true;
                     newWidth = region.getParent().getBoundsInLocal().getWidth() - originX;
                 }
             }
         }
         if (newWidth < MIN_SIZE) {
+            AdhocCoverageTool.m.get("mouseDragged")[22] = true;
             newWidth = MIN_SIZE;
         }
         if (newHeight < MIN_SIZE) {
+            AdhocCoverageTool.m.get("mouseDragged")[23] = true;
             newHeight = MIN_SIZE;
         }
 
         if (!Zone.C.equals(zone)) {
+            AdhocCoverageTool.m.get("mouseDragged")[24] = true;
             // need to set Pref Height/Width otherwise they act as minima.
             if(allowHeightResize) {
+                AdhocCoverageTool.m.get("mouseDragged")[25] = true;
                 region.setMinHeight(newHeight);
                 region.setPrefHeight(newHeight);
             }
             if(allowWidthResize) {
+                AdhocCoverageTool.m.get("mouseDragged")[26] = true;
                 region.setMinWidth(newWidth);
                 region.setPrefWidth(newWidth);
             }
         }
         if(allowMove) {
+            AdhocCoverageTool.m.get("mouseDragged")[27] = true;
             region.relocate(originX, originY);
         }
 
-        y = allowHeightResize ? event.getSceneY() : y;
-        x = allowWidthResize ? event.getSceneX() : x;
+        if (allowHeightResize) {
+            AdhocCoverageTool.m.get("mouseDragged")[28] = true;
+            y = event.getSceneY();
+        } else {
+            AdhocCoverageTool.m.get("mouseDragged")[29] = true;
+            y = y;
+        }
 
+        if (allowWidthResize) {
+            AdhocCoverageTool.m.get("mouseDragged")[30] = true;
+            x = event.getSceneX();
+        } else {
+            AdhocCoverageTool.m.get("mouseDragged")[31] = true;
+            x = x;
+        }
     }
 
     protected void mousePressed(MouseEvent event) {
