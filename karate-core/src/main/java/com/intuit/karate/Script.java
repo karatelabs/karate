@@ -70,6 +70,8 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import com.intuit.karate.core.AdhocCoverageTool;
+
 /**
  *
  * @author pthomas3
@@ -744,233 +746,359 @@ public class Script {
 
     public static AssertionResult matchStringOrPattern(char delimiter, String path, MatchType stringMatchType,
             Object actRoot, Object actParent, ScriptValue actValue, String expected, ScenarioContext context) {
+		Boolean[] cov = AdhocCoverageTool.m.get("matchStringOrPattern");
         if (expected == null) {
+			cov[0] = true;
             if (!actValue.isNull()) {
+				cov[1] = true;
                 if (stringMatchType == MatchType.NOT_EQUALS) {
+					cov[2] = true;
                     return AssertionResult.PASS;
                 } else {
+					cov[3] = true;
                     return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is not null");
                 }
             }
+			else
+				cov[4] = true;
         } else if (isMacro(expected)) {
+			cov[5] = true;
             String macroExpression;
             if (isOptionalMacro(expected)) {
+				cov[6] = true;
                 macroExpression = expected.substring(2); // this is used later to look up validators by name
                 if (actValue.isNull()) {
+					cov[7] = true;
                     boolean isEqual;
                     if (macroExpression.equals("null")) { // edge case
+						cov[8] = true;	
                         isEqual = true;
                     } else if (macroExpression.equals("notnull")) {
+						cov[9] = true;
                         isEqual = false;
                     } else {
+						cov[10] = true;
                         isEqual = true; // for any optional, a null is ok
                     }
                     if (isEqual) {
+						cov[11] = true;
                         if (stringMatchType == MatchType.NOT_EQUALS) {
+							cov[12] = true;
                             return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is null");
                         } else {
+							cov[13] = true;
                             return AssertionResult.PASS;
                         }
                     } else {
+						cov[14] = true;
                         if (stringMatchType == MatchType.NOT_EQUALS) {
+							cov[15] = true;
                             return AssertionResult.PASS;
                         } else {
+							cov[16] = true;
                             return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual value is null");
                         }
                     }
                 }
+				else
+					cov[17] = true;
             } else {
+				cov[18] = true;
                 macroExpression = expected.substring(1); // // this is used later to look up validators by name
             }
             if (isWithinParentheses(macroExpression)) { // '#(foo)' | '##(foo)' | '#(^foo)'
+				cov[19] = true;
                 MatchType matchType = stringMatchType;
                 macroExpression = stripParentheses(macroExpression);
                 boolean isContains = true;
                 if (isContainsMacro(macroExpression)) {
+					cov[20] = true;
                     if (isContainsOnlyMacro(macroExpression)) {
+						cov[21] = true;
                         matchType = MatchType.CONTAINS_ONLY;
                         macroExpression = macroExpression.substring(2);
                     } else if (isContainsAnyMacro(macroExpression)) {
+						cov[22] = true;
                         matchType = MatchType.CONTAINS_ANY;
                         macroExpression = macroExpression.substring(2);
                     } else {
+						cov[23] = true;
                         matchType = MatchType.CONTAINS;
                         macroExpression = macroExpression.substring(1);
                     }
                 } else if (isNotContainsMacro(macroExpression)) {
+					cov[24] = true;
                     matchType = MatchType.NOT_CONTAINS;
                     macroExpression = macroExpression.substring(2);
                 } else {
+					cov[25] = true;
                     isContains = false;
                 }
                 ScriptValue expValue = evalJsExpression(macroExpression, context, actValue, actRoot, actParent);
                 if (isContains && actValue.isListLike() && !expValue.isListLike()) { // if RHS is not list, make it so for contains                    
+					cov[26] = true;
                     expValue = new ScriptValue(Collections.singletonList(expValue.getValue()));
                 }
+				else
+					cov[27] = true;
                 AssertionResult ar = matchNestedObject(delimiter, path, matchType, actRoot, actParent, actValue.getValue(), expValue.getValue(), context);
                 if (!ar.pass && stringMatchType == MatchType.NOT_EQUALS) {
+					cov[28] = true;
                     return AssertionResult.PASS;
                 } else {
+					cov[29] = true;
                     return ar;
                 }
             } else if (macroExpression.startsWith("regex")) {
+				cov[30] = true;
                 String regex = macroExpression.substring(5).trim();
                 RegexValidator v = new RegexValidator(regex);
                 ValidationResult vr = v.validate(actValue);
                 if (!vr.isPass()) {
+					cov[31] = true;
                     if (stringMatchType == MatchType.NOT_EQUALS) {
+						cov[32] = true;
                         return AssertionResult.PASS;
                     } else {
+						cov[33] = true;
                         return matchFailed(stringMatchType, path, actValue.getValue(), expected, vr.getMessage());
                     }
                 }
+				else
+					cov[34] = true;
             } else if (macroExpression.startsWith("[") && macroExpression.indexOf(']') > 0) {
+				cov[35] = true;
                 // check if array
                 ValidationResult vr = ArrayValidator.INSTANCE.validate(actValue);
                 if (!vr.isPass()) {
+					cov[36] = true;
                     if (stringMatchType == MatchType.NOT_EQUALS) {
+						cov[37] = true;
                         return AssertionResult.PASS;
                     } else {
+						cov[38] = true;
                         return matchFailed(stringMatchType, path, actValue.getValue(), expected, vr.getMessage());
                     }
                 }
+				else
+					cov[39] = true;
                 int endBracketPos = macroExpression.indexOf(']');
                 List actValueList = actValue.getAsList();
                 if (endBracketPos > 1) {
+					cov[40] = true;
                     int arrayLength = actValueList.size();
                     String bracketContents = macroExpression.substring(1, endBracketPos);
                     String expression;
                     if (bracketContents.indexOf('_') != -1) { // #[_ < 5]  
+						cov[41] = true;
                         expression = bracketContents;
                     } else { // #[5] | #[$.foo] 
+						cov[42] = true;
                         expression = bracketContents + " == " + arrayLength;
                     }
                     ScriptValue result = evalJsExpression(expression, context, new ScriptValue(arrayLength), actRoot, actParent);
                     if (!result.isBooleanTrue()) {
+						cov[43] = true;
                         if (stringMatchType == MatchType.NOT_EQUALS) {
+							cov[44] = true;
                             return AssertionResult.PASS;
                         } else {
+							cov[45] = true;
                             return matchFailed(stringMatchType, path, actValue.getValue(), expected, "actual array length was: " + arrayLength);
                         }
                     }
+					else
+						cov[46] = true;
                 }
+				else
+					cov[47] = true;
                 if (macroExpression.length() > endBracketPos + 1) { // expression
+					cov[48] = true;
                     // macro-fy before attempting to re-use match-each routine
                     String expression = macroExpression.substring(endBracketPos + 1);
                     expression = StringUtils.trimToNull(expression);
                     MatchType matchType = stringMatchType == MatchType.NOT_EQUALS ? MatchType.EACH_NOT_EQUALS : MatchType.EACH_EQUALS;
                     if (expression != null) {
+						cov[49] = true;
                         if (expression.startsWith("?")) {
+							cov[50] = true;
                             expression = "'#" + expression + "'";
                         } else if (expression.startsWith("#")) {
+							cov[51] = true;
                             expression = "'" + expression + "'";
                         } else {
+							cov[52] = true;
                             if (isWithinParentheses(expression)) {
+								cov[53] = true;
                                 expression = stripParentheses(expression);
                             }
+							else
+								cov[54] = true;
                             if (isContainsMacro(expression)) {
+								cov[55] = true;
                                 if (isContainsOnlyMacro(expression)) {
+									cov[56] = true;
                                     matchType = MatchType.EACH_CONTAINS_ONLY;
                                     expression = expression.substring(2);
                                 } else if (isContainsAnyMacro(expression)) {
+									cov[57] = true;
                                     matchType = MatchType.EACH_CONTAINS_ANY;
                                     expression = expression.substring(2);
                                 } else {
+									cov[58] = true;
                                     matchType = MatchType.EACH_CONTAINS;
                                     expression = expression.substring(1);
                                 }
                             } else if (isNotContainsMacro(expression)) {
+								cov[59] = true;
                                 matchType = MatchType.EACH_NOT_CONTAINS;
                                 expression = expression.substring(2);
                             }
+							else
+								cov[60] = true;
                         }
                         // actRoot assumed to be json in this case                        
                         return matchJsonOrObject(matchType, new ScriptValue(actRoot), path, expression, context);
                     }
+					else
+						cov[61] = true;
                 }
+				else
+					cov[62] = true;
             } else { // '#? _ != 0' | '#string' | '#number? _ > 0'
+				cov[63] = true;
                 int questionPos = macroExpression.indexOf('?');
                 String validatorName = null;
                 if (questionPos != -1) {
+					cov[64] = true;
                     validatorName = macroExpression.substring(0, questionPos);
                 } else {
+					cov[65] = true;
                     validatorName = macroExpression;
                 }
                 validatorName = StringUtils.trimToNull(validatorName);
                 if (validatorName != null) {
+					cov[66] = true;
                     Validator v = VALIDATORS.get(validatorName);
                     if (v == null) {
+						cov[67] = true;
                         boolean pass = expected.equals(actValue.getAsString());
                         if (!pass) {
+							cov[68] = true;
                             if (stringMatchType == MatchType.NOT_EQUALS) {
+								cov[69] = true;
                                 return AssertionResult.PASS;
                             } else {
+								cov[70] = true;
                                 return matchFailed(stringMatchType, path, actValue.getValue(), expected, "not equal");
                             }
                         }
+						else
+							cov[71] = true;
                     } else {
+						cov[72] = true;
                         ValidationResult vr = v.validate(actValue);
                         if (!vr.isPass()) {
+							cov[73] = true;
                             if (stringMatchType == MatchType.NOT_EQUALS) {
+								cov[74] = true;
                                 return AssertionResult.PASS;
                             } else {
+								cov[75] = true;
                                 return matchFailed(stringMatchType, path, actValue.getValue(), expected, vr.getMessage());
                             }
                         }
+						else
+							cov[76] = true;
                     }
                 }
+				else
+					cov[77] = true;
                 if (questionPos != -1) {
+					cov[78] = true;
                     macroExpression = macroExpression.substring(questionPos + 1);
                     ScriptValue result = evalJsExpression(macroExpression, context, actValue, actRoot, actParent);
                     if (!result.isBooleanTrue()) {
+						cov[79] = true;
                         if (stringMatchType == MatchType.NOT_EQUALS) {
+							cov[80] = true;
                             return AssertionResult.PASS;
                         } else {
+							cov[81] = true;
                             return matchFailed(stringMatchType, path, actValue.getValue(), expected, "did not evaluate to 'true'");
                         }
                     }
+					else
+						cov[82] = true;
                 }
+				else
+					cov[83] = true;
             }
         } else if (actValue.isStringOrStream()) {
+			cov[84] = true;
             String actual = actValue.getAsString();
             switch (stringMatchType) {
                 case CONTAINS:
+					cov[85] = true;
                     if (!actual.contains(expected)) {
+						cov[86] = true;
                         return matchFailed(stringMatchType, path, actual, expected, "not a sub-string");
                     }
+					else
+						cov[87] = true;
                     break;
                 case NOT_CONTAINS:
+					cov[88] = true;
                     if (actual.contains(expected)) {
+						cov[89] = true;
                         return matchFailed(stringMatchType, path, actual, expected, "does contain expected");
                     }
+					else
+						cov[90] = true;
                     break;
                 case NOT_EQUALS:
+					cov[91] = true;
                     if (expected.equals(actual)) {
+						cov[92] = true;
                         return matchFailed(stringMatchType, path, actual, expected, "is equal");
                     }
+					else
+						cov[93] = true;
                     // edge case, we have to exit here !
                     // the check for a NOT_EQUALS at the end of this routine will flip to failure otherwise
                     return AssertionResult.PASS;
                 // break;
                 case EQUALS:
+					cov[94] = true;
                     if (!expected.equals(actual)) {
+						cov[95] = true;
                         return matchFailed(stringMatchType, path, actual, expected, "not equal");
                     }
+					else
+						cov[96] = true;
                     break;
                 default:
+					cov[97] = true;
                     throw new RuntimeException("unsupported match type for string: " + stringMatchType);
             }
         } else { // actual value is not a string
+			cov[98] = true;
             if (stringMatchType == MatchType.NOT_EQUALS) {
+				cov[99] = true;
                 return AssertionResult.PASS;
             }
+			else
+				cov[100] = true;
             Object actual = actValue.getValue();
             return matchFailed(stringMatchType, path, actual, expected, "actual value is not a string");
         }
         // if we reached here, the macros passed
         if (stringMatchType == MatchType.NOT_EQUALS) {
+			cov[101] = true;
             return matchFailed(stringMatchType, path, actValue.getValue(), expected, "matched");
         }
+		else
+			cov[102] = true;
         return AssertionResult.PASS;
     }
 
