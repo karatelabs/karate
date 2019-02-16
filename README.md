@@ -671,7 +671,7 @@ scenarios:  145 | passed:   145 | failed: 0
 ======================================================
 ```
 
-Karate will run `Scenario`-s in parallel, so if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so ! 
+The parallel runner will always run `Feature`-s in parallel. Karate will also run `Scenario`-s in parallel by default. So if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so ! 
 
 The parallel runner will output a `timeline.html` file in the report output directory mentioned above (`target/surefire-reports` by default) which is useful for visually verifying or troubleshooting the effectiveness of the test-run ([see video](https://twitter.com/KarateDSL/status/1049321708241317888)).
 

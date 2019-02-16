@@ -34,6 +34,7 @@ public class MatchStepTest {
         test("actual[0] contains badSchema", CONTAINS, "actual[0]", null, "badSchema");
         test("driver.eval('{ foo: \"bar\" }') == { hello: 'world' }", EQUALS, "driver.eval('{ foo: \"bar\" }')", null, "{ hello: 'world' }");
         test("response.integration.serviceData['Usage Data'][0].Stage ==", EQUALS, "response.integration.serviceData['Usage Data'][0].Stage", null, null);
+        test("response contains { foo: 'a any b' }", CONTAINS, "response", null, "{ foo: 'a any b' }");
     }
 
 }

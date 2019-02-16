@@ -26,9 +26,9 @@ package com.intuit.karate.core;
 import com.intuit.karate.StringUtils;
 
 /**
- * someday this will be part of the parser, but until then apologies for
- * this monstrosity :|
- * 
+ * someday this will be part of the parser, but until then apologies for this
+ * monstrosity :|
+ *
  * @author pthomas3
  */
 public class MatchStep {
@@ -36,7 +36,7 @@ public class MatchStep {
     public final String name;
     public final String path;
     public final MatchType type;
-    public final String expected;    
+    public final String expected;
 
     public MatchStep(String raw) {
         boolean each = false;
@@ -44,7 +44,7 @@ public class MatchStep {
         if (raw.startsWith("each")) {
             each = true;
             raw = raw.substring(4).trim();
-        }        
+        }
         boolean contains = false;
         boolean not = false;
         boolean only = false;
@@ -61,16 +61,15 @@ public class MatchStep {
             contains = true;
             not = raw.charAt(lhsEndPos + 1) == '!';
             searchPos = lhsEndPos + (not ? 10 : 9);
-            int onlyPos = raw.indexOf(" only", searchPos);
-            if (onlyPos != -1) {
+            String anyOrOnly = raw.substring(searchPos).trim();
+            if (anyOrOnly.startsWith("only")) {
+                int onlyPos = raw.indexOf(" only", searchPos);
                 only = true;
                 searchPos = onlyPos + 5;
-            } else {
+            } else if (anyOrOnly.startsWith("any")) {
                 int anyPos = raw.indexOf(" any", searchPos);
-                if (anyPos != -1) {
-                    any = true;
-                    searchPos = anyPos + 4;
-                }
+                any = true;
+                searchPos = anyPos + 4;
             }
         } else {
             int equalPos = raw.indexOf(" ==", searchPos);
@@ -104,7 +103,7 @@ public class MatchStep {
         expected = StringUtils.trimToNull(raw.substring(searchPos));
         type = getType(each, not, contains, only, any);
     }
-    
+
     private static int min(int a, int b) {
         if (a == -1) {
             return b;
@@ -113,7 +112,7 @@ public class MatchStep {
             return a;
         }
         return Math.min(a, b);
-    }    
+    }
 
     private static MatchType getType(boolean each, boolean not, boolean contains, boolean only, boolean any) {
         if (each) {
