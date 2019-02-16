@@ -197,7 +197,7 @@ Here is the 'out-of-the-box' default which you can customize. Note that the defa
     </appender>
   
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>target/karate.log</file>
+        <file>${karate.output.dir}/karate.log</file>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>

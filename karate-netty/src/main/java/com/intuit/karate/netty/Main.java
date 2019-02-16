@@ -55,6 +55,7 @@ import picocli.CommandLine.RunLast;
  */
 public class Main implements Callable<Void> {
 
+    private static final String DEFAULT_OUTPUT_DIR = "target";
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
     private static final String CERT_FILE = "cert.pem";
     private static final String KEY_FILE = "key.pem";
@@ -87,7 +88,7 @@ public class Main implements Callable<Void> {
     int threads = 1;
 
     @Option(names = {"-o", "--output"}, description = "directory where logs and reports are output (default 'target')")
-    String output = "target";
+    String output = DEFAULT_OUTPUT_DIR;
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> tests;
@@ -99,6 +100,24 @@ public class Main implements Callable<Void> {
     boolean ui;
 
     public static void main(String[] args) {
+        boolean isOutputArg = false;
+        String outputDir = DEFAULT_OUTPUT_DIR;
+        // hack to manually extract the output dir arg to redirect karate.log if needed
+        for (String s : args) {
+            if (isOutputArg) {
+                outputDir = s;
+                isOutputArg = false;
+            }
+            if (s.startsWith("-o") || s.startsWith("--output")) {
+                int pos = s.indexOf('=');
+                if (pos != -1) {
+                    outputDir = s.substring(pos + 1);
+                } else {
+                    isOutputArg = true;
+                }
+            }
+        }
+        System.setProperty("karate.output.dir", outputDir);
         // ensure we init logback before anything else
         String logbackConfig = System.getProperty(LOGBACK_CONFIG);
         if (StringUtils.isBlank(logbackConfig)) {
@@ -120,7 +139,7 @@ public class Main implements Callable<Void> {
         cmd.parseWithHandlers(new RunLast(), exceptionHandler, args);
         System.exit(0);
     }
-    
+
     @Override
     public Void call() throws Exception {
         if (tests != null) {
