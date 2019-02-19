@@ -99,11 +99,6 @@ public class Engine {
         return (double) nanos / MILLION;
     }
 
-    public static String getBuildDir() {
-        String command = System.getProperty("sun.java.command", "");
-        return command.contains("org.gradle.") ? "build" : "target";
-    }
-
     public static FeatureResult executeFeatureSync(String env, Feature feature, String tagSelector, CallContext callContext) {
         FeatureContext featureContext = new FeatureContext(env, feature, tagSelector);
         if (callContext == null) {

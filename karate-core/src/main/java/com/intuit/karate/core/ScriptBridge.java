@@ -352,7 +352,7 @@ public class ScriptBridge implements PerfContext {
     
     public void write(Object o, String path) {        
         ScriptValue sv = new ScriptValue(o);
-        path = Engine.getBuildDir() + File.separator + path;
+        path = FileUtils.getBuildDir() + File.separator + path;
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
     }    
     

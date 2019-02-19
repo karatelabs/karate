@@ -24,6 +24,7 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.shell.FileLogAppender;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
@@ -57,7 +58,7 @@ public class ExecutionContext {
             reportDir = null;
         } else {
             if (reportDirString == null) {
-                reportDirString = Engine.getBuildDir() + File.separator + "surefire-reports";
+                reportDirString = FileUtils.getBuildDir() + File.separator + "surefire-reports";
             }
             reportDir = new File(reportDirString);
             if (!reportDir.exists()) {

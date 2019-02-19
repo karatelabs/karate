@@ -23,7 +23,6 @@
  */
 package com.intuit.karate;
 
-import static com.intuit.karate.FileUtils.CLASSPATH_COLON;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
@@ -65,7 +64,7 @@ public class IdeUtils {
             if (isIntellij) {
                 log(result);
             }
-            Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", result, null);
+            Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", result, null);
         }        
     }
 
@@ -101,9 +100,9 @@ public class IdeUtils {
         cwd = cwd.replace('\\', '/'); // fix for windows
         path = path.substring(cwd.length() + 1);
         if (path.startsWith(FileUtils.SRC_TEST_JAVA)) {
-            path = CLASSPATH_COLON + path.substring(FileUtils.SRC_TEST_JAVA.length() + 1);
+            path = FileUtils.CLASSPATH_COLON + path.substring(FileUtils.SRC_TEST_JAVA.length() + 1);
         } else if (path.startsWith(FileUtils.SRC_TEST_RESOURCES)) {
-            path = CLASSPATH_COLON + path.substring(FileUtils.SRC_TEST_RESOURCES.length() + 1);
+            path = FileUtils.CLASSPATH_COLON + path.substring(FileUtils.SRC_TEST_RESOURCES.length() + 1);
         }
         return StringUtils.pair(path, name);
     }

@@ -91,7 +91,7 @@ public class Karate implements Iterable<DynamicNode> {
             FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
             unit.run();
             exec.result.printStats(null);
-            Engine.saveResultHtml(Engine.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
+            Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
             String testName = feature.getResource().getFileNameWithoutExtension();
             List<ScenarioResult> results = exec.result.getScenarioResults();
             List<DynamicTest> scenarios = new ArrayList<>(results.size());

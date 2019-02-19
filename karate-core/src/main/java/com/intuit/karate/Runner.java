@@ -78,7 +78,7 @@ public class Runner {
             threadCount = 1;
         }
         if (reportDir == null) {
-            reportDir = Engine.getBuildDir() + File.separator + "surefire-reports";
+            reportDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
             new File(reportDir).mkdirs();
         }
         final String finalReportDir = reportDir;

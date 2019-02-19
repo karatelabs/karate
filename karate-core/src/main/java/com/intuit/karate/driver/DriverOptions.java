@@ -24,8 +24,8 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Config;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
@@ -97,7 +97,7 @@ public class DriverOptions {
         if (executable != null) {
             args.add(executable);
         }
-        workingDir = new File(Engine.getBuildDir() + File.separator + uniqueName);
+        workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
         workingDirPath = workingDir.getAbsolutePath();
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
     }

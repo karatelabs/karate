@@ -560,6 +560,15 @@ public class FileUtils {
             }
         }
     }
+    
+    public static String getBuildDir() {
+        String temp = System.getProperty("karate.output.dir");
+        if (temp != null) {
+            return temp;
+        }
+        String command = System.getProperty("sun.java.command", "");
+        return command.contains("org.gradle.") ? "build" : "target";
+    }    
 
     public static enum Platform {
         WINDOWS,
