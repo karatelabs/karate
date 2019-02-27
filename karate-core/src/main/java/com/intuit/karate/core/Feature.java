@@ -70,13 +70,13 @@ public class Feature {
                 for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
                     if (scenario.isDynamic()) {                        
                         ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec, logger);
-                        bgUnit.run();
+                        bgUnit.run();             
                         ScenarioContext bgContext = bgUnit.getContext();
-                        if (bgUnit.isStopped()) { // background failed
+                        if (bgContext == null || bgUnit.isStopped()) { // karate-config.js || background failed
                             units.add(bgUnit);
                             return units; // exit early
                         }                        
-                        String expression = scenario.getDynamicExpression();
+                        String expression = scenario.getDynamicExpression();                        
                         ScriptValue listValue = Script.evalKarateExpression(expression, bgContext);
                         if (listValue.isListLike()) {
                             List list = listValue.getAsList();

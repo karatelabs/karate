@@ -66,76 +66,81 @@ public class FeatureExecutionUnit implements Runnable {
 
     @Override
     public void run() {
-        if (units == null) {
-            init(null);
-        }
-        FeatureContext featureContext = exec.featureContext;
-        String callName = featureContext.feature.getCallName();
-        for (ScenarioExecutionUnit unit : units) {
-            Scenario scenario = unit.scenario;
-            if (callName != null) {
-                if (!scenario.getName().matches(callName)) {
-                    unit.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+        try {
+            if (units == null) {
+                init(null);
+            }
+            FeatureContext featureContext = exec.featureContext;
+            String callName = featureContext.feature.getCallName();
+            for (ScenarioExecutionUnit unit : units) {
+                Scenario scenario = unit.scenario;
+                if (callName != null) {
+                    if (!scenario.getName().matches(callName)) {
+                        unit.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+                        latch.countDown();
+                        continue;
+                    }
+                    unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                }
+                Tags tags = scenario.getTagsEffective();
+                if (!tags.evaluate(featureContext.tagSelector)) {
+                    unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
                     latch.countDown();
                     continue;
                 }
-                unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
-            }
-            Tags tags = scenario.getTagsEffective();
-            if (!tags.evaluate(featureContext.tagSelector)) {
-                unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
-                latch.countDown();
-                continue;
-            }
-            String callTag = scenario.getFeature().getCallTag();
-            if (callTag != null) {
-                if (!tags.contains(callTag)) {
-                    unit.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                String callTag = scenario.getFeature().getCallTag();
+                if (callTag != null) {
+                    if (!tags.contains(callTag)) {
+                        unit.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+                        latch.countDown();
+                        continue;
+                    }
+                    unit.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+                }
+                // this is an elegant solution to retaining the order of scenarios 
+                // in the final report - even if they run in parallel !            
+                results.add(unit.result);
+                if (unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
                     latch.countDown();
                     continue;
                 }
-                unit.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+                unit.setNext(() -> {
+                    latch.countDown();
+                    // we also hold a reference to the last scenario-context that executed
+                    // for cases where the caller needs a result                
+                    lastContextExecuted = unit.getActions().context;
+                });
+                boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
+                // main            
+                if (sequential) {
+                    unit.run();
+                } else {
+                    exec.scenarioExecutor.submit(unit);
+                }
             }
-            // this is an elegant solution to retaining the order of scenarios 
-            // in the final report - even if they run in parallel !            
-            results.add(unit.result);
-            if (unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
-                latch.countDown();
-                continue;
+            if (parallelScenarios) { // else gatling hangs
+                try {
+                    latch.await();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
-            unit.setNext(() -> {
-                latch.countDown();
-                // we also hold a reference to the last scenario-context that executed
-                // for cases where the caller needs a result                
-                lastContextExecuted = unit.getActions().context;
-            });
-            boolean sequential = !parallelScenarios || tags.valuesFor("parallel").isAnyOf("false");
-            // main            
-            if (sequential) {
-                unit.run();
-            } else {
-                exec.scenarioExecutor.submit(unit);
+            // this is where the feature gets "populated" with stats
+            // but best of all, the original order is retained
+            for (ScenarioResult sr : results) {
+                exec.result.addResult(sr);
             }
-        }
-        if (parallelScenarios) { // else gatling hangs
-            try {
-                latch.await();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            if (lastContextExecuted != null) {
+                // set result map that caller will see
+                exec.result.setResultVars(lastContextExecuted.vars);
+                lastContextExecuted.invokeAfterHookIfConfigured(true);
             }
-        }
-        // this is where the feature gets "populated" with stats
-        // but best of all, the original order is retained
-        for (ScenarioResult sr : results) {
-            exec.result.addResult(sr);
-        }
-        if (lastContextExecuted != null) {
-            // set result map that caller will see
-            exec.result.setResultVars(lastContextExecuted.vars);
-            lastContextExecuted.invokeAfterHookIfConfigured(true);
-        }
-        if (next != null) {
-            next.run();
+        } catch (Exception e) { // TODO combination of @parallel=false and karate-config.js error lands here
+            System.out.println("*** feature failed: " + exec.featureContext.packageQualifiedName + " - " + e);
+        } finally {
+            if (next != null) {
+                next.run();
+            }
         }
     }
 

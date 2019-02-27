@@ -83,7 +83,8 @@ public class ScenarioExecutionUnit implements Runnable {
     }
 
     public ScenarioContext getContext() {
-        return actions.context;
+        // null if dynamic scenario outline failed, see logic in feature
+        return actions == null ? null : actions.context;
     }
 
     public List<Step> getSteps() {
