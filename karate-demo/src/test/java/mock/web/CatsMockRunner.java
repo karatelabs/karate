@@ -3,7 +3,6 @@ package mock.web;
 import com.intuit.karate.KarateOptions;
 import com.intuit.karate.junit4.Karate;
 import org.junit.BeforeClass;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /**

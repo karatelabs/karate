@@ -185,7 +185,9 @@ public class Config {
                 readTimeout = value.getAsInt();
                 return true;
             case "proxy":
-                if (value.isString()) {
+                if (value == null) {
+                    proxyUri = null;
+                } else if (value.isString()) {
                     proxyUri = value.getAsString();
                 } else {
                     Map<String, Object> map = value.getAsMap();
