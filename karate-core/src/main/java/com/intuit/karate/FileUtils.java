@@ -482,7 +482,7 @@ public class FileUtils {
             } else {
                 String classpath = System.getProperty("java.class.path");
                 if (classpath != null && !classpath.isEmpty()) {
-                    String[] classpathEntries = classpath.split(System.getProperty("path.separator"));
+                    String[] classpathEntries = classpath.split(File.pathSeparator);
                     for (String classpathEntry : classpathEntries) {
                         if (classpathEntry.endsWith(".jar")) {
                             String entryWithForwardSlashes = classpathEntry.replaceAll("\\\\", "/");
