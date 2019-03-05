@@ -479,6 +479,19 @@ public class FileUtils {
                     URL url = new URL("jar:" + u + "!/");
                     list.add(url);
                 }
+            } else {
+                String classpath = System.getProperty("java.class.path");
+                if (classpath != null && !classpath.isEmpty()) {
+                    String[] classpathEntries = classpath.split(System.getProperty("path.separator"));
+                    for (String classpathEntry : classpathEntries) {
+                        if (classpathEntry.endsWith(".jar")) {
+                            String entryWithForwardSlashes = classpathEntry.replaceAll("\\\\", "/");
+                            boolean startsWithSlash = entryWithForwardSlashes.startsWith("/");
+                            URL url = new URL("jar:file:" + (startsWithSlash ? "" : "/") + entryWithForwardSlashes + "!/");
+                            list.add(url);
+                        }
+                    }
+                }
             }
             return list;
         } catch (Exception e) {
