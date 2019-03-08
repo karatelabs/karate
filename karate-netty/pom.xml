@@ -8,13 +8,41 @@
         <version>1.0.0</version>
     </parent>
     <artifactId>karate-netty</artifactId>
-    <packaging>jar</packaging>
+    <packaging>jar</packaging>   
+    
+    <properties>
+    </properties>
 
     <dependencies>                         
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
+            <artifactId>karate-apache-async</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>${netty.version}</version>
+        </dependency>                
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http2</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-boringssl-static</artifactId>
+            <version>${netty.boringssl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.conscrypt</groupId>
+            <artifactId>conscrypt-openjdk-uber</artifactId>
+            <version>${conscrypt.openjdk.uber.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>3.0.1</version>
         </dependency>
         <dependency>
             <groupId>net.masterthought</groupId>
@@ -37,7 +65,58 @@
                     <exclude>**/*.java</exclude>
                 </excludes>
             </testResource>
-        </testResources>            
+        </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven.shade.version}</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <artifactSet>
+                                <includes>
+                                    <include>io.netty:*</include>                                    
+                                </includes>
+                            </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>io.netty</pattern>
+                                    <shadedPattern>io.netty.karate</shadedPattern>
+                                    <!-- Excluding Native lib handling classes 
+                                         Allows passing netty's shading restrictions in calculatePackagePrefix -->
+                                    <excludes>
+                                        <exclude>io.netty.util.internal.NativeLibraryLoader</exclude>                                    
+                                        <exclude>io.netty.util.internal.NativeLibraryLoader$NoexecVolumeDetector</exclude>                                    
+                                        <exclude>io.netty.util.internal.NativeLibraryLoader$1</exclude>                                    
+                                        <exclude>io.netty.util.internal.NativeLibraryLoader$2</exclude>                                    
+                                        <exclude>io.netty.util.internal.NativeLibraryUtil</exclude>                                    
+                                        <exclude>io.netty.internal.tcnative.*</exclude>                                    
+                                    </excludes>
+                                </relocation>
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>            
+      <plugin>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <configuration>
+          <executable>${java.home}/bin/java</executable>
+          <commandlineArgs>
+              -classpath %classpath
+              com.intuit.karate.netty.Main
+              ${mock-server-args}
+          </commandlineArgs>
+        </configuration>
+      </plugin>
+
+      </plugins>             
     </build> 
     
     <profiles>

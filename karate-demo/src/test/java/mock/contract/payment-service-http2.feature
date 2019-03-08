@@ -6,6 +6,7 @@ Background:
 * def handler = function(msg){ karate.signal(msg) }
 * eval queue.listen(handler)
 * url paymentServiceUrl + '/payments'
+* configure httpVersion = 'http2'
 
 Scenario: create, get, update, list and delete payments
     Given request { amount: 5.67, description: 'test one' }

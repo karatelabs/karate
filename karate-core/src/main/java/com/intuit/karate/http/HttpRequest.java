@@ -79,12 +79,20 @@ public class HttpRequest {
         this.urlBase = urlBase;
     }        
     
+    public String getHeader(String key) {
+    	Object headerValue = headers.getFirst(key.toLowerCase());
+        if (headerValue == null) {
+            return null;
+        }
+        return headerValue.toString();
+    }
+    
     public void addHeader(String key, String value) {
-        headers.add(key, value);
+        headers.add(key.toLowerCase(), value);
     }
     
     public void putHeader(String key, List<String> values) {
-        headers.put(key, values);
+        headers.put(key.toLowerCase(), values);
     }
 
     public void setParams(MultiValuedMap params) {
@@ -122,8 +130,22 @@ public class HttpRequest {
         return headers;
     }
 
-    public void setHeaders(MultiValuedMap headers) {
-        this.headers = headers;
+    @SuppressWarnings("rawtypes")
+	public List getHeaders(String key) {
+        return headers.get(key.toLowerCase());
+    }
+
+    @SuppressWarnings("unchecked")
+	public void setHeaders(MultiValuedMap headers) {
+        if (headers != null) {
+            this.headers = new MultiValuedMap();
+            headers.forEach((k,l)->{
+                putHeader(k.toLowerCase(),l);
+            });
+        }
+        else {
+            this.headers = headers;
+        }
     }
 
     public byte[] getBody() {

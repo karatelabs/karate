@@ -57,7 +57,8 @@ Scenario: french json ISO-8859-1
     When method post
     Then status 200
     And match response == { givenName: 'oliàèôç' }
-    * def contentType = karate.prevRequest.headers['Content-Type'][0]
+    And print 'Encoding feature response is:' response
+    * def contentType = karate.prevRequest.getHeader('Content-Type')
     * match contentType contains 'application/json'
     * match contentType contains 'charset=ISO-8859-1'
 

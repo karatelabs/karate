@@ -49,7 +49,7 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.5</version>
+            <version>${apache.commons.io.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.java-json-tools</groupId>
@@ -64,10 +64,40 @@
         </dependency>
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
+            <artifactId>karate-netty</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-apache-async</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>                
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>${netty.version}</version>
+            <scope>test</scope>
+        </dependency>                
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http2</artifactId>
+            <version>${netty.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-boringssl-static</artifactId>
+            <version>${netty.boringssl.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.conscrypt</groupId>
+            <artifactId>conscrypt-openjdk-uber</artifactId>
+            <version>${conscrypt.openjdk.uber.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
@@ -112,6 +142,33 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                           <includes>**/*.so, **/*.dll,**/*.jnilib</includes>
+                           <outputDirectory>${project.build.directory}/libs</outputDirectory>
+                           <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.intuit.karate</groupId>
+                                    <artifactId>karate-netty</artifactId>
+                                    <version>${project.version}</version>
+                                    <type>jar</type>
+                                    <overWrite>true</overWrite>
+                                    <outputDirectory>${project.build.directory}/libs</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven.surefire.version}</version>
                 <configuration>
@@ -122,16 +179,37 @@
                         <include>mock/proxy/*Runner.java</include>
                         <include>ssl/*Test.java</include>
                     </includes>
+                    <argLine>-Djava.library.path=${project.build.directory}/libs/META-INF/native:${java.library.path}</argLine>
                 </configuration>
             </plugin>                                   
-            <plugin>
+            <plugin> 
                 <groupId>org.sonatype.plugins</groupId>
                 <artifactId>nexus-staging-maven-plugin</artifactId>
                 <version>${nexus.staging.plugin.version}</version>
                 <configuration>
                     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
-            </plugin>                        
+            </plugin>
+            <plugin>
+                <groupId>io.gatling</groupId>
+                <artifactId>gatling-maven-plugin</artifactId>
+                <version>${gatling.plugin.version}</version>
+                <configuration>
+                    <simulationsFolder>src/test/java</simulationsFolder>
+                </configuration>
+            </plugin>                         
+            <plugin>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <executable>${java.home}/bin/java</executable>
+                    <commandlineArgs>
+                        -classpath %classpath:${project.build.directory}/test-classes
+                        com.intuit.karate.netty.Main
+                        ${mock-server-args}
+                    </commandlineArgs>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
     
@@ -149,8 +227,8 @@
                                 <include>demo/DemoTestParallel.java</include>
                             </includes>
                             <!-- needed for jacoco to integrate properly -->
-                            <argLine>${argLine}</argLine>
-                        </configuration>
+                            <argLine>${argLine}:-Djava.library.path=/tmp/boringssl/META-INF/native:${java.library.path}</argLine>
+                         </configuration>
                     </plugin>                     
                     <plugin>
                         <groupId>org.jacoco</groupId>

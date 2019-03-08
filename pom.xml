@@ -43,11 +43,17 @@
         <spring.boot.version>1.5.16.RELEASE</spring.boot.version>
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>        
         <cucumber.reporting.version>3.8.0</cucumber.reporting.version>
+        <apache.commons.io.version>2.5</apache.commons.io.version>
+        <netty.boringssl.version>2.0.20.Final</netty.boringssl.version>
+        <conscrypt.openjdk.uber.version>1.4.1</conscrypt.openjdk.uber.version>
+        <conscrypt.client.version>9.4.14.v20181114</conscrypt.client.version>
+        <netty.version>4.1.18.Final</netty.version>
     </properties>
 
     <modules>
         <module>karate-core</module>
-        <module>karate-apache</module>              
+        <module>karate-apache</module>
+        <module>karate-apache-async</module>          
         <module>karate-junit4</module>
         <module>karate-junit5</module>
         <module>karate-netty</module>
@@ -55,8 +61,8 @@
         <module>karate-demo</module>
         <module>karate-mock-servlet</module>
         <module>karate-jersey</module>    
-        <module>karate-archetype</module>    
-  </modules>
+        <module>karate-archetype</module>
+    </modules>
 
     <dependencies>
         <dependency>

@@ -23,17 +23,37 @@
  */
 package com.intuit.karate.netty;
 
+
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.core.FeatureParser;
+
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.HttpServerUpgradeHandler;
+import io.netty.handler.codec.http.HttpServerUpgradeHandler.UpgradeCodec;
+import io.netty.handler.codec.http.HttpServerUpgradeHandler.UpgradeCodecFactory;
+import io.netty.handler.codec.http2.CleartextHttp2ServerUpgradeHandler;
+import io.netty.handler.codec.http2.DefaultHttp2Connection;
+import io.netty.handler.codec.http2.Http2CodecUtil;
+import io.netty.handler.codec.http2.Http2MultiplexCodecBuilder;
+import io.netty.handler.codec.http2.Http2ServerUpgradeCodec;
+import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandlerBuilder;
+import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapter;
+import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
+import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.AsciiString;
+
 import java.io.File;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -41,9 +61,23 @@ import java.util.Map;
  */
 public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> {
     
+    private static final Logger logger = LoggerFactory.getLogger(FeatureServerInitializer.class);
+    private static final int UPGRADE_REQ_LENGTH_MAX = 16384;
+    
     private final SslContext sslCtx;
     private final FeatureBackend backend;
     private final Runnable stopFunction;
+    
+    private class FeatureServerUpgradeCodecFactory implements UpgradeCodecFactory {
+        @Override
+        public UpgradeCodec newUpgradeCodec(CharSequence protocol) {
+            if (AsciiString.contentEquals(Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME, protocol)) {
+                return new Http2ServerUpgradeCodec(new Http2ConnectionHandlerBuilder().build());
+            } else {
+                return null;
+            }
+        }
+    }
     
     public FeatureServerInitializer(SslContext sslCtx, File featureFile, Map<String, Object> vars, Runnable stopFunction) {
         this.sslCtx = sslCtx;
@@ -54,13 +88,41 @@ public class FeatureServerInitializer extends ChannelInitializer<SocketChannel> 
     
     @Override
     public void initChannel(SocketChannel ch) {
+        
         ChannelPipeline p = ch.pipeline();
         if (sslCtx != null) {
-            p.addLast(sslCtx.newHandler(ch.alloc()));
+            setupForSSL(ch);
         }
-        p.addLast(new HttpServerCodec());
-        p.addLast(new HttpObjectAggregator(1048576));
-        p.addLast(new FeatureServerHandler(backend, sslCtx != null, stopFunction));
-    }    
+        else {
+            setupForClearText(p);
+        }
+    }
+
+    private void setupForClearText(ChannelPipeline p) {
+        logger.info("server setup for ClearText");
+        
+        final HttpServerCodec sourceCodec = new HttpServerCodec();
+        final HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(sourceCodec, new FeatureServerUpgradeCodecFactory(), UPGRADE_REQ_LENGTH_MAX);
+        final ChannelHandler featureServerConnectionHandler = new Http2ConnectionHandlerBuilder().build();
+        final CleartextHttp2ServerUpgradeHandler cleartextHttp2ServerUpgradeHandler =
+                new CleartextHttp2ServerUpgradeHandler(sourceCodec, upgradeHandler, featureServerConnectionHandler);
+
+        // First in the pipeline is the cleartext upgrade handler
+        p.addLast(cleartextHttp2ServerUpgradeHandler);
+        // HTTP/1 requests fall-through or HTTP/2 requests are converted 
+        // and pushed through to the feature server request handling
+        p.addLast(new HttpObjectAggregator(Http2OrHttpHandler.MAX_CONTENT_LENGTH));
+        p.addLast(new FeatureServerRequestHandler(backend, false, stopFunction));
+    }
+
+    private void setupForSSL(SocketChannel ch) {
+        logger.info("server setup for SSL");
+        String fallbackHttpVersion = ApplicationProtocolNames.HTTP_1_1;
+        if ((backend.getContext() != null) && (backend.getContext().getConfig() != null)) {
+        	fallbackHttpVersion = backend.getContext().getConfig().getMockServerFallbackHttpVersion();
+        }
+        ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()), 
+                new Http2OrHttpHandler(backend, fallbackHttpVersion, stopFunction));
+    }
     
 }

@@ -139,7 +139,7 @@ public class HttpRequestBuilder {
         if (headers == null) {
             return;
         }
-        headers.remove(name);
+        headers.remove(name.toLowerCase());
     }
     
     public void removeHeaderIgnoreCase(String name) {

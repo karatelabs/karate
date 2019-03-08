@@ -169,7 +169,7 @@ public class FeatureBackend {
             response.addHeader(HttpUtils.HEADER_ALLOW, ALLOWED_METHODS);
             response.addHeader(HttpUtils.HEADER_AC_ALLOW_ORIGIN, "*");
             response.addHeader(HttpUtils.HEADER_AC_ALLOW_METHODS, ALLOWED_METHODS);
-            List requestHeaders = request.getHeaders().get(HttpUtils.HEADER_AC_REQUEST_HEADERS);
+            List requestHeaders = request.getHeaders(HttpUtils.HEADER_AC_REQUEST_HEADERS);
             if (requestHeaders != null) {
                 response.putHeader(HttpUtils.HEADER_AC_ALLOW_HEADERS, requestHeaders);
             }            

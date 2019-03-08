@@ -7,12 +7,12 @@
         <artifactId>karate-parent</artifactId>
         <version>1.0.0</version>
     </parent>
+    
     <artifactId>karate-core</artifactId>
     <packaging>jar</packaging>   
     
     <properties>
         <antlr.version>4.7.1</antlr.version>
-        <netty.version>4.1.18.Final</netty.version>
     </properties>    
 
     <dependencies>
@@ -23,7 +23,7 @@
         </dependency>                
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-codec-http</artifactId>
+            <artifactId>netty-codec-http2</artifactId>
             <version>${netty.version}</version>
         </dependency>       
         <dependency>
@@ -35,7 +35,7 @@
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
             <version>2.1.0</version>
-        </dependency>                                                                                                                                                   													                
+        </dependency>
         <dependency>
             <groupId>info.cukes</groupId>
             <artifactId>cucumber-java</artifactId>

@@ -385,6 +385,21 @@ public class JsonUtils {
         Yaml yaml = new Yaml();
         return JsonPath.parse(yaml.load(raw));
     }
+    
+    public static DocumentContext fromCsv(String raw) {
+        CsvReader reader = new CsvReader();
+        reader.setContainsHeader(true);
+        try {
+            CsvContainer csv = reader.read(new StringReader(raw));
+            List<Map> rows = new ArrayList(csv.getRowCount());
+            for (CsvRow row : csv.getRows()) {
+                rows.add(row.getFieldMap());
+            }
+            return toJsonDoc(rows);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static DocumentContext fromCsv(String raw) {
         CsvReader reader = new CsvReader();
