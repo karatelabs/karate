@@ -1659,7 +1659,11 @@ A common need is to send the same header(s) for _every_ request, and [`configure
 * configure headers = { 'Content-Type': 'application/xml' }
 ```
 
-> Note: in this example above, `Content-Type` had to be enclosed in quotes because the hyphen `-` would cause problems otherwise.
+Note that `Content-Type` had to be enclosed in quotes in the JSON above because the "`-`" (hyphen character) would cause problems otherwise. Also note that "`; charset=UTF-8`" would be appended to the `Content-Type` header that Karate sends by default, and in some rare cases, you may need to suppress this behavior completely. You can do so by setting the `charset` to null via the [`configure`](#configure) keyword:
+
+```cucumber
+* configure charset = null
+```
 
 If you need headers to be dynamically generated for each HTTP request, use a JavaScript function with [`configure headers`](#configure-headers) instead of JSON.
 
@@ -1875,7 +1879,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
-`charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
+`charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride (or disable) this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
 `retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
 `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)

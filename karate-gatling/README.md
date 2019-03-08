@@ -110,20 +110,39 @@ The Gatling session attributes and `userId` would be available in a Karate varia
 This is useful as an alternative to using a random UUID where you want to create unique users, and makes it easy to co-relate values to your test-run in some situations.
 
 ### Feeders
-Because of the above mechanism which allows Karate to "see" Gatling session data, you can use [feeders](https://gatling.io/docs/current/session/feeder/) effectively. For example:
+Because of the above mechanism which allows Karate to "see" Gatling session data, you can use [feeders](https://gatling.io/docs/current/session/feeder) effectively. For example:
 
 ```scala
-import scala.util.Random
-val feeder = Iterator.continually(Map("email" -> (Random.alphanumeric.take(20).mkString + "@foo.com")))
+val feeder = Iterator.continually(Map("catName" -> MockUtils.getNextCatName, "someKey" -> "someValue"))
 
-feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
+val create = scenario("create").feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
 ```
+
+Here there's some [Java code behind the scenes](https://github.com/ptrthomas/karate-gatling-demo/blob/master/src/test/java/mock/MockUtils.java) that takes care of dispensing a new `catName`:
+
+```java
+private static final AtomicInteger counter = new AtomicInteger();
+
+public static String getNextCatName() {
+    return catNames.get(counter.getAndIncrement() % catNames.size());
+}
+```
+
+> You can do the above in-line in Scala if you know how, and the Gatling documentaton has [some examples](https://gatling.io/docs/current/session/feeder).
 
 And now in the feature file you can do this:
 
 ```cucumber
-* print __gatling.email
+* print __gatling.catName
 ```
+
+You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) will gracefully return `null` if a variable does not exist or is not defined.
+
+```cucumber
+* def name = karate.get('__gatling') ? __gatling.catName : 'Billie'
+```
+
+For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](https://github.com/ptrthomas/karate-gatling-demo/tree/master/src/test/java/mock).
 
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.
