@@ -38,13 +38,13 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
  */
 public class Config {
 	
-	public final class ClientProtocolNames {
+    public final class ClientProtocolNames {
 
-	    public static final String HTTP_1 = "http1";
-	    public static final String HTTP_2 = "http2";
-	    public static final String NEGIOTIATE = "neg";
-	    private ClientProtocolNames() { }
-	}
+        public static final String HTTP_1 = "http1";
+        public static final String HTTP_2 = "http2";
+        public static final String NEGIOTIATE = "neg";
+        private ClientProtocolNames() { }
+    }
 
     public static final int DEFAULT_RETRY_INTERVAL = 3000;
     public static final int DEFAULT_RETRY_COUNT = 3;    

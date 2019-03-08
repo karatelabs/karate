@@ -191,14 +191,6 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>io.gatling</groupId>
-                <artifactId>gatling-maven-plugin</artifactId>
-                <version>${gatling.plugin.version}</version>
-                <configuration>
-                    <simulationsFolder>src/test/java</simulationsFolder>
-                </configuration>
-            </plugin>                         
-            <plugin>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
