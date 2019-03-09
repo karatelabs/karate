@@ -60,7 +60,7 @@ public class Resource {
     public String getFileNameWithoutExtension() {
         return FileUtils.removeFileExtension(path.getFileName().toString());
     }
-
+    
     public String getRelativePath() {
         return relativePath;
     }

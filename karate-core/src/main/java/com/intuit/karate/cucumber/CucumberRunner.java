@@ -33,6 +33,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.intuit.karate.core.ExecutionHook;
+import java.util.Collection;
 
 /**
  * as of version 0.9.0 - replaced by {@link com.intuit.karate.Runner}
@@ -56,16 +57,16 @@ public class CucumberRunner {
         return parallel(tags, paths, null, threadCount, reportDir);
     }    
     
-    public static KarateStats parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
-        return new KarateStats(Runner.parallel(tags, paths, hook, threadCount, reportDir));
+    public static KarateStats parallel(List<String> tags, List<String> paths, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
+        return new KarateStats(Runner.parallel(tags, paths, hooks, threadCount, reportDir));
     }
     
     public static KarateStats parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
         return parallel(tagSelector, resources, null, threadCount, reportDir);
     }     
     
-    public static KarateStats parallel(String tagSelector, List<Resource> resources, ExecutionHook hook, int threadCount, String reportDir) {
-        return new KarateStats(Runner.parallel(tagSelector, resources, hook, threadCount, reportDir));
+    public static KarateStats parallel(String tagSelector, List<Resource> resources, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
+        return new KarateStats(Runner.parallel(tagSelector, resources, hooks, threadCount, reportDir));
     }
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {

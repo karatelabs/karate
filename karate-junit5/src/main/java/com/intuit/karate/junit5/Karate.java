@@ -23,18 +23,12 @@
  */
 package com.intuit.karate.junit5;
 
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.DynamicContainer.dynamicContainer;
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
-
-import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import com.intuit.karate.RunnerOptions;
-import com.intuit.karate.core.*;
-import org.junit.jupiter.api.DynamicNode;
-import org.junit.jupiter.api.DynamicTest;
-import java.io.File;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
+import com.intuit.karate.core.Tags;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -43,6 +37,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import org.junit.jupiter.api.DynamicContainer;
+import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.api.TestFactory;
 
 public class Karate implements Iterable<DynamicNode> {
@@ -85,26 +81,9 @@ public class Karate implements Iterable<DynamicNode> {
         String tagSelector = Tags.fromKarateOptionsTags(options.getTags());
         List<DynamicNode> list = new ArrayList<>(features.size());
         for (Feature feature : features) {
-            FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
-            CallContext callContext = new CallContext(null, true);
-            ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
-            FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
-            unit.run();
-            exec.result.printStats(null);
-            Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
+            FeatureNode featureNode = new FeatureNode(feature, tagSelector);
             String testName = feature.getResource().getFileNameWithoutExtension();
-            List<ScenarioResult> results = exec.result.getScenarioResults();
-            List<DynamicTest> scenarios = new ArrayList<>(results.size());
-            for (ScenarioResult sr : results) {
-                Scenario scenario = sr.getScenario();
-                String displayName = scenario.getDisplayMeta() + " " + scenario.getName();
-                scenarios.add(dynamicTest(displayName, () -> {
-                    if (sr.isFailed()) {
-                        fail(sr.getError().getMessage());
-                    }
-                }));
-            }
-            DynamicNode node = dynamicContainer(testName, scenarios.stream());
+            DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
         }
         return list.iterator();

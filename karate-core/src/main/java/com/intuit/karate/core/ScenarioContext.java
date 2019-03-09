@@ -51,6 +51,7 @@ import com.intuit.karate.netty.WebSocketClient;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -74,7 +75,7 @@ public class ScenarioContext {
     public final ScriptValueMap vars;
     public final FeatureContext rootFeatureContext;
     public final FeatureContext featureContext;
-    public final ExecutionHook executionHook;
+    public final Collection<ExecutionHook> executionHooks;
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
 
@@ -107,12 +108,12 @@ public class ScenarioContext {
     private Object signalResult;
 
     public void logLastPerfEvent(String failureMessage) {
-        if (prevPerfEvent != null && executionHook != null) {
+        if (prevPerfEvent != null && executionHooks != null) {
             if (failureMessage != null) {
                 prevPerfEvent.setFailed(true);
                 prevPerfEvent.setMessage(failureMessage);
             }
-            executionHook.reportPerfEvent(prevPerfEvent);
+            executionHooks.forEach(h -> h.reportPerfEvent(prevPerfEvent));
         }
         prevPerfEvent = null;
     }
@@ -204,7 +205,7 @@ public class ScenarioContext {
         this.logger = logger;
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;
-        executionHook = call.executionHook;
+        executionHooks = call.executionHooks;
         perfMode = call.perfMode;
         if (scenario != null) {
             Tags tagsEffective = scenario.getTagsEffective();
@@ -300,7 +301,7 @@ public class ScenarioContext {
         callDepth = sc.callDepth;
         reuseParentContext = sc.reuseParentContext;
         parentContext = sc.parentContext;
-        executionHook = sc.executionHook;
+        executionHooks = sc.executionHooks;
         perfMode = sc.perfMode;
         tags = sc.tags;
         tagValues = sc.tagValues;
