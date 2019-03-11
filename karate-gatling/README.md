@@ -128,7 +128,11 @@ public static String getNextCatName() {
 }
 ```
 
-> You can do the above in-line in Scala if you know how, and the Gatling documentaton has [some examples](https://gatling.io/docs/current/session/feeder).
+The `List` of `catNames` above is actually initialized (only once) by a [Java API call](https://github.com/intuit/karate#java-api) to another Karate feature like this. If you use `true` instead of `false` below, the `karate-config.js` will be honored. You could also pass custom config via the second `Map` argument to `Runner.runFeature()`. This is just to demonstrate some possibilities, and you can use any combination of Java or [Scala](https://gatling.io/docs/current/session/feeder) (even without Karate) - to set up feeders.
+
+```java
+List<String> catNames = (List) Runner.runFeature("classpath:mock/feeder.feature", null, false).get("names");
+```
 
 And now in the feature file you can do this:
 

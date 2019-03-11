@@ -35,7 +35,8 @@ And you don't need to create additional Java classes for any of the payloads tha
 <tr>
   <th>Run</th>
   <td>
-      <a href="#running-with-junit">JUnit</a>
+      <a href="#junit-4">JUnit 4</a>
+    | <a href="#junit-5">JUnit 5</a>
     | <a href="#command-line">Command Line</a>
     | <a href="#ide-support">IDE Support</a>    
     | <a href="#tags">Tags / Grouping</a>
@@ -443,7 +444,7 @@ In some cases, for large payloads and especially when the default system encodin
     </plugin>
 ``` 
 
-## Running With JUnit 4
+## JUnit 4
 To run a script `*.feature` file from your Java IDE, you just need the following empty test-class in the same package. The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package. This comes in useful because depending on how you organize your files and folders - you can have multiple feature files executed by a single JUnit test-class.
 
 ```java

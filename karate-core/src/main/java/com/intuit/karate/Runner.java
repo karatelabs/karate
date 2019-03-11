@@ -34,6 +34,8 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Tags;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -63,17 +65,17 @@ public class Runner {
         return parallel(tags, paths, null, threadCount, reportDir);
     }
 
-    public static Results parallel(List<String> tags, List<String> paths, ExecutionHook hook, int threadCount, String reportDir) {
+    public static Results parallel(List<String> tags, List<String> paths, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
         String tagSelector = tags == null ? null : Tags.fromKarateOptionsTags(tags);
         List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
-        return parallel(tagSelector, files, hook, threadCount, reportDir);
+        return parallel(tagSelector, files, hooks, threadCount, reportDir);
     }
 
     public static Results parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
         return parallel(tagSelector, resources, null, threadCount, reportDir);
     }
 
-    public static Results parallel(String tagSelector, List<Resource> resources, ExecutionHook hook, int threadCount, String reportDir) {
+    public static Results parallel(String tagSelector, List<Resource> resources, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
         if (threadCount < 1) {
             threadCount = 1;
         }
@@ -96,7 +98,7 @@ public class Runner {
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
                 FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
-                CallContext callContext = CallContext.forAsync(feature, hook, null, false);
+                CallContext callContext = CallContext.forAsync(feature, hooks, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir,
                         r -> featureExecutor.submit(r), scenarioExecutor);
                 featureResults.add(execContext.result);
@@ -180,7 +182,7 @@ public class Runner {
     public static void callAsync(String path, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(null, feature, null);
-        CallContext callContext = CallContext.forAsync(feature, hook, arg, true);
+        CallContext callContext = CallContext.forAsync(feature, Collections.singletonList(hook), arg, true);
         ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, system, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.setNext(next);

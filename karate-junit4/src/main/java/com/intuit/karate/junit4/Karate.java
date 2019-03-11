@@ -119,17 +119,9 @@ public class Karate extends ParentRunner<Feature> {
     @Override
     protected void runChild(Feature feature, RunNotifier notifier) {
         FeatureInfo info = featureMap.get(feature.getRelativePath());
+        info.setNotifier(notifier);
         info.unit.run();
         FeatureResult result = info.exec.result;
-        for (ScenarioResult sr : result.getScenarioResults()) {
-            Description scenarioDescription = FeatureInfo.getScenarioDescription(sr.getScenario());
-            notifier.fireTestStarted(scenarioDescription);
-            if (sr.isFailed()) {
-                notifier.fireTestFailure(new Failure(scenarioDescription, sr.getError()));
-            } else {
-                notifier.fireTestFinished(scenarioDescription);
-            }
-        }
         result.printStats(null);
         Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", result, null);
     }

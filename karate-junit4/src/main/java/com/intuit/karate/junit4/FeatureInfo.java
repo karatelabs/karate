@@ -26,22 +26,35 @@ package com.intuit.karate.junit4;
 import com.intuit.karate.CallContext;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureExecutionUnit;
+import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.http.HttpRequestBuilder;
 import org.junit.runner.Description;
+import org.junit.runner.notification.Failure;
+import org.junit.runner.notification.RunNotifier;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureInfo {
+public class FeatureInfo implements ExecutionHook {
 
     public final Feature feature;
     public final ExecutionContext exec;
     public final Description description;
     public final FeatureExecutionUnit unit;
+
+    private RunNotifier notifier;
+
+    public void setNotifier(RunNotifier notifier) {
+        this.notifier = notifier;
+    }
 
     private static String getFeatureName(Feature feature) {
         return "[" + feature.getResource().getFileNameWithoutExtension() + "]";
@@ -56,7 +69,7 @@ public class FeatureInfo {
         this.feature = feature;
         description = Description.createSuiteDescription(getFeatureName(feature), feature.getResource().getPackageQualifiedName());
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
-        CallContext callContext = new CallContext(null, true);
+        CallContext callContext = new CallContext(null, true, this);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         unit = new FeatureExecutionUnit(exec);
         unit.init(null);
@@ -64,6 +77,38 @@ public class FeatureInfo {
             Description scenarioDescription = getScenarioDescription(u.scenario);
             description.addChild(scenarioDescription);
         }
+    }
+
+    @Override
+    public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
+        if (notifier == null) {
+            return true;
+        }
+        notifier.fireTestStarted(getScenarioDescription(scenario));
+        return true;
+    }
+
+    @Override
+    public void afterScenario(ScenarioResult result, ScenarioContext context) {
+        if (notifier == null) { // dynamic scenario outline background
+            return;
+        }
+        Description scenarioDescription = getScenarioDescription(result.getScenario());
+        if (result.isFailed()) {
+            notifier.fireTestFailure(new Failure(scenarioDescription, result.getError()));
+        } else {
+            notifier.fireTestFinished(scenarioDescription);
+        }
+    }
+
+    @Override
+    public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
+        return null;
+    }
+
+    @Override
+    public void reportPerfEvent(PerfEvent event) {
+
     }
 
 }

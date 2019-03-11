@@ -29,6 +29,7 @@ import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.XmlUtils;
+import com.intuit.karate.core.ExecutionHook;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -217,8 +218,10 @@ public abstract class HttpClient<T> {
     public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {        
         T body = buildRequestInternal(request, context);
         String perfEventName = null; // acts as a flag to report perf if not null
-        if (context.executionHook != null) {
-            perfEventName = context.executionHook.getPerfEventName(request, context);
+        if (context.executionHooks != null && perfEventName == null) {
+            for (ExecutionHook h : context.executionHooks) {
+                perfEventName = h.getPerfEventName(request, context);
+            }
         }        
         try {
             HttpResponse response = makeHttpRequest(body, context);
