@@ -16,7 +16,7 @@ Scenario: create cat
     * def requestMethod = temp.method
     * match requestMethod == 'POST'
     * def requestHeaders = temp.headers
-    * def contentType = karate.prevRequest.getHeader('Content-Type')
+    * def contentType = temp.headers['Content-Type'][0]
     * match contentType contains 'application/json'
     * match contentType contains 'charset=UTF-8'
     * def requestUri = temp.uri

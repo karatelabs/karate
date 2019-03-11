@@ -426,7 +426,7 @@ public class ScriptBridge implements PerfContext {
             return false;
         }
 
-        List<String> list = headers.get(name.toLowerCase());
+        List<String> list = headers.get(name);
         if (list == null) {
             return false;
         }
