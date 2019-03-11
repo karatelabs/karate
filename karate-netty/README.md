@@ -35,9 +35,9 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
 
 ### Maven
-The [Netty](https://netty.io) based capabilities are included when you use `karate-apache` (or `karate-jersey`), so there is no extra dependency needed besides what is outlined in the [main documentation](https://github.com/intuit/karate#maven).
+The [Netty](https://netty.io) based capabilities are included when you use `karate-apache-async` (or `karate-apache`/`karate-jersey`), so there is no extra dependency needed besides what is outlined in the [main documentation](https://github.com/intuit/karate#maven).
 
-For `karate-apache-async` requires the following dependencies:
+> Note: The `karate-netty` module includes the following native library dependencies in order to access ALPN implementation for SSL:
 
 ```xml
 <dependency>
