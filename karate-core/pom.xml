@@ -148,6 +148,16 @@
                                         <relocation>
                                             <pattern>io.netty</pattern>
                                             <shadedPattern>io.netty.karate</shadedPattern>
+                                            <!-- Excluding Native lib handling classes 
+                                                 Allows passing netty's shading restrictions in calculatePackagePrefix -->
+                                            <excludes>
+                                                <exclude>io.netty.util.internal.NativeLibraryLoader</exclude>
+                                                <exclude>io.netty.util.internal.NativeLibraryLoader$NoexecVolumeDetector</exclude>
+                                                <exclude>io.netty.util.internal.NativeLibraryLoader$1</exclude>
+                                                <exclude>io.netty.util.internal.NativeLibraryLoader$2</exclude>
+                                                <exclude>io.netty.util.internal.NativeLibraryUtil</exclude>
+                                                <exclude>io.netty.internal.tcnative.*</exclude>
+                                            </excludes>
                                         </relocation>
                                         <relocation>
                                             <pattern>org.antlr.v4</pattern>
