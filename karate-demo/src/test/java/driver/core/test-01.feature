@@ -5,6 +5,7 @@ Background:
 
 Scenario Outline: using <config>
   * def config = <config>
+  * set config.showDriverLog = true
   * configure driver = config
 
   Given driver webUrlBase + '/page-01'
@@ -23,12 +24,17 @@ Scenario Outline: using <config>
   And match driver.name('#eg01SubmitId') == 'INPUT'
   And match driver.enabled('#eg01InputId') == true
   And match driver.enabled('#eg01DisabledId') == false
+
+  When driver.input('#eg01InputId', 'something else', true)
+  And match driver.value('#eg01InputId') == 'something else'  
+  When driver.value('#eg01InputId', 'something more')
+  And match driver.value('#eg01InputId') == 'something more'
   
   When driver.refresh()
   Then match driver.location == webUrlBase + '/page-01'
   And match driver.text('#eg01DivId') == ''
   And match driver.value('#eg01InputId') == ''
-  And match driver.title == 'Page One' 
+  And match driver.title == 'Page One'
 
   When driver webUrlBase + '/page-02'
   Then match driver.text('.eg01Cls') == 'Class Locator Test'
@@ -76,6 +82,13 @@ Scenario Outline: using <config>
   * def bytes = driver.screenshot('#eg02DivId')
   * eval karate.write(bytes, 'partial-' + config.type + '.png')
   * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
+
+  When driver.click('^New Tab')
+  And eval driver.waitUntil("document.readyState == 'complete'")
+
+  When driver.switchTo('Page Two')
+  Then match driver.title == 'Page Two'
+  And match driver.location contains webUrlBase + '/page-02'
 
   When driver.submit('*Page Three')
   And match driver.title == 'Page Three'

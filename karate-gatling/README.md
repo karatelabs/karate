@@ -118,7 +118,7 @@ val feeder = Iterator.continually(Map("catName" -> MockUtils.getNextCatName, "so
 val create = scenario("create").feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
 ```
 
-Here there's some [Java code behind the scenes](https://github.com/ptrthomas/karate-gatling-demo/blob/master/src/test/java/mock/MockUtils.java) that takes care of dispensing a new `catName`:
+There is some [Java code behind the scenes](https://github.com/ptrthomas/karate-gatling-demo/blob/master/src/test/java/mock/MockUtils.java) that takes care of dispensing a new `catName` every time `getNextCatName()` is invoked:
 
 ```java
 private static final AtomicInteger counter = new AtomicInteger();
@@ -128,7 +128,7 @@ public static String getNextCatName() {
 }
 ```
 
-The `List` of `catNames` above is actually initialized (only once) by a [Java API call](https://github.com/intuit/karate#java-api) to another Karate feature like this. If you use `true` instead of `false` below, the `karate-config.js` will be honored. You could also pass custom config via the second `Map` argument to `Runner.runFeature()`. This is just to demonstrate some possibilities, and you can use any combination of Java or [Scala](https://gatling.io/docs/current/session/feeder) (even without Karate) - to set up feeders.
+The `List` of `catNames` above is actually initialized (only once) by a [Java API call](https://github.com/intuit/karate#java-api) to another Karate feature (see below). If you use `true` instead of `false`, the `karate-config.js` will be honored. You could also pass custom config via the second `Map` argument to `Runner.runFeature()`. This is just to demonstrate some possibilities, and you can use any combination of Java or [Scala](https://gatling.io/docs/current/session/feeder) (even without Karate) - to set up feeders.
 
 ```java
 List<String> catNames = (List) Runner.runFeature("classpath:mock/feeder.feature", null, false).get("names");

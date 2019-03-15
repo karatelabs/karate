@@ -189,6 +189,11 @@ Then match driver.title == 'Test Page'
 ```cucumber
 * driver.input('input[name=someName]', 'test input')
 ```
+Add a 3rd boolean `true` argument to clear the input field before entering keystrokes.
+```cucumber
+* driver.input('input[name=someName]', 'test input', true)
+```
+Also see [`driver.value(locator, value)`](#drivervalueset) and [`driver.clear()`](#driverclear)
 
 ### `driver.click()`
 Just triggers a click event on the DOM element, does *not* wait for a page load.
@@ -229,6 +234,12 @@ Given driver.select('select[name=data1]', 2)
 * driver.focus('.myClass')
 ```
 
+### `driver.clear()`
+```cucumber
+* driver.clear('#myInput')
+```
+If this does not work, try [`driver.value(selector, value)`](#drivervalueset)
+
 ### `driver.close()`
 Close the page / tab.
 
@@ -251,6 +262,12 @@ And match driver.text('.myClass') == 'Class Locator Test'
 Get the HTML form-element value. Example:
 ```cucumber
 And match driver.value('.myClass') == 'some value'
+```
+
+### `driver.value(set)`
+Set the HTML form-element value. Example:
+```cucumber
+When driver.value('#eg01InputId', 'something more')
 ```
 
 ### `driver.attribute()`
@@ -323,6 +340,12 @@ Two forms. The first takes a single boolean argument, whether to "accept" or "ca
 Also works as a "getter" to retrieve the text of the currently visible dialog:
 ```cucumber
 * match driver.dialog == 'Please enter your name:'
+```
+
+### `driver.switchTo()`
+When multiple browser tabs are present, allows you to switch to one based on page title (or URL).
+```cucumber
+When driver.switchTo('Page Two')
 ```
 
 ### `driver.screenshot()`

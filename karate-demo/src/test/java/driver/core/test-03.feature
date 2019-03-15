@@ -6,3 +6,4 @@ Scenario:
   * driver webUrlBase + '/page-01'
   * assert driver.eval('1 + 2') == 3
   * match driver.eval("location.href") == webUrlBase + '/page-01'
+  * driver.switchTo('foo')

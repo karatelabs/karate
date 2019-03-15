@@ -33,6 +33,7 @@ import java.util.Map;
 public interface Driver {
 
     // constructor takes a Map<String, Object> always
+    //
     void activate();
 
     void refresh();
@@ -50,8 +51,12 @@ public interface Driver {
     void fullscreen();
 
     void focus(String id);
+    
+    void clear(String id);
 
     void input(String name, String value);
+    
+    void input(String name, String value, boolean clear);
 
     void click(String expression);
     
@@ -72,6 +77,8 @@ public interface Driver {
     String text(String id);
 
     String value(String id);
+    
+    void value(String id, String value);
     
     String attribute(String id, String name);
     
@@ -104,6 +111,8 @@ public interface Driver {
     byte[] screenshot(String id);   
     
     void highlight(String id);
+    
+    void switchTo(String titleOrUrl);
 
     // javabean naming convention is intentional ===============================
     //
