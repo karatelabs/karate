@@ -57,7 +57,10 @@ public class MatchStep {
             lhsEndPos = raw.indexOf(" !contains");
         }
         int searchPos = 0;
-        int eqPos = raw.indexOf('=');
+        int eqPos = raw.indexOf("==");
+        if (eqPos == -1) {
+            eqPos = raw.indexOf("!=");
+        }
         if (lhsEndPos != -1 && (eqPos == -1 || eqPos > lhsEndPos)) {
             contains = true;
             not = raw.charAt(lhsEndPos + 1) == '!';
