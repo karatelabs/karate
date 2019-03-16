@@ -199,13 +199,11 @@ public class FileUtils {
     public static String toPackageQualifiedName(String path) {
         path = removePrefix(path);
         path = path.replace("/", "."); // for non windows path
-        if (isWindows()){ // for windows path
-            if (path.contains(":\\")) { // to remove driver letter and colon
-                path = removePrefix(path);
-            }
-            if (path.contains("\\")) { // for \ windows path
-                path = path.replace("\\",".");
-            }
+        if (path.contains(":\\")) { // to remove driver letter and colon
+            path = removePrefix(path);
+        }
+        if (path.contains("\\")) { // for \ windows path
+            path = path.replace("\\",".");
         }
         String  packagePath = path.replace("..", "");
         if (packagePath.startsWith(".")) {
