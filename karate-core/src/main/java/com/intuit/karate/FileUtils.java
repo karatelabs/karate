@@ -47,6 +47,7 @@ public class FileUtils {
     private static final String CLASSPATH = "classpath";
 
     public static final String CLASSPATH_COLON = CLASSPATH + ":";
+    private static final String DOT_FEATURE = ".feature";
     public static final String THIS_COLON = "this:";
     public static final String FILE_COLON = "file:";
     public static final String SRC_TEST_JAVA = "src/test/java";
@@ -198,18 +199,18 @@ public class FileUtils {
 
     public static String toPackageQualifiedName(String path) {
         path = removePrefix(path);
-        path = path.replace("/", "."); // for non windows path
-        if (path.contains(":\\")) { // to remove driver letter and colon
+        path = path.replace('/', '.');
+        if (path.contains(":\\")) { // to remove windows drive letter and colon
             path = removePrefix(path);
         }
-        if (path.contains("\\")) { // for \ windows path
-            path = path.replace("\\",".");
+        if (path.indexOf('\\') != -1) { // for windows paths
+            path = path.replace('\\', '.');
         }
-        String  packagePath = path.replace("..", "");
+        String packagePath = path.replace("..", "");
         if (packagePath.startsWith(".")) {
             packagePath = packagePath.substring(1);
         }
-        if (packagePath.endsWith(".feature")) {
+        if (packagePath.endsWith(DOT_FEATURE)) {
             packagePath = packagePath.substring(0, packagePath.length() - 8);
         }
         return packagePath;
