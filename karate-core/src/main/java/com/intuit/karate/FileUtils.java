@@ -198,7 +198,17 @@ public class FileUtils {
 
     public static String toPackageQualifiedName(String path) {
         path = removePrefix(path);
-        String packagePath = path.replace("/", "."); // assumed to be already in non-windows form
+        path = path.replace("/", "."); // for non windows path
+        if (path.contains(":\\")) { // to remove driver letter and colon
+            path = removePrefix(path);
+        }
+        if (path.contains("\\")) { // for \ windows path
+            path = path.replace("\\",".");
+        }
+        String  packagePath = path.replace("..", "");
+        if (packagePath.startsWith(".")) {
+            packagePath = packagePath.substring(1);
+        }
         if (packagePath.endsWith(".feature")) {
             packagePath = packagePath.substring(0, packagePath.length() - 8);
         }
