@@ -58,8 +58,8 @@ class CatsSimulation extends Simulation {
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
 
   setUp(
-    create.inject(rampUsers(10) over (5 seconds)).protocols(protocol),
-    delete.inject(rampUsers(5) over (5 seconds)).protocols(protocol)
+    create.inject(rampUsers(10) during (5 seconds)).protocols(protocol),
+    delete.inject(rampUsers(5) during (5 seconds)).protocols(protocol)
   )
 
 }
