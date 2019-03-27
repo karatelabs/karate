@@ -43,6 +43,6 @@ public class LenientSslConnectionSocketFactory extends SSLConnectionSocketFactor
     @Override
     public Socket createLayeredSocket(Socket socket, String target, int port, HttpContext context) throws IOException {
         return super.createLayeredSocket(socket, "", port, context);
-    }       
+    }
     
 }

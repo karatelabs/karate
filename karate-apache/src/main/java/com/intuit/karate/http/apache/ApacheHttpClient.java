@@ -146,12 +146,17 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
                     builder = builder.loadKeyMaterial(keyStore, keyPassword);
                 }
                 sslContext = builder.build();
+                SSLConnectionSocketFactory socketFactory;
+                if (keyStore != null) {
+                    socketFactory = new SSLConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
+                } else {
+                    socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
+                }
+                clientBuilder.setSSLSocketFactory(socketFactory);
             } catch (Exception e) {
                 context.logger.error("ssl context init failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
-            SSLConnectionSocketFactory socketFactory = new LenientSslConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
-            clientBuilder.setSSLSocketFactory(socketFactory);
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
                 .setCookieSpec(LenientCookieSpec.KARATE)
