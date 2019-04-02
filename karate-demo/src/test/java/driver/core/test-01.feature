@@ -5,7 +5,7 @@ Background:
 
 Scenario Outline: using <config>
   * def config = <config>
-  * set config.showDriverLog = true
+  # * set config.showDriverLog = true
   * configure driver = config
 
   Given driver webUrlBase + '/page-01'

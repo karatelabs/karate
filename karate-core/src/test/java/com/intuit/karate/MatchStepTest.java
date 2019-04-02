@@ -36,6 +36,7 @@ public class MatchStepTest {
         test("response.integration.serviceData['Usage Data'][0].Stage ==", EQUALS, "response.integration.serviceData['Usage Data'][0].Stage", null, null);
         test("response contains { foo: 'a any b' }", CONTAINS, "response", null, "{ foo: 'a any b' }");
         test("response.foo == 'a contains b'", EQUALS, "response.foo", null, "'a contains b'");
+        test("$.addOns[?(@.entitlementStateChangeReason=='RESUBSCRIBE')].addOnOfferID contains only toAddOnOfferIDs", CONTAINS_ONLY, "$.addOns[?(@.entitlementStateChangeReason=='RESUBSCRIBE')].addOnOfferID", null, "toAddOnOfferIDs");
     }
 
 }
