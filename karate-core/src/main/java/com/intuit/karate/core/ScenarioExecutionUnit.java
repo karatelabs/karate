@@ -66,7 +66,15 @@ public class ScenarioExecutionUnit implements Runnable {
         if (logger == null) {
             logger = new Logger();
             if (scenario.getIndex() < 500) {
-                appender = exec.getLogAppender(scenario.getUniqueId(), logger);
+                String suffix;
+                if (exec.callContext.isCalled()) {
+                    // ensure no collisions for called features that are re-used across scenarios
+                    // this is not perfect, but we avoid locking across threads
+                    suffix = "-" + System.currentTimeMillis();
+                } else {
+                    suffix = scenario.getUniqueId();
+                }
+                appender = exec.getLogAppender(suffix, logger);
             } else {
                 // avoid creating log-files for scenario outlines beyond a limit
                 // trade-off is we won't see inline logs in the html report                 
