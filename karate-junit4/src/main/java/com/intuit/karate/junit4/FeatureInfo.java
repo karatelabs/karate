@@ -96,11 +96,10 @@ public class FeatureInfo implements ExecutionHook {
         Description scenarioDescription = getScenarioDescription(result.getScenario());
         if (result.isFailed()) {
             notifier.fireTestFailure(new Failure(scenarioDescription, result.getError()));
-            notifier.fireTestFinished(scenarioDescription);
-        } else {
-            notifier.fireTestFinished(scenarioDescription);
         }
-    }
+        //Apparently the tests should always be finished. Even though it is only called once failed tests in the HTML report are repeated, But this happened before the change.
+        notifier.fireTestFinished(scenarioDescription);
+     }
 
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
