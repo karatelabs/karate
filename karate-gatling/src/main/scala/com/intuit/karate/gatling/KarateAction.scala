@@ -47,6 +47,8 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
       override def beforeScenario(scenario: Scenario, ctx: ScenarioContext): Boolean = true
 
+      override def afterScenario(scenarioResult: ScenarioResult, scenarioContext: ScenarioContext) = {}
+
       override def getPerfEventName(req: HttpRequestBuilder, ctx: ScenarioContext): String = {
         val customName = protocol.nameResolver.apply(req, ctx)
         val finalName = if (customName != null) customName else protocol.defaultNameResolver.apply(req, ctx)

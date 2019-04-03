@@ -108,6 +108,9 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.isMethod("Page.frameNavigated") && dtm.getFrameUrl().startsWith("http")) {
             currentUrl = dtm.getFrameUrl();
         }
+        if (dtm.isMethod("Page.windowOpen")) {
+            currentUrl = dtm.getParam("url").getAsString();
+        }        
     }
 
     //==========================================================================
@@ -275,7 +278,20 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
+    public void clear(String id) {
+        evaluate(options.elementSelector(id) + ".value = ''", null);
+    }
+
+    @Override
     public void input(String id, String value) {
+        input(id, value, false);
+    }
+
+    @Override
+    public void input(String id, String value, boolean clear) {
+        if (clear) {
+            clear(id);
+        }
         focus(id);
         for (char c : value.toCharArray()) {
             method("Input.dispatchKeyEvent").param("type", "keyDown").param("text", c + "").send();
@@ -295,6 +311,11 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public String value(String id) {
         return property(id, "value");
+    }
+
+    @Override
+    public void value(String id, String value) {
+        evaluate(options.elementSelector(id) + ".value = '" + value + "'", null);
     }
 
     @Override
@@ -460,10 +481,38 @@ public abstract class DevToolsDriver implements Driver {
             return screenshot();
         }
     }
-    
+
     @Override
     public void highlight(String id) {
         eval(options.highlighter(id));
+    }
+
+
+
+    @Override
+    public void switchTo(String titleOrUrl) {
+        if (titleOrUrl == null) {
+            return;
+        }
+        titleOrUrl = options.removeProtocol(titleOrUrl);
+        DevToolsMessage dtm = method("Target.getTargets").send();
+        List<Map> targets = dtm.getResult("targetInfos").getAsList();
+        String targetId = null;
+        String targetUrl = null;
+        for (Map map : targets) {
+            String title = (String) map.get("title");
+            String url = (String) map.get("url");
+            String trimmed = options.removeProtocol(url);
+            if (titleOrUrl.equals(title) || titleOrUrl.equals(trimmed)) {
+                targetId = (String) map.get("targetId");
+                targetUrl = url;
+                break;
+            }
+        }
+        if (targetId != null) {
+            method("Target.activateTarget").param("targetId", targetId).send();
+            currentUrl = targetUrl;
+        }
     }
 
     public void enableNetworkEvents() {

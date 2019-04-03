@@ -140,7 +140,7 @@ public class FeatureResult {
             Throwable error = iterator.next();
             sb.append(error.getMessage());
             if (iterator.hasNext()) {
-                sb.append(',');
+                sb.append('\n');
             }
         }
         return sb.toString();
@@ -219,7 +219,15 @@ public class FeatureResult {
         durationMillis += Engine.nanosToMillis(result.getDurationNanos());
         scenarioCount++;
         if (result.isFailed()) {
-            addError(result.getError());
+            Scenario scenario = result.getScenario();
+            if (scenario.isOutline()) {
+                Throwable error = result.getError();
+                Throwable copy = new KarateException(scenario.getDisplayMeta() + " " + error.getMessage());
+                copy.setStackTrace(error.getStackTrace());
+                addError(copy);
+            } else {
+                addError(result.getError());
+            }            
         }
     }
 

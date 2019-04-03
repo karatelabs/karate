@@ -51,6 +51,7 @@ public class ScenarioExecutionUnit implements Runnable {
     private boolean stopped = false;
     private StepResult lastStepResult;
     private Runnable next;
+    private boolean last;
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
         this(scenario, results, exec, null, logger);
@@ -65,7 +66,15 @@ public class ScenarioExecutionUnit implements Runnable {
         if (logger == null) {
             logger = new Logger();
             if (scenario.getIndex() < 500) {
-                appender = exec.getLogAppender(scenario.getUniqueId(), logger);
+                String suffix;
+                if (exec.callContext.isCalled()) {
+                    // ensure no collisions for called features that are re-used across scenarios
+                    // this is not perfect, but we avoid locking across threads
+                    suffix = "-" + System.currentTimeMillis();
+                } else {
+                    suffix = scenario.getUniqueId();
+                }
+                appender = exec.getLogAppender(suffix, logger);
             } else {
                 // avoid creating log-files for scenario outlines beyond a limit
                 // trade-off is we won't see inline logs in the html report                 
@@ -107,6 +116,14 @@ public class ScenarioExecutionUnit implements Runnable {
         this.next = next;
     }
 
+    public void setLast(boolean last) {
+        this.last = last;
+    }
+
+    public boolean isLast() {
+        return last;
+    }        
+
     public void init() {
         boolean initFailed = false;
         if (actions == null) {
@@ -120,9 +137,11 @@ public class ScenarioExecutionUnit implements Runnable {
             }
         }
         // before-scenario hook        
-        if (!initFailed && actions.context.executionHook != null) {
+        if (!initFailed && actions.context.executionHooks != null) {
             try {
-                actions.context.executionHook.beforeScenario(scenario, actions.context);
+                for (ExecutionHook h : actions.context.executionHooks) {
+                    h.beforeScenario(scenario, actions.context);
+                }
             } catch (Exception e) {
                 initFailed = true;
                 result.addError("beforeScenario hook failed", e);
@@ -174,12 +193,15 @@ public class ScenarioExecutionUnit implements Runnable {
     }
 
     public void stop() {
-        result.setEndTime(System.currentTimeMillis() - exec.startTime);
-        // gatling clean up
+        result.setEndTime(System.currentTimeMillis() - exec.startTime);        
         if (actions != null) { // edge case if karate-config.js itself failed
+            // gatling clean up
             actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
             // after-scenario hook
             actions.context.invokeAfterHookIfConfigured(false);
+            if (actions.context.executionHooks != null) {
+                actions.context.executionHooks.forEach(h -> h.afterScenario(result, actions.context));
+            }
             // stop browser automation if running
             actions.context.stop();
         }

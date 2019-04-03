@@ -35,7 +35,8 @@ And you don't need to create additional Java classes for any of the payloads tha
 <tr>
   <th>Run</th>
   <td>
-      <a href="#running-with-junit">JUnit</a>
+      <a href="#junit-4">JUnit 4</a>
+    | <a href="#junit-5">JUnit 5</a>
     | <a href="#command-line">Command Line</a>
     | <a href="#ide-support">IDE Support</a>    
     | <a href="#tags">Tags / Grouping</a>
@@ -272,13 +273,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -292,8 +293,8 @@ If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-j
 Alternatively for Gradle you need these two entries:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit4:0.9.1'
-    testCompile 'com.intuit.karate:karate-apache:0.9.1'
+    testCompile 'com.intuit.karate:karate-junit4:0.9.2'
+    testCompile 'com.intuit.karate:karate-apache:0.9.2'
 ```
 
 ### Quickstart
@@ -307,7 +308,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.9.1 \
+-DarchetypeVersion=0.9.2 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -437,7 +438,7 @@ In some cases, for large payloads and especially when the default system encodin
     </plugin>
 ``` 
 
-## Running With JUnit 4
+## JUnit 4
 To run a script `*.feature` file from your Java IDE, you just need the following empty test-class in the same package. The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package. This comes in useful because depending on how you organize your files and folders - you can have multiple feature files executed by a single JUnit test-class.
 
 ```java
@@ -1659,7 +1660,11 @@ A common need is to send the same header(s) for _every_ request, and [`configure
 * configure headers = { 'Content-Type': 'application/xml' }
 ```
 
-> Note: in this example above, `Content-Type` had to be enclosed in quotes because the hyphen `-` would cause problems otherwise.
+Note that `Content-Type` had to be enclosed in quotes in the JSON above because the "`-`" (hyphen character) would cause problems otherwise. Also note that "`; charset=UTF-8`" would be appended to the `Content-Type` header that Karate sends by default, and in some rare cases, you may need to suppress this behavior completely. You can do so by setting the `charset` to null via the [`configure`](#configure) keyword:
+
+```cucumber
+* configure charset = null
+```
 
 If you need headers to be dynamically generated for each HTTP request, use a JavaScript function with [`configure headers`](#configure-headers) instead of JSON.
 
@@ -1875,7 +1880,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `readTimeout` | integer | Set the read timeout (milliseconds). The default is 30000 (30 seconds).
 `proxy` | string | Set the URI of the HTTP proxy to use.
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
-`charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
+`charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride (or disable) this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
 `retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
 `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
@@ -3431,7 +3436,7 @@ At the end of the `Feature` | [`configure afterFeature`](#configure) (see [examp
 
 ## Data Driven Tests
 ### The Cucumber Way
-Cucumber has a concept of [Scenario Outlines](https://github.com/cucumber/cucumber/wiki/Scenario-Outlines) where you can re-use a set of data-driven steps and assertions, and the data can be declared in a very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the new `Examples:` section.
+Cucumber has a concept of [Scenario Outlines](https://docs.cucumber.io/gherkin/reference/#scenario-outline) where you can re-use a set of data-driven steps and assertions, and the data can be declared in a very user-friendly fashion. Observe the usage of `Scenario Outline:` instead of `Scenario:`, and the new `Examples:` section.
 
 You should take a minute to compare this with the [exact same example implemented in REST-assured and TestNG](https://github.com/basdijkstra/rest-assured-workshop/blob/d9734da98bfcd8087055bdcd78545581dd23cb77/src/test/java/answers/RestAssuredAnswers2Test.java). Note that this example only does a "string equals" check on *parts* of the JSON, but with Karate you are always encouraged to match the *entire* payload in one step.
 

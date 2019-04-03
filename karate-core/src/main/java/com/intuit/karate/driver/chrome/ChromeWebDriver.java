@@ -25,6 +25,7 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
+import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
@@ -71,6 +72,11 @@ public class ChromeWebDriver extends WebDriver {
         return "{ value: ['" + text + "'] }";
     }
 
+    @Override
+    protected String getJsonForHandle(String text) {
+        return new Json().set("name", text).toString();
+    }    
+    
     @Override
     public String html(String locator) {
         return attribute(locator, "innerHTML");

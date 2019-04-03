@@ -70,6 +70,10 @@ public abstract class WebDriver implements Driver {
         return new Json().set("text", text).toString();
     }
     
+    protected String getJsonForHandle(String text) {
+        return new Json().set("handle", text).toString();
+    }    
+    
     protected String getElementLocator(String id) {
         Json json = new Json();        
         if (id.startsWith("^")) {
@@ -155,10 +159,23 @@ public abstract class WebDriver implements Driver {
     public void focus(String id) {
         evalInternal(options.elementSelector(id) + ".focus()");
     }
+    
+    @Override
+    public void clear(String id) {
+        http.path("element", id, "clear").post("{}");
+    }
 
     @Override
     public void input(String name, String value) {
+        input(name, value, false);
+    }    
+
+    @Override
+    public void input(String name, String value, boolean clear) {
         String id = getElementId(name);
+        if (clear) {
+            clear(id);
+        }
         http.path("element", id, "value").post(getJsonForInput(value));
     }
 
@@ -226,6 +243,11 @@ public abstract class WebDriver implements Driver {
     public String value(String locator) {
         return property(locator, "value");
     }
+    
+    @Override
+    public void value(String locator, String value) {
+        evalInternal(options.elementSelector(locator) + ".value = '" + value + "'");
+    }    
     
     @Override
     public String attribute(String locator, String name) {
@@ -354,6 +376,30 @@ public abstract class WebDriver implements Driver {
     @Override
     public void highlight(String id) {
         eval(options.highlighter(id));
+    }        
+    
+    protected String getWindowHandleKey() {
+        return "handle";
+    }
+
+    @Override
+    public void switchTo(String titleOrUrl) {
+        if (titleOrUrl == null) {
+            return;
+        }
+        List<String> list = http.path("window", "handles").get().jsonPath("$.value").asList();
+        for (String handle : list) {
+            http.path("window").post(getJsonForHandle(handle));
+            String title = getTitle();
+            if (titleOrUrl.equals(title)) {
+                return;
+            }
+            String temp = options.removeProtocol(titleOrUrl);
+            String url = options.removeProtocol(getLocation());
+            if (temp.equals(url)) {
+                return;
+            }
+        }
     }        
 
 }

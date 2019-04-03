@@ -3,6 +3,7 @@
 And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html) made easy.
 
 ### Capabilities
+* Everything on `localhost` or within your network, no need to worry about your data leaking into the cloud
 * Super-easy 'hard-coded' mocks ([example](src/test/java/com/intuit/karate/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Not only JSON but first-class support for XML, plain-text, binary, etc.
@@ -26,7 +27,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Option to use an existing certificate and private-key for server-side SSL - making it easier for UI dev / browser consumers in some situations
 * Configure a 'global' response header routine, ideal for browser consumers to add headers common for *all* responses - yet dynamic if needed
 * Provider service dev team can practice TDD using the mock + contract-test
-* The mock + contract-test serves as the ultimate form of documentation of the 'contract' including payload / schema details.
+* The mock + contract-test serves as the ultimate form of documentation of the 'contract' including payload / schema details
 
 ## Using
 Note that you can use this as a [stand-alone JAR executable](#standalone-jar) which means that you don't even need to compile Java or use an IDE. If you need to embed the mock-server into a JUnit test, you can easily do so.
@@ -41,6 +42,8 @@ The [Netty](https://netty.io) based capabilities are included when you use `kara
 We use a simplified example of a Java 'consumer' which makes HTTP calls to a Payment Service (provider) where `GET`, `POST`, `PUT` and `DELETE` have been implemented. The 'provider' implements CRUD for the [`Payment.java`](../karate-demo/src/test/java/mock/contract/Payment.java) 'POJO', and the `POST` (or create) results in a message ([`Shipment.java`](../karate-demo/src/test/java/mock/contract/Shipment.java) as JSON) being placed on a queue, which the consumer is listening to.
 
 [ActiveMQ](http://activemq.apache.org) is being used for the sake of mixing an asynchronous flow into this example, and with the help of some [simple](../karate-demo/src/test/java/mock/contract/QueueUtils.java) [utilities](../karate-demo/src/test/java/mock/contract/QueueConsumer.java), we are able to mix asynchronous messaging into a Karate test *as well as* the test-double.
+
+A simpler stand-alone example (without ActiveMQ / messaging) is also available here: [`payment-service`](https://github.com/ptrthomas/payment-service). You should be able to clone and run this project - and compare and contrast this with how other frameworks approach [Consumer Driven Contract](https://www.thoughtworks.com/radar/techniques/consumer-driven-contract-testing) testing.
 
 | Key    | Source Code | Description |
 | ------ | ----------- | ----------- |

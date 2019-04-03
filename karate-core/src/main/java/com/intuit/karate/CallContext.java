@@ -26,6 +26,8 @@ package com.intuit.karate;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.ScenarioContext;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -42,28 +44,28 @@ public class CallContext {
     public final boolean evalKarateConfig;
     public final int loopIndex;
     public final String httpClientClass;
-    public final ExecutionHook executionHook;
+    public final Collection<ExecutionHook> executionHooks;
     public final boolean perfMode;
 
     public static CallContext forCall(Feature feature, ScenarioContext context, Map<String, Object> callArg, int loopIndex, boolean reuseParentConfig) {
-        return new CallContext(feature, context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHook, context.perfMode);
+        return new CallContext(feature, context, context.callDepth + 1, callArg, loopIndex, reuseParentConfig, false, null, context.executionHooks, context.perfMode);
     }
 
-    public static CallContext forAsync(Feature feature, ExecutionHook hook, Map<String, Object> arg, boolean perfMode) {
-        return new CallContext(feature, null, 0, arg, -1, false, true, null, hook, perfMode);
+    public static CallContext forAsync(Feature feature, Collection<ExecutionHook> hooks, Map<String, Object> arg, boolean perfMode) {
+        return new CallContext(feature, null, 0, arg, -1, false, true, null, hooks, perfMode);
     }
 
     public boolean isCalled() {
         return callDepth > 0;
     }
 
-    public CallContext(Map<String, Object> callArg, boolean evalKarateConfig) {
-        this(null, null, 0, callArg, -1, false, evalKarateConfig, null, null, false);
-    }
+    public CallContext(Map<String, Object> callArg, boolean evalKarateConfig, ExecutionHook ... hooks) {
+        this(null, null, 0, callArg, -1, false, evalKarateConfig, null, hooks.length == 0 ? null : Arrays.asList(hooks), false);
+    }    
 
     public CallContext(Feature feature, ScenarioContext context, int callDepth, Map<String, Object> callArg, int loopIndex,
             boolean reuseParentContext, boolean evalKarateConfig, String httpClientClass,
-            ExecutionHook executionHook, boolean perfMode) {
+            Collection<ExecutionHook> executionHooks, boolean perfMode) {
         this.feature = feature;
         this.context = context;
         this.callDepth = callDepth;
@@ -72,7 +74,7 @@ public class CallContext {
         this.reuseParentContext = reuseParentContext;
         this.evalKarateConfig = evalKarateConfig;
         this.httpClientClass = httpClientClass;
-        this.executionHook = executionHook;
+        this.executionHooks = executionHooks;
         this.perfMode = perfMode;
     }
 

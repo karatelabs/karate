@@ -251,5 +251,10 @@ public class DriverOptions {
         }
         return out;
     }
+    
+    public String removeProtocol(String url) {
+        int pos = url.indexOf("://");
+        return pos == -1 ? url : url.substring(pos + 3);
+    }    
 
 }

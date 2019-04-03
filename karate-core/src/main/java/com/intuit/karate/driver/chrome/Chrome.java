@@ -55,6 +55,7 @@ public class Chrome extends DevToolsDriver {
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
         options.arg("--user-data-dir=" + options.workingDirPath);
+        options.arg("--disable-popup-blocking");
         if (options.headless) {
             options.arg("--headless");
         }

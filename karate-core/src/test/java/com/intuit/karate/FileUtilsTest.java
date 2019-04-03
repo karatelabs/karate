@@ -28,6 +28,12 @@ public class FileUtilsTest {
         String path = "com/intuit/karate/cucumber/scenario.feature";
         String fixed = FileUtils.toPackageQualifiedName(path);
         assertEquals("com.intuit.karate.cucumber.scenario", fixed);
+        path = "file:C:\\Users\\Karate\\scenario.feature";
+        fixed = FileUtils.toPackageQualifiedName(path);
+        assertEquals("Users.Karate.scenario", fixed);
+        path = "file:../Karate/scenario.feature";
+        fixed = FileUtils.toPackageQualifiedName(path);
+        assertEquals("Karate.scenario", fixed);
     }
 
     @Test

@@ -58,8 +58,8 @@ class CatsSimulation extends Simulation {
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
 
   setUp(
-    create.inject(rampUsers(10) over (5 seconds)).protocols(protocol),
-    delete.inject(rampUsers(5) over (5 seconds)).protocols(protocol)
+    create.inject(rampUsers(10) during (5 seconds)).protocols(protocol),
+    delete.inject(rampUsers(5) during (5 seconds)).protocols(protocol)
   )
 
 }
@@ -110,20 +110,43 @@ The Gatling session attributes and `userId` would be available in a Karate varia
 This is useful as an alternative to using a random UUID where you want to create unique users, and makes it easy to co-relate values to your test-run in some situations.
 
 ### Feeders
-Because of the above mechanism which allows Karate to "see" Gatling session data, you can use [feeders](https://gatling.io/docs/current/session/feeder/) effectively. For example:
+Because of the above mechanism which allows Karate to "see" Gatling session data, you can use [feeders](https://gatling.io/docs/current/session/feeder) effectively. For example:
 
 ```scala
-import scala.util.Random
-val feeder = Iterator.continually(Map("email" -> (Random.alphanumeric.take(20).mkString + "@foo.com")))
+val feeder = Iterator.continually(Map("catName" -> MockUtils.getNextCatName, "someKey" -> "someValue"))
 
-feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
+val create = scenario("create").feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
+```
+
+There is some [Java code behind the scenes](https://github.com/ptrthomas/karate-gatling-demo/blob/master/src/test/java/mock/MockUtils.java) that takes care of dispensing a new `catName` every time `getNextCatName()` is invoked:
+
+```java
+private static final AtomicInteger counter = new AtomicInteger();
+
+public static String getNextCatName() {
+    return catNames.get(counter.getAndIncrement() % catNames.size());
+}
+```
+
+The `List` of `catNames` above is actually initialized (only once) by a [Java API call](https://github.com/intuit/karate#java-api) to another Karate feature (see below). If you use `true` instead of `false`, the `karate-config.js` will be honored. You could also pass custom config via the second `Map` argument to `Runner.runFeature()`. This is just to demonstrate some possibilities, and you can use any combination of Java or [Scala](https://gatling.io/docs/current/session/feeder) (even without Karate) - to set up feeders.
+
+```java
+List<String> catNames = (List) Runner.runFeature("classpath:mock/feeder.feature", null, false).get("names");
 ```
 
 And now in the feature file you can do this:
 
 ```cucumber
-* print __gatling.email
+* print __gatling.catName
 ```
+
+You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) will gracefully return `null` if a variable does not exist or is not defined.
+
+```cucumber
+* def name = karate.get('__gatling') ? __gatling.catName : 'Billie'
+```
+
+For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](https://github.com/ptrthomas/karate-gatling-demo/tree/master/src/test/java/mock).
 
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.

@@ -73,32 +73,32 @@ public class Feature {
                         bgUnit.run();             
                         ScenarioContext bgContext = bgUnit.getContext();
                         if (bgContext == null || bgUnit.isStopped()) { // karate-config.js || background failed
-                            units.add(bgUnit);
-                            return units; // exit early
-                        }                        
-                        String expression = scenario.getDynamicExpression();                        
-                        ScriptValue listValue = Script.evalKarateExpression(expression, bgContext);
-                        if (listValue.isListLike()) {
-                            List list = listValue.getAsList();
-                            int count = list.size();
-                            for (int i = 0; i < count; i++) {
-                                ScriptValue rowValue = new ScriptValue(list.get(i));
-                                if (rowValue.isMapLike()) {
-                                    Scenario dynamic = scenario.copy(i);
-                                    dynamic.setBackgroundDone(true);
-                                    Map<String, Object> map = rowValue.getAsMap();
-                                    map.forEach((k, v) -> {
-                                        ScriptValue sv = new ScriptValue(v);
-                                        dynamic.replace("<" + k + ">", sv.getAsString());
-                                    });                                                                        
-                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext, logger);
-                                    units.add(unit);
-                                } else {
-                                    bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
+                            units.add(bgUnit); // exit early
+                        } else {                       
+                            String expression = scenario.getDynamicExpression();                        
+                            ScriptValue listValue = Script.evalKarateExpression(expression, bgContext);
+                            if (listValue.isListLike()) {
+                                List list = listValue.getAsList();
+                                int count = list.size();
+                                for (int i = 0; i < count; i++) {
+                                    ScriptValue rowValue = new ScriptValue(list.get(i));
+                                    if (rowValue.isMapLike()) {
+                                        Scenario dynamic = scenario.copy(i);
+                                        dynamic.setBackgroundDone(true);
+                                        Map<String, Object> map = rowValue.getAsMap();
+                                        map.forEach((k, v) -> {
+                                            ScriptValue sv = new ScriptValue(v);
+                                            dynamic.replace("<" + k + ">", sv.getAsString());
+                                        });                                                                        
+                                        ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext, logger);
+                                        units.add(unit);
+                                    } else {
+                                        bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
+                                    }
                                 }
+                            } else {
+                                bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                             }
-                        } else {
-                            bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                         }
                     } else {
                         units.add(new ScenarioExecutionUnit(scenario, null, exec, logger));
