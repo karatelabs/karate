@@ -2,18 +2,80 @@ Feature: test that works un-changed for http as well as in-process servlet / moc
 
 Scenario: get hello
 
-When url demoBaseUrl
-And path 'hello'
-When method get
-Then status 200
-And match response == 'hello world'
+  When url demoBaseUrl
+  And path 'hello'
+  When method get
+  Then status 200
+  And match response == 'hello world'
 
 Scenario: post cat
 
-When url demoBaseUrl
-And path 'hello'
-And request { name: 'Billie' }
-When method post
-Then status 200
-And match response == { success: true }
+    When url demoBaseUrl
+    And path 'hello'
+    And request { name: 'Billie' }
+    When method post
+    Then status 200
+    And match response == { success: true }
 
+Scenario: post cat again to check only this log is seen.
+
+    When url demoBaseUrl
+    And path 'hello'
+    And request { name: 'Billie' }
+    When method post
+    Then status 200
+    And match response == { success: true }
+
+Scenario: post cat fail
+
+    When url demoBaseUrl
+    And path 'hello'
+    And request { name: 'john' }
+    When method post
+    Then status 200
+    And match response == { success: false }
+
+
+Scenario: get hello again
+
+    When url demoBaseUrl
+    And path 'hello'
+    When method get
+    Then status 200
+    And match response == 'hello world'
+
+  Scenario: post random data
+
+    When url demoBaseUrl
+    And path 'hello'
+    And request { name: 65 }
+    When method post
+    Then status 200
+    And match response == { success: true }
+
+
+  Scenario: post cat fail again
+
+    When url demoBaseUrl
+    And path 'hello'
+    And request { name: 'pauline' }
+    When method post
+    Then status 200
+    And match response == { success: false }
+
+  Scenario: get hello again 2
+
+    When url demoBaseUrl
+    And path 'hello'
+    When method get
+    Then status 200
+    And match response == 'hello world'
+
+  Scenario: post random data 2
+
+    When url demoBaseUrl
+    And path 'hello'
+    And request { name: 65 }
+    When method post
+    Then status 200
+    And match response == { success: true }

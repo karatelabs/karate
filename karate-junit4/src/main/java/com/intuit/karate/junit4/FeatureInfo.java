@@ -96,6 +96,7 @@ public class FeatureInfo implements ExecutionHook {
         Description scenarioDescription = getScenarioDescription(result.getScenario());
         if (result.isFailed()) {
             notifier.fireTestFailure(new Failure(scenarioDescription, result.getError()));
+            notifier.fireTestFinished(scenarioDescription);
         } else {
             notifier.fireTestFinished(scenarioDescription);
         }
