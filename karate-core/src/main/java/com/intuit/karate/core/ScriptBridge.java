@@ -43,11 +43,7 @@ import com.intuit.karate.netty.WebSocketClient;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -354,35 +350,24 @@ public class ScriptBridge implements PerfContext {
         ScriptValue sv = new ScriptValue(o);
         path = FileUtils.getBuildDir() + File.separator + path;
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
-    }    
-    
+    }
+
+    public WebSocketClient webSocket(String url) {
+        return context.webSocket(url, null, Optional.empty(), Optional.empty());
+    }
+
     public WebSocketClient webSocket(String url, Consumer<String> textHandler) {
-        return context.webSocket(url, null, textHandler, null);
+        return context.webSocket(url, null, Optional.of(textHandler), Optional.empty());
     }
     
     public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler) {
-        return context.webSocket(url, subProtocol, textHandler, null);
+        return context.webSocket(url, subProtocol, Optional.of(textHandler), Optional.empty());
     }
     
     public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        return context.webSocket(url, subProtocol, textHandler, binaryHandler);
-    }    
-    
-    public void signal(Object result) {
-        context.signal(result);
+        return context.webSocket(url, subProtocol, Optional.of(textHandler), Optional.of(binaryHandler));
     }
-    
-    public Object listen(long timeout, ScriptObjectMirror som) {
-        if (!som.isFunction()) {
-            throw new RuntimeException("not a JS function: " + som);
-        }
-        return context.listen(timeout, () -> Script.evalFunctionCall(som, null, context));
-    }
-    
-    public Object listen(long timeout) {
-        return context.listen(timeout, null);
-    }    
-    
+
     private ScriptValue getValue(String name) {
         ScriptValue sv = context.vars.get(name);
         return sv == null ? ScriptValue.NULL : sv;
@@ -402,7 +387,7 @@ public class ScriptBridge implements PerfContext {
     public boolean methodIs(String method) {
         String actual = getAsString(ScriptValueMap.VAR_REQUEST_METHOD);        
         return actual.equalsIgnoreCase(method);
-    } 
+    }
     
     public Object paramValue(String name) {
         Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();

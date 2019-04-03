@@ -1,28 +1,29 @@
 package com.intuit.karate.netty;
 
 import org.junit.Test;
-import static org.junit.Assert.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  *
  * @author pthomas3
  */
 public class WebSocketClientRunner  {
-    
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketClientRunner.class);    
     private String result;
     
     @Test
     public void testWebSockets() throws Exception {
         String url = "ws://echo.websocket.org";
-        WebSocketClient client = new WebSocketClient(url, null, text -> {
+        Consumer<String> textMsgHandler = text -> {
             synchronized(this) {
                 result = text;
                 notify();
-            }                        
-        });
+            }
+        };
+        WebSocketClient client = new WebSocketClient(url, null, Optional.of(textMsgHandler));
         client.send("hello world !");
         synchronized (this) {
             wait();

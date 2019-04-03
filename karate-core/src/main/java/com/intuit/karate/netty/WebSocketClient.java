@@ -30,19 +30,18 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import java.net.URI;
-import java.util.function.Consumer;
-import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLException;
+import java.net.URI;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  *
@@ -57,35 +56,35 @@ public class WebSocketClient implements WebSocketListener {
     private final boolean ssl;
     private final Channel channel;
     private final EventLoopGroup group;
-    
+    private final Object LOCK = new Object();
+    private Object signalResult;
+
     private Consumer<String> textHandler;
     private Consumer<byte[]> binaryHandler;
-    
+    private boolean autoCloseEnabled = true;
+
     @Override
     public void onMessage(String text) {
-        if (textHandler != null) {
-            textHandler.accept(text);
-        }
+        textHandler.accept(text);
     }
 
     @Override
     public void onMessage(byte[] bytes) {
-        if (binaryHandler != null) {
-            binaryHandler.accept(bytes);
-        }
+        binaryHandler.accept(bytes);
     }    
     
     private boolean waiting;
-    
-    public WebSocketClient(String url, String subProtocol, Consumer<String> textHandler) {
-        this(url, subProtocol, textHandler, null);
+
+    public WebSocketClient(String url, String subProtocol, Optional<Consumer<String>> maybeTextHandler) {
+        this(url, subProtocol, maybeTextHandler, Optional.empty());
     }
 
-    public WebSocketClient(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        this.textHandler = textHandler;
-        this.binaryHandler = binaryHandler;
+    public WebSocketClient(String url, String subProtocol, Optional<Consumer<String>> maybeTextHandler, Optional<Consumer<byte[]>> maybeBinaryHandler) {
+        this.textHandler = maybeTextHandler.orElse(this::signal);
+        this.binaryHandler = maybeBinaryHandler.orElse(msg -> {});
         uri = URI.create(url);
         ssl = "wss".equalsIgnoreCase(uri.getScheme());
+
         SslContext sslContext;
         if (ssl) {
             try {
@@ -113,10 +112,16 @@ public class WebSocketClient implements WebSocketListener {
     }
 
     public void setBinaryHandler(Consumer<byte[]> binaryHandler) {
+        if (binaryHandler == null) {
+            throw new IllegalArgumentException("binaryHandler must not be null");
+        }
         this.binaryHandler = binaryHandler;
     }
 
     public void setTextHandler(Consumer<String> textHandler) {
+        if (textHandler == null) {
+            throw new IllegalArgumentException("textHandler must not be null");
+        }
         this.textHandler = textHandler;
     }        
 
@@ -130,6 +135,10 @@ public class WebSocketClient implements WebSocketListener {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void autoClose(boolean enabled) {
+        autoCloseEnabled = enabled;
     }
 
     public void close() {
@@ -157,4 +166,36 @@ public class WebSocketClient implements WebSocketListener {
         channel.writeAndFlush(frame);
     }
 
+    public void signal(Object result) {
+        logger.trace("signal called: {}", result);
+        synchronized (LOCK) {
+            signalResult = result;
+            LOCK.notify();
+        }
+    }
+
+    public Object listen(long timeout) {
+        synchronized (LOCK) {
+            if (signalResult != null) {
+                logger.debug("signal arrived early ! result: {}", signalResult);
+                Object temp = signalResult;
+                signalResult = null;
+                return temp;
+            }
+            try {
+                logger.trace("entered listen wait state");
+                LOCK.wait(timeout);
+                logger.trace("exit listen wait state, result: {}", signalResult);
+            } catch (InterruptedException e) {
+                logger.error("listen timed out: {}", e.getMessage());
+            }
+            Object temp = signalResult;
+            signalResult = null;
+            return temp;
+        }
+    }
+
+    public boolean isAutoCloseEnabled() {
+        return autoCloseEnabled;
+    }
 }

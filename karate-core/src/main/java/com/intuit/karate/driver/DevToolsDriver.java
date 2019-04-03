@@ -28,11 +28,8 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.shell.CommandThread;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.function.Predicate;
 
 /**
@@ -68,12 +65,12 @@ public abstract class DevToolsDriver implements Driver {
         int pos = webSocketUrl.lastIndexOf('/');
         pageId = webSocketUrl.substring(pos + 1);
         logger.debug("page id: {}", pageId);
-        client = new WebSocketClient(webSocketUrl, null, text -> {
+        client = new WebSocketClient(webSocketUrl, null, Optional.of(text -> {
             logger.debug("<< {}", text);
             Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
-        });
+        }));
     }
 
     public int waitSync() {
