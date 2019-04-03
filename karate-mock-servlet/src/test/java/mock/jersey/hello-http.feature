@@ -16,4 +16,3 @@ And request { name: 'Billie' }
 When method post
 Then status 200
 And match response == { success: true }
-
