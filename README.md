@@ -768,6 +768,8 @@ function fn() {
 }
 ```
 
+> If you are using Java 11, you have to remove the function name `fn` : `function () { ... }`
+
 > Here above, you see the [`karate.log()`](#karate-log), [`karate.env`](#karate-env) and [`karate.configure()`](#karate-configure) "helpers" being used. Note that the `karate-config.js` is re-processed for *every* `Scenario` and in rare cases, you may want to initialize (e.g. auth tokens) only once for all of your tests. This can be achieved using [`karate.callSingle()`](#karate-callsingle).
 
 A common requirement is to pass dynamic parameter values via the command line, and you can use the [`karate.properties['some.name']`](#karate-properties) syntax for getting a system property passed via JVM options in the form `-Dsome.name=foo`. Refer to the section on [dynamic port numbers](#dynamic-port-numbers) for an example.
