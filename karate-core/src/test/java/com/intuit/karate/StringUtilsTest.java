@@ -33,7 +33,7 @@ import static org.junit.Assert.*;
  * @author pthomas3
  */
 public class StringUtilsTest {
-    
+
     @Test
     public void testSplit() {
         List<String> list = StringUtils.split("", '/');
@@ -42,29 +42,39 @@ public class StringUtilsTest {
         list = StringUtils.split("//", '/');
         assertEquals(0, list.size());
         list = StringUtils.split("foo", '/');
-        assertEquals(1, list.size());   
+        assertEquals(1, list.size());
         assertEquals("foo", list.get(0));
         list = StringUtils.split("foo/", '/');
-        assertEquals(1, list.size());   
+        assertEquals(1, list.size());
         assertEquals("foo", list.get(0));
         list = StringUtils.split("/foo", '/');
         assertEquals(1, list.size());
         assertEquals("foo", list.get(0));
         list = StringUtils.split("/foo/bar", '/');
-        assertEquals(2, list.size());   
-        assertEquals("foo", list.get(0)); 
+        assertEquals(2, list.size());
+        assertEquals("foo", list.get(0));
         assertEquals("bar", list.get(1));
         list = StringUtils.split("|pi\\|pe|blah|", '|');
-        assertEquals(2, list.size());   
-        assertEquals("pi|pe", list.get(0)); 
-        assertEquals("blah", list.get(1));        
+        assertEquals(2, list.size());
+        assertEquals("pi|pe", list.get(0));
+        assertEquals("blah", list.get(1));
     }
-    
+
     @Test
     public void testJoin() {
         String[] foo = {"a", "b"};
         assertEquals("a,b", StringUtils.join(foo, ','));
         assertEquals("a,b", StringUtils.join(Arrays.asList(foo), ','));
     }
-    
+
+    @Test
+    public void testJsFunction() {
+        assertTrue(StringUtils.isJavaScriptFunction("function(){ return { bar: 'baz' } }"));
+        assertTrue(StringUtils.isJavaScriptFunction("function() {   \n"
+                + "  return { someConfig: 'someValue' }\n"
+                + "}"));
+        assertTrue(StringUtils.isJavaScriptFunction("function fn(){ return { bar: 'baz' } }"));
+        assertEquals("function(){}", StringUtils.fixJavaScriptFunction("function fn(){}"));
+    }
+
 }

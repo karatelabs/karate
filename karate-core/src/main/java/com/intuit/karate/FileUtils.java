@@ -106,6 +106,7 @@ public class FileUtils {
         text = pair.left;
         if (isJsonFile(text) || isXmlFile(text) || isJavaScriptFile(text)) {
             String contents = readFileAsString(text, context);
+            contents = StringUtils.fixJavaScriptFunction(contents);
             ScriptValue temp = Script.evalKarateExpression(contents, context);
             return new ScriptValue(temp.getValue(), text);
         } else if (isTextFile(text) || isGraphQlFile(text)) {

@@ -40,7 +40,6 @@ public class ScriptTest {
     @Test
     public void testParsingTextType() {
         assertTrue(Script.isVariable("foo"));
-        assertTrue(Script.isJavaScriptFunction("function(){ return { bar: 'baz' } }"));
         assertTrue(Script.isXmlPath("/foo"));
         assertTrue(Script.isXmlPath("//foo"));
         assertTrue(Script.isXmlPathFunction("lower-case('Foo')"));

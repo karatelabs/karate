@@ -171,10 +171,6 @@ public class Script {
         return text.matches("^" + VARIABLE_PATTERN_STRING + "\\s+.+");
     }
 
-    public static boolean isJavaScriptFunction(String text) {
-        return text.matches("^function\\s*[(].+");
-    }
-
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
 
     public static StringUtils.Pair parseVariableAndPath(String text) {
