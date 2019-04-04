@@ -106,7 +106,9 @@ public class FeatureInfo implements ExecutionHook, Serializable {
         if (notifier == null) {
             return true;
         }
-        notifier.fireTestStarted(getScenarioDescription(scenario));
+        if(scenario.getFeature() == feature) {
+            notifier.fireTestStarted(getScenarioDescription(scenario));
+        }
         return true;
     }
 
@@ -115,13 +117,15 @@ public class FeatureInfo implements ExecutionHook, Serializable {
         if (notifier == null) { // dynamic scenario outline background
             return;
         }
-        Description scenarioDescription = getScenarioDescription(result.getScenario());
-        if (result.isFailed()) {
-            notifier.fireTestFailure(new Failure(scenarioDescription, result.getError()));
+        if(result.getScenario().getFeature() == feature) {
+            Description scenarioDescription = getScenarioDescription(result.getScenario());
+            if (result.isFailed()) {
+                notifier.fireTestFailure(new Failure(scenarioDescription, result.getError()));
+            }
+            // apparently this method should be always called
+            // even if fireTestFailure was called
+            notifier.fireTestFinished(scenarioDescription);
         }
-        // apparently this method should be always called
-        // even if fireTestFailure was called
-        notifier.fireTestFinished(scenarioDescription);
      }
 
     @Override

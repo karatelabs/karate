@@ -111,9 +111,7 @@ public class Karate extends ParentRunner<Feature> {
                 throw new RuntimeException(e);
             }
         }
-
         FeatureInfo info = FeatureInfo.getFeatureInfo(feature, tagSelector);
-
         featureMap.put(feature.getRelativePath(), info);
         return info.description;
     }
