@@ -97,7 +97,8 @@ public class FeatureInfo implements ExecutionHook {
         if (result.isFailed()) {
             notifier.fireTestFailure(new Failure(scenarioDescription, result.getError()));
         }
-        //Apparently the tests should always be finished. Even though it is only called once failed tests in the HTML report are repeated, But this happened before the change.
+        // apparently this method should be always called
+        // even if fireTestFailure was called
         notifier.fireTestFinished(scenarioDescription);
      }
 
