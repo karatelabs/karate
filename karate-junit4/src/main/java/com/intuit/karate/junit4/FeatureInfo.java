@@ -40,7 +40,6 @@ import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 
 import java.io.Serializable;
-import java.lang.annotation.Annotation;
 import java.util.LinkedList;
 import java.util.List;
 
