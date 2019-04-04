@@ -74,12 +74,10 @@ public class FeatureExecutionUnit implements Runnable {
                 run(unit);
             }
         }
-        if (parallelScenarios) { // else gatling hangs
-            try {
-                latch.await();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            latch.await();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         stop();
         if (next != null) {
@@ -137,7 +135,7 @@ public class FeatureExecutionUnit implements Runnable {
         if (unit.result.isFailed()) { // can happen for dynamic scenario outlines with a failed background !
             latch.countDown();
             return;
-        }        
+        }
         Tags tags = unit.scenario.getTagsEffective();
         unit.setNext(() -> {
             latch.countDown();

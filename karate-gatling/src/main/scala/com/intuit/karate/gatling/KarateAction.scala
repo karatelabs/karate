@@ -4,8 +4,6 @@ import java.util.Collections
 import java.util.function.Consumer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.pattern.ask
-import akka.util.Timeout
 import com.intuit.karate.Runner
 import com.intuit.karate.core._
 import com.intuit.karate.http.HttpRequestBuilder
@@ -16,20 +14,12 @@ import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 
 class KarateActor extends Actor {
   override def receive: Receive = {
     case m: Runnable => {
       m.run()
       context.stop(self)
-    }
-    case m: FiniteDuration => {
-      val waiter = sender()
-      val task: Runnable = () => waiter ! true
-      context.system.scheduler.scheduleOnce(m, self, task)
     }
   }
 }
@@ -54,10 +44,9 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         val finalName = if (customName != null) customName else protocol.defaultNameResolver.apply(req, ctx)
         val pauseTime = protocol.pauseFor(finalName, req.getMethod)
         if (pauseTime > 0) {
-          val duration = Duration(pauseTime, MILLISECONDS)
-          implicit val timeout = Timeout(Duration(pauseTime + 5000, MILLISECONDS))
-          val future = getActor() ? duration
-          Await.result(future, Duration.Inf)
+          // this is probably bad scala / akka practice
+          // TODO proper throttling strategy
+          Thread.sleep(pauseTime)
         }
         return if (customName != null) customName else req.getMethod + " " + finalName
       }
