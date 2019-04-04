@@ -84,16 +84,12 @@ public class FeatureInfo implements ExecutionHook, Serializable {
     public FeatureInfo(Feature feature, String tagSelector) {
         this.feature = feature;
         this.featureInfoList.add(this);
-        getFeatureName(feature);
-
         description = Description.createTestDescription(getFeatureName(feature),feature.getResource().getPackageQualifiedName(),this);
-
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true, this);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         unit = new FeatureExecutionUnit(exec);
         unit.init(null);
-        List<ScenarioExecutionUnit> scenarioExecutionUnits = unit.getScenarioExecutionUnits();
         for (ScenarioExecutionUnit u : unit.getScenarioExecutionUnits()) {
             Description scenarioDescription = getScenarioDescription(u.scenario);
             description.addChild(scenarioDescription);
@@ -130,10 +126,6 @@ public class FeatureInfo implements ExecutionHook, Serializable {
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;
-    }
-
-    public Feature getFeature() {
-        return feature;
     }
 
     @Override
