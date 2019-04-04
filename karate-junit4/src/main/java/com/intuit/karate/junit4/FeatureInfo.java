@@ -39,18 +39,35 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 
+import java.io.Serializable;
+import java.lang.annotation.Annotation;
+import java.util.LinkedList;
+import java.util.List;
+
 /**
  *
  * @author pthomas3
  */
-public class FeatureInfo implements ExecutionHook {
+public class FeatureInfo implements ExecutionHook, Serializable {
 
     public final Feature feature;
     public final ExecutionContext exec;
     public final Description description;
     public final FeatureExecutionUnit unit;
+    private static List<FeatureInfo> featureInfoList = new LinkedList<>();
 
     private RunNotifier notifier;
+
+    public static FeatureInfo getFeatureInfo(Feature feature, String tagSelector) {
+        if (featureInfoList != null) {
+            for (FeatureInfo f : featureInfoList){
+                if (f.feature == feature){
+                    return f;
+                }
+            }
+        }
+        return new FeatureInfo(feature,tagSelector);
+    }
 
     public void setNotifier(RunNotifier notifier) {
         this.notifier = notifier;
@@ -67,12 +84,17 @@ public class FeatureInfo implements ExecutionHook {
 
     public FeatureInfo(Feature feature, String tagSelector) {
         this.feature = feature;
-        description = Description.createSuiteDescription(getFeatureName(feature), feature.getResource().getPackageQualifiedName());
+        this.featureInfoList.add(this);
+        getFeatureName(feature);
+
+        description = Description.createTestDescription(getFeatureName(feature),feature.getResource().getPackageQualifiedName(),this);
+
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true, this);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         unit = new FeatureExecutionUnit(exec);
         unit.init(null);
+        List<ScenarioExecutionUnit> scenarioExecutionUnits = unit.getScenarioExecutionUnits();
         for (ScenarioExecutionUnit u : unit.getScenarioExecutionUnits()) {
             Description scenarioDescription = getScenarioDescription(u.scenario);
             description.addChild(scenarioDescription);
@@ -105,6 +127,10 @@ public class FeatureInfo implements ExecutionHook {
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;
+    }
+
+    public Feature getFeature() {
+        return feature;
     }
 
     @Override
