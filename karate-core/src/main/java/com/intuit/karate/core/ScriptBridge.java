@@ -51,6 +51,8 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.runtime.Context;
+import jdk.nashorn.internal.runtime.ScriptObject;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -62,11 +64,14 @@ public class ScriptBridge implements PerfContext {
     
     private static final Object GLOBALS_LOCK = new Object();
     private static final Map<String, Object> GLOBALS = new HashMap();
-    
+
+    private Object karateGlobalRef;
+
     public final ScenarioContext context;
     
     public ScriptBridge(ScenarioContext context) {
-        this.context = context;       
+        this.context = context;
+        updateGlobalRef();
     }
 
     public ScenarioContext getContext() {
@@ -254,18 +259,25 @@ public class ScriptBridge implements PerfContext {
     }
 
     public Object call(String fileName, Object arg) {
+        updateGlobalRef();
         ScriptValue sv = FileUtils.readFile(fileName, context);
-        switch(sv.getType()) {
-            case FEATURE:
-                Feature feature = sv.getValue(Feature.class);
-                return Script.evalFeatureCall(feature, arg, context, false).getValue();
-            case JS_FUNCTION:
-                ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return Script.evalFunctionCall(som, arg, context).getValue();
-            default:
-                context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
-                return null;
-        }        
+
+        try {
+            switch (sv.getType()) {
+                case FEATURE:
+                    Feature feature = sv.getValue(Feature.class);
+                    return Script.evalFeatureCall(feature, arg, context, false).getValue();
+                case JS_FUNCTION:
+                    ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
+                    return Script.evalFunctionCall(som, arg, context).getValue();
+                default:
+                    context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
+                    return null;
+            }
+        } finally {
+            // restore karate object in globals
+            restoreGlobalRef();
+        }
     }
     
     public Object callSingle(String fileName) {
@@ -498,6 +510,24 @@ public class ScriptBridge implements PerfContext {
             return sb.toString();
         }
                 
+    }
+
+    // update the karate reference in the global object to the current ScriptBridge
+    // save the previous value of the karate reference
+    private void updateGlobalRef() {
+        ScriptObject global = Context.getGlobal();
+        if (global != null) {
+            karateGlobalRef = global.get(ScriptBindings.KARATE);
+            global.set(ScriptBindings.KARATE, this, 0);
+        }
+    }
+
+    // reset the value of the global karate reference
+    private void restoreGlobalRef() {
+        ScriptObject global = Context.getGlobal();
+        if (global != null) {
+            global.set(ScriptBindings.KARATE, karateGlobalRef, 0);
+        }
     }
     
 }
