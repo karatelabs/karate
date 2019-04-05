@@ -50,8 +50,13 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.netty.WebSocketClient;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -99,7 +104,9 @@ public class ScenarioContext {
     private Function<CallContext, FeatureResult> callable;
 
     // websocket
+    private final Object LOCK = new Object();
     private List<WebSocketClient> webSocketClients = new ArrayList<>();
+    private Object signalResult;
 
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHooks != null) {
@@ -313,6 +320,7 @@ public class ScenarioContext {
         prevPerfEvent = sc.prevPerfEvent;
         callResults = sc.callResults;
         webSocketClients = sc.webSocketClients;
+        signalResult = sc.signalResult;
     }
 
     public void configure(Config config) {
@@ -795,7 +803,40 @@ public class ScenarioContext {
         return webSocketClient;
     }
 
-    // driver ==================================================================       
+    public void signal(Object result) {
+        logger.trace("signal called: {}", result);
+        synchronized (LOCK) {
+            signalResult = result;
+            LOCK.notify();
+        }
+    }
+
+    public Object listen(long timeout, Runnable runnable) {
+        if (runnable != null) {
+            logger.trace("submitting listen function");
+            new Thread(runnable).start();
+        }
+        synchronized (LOCK) {
+            if (signalResult != null) {
+                logger.debug("signal arrived early ! result: {}", signalResult);
+                Object temp = signalResult;
+                signalResult = null;
+                return temp;
+            }
+            try {
+                logger.trace("entered listen wait state");
+                LOCK.wait(timeout);
+                logger.trace("exit listen wait state, result: {}", signalResult);
+            } catch (InterruptedException e) {
+                logger.error("listen timed out: {}", e.getMessage());
+            }
+            Object temp = signalResult;
+            signalResult = null;
+            return temp;
+        }
+    }
+
+    // driver ==================================================================
     //
     private void setDriver(Driver driver) {
         this.driver = driver;

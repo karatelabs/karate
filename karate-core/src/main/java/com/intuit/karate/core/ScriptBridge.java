@@ -368,6 +368,21 @@ public class ScriptBridge implements PerfContext {
         return context.webSocket(url, subProtocol, Optional.of(textHandler), Optional.of(binaryHandler));
     }
 
+    public void signal(Object result) {
+        context.signal(result);
+    }
+
+    public Object listen(long timeout, ScriptObjectMirror som) {
+        if (!som.isFunction()) {
+            throw new RuntimeException("not a JS function: " + som);
+        }
+        return context.listen(timeout, () -> Script.evalFunctionCall(som, null, context));
+    }
+
+    public Object listen(long timeout) {
+        return context.listen(timeout, null);
+    }
+
     private ScriptValue getValue(String name) {
         ScriptValue sv = context.vars.get(name);
         return sv == null ? ScriptValue.NULL : sv;

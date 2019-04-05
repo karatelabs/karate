@@ -24,11 +24,3 @@ Scenario: using the websocket instance to send as well as receive messages
     * eval ws.send('Billie')
     * def result = ws.listen(5000)
     * match result == 'hello Billie !'
-
-Scenario: perform custom action when message is received
-    * def ws = karate.webSocket(demoBaseUrl + '/websocket')
-    # will call the function myJavaScriptFunction (which is defined elsewhere) for each text message that is received
-    * eval ws.setTextHandler(function(msg){ myJavaScriptFunction() })
-    * eval ws.send('Billie')
-    * def result = ws.listen(5000)
-    * match result == 'hello Billie !'

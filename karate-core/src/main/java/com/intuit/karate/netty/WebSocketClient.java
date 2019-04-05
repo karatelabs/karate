@@ -88,8 +88,8 @@ public class WebSocketClient implements WebSocketListener {
     }
 
     public WebSocketClient(String url, String subProtocol, Optional<Consumer<String>> maybeTextHandler, Optional<Consumer<byte[]>> maybeBinaryHandler) {
-        this.textHandler = maybeTextHandler.orElse(this::signal);
-        this.binaryHandler = maybeBinaryHandler.orElse(this::signal);
+        this.textHandler = maybeTextHandler.orElse(msg -> {});
+        this.binaryHandler = maybeBinaryHandler.orElse(msg -> {});
         uri = URI.create(url);
         ssl = "wss".equalsIgnoreCase(uri.getScheme());
 
