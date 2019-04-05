@@ -3066,7 +3066,6 @@ Operation | Description
 <a name="karate-get"><code>karate.get(name)</code></a> | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 <a name="karate-info"><code>karate.info</code></a> | within a test (or within the [`afterScenario`](#configure) function if configured) you can access metadata such as the `Scenario` name, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 <a name="karate-jsonpath"><code>karate.jsonPath(json, expression)</code></a> | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into JavaScript, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
-<a name="karate-listen"><code>karate.listen(timeout)</code></a> | wait until [`karate.signal(result)`](#karate-signal) has been called or time-out after `timeout` milliseconds. see examples: [websocket](karate-demo/src/test/java/demo/websocket/websocket.feature) / [message-queue](karate-demo/src/test/java/mock/contract/payment-service.feature)
 <a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
 <a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
 <a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
@@ -3081,7 +3080,6 @@ Operation | Description
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
-<a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see examples: [websocket](karate-demo/src/test/java/demo/websocket/websocket.feature) / [message-queue](karate-demo/src/test/java/mock/contract/payment-service.feature)
 <a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 <a name="karate-tagvalues"><code>karate.tagValues</code></a> | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 <a name="karate-tobean"><code>karate.toBean(json, className)</code></a> | converts a JSON string or map-like object into a Java object, given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
@@ -3366,15 +3364,31 @@ Scenario: function re-use, isolated / name-spaced scope
 ```
 
 ## Async
-The JS API has a couple of methods - [`karate.signal(result)`](#karate-signal) and [`karate.listen(timeout)`](#karate-listen) that are useful for involving asynchronous flows into a test. Karate also has built-in support for [websocket](http://www.websocket.org) that is based on this async capability.
 
-This code is able to send as well as receive websocket messages. You can create a websocket instance that can be used to send messages via the [`karate.webSocket()`](#karate-websocket) JS API. Note how you can ignore messages you aren't interested in:
+### WebSocket
+
+Karate has built-in support for [websocket](http://www.websocket.org). You can create a `WebSocketClient` instance, that can be used to send and receive messages, via the [`karate.webSocket()`](#karate-websocket) JS API.
+
+#### The `WebSocketClient` object
+The object returned from [`karate.webSocket()`](#karate-websocket) provides the following methods:
+
+Operation | Description
+--------- | -----------
+<a name="ws-listen"><code>ws.listen(timeout)</code></a> | wait until [`ws.signal(result)`](#ws-signal) has been called or time-out after `timeout` milliseconds. see examples: [websocket](karate-demo/src/test/java/demo/websocket/websocket.feature) / [message-queue](karate-demo/src/test/java/mock/contract/payment-service.feature)
+<a name="ws-signal"><code>ws.signal(result)</code></a> | trigger an event that [`ws.listen(timeout)`](#ws-listen) is waiting for, and pass the data. This function is automatically called when a text or binary message is received and the filter is not discarding the message. It can be manually called when more control is desired.  see examples: [websocket](karate-demo/src/test/java/demo/websocket/websocket.feature) / [message-queue](karate-demo/src/test/java/mock/contract/payment-service.feature)
+<a name="setTxtHandler"><code>ws.setTxtHandler(function (msg) { })</code></a> | called when a text message is received before the filter is applied. Accepts the text message and allows for performing side effects.
+<a name="setBinaryHandler"><code>ws.setBinaryHandler(function (bytes) { })</code></a> | called when a binary message is received before the filter is applied. Accepts the binary message and allows for performing side effects.
+<a name="setTxtFilter"><code>ws.setTxtFilter(function (msg) { true })</code></a> | called after the text handler. Controls which messages result in a call to [`ws.signal(result)`](#ws-signal). Return `true` for letting the message pass and `false` for discarding it. Per default all messages pass.
+<a name="setBinaryFilter"><code>ws.setBinaryFilter(function (bytes) { true })</code></a> | called after the binary handler. Controls which messages result in a call to [`ws.signal(result)`](#ws-signal). Return `true` for letting the message pass and `false` for discarding it. Per default all messages pass.
+
+This following code is able to send as well as receive websocket messages. Note how you can filter for only those messages you are interested in.
 
 ```cucumber
-* def handler = function(msg){ if (msg.startsWith('hello')) karate.signal(msg) }
-* def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
+* def socket = karate.webSocket(demoBaseUrl + '/websocket')
+* eval socket.setTxtHandler(function(msg){ karate.log('Custom logging') })
+* eval socket.setTxtFilter(function(msg){ return msg.startsWith('hello') })
 * eval socket.send('Billie')
-* def result = karate.listen(5000)
+* def result = socket.listen(5000)
 * match result == 'hello Billie !'
 ```
 

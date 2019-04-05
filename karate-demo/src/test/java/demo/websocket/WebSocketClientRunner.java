@@ -27,16 +27,17 @@ public class WebSocketClientRunner {
     @Test
     public void testWebSocketClient() throws Exception {
         String port = System.getProperty("demo.server.port");
-        client = new WebSocketClient("ws://localhost:" + port + "/websocket", null, text -> {
+        Consumer<String> textMsgHandler = text -> {
             logger.debug("websocket listener text: {}", text);
             synchronized (this) {
                 result = text;
                 notify();
             }
-        });
+        };
+        client = new WebSocketClient("ws://localhost:" + port + "/websocket", null, Optional.of(textMsgHandler));
         client.send("Billie");
         synchronized (this) {
-            wait();            
+            wait();
         }
         assertEquals("hello Billie !", result);
     }

@@ -39,9 +39,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import java.net.URI;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  *
@@ -61,16 +61,24 @@ public class WebSocketClient implements WebSocketListener {
 
     private Consumer<String> textHandler;
     private Consumer<byte[]> binaryHandler;
+    private Predicate<String> textFilter = txt -> true;
+    private Predicate<byte[]> binaryFilter = bytes -> true;
     private boolean autoCloseEnabled = true;
 
     @Override
     public void onMessage(String text) {
         textHandler.accept(text);
+        if (textFilter.test(text)) {
+            signal(text);
+        }
     }
 
     @Override
     public void onMessage(byte[] bytes) {
         binaryHandler.accept(bytes);
+        if (binaryFilter.test(bytes)) {
+            signal(bytes);
+        }
     }    
     
     private boolean waiting;
@@ -81,7 +89,7 @@ public class WebSocketClient implements WebSocketListener {
 
     public WebSocketClient(String url, String subProtocol, Optional<Consumer<String>> maybeTextHandler, Optional<Consumer<byte[]>> maybeBinaryHandler) {
         this.textHandler = maybeTextHandler.orElse(this::signal);
-        this.binaryHandler = maybeBinaryHandler.orElse(msg -> {});
+        this.binaryHandler = maybeBinaryHandler.orElse(this::signal);
         uri = URI.create(url);
         ssl = "wss".equalsIgnoreCase(uri.getScheme());
 
@@ -123,7 +131,21 @@ public class WebSocketClient implements WebSocketListener {
             throw new IllegalArgumentException("textHandler must not be null");
         }
         this.textHandler = textHandler;
-    }        
+    }
+
+    public void setBinaryFilter(Predicate<byte[]> binaryFilter) {
+        if (binaryFilter == null) {
+            throw new IllegalArgumentException("binaryFilter must not be null");
+        }
+        this.binaryFilter = binaryFilter;
+    }
+
+    public void setTextFilter(Predicate<String> textFilter) {
+        if (textFilter == null) {
+            throw new IllegalArgumentException("textFilter must not be null");
+        }
+        this.textFilter = textFilter;
+    }
 
     public void waitSync() {
         if (waiting) {
