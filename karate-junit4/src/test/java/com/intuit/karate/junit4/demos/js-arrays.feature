@@ -13,14 +13,17 @@ Scenario: arrays returned from js can be modified using 'set'
     * set json[1].a = 5
     * match json == [{a: 1}, {a: 5}, {b: 3}]
 
-Scenario: json behaves like a java map within functions
+Scenario: json behaves like a java map within functions (will change with graal)
     * def payload = { a: 1, b: 2 }
     * def keys = function(o){ return o.keySet() }
     * def values = function(o){ return o.values() }
+    * def size = function(o){ return o.size() }
     * json result = keys(payload)
     * match result == ['a', 'b']
     * json result = values(payload)
     * match result == [1, 2]
+    * def length = size(payload)
+    * match length == 2
 
 Scenario: json-path can be performed in js
     * def json = [{foo: 1}, {foo: 2}]
@@ -467,3 +470,8 @@ Scenario: match in js
     * def result = karate.match(foo, { hello: '#string'} )
     * match result == { pass: true, message: null }
     * eval if (result.pass) karate.log('*** passed')
+
+Scenario: using the java contains api (will change with graal)
+    * def allowed = ['Music', 'Entertainment', 'Documentaries', 'Family']
+    * def actual = ['Entertainment', 'Family']
+    * match each actual == '#? allowed.contains(_)'
