@@ -27,6 +27,7 @@ import com.intuit.karate.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -74,10 +75,12 @@ public class FeatureExecutionUnit implements Runnable {
                 run(unit);
             }
         }
-        try {
-            latch.await();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if (parallelScenarios) { // else gatling hangs
+            try {
+                latch.await();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
         stop();
         if (next != null) {
