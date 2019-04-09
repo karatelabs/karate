@@ -15,8 +15,8 @@ Scenario: arrays returned from js can be modified using 'set'
 
 Scenario: json behaves like a java map within functions
     * def payload = { a: 1, b: 2 }
-    * def keys = function(obj){ return payload.keySet() }
-    * def values = function(obj){ return payload.values() }
+    * def keys = function(o){ return o.keySet() }
+    * def values = function(o){ return o.values() }
     * json result = keys(payload)
     * match result == ['a', 'b']
     * json result = values(payload)
