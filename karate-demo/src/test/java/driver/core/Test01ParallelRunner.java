@@ -30,6 +30,8 @@ import com.intuit.karate.Runner;
 import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
 import static org.junit.Assert.*;
+
+import demo.DemoTestParallel;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -50,8 +52,9 @@ public class Test01ParallelRunner {
 
     @Test
     public void testParallel() {
-        Results results = Runner.parallel(getClass(), 5);
+        Results results = Runner.parallel(getClass(), 5, "target/driver-demo");
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
+        DemoTestParallel.generateReport(results.getReportDir());
     }
        
 }
