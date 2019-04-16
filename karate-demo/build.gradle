@@ -97,6 +97,6 @@ test {
     }
 }
 
-task wrapper(type: Wrapper) {
+wrapper {
     gradleVersion = gradleVersionProperty
 }
