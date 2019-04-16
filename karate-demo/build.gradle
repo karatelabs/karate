@@ -67,6 +67,7 @@ dependencies {
     compile 'org.springframework.boot:spring-boot-starter-web'
     compile 'org.springframework.boot:spring-boot-starter-security'
     compile 'org.springframework:spring-jdbc:' + springVersion
+    compile 'org.springframework:spring-websocket:' + springVersion
     compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
     compile 'commons-io:commons-io:2.5'
     runtime 'com.h2database:h2:1.4.196'
