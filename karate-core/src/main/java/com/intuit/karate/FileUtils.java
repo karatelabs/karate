@@ -387,7 +387,6 @@ public class FileUtils {
     }
 
     public static Path getPathContaining(Class clazz) {
-
         String relative = packageAsPath(clazz);
         URL url = clazz.getClassLoader().getResource(relative);
         return getPathFor(url, null);
@@ -404,7 +403,6 @@ public class FileUtils {
     }
 
     public static File getFileRelativeTo(Class clazz, String path) {
-
         Path dirPath = getPathContaining(clazz);
         File file = new File(dirPath + File.separator + path);
         if (file.exists()) {
