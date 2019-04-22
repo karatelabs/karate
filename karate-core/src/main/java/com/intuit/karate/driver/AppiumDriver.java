@@ -10,7 +10,7 @@ import java.io.IOException;
 /**
  * @author babusekaran
  */
-public abstract class AppiumMobileDriver extends WebDriver {
+public abstract class AppiumDriver extends WebDriver {
 
     protected final DriverOptions options;
     protected final Logger logger;
@@ -18,7 +18,7 @@ public abstract class AppiumMobileDriver extends WebDriver {
     protected final Http http;
     private final String sessionId;
 
-    protected AppiumMobileDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    protected AppiumDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
         this.options = options;
         this.logger = options.driverLogger;

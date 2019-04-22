@@ -68,7 +68,7 @@ public class Http {
     }
 
     public Match config(String key, String value) {
-        return match.httpConfig(key, value);
+        return match.config(key, value);
     }
     
 }

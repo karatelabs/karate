@@ -27,13 +27,13 @@ import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.driver.android.AndroidMobileDriver;
+import com.intuit.karate.driver.android.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
 import com.intuit.karate.driver.chrome.ChromeWebDriver;
 import com.intuit.karate.driver.edge.EdgeDevToolsDriver;
 import com.intuit.karate.driver.edge.MicrosoftWebDriver;
 import com.intuit.karate.driver.firefox.GeckoWebDriver;
-import com.intuit.karate.driver.ios.IOSMobileDriver;
+import com.intuit.karate.driver.ios.IosDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.windows.WinAppDriver;
 import com.intuit.karate.shell.CommandThread;
@@ -141,9 +141,9 @@ public class DriverOptions {
             case "winappdriver":
                 return WinAppDriver.start(context, options, logger);
             case "android":
-                return AndroidMobileDriver.start(context, options, logger);
+                return AndroidDriver.start(context, options, logger);
             case "ios":
-                return IOSMobileDriver.start(context, options, logger);
+                return IosDriver.start(context, options, logger);
             default:
                 logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                 return Chrome.start(context, options, logger);

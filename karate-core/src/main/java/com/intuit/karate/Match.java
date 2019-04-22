@@ -283,7 +283,7 @@ public class Match {
         return m.matchText(exp, matchType);
     }
 
-    public Match httpConfig(String key, String value){
+    public Match config(String key, String value){
         context.configure(key,value);
         return this;
     }
