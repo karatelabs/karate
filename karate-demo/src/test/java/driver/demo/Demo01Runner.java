@@ -12,6 +12,6 @@ public class Demo01Runner {
     @BeforeClass
     public static void beforeClass() {
         System.setProperty("karate.env", "mock");
-    }    
+    }
 
 }
