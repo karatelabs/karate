@@ -25,13 +25,13 @@ package com.intuit.karate.shell;
 
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import org.slf4j.LoggerFactory;
 
 public class CommandThread extends Thread {
 
@@ -108,10 +108,7 @@ public class CommandThread extends Thread {
         try {
             logger.debug("command: {}", argList);
             ProcessBuilder pb = new ProcessBuilder(args);
-            Map<String, String> env = pb.environment();
-            String path = env.get("PATH");
-            logger.debug("env PATH: {}", path);
-            env.clear();
+            logger.debug("env PATH: {}", pb.environment().get("PATH"));
             pb.directory(workingDir);
             pb.redirectErrorStream(true);
             process = pb.start();            

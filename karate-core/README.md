@@ -118,6 +118,8 @@ type | default<br/>port | default<br/>executable | description
 [`mswebdriver`](https://docs.microsoft.com/en-us/microsoft-edge/webdriver) | 17556 | `MicrosoftWebDriver` | W3C Microsoft Edge WebDriver
 [`msedge`](https://docs.microsoft.com/en-us/microsoft-edge/devtools-protocol/) | 9222 | `MicrosoftEdge` | *very* experimental - using the DevTools protocol
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | 4727 | `C:/Program Files (x86)/Windows Application Driver/WinAppDriver` | Windows Desktop automation, similar to Appium
+[`android`](https://github.com/appium/appium/) | 4723 | `appium` | android automation via the [Appium](https://github.com/appium/appium/)
+[`ios`](https://github.com/appium/appium/) | 4723 |`appium` | iOS automation via the [Appium](https://github.com/appium/appium/)
 
 ## Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
@@ -130,12 +132,12 @@ When driver.submit("//input[@name='commit']")
 web ? | prefix | means | example
 ----- | ------ | ----- | -------
 web | (none) | css selector | `input[name=someName]`
-web | `/` | xpath | `//input[@name='commit']`
+web / <br> android / <br> ios | `/` | xpath | `//input[@name='commit']`
 web | `^` | link text | `^Click Me`
 web | `*` | partial link text | `*Click Me`
-win | (none) | name | `Submit`
-win | `@` | accessibility id | `@CalculatorResults`
-win | `#` | id | `#MyButton`
+win / <br> android / <br> ios| (none) | name | `Submit`
+win / <br> android / <br> ios | `@` | accessibility id | `@CalculatorResults`
+win / <br> android / <br> ios | `#` | id | `#MyButton`
 
 ## Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.

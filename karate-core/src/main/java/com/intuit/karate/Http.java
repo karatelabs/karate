@@ -66,5 +66,9 @@ public class Http {
         Http http = new Http(Match.withHttp(logger));
         return http.url(url);
     }
+
+    public Match config(String key, String value) {
+        return match.httpConfig(key, value);
+    }
     
 }
