@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -192,11 +193,7 @@ public class Script {
     }
 
     public static ScriptValue evalKarateExpressionForMatch(String text, ScenarioContext context) {
-        return evalKarateExpression(text, context, true);
-    }
-
-    public static ScriptValue evalKarateExpression(String text, ScenarioContext context) {
-        return evalKarateExpression(text, context, false);
+        return evalKarateExpression(text, context);
     }
 
     private static ScriptValue callWithCache(String text, String arg, ScenarioContext context, boolean reuseParentConfig) {
@@ -244,7 +241,7 @@ public class Script {
         return null;
     }
 
-    private static ScriptValue evalKarateExpression(String text, ScenarioContext context, boolean forMatch) {
+    public static ScriptValue evalKarateExpression(String text, ScenarioContext context) {
         text = StringUtils.trimToNull(text);
         if (text == null) {
             return ScriptValue.NULL;
@@ -319,11 +316,11 @@ public class Script {
             return sv;
         } else if (isJson(text)) {
             DocumentContext doc = JsonUtils.toJsonDoc(text);
-            evalJsonEmbeddedExpressions(doc, context, forMatch);
+            evalJsonEmbeddedExpressions(doc, context);
             return new ScriptValue(doc);
         } else if (isXml(text)) {
             Document doc = XmlUtils.toXmlDoc(text);
-            evalXmlEmbeddedExpressions(doc, context, forMatch);
+            evalXmlEmbeddedExpressions(doc, context);
             return new ScriptValue(doc);
         } else if (isXmlPath(text)) {
             return evalXmlPathOnVarByName(ScriptValueMap.VAR_RESPONSE, text, context);
@@ -431,12 +428,12 @@ public class Script {
         return VARIABLE_PATTERN.matcher(name).matches();
     }
 
-    public static void evalJsonEmbeddedExpressions(DocumentContext doc, ScenarioContext context, boolean forMatch) {
+    public static void evalJsonEmbeddedExpressions(DocumentContext doc, ScenarioContext context) {
         Object o = doc.read("$");
-        evalJsonEmbeddedExpressions("$", o, context, doc, forMatch);
+        evalJsonEmbeddedExpressions("$", o, context, doc);
     }
 
-    private static void evalJsonEmbeddedExpressions(String path, Object o, ScenarioContext context, DocumentContext root, boolean forMatch) {
+    private static void evalJsonEmbeddedExpressions(String path, Object o, ScenarioContext context, DocumentContext root) {
         if (o == null) {
             return;
         }
@@ -447,7 +444,7 @@ public class Script {
             Collection<String> keys = new ArrayList(map.keySet());
             for (String key : keys) {
                 String childPath = JsonUtils.buildPath(path, key);
-                evalJsonEmbeddedExpressions(childPath, map.get(key), context, root, forMatch);
+                evalJsonEmbeddedExpressions(childPath, map.get(key), context, root);
             }
         } else if (o instanceof List) {
             List list = (List) o;
@@ -455,7 +452,7 @@ public class Script {
             for (int i = 0; i < size; i++) {
                 Object child = list.get(i);
                 String childPath = path + "[" + i + "]";
-                evalJsonEmbeddedExpressions(childPath, child, context, root, forMatch);
+                evalJsonEmbeddedExpressions(childPath, child, context, root);
             }
         } else if (o instanceof String) {
             String value = (String) o;
@@ -465,7 +462,7 @@ public class Script {
                 try {
                     ScriptValue sv = evalJsExpression(value.substring(optional ? 2 : 1), context);
                     if (optional) {
-                        if (forMatch || sv.isNull()) {
+                        if (sv.isNull()) {
                             root.delete(path);
                         } else if (!sv.isJsonLike()) {
                             // only substitute primitives ! 
@@ -482,7 +479,7 @@ public class Script {
         }
     }
 
-    public static void evalXmlEmbeddedExpressions(Node node, ScenarioContext context, boolean forMatch) {
+    public static void evalXmlEmbeddedExpressions(Node node, ScenarioContext context) {
         if (node.getNodeType() == Node.DOCUMENT_NODE) {
             node = node.getFirstChild();
         }
@@ -497,7 +494,7 @@ public class Script {
                 boolean optional = isOptionalMacro(value);
                 try {
                     ScriptValue sv = evalJsExpression(value.substring(optional ? 2 : 1), context);
-                    if (optional && (forMatch || sv.isNull())) {
+                    if (optional && sv.isNull()) {
                         attributesToRemove.add(attrib);
                     } else {
                         attrib.setValue(sv.getAsString());
@@ -525,7 +522,7 @@ public class Script {
                     boolean optional = isOptionalMacro(value);
                     try {
                         ScriptValue sv = evalJsExpression(value.substring(optional ? 2 : 1), context);
-                        if (optional && (forMatch || sv.isNull())) {
+                        if (optional && sv.isNull()) {
                             elementsToRemove.add(child);
                         } else {
                             if (sv.isMapLike()) {
@@ -553,7 +550,7 @@ public class Script {
                     }
                 }
             } else if (child.hasChildNodes() || child.hasAttributes()) {
-                evalXmlEmbeddedExpressions(child, context, forMatch);
+                evalXmlEmbeddedExpressions(child, context);
             }
         }
         for (Node toRemove : elementsToRemove) { // because of how the above routine works, these are always of type TEXT_NODE
@@ -595,7 +592,7 @@ public class Script {
                 break;
             case YAML:
                 DocumentContext doc = JsonUtils.fromYaml(exp);
-                evalJsonEmbeddedExpressions(doc, context, false);
+                evalJsonEmbeddedExpressions(doc, context);
                 sv = new ScriptValue(doc);
                 break;
             case STRING:
@@ -1278,7 +1275,8 @@ public class Script {
                     return AssertionResult.PASS; // exit early
                 }
             }
-            int matchedCount = 0;
+            Set<String> unMatchedKeysAct = new LinkedHashSet(actMap.keySet());
+            Set<String> unMatchedKeysExp = new LinkedHashSet(expMap.keySet());
             AssertionResult firstMisMatch = null;
             for (Map.Entry<String, Object> expEntry : expMap.entrySet()) {
                 String key = expEntry.getKey();
@@ -1288,14 +1286,14 @@ public class Script {
                     boolean equal = false;
                     if (childExp instanceof String) {
                         String childMacro = (String) childExp;
-                        if (isOptionalMacro(childMacro) 
-                                || childMacro.equals("#notpresent") 
+                        if (isOptionalMacro(childMacro)
+                                || childMacro.equals("#notpresent")
                                 || childMacro.equals("#ignore")) { // logical match
                             if (matchType == MatchType.NOT_CONTAINS) {
                                 return matchFailed(matchType, childPath, "(not present)", childExp, "actual value contains expected");
                             }
                             equal = true;
-                            matchedCount++;
+                            unMatchedKeysExp.remove(key);
                         }
                     }
                     if (!equal) {
@@ -1309,16 +1307,17 @@ public class Script {
                         if (matchType == MatchType.CONTAINS_ANY) {
                             return AssertionResult.PASS; // at least one matched, exit early
                         }
-                    }
+                    }                    
                     continue; // end edge case for key not present
                 }
                 Object childAct = actMap.get(key);
                 AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
-                if (ar.pass) { // values for this key match
-                    matchedCount++;
+                if (ar.pass) { // values for this key match                    
                     if (matchType == MatchType.CONTAINS_ANY) {
                         return AssertionResult.PASS; // exit early
                     }
+                    unMatchedKeysExp.remove(key);
+                    unMatchedKeysAct.remove(key);
                 } else { // values for this key don't match
                     if (matchType == MatchType.NOT_EQUALS) {
                         return AssertionResult.PASS; // exit early
@@ -1335,8 +1334,7 @@ public class Script {
                 // if any were found, we would have exited early
                 return matchFailed(matchType, path, actObject, expObject, "no key-values matched");
             }
-            if (matchedCount < expMap.size()) {
-                // all map entries did not match, (matchedCount can be greater because of #ignore)
+            if (!unMatchedKeysExp.isEmpty()) {
                 if (matchType == MatchType.NOT_CONTAINS) {
                     return AssertionResult.PASS;
                 }
@@ -1346,8 +1344,16 @@ public class Script {
                 if (firstMisMatch != null) {
                     return firstMisMatch;
                 } else {
-                    return matchFailed(matchType, path, actObject, expObject, "all key-values did not match");
+                    return matchFailed(matchType, path, actObject, expObject, "all key-values did not match, expected has un-matched keys: " + unMatchedKeysExp);
+                }
+            } else if (!unMatchedKeysAct.isEmpty()) {
+                if (matchType == MatchType.CONTAINS || expMap.isEmpty()) {
+                    return AssertionResult.PASS;
                 }                
+                if (matchType == MatchType.NOT_EQUALS) {
+                    return AssertionResult.PASS;
+                }                
+                return matchFailed(matchType, path, actObject, expObject, "all key-values did not match, actual has un-matched keys: " + unMatchedKeysAct);
             } else {
                 // if we reached here, all map-entries matched
                 if (matchType == MatchType.NOT_CONTAINS) {
@@ -1752,8 +1758,8 @@ public class Script {
                 throw new RuntimeException(e);
             }
         } else {
-            result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);            
-        } 
+            result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
+        }
         // hack to pass call result back to caller step
         callContext.context.addCallResult(result);
         result.setCallArg(callContext.callArg);
@@ -1761,7 +1767,7 @@ public class Script {
         if (result.isFailed()) {
             throw result.getErrorsCombined();
         }
-        return new ScriptValue(result.getResultAsPrimitiveMap()); 
+        return new ScriptValue(result.getResultAsPrimitiveMap());
     }
 
     public static void callAndUpdateConfigAndAlsoVarsIfMapReturned(boolean callOnce, String name, String arg, ScenarioContext context) {

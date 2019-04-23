@@ -212,7 +212,7 @@ Scenario: remove json value
 
 Scenario: optional json values
     * def response = [{a: 'one', b: 'two'}, { a: 'one' }]
-    * match each response contains { a: 'one', b: '##("two")' }
+    * match each response contains { a: 'one', b: '##string' }
 
 Scenario: #null, ##null, #present and #notpresent
     * def foo = { }
