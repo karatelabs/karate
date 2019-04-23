@@ -235,12 +235,8 @@ public class ScriptBridge implements PerfContext {
                 throw new RuntimeException("not XML or cannot convert: " + o);
             }
         }
-        Node result = XmlUtils.getNodeByPath((Node) o, path, false);
-        int childElementCount = XmlUtils.getChildElementCount(result);
-        if (childElementCount == 0) {
-            return StringUtils.trimToNull(result.getTextContent());
-        }
-        return XmlUtils.toNewDocument(result);
+        ScriptValue sv = Script.evalXmlPathOnXmlNode((Node) o, path);
+        return sv.getValue();
     }    
     
     public Object toBean(Object o, String className) {
