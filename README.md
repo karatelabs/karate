@@ -1856,6 +1856,8 @@ And retry until responseStatus == 200 && response.id > 3
 When method get
 ```
 
+> Note that it has to be a pure JavaScript expression - which means that `match` syntax such as `contains` will *not* work. But you can easily achieve any complex logic by [using the JS API](https://stackoverflow.com/a/55823180/143475).
+
 Refer to [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature) for an example, and also see the alternative way to achieve [polling](#polling).
 
 # `configure`
