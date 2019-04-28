@@ -28,7 +28,6 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -46,7 +45,6 @@ public class ScenarioExecutionUnit implements Runnable {
     private boolean executed = false;
 
     private List<Step> steps;
-    private Iterator<Step> iterator;
     private StepActions actions;
     private boolean stopped = false;
     private StepResult lastStepResult;
@@ -122,7 +120,7 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public boolean isLast() {
         return last;
-    }        
+    }
 
     public void init() {
         boolean initFailed = false;
@@ -158,14 +156,13 @@ public class ScenarioExecutionUnit implements Runnable {
                 steps = scenario.getStepsIncludingBackground();
             }
         }
-        iterator = steps.iterator();
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - exec.startTime);
     }
 
     // for karate ui
     public void reset(ScenarioContext context) {
-    	setExecuted(false);
+        setExecuted(false);
         result.reset();
         actions = new StepActions(context);
     }
@@ -193,7 +190,7 @@ public class ScenarioExecutionUnit implements Runnable {
     }
 
     public void stop() {
-        result.setEndTime(System.currentTimeMillis() - exec.startTime);        
+        result.setEndTime(System.currentTimeMillis() - exec.startTime);
         if (actions != null) { // edge case if karate-config.js itself failed
             // gatling clean up
             actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
@@ -214,37 +211,28 @@ public class ScenarioExecutionUnit implements Runnable {
 
     @Override
     public void run() {
-        if (iterator == null) {
+        if (steps == null) {
             init();
         }
-        if (iterator.hasNext()) {
-            lastStepResult = execute(iterator.next());
+        for (Step step : steps) {
+            lastStepResult = execute(step);
             result.addStepResult(lastStepResult);
             if (lastStepResult.isStopped()) {
                 stopped = true;
             }
-            // this is self-recursion but step counts will never cause stack overflows
-            // it is important that we preserve the order of step execution so this hack is necessary
-            // and it gives us the async / non-blocking behavior we need for gatling
-            if (async) {
-                exec.system.accept(this);
-            } else {
-                run();
-            }
-        } else {
-            stop();
-            if (next != null) {
-                next.run();
-            }
+        }
+        stop();
+        if (next != null) {
+            next.run();
         }
     }
 
-	public boolean isExecuted() {
-		return executed;
-	}
+    public boolean isExecuted() {
+        return executed;
+    }
 
-	public void setExecuted(boolean executed) {
-		this.executed = executed;
-	}
+    public void setExecuted(boolean executed) {
+        this.executed = executed;
+    }
 
 }
