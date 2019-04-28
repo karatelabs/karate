@@ -41,7 +41,6 @@ public class ScenarioExecutionUnit implements Runnable {
     public final ScenarioResult result;
     private final LogAppender appender;
     public final Logger logger;
-    private final boolean async;
     private boolean executed = false;
 
     private List<Step> steps;
@@ -59,7 +58,6 @@ public class ScenarioExecutionUnit implements Runnable {
             ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
         this.scenario = scenario;
         this.exec = exec;
-        this.async = exec.callContext.perfMode && exec.callContext.callDepth == 0;
         result = new ScenarioResult(scenario, results);
         if (logger == null) {
             logger = new Logger();
