@@ -210,16 +210,12 @@ public class ScriptValue {
             case JSON:
                 String json = getValue(DocumentContext.class).jsonString();
                 return new ScriptValue(JsonPath.parse(json));
-            case JS_OBJECT: // is a map-like object, happens for json resulting from nashorn
-            case MAP:
-                Map map = getValue(Map.class);
-                return new ScriptValue(new LinkedHashMap(map));
-            case JS_ARRAY:
-                ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
-                return new ScriptValue(new ArrayList(som.values()));
+            case JS_OBJECT:            
+            case JS_ARRAY:                
+            case MAP:                            
             case LIST:
-                List list = getValue(List.class);
-                return new ScriptValue(new ArrayList(list));
+                String str = getAsJsonDocument().jsonString();
+                return new ScriptValue(JsonPath.parse(str));                
             default:
                 return this;
         }
@@ -230,7 +226,7 @@ public class ScriptValue {
             case JSON:
                 return getValue(DocumentContext.class);
             case JS_ARRAY: // happens for json resulting from nashorn
-                ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
+                ScriptObjectMirror som = getValue(ScriptObjectMirror.class);                
                 return JsonPath.parse(som.values());
             case JS_OBJECT: // is a map-like object, happens for json resulting from nashorn
             case MAP: // this happens because some jsonpath operations result in Map
