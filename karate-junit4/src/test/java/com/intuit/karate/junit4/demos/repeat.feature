@@ -16,3 +16,8 @@ Scenario: use a variable for loop count
     * def fun = function(i){ return { val: i } }
     * def foo = karate.repeat(count, fun)
     * match foo == [{ val: 0 }, { val: 1 }, { val: 2 }]
+
+Scenario: generate test data easily
+    * def fun = function(i){ return { name: 'User ' + (i + 1) } }
+    * def foo = karate.repeat(3, fun)
+    * match foo == [{ name: 'User 1' }, { name: 'User 2' }, { name: 'User 3' }]

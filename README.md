@@ -177,6 +177,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#conditional-logic">Conditional Logic</a>
     | <a href="#hooks">Before / After Hooks</a>
     | <a href="#json-transforms">JSON Transforms</a>
+    | <a href="#loops">Loops</a>
     | <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
     | <a href="#http-header-manipulation">Header Manipulation</a> 
     | <a href="#text">GraphQL</a>
@@ -2683,7 +2684,7 @@ JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-opera
 You usually won't need this, but the second-last line above shows how the `karate` object can be used to [evaluate JsonPath](#karate-jsonpath) if the filter expression depends on a variable. If you find yourself struggling to write [dynamic JsonPath filters](https://stackoverflow.com/a/52741196/143475), look at [`karate.filter()`](#karate-filter) as an alternative, described just below.
 
 ## JSON Transforms
-Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can be very useful in some situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have the *expected* data available as ready-made JSON but it is in a different "shape" from the *actual* data or HTTP `response`.
+Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can be very useful in some situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have the *expected* data available as ready-made JSON but it is in a different "shape" from the *actual* data or HTTP `response`. There is also a [`karate.mapWithKey()`](#karate-mapwithkey) for a common need - which is to convert an array of primitives into an array of objects, which is the form that [data driven features](#data-driven-features) expect.
 
 > Note that a single JS function is sufficient to transform a given JSON object into a completely new one, and you can use complex conditional logic if needed.
 
@@ -2699,6 +2700,11 @@ Scenario: convert an array into a different shape
     * def fun = function(x){ return { bar: x.foo } }
     * def after = karate.map(before, fun)
     * match after == [{ bar: 1 }, { bar: 2 }, { bar: 3 }]
+
+Scenario: convert array of primitives into array of objects
+    * def list = [ 'Bob', 'Wild', 'Nyan' ]
+    * def data = karate.mapWithKey(list, 'name')
+    * match data == [{ name: 'Bob' }, { name: 'Wild' }, { name: 'Nyan' }]
 
 Scenario: karate filter operation
     * def fun = function(x){ return x % 2 == 0 }
@@ -2730,6 +2736,11 @@ Given the examples above, it has to be said that a best practice with Karate is 
 * def fun = function(i){ foo.add(i) }
 * eval karate.repeat(5, fun)
 * match foo == [0, 1, 2, 3, 4]
+
+# generate test data easily
+* def fun = function(i){ return { name: 'User ' + (i + 1) } }
+* def foo = karate.repeat(3, fun)
+* match foo == [{ name: 'User 1' }, { name: 'User 2' }, { name: 'User 3' }]
 ```
 
 ## XPath Functions
@@ -3086,6 +3097,7 @@ Operation | Description
 <a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
 <a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
 <a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
+<a name="karate-mapwithkey"><code>karate.mapWithKey(list, string)</code></a> | convenient for the common case of transforming an array of primitives into an array of objects, see [JSON transforms](#json-transforms)
 <a name="karate-match"><code>karate.match(actual, expected)</code></a> | brings the power of the *fuzzy* [`match`](#match) syntax into Karate-JS, returns a JSON in the form `{ pass: '#boolean', message: '#string' }` and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 <a name="karate-pretty"><code>karate.pretty(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
 <a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)

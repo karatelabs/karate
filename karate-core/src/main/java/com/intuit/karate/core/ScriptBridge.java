@@ -44,6 +44,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -219,6 +220,16 @@ public class ScriptBridge implements PerfContext {
         for (int i = 0; i < n; i++) {
             Object o = som.call(som, i);
             res.add(o);
+        }
+        return res;
+    }
+    
+    public Object mapWithKey(List list, String key) {
+        List res = new ArrayList();
+        for (Object o : list) {
+            Map map = new LinkedHashMap();
+            map.put(key, o);
+            res.add(map);
         }
         return res;
     }
