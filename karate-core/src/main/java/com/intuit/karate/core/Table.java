@@ -23,7 +23,9 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
+import com.intuit.karate.StringUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -154,6 +156,9 @@ public class Table {
         try {
             switch (col.type) {
                 case NUMBER:
+                    if (Script.isJson(raw)) {
+                        raw = '(' + raw + ')';
+                    }
                     return ScriptBindings.eval(raw, null).getValue();
                 default:
                     return raw;

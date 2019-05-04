@@ -3503,10 +3503,10 @@ This is great for testing boundary conditions against a single end-point, with t
 
 ### Scenario Outline Enhancements
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
-* __type hints__: if the `Examples` header has a `!` appended, it will be evaluated as a number or boolean
-* __magic variables__: `__row` for the row data as JSON, and `__num` for the row index
+* __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or even in-line JSON) - else it defaults to string. You can optionally use the [`karate.set()`](#karate-setall) API to make all the key-value pairs available as variables in scope, which can greatly simplify [embedded expressions](#embedded-expressions) - especially from a re-use point of view.
+* __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
 
-These are best explained with examples. Note that even the scenario name can accept placeholders which is very useful in reports:
+These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). Note that even the scenario name can accept placeholders which is very useful in reports:
 
 ```cucumber
 Scenario Outline: name is <name> and age is <age>

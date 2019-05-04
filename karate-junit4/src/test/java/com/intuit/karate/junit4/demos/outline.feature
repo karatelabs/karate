@@ -30,3 +30,10 @@ Scenario Outline: magic variables with embedded expressions
     | name | alive! |
     | Bob  | false  |
     | Nyan | true   |
+
+Scenario Outline: inline JSON
+  * match __row == { first: 'hello', second: { a: 1 } }
+
+  Examples:
+    | first  | second!  |
+    | hello  | { a: 1 } |
