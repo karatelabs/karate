@@ -120,6 +120,11 @@ public class ScriptBridge implements PerfContext {
         Script.setValueByPath(name, path, new ScriptValue(value), context);
     }
 
+    // set multiple variables in one shot
+    public void set(Map<String, Object> map) {
+        map.forEach((k, v) -> set(k, v));
+    }
+    
     // this makes sense for xml / xpath manipulation from within js
     public void remove(String name, String path) {
         Script.removeValueByPath(name, path, context);
