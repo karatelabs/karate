@@ -92,9 +92,10 @@ public class Feature {
                             for (int i = 0; i < count; i++) {
                                 ScriptValue rowValue = new ScriptValue(list.get(i));
                                 if (rowValue.isMapLike()) {
-                                    Scenario dynamic = scenario.copy(i);
+                                    Scenario dynamic = scenario.copy(i); // this will set exampleIndex
                                     dynamic.setBackgroundDone(true);
                                     Map<String, Object> map = rowValue.getAsMap();
+                                    dynamic.setExampleData(map); // and here we set exampleData
                                     map.forEach((k, v) -> {
                                         ScriptValue sv = new ScriptValue(v);
                                         dynamic.replace("<" + k + ">", sv.getAsString());
@@ -140,7 +141,7 @@ public class Feature {
     public Step getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
         Scenario scenario = getScenario(sectionIndex, scenarioIndex);
         List<Step> steps = scenario.getSteps();
-        if (stepIndex == -1 || steps.size() == 0 || steps.size() <= stepIndex) {
+        if (stepIndex == -1 || steps.isEmpty() || steps.size() <= stepIndex) {
             return null;
         }
         return steps.get(stepIndex);

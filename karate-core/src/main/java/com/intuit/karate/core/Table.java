@@ -23,10 +23,14 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.ScriptBindings;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -34,21 +38,43 @@ import java.util.Map;
  */
 public class Table {
 
+    private static final Logger logger = LoggerFactory.getLogger(Table.class);
+
+    enum ColumnType {
+        STRING,
+        NUMBER
+    }
+
+    class Column {
+
+        final String key;
+        final int index;
+        final ColumnType type;
+
+        Column(String key, int index, ColumnType type) {
+            this.key = key;
+            this.index = index;
+            this.type = type;
+        }
+
+    }
+
     private final List<List<String>> rows;
-    private final Map<String, Integer> keyColumns;
+    private final Map<String, Column> colMap;
+    private final List<Column> cols;
     private final List<Integer> lineNumbers;
     private final String dynamicExpression;
 
     public String getDynamicExpression() {
         return dynamicExpression;
-    }            
+    }
 
     public boolean isDynamic() {
         return dynamicExpression != null;
-    }        
+    }
 
-    public List<String> getKeys() {
-        return rows.get(0);
+    public Collection<String> getKeys() {
+        return colMap.keySet();
     }
 
     public int getLineNumberForRow(int i) {
@@ -73,12 +99,12 @@ public class Table {
         return new Table(list, lineNumbers);
     }
 
-    public String getValue(String key, int row) {
-        Integer col = keyColumns.get(key);
+    public String getValueAsString(String key, int row) {
+        Column col = colMap.get(key);
         if (col == null) {
             return null;
         }
-        return rows.get(row).get(col);
+        return rows.get(row).get(col.index);
     }
 
     public Table(List<List<String>> rows, List<Integer> lineNumbers) {
@@ -86,15 +112,24 @@ public class Table {
         this.lineNumbers = lineNumbers;
         List<String> keys = rows.get(0);
         int colCount = keys.size();
-        keyColumns = new LinkedHashMap(colCount);
+        colMap = new LinkedHashMap(colCount);
         for (int i = 0; i < colCount; i++) {
-            keyColumns.put(keys.get(i), i);
+            String key = keys.get(i);
+            ColumnType type;
+            if (key.endsWith("!")) {
+                key = key.substring(0, key.length() - 1);
+                type = ColumnType.NUMBER;
+            } else {
+                type = ColumnType.STRING;
+            }
+            colMap.put(key, new Column(key, i, type));
         }
         if (colCount == 1 && rows.size() == 1) {
             dynamicExpression = keys.get(0);
         } else {
             dynamicExpression = null;
         }
+        cols = new ArrayList(colMap.values()); // just to be able to call cols.get(index)
     }
 
     public List<List<String>> getRows() {
@@ -102,18 +137,43 @@ public class Table {
     }
 
     public List<Map<String, String>> getRowsAsMaps() {
-        List<String> keys = rows.get(0);
-        int colCount = keys.size();
         int rowCount = rows.size();
         List<Map<String, String>> list = new ArrayList(rowCount - 1);
         for (int i = 1; i < rowCount; i++) { // don't include header row    
-            Map<String, String> map = new LinkedHashMap(colCount);
+            Map<String, String> map = new LinkedHashMap(cols.size());
             list.add(map);
-            for (int j = 0; j < colCount; j++) {
-                map.put(keys.get(j), rows.get(i).get(j));
+            List<String> row = rows.get(i);
+            for (Column col : cols) {
+                map.put(col.key, row.get(col.index));
             }
         }
         return list;
+    }
+
+    private static Object convert(String raw, Column col) {
+        try {
+            switch (col.type) {
+                case NUMBER:
+                    return ScriptBindings.eval(raw, null).getValue();
+                default:
+                    return raw;
+            }
+        } catch (Exception e) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("type conversion failed for column: {}, type: {} - {}", col.key, col.type, e.getMessage());
+            }
+            return raw;
+        }
+    }
+
+    public Map<String, Object> getExampleData(int exampleIndex) {
+        List<String> row = rows.get(exampleIndex + 1);
+        Map<String, Object> map = new LinkedHashMap(cols.size());
+        for (Column col : cols) {
+            String raw = row.get(col.index);
+            map.put(col.key, convert(raw, col));
+        }
+        return map;
     }
 
     @Override
@@ -121,7 +181,7 @@ public class Table {
         StringBuilder sb = new StringBuilder();
         sb.append('\n');
         for (List<String> row : rows) {
-        	sb.append('|').append('\t');
+            sb.append('|').append('\t');
             for (String s : row) {
                 sb.append(s).append('\t').append('|');
             }

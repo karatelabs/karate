@@ -334,11 +334,11 @@ public class FeatureParser extends KarateParserBaseListener {
         if (logger.isTraceEnabled()) {
             logger.trace("outline steps: {}", steps);
         }
-        List<ExampleTable> examples = new ArrayList(ctx.examples().size());
-        outline.setExampleTables(examples);
+        List<ExamplesTable> examples = new ArrayList(ctx.examples().size());
+        outline.setExamplesTables(examples);
         for (KarateParser.ExamplesContext ec : ctx.examples()) {
             Table table = toTable(ec.table());
-            ExampleTable example = new ExampleTable(outline, table);
+            ExamplesTable example = new ExamplesTable(outline, table);
             examples.add(example);
             if (ec.tags() != null) {
                 example.setTags(toTags(-1, ec.tags().TAGS()));

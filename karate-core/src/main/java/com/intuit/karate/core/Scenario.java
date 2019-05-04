@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -47,6 +48,8 @@ public class Scenario {
     private String description;
     private List<Step> steps;
     private boolean outline;
+    private Map<String, Object> exampleData;
+    private int exampleIndex = -1;
     private String dynamicExpression;
     private boolean backgroundDone;
 
@@ -68,13 +71,15 @@ public class Scenario {
         return info;
     }
 
+    // only called for dynamic scenarios
     public Scenario copy(int exampleIndex) {
         Scenario s = new Scenario(feature, section, exampleIndex);
         s.name = name;
         s.description = description;
         s.tags = tags;
         s.line = line;
-        s.outline = exampleIndex != -1;
+        s.exampleIndex = exampleIndex;
+        s.outline = true; // this is a dynamic scenario row
         s.steps = new ArrayList(steps.size());
         for (Step step : steps) {
             Step temp = new Step(feature, s, step.getIndex());
@@ -231,5 +236,21 @@ public class Scenario {
     public void setBackgroundDone(boolean backgroundDone) {
         this.backgroundDone = backgroundDone;
     }
+
+    public Map<String, Object> getExampleData() {
+        return exampleData;
+    }
+
+    public void setExampleData(Map<String, Object> exampleData) {
+        this.exampleData = exampleData;
+    }
+
+    public int getExampleIndex() {
+        return exampleIndex;
+    }
+
+    public void setExampleIndex(int exampleIndex) {
+        this.exampleIndex = exampleIndex;
+    }        
 
 }

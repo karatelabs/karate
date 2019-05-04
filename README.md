@@ -3501,7 +3501,48 @@ Scenario Outline: given race number, validate number of pitstops for Max Verstap
 ```
 This is great for testing boundary conditions against a single end-point, with the added bonus that your test becomes even more readable. This approach can certainly enable product-owners or domain-experts who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
-For an advanced example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
+### Karate Scenario Outlines
+Karate has enhanced the Cucumber `Scenario Outline` as follows:
+* type hints: if the `Examples` header has a `!` appended, it will be evaluated as a number or boolean
+* magic variables: `__row` for the row data as JSON, and `__num` for the row index
+
+These are best explained with examples:
+
+```cucumber
+# even the title can accept placeholders, which is very useful in reports
+Scenario Outline: name is <name> and age is <age>
+  * def name = '<name>'
+  * match name == "#? _ == 'Bob' || _ == 'Nyan'"
+  * def expected = __num == 0 ? 'name is Bob and age is 5' : 'name is Nyan and age is 6'
+  * match expected == karate.info.scenarioName
+
+  Examples:
+    | name | age |
+    | Bob  | 5   |
+    | Nyan | 6   |
+
+Scenario Outline: magic variables with type hints
+  * def expected = __num == 0 ? { name: 'Bob', age: 5 } : { name: 'Nyan', age: 6 }
+  * match __row == expected
+
+  Examples:
+    | name | age! |
+    | Bob  | 5    |
+    | Nyan | 6    |
+
+Scenario Outline: magic variables with embedded expressions
+  * def expected = __num == 0 ? { name: 'Bob', alive: false } : { name: 'Nyan', alive: true }
+  * eval karate.set(__row)
+  * def temp = { name: '#(name)', alive: '#(alive)' }
+  * match temp == expected
+
+  Examples:
+    | name | alive! |
+    | Bob  | false  |
+    | Nyan | true   |
+```
+
+For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
 ### The Karate Way
 The limitation of the Cucumber `Scenario Outline:` seen above is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).

@@ -148,10 +148,16 @@ public class ScenarioExecutionUnit implements Runnable {
         } else {
             if (scenario.isDynamic()) {
                 steps = scenario.getBackgroundSteps();
-            } else if (scenario.isBackgroundDone()) {
-                steps = scenario.getSteps();
             } else {
-                steps = scenario.getStepsIncludingBackground();
+                if (scenario.isBackgroundDone()) {
+                    steps = scenario.getSteps();
+                } else {
+                    steps = scenario.getStepsIncludingBackground();
+                }
+                if (scenario.isOutline()) { // init examples row magic variables
+                    actions.context.vars.put("__row", scenario.getExampleData());
+                    actions.context.vars.put("__num", scenario.getExampleIndex());
+                }
             }
         }
         result.setThreadName(Thread.currentThread().getName());
