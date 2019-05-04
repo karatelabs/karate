@@ -2718,6 +2718,20 @@ Scenario: forEach works even on object key-values, not just arrays
     * match idxs == [0, 1, 2]
 ```
 
+### Loops
+Given the examples above, it has to be said that a best practice with Karate is to avoid JavaScript `for` loops as far as possible. A common requirement is to build an array with `n` elements or do something `n` times where `n` is an integer (that could even be a variable reference). This is easily achieved with the [`karate.repeat()`](#karate-repeat) API:
+
+```cucumber
+* def fun = function(i){ return i * 2 }
+* def foo = karate.repeat(5, fun)
+* match foo == [0, 2, 4, 6, 8]
+
+* def foo = []
+* def fun = function(i){ foo.add(i) }
+* eval karate.repeat(5, fun)
+* match foo == [0, 1, 2, 3, 4]
+```
+
 ## XPath Functions
 When handling XML, you sometimes need to call [XPath functions](https://docs.oracle.com/javase/tutorial/jaxp/xslt/xpath.html), for example to get the count of a node-set. Any valid XPath expression is allowed on the left-hand-side of a [`match`](#match) statement.
 
@@ -3080,6 +3094,7 @@ Operation | Description
 <a name="karate-read"><code>karate.read(filename)</code></a> | read from a file, behaves exactly like [`read`](#reading-files)
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
+<a name="karate-repeat"><code>karate.repeat(count, function)</code></a> | useful for building an array with `count` items or doing something `count` times, refer this [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/repeat.feature). Also see [loops](#loops).
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
