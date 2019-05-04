@@ -3501,18 +3501,17 @@ Scenario Outline: given race number, validate number of pitstops for Max Verstap
 ```
 This is great for testing boundary conditions against a single end-point, with the added bonus that your test becomes even more readable. This approach can certainly enable product-owners or domain-experts who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
-### Karate Scenario Outlines
+### Scenario Outline Enhancements
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
-* type hints: if the `Examples` header has a `!` appended, it will be evaluated as a number or boolean
-* magic variables: `__row` for the row data as JSON, and `__num` for the row index
+* __type hints__: if the `Examples` header has a `!` appended, it will be evaluated as a number or boolean
+* __magic variables__: `__row` for the row data as JSON, and `__num` for the row index
 
-These are best explained with examples:
+These are best explained with examples. Note that even the scenario name can accept placeholders which is very useful in reports:
 
 ```cucumber
-# even the title can accept placeholders, which is very useful in reports
 Scenario Outline: name is <name> and age is <age>
   * def name = '<name>'
-  * match name == "#? _ == 'Bob' || _ == 'Nyan'"
+  * match name == __row.name
   * def expected = __num == 0 ? 'name is Bob and age is 5' : 'name is Nyan and age is 6'
   * match expected == karate.info.scenarioName
 
@@ -3532,9 +3531,9 @@ Scenario Outline: magic variables with type hints
 
 Scenario Outline: magic variables with embedded expressions
   * def expected = __num == 0 ? { name: 'Bob', alive: false } : { name: 'Nyan', alive: true }
+  * match expected == { name: '#(__row.name)', alive: '#(__row.alive)' }
   * eval karate.set(__row)
-  * def temp = { name: '#(name)', alive: '#(alive)' }
-  * match temp == expected
+  * match expected == { name: '#(name)', alive: '#(alive)' }
 
   Examples:
     | name | alive! |
