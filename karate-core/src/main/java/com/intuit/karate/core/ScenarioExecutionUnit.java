@@ -28,7 +28,9 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -53,6 +55,8 @@ public class ScenarioExecutionUnit implements Runnable {
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
         this(scenario, results, exec, null, logger);
     }
+    
+    private static final Map<String, Integer> FILE_HANDLE_COUNT = new HashMap();    
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results,
             ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
@@ -62,15 +66,23 @@ public class ScenarioExecutionUnit implements Runnable {
         if (logger == null) {
             logger = new Logger();
             if (scenario.getIndex() < 500) {
-                String suffix;
-                if (exec.callContext.isCalled()) {
-                    // ensure no collisions for called features that are re-used across scenarios
-                    // this is not perfect, but we avoid locking across threads
-                    suffix = "-" + System.currentTimeMillis();
+                if (exec.callContext.isCalled()) {                    
+                    String featureName = exec.featureContext.packageQualifiedName;                    
+                    Integer count = FILE_HANDLE_COUNT.get(featureName);
+                    if (count == null) {
+                        count = 0;                        
+                    }
+                    count = count + 1;                    
+                    FILE_HANDLE_COUNT.put(featureName, count);                    
+                    if (count < 500) {
+                        // ensure no collisions for called features that are re-used across scenarios executing in parallel
+                        appender = exec.getLogAppender(scenario.getUniqueId() + "_" + Thread.currentThread().getName(), logger);
+                    } else { // this is a super-re-used feature, don't open any more files, same trade-off see below                        
+                        appender = LogAppender.NO_OP;
+                    }                    
                 } else {
-                    suffix = scenario.getUniqueId();
-                }
-                appender = exec.getLogAppender(suffix, logger);
+                    appender = exec.getLogAppender(scenario.getUniqueId(), logger);
+                }                
             } else {
                 // avoid creating log-files for scenario outlines beyond a limit
                 // trade-off is we won't see inline logs in the html report                 
