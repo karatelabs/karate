@@ -229,8 +229,11 @@ public class ScriptBridge implements PerfContext {
         return res;
     }
     
-    public Object mapWithKey(List list, String key) {
-        List res = new ArrayList();
+    public Object mapWithKey(List list, String key) {                
+        if (list == null) {
+            return new ArrayList();
+        }
+        List res = new ArrayList(list.size());        
         for (Object o : list) {
             Map map = new LinkedHashMap();
             map.put(key, o);

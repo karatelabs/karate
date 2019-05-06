@@ -121,6 +121,11 @@ Scenario: map with key - for the common case of converting arrays of primitives 
     * def data = karate.mapWithKey(list, 'foo')
     * match data == [{ foo: { a: 1 } }, { foo: { b: 2 } }]
 
+    # should work for null edge case
+    * def list = null
+    * def data = karate.mapWithKey(list, 'foo')
+    * match data == []
+
 Scenario: simplest way to get the size of a json object
     * def json = { a: 1, b: 2, c: 3 }
     * def map = karate.toBean(json, 'java.util.HashMap')
