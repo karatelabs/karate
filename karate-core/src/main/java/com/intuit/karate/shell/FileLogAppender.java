@@ -58,8 +58,7 @@ public class FileLogAppender implements LogAppender {
                 }
             }
             file = new RandomAccessFile(in, "rw");
-            channel = file.getChannel();
-            
+            channel = file.getChannel();            
             prevPos = (int) channel.position();
         } catch (Exception e) {
             throw new RuntimeException(e);
