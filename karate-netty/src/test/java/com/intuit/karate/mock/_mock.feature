@@ -71,3 +71,7 @@ Scenario: pathMatches('/v1/upload')
 Scenario: pathMatches('/v1/multipart')
     # TODO multipart handling on server side !
     * def response = { success: true }
+
+Scenario: pathMatches('/v1/form')
+    # TODO urlencoded form handling on server side
+    * def response = { success: true }
