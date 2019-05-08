@@ -43,6 +43,9 @@ Scenario: dynamic xpath that uses variables
     * match name == 'bar'
     * def queryName = karate.xmlPath(xml, '/query/' + elementName)
     * match queryName == <name><foo>bar</foo></name>
+    * def foo = <root><a>1</a><a>2</a></root>
+    * def tmp = karate.xmlPath(foo, 'count(/root/a)')
+    * match tmp == 2
 
 Scenario: placeholders using xml embedded expressions
     * def phoneNumber = '123456'

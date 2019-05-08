@@ -211,6 +211,9 @@ public class ApacheHttpClient extends HttpClient<HttpEntity> {
     @Override
     protected void buildPath(String path) {
         String temp = uriBuilder.getPath();
+        if (temp == null) {
+            temp = "";
+        }
         if (!temp.endsWith("/")) {
             temp = temp + "/";
         }

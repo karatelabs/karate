@@ -177,6 +177,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#conditional-logic">Conditional Logic</a>
     | <a href="#hooks">Before / After Hooks</a>
     | <a href="#json-transforms">JSON Transforms</a>
+    | <a href="#loops">Loops</a>
     | <a href="#http-basic-authentication-example">HTTP Basic Auth</a> 
     | <a href="#http-header-manipulation">Header Manipulation</a> 
     | <a href="#text">GraphQL</a>
@@ -254,7 +255,7 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 * [REST API Testing with Karate](http://www.baeldung.com/karate-rest-api-testing) - tutorial by [Baeldung](http://www.baeldung.com/author/baeldung/)
 * [9 great open-source API testing tools: how to choose](https://techbeacon.com/9-great-open-source-api-testing-tools-how-choose) - [TechBeacon](https://techbeacon.com) article by [Joe Colantonio](https://twitter.com/jcolantonio)
 * [Ceinture noire Karate en tests d’API REST](https://devfesttoulouse.fr/schedule/2018-11-08?sessionId=4128) - [Slides and Code](https://github.com/ncomet/karate-conf2018) - [DevFest Touluse 2018](https://devfesttoulouse.fr) talk by [Nicolas Comet](https://twitter.com/NicolasComet) and [Benoît Prioux](https://twitter.com/binout)
-* [Karate, the black belt of HTTP API testing ? - Video / Slides](https://adapt.to/2018/en/schedule/karate-the-black-belt-of-http-api-testing.html) / [Photo](https://twitter.com/bdelacretaz/status/1039444256572751873) / [Code](http://tinyurl.com/potsdam2018) - [adaptTo() 2018](https://adapt.to/2018/en.html) talk by [Bertrand Delacretaz](https://twitter.com/bdelacretaz) <br/>of Adobe & the Apache Software Foundation ([Board of Directors](http://www.apache.org/foundation/#who-runs-the-asf))
+* [Karate, the black belt of HTTP API testing ? - Video / Slides](https://adapt.to/2018/en/schedule/karate-the-black-belt-of-http-api-testing.html) / [Photo](https://twitter.com/bdelacretaz/status/1039444256572751873) / [Code](http://tinyurl.com/potsdam2018) - [adaptTo() 2018](https://adapt.to/2018/en.html) talk by [Bertrand Delacretaz](https://twitter.com/bdelacretaz) of Adobe & the Apache Software Foundation ([Board of Directors](http://www.apache.org/foundation/#who-runs-the-asf))
 * [Testing Web Services with Karate](https://automationpanda.com/2018/12/10/testing-web-services-with-karate/) - quick start guide and review by [Andrew Knight](https://twitter.com/automationpanda) at the *Automation Panda* blog
 
 
@@ -1856,6 +1857,8 @@ And retry until responseStatus == 200 && response.id > 3
 When method get
 ```
 
+> Note that it has to be a pure JavaScript expression - which means that `match` syntax such as `contains` will *not* work. But you can easily achieve any complex logic by [using the JS API](https://stackoverflow.com/a/55823180/143475).
+
 Refer to [`polling.feature`](karate-demo/src/test/java/demo/polling/polling.feature) for an example, and also see the alternative way to achieve [polling](#polling).
 
 # `configure`
@@ -2681,7 +2684,7 @@ JsonPath [filter expressions](https://github.com/json-path/JsonPath#filter-opera
 You usually won't need this, but the second-last line above shows how the `karate` object can be used to [evaluate JsonPath](#karate-jsonpath) if the filter expression depends on a variable. If you find yourself struggling to write [dynamic JsonPath filters](https://stackoverflow.com/a/52741196/143475), look at [`karate.filter()`](#karate-filter) as an alternative, described just below.
 
 ## JSON Transforms
-Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can be very useful in some situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have the *expected* data available as ready-made JSON but it is in a different "shape" from the *actual* data or HTTP `response`.
+Karate supports the following [functional-style](https://en.wikipedia.org/wiki/Functional_programming) operations via the JS API -  [`karate.map()`](#karate-map), [`karate.filter()`](#karate-filter) and [`karate.forEach()`](#karate-foreach). They can be very useful in some situations. A [good example](https://stackoverflow.com/a/53120851/143475) is when you have the *expected* data available as ready-made JSON but it is in a different "shape" from the *actual* data or HTTP `response`. There is also a [`karate.mapWithKey()`](#karate-mapwithkey) for a common need - which is to convert an array of primitives into an array of objects, which is the form that [data driven features](#data-driven-features) expect.
 
 > Note that a single JS function is sufficient to transform a given JSON object into a completely new one, and you can use complex conditional logic if needed.
 
@@ -2697,6 +2700,11 @@ Scenario: convert an array into a different shape
     * def fun = function(x){ return { bar: x.foo } }
     * def after = karate.map(before, fun)
     * match after == [{ bar: 1 }, { bar: 2 }, { bar: 3 }]
+
+Scenario: convert array of primitives into array of objects
+    * def list = [ 'Bob', 'Wild', 'Nyan' ]
+    * def data = karate.mapWithKey(list, 'name')
+    * match data == [{ name: 'Bob' }, { name: 'Wild' }, { name: 'Nyan' }]
 
 Scenario: karate filter operation
     * def fun = function(x){ return x % 2 == 0 }
@@ -2714,6 +2722,25 @@ Scenario: forEach works even on object key-values, not just arrays
     * match keys == ['a', 'b', 'c']
     * match vals == [2, 4, 6]
     * match idxs == [0, 1, 2]
+```
+
+### Loops
+Given the examples above, it has to be said that a best practice with Karate is to avoid JavaScript `for` loops as far as possible. A common requirement is to build an array with `n` elements or do something `n` times where `n` is an integer (that could even be a variable reference). This is easily achieved with the [`karate.repeat()`](#karate-repeat) API:
+
+```cucumber
+* def fun = function(i){ return i * 2 }
+* def foo = karate.repeat(5, fun)
+* match foo == [0, 2, 4, 6, 8]
+
+* def foo = []
+* def fun = function(i){ foo.add(i) }
+* eval karate.repeat(5, fun)
+* match foo == [0, 1, 2, 3, 4]
+
+# generate test data easily
+* def fun = function(i){ return { name: 'User ' + (i + 1) } }
+* def foo = karate.repeat(3, fun)
+* match foo == [{ name: 'User 1' }, { name: 'User 2' }, { name: 'User 3' }]
 ```
 
 ## XPath Functions
@@ -3070,6 +3097,7 @@ Operation | Description
 <a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
 <a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
 <a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
+<a name="karate-mapwithkey"><code>karate.mapWithKey(list, string)</code></a> | convenient for the common case of transforming an array of primitives into an array of objects, see [JSON transforms](#json-transforms)
 <a name="karate-match"><code>karate.match(actual, expected)</code></a> | brings the power of the *fuzzy* [`match`](#match) syntax into Karate-JS, returns a JSON in the form `{ pass: '#boolean', message: '#string' }` and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
 <a name="karate-pretty"><code>karate.pretty(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
 <a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
@@ -3078,7 +3106,9 @@ Operation | Description
 <a name="karate-read"><code>karate.read(filename)</code></a> | read from a file, behaves exactly like [`read`](#reading-files)
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
+<a name="karate-repeat"><code>karate.repeat(count, function)</code></a> | useful for building an array with `count` items or doing something `count` times, refer this [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/repeat.feature). Also see [loops](#loops).
 <a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
+<a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/set.feature)
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
 <a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see examples: [websocket](karate-demo/src/test/java/demo/websocket/websocket.feature) / [message-queue](karate-demo/src/test/java/mock/contract/payment-service.feature)
@@ -3471,7 +3501,47 @@ Scenario Outline: given race number, validate number of pitstops for Max Verstap
 ```
 This is great for testing boundary conditions against a single end-point, with the added bonus that your test becomes even more readable. This approach can certainly enable product-owners or domain-experts who are not programmer-folk, to review, and even collaborate on test-scenarios and scripts.
 
-For an advanced example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
+### Scenario Outline Enhancements
+Karate has enhanced the Cucumber `Scenario Outline` as follows:
+* __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or even in-line JSON) - else it defaults to string. You can optionally use the [`karate.set()`](#karate-setall) API to make all the key-value pairs available as variables in scope, which can greatly simplify [embedded expressions](#embedded-expressions) - especially from a re-use point of view.
+* __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
+
+These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). Note that even the scenario name can accept placeholders which is very useful in reports:
+
+```cucumber
+Scenario Outline: name is <name> and age is <age>
+  * def name = '<name>'
+  * match name == __row.name
+  * def expected = __num == 0 ? 'name is Bob and age is 5' : 'name is Nyan and age is 6'
+  * match expected == karate.info.scenarioName
+
+  Examples:
+    | name | age |
+    | Bob  | 5   |
+    | Nyan | 6   |
+
+Scenario Outline: magic variables with type hints
+  * def expected = __num == 0 ? { name: 'Bob', age: 5 } : { name: 'Nyan', age: 6 }
+  * match __row == expected
+
+  Examples:
+    | name | age! |
+    | Bob  | 5    |
+    | Nyan | 6    |
+
+Scenario Outline: magic variables with embedded expressions
+  * def expected = __num == 0 ? { name: 'Bob', alive: false } : { name: 'Nyan', alive: true }
+  * match expected == { name: '#(__row.name)', alive: '#(__row.alive)' }
+  * eval karate.set(__row)
+  * match expected == { name: '#(name)', alive: '#(alive)' }
+
+  Examples:
+    | name | alive! |
+    | Bob  | false  |
+    | Nyan | true   |
+```
+
+For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
 ### The Karate Way
 The limitation of the Cucumber `Scenario Outline:` seen above is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).

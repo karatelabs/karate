@@ -30,4 +30,12 @@ Scenario: you can manually 'clone' a payload if needed
     * copy foo = original
     * def result = call read('copy-called.feature')
     # and original remains unchanged
-    * match original == { key: 'value' }    
+    * match original == { key: 'value' }
+
+Scenario: clone should be 'deep' and work even for nested data
+    * def temp = call read('copy-called-nested.feature')
+    * def a = temp.root
+    * copy b = a
+    * set b.name.name = 'copy'
+    * match b.name.name == 'copy'
+    * match a.name.name == 'inner'

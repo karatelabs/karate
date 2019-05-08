@@ -77,7 +77,7 @@ Scenario: using a data-driven called feature instead of a scenario outline
     | 'bar'  |           |        |     5 | ['country', 'active']        |
     | 'baz'  | 'JP'      |        |       | ['active', 'limit']          |
     |        | 'US'      |        |     3 | ['name', 'active']           |
-    |        |           | false  |       | ['name', 'country', 'limit'] |
+    |        |           | true   |       | ['name', 'country', 'limit'] |
     
     # the assertions in the called feature use some js for the sake of demo
     # but the next scenario below is far simpler and does not use js at all

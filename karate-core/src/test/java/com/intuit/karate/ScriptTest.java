@@ -163,7 +163,7 @@ public class ScriptTest {
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
         Document doc = XmlUtils.toXmlDoc("<root><foo>#(a + b)</foo></root>");
-        Script.evalXmlEmbeddedExpressions(doc, ctx, false);
+        Script.evalXmlEmbeddedExpressions(doc, ctx);
         ctx.vars.put("myXml", doc);
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
@@ -193,7 +193,7 @@ public class ScriptTest {
         ctx.vars.put("a", 5);
         String xml = "<foo bar=\"#(a)\">#(a)</foo>";
         Document doc = XmlUtils.toXmlDoc(xml);
-        Script.evalXmlEmbeddedExpressions(doc, ctx, false);
+        Script.evalXmlEmbeddedExpressions(doc, ctx);
         String result = XmlUtils.toString(doc);
         logger.debug("result: {}", result);
         assertTrue(result.endsWith("<foo bar=\"5\">5</foo>"));
@@ -221,7 +221,7 @@ public class ScriptTest {
         ctx.vars.put("a", 1);
         ctx.vars.put("b", 2);
         DocumentContext doc = JsonUtils.toJsonDoc("{ foo: '#(a + b)' }");
-        Script.evalJsonEmbeddedExpressions(doc, ctx, false);
+        Script.evalJsonEmbeddedExpressions(doc, ctx);
         ctx.vars.put("myJson", doc);
         ScriptValue value = Script.evalJsonPathOnVarByName("myJson", "$.foo", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
@@ -235,7 +235,7 @@ public class ScriptTest {
         ctx.vars.put("ticket", JsonUtils.toJsonDoc(ticket));
         String json = "{ foo: '#(ticket.userId)' }";
         DocumentContext doc = JsonUtils.toJsonDoc(json);
-        Script.evalJsonEmbeddedExpressions(doc, ctx, false);
+        Script.evalJsonEmbeddedExpressions(doc, ctx);
         String result = doc.jsonString();
         logger.debug("result: {}", result);
         assertEquals("{\"foo\":\"12345\"}", result);
@@ -287,7 +287,7 @@ public class ScriptTest {
         right.put("baz", "#ignore");
         assertTrue(matchJsonObject(left, right, ctx).pass);
         right.put("baz", "#notpresent");
-        assertTrue(matchJsonObject(left, right, ctx).pass);        
+        assertTrue(matchJsonObject(left, right, ctx).pass);
         left.put("baz", Arrays.asList(1, 2, 3));
         right.put("baz", Arrays.asList(1, 2, 3));
         assertTrue(matchJsonObject(left, right, ctx).pass);
@@ -1419,6 +1419,13 @@ public class ScriptTest {
     }
 
     @Test
+    public void testOptionalAndUnMatchedActualKeys() {
+        ScenarioContext ctx = getContext();
+        Script.assign("expected", "{ a: 1, b: 2, c: '##null' }", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "expected", null, "{ a: 1, b: 2, d: 3}", ctx).pass);
+    }
+
+    @Test
     public void testValidationStringInsteadOfNumberInPredicate() {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "{ bar: 5 }", ctx);
@@ -1660,7 +1667,7 @@ public class ScriptTest {
         Script.assign(AssignType.BYTE_ARRAY, "data", "read('file:src/main/resources/karate-logo.png')", ctx, true);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "data", null, "read('file:src/main/resources/karate-logo.png')", ctx).pass);
     }
-    
+
     @Test
     public void testJsonCyclicReferences() {
         ScenarioContext ctx = getContext();

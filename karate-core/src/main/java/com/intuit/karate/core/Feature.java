@@ -68,37 +68,46 @@ public class Feature {
         for (FeatureSection section : sections) {
             if (section.isOutline()) {
                 for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
-                    if (scenario.isDynamic()) {                        
+                    if (scenario.isDynamic()) {
                         ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec, logger);
-                        bgUnit.run();             
+                        bgUnit.run();
                         ScenarioContext bgContext = bgUnit.getContext();
                         if (bgContext == null || bgUnit.isStopped()) { // karate-config.js || background failed
                             units.add(bgUnit); // exit early
-                        } else {                       
-                            String expression = scenario.getDynamicExpression();                        
-                            ScriptValue listValue = Script.evalKarateExpression(expression, bgContext);
-                            if (listValue.isListLike()) {
-                                List list = listValue.getAsList();
-                                int count = list.size();
-                                for (int i = 0; i < count; i++) {
-                                    ScriptValue rowValue = new ScriptValue(list.get(i));
-                                    if (rowValue.isMapLike()) {
-                                        Scenario dynamic = scenario.copy(i);
-                                        dynamic.setBackgroundDone(true);
-                                        Map<String, Object> map = rowValue.getAsMap();
-                                        map.forEach((k, v) -> {
-                                            ScriptValue sv = new ScriptValue(v);
-                                            dynamic.replace("<" + k + ">", sv.getAsString());
-                                        });                                                                        
-                                        ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext, logger);
-                                        units.add(unit);
-                                    } else {
-                                        bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
-                                    }
+                            continue;
+                        }
+                        String expression = scenario.getDynamicExpression();
+                        ScriptValue listValue;
+                        try {
+                            listValue = Script.evalKarateExpression(expression, bgContext);
+                        } catch (Exception e) {
+                            String message = "dynamic expression evaluation failed: " + expression;
+                            bgUnit.result.addError(message, e);
+                            units.add(bgUnit); // exit early
+                            continue;
+                        }
+                        if (listValue.isListLike()) {
+                            List list = listValue.getAsList();
+                            int count = list.size();
+                            for (int i = 0; i < count; i++) {
+                                ScriptValue rowValue = new ScriptValue(list.get(i));
+                                if (rowValue.isMapLike()) {
+                                    Scenario dynamic = scenario.copy(i); // this will set exampleIndex
+                                    dynamic.setBackgroundDone(true);
+                                    Map<String, Object> map = rowValue.getAsMap();
+                                    dynamic.setExampleData(map); // and here we set exampleData
+                                    map.forEach((k, v) -> {
+                                        ScriptValue sv = new ScriptValue(v);
+                                        dynamic.replace("<" + k + ">", sv.getAsString());
+                                    });
+                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext, logger);
+                                    units.add(unit);
+                                } else {
+                                    bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
                                 }
-                            } else {
-                                bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                             }
+                        } else {
+                            bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                         }
                     } else {
                         units.add(new ScenarioExecutionUnit(scenario, null, exec, logger));
@@ -132,8 +141,8 @@ public class Feature {
     public Step getStep(int sectionIndex, int scenarioIndex, int stepIndex) {
         Scenario scenario = getScenario(sectionIndex, scenarioIndex);
         List<Step> steps = scenario.getSteps();
-        if (stepIndex == -1 || steps.size() == 0 || steps.size() <= stepIndex) {
-        	return null;
+        if (stepIndex == -1 || steps.isEmpty() || steps.size() <= stepIndex) {
+            return null;
         }
         return steps.get(stepIndex);
     }
@@ -219,7 +228,7 @@ public class Feature {
     }
 
     public Path getPath() {
-        return resource == null ? null: resource.getPath();
+        return resource == null ? null : resource.getPath();
     }
 
     public String getRelativePath() {

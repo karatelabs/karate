@@ -29,13 +29,13 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class ExampleTable {
+public class ExamplesTable {
 
     private final ScenarioOutline outline;
     private final Table table;
     private List<Tag> tags;
 
-    public ExampleTable(ScenarioOutline outline, Table table) {
+    public ExamplesTable(ScenarioOutline outline, Table table) {
         this.outline = outline;
         this.table = table;
     }

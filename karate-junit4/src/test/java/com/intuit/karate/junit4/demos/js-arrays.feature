@@ -107,6 +107,25 @@ Scenario: karate find index of first match (complex)
     * eval karate.forEach(list, fun)
     * match foundAt == [1]
 
+Scenario: map with key - for the common case of converting arrays of primitives into arrays of objects
+    * def list = [ 'Bob', 'Wild', 'Nyan' ]
+    * def data = karate.mapWithKey(list, 'name')
+    * match data == [{ name: 'Bob' }, { name: 'Wild' }, { name: 'Nyan' }]
+
+    * def list = [ 1, 2, 3]
+    * def data = karate.mapWithKey(list, 'val')
+    * match data == [{ val: 1 }, { val: 2 }, { val: 3 }]
+
+    # will actually work for any kind of list
+    * def list = [{ a: 1 }, { b: 2 }]
+    * def data = karate.mapWithKey(list, 'foo')
+    * match data == [{ foo: { a: 1 } }, { foo: { b: 2 } }]
+
+    # should work for null edge case
+    * def list = null
+    * def data = karate.mapWithKey(list, 'foo')
+    * match data == []
+
 Scenario: simplest way to get the size of a json object
     * def json = { a: 1, b: 2, c: 3 }
     * def map = karate.toBean(json, 'java.util.HashMap')
@@ -212,7 +231,7 @@ Scenario: remove json value
 
 Scenario: optional json values
     * def response = [{a: 'one', b: 'two'}, { a: 'one' }]
-    * match each response contains { a: 'one', b: '##("two")' }
+    * match each response contains { a: 'one', b: '##string' }
 
 Scenario: #null, ##null, #present and #notpresent
     * def foo = { }

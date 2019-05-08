@@ -1,9 +1,9 @@
 Feature: browser automation
 
 Background:
-  * configure driver = { type: 'chrome' }
-  # * configure driver = { type: 'chromedriver' }
-  # * configure driver = { type: 'geckodriver' }
+  # * configure driver = { type: 'chrome' }
+  # * configure driver = { type: 'chromedriver', showDriverLog: true }
+  * configure driver = { type: 'geckodriver', showDriverLog: true }
   # * configure driver = { type: 'safaridriver' }
   # * configure driver = { type: 'mswebdriver' }
 

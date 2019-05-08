@@ -16,6 +16,7 @@ Given def cat =
 Then match cat.kittens[*].id == [23, 42]
 Then match cat.kittens[*].id contains 23
 Then match cat.kittens[*].id contains [42, 23]
+Then match cat..name == ['Billie', 'Bob', 'Wild']
 Then match each cat.kittens contains { id: '#number' }
 Then match each cat.kittens == { id: '#notnull', name: '#regex [A-Z][a-z]+' }
 

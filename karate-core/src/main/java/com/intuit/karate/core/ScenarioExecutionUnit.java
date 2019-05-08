@@ -28,8 +28,9 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import java.util.Collections;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -42,11 +43,9 @@ public class ScenarioExecutionUnit implements Runnable {
     public final ScenarioResult result;
     private final LogAppender appender;
     public final Logger logger;
-    private final boolean async;
     private boolean executed = false;
 
     private List<Step> steps;
-    private Iterator<Step> iterator;
     private StepActions actions;
     private boolean stopped = false;
     private StepResult lastStepResult;
@@ -56,25 +55,34 @@ public class ScenarioExecutionUnit implements Runnable {
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
         this(scenario, results, exec, null, logger);
     }
+    
+    private static final Map<String, Integer> FILE_HANDLE_COUNT = new HashMap();    
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results,
             ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
         this.scenario = scenario;
         this.exec = exec;
-        this.async = exec.callContext.perfMode && exec.callContext.callDepth == 0;
         result = new ScenarioResult(scenario, results);
         if (logger == null) {
             logger = new Logger();
             if (scenario.getIndex() < 500) {
-                String suffix;
-                if (exec.callContext.isCalled()) {
-                    // ensure no collisions for called features that are re-used across scenarios
-                    // this is not perfect, but we avoid locking across threads
-                    suffix = "-" + System.currentTimeMillis();
+                if (exec.callContext.isCalled()) {                    
+                    String featureName = exec.featureContext.packageQualifiedName;                    
+                    Integer count = FILE_HANDLE_COUNT.get(featureName);
+                    if (count == null) {
+                        count = 0;                        
+                    }
+                    count = count + 1;                    
+                    FILE_HANDLE_COUNT.put(featureName, count);                    
+                    if (count < 500) {
+                        // ensure no collisions for called features that are re-used across scenarios executing in parallel
+                        appender = exec.getLogAppender(scenario.getUniqueId() + "_" + Thread.currentThread().getName(), logger);
+                    } else { // this is a super-re-used feature, don't open any more files, same trade-off see below                        
+                        appender = LogAppender.NO_OP;
+                    }                    
                 } else {
-                    suffix = scenario.getUniqueId();
-                }
-                appender = exec.getLogAppender(suffix, logger);
+                    appender = exec.getLogAppender(scenario.getUniqueId(), logger);
+                }                
             } else {
                 // avoid creating log-files for scenario outlines beyond a limit
                 // trade-off is we won't see inline logs in the html report                 
@@ -122,7 +130,7 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public boolean isLast() {
         return last;
-    }        
+    }
 
     public void init() {
         boolean initFailed = false;
@@ -152,20 +160,25 @@ public class ScenarioExecutionUnit implements Runnable {
         } else {
             if (scenario.isDynamic()) {
                 steps = scenario.getBackgroundSteps();
-            } else if (scenario.isBackgroundDone()) {
-                steps = scenario.getSteps();
             } else {
-                steps = scenario.getStepsIncludingBackground();
+                if (scenario.isBackgroundDone()) {
+                    steps = scenario.getSteps();
+                } else {
+                    steps = scenario.getStepsIncludingBackground();
+                }
+                if (scenario.isOutline()) { // init examples row magic variables
+                    actions.context.vars.put("__row", scenario.getExampleData());
+                    actions.context.vars.put("__num", scenario.getExampleIndex());
+                }
             }
         }
-        iterator = steps.iterator();
         result.setThreadName(Thread.currentThread().getName());
         result.setStartTime(System.currentTimeMillis() - exec.startTime);
     }
 
     // for karate ui
     public void reset(ScenarioContext context) {
-    	setExecuted(false);
+        setExecuted(false);
         result.reset();
         actions = new StepActions(context);
     }
@@ -193,7 +206,7 @@ public class ScenarioExecutionUnit implements Runnable {
     }
 
     public void stop() {
-        result.setEndTime(System.currentTimeMillis() - exec.startTime);        
+        result.setEndTime(System.currentTimeMillis() - exec.startTime);
         if (actions != null) { // edge case if karate-config.js itself failed
             // gatling clean up
             actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
@@ -214,37 +227,28 @@ public class ScenarioExecutionUnit implements Runnable {
 
     @Override
     public void run() {
-        if (iterator == null) {
+        if (steps == null) {
             init();
         }
-        if (iterator.hasNext()) {
-            lastStepResult = execute(iterator.next());
+        for (Step step : steps) {
+            lastStepResult = execute(step);
             result.addStepResult(lastStepResult);
             if (lastStepResult.isStopped()) {
                 stopped = true;
             }
-            // this is self-recursion but step counts will never cause stack overflows
-            // it is important that we preserve the order of step execution so this hack is necessary
-            // and it gives us the async / non-blocking behavior we need for gatling
-            if (async) {
-                exec.system.accept(this);
-            } else {
-                run();
-            }
-        } else {
-            stop();
-            if (next != null) {
-                next.run();
-            }
+        }
+        stop();
+        if (next != null) {
+            next.run();
         }
     }
 
-	public boolean isExecuted() {
-		return executed;
-	}
+    public boolean isExecuted() {
+        return executed;
+    }
 
-	public void setExecuted(boolean executed) {
-		this.executed = executed;
-	}
+    public void setExecuted(boolean executed) {
+        this.executed = executed;
+    }
 
 }
