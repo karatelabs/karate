@@ -387,18 +387,33 @@ public class FileUtils {
     }
 
     public static Path getPathContaining(Class clazz) {
+        String relative = packageAsPath(clazz);
+        URL url = clazz.getClassLoader().getResource(relative);
+        return getPathFor(url, null);
+    }
+
+    private static String packageAsPath(Class clazz) {
+
         Package p = clazz.getPackage();
         String relative = "";
         if (p != null) {
             relative = p.getName().replace('.', '/');
         }
-        URL url = clazz.getClassLoader().getResource(relative);
-        return getPathFor(url, null);
+        return relative;
     }
 
     public static File getFileRelativeTo(Class clazz, String path) {
         Path dirPath = getPathContaining(clazz);
-        return new File(dirPath + File.separator + path);
+        File file = new File(dirPath + File.separator + path);
+        if (file.exists()) {
+            return file;
+        }
+        try {
+            URL relativePath = clazz.getClassLoader().getResource(packageAsPath(clazz) + File.separator + path);
+            return Paths.get(relativePath.toURI()).toFile();
+        } catch (Exception e) {
+            throw new IllegalArgumentException(String.format("Cannot resolve path '%s' relative to class '%s' ", path, clazz.getName()), e);
+        }
     }
 
     public static String toRelativeClassPath(Class clazz) {
@@ -593,7 +608,7 @@ public class FileUtils {
         }
         String command = System.getProperty("sun.java.command", "");
         return command.contains("org.gradle.") ? "build" : "target";
-    }    
+    }
 
     public static enum Platform {
         WINDOWS,
