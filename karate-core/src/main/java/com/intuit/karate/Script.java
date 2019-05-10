@@ -591,18 +591,24 @@ public class Script {
                 sv = new ScriptValue(exp);
                 break;
             case YAML:
-                DocumentContext doc = JsonUtils.fromYaml(exp);
-                evalJsonEmbeddedExpressions(doc, context);
-                sv = new ScriptValue(doc);
+                ScriptValue yamlString = evalKarateExpression(exp, context);
+                DocumentContext yamlDoc = JsonUtils.fromYaml(yamlString.getAsString());
+                evalJsonEmbeddedExpressions(yamlDoc, context);
+                sv = new ScriptValue(yamlDoc);
+                break;
+            case CSV:
+                ScriptValue csvString = evalKarateExpression(exp, context);
+                DocumentContext csvDoc = JsonUtils.fromCsv(csvString.getAsString());
+                sv = new ScriptValue(csvDoc);
                 break;
             case STRING:
-                ScriptValue tempString = evalKarateExpression(exp, context);
-                sv = new ScriptValue(tempString.getAsString());
+                ScriptValue str = evalKarateExpression(exp, context);
+                sv = new ScriptValue(str.getAsString());
                 break;
             case JSON:
                 DocumentContext jsonDoc = toJsonDoc(evalKarateExpression(exp, context), context);
                 sv = new ScriptValue(jsonDoc);
-                break;
+                break;        
             case XML:
                 Node xmlDoc = toXmlDoc(evalKarateExpression(exp, context), context);
                 sv = new ScriptValue(xmlDoc);

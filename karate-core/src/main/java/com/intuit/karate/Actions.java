@@ -37,6 +37,8 @@ public interface Actions {
     void call(String name, String arg);
 
     void callonce(String name, String arg);
+    
+    void csv(String name, String expression);
 
     void json(String name, String expression);
 
@@ -125,7 +127,7 @@ public interface Actions {
     void text(String name, String expression);
 
     void url(String expression);
-
+    
     void yaml(String name, String expression);
     
     //==========================================================================

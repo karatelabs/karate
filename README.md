@@ -76,6 +76,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#text"><code>text</code></a>
     | <a href="#table"><code>table</code></a>
     | <a href="#yaml"><code>yaml</code></a>
+    | <a href="#csv"><code>csv</code></a>
     | <a href="#type-string"><code>string</code></a>
     | <a href="#type-json"><code>json</code></a>
     | <a href="#type-xml"><code>xml</code></a>
@@ -1247,13 +1248,19 @@ Note how strings have to be enclosed in quotes. This is so that you can mix expr
 ```
 Refer to this file for a detailed example: [`replace.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/replace.feature)
 
-## `yaml`
-### Import YAML as JSON
-For those who may prefer [YAML](http://yaml.org) as a simpler way to represent data, Karate allows you to read YAML content 'in-line' or even from a [file](#reading-files) - and it will be auto-converted to JSON.
+## YAML Files
+For those who may prefer [YAML](http://yaml.org) as a simpler way to represent data, Karate allows you to read YAML content from a [file](#reading-files) - and it will be auto-converted into JSON.
 
 ```cucumber
-# reading yaml 'in-line', note the 'yaml' keyword instead of 'def'
-* yaml foo =
+# yaml from a file (the extension matters), and the data-type of 'bar' would be JSON
+* def bar = read('data.yaml')
+```
+
+### `yaml`
+A very rare need is to be able to convert a string which happens to be in YAML form into JSON, and this can be done via the `yaml` type cast keyword. For example - if a response data element or downloaded file is YAML and you need to use the data in subsequent steps.
+
+```cucumber
+* text foo =
   """
   name: John
   input:
@@ -1262,7 +1269,8 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
       name: Smith
       deleted: false
   """
-# the data is now JSON, so you can do JSON-things with it
+# yaml to json type conversion  
+* yaml foo = foo
 * match foo ==
   """
   {
@@ -1273,15 +1281,26 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
     }
   }
   """
-
-# yaml from a file (the extension matters), and the data-type of 'bar' would be JSON
-* def bar = read('data.yaml')
 ```
 
 ## CSV Files
 Karate can read `*.csv` files and will auto-convert them to JSON. A header row is always expected. See the section on [reading files](#reading-files) - and also this example [`dynamic-csv.feature`](karate-demo/src/test/java/demo/outline/dynamic-csv.feature), which shows off the convenience of [dynamic `Scenario Outline`-s](#dynamic-scenario-outline).
 
 In rare cases you may want to use a csv-file as-is and *not* auto-convert it to JSON. A good example is when you want to use a CSV file as the [request-body](#request) for a file-upload. You could get by by renaming the file-extension to say `*.txt` but an alternative is to use the [`karate.readAsString()`](#read-file-as-string) API.
+
+### `csv`
+Just like [`yaml`](#yaml), you may occasionally need to convert a string which happens to be in CSV form into JSON, and this can be done via the `csv` keyword.
+
+```cucumber
+* text foo =
+    """
+    name,type
+    Billie,LOL
+    Bob,Wild
+    """
+* csv bar = foo
+* match bar == [{ name: 'Billie', type: 'LOL' }, { name: 'Bob', type: 'Wild' }]
+```
 
 ## JavaScript Functions
 JavaScript Functions are also 'native'. And yes, functions can take arguments.
@@ -1433,6 +1452,8 @@ So you have the following type markers you can use instead of [`def`](#def) (or 
 * <a name="type-json"><code>json</code></a> - convert XML, a map-like or list-like object, a string, or even a Java object into JSON
 * <a name="type-xml"><code>xml</code></a> - convert JSON, a map-like object, a string, or even a Java object into XML
 * <a name="type-xmlstring"><code>xmlstring</code></a> - specifically for converting the map-like Karate internal representation of XML into a string
+* <a name="csv"><code>csv</code></a> - convert a CSV string into JSON
+* <a name="yaml"><code>yaml</code></a> - convert a YAML string into JSON
 * <a name="type-bytes"><code>bytes</code></a> - convert to a byte-array, useful for binary payloads or comparisons, see [example](karate-demo/src/test/java/demo/websocket/echo.feature)
 * <a name="type-copy"><code>copy</code></a> - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
 

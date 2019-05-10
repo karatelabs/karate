@@ -9,6 +9,7 @@ public enum AssignType {
     AUTO,
     COPY,
     TEXT,
+    CSV,
     YAML,
     JSON,
     STRING,

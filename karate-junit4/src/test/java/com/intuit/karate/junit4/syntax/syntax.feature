@@ -487,7 +487,7 @@ Then match pdf == read('test.pdf')
 """
 
 # inline yaml
-* yaml bar =
+* text bar =
 """
 name: John
 input:
@@ -505,6 +505,7 @@ output:
       - notes
       - deleted
 """
+* yaml bar = bar
 * match bar ==
 """
 {
