@@ -1683,9 +1683,6 @@ public class Script {
     }
 
     public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScenarioContext context) {
-        // injects the 'karate' variable into the js function body
-        // also ensure that things like 'karate.get' operate on the latest variable state
-        som.setMember(ScriptBindings.KARATE, context.bindings.bridge);
         Object result;
         try {
             if (callArg != null) {

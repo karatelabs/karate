@@ -66,8 +66,11 @@ public class ScriptBridge implements PerfContext {
 
     public final ScenarioContext context;
 
+    private static final ThreadLocal<ScenarioContext> CURRENT_CONTEXT = new ThreadLocal();
+
     public ScriptBridge(ScenarioContext context) {
         this.context = context;
+        CURRENT_CONTEXT.set(context); // see call() below
     }
 
     public ScenarioContext getContext() {
@@ -125,7 +128,7 @@ public class ScriptBridge implements PerfContext {
     public void set(Map<String, Object> map) {
         map.forEach((k, v) -> set(k, v));
     }
-    
+
     // this makes sense for xml / xpath manipulation from within js
     public void remove(String name, String path) {
         Script.removeValueByPath(name, path, context);
@@ -229,12 +232,12 @@ public class ScriptBridge implements PerfContext {
         }
         return res;
     }
-    
-    public Object mapWithKey(List list, String key) {                
+
+    public Object mapWithKey(List list, String key) {
         if (list == null) {
             return new ArrayList();
         }
-        List res = new ArrayList(list.size());        
+        List res = new ArrayList(list.size());
         for (Object o : list) {
             Map map = new LinkedHashMap();
             map.put(key, o);
@@ -285,7 +288,8 @@ public class ScriptBridge implements PerfContext {
         switch (sv.getType()) {
             case FEATURE:
                 Feature feature = sv.getValue(Feature.class);
-                return Script.evalFeatureCall(feature, arg, context, false).getValue();
+                // solve for edge case where this.context is from function inited before call heirarchy was determined
+                return Script.evalFeatureCall(feature, arg, CURRENT_CONTEXT.get(), false).getValue();
             case JS_FUNCTION:
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
                 return Script.evalFunctionCall(som, arg, context).getValue();
@@ -382,14 +386,14 @@ public class ScriptBridge implements PerfContext {
         path = FileUtils.getBuildDir() + File.separator + path;
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
     }
-    
+
     public WebSocketClient webSocket(String url) {
         return webSocket(url, null, null);
-    }    
-    
+    }
+
     public WebSocketClient webSocket(String url, String subProtocol) {
         return webSocket(url, subProtocol, null);
-    }    
+    }
 
     public WebSocketClient webSocket(String url, Function<String, Boolean> handler) {
         return webSocket(url, null, handler);
@@ -398,18 +402,18 @@ public class ScriptBridge implements PerfContext {
     public WebSocketClient webSocket(String url, String subProtocol, Function<String, Boolean> handler) {
         if (handler == null) {
             handler = t -> true; // auto signal for websocket tests
-        }        
+        }
         return context.webSocket(url, subProtocol, handler, null);
     }
-    
-   public WebSocketClient webSocketBinary(String url) {
+
+    public WebSocketClient webSocketBinary(String url) {
         return webSocketBinary(url, null, null);
-    }    
-   
-   public WebSocketClient webSocketBinary(String url, String subProtocol) {
+    }
+
+    public WebSocketClient webSocketBinary(String url, String subProtocol) {
         return webSocketBinary(url, subProtocol, null);
-    }     
-    
+    }
+
     public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler) {
         return webSocketBinary(url, null, handler);
     }
