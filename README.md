@@ -1452,8 +1452,8 @@ So you have the following type markers you can use instead of [`def`](#def) (or 
 * <a name="type-json"><code>json</code></a> - convert XML, a map-like or list-like object, a string, or even a Java object into JSON
 * <a name="type-xml"><code>xml</code></a> - convert JSON, a map-like object, a string, or even a Java object into XML
 * <a name="type-xmlstring"><code>xmlstring</code></a> - specifically for converting the map-like Karate internal representation of XML into a string
-* <a name="csv"><code>csv</code></a> - convert a CSV string into JSON
-* <a name="yaml"><code>yaml</code></a> - convert a YAML string into JSON
+* <a name="type-csv"><code>csv</code></a> - convert a CSV string into JSON, see [`csv`](#csv)
+* <a name="type-yaml"><code>yaml</code></a> - convert a YAML string into JSON, see [`yaml`](#yaml)
 * <a name="type-bytes"><code>bytes</code></a> - convert to a byte-array, useful for binary payloads or comparisons, see [example](karate-demo/src/test/java/demo/websocket/echo.feature)
 * <a name="type-copy"><code>copy</code></a> - to clone a given payload variable reference (JSON, XML, Map or List), refer: [`copy`](#copy)
 
@@ -3114,7 +3114,7 @@ Operation | Description
 <a name="karate-get"><code>karate.get(name)</code></a> | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
 <a name="karate-info"><code>karate.info</code></a> | within a test (or within the [`afterScenario`](#configure) function if configured) you can access metadata such as the `Scenario` name, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
 <a name="karate-jsonpath"><code>karate.jsonPath(json, expression)</code></a> | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into JavaScript, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
-<a name="karate-listen"><code>karate.listen(timeout)</code></a> | wait until [`karate.signal(result)`](#karate-signal) has been called or time-out after `timeout` milliseconds. see examples: [websocket](karate-demo/src/test/java/demo/websocket/websocket.feature) / [message-queue](karate-demo/src/test/java/mock/contract/payment-service.feature)
+<a name="karate-listen"><code>karate.listen(timeout)</code></a> | wait until [`karate.signal(result)`](#karate-signal) has been called or time-out after `timeout` milliseconds, see [async](#async)
 <a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
 <a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
 <a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
@@ -3132,11 +3132,11 @@ Operation | Description
 <a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/set.feature)
 <a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
 <a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
-<a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see examples: [websocket](karate-demo/src/test/java/demo/websocket/websocket.feature) / [message-queue](karate-demo/src/test/java/mock/contract/payment-service.feature)
+<a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
 <a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 <a name="karate-tagvalues"><code>karate.tagValues</code></a> | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
 <a name="karate-tobean"><code>karate.toBean(json, className)</code></a> | converts a JSON string or map-like object into a Java object, given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
-<a name="karate-websocket"><code>karate.webSocket(url, handler)</code></a> | start a [websocket](#async) instance that can be used to send messages or listen for one, see [example](karate-demo/src/test/java/demo/websocket/echo.feature)
+<a name="karate-websocket"><code>karate.webSocket(url, handler)</code></a> | see [websocket](#websocket)
 <a name="karate-xmlpath"><code>karate.xmlPath(xml, expression)</code></a> | Just like [`karate.jsonPath()`](#karate-jsonpath) - but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 ### JS function argument rules for `call`
@@ -3417,19 +3417,48 @@ Scenario: function re-use, isolated / name-spaced scope
 ```
 
 ## Async
-The JS API has a couple of methods - [`karate.signal(result)`](#karate-signal) and [`karate.listen(timeout)`](#karate-listen) that are useful for involving asynchronous flows into a test. Karate also has built-in support for [websocket](http://www.websocket.org) that is based on this async capability.
-
-This code is able to send as well as receive websocket messages. You can create a websocket instance that can be used to send messages via the [`karate.webSocket()`](#karate-websocket) JS API. Note how you can ignore messages you aren't interested in:
+The JS API has a couple of methods - [`karate.signal(result)`](#karate-signal) and [`karate.listen(timeout)`](#karate-listen) that are useful for involving asynchronous flows into a test. This is best [explained](https://github.com/intuit/karate/tree/master/karate-netty#consumer-provider-example) in this [example](karate-demo/src/test/java/mock/contract/payment-service.feature) that involves listening to an ActiveMQ / JMS queue. Note how JS functions defined at run-time can be mixed with custom [Java code](#java-interop) to get things done.
 
 ```cucumber
-* def handler = function(msg){ if (msg.startsWith('hello')) karate.signal(msg) }
+Background:
+* def QueueConsumer = Java.type('mock.contract.QueueConsumer')
+* def queue = new QueueConsumer(queueName)
+* def handler = function(msg){ karate.signal(msg) }
+* eval queue.listen(handler)
+* url paymentServiceUrl + '/payments'
+
+Scenario: create, get, update, list and delete payments
+    Given request { amount: 5.67, description: 'test one' }
+    When method post
+    Then status 200
+    And match response == { id: '#number', amount: 5.67, description: 'test one' }
+    And def id = response.id
+    * json shipment = karate.listen(5000)
+    * print '### received:', shipment
+    * match shipment == { paymentId: '#(id)', status: 'shipped' }
+```
+
+## WebSocket
+Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability. The following method signatures are available on the `karate` JS object to obtain a websocket reference:
+
+* `karate.webSocket(url)`
+* `karate.webSocket(url, subProtocol)`
+* `karate.webSocket(url, handler)`
+* `karate.webSocket(url, subProtocol, handler)`
+
+These will init a websocket client for the given `url` and optional `subprotocol`. If a `handler` function is provided - it will be used to complete the call to `socket.listen(timeout)` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic.
+
+Here is an example:
+
+```cucumber
+* def handler = function(msg){ return msg.startsWith('hello') }
 * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
 * eval socket.send('Billie')
-* def result = karate.listen(5000)
+* def result = socket.listen(5000)
 * match result == 'hello Billie !'
 ```
 
-For more details, please refer to [this discussion](https://github.com/intuit/karate/issues/395#issuecomment-434745214) which has links to the message-queue listener example as well.
+The same method signatures exist for `karate.webSocketBinary()`. Refer to these examples for more: [`echo.feature`](karate-demo/src/test/java/demo/websocket/echo.feature) | [`websocket.feature`](karate-demo/src/test/java/demo/websocket/websocket.feature).
 
 ## Tags
 Gherkin has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.

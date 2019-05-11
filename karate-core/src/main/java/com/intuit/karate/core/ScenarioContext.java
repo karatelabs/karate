@@ -102,10 +102,12 @@ public class ScenarioContext {
     // ui support
     private Function<CallContext, FeatureResult> callable;
 
-    // websocket
+    // async
     private final Object LOCK = new Object();
-    private List<WebSocketClient> webSocketClients;
     private Object signalResult;
+    
+    // websocket    
+    private List<WebSocketClient> webSocketClients;    
 
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHooks != null) {
@@ -796,7 +798,7 @@ public class ScenarioContext {
         prevEmbed = embed;
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+    public WebSocketClient webSocket(String url, String subProtocol, Function<String, Boolean> textHandler, Function<byte[], Boolean> binaryHandler) {
         WebSocketClient webSocketClient = new WebSocketClient(url, subProtocol, textHandler, binaryHandler);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();

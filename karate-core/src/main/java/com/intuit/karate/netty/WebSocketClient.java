@@ -40,6 +40,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.net.URI;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,31 +58,44 @@ public class WebSocketClient implements WebSocketListener {
     private final boolean ssl;
     private final Channel channel;
     private final EventLoopGroup group;
-    
-    private Consumer<String> textHandler;
-    private Consumer<byte[]> binaryHandler;
-    
+
+    private Function<String, Boolean> textHandler;
+    private Function<byte[], Boolean> binaryHandler;
+
     @Override
     public void onMessage(String text) {
         if (textHandler != null) {
-            textHandler.accept(text);
+            if (textHandler.apply(text)) {
+                signal(text);
+            }
         }
     }
 
     @Override
     public void onMessage(byte[] bytes) {
         if (binaryHandler != null) {
-            binaryHandler.accept(bytes);
+            if (binaryHandler.apply(bytes)) {
+                signal(bytes);
+            }
         }
     }    
-    
-    private boolean waiting;
-    
+
+    private static <T> Function<T, Boolean> toFunction(Consumer<T> consumer) {
+        return t -> {
+            consumer.accept(t);
+            return false; // no async signalling, for normal use, e.g. chrome developer tools
+        };
+    }
+
     public WebSocketClient(String url, String subProtocol, Consumer<String> textHandler) {
+        this(url, subProtocol, toFunction(textHandler), null);
+    }
+
+    public WebSocketClient(String url, String subProtocol, Function<String, Boolean> textHandler) {
         this(url, subProtocol, textHandler, null);
     }
 
-    public WebSocketClient(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+    public WebSocketClient(String url, String subProtocol, Function<String, Boolean> textHandler, Function<byte[], Boolean> binaryHandler) {
         this.textHandler = textHandler;
         this.binaryHandler = binaryHandler;
         uri = URI.create(url);
@@ -108,24 +122,26 @@ public class WebSocketClient implements WebSocketListener {
             initializer.getHandler().handshakeFuture().sync();
         } catch (Exception e) {
             logger.error("websocket server init failed: {}", e.getMessage());
-            throw new RuntimeException(e);            
+            throw new RuntimeException(e);
         }
     }
 
-    public void setBinaryHandler(Consumer<byte[]> binaryHandler) {
+    public void setBinaryHandler(Function<byte[], Boolean> binaryHandler) {
         this.binaryHandler = binaryHandler;
     }
 
-    public void setTextHandler(Consumer<String> textHandler) {
+    public void setTextHandler(Function<String, Boolean> textHandler) {
         this.textHandler = textHandler;
-    }        
+    }       
+    
+    private boolean waiting;
 
     public void waitSync() {
         if (waiting) {
             return;
         }
         try {
-            waiting = true;            
+            waiting = true;
             channel.closeFuture().sync();
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -143,18 +159,50 @@ public class WebSocketClient implements WebSocketListener {
         channel.writeAndFlush(frame);
     }
 
-    public void send(String msg) {        
+    public void send(String msg) {
         WebSocketFrame frame = new TextWebSocketFrame(msg);
         channel.writeAndFlush(frame);
         if (logger.isTraceEnabled()) {
             logger.trace("sent: {}", msg);
         }
     }
-    
+
     public void sendBytes(byte[] msg) {
         ByteBuf byteBuf = Unpooled.copiedBuffer(msg);
         BinaryWebSocketFrame frame = new BinaryWebSocketFrame(byteBuf);
         channel.writeAndFlush(frame);
+    }
+
+    private final Object LOCK = new Object();
+    private Object signalResult;
+
+    public void signal(Object result) {
+        logger.trace("signal called: {}", result);
+        synchronized (LOCK) {
+            signalResult = result;
+            LOCK.notify();
+        }
+    }
+
+    public Object listen(long timeout) {
+        synchronized (LOCK) {
+            if (signalResult != null) {
+                logger.debug("signal arrived early ! result: {}", signalResult);
+                Object temp = signalResult;
+                signalResult = null;
+                return temp;
+            }
+            try {
+                logger.trace("entered listen wait state");
+                LOCK.wait(timeout);
+                logger.trace("exit listen wait state, result: {}", signalResult);
+            } catch (InterruptedException e) {
+                logger.error("listen timed out: {}", e.getMessage());
+            }
+            Object temp = signalResult;
+            signalResult = null;
+            return temp;
+        }
     }
 
 }

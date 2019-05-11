@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -381,17 +382,43 @@ public class ScriptBridge implements PerfContext {
         path = FileUtils.getBuildDir() + File.separator + path;
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
     }
+    
+    public WebSocketClient webSocket(String url) {
+        return webSocket(url, null, null);
+    }    
+    
+    public WebSocketClient webSocket(String url, String subProtocol) {
+        return webSocket(url, subProtocol, null);
+    }    
 
-    public WebSocketClient webSocket(String url, Consumer<String> textHandler) {
-        return context.webSocket(url, null, textHandler, null);
+    public WebSocketClient webSocket(String url, Function<String, Boolean> handler) {
+        return webSocket(url, null, handler);
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler) {
-        return context.webSocket(url, subProtocol, textHandler, null);
+    public WebSocketClient webSocket(String url, String subProtocol, Function<String, Boolean> handler) {
+        if (handler == null) {
+            handler = t -> true; // auto signal for websocket tests
+        }        
+        return context.webSocket(url, subProtocol, handler, null);
+    }
+    
+   public WebSocketClient webSocketBinary(String url) {
+        return webSocketBinary(url, null, null);
+    }    
+   
+   public WebSocketClient webSocketBinary(String url, String subProtocol) {
+        return webSocketBinary(url, subProtocol, null);
+    }     
+    
+    public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler) {
+        return webSocketBinary(url, null, handler);
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        return context.webSocket(url, subProtocol, textHandler, binaryHandler);
+    public WebSocketClient webSocketBinary(String url, String subProtocol, Function<byte[], Boolean> handler) {
+        if (handler == null) {
+            handler = t -> true; // auto signal for websocket tests
+        }
+        return context.webSocket(url, subProtocol, null, handler);
     }
 
     public void signal(Object result) {
