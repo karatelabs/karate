@@ -161,7 +161,11 @@ public class Table {
                     }
                     return ScriptBindings.eval(raw, null).getValue();
                 default:
-                    return raw;
+                    if (StringUtils.isBlank(raw)) {
+                        return null;
+                    } else {
+                        return raw;
+                    }
             }
         } catch (Exception e) {
             if (logger.isTraceEnabled()) {

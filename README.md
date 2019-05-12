@@ -3417,7 +3417,7 @@ Scenario: function re-use, isolated / name-spaced scope
 ```
 
 ## Async
-The JS API has a couple of methods - [`karate.signal(result)`](#karate-signal) and [`karate.listen(timeout)`](#karate-listen) that are useful for involving asynchronous flows into a test. This is best [explained](https://github.com/intuit/karate/tree/master/karate-netty#consumer-provider-example) in this [example](karate-demo/src/test/java/mock/contract/payment-service.feature) that involves listening to an ActiveMQ / JMS queue. Note how JS functions defined at run-time can be mixed with custom [Java code](#java-interop) to get things done.
+The JS API has a couple of methods - [`karate.signal(result)`](#karate-signal) and [`karate.listen(timeout)`](#karate-listen) that are useful for involving asynchronous flows into a test. This is best [explained](https://github.com/intuit/karate/tree/master/karate-netty#consumer-provider-example) in this [example](karate-demo/src/test/java/mock/contract/payment-service.feature) that involves listening to an ActiveMQ / JMS queue. Note how [JS functions](#javascript-functions) defined at run-time can be mixed with custom [Java code](#java-interop) to get things done.
 
 ```cucumber
 Background:
@@ -3439,16 +3439,16 @@ Scenario: create, get, update, list and delete payments
 ```
 
 ## WebSocket
-Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability. The following method signatures are available on the `karate` JS object to obtain a websocket reference:
+Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability. The following method signatures are available on the [`karate` JS object](#the-karate-object) to obtain a websocket reference:
 
 * `karate.webSocket(url)`
 * `karate.webSocket(url, subProtocol)`
 * `karate.webSocket(url, handler)`
 * `karate.webSocket(url, subProtocol, handler)`
 
-These will init a websocket client for the given `url` and optional `subprotocol`. If a `handler` function is provided - it will be used to complete the call to `socket.listen(timeout)` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic.
+These will init a websocket client for the given `url` and optional `subProtocol`. If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the "wait" of `socket.listen()` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic.
 
-Here is an example:
+Here is an example, where the same websocket connection is used to send as well as receive a message.
 
 ```cucumber
 * def handler = function(msg){ return msg.startsWith('hello') }
@@ -3458,7 +3458,7 @@ Here is an example:
 * match result == 'hello Billie !'
 ```
 
-The same method signatures exist for `karate.webSocketBinary()`. Refer to these examples for more: [`echo.feature`](karate-demo/src/test/java/demo/websocket/echo.feature) | [`websocket.feature`](karate-demo/src/test/java/demo/websocket/websocket.feature).
+For handling binary messages, the same `karate.webSocket()` method signatures exist for `karate.webSocketBinary()`. Refer to these examples for more: [`echo.feature`](karate-demo/src/test/java/demo/websocket/echo.feature) | [`websocket.feature`](karate-demo/src/test/java/demo/websocket/websocket.feature). Note that any websocket instances created will be auto-closed at the end of the `Scenario`.
 
 ## Tags
 Gherkin has a great way to sprinkle meta-data into test-scripts - which gives you some interesting options when running tests in bulk.  The most common use-case would be to partition your tests into 'smoke', 'regression' and the like - which enables being able to selectively execute a sub-set of tests.
@@ -3553,10 +3553,12 @@ This is great for testing boundary conditions against a single end-point, with t
 
 ### Scenario Outline Enhancements
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
-* __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or even in-line JSON) - else it defaults to string. You can optionally use the [`karate.set()`](#karate-setall) API to make all the key-value pairs available as variables in scope, which can greatly simplify [embedded expressions](#embedded-expressions) - especially from a re-use point of view.
+* __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or even in-line JSON) - else it defaults to string. You can optionally use the [`karate.set(json)`](#karate-setall) API to inject all the key-value pairs as variables in scope (in one shot), which can greatly simplify JSON manipulation - especially when you want to re-use JSON files containing [embedded expressions](#embedded-expressions).
 * __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
 
-These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). Note that even the scenario name can accept placeholders which is very useful in reports:
+These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-concatenation `<foo>` placeholder style or refer to `__row.foo` in JSON-friendly [expressions](#karate-expressions).
+
+Note that even the scenario name can accept placeholders - which is very useful in reports. 
 
 ```cucumber
 Scenario Outline: name is <name> and age is <age>
