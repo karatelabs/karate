@@ -161,7 +161,7 @@ public class FileUtils {
     private static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
             ClassLoader cl = context.getClass().getClassLoader();
-            return new Resource(fromRelativeClassPath(path, cl), path);
+            return new Resource(fromRelativeClassPath(path, cl), path, -1);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
             return new Resource(new File(temp), path);
@@ -169,12 +169,12 @@ public class FileUtils {
             String temp = removePrefix(path);
             Path parentPath = context.featureContext.parentPath;
             Path childPath = parentPath.resolve(temp);
-            return new Resource(childPath, path);
+            return new Resource(childPath, path, -1);
         } else {
             try {
                 Path parentPath = context.rootFeatureContext.parentPath;
                 Path childPath = parentPath.resolve(path);
-                return new Resource(childPath, path);
+                return new Resource(childPath, path, -1);
             } catch (Exception e) {
                 logger.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
@@ -571,6 +571,14 @@ public class FileUtils {
 
     private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files) {
         boolean classpath = url != null;
+        int colonPos = searchPath.lastIndexOf(':');
+        int line;
+        if (colonPos != -1) { //
+            line = Integer.valueOf(searchPath.substring(colonPos + 1));
+            searchPath = searchPath.substring(0, colonPos);            
+        } else {
+            line = -1;
+        }
         Path rootPath;
         Path search;
         if (classpath) {
@@ -596,7 +604,7 @@ public class FileUtils {
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
                 relativePath = relativePath.replaceAll("[.]{2,}", "");
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + toStandardPath(relativePath)));
+                files.add(new Resource(path, prefix + toStandardPath(relativePath), line));
             }
         }
     }

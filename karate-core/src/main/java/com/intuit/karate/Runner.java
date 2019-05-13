@@ -58,24 +58,26 @@ public class Runner {
 
     public static Results parallel(Class<?> clazz, int threadCount, String reportDir) {
         RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(clazz);
-        return parallel(options.getTags(), options.getFeatures(), null, threadCount, reportDir);
+        return parallel(options.getTags(), options.getFeatures(), options.getName(), null, threadCount, reportDir);
     }
 
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
-        return parallel(tags, paths, null, threadCount, reportDir);
+        return parallel(tags, paths, null, null, threadCount, reportDir);
     }
 
-    public static Results parallel(List<String> tags, List<String> paths, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
+    public static Results parallel(List<String> tags, List<String> paths, String scenarioName, 
+            Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
         String tagSelector = tags == null ? null : Tags.fromKarateOptionsTags(tags);
         List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
-        return parallel(tagSelector, files, hooks, threadCount, reportDir);
+        return parallel(tagSelector, files, scenarioName, hooks, threadCount, reportDir);
     }
 
     public static Results parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
-        return parallel(tagSelector, resources, null, threadCount, reportDir);
+        return parallel(tagSelector, resources, null, null, threadCount, reportDir);
     }
 
-    public static Results parallel(String tagSelector, List<Resource> resources, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
+    public static Results parallel(String tagSelector, List<Resource> resources, String scenarioName, 
+            Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
         if (threadCount < 1) {
             threadCount = 1;
         }
@@ -97,6 +99,8 @@ public class Runner {
                 Resource resource = resources.get(i);
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
+                feature.setCallName(scenarioName);
+                feature.setCallLine(resource.getLine());
                 FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(feature, hooks, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir,

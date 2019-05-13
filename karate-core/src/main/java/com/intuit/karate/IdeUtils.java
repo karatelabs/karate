@@ -60,6 +60,7 @@ public class IdeUtils {
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             feature.setCallName(name);
+            feature.setCallLine(resource.getLine());
             FeatureResult result = Engine.executeFeatureSync(null, feature, tagSelector, null);
             if (isIntellij) {
                 log(result);

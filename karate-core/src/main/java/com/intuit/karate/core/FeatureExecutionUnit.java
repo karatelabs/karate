@@ -101,9 +101,20 @@ public class FeatureExecutionUnit implements Runnable {
     }
 
     public boolean isSelected(ScenarioExecutionUnit unit) {
-        FeatureContext featureContext = exec.featureContext;
-        String callName = featureContext.feature.getCallName();
         Scenario scenario = unit.scenario;
+        Feature feature = exec.featureContext.feature;
+        int callLine = feature.getCallLine();
+        if (callLine != -1) {
+            int sectionLine = scenario.getSection().getLine();
+            int scenarioLine = scenario.getLine();
+            if (callLine == sectionLine || callLine == scenarioLine) {
+                unit.logger.info("found scenario at line: {}", callLine);
+            } else {
+                unit.logger.info("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
+                return false;
+            }
+        }
+        String callName = feature.getCallName();        
         if (callName != null) {
             if (!scenario.getName().matches(callName)) {
                 unit.logger.info("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
@@ -112,7 +123,7 @@ public class FeatureExecutionUnit implements Runnable {
             unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
         }
         Tags tags = scenario.getTagsEffective();
-        if (!tags.evaluate(featureContext.tagSelector)) {
+        if (!tags.evaluate(exec.featureContext.tagSelector)) {
             unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
             return false;
         }

@@ -83,7 +83,7 @@ public class JarLoadingTest {
             list.add(() -> {
                 Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
                 logger.debug("path: {}", path);
-                Resource resource = new Resource(path, relativePath);
+                Resource resource = new Resource(path, relativePath, -1);
                 Feature feature = FeatureParser.parse(resource);
                 Map<String, Object> map = Runner.runFeature(feature, null, true);
                 Boolean result = (Boolean) map.get("success");

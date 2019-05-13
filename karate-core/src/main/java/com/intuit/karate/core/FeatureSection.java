@@ -32,6 +32,14 @@ public class FeatureSection {
     private int index;
     private Scenario scenario;
     private ScenarioOutline scenarioOutline;
+    
+    public int getLine() {
+        if (scenarioOutline != null) {
+            return scenarioOutline.getLine();
+        } else {
+            return scenario.getLine();
+        }
+    }
 
     public int getIndex() {
         return index;

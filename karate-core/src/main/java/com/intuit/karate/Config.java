@@ -166,9 +166,9 @@ public class Config {
                     sslTrustStore = (String) map.get("trustStore");
                     sslTrustStorePassword = (String) map.get("trustStorePassword");
                     sslTrustStoreType = (String) map.get("trustStoreType");
-                    String trustAll = (String) map.get("trustAll");
+                    Boolean trustAll = (Boolean) map.get("trustAll");
                     if (trustAll != null) {
-                        sslTrustAll = Boolean.valueOf(trustAll);
+                        sslTrustAll = trustAll;
                     }
                     sslAlgorithm = (String) map.get("algorithm");
                 } else {
