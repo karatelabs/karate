@@ -77,6 +77,7 @@ public class Karate implements Iterable<DynamicNode> {
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
             feature.setCallName(options.getName());
+            feature.setCallLine(resource.getLine());
             features.add(feature);
         }
         String tagSelector = Tags.fromKarateOptionsTags(options.getTags());

@@ -100,6 +100,7 @@ public class Runner {
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
                 feature.setCallName(scenarioName);
+                feature.setCallLine(resource.getLine());
                 FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(feature, hooks, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir,

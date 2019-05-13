@@ -54,6 +54,7 @@ public class Feature {
 
     private String callTag;
     private String callName;
+    private int callLine = -1;
 
     public Feature(Resource resource) {
         this.resource = resource;
@@ -215,6 +216,14 @@ public class Feature {
         this.callName = callName;
     }
 
+    public int getCallLine() {
+        return callLine;
+    }
+
+    public void setCallLine(int callLine) {
+        this.callLine = callLine;
+    }    
+    
     public List<String> getLines() {
         return lines;
     }

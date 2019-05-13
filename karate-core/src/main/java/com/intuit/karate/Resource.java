@@ -40,18 +40,20 @@ import java.util.Map;
 public class Resource {
 
     private final boolean file;
-    private final Path path;
+    private final Path path;   
+    private final int line;
     private final String relativePath;
     private final String packageQualifiedName;
     
-    public static final Resource EMPTY = new Resource(Paths.get(""), "");
+    public static final Resource EMPTY = new Resource(Paths.get(""), "", -1);
 
     public Resource(File file, String relativePath) {
-        this(file.toPath(), relativePath);
+        this(file.toPath(), relativePath, -1);
     }
 
-    public Resource(Path path, String relativePath) {
+    public Resource(Path path, String relativePath, int line) {
         this.path = path;
+        this.line = line;
         file = !path.toUri().getScheme().equals("jar");
         this.relativePath = relativePath;
         packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
@@ -71,7 +73,11 @@ public class Resource {
 
     public Path getPath() {
         return path;
-    }
+    }        
+
+    public int getLine() {
+        return line;
+    }        
 
     private static final Map<String, byte[]> STREAM_CACHE = new HashMap();
 

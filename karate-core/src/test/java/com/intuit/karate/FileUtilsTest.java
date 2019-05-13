@@ -7,6 +7,7 @@ import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -63,13 +64,21 @@ public class FileUtilsTest {
         }
         assertTrue(found);
     }
+    
+    @Test
+    public void testScanFileWithLineNumber() {
+        String relativePath = "classpath:com/intuit/karate/ui/test.feature:7";
+        List<Resource> files = FileUtils.scanForFeatureFiles(Collections.singletonList(relativePath), getClass().getClassLoader());
+        assertEquals(1, files.size());
+        assertEquals(7, files.get(0).getLine());
+    }    
 
     @Test
     public void testScanFilePath() {
         String relativePath = "classpath:com/intuit/karate/ui";
         List<Resource> files = FileUtils.scanForFeatureFiles(true, relativePath, getClass().getClassLoader());
         assertEquals(2, files.size());
-    }
+    }    
 
     @Test
     public void testRelativePathForClass() {
@@ -95,7 +104,7 @@ public class FileUtilsTest {
         String relativePath = "classpath:demo/jar1/caller.feature";
         ClassLoader cl = getJarClassLoader();
         Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
-        Resource resource = new Resource(path, relativePath);
+        Resource resource = new Resource(path, relativePath, -1);
         Feature feature = FeatureParser.parse(resource);
         try {
             Map<String, Object> map = Runner.runFeature(feature, null, true);
