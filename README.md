@@ -1973,19 +1973,29 @@ Also referred to as "mutual auth" - if your API requires that clients present an
 
 Key | Type | Required? | Description
 ---- | ----- | ------ | ----------
-`keyStore` | string | required | path to file containing public and private keys for your client certificate.
-`keyStorePassword` | string | required | password for keyStore file.
-`keyStoreType` | string | required | Format of the keyStore file.  Allowed keystore types are as described in the [Java `KeyStore` docs](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore).
+`keyStore` | string | optional | path to file containing public and private keys for your client certificate.
+`keyStorePassword` | string | optional | password for keyStore file.
+`keyStoreType` | string | optional | Format of the keyStore file.  Allowed keystore types are as described in the [Java `KeyStore` docs](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore).
 `trustStore` | string | optional | path to file containing the trust chain for your server certificate.
 `trustStorePassword` | string | optional | password for trustStore file.
 `trustStoreType` | string | optional | Format of the trustStore file.  Allowed keystore types are as described in the [Java `KeyStore` docs](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore).
-`trustAll` | boolean | optional | if all server certificates should be considered trusted.  Default is `true` and if the above 3 keys are present will allow self-signed certificates. If `false`, will expect the whole chain in the `trustStore` or use what is available in the environment.
+`trustAll` | string | optional | if all server certificates should be considered trusted. Default value is `false`. If `true` will allow self-signed certificates. If `false`, will expect the whole chain in the `trustStore` or use what is available in the environment.
 `algorithm` | string | optional | force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). Default is `TLS`.  
 
 Example:  
 ```
 # enable X509 certificate authentication with PKCS12 file 'certstore.pfx' and password 'certpassword'
 * configure ssl = { keyStore: 'classpath:certstore.pfx', keyStorePassword: 'certpassword', keyStoreType: 'pkcs12' };
+```
+
+```
+# trust all server certificates, in the feature file
+* configure ssl = {trustAll: 'true'});
+```
+
+```
+# trust all server certificates, global configuration in 'karate-config.js'
+karate.configure('ssl', {trustAll: 'true'});
 ```
 
 # Payload Assertions
