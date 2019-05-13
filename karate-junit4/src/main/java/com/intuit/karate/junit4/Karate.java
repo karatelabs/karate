@@ -73,6 +73,7 @@ public class Karate extends ParentRunner<Feature> {
         featureMap = new HashMap(resources.size());
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
+            feature.setCallName(options.getName());
             children.add(feature);
         }
         tagSelector = Tags.fromKarateOptionsTags(options.getTags());

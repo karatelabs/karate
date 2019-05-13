@@ -58,7 +58,7 @@ public class CucumberRunner {
     }    
     
     public static KarateStats parallel(List<String> tags, List<String> paths, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
-        return new KarateStats(Runner.parallel(tags, paths, hooks, threadCount, reportDir));
+        return new KarateStats(Runner.parallel(tags, paths, null, hooks, threadCount, reportDir));
     }
     
     public static KarateStats parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
@@ -66,7 +66,7 @@ public class CucumberRunner {
     }     
     
     public static KarateStats parallel(String tagSelector, List<Resource> resources, Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
-        return new KarateStats(Runner.parallel(tagSelector, resources, hooks, threadCount, reportDir));
+        return new KarateStats(Runner.parallel(tagSelector, resources, null, hooks, threadCount, reportDir));
     }
 
     public static Map<String, Object> runFeature(Feature feature, Map<String, Object> vars, boolean evalKarateConfig) {
