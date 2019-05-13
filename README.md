@@ -3078,7 +3078,7 @@ Although all properties in the passed JSON-like argument are 'unpacked' into the
 Variable  | Refers To
 --------- | ------                               
 | `__arg`   | the single `call` (or [`callonce`](#callonce)) argument, will be `null` if there was none         
-| `__loop`  | the current iteration index if being called in a loop, will be `-1` if not
+| `__loop`  | the current iteration index (starts from 0) if being called in a loop, will be `-1` if not
 
 Refer to this [demo feature](karate-demo) for an example: [`kitten-create.feature`](karate-demo/src/test/java/demo/calltable/kitten-create.feature)
 

@@ -215,14 +215,14 @@ public abstract class HttpClient<T> {
         }
     }
 
-    public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {        
+    public HttpResponse invoke(HttpRequestBuilder request, ScenarioContext context) {
         T body = buildRequestInternal(request, context);
         String perfEventName = null; // acts as a flag to report perf if not null
         if (context.executionHooks != null && perfEventName == null) {
             for (ExecutionHook h : context.executionHooks) {
                 perfEventName = h.getPerfEventName(request, context);
             }
-        }        
+        }
         try {
             HttpResponse response = makeHttpRequest(body, context);
             context.updateConfigCookies(response.getCookies());
@@ -233,8 +233,14 @@ public abstract class HttpClient<T> {
             return response;
         } catch (Exception e) {
             long startTime = context.getPrevRequest().getStartTime();
-            long responseTime = System.currentTimeMillis() - startTime;
+            long endTime = System.currentTimeMillis();
+            long responseTime = endTime - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
+            if (perfEventName != null) {
+                PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
+                context.capturePerfEvent(pe);
+                // failure flag and message should be set by ScenarioContext.logLastPerfEvent()
+            }
             context.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
