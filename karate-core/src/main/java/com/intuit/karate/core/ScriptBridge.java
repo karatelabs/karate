@@ -422,41 +422,33 @@ public class ScriptBridge implements PerfContext {
     }
 
     public WebSocketClient webSocket(String url) {
-        return webSocket(url, null, null);
+        return webSocket(url, null, null, null);
     }
-
-    public WebSocketClient webSocket(String url, String subProtocol) {
-        return webSocket(url, subProtocol, null);
-    }
-
+    
     public WebSocketClient webSocket(String url, Function<String, Boolean> handler) {
-        return webSocket(url, null, handler);
-    }
+        return webSocket(url, null, handler, null);
+    }    
 
-    public WebSocketClient webSocket(String url, String subProtocol, Function<String, Boolean> handler) {
+    public WebSocketClient webSocket(String url, String subProtocol, Function<String, Boolean> handler, Map<String, Object> headers) {
         if (handler == null) {
             handler = t -> true; // auto signal for websocket tests
         }
-        return context.webSocket(url, subProtocol, handler, null);
+        return context.webSocket(url, subProtocol, handler, null, headers);
     }
 
     public WebSocketClient webSocketBinary(String url) {
-        return webSocketBinary(url, null, null);
+        return webSocketBinary(url, null, null, null);
     }
-
-    public WebSocketClient webSocketBinary(String url, String subProtocol) {
-        return webSocketBinary(url, subProtocol, null);
-    }
-
+    
     public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler) {
-        return webSocketBinary(url, null, handler);
-    }
+        return webSocketBinary(url, null, handler, null);
+    }    
 
-    public WebSocketClient webSocketBinary(String url, String subProtocol, Function<byte[], Boolean> handler) {
+    public WebSocketClient webSocketBinary(String url, String subProtocol, Function<byte[], Boolean> handler, Map<String, Object> headers) {
         if (handler == null) {
             handler = t -> true; // auto signal for websocket tests
         }
-        return context.webSocket(url, subProtocol, null, handler);
+        return context.webSocket(url, subProtocol, null, handler, headers);
     }
 
     public void signal(Object result) {

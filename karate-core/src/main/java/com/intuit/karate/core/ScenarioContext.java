@@ -798,8 +798,9 @@ public class ScenarioContext {
         prevEmbed = embed;
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, Function<String, Boolean> textHandler, Function<byte[], Boolean> binaryHandler) {
-        WebSocketClient webSocketClient = new WebSocketClient(url, subProtocol, textHandler, binaryHandler);
+    public WebSocketClient webSocket(String url, String subProtocol, 
+            Function<String, Boolean> textHandler, Function<byte[], Boolean> binaryHandler, Map<String, Object> headers) {
+        WebSocketClient webSocketClient = new WebSocketClient(url, subProtocol, textHandler, binaryHandler, headers);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
         }

@@ -3454,11 +3454,10 @@ Scenario: create, get, update, list and delete payments
 Karate also has built-in support for [websocket](http://www.websocket.org) that is based on the [async](#async) capability. The following method signatures are available on the [`karate` JS object](#the-karate-object) to obtain a websocket reference:
 
 * `karate.webSocket(url)`
-* `karate.webSocket(url, subProtocol)`
 * `karate.webSocket(url, handler)`
-* `karate.webSocket(url, subProtocol, handler)`
+* `karate.webSocket(url, subProtocol, handler, headers)`
 
-These will init a websocket client for the given `url` and optional `subProtocol`. If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the "wait" of `socket.listen()` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic.
+These will init a websocket client for the given `url` and optional `subProtocol`. If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the "wait" of `socket.listen()` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic. If you need custom headers for the websocket handshake, use JSON as the last argument.
 
 Here is an example, where the same websocket connection is used to send as well as receive a message.
 

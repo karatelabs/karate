@@ -29,12 +29,14 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
 import java.net.URI;
+import java.util.Map;
 
 /**
  *
@@ -47,11 +49,15 @@ public class WebSocketClientInitializer extends ChannelInitializer<SocketChannel
     private final SslContext sslContext;
     private final WebSocketClientHandler handler;
 
-    public WebSocketClientInitializer(URI uri, int port, String subProtocol, SslContext sslContext, WebSocketListener listener) {
+    public WebSocketClientInitializer(URI uri, int port, String subProtocol, SslContext sslContext, WebSocketListener listener, Map<String, Object> headers) {
         this.uri = uri;
         this.port = port;
         this.sslContext = sslContext;
-        WebSocketClientHandshaker handShaker = WebSocketClientHandshakerFactory.newHandshaker(uri, WebSocketVersion.V13, subProtocol, true, new DefaultHttpHeaders(), 4194304);
+        HttpHeaders nettyHeaders = new DefaultHttpHeaders();
+        if (headers != null) {
+            headers.forEach((k, v) -> nettyHeaders.add(k, v));
+        }
+        WebSocketClientHandshaker handShaker = WebSocketClientHandshakerFactory.newHandshaker(uri, WebSocketVersion.V13, subProtocol, true, nettyHeaders, 4194304);
         handler = new WebSocketClientHandler(handShaker, listener);        
     }
 

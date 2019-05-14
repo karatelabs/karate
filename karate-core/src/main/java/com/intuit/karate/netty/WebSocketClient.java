@@ -39,6 +39,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.net.URI;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.net.ssl.SSLException;
@@ -88,14 +89,15 @@ public class WebSocketClient implements WebSocketListener {
     }
 
     public WebSocketClient(String url, String subProtocol, Consumer<String> textHandler) {
-        this(url, subProtocol, toFunction(textHandler), null);
+        this(url, subProtocol, toFunction(textHandler), null, null);
     }
 
     public WebSocketClient(String url, String subProtocol, Function<String, Boolean> textHandler) {
-        this(url, subProtocol, textHandler, null);
+        this(url, subProtocol, textHandler, null, null);
     }
 
-    public WebSocketClient(String url, String subProtocol, Function<String, Boolean> textHandler, Function<byte[], Boolean> binaryHandler) {
+    public WebSocketClient(String url, String subProtocol, 
+            Function<String, Boolean> textHandler, Function<byte[], Boolean> binaryHandler, Map<String, Object> headers) {
         this.textHandler = textHandler;
         this.binaryHandler = binaryHandler;
         uri = URI.create(url);
@@ -113,7 +115,7 @@ public class WebSocketClient implements WebSocketListener {
         port = uri.getPort() == -1 ? (ssl ? 443 : 80) : uri.getPort();
         group = new NioEventLoopGroup();
         try {
-            WebSocketClientInitializer initializer = new WebSocketClientInitializer(uri, port, subProtocol, sslContext, this);
+            WebSocketClientInitializer initializer = new WebSocketClientInitializer(uri, port, subProtocol, sslContext, this, headers);
             Bootstrap b = new Bootstrap();
             b.group(group)
                     .channel(NioSocketChannel.class)
