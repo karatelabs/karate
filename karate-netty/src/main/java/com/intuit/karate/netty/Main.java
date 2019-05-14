@@ -92,12 +92,18 @@ public class Main implements Callable<Void> {
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> tests;
+    
+    @Option(names = {"-n", "--name"}, description = "scenario name")
+    String name;    
 
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
 
     @Option(names = {"-u", "--ui"}, description = "show user interface")
     boolean ui;
+    
+    @Option(names = {"-cp", "--classpath"}, description = "additional classpath entries")
+    File[] classpath;    
 
     public static void main(String[] args) {
         boolean isOutputArg = false;
@@ -142,6 +148,16 @@ public class Main implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {
+        // attempt classpath modification first
+        if (classpath != null) {
+            try {
+                for (File file : classpath) {
+                    FileUtils.addToClasspath(file);
+                }
+            } catch (Exception e) {
+                logger.warn("unable to modify classpath: {}", e.getMessage());
+            }
+        }
         if (tests != null) {
             if (ui) {
                 App.main(new String[]{new File(tests.get(0)).getAbsolutePath(), env});
@@ -155,7 +171,7 @@ public class Main implements Callable<Void> {
                     System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
                 }
                 List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
-                Results results = Runner.parallel(tags, fixed, threads, output);
+                Results results = Runner.parallel(tags, fixed, name, null, threads, output);
                 Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(output), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
