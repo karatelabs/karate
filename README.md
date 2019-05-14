@@ -1979,7 +1979,7 @@ Key | Type | Required? | Description
 `trustStore` | string | optional | path to file containing the trust chain for your server certificate.
 `trustStorePassword` | string | optional | password for trustStore file.
 `trustStoreType` | string | optional | Format of the trustStore file.  Allowed keystore types are as described in the [Java `KeyStore` docs](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore).
-`trustAll` | string | optional | if all server certificates should be considered trusted. Default value is `false`. If `true` will allow self-signed certificates. If `false`, will expect the whole chain in the `trustStore` or use what is available in the environment.
+`trustAll` | boolean | optional | if all server certificates should be considered trusted. Default value is `false`. If `true` will allow self-signed certificates. If `false`, will expect the whole chain in the `trustStore` or use what is available in the environment.
 `algorithm` | string | optional | force the SSL algorithm to one of [these values](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext). Default is `TLS`.  
 
 Example:  
@@ -1990,12 +1990,12 @@ Example:
 
 ```
 # trust all server certificates, in the feature file
-* configure ssl = {trustAll: 'true'});
+* configure ssl = {trustAll: true});
 ```
 
 ```
 # trust all server certificates, global configuration in 'karate-config.js'
-karate.configure('ssl', {trustAll: 'true'});
+karate.configure('ssl', {trustAll: true});
 ```
 
 # Payload Assertions
