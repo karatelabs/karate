@@ -43,6 +43,7 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -244,6 +245,38 @@ public class ScriptBridge implements PerfContext {
             res.add(map);
         }
         return res;
+    }
+
+    public Object merge(Map... maps) {
+        Map out = new LinkedHashMap();
+        if (maps == null) {
+            return out;
+        }
+        for (Map map : maps) {
+            if (map == null) {
+                continue;
+            }
+            out.putAll(map);
+        }
+        return out;
+    }
+
+    public Object append(Object... items) {
+        List out = new ArrayList();
+        if (items == null) {
+            return out;
+        }
+        for (Object item : items) {
+            if (item == null) {
+                continue;
+            }
+            if (item instanceof Collection) {
+                out.addAll((Collection) item);
+            } else {
+                out.add(item);
+            }
+        }
+        return out;
     }
 
     public Object jsonPath(Object o, String exp) {
