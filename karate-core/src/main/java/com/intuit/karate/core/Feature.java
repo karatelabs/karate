@@ -70,6 +70,11 @@ public class Feature {
             if (section.isOutline()) {
                 for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
                     if (scenario.isDynamic()) {
+                        // first check if tag is selected, TODO code duplication in FeatureExecutionUnit
+                        Tags tagsEffective = scenario.getTagsEffective();
+                        if (!tagsEffective.evaluate(exec.featureContext.tagSelector)) {
+                            continue;
+                        }
                         ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec, logger);
                         bgUnit.run();
                         ScenarioContext bgContext = bgUnit.getContext();
