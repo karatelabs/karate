@@ -37,3 +37,14 @@ Scenario Outline: inline JSON
   Examples:
     | first  | second!  |
     | hello  | { a: 1 } |
+
+Scenario Outline: using the optional ##() marker effectively 
+    * eval karate.set(__row)
+    * def search = { name: { first: "##(first)", last: "#(last)" }, age: "##(age)" }
+    * match search == expected
+
+    Examples:
+    | first | last  | age! | expected!                                           |
+    | John  | Smith | 20   | { name: { first: 'John', last: 'Smith' }, age: 20 } |
+    | Jane  | Doe   |      | { name: { first: 'Jane', last: 'Doe' } }            |
+    |       | Waldo |      | { name: { last: 'Waldo' } }                         |

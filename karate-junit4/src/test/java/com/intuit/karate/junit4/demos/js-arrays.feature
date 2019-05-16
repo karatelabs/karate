@@ -280,6 +280,11 @@ Scenario: alternative notpresent check using json-path
     * match foo.a == '#present'
     * match foo.nope == '#notpresent'
 
+Scenario: regression test for edge case in 
+    * def answer = { foo: 'foo', bar: 'bar', baz': 'baz' }
+    * match answer != { foo: '#string', foobar: '#notpresent', foobaz': '#notpresent' }
+    * match answer != { foo: '#string', foobar: '##string', foobaz': '##string' }
+
 Scenario: get and json path
     * def foo = { bar: { baz: 'ban' } }
     * def res = get foo $..bar[?(@.baz)]
@@ -428,7 +433,7 @@ Scenario: set via table, repeated paths at the top
 
     * match foo == { bar: { one: 1, two: [2, 3] } }
 
-Scenario Outline: examples and optional json keys
+Scenario Outline: examples and optional json keys (see outline.feature for a better version)
     * def search = { name: { first: "##(<first>)", last: "##(<last>)" }, age: "##(<age>)" }
     * match search == <expected>
 
