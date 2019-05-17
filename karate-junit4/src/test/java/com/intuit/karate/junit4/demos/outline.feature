@@ -38,7 +38,7 @@ Scenario Outline: inline JSON
     | first  | second!  |
     | hello  | { a: 1 } |
 
-Scenario Outline: using the optional ##() marker effectively 
+Scenario Outline: using the optional ##() marker effectively with examples type-hints
     * eval karate.set(__row)
     * def search = { name: { first: "##(first)", last: "#(last)" }, age: "##(age)" }
     * match search == expected
@@ -48,3 +48,10 @@ Scenario Outline: using the optional ##() marker effectively
     | John  | Smith | 20   | { name: { first: 'John', last: 'Smith' }, age: 20 } |
     | Jane  | Doe   |      | { name: { first: 'Jane', last: 'Doe' } }            |
     |       | Waldo |      | { name: { last: 'Waldo' } }                         |
+
+Scenario Outline: dynamic scenario outline
+    * print 'row: ', __row
+    * match __row == { name: '#string', age: '#number' }
+
+    Examples:
+    | read('cats.json') |

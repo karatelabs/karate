@@ -280,7 +280,7 @@ Scenario: alternative notpresent check using json-path
     * match foo.a == '#present'
     * match foo.nope == '#notpresent'
 
-Scenario: regression test for edge case in 
+Scenario: regression test for edge case in fuzzy matches
     * def answer = { foo: 'foo', bar: 'bar', baz': 'baz' }
     * match answer != { foo: '#string', foobar: '#notpresent', foobaz': '#notpresent' }
     * match answer != { foo: '#string', foobar: '##string', foobaz': '##string' }
@@ -509,3 +509,9 @@ Scenario: using the java contains api (will change with graal)
     * def allowed = ['Music', 'Entertainment', 'Documentaries', 'Family']
     * def actual = ['Entertainment', 'Family']
     * match each actual == '#? allowed.contains(_)'
+
+Scenario: using the java indexOf api (will change with graal)
+    * def response = [{ name: 'a' }, { name: 'b' }, { name: 'c' }]
+    * def names = $[*].name
+    * def index = names.indexOf('b')
+    * match index == 1
