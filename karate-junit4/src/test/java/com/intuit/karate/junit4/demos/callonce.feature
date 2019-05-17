@@ -1,7 +1,7 @@
 Feature: 
 
 Background:
-* def helper = Java.type('com.intuit.karate.junit4.demos.CallOnceHelper')
+* def helper = Java.type('com.intuit.karate.junit4.demos.CallonceHelper')
 
 Scenario Outline: generate random string
 

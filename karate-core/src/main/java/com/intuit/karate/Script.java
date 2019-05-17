@@ -221,7 +221,9 @@ public class Script {
             // this thread is the 'winner'
             context.logger.info(">> lock acquired, begin callonce: {}", text);
             ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
-            result = new CallResult(resultValue, new Config(context.getConfig())); // clone config for safety
+            // below the result is shallow cloned, to avoid scenarios sharing the same result Map by mistake
+            // and the config is also cloned for safety
+            result = new CallResult(resultValue.copy(false), new Config(context.getConfig()));
             featureContext.callCache.put(text, result);
             context.logger.info("<< lock released, cached callonce: {}", text);
             return resultValue;
@@ -622,7 +624,7 @@ public class Script {
                 sv = new ScriptValue(tempBytes.getAsByteArray());
                 break;
             case COPY:
-                sv = evalKarateExpression(exp, context).copy();
+                sv = evalKarateExpression(exp, context).copy(true);
                 break;
             default: // AUTO
                 sv = evalKarateExpression(exp, context);

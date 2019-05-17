@@ -71,7 +71,7 @@ public class HttpRequestBuilder {
             out.multiPartItems = new ArrayList(multiPartItems);
         }
         if (body != null) {
-            out.body = body.copy();
+            out.body = body.copy(true);
         }
         out.method = method;
         out.soapAction = soapAction;

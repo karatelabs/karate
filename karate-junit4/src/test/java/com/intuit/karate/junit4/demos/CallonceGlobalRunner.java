@@ -5,7 +5,7 @@ import com.intuit.karate.KarateOptions;
 import org.junit.runner.RunWith;
 
 @RunWith(Karate.class)
-@KarateOptions(features = "classpath:com/intuit/karate/junit4/demos/call-once.feature")
-public class CallOnceRunner {
+@KarateOptions(features = "classpath:com/intuit/karate/junit4/demos/callonce-global.feature")
+public class CallonceGlobalRunner {
 
 }

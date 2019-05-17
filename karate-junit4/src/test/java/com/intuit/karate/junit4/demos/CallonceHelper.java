@@ -27,7 +27,7 @@ package com.intuit.karate.junit4.demos;
  *
  * @author pthomas3
  */
-public class CallOnceHelper {
+public class CallonceHelper {
     
     public static Object previous;    
     

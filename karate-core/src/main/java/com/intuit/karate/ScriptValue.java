@@ -193,7 +193,8 @@ public class ScriptValue {
         }
     }
 
-    public ScriptValue copy() {
+    // here deep means even for java List and Map, we convert to JSON and re-marshal
+    public ScriptValue copy(boolean deep) {
         switch (type) {
             case NULL:
             case UNKNOWN:
@@ -212,10 +213,20 @@ public class ScriptValue {
                 return new ScriptValue(JsonPath.parse(json));
             case JS_OBJECT:            
             case JS_ARRAY:                
-            case MAP:                            
+            case MAP:
+                if (deep) {
+                    String strMap = getAsJsonDocument().jsonString();
+                    return new ScriptValue(JsonPath.parse(strMap));   
+                } else {
+                    return new ScriptValue(new LinkedHashMap(getValue(Map.class)));
+                }
             case LIST:
-                String str = getAsJsonDocument().jsonString();
-                return new ScriptValue(JsonPath.parse(str));                
+                if (deep) {
+                    String strList = getAsJsonDocument().jsonString();
+                    return new ScriptValue(JsonPath.parse(strList));  
+                } else {
+                    return new ScriptValue(new ArrayList(getValue(List.class)));
+                }
             default:
                 return this;
         }

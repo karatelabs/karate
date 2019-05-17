@@ -3564,8 +3564,10 @@ This is great for testing boundary conditions against a single end-point, with t
 
 ### Scenario Outline Enhancements
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
-* __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or even in-line JSON) - else it defaults to string. You can optionally use the [`karate.set(json)`](#karate-setall) API to inject all the key-value pairs as variables in scope (in one shot), which can greatly simplify JSON manipulation - especially when you want to re-use JSON files containing [embedded expressions](#embedded-expressions).
+* __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or *even* in-line JSON) - else it defaults to string.
 * __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
+* You can optionally use the [`karate.set(__row)`](#karate-setall) API to inject all the key-value pairs as variables in scope (in one shot), which can greatly simplify JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
+* Any empty cells will result in a `null` value for that `__row.colName`
 
 These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-concatenation `<foo>` placeholder style or refer to `__row.foo` in JSON-friendly [expressions](#karate-expressions).
 
@@ -3607,7 +3609,7 @@ Scenario Outline: magic variables with embedded expressions
 For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).
 
 ### The Karate Way
-The limitation of the Cucumber `Scenario Outline:` seen above is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).
+The limitation of the Cucumber `Scenario Outline:` (seen above) is that the number of rows in the `Examples:` is fixed. But take a look at how Karate can [loop over a `*.feature` file](#data-driven-features) for each object in a JSON array - which gives you dynamic data-driven testing, if you need it. For advanced examples, refer to some of the scenarios within this [demo](karate-demo): [`dynamic-params.feature`](karate-demo/src/test/java/demo/search/dynamic-params.feature#L70).
 
 Also see the option below, where you can data-drive an `Examples:` table using JSON.
 
