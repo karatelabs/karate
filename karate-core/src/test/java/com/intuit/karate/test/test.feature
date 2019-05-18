@@ -1,0 +1,4 @@
+Feature:
+
+Scenario:
+* print 'test'

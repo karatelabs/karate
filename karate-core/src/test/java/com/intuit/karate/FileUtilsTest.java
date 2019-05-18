@@ -49,7 +49,7 @@ public class FileUtilsTest {
 
     @Test
     public void testScanFile() {
-        String relativePath = "classpath:com/intuit/karate/ui/test.feature";
+        String relativePath = "classpath:com/intuit/karate/test/test.feature";
         ClassLoader cl = getClass().getClassLoader();
         List<Resource> files = FileUtils.scanForFeatureFilesOnClassPath(cl);
         boolean found = false;
@@ -67,17 +67,17 @@ public class FileUtilsTest {
     
     @Test
     public void testScanFileWithLineNumber() {
-        String relativePath = "classpath:com/intuit/karate/ui/test.feature:7";
+        String relativePath = "classpath:com/intuit/karate/test/test.feature:3";
         List<Resource> files = FileUtils.scanForFeatureFiles(Collections.singletonList(relativePath), getClass().getClassLoader());
         assertEquals(1, files.size());
-        assertEquals(7, files.get(0).getLine());
+        assertEquals(3, files.get(0).getLine());
     }    
 
     @Test
     public void testScanFilePath() {
-        String relativePath = "classpath:com/intuit/karate/ui";
+        String relativePath = "classpath:com/intuit/karate/test";
         List<Resource> files = FileUtils.scanForFeatureFiles(true, relativePath, getClass().getClassLoader());
-        assertEquals(2, files.size());
+        assertEquals(1, files.size());
     }    
 
     @Test

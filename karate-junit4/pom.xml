@@ -23,7 +23,7 @@
         </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
+            <artifactId>karate-netty</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>        

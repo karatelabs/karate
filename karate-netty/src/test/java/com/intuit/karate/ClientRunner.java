@@ -1,14 +1,16 @@
 package com.intuit.karate;
 
-import com.intuit.karate.junit4.Karate;
-import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:com/intuit/karate/client.feature")
 public class ClientRunner {
+    
+    @Test
+    public void testClient() {
+        Runner.runFeature("classpath:com/intuit/karate/client.feature", null, true);
+    }
     
 }

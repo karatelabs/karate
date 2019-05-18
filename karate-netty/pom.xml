@@ -10,7 +10,12 @@
     <artifactId>karate-netty</artifactId>
     <packaging>jar</packaging>
 
-    <dependencies>                         
+    <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>12-ea+9</version>
+        </dependency>                              
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
@@ -20,13 +25,13 @@
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
             <version>${cucumber.reporting.version}</version>
-        </dependency>                                             
+        </dependency>
         <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-junit4</artifactId>
-            <version>${project.version}</version>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
             <scope>test</scope>
-        </dependency>                                                                                                                                                                                         		
+        </dependency>                                                                                                                                                                                               		
     </dependencies>
     
     <build>

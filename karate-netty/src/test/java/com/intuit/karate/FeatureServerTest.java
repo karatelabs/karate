@@ -1,18 +1,15 @@
 package com.intuit.karate;
 
-import com.intuit.karate.junit4.Karate;
 import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:com/intuit/karate/client.feature")
 public class FeatureServerTest {
     
     private static FeatureServer server;
@@ -23,6 +20,11 @@ public class FeatureServerTest {
         server = FeatureServer.start(file, 0, false, null);
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");        
+    }
+    
+    @Test
+    public void testClient() {
+        Runner.runFeature("classpath:com/intuit/karate/client.feature", null, true);
     }
     
     @AfterClass
