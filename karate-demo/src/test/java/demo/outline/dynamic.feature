@@ -1,3 +1,4 @@
+@mock-servlet-todo
 Feature: scenario outline using a dynamic table
 
 Background:
