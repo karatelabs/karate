@@ -202,9 +202,11 @@ public class Script {
         final FeatureContext featureContext = context.featureContext;
         CallResult result = featureContext.callCache.get(text);
         if (result != null) {
-            context.logger.trace("callonce cache hit for: {}", text);            
-            context.configure(new Config(result.config)); // re-apply config from time of snapshot
-            return result.value.copy(false); // clone result for safety
+            context.logger.trace("callonce cache hit for: {}", text);
+            if (reuseParentConfig) { // if shared scope
+                context.configure(new Config(result.config)); // re-apply config from time of snapshot
+            }
+            return result.value.copy(false); // clone result for safety, another routine will apply globally if needed
         }
         long startTime = System.currentTimeMillis();
         context.logger.trace("callonce waiting for lock: {}", text);
@@ -212,20 +214,22 @@ public class Script {
             result = featureContext.callCache.get(text); // retry
             if (result != null) {
                 long endTime = System.currentTimeMillis() - startTime;
-                context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);                
-                context.configure(new Config(result.config)); // re-apply config from time of snapshot
-                return result.value.copy(false); // clone result for safety
+                context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);
+                if (reuseParentConfig) { // if shared scope
+                    context.configure(new Config(result.config)); // re-apply config from time of snapshot
+                }
+                return result.value.copy(false); // clone result for safety, another routine will apply globally if needed
             }
             // this thread is the 'winner'
             context.logger.info(">> lock acquired, begin callonce: {}", text);
             ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
-            // we even clone here, to snapshot state at the point the callonce was invoked
-            // this prevents the state from being clobbered by the subsequent steps of the
-            // FIRST scenario to use the callonce result
+            // we clone result (and config) here, to snapshot state at the point the callonce was invoked
+            // this prevents the state from being clobbered by the subsequent steps of this
+            // first scenario that is about to use the result
             result = new CallResult(resultValue.copy(false), new Config(context.getConfig()));
             featureContext.callCache.put(text, result);
             context.logger.info("<< lock released, cached callonce: {}", text);
-            return resultValue;
+            return resultValue; // another routine will apply globally if needed
         }
     }
 
