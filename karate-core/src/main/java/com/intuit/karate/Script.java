@@ -197,14 +197,14 @@ public class Script {
     }
 
     private static ScriptValue callWithCache(String text, String arg, ScenarioContext context, boolean reuseParentConfig) {
+        // IMPORTANT: the call result is always shallow-cloned before returning
+        // so that call result (if java Map) is not mutated by other scenarios
         final FeatureContext featureContext = context.featureContext;
         CallResult result = featureContext.callCache.get(text);
         if (result != null) {
-            context.logger.trace("callonce cache hit for: {}", text);
-            if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
-                context.configure(new Config(result.config)); // clone config for safety
-            }
-            return result.value;
+            context.logger.trace("callonce cache hit for: {}", text);            
+            context.configure(new Config(result.config)); // re-apply config from time of snapshot
+            return result.value.copy(false); // clone result for safety
         }
         long startTime = System.currentTimeMillis();
         context.logger.trace("callonce waiting for lock: {}", text);
@@ -212,17 +212,16 @@ public class Script {
             result = featureContext.callCache.get(text); // retry
             if (result != null) {
                 long endTime = System.currentTimeMillis() - startTime;
-                context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);
-                if (reuseParentConfig) { // re-apply config that may have been lost when we switched scenarios within a feature
-                    context.configure(new Config(result.config)); // clone config for safety
-                }
-                return result.value;
+                context.logger.warn("this thread waited {} milliseconds for callonce lock: {}", endTime, text);                
+                context.configure(new Config(result.config)); // re-apply config from time of snapshot
+                return result.value.copy(false); // clone result for safety
             }
             // this thread is the 'winner'
             context.logger.info(">> lock acquired, begin callonce: {}", text);
             ScriptValue resultValue = call(text, arg, context, reuseParentConfig);
-            // below the result is shallow cloned, to avoid scenarios sharing the same result Map by mistake
-            // and the config is also cloned for safety
+            // we even clone here, to snapshot state at the point the callonce was invoked
+            // this prevents the state from being clobbered by the subsequent steps of the
+            // FIRST scenario to use the callonce result
             result = new CallResult(resultValue.copy(false), new Config(context.getConfig()));
             featureContext.callCache.put(text, result);
             context.logger.info("<< lock released, cached callonce: {}", text);
@@ -610,7 +609,7 @@ public class Script {
             case JSON:
                 DocumentContext jsonDoc = toJsonDoc(evalKarateExpression(exp, context), context);
                 sv = new ScriptValue(jsonDoc);
-                break;        
+                break;
             case XML:
                 Node xmlDoc = toXmlDoc(evalKarateExpression(exp, context), context);
                 sv = new ScriptValue(xmlDoc);
@@ -1315,7 +1314,7 @@ public class Script {
                         if (matchType == MatchType.CONTAINS_ANY) {
                             return AssertionResult.PASS; // at least one matched, exit early
                         }
-                    }                    
+                    }
                     continue; // end edge case for key not present
                 }
                 Object childAct = actMap.get(key);
@@ -1357,10 +1356,10 @@ public class Script {
             } else if (!unMatchedKeysAct.isEmpty()) {
                 if (matchType == MatchType.CONTAINS || expMap.isEmpty()) {
                     return AssertionResult.PASS;
-                }                
+                }
                 if (matchType == MatchType.NOT_EQUALS) {
                     return AssertionResult.PASS;
-                }                
+                }
                 return matchFailed(matchType, path, actObject, expObject, "all key-values did not match, actual has un-matched keys: " + unMatchedKeysAct);
             } else {
                 // if we reached here, all map-entries matched
