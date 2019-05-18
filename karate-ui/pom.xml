@@ -7,10 +7,15 @@
         <artifactId>karate-parent</artifactId>
         <version>1.0.0</version>
     </parent>
-    <artifactId>karate-junit4</artifactId>
-    <packaging>jar</packaging>   
+    <artifactId>karate-ui</artifactId>
+    <packaging>jar</packaging>
 
-    <dependencies>        
+    <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>12-ea+9</version>
+        </dependency>        
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-core</artifactId>
@@ -20,27 +25,10 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-apache</artifactId>
-            <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>                
-        <dependency>
-            <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-ui</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>        
-        <dependency>
-            <groupId>net.masterthought</groupId>
-            <artifactId>cucumber-reporting</artifactId>
-            <version>${cucumber.reporting.version}</version>
-            <scope>test</scope>
-        </dependency>		
+        </dependency>                                                                                                                                                                                                      		
     </dependencies>
-
+    
     <build>
         <testResources>
             <testResource>
@@ -49,7 +37,7 @@
                     <exclude>**/*.java</exclude>
                 </excludes>
             </testResource>
-        </testResources>
-    </build>           
+        </testResources>            
+    </build>             
     
 </project>

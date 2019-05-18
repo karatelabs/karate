@@ -12,10 +12,10 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>12-ea+9</version>
-        </dependency>                              
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-ui</artifactId>
+            <version>${project.version}</version>
+        </dependency>                             
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
@@ -42,7 +42,17 @@
                     <exclude>**/*.java</exclude>
                 </excludes>
             </testResource>
-        </testResources>            
+        </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>${nexus.staging.plugin.version}</version>
+                <configuration>
+                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+                </configuration>
+            </plugin>            
+        </plugins>           
     </build> 
     
     <profiles>
