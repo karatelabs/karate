@@ -21,14 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.netty;
+package com.intuit.karate;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.ScriptBindings;
-import com.intuit.karate.StringUtils;
-import com.intuit.karate.Runner;
-import com.intuit.karate.Results;
 import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.netty.FeatureServer;
+import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.ui.App;
 import java.io.File;
 import java.util.ArrayList;

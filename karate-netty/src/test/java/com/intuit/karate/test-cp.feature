@@ -1,5 +1,5 @@
 Feature: test classpath
-    java -jar karate.jar -cp src/test/java src/test/java/com/intuit/karate/netty/test-cp.feature
+    java -jar karate.jar -cp src/test/java src/test/java/com/intuit/karate/test-cp.feature
 
 Scenario: relative adjacent
   * def temp = read('test-cp2.json')
@@ -10,7 +10,7 @@ Scenario: classpath root
   * match temp == { success: true }
 
 Scenario: classpath deep
-  * def temp = read('classpath:com/intuit/karate/netty/test-cp2.json')
+  * def temp = read('classpath:com/intuit/karate/test-cp2.json')
   * match temp == { success: true }
 
 Scenario: file 1
@@ -18,5 +18,5 @@ Scenario: file 1
   * match temp == { success: true }
 
 Scenario: file 2
-  * def temp = read('file:src/test/java/com/intuit/karate/netty/test-cp2.json')
+  * def temp = read('file:src/test/java/com/intuit/karate/test-cp2.json')
   * match temp == { success: true }

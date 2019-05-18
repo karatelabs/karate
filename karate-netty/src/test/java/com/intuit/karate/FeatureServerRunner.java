@@ -1,6 +1,6 @@
-package com.intuit.karate.netty;
+package com.intuit.karate;
 
-import com.intuit.karate.FileUtils;
+import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
 import org.junit.Test;
 

@@ -1,4 +1,4 @@
-package com.intuit.karate.netty;
+package com.intuit.karate;
 
 import org.junit.Test;
 

@@ -1,8 +1,7 @@
-package com.intuit.karate.netty;
+package com.intuit.karate;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.junit4.Karate;
-import com.intuit.karate.KarateOptions;
+import com.intuit.karate.netty.FeatureServer;
 import java.io.File;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -13,7 +12,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-@KarateOptions(features = "classpath:com/intuit/karate/netty/client.feature")
+@KarateOptions(features = "classpath:com/intuit/karate/client.feature")
 public class FeatureServerTest {
     
     private static FeatureServer server;

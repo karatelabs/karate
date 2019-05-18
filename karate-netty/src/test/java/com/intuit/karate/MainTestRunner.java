@@ -1,4 +1,4 @@
-package com.intuit.karate.netty;
+package com.intuit.karate;
 
 import org.junit.Test;
 
@@ -11,7 +11,7 @@ public class MainTestRunner {
     @Test
     public void testMain() {
         System.setProperty("karate.config.dir", "src/test/java");
-        Main.main(new String[]{"-t", "~@ignore", "src/test/java/com/intuit/karate/netty"});                
+        Main.main(new String[]{"-t", "~@ignore", "src/test/java/com/intuit/karate"});                
     }
     
     @Test
@@ -19,13 +19,13 @@ public class MainTestRunner {
         System.setProperty("karate.config.dir", "src/test/java");
         Main.main(new String[]{ 
             "-n", "^cors options method handling$",
-            "src/test/java/com/intuit/karate/netty/client.feature"});                
+            "src/test/java/com/intuit/karate/client.feature"});                
     } 
     
     @Test
     public void testScenarioLine() {
         System.setProperty("karate.config.dir", "src/test/java");
-        Main.main(new String[]{"src/test/java/com/intuit/karate/netty/client.feature:37"});                
+        Main.main(new String[]{"src/test/java/com/intuit/karate/client.feature:37"});                
     }     
     
 }
