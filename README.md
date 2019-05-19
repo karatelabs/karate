@@ -290,6 +290,8 @@ And if you run into class-loading conflicts, for example if an older version of 
 
 If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-junit4`.
 
+> The [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) is no longer part of the core framework from 0.9.3 onwards, and is an optional dependency called `karate-ui`.
+
 ## Gradle
 
 Alternatively for Gradle you need these two entries:
