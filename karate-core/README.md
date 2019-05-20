@@ -21,7 +21,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * WebDriver support without any intermediate server
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
-* The Windows example above proves that the approach would work for Appium with minimal changes (please contribute !)
+* Android and iOS mobile support via [Appium](http://appium.io), see [details](https://github.com/intuit/karate/issues/743)
 * Karate can start the executable (WebDriver / Chrome, WinAppDriver, Appium Server) automatically for you
 * Seamlessly mix API and UI tests within the same script
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
