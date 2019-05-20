@@ -7,4 +7,4 @@ Scenario:
   * assert driver.eval('1 + 2') == 3
   * match driver.eval("location.href") == webUrlBase + '/page-03'
   * def getSubmitFn = function(formId){ return "document.getElementById('" + formId + "').submit()" }
-  * eval driver.eval(getSubmitFn('eg02FormId'))
+  * driver.eval(getSubmitFn('eg02FormId'))
