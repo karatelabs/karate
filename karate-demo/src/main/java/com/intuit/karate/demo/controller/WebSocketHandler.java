@@ -57,6 +57,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+        logger.debug("websocket session cleanup: {}", session);
         synchronized (sessions) {
             sessions.remove(session);
         }
@@ -68,7 +69,11 @@ public class WebSocketHandler extends TextWebSocketHandler {
         synchronized (sessions) {
             for (WebSocketSession session : sessions) {
                 logger.debug("sending to websocket session: {}", session);
-                session.sendMessage(new TextMessage(message));
+                try {
+                    session.sendMessage(new TextMessage(message));
+                } catch (Exception e) {
+                    logger.warn("broadcast failed for session: {} - {}", session, e.getMessage());
+                }
             } 
         }
     }
