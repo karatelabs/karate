@@ -412,7 +412,7 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
 ## IDE Support
-Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://docs.cucumber.io/gherkin/) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience.
+Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://docs.cucumber.io/gherkin/) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience. Also check out the [Karate plugin for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) created by Kirk Slota.
 
 ### Running in Eclipse or IntelliJ
 If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
@@ -3460,7 +3460,7 @@ Karate also has built-in support for [websocket](http://www.websocket.org) that 
 * `karate.webSocket(url, handler, options)` - where `options` is an optional JSON (or map-like) object that takes the following optional keys:
   * `subProtocol` - in case the server expects it
   * `headers` - another JSON of key-value pairs
-  * `maxPayloadSize` - this defaults to 4194304 (bytes, around 5 MB)
+  * `maxPayloadSize` - this defaults to 4194304 (bytes, around 4 MB)
 
 These will init a websocket client for the given `url` and optional `subProtocol`. If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the "wait" of `socket.listen()` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic. If you need custom headers for the websocket handshake, use JSON as the last argument.
 

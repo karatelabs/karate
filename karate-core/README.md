@@ -56,7 +56,7 @@ The parameters that you can optionally customize via the `Map` argument to the `
 If Chrome is not installed in the default location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`. For more control or custom options, the `start()` method takes a `Map<String, Object>` argument where the following keys (all optional) are supported:
 * `executable` - (String) path to the Chrome executable or batch file that starts Chrome
 * `headless` - (Boolean) if headless
-* `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 5MB), but you can override it if you deal with very large output / binary payloads
+* `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 4 MB), but you can override it if you deal with very large output / binary payloads
 
 # Syntax Guide
 
