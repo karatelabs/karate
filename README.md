@@ -3457,7 +3457,10 @@ Karate also has built-in support for [websocket](http://www.websocket.org) that 
 
 * `karate.webSocket(url)`
 * `karate.webSocket(url, handler)`
-* `karate.webSocket(url, subProtocol, handler, headers)`
+* `karate.webSocket(url, handler, options)` - where `options` is an optional JSON (or map-like) object that takes the following optional keys:
+  * `subProtocol` - in case the server expects it
+  * `headers` - another JSON of key-value pairs
+  * `maxPayloadSize` - this defaults to 4194304 (bytes, around 5 MB)
 
 These will init a websocket client for the given `url` and optional `subProtocol`. If a `handler` [function](#javascript-functions) (returning a boolean) is provided - it will be used to complete the "wait" of `socket.listen()` if `true` is returned - where `socket` is the reference to the websocket client returned by `karate.webSocket()`. A handler function is needed only if you have to ignore other incoming traffic. If you need custom headers for the websocket handshake, use JSON as the last argument.
 

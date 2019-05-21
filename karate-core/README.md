@@ -27,7 +27,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
 
 ### Chrome Java API
-Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
+Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. You only need the [`karate-core`](https://search.maven.org/search?q=a:karate-core) Maven artifact. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 
 ```java
 import com.intuit.karate.FileUtils;
@@ -53,7 +53,10 @@ public class Test {
 The parameters that you can optionally customize via the `Map` argument to the `pdf()` method are documented here: [`Page.printToPDF
 `](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF).
 
-If Chrome is not installed in the default location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`.
+If Chrome is not installed in the default location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`. For more control or custom options, the `start()` method takes a `Map<String, Object>` argument where the following keys (all optional) are supported:
+* `executable` - (String) path to the Chrome executable or batch file that starts Chrome
+* `headless` - (Boolean) if headless
+* `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 5MB), but you can override it if you deal with very output / binary payloads
 
 # Syntax Guide
 

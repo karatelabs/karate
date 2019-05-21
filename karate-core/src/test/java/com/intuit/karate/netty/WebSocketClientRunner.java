@@ -9,20 +9,22 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class WebSocketClientRunner  {
-    
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketClientRunner.class);    
+public class WebSocketClientRunner {
+
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketClientRunner.class);
     private String result;
-    
+
     @Test
     public void testWebSockets() throws Exception {
         String url = "ws://echo.websocket.org";
-        WebSocketClient client = new WebSocketClient(url, null, text -> {
-            synchronized(this) {
+        WebSocketOptions options = new WebSocketOptions(url);
+        options.setTextConsumer(text -> {
+            synchronized (this) {
                 result = text;
                 notify();
-            }                        
+            }
         });
+        WebSocketClient client = new WebSocketClient(options);
         client.send("hello world !");
         synchronized (this) {
             wait();

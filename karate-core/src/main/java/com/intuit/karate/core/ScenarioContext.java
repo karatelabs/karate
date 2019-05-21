@@ -48,6 +48,7 @@ import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.netty.WebSocketClient;
+import com.intuit.karate.netty.WebSocketOptions;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
@@ -56,7 +57,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -798,9 +798,8 @@ public class ScenarioContext {
         prevEmbed = embed;
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, 
-            Function<String, Boolean> textHandler, Function<byte[], Boolean> binaryHandler, Map<String, Object> headers) {
-        WebSocketClient webSocketClient = new WebSocketClient(url, subProtocol, textHandler, binaryHandler, headers);
+    public WebSocketClient webSocket(WebSocketOptions options) {
+        WebSocketClient webSocketClient = new WebSocketClient(options);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
         }
