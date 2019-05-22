@@ -52,11 +52,11 @@ EACH
     ;
 
 LPAREN
-    : '('                   -> pushMode(INSIDE_PARENTHESES)
+    : '('                   -> pushMode(METHOD_PARAMETER)
     ;
 
 LBRACK
-    : '['                   -> pushMode(INSIDE_BRACKET)
+    : '['                   -> pushMode(ARRAY_ADDRESS)
     ;
 
 DOT
@@ -84,28 +84,27 @@ fragment Letter
     : [a-zA-Z$_]
     ;
 
-// We need a different mode for stuff inside parentheses, because arbitrary code can be used inside ().
-mode INSIDE_PARENTHESES;
-RPAREN
+// We need a different mode for method parameters, because arbitrary code can be use to calculate a method parameter.
+mode METHOD_PARAMETER;
+CLOSE_METHOD
     : ')'         -> popMode
     ;
 
-PARENTHESES_CONTENT
+METHOD_PARAMETER_CONTENT
     : .
     ;
 
-// We need a different mode for stuff inside brackets, bc arbitrary code can be used inside the [].
-mode INSIDE_BRACKET;
-RBRACK
+// We need a different mode for the array address because arbitrary code can be used to calculate an array address
+mode ARRAY_ADDRESS;
+CLOSE_ARRAY
     : ']'         -> popMode
     ;
 
-BRACKET_CONTENT
+ARRAY_ADDRESS_CONTENT
     : .
     ;
 
-// Everything on the right side of the comparision operation is treated as the expected part.
-// We well cosume the rest of the stream -> No need to pop the mode.
+// Everything on the right side of the comparision operation is treated as the expected part. No need to pop the mode.
 mode EXPECTED;
 EXPECT
     : .

@@ -1,1 +1,1 @@
-driver.eval('{ foo: "(bar)" }') == { hello: 'world' }
+$.addOns[?(@.entitlementStateChangeReason=='RESUBSCRIBE')].addOnOfferID contains only toAddOnOfferIDs

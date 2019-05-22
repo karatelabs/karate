@@ -1,14 +1,13 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.MatchStep;
-import com.intuit.karate.core.MatchStepFactory;
 import com.intuit.karate.core.MatchType;
 import org.junit.Test;
 
 import static com.intuit.karate.core.MatchType.*;
 import static org.junit.Assert.assertEquals;
 
-public class MatchStepFactoryTest {
+public class MatchParserTest {
 
     @Test
     public void testMatchStep() {
@@ -29,52 +28,8 @@ public class MatchStepFactoryTest {
         test("$.addOns[?(@.entitlementStateChangeReason=='RESUBSCRIBE')].addOnOfferID contains only toAddOnOfferIDs", CONTAINS_ONLY, "$.addOns[?(@.entitlementStateChangeReason=='RESUBSCRIBE')].addOnOfferID", null, "toAddOnOfferIDs");
     }
 
-    @Test
-    public void allTypeCombinations() {
-        test("hello world == foo", EQUALS, "hello", "world", "foo");
-        test("each hello world == foo", EACH_EQUALS, "hello", "world", "foo");
-
-        test("hello world != foo", NOT_EQUALS, "hello", "world", "foo");
-        test("each hello world != foo", EACH_NOT_EQUALS, "hello", "world", "foo");
-
-        test("hello world contains foo", CONTAINS, "hello", "world", "foo");
-        test("each hello world contains foo", EACH_CONTAINS, "hello", "world", "foo");
-
-        test("hello world !contains foo", NOT_CONTAINS, "hello", "world", "foo");
-        test("each hello world !contains foo", EACH_NOT_CONTAINS, "hello", "world", "foo");
-
-        test("hello world contains any foo", CONTAINS_ANY, "hello", "world", "foo");
-        test("each hello world contains any foo", EACH_CONTAINS_ANY, "hello", "world", "foo");
-
-        test("hello world contains only foo", CONTAINS_ONLY, "hello", "world", "foo");
-        test("each hello world contains only foo", EACH_CONTAINS_ONLY, "hello", "world", "foo");
-    }
-
-    @Test
-    public void casesTheOldParserHasProblemsWith() {
-        test("hello world==foo", EQUALS, "hello", "world", "foo");
-        test("hello.foo(bar)!=blah", NOT_EQUALS, "hello.foo(bar)", null, "blah");
-        test("hello[0] world ==foo", EQUALS, "hello[0]", "world", "foo");
-    }
-
-    /**
-     * Nested parentheses doesn't work up to know
-     */
-    @Test
-    public void parsingNestedParentheses() {
-        test("driver.eval('{ foo: \"(bar)\" }') == { hello: 'world' }", EQUALS, "driver.eval('{ foo: \"(bar)\" }')", null, "{ hello: 'world' }");
-    }
-
-    /**
-     * Nested parentheses doesn't work up to know
-     */
-    @Test
-    public void parsingNestedBrakets() {
-        test("foo[bar[0]] == { hello: 'world' }", EQUALS, "foo[bar[0]]", null, "{ hello: 'world' }");
-    }
-
     private void test(String raw, MatchType type, String name, String path, String expected) {
-        MatchStep step = MatchStepFactory.parseFromString(raw);
+        MatchStep step = MatchStep.parse(raw);
         assertEquals(type, step.type);
         assertEquals(expected, step.expected);
         assertEquals(name, step.name);

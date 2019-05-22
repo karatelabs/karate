@@ -65,11 +65,11 @@ matchExpression
     ;
 
 methodCall
-    : qualifiedName '(' PARENTHESES_CONTENT* ')'
+    : qualifiedName '(' METHOD_PARAMETER_CONTENT* ')'
     ;
 
 arrayAddress
-    : qualifiedName ('[' BRACKET_CONTENT* ']')+ ( '.' matchExpression )?
+    : qualifiedName ('[' ARRAY_ADDRESS_CONTENT* ']')+ ( '.' matchExpression )?
     ;
 
 qualifiedName
