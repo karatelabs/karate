@@ -99,45 +99,48 @@ public class FeatureExecutionUnit implements Runnable {
             lastContextExecuted.invokeAfterHookIfConfigured(true);
         }
     }
-
+    
     public boolean isSelected(ScenarioExecutionUnit unit) {
-        Scenario scenario = unit.scenario;
-        Feature feature = exec.featureContext.feature;
+        return isSelected(exec.featureContext, unit.scenario, unit.logger);
+    }
+
+    public static boolean isSelected(FeatureContext fc, Scenario scenario, Logger logger) {
+        Feature feature = fc.feature;
         int callLine = feature.getCallLine();
         if (callLine != -1) {
             int sectionLine = scenario.getSection().getLine();
             int scenarioLine = scenario.getLine();
             if (callLine == sectionLine || callLine == scenarioLine) {
-                unit.logger.info("found scenario at line: {}", callLine);
+                logger.info("found scenario at line: {}", callLine);
                 return true;
             }
-            unit.logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
+            logger.trace("skipping scenario at line: {}, needed: {}", scenario.getLine(), callLine);
             return false;
         }
         String callName = feature.getCallName();
         if (callName != null) {
             if (scenario.getName().matches(callName)) {
-                unit.logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
+                logger.info("found scenario at line: {} - {}", scenario.getLine(), callName);
                 return true;
             }
-            unit.logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
+            logger.trace("skipping scenario at line: {} - {}, needed: {}", scenario.getLine(), scenario.getName(), callName);
             return false;
         }
         Tags tags = scenario.getTagsEffective();
         String callTag = scenario.getFeature().getCallTag();
         if (callTag != null) {
             if (tags.contains(callTag)) {
-                unit.logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
+                logger.info("scenario called at line: {} by tag: {}", scenario.getLine(), callTag);
                 return true;
             }
-            unit.logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
+            logger.trace("skipping scenario at line: {} with call by tag effective: {}", scenario.getLine(), callTag);
             return false;
         }
-        if (tags.evaluate(exec.featureContext.tagSelector)) {
-            unit.logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+        if (tags.evaluate(fc.tagSelector)) {
+            logger.trace("matched scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
             return true;
         }
-        unit.logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
+        logger.trace("skipping scenario at line: {} with tags effective: {}", scenario.getLine(), tags.getTags());
         return false;
     }
 

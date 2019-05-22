@@ -74,6 +74,7 @@ public class DriverOptions {
     public final File workingDir;
     public final String workingDirPath;
     public final String processLogFile;
+    public final int maxPayloadSize;
     public final List<String> args = new ArrayList();
 
     private <T> T get(String key, T defaultValue) {
@@ -103,6 +104,7 @@ public class DriverOptions {
         workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
         workingDirPath = workingDir.getAbsolutePath();
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
+        maxPayloadSize = get("maxPayloadSize", 4194304);
     }
 
     public void arg(String arg) {

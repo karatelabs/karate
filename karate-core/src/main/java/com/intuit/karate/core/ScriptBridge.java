@@ -39,6 +39,7 @@ import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
 import com.intuit.karate.netty.WebSocketClient;
+import com.intuit.karate.netty.WebSocketOptions;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
@@ -422,33 +423,37 @@ public class ScriptBridge implements PerfContext {
     }
 
     public WebSocketClient webSocket(String url) {
-        return webSocket(url, null, null, null);
+        return webSocket(url, null, null);
     }
     
     public WebSocketClient webSocket(String url, Function<String, Boolean> handler) {
-        return webSocket(url, null, handler, null);
+        return webSocket(url, handler, null);
     }    
 
-    public WebSocketClient webSocket(String url, String subProtocol, Function<String, Boolean> handler, Map<String, Object> headers) {
+    public WebSocketClient webSocket(String url, Function<String, Boolean> handler, Map<String, Object> map) {
         if (handler == null) {
             handler = t -> true; // auto signal for websocket tests
         }
-        return context.webSocket(url, subProtocol, handler, null, headers);
+        WebSocketOptions options = new WebSocketOptions(url, map);
+        options.setTextHandler(handler);
+        return context.webSocket(options);
     }
 
     public WebSocketClient webSocketBinary(String url) {
-        return webSocketBinary(url, null, null, null);
+        return webSocketBinary(url, null, null);
     }
     
     public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler) {
-        return webSocketBinary(url, null, handler, null);
+        return webSocketBinary(url, handler, null);
     }    
 
-    public WebSocketClient webSocketBinary(String url, String subProtocol, Function<byte[], Boolean> handler, Map<String, Object> headers) {
+    public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler, Map<String, Object> map) {
         if (handler == null) {
             handler = t -> true; // auto signal for websocket tests
         }
-        return context.webSocket(url, subProtocol, null, handler, headers);
+        WebSocketOptions options = new WebSocketOptions(url, map);
+        options.setBinaryHandler(handler);
+        return context.webSocket(options);
     }
 
     public void signal(Object result) {

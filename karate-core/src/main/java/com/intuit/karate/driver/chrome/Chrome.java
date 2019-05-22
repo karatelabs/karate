@@ -30,6 +30,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -72,21 +73,26 @@ public class Chrome extends DevToolsDriver {
         return chrome;
     }
     
-    public static Chrome start(String chromeExecutablePath, boolean headless) {
+    public static Chrome start(String chromeExecutablePath, boolean headless) { 
         Map<String, Object> options = new HashMap();
+        options.put("executable", chromeExecutablePath);
         options.put("headless", headless);
-        if (chromeExecutablePath != null) {
-            options.put("executable", chromeExecutablePath);
+        return Chrome.start(null, options, null);
+    }   
+    
+    public static Chrome start(Map<String, Object> options) {
+        if (options == null) {
+            options = new HashMap();
         }
         return Chrome.start(null, options, null);         
     }
     
     public static Chrome start() {
-        return start(null, false);
+        return start(null);
     }
     
     public static Chrome startHeadless() {
-        return start(null, true);
+        return start(Collections.singletonMap("headless", true));
     }    
 
 }

@@ -64,15 +64,14 @@ public class Feature {
         return background != null && background.getSteps() != null;
     }
 
+    // the logger arg is important and can be coming from the UI
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec, Logger logger) {
         List<ScenarioExecutionUnit> units = new ArrayList();
         for (FeatureSection section : sections) {
             if (section.isOutline()) {
                 for (Scenario scenario : section.getScenarioOutline().getScenarios()) {
                     if (scenario.isDynamic()) {
-                        // first check if tag is selected, TODO code duplication in FeatureExecutionUnit
-                        Tags tagsEffective = scenario.getTagsEffective();
-                        if (!tagsEffective.evaluate(exec.featureContext.tagSelector)) {
+                        if (!FeatureExecutionUnit.isSelected(exec.featureContext, scenario, new Logger())) { // throwaway logger
                             continue;
                         }
                         ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec, logger);

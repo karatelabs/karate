@@ -27,6 +27,7 @@ import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.netty.WebSocketClient;
+import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.CommandThread;
 import java.util.Base64;
 import java.util.Collections;
@@ -68,12 +69,15 @@ public abstract class DevToolsDriver implements Driver {
         int pos = webSocketUrl.lastIndexOf('/');
         pageId = webSocketUrl.substring(pos + 1);
         logger.debug("page id: {}", pageId);
-        client = new WebSocketClient(webSocketUrl, null, text -> {
+        WebSocketOptions wsOptions = new WebSocketOptions(webSocketUrl);
+        wsOptions.setMaxPayloadSize(options.maxPayloadSize);
+        wsOptions.setTextConsumer(text -> {
             logger.debug("<< {}", text);
             Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
         });
+        client = new WebSocketClient(wsOptions);
     }
 
     public int waitSync() {

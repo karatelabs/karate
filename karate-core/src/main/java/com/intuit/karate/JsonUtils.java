@@ -53,6 +53,7 @@ import net.minidev.json.JSONValue;
 import net.minidev.json.reader.JsonWriter;
 import net.minidev.json.reader.JsonWriterI;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  *
@@ -382,8 +383,9 @@ public class JsonUtils {
     }
 
     public static DocumentContext fromYaml(String raw) {
-        Yaml yaml = new Yaml();
-        return JsonPath.parse(yaml.load(raw));
+        Yaml yaml = new Yaml(new SafeConstructor());
+        Object o = yaml.load(raw);
+        return JsonPath.parse(o);
     }
 
     public static DocumentContext fromCsv(String raw) {

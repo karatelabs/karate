@@ -22,7 +22,8 @@ Scenario: binary message
 
 Scenario: sub protocol
     Given def demoBaseUrl = 'wss://subscriptions.graph.cool/v1/cizfapt9y2jca01393hzx96w9'
-    And def socket = karate.webSocket(demoBaseUrl, 'graphql-subscriptions', null, { Authorization: 'Bearer foo' })
+    And def options = { subProtocol: 'graphql-subscriptions', headers: { Authorization: 'Bearer foo' } }
+    And def socket = karate.webSocket(demoBaseUrl, null, options)
     And def txt = '{"type": "connection_init", "payload": {}}'
     When eval socket.send(txt)
     And def result = socket.listen(5000)
