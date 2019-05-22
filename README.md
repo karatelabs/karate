@@ -2996,6 +2996,8 @@ Scenario: some scenario
   # main test steps
 ```
 
+> Note that [`def`](#def) can be used to *assign* a __feature__ to a variable. For example look at how "`creator`" has been defined in the `Background` in [this example](karate-demo/src/test/java/demo/calldynamic/call-dynamic-json.feature), and used later in a `call` statement. This is very close to how "custom keywords" work in other frameworks.
+
 The contents of `my-signin.feature` are shown below. A few points to note:
 * Karate creates a new 'context' for the feature file being invoked but passes along all variables and configuration. This means that all your [config variables](#configuration) and [`configure` settings](#configure) would be available to use, for example `loginUrlBase` in the example below. 
 * When you use [`def`](#def) in the 'called' feature, it will **not** over-write variables in the 'calling' feature (unless you explicitly choose to use [shared scope](#shared-scope)). But note that JSON, XML, Map-like or List-like variables are 'passed by reference' which means that 'called' feature steps can *update* or 'mutate' them using the [`set`](#set) keyword. Use the [`copy`](#copy) keyword to 'clone' a JSON or XML payload if needed, and refer to this example for more details: [`copy-caller.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/copy-caller.feature).
