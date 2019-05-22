@@ -132,7 +132,7 @@ And driver.input('input[name=someName]', 'test input')
 When driver.submit("//input[@name='commit']")
 ```
 
-web ? | prefix | means | example
+platform | prefix | means | example
 ----- | ------ | ----- | -------
 web | (none) | css selector | `input[name=someName]`
 web <br/> android <br/> ios | `/` | xpath | `//input[@name='commit']`
@@ -141,6 +141,9 @@ web | `*` | partial link text | `*Click Me`
 win <br/> android <br/> ios| (none) | name | `Submit`
 win <br/> android <br/> ios | `@` | accessibility id | `@CalculatorResults`
 win <br/> android <br/> ios | `#` | id | `#MyButton`
+ios| `:` | -ios predicate string | `:name == 'OK' type == XCUIElementTypeButton`
+ios| `^` | -ios class chain | ``^**/XCUIElementTypeTable[`name == 'dataTable'`]``
+android| `-` | -android uiautomator | `-input[name=someName]`
 
 ## Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
