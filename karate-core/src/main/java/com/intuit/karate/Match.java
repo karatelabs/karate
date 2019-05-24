@@ -56,6 +56,12 @@ public class Match {
     public Match() {
         this(null, null);
     }
+    
+    public static Match init(Object o) {
+        Match match = new Match(null, null);
+        match.prevValue = new ScriptValue(o);
+        return match;
+    }
 
     private Match(Logger logger, String exp) {
         FeatureContext featureContext = FeatureContext.forEnv();

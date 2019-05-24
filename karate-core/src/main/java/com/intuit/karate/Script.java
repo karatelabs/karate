@@ -685,6 +685,13 @@ public class Script {
         }
         path = StringUtils.trimToNull(path);
         if (path == null) {
+            if (name.endsWith(")")) { // attempt to evaluate LHS as-is (java / js function)
+                ScriptValue actual = evalKarateExpression(expression, context);
+                if (actual.isJsonLike()) { // we have eval-ed the LHS, so match RHS to the entire LHS doc
+                    path = VAR_ROOT;
+                }
+                return matchScriptValue(matchType, actual, path, expected, context);
+            }
             StringUtils.Pair pair = parseVariableAndPath(name);
             name = pair.left;
             path = pair.right;

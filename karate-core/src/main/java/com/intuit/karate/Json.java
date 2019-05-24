@@ -85,6 +85,14 @@ public class Json {
         set(path, temp);
         return this;
     }
+    
+    public Match getMatcher(String path) {
+        return Match.init(get(path));
+    }
+    
+    public Json getJson(String path) {
+        return new Json(get(path));
+    }    
 
     public Object get(String path) {
         return doc.read(prefix(path));
