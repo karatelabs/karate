@@ -11,7 +11,7 @@ Feature: demo of data-driven unit-testing
     * match fb(15) == 'FizzBuzz'
 
   Scenario Outline: data-driven assertions
-    * match fb(__row.val) == __row.expected
+    * match fb(val) == expected
 
     Examples:
       | val! | expected |

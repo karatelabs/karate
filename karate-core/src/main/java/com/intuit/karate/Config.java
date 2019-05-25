@@ -63,6 +63,7 @@ public class Config {
     private boolean logPrettyRequest;
     private boolean logPrettyResponse;
     private boolean printEnabled = true;
+    private boolean outlineVariablesAuto = true;
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
@@ -142,6 +143,9 @@ public class Config {
                     retryInterval = get(map, "interval", retryInterval);
                     retryCount = get(map, "count", retryCount);                    
                 }
+                return false;
+            case "outlineVariablesAuto":
+                outlineVariablesAuto = value.isBooleanTrue();
                 return false;
             // here on the http client has to be re-constructed ================
             case "httpClientClass":
@@ -244,6 +248,7 @@ public class Config {
         showAllSteps = parent.showAllSteps;
         retryInterval = parent.retryInterval;
         retryCount = parent.retryCount;
+        outlineVariablesAuto = parent.outlineVariablesAuto;
     }
         
     public void setCookies(ScriptValue cookies) {
@@ -423,5 +428,9 @@ public class Config {
     public void setRetryCount(int retryCount) {
         this.retryCount = retryCount;
     }
+
+    public boolean isOutlineVariablesAuto() {
+        return outlineVariablesAuto;
+    }        
 
 }

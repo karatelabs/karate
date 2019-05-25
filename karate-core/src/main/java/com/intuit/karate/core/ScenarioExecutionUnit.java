@@ -144,11 +144,12 @@ public class ScenarioExecutionUnit implements Runnable {
                 result.addError("scenario init failed", e);
             }
         }
+        ScenarioContext context = actions.context;
         // before-scenario hook        
-        if (!initFailed && actions.context.executionHooks != null) {
+        if (!initFailed && context.executionHooks != null) {
             try {
-                for (ExecutionHook h : actions.context.executionHooks) {
-                    h.beforeScenario(scenario, actions.context);
+                for (ExecutionHook h : context.executionHooks) {
+                    h.beforeScenario(scenario, context);
                 }
             } catch (Exception e) {
                 initFailed = true;
@@ -167,8 +168,12 @@ public class ScenarioExecutionUnit implements Runnable {
                     steps = scenario.getStepsIncludingBackground();
                 }
                 if (scenario.isOutline()) { // init examples row magic variables
-                    actions.context.vars.put("__row", scenario.getExampleData());
-                    actions.context.vars.put("__num", scenario.getExampleIndex());
+                    Map<String, Object> exampleData = scenario.getExampleData();
+                    context.vars.put("__row", exampleData);
+                    context.vars.put("__num", scenario.getExampleIndex());
+                    if (context.getConfig().isOutlineVariablesAuto()) {
+                        exampleData.forEach((k, v) -> context.vars.put(k, v));
+                    }
                 }
             }
         }

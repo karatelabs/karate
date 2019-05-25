@@ -1914,7 +1914,8 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `proxy` | JSON | For a proxy that requires authentication, set the `uri`, `username` and `password`, see example below. Also a `nonProxyHosts` key is supported which can take a list for e.g. `{ uri: 'http://my.proxy.host:8080',  nonProxyHosts: ['host1', 'host2']}`
 `charset` | string | The charset that will be sent in the request `Content-Type` which defaults to `utf-8`. You typically never need to change this, and you can over-ride (or disable) this per-request if needed via the [`header`](#header) keyword ([example](karate-demo/src/test/java/demo/headers/content-type.feature)).
 `retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
-`lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
+`outlineVariablesAuto` | boolean | defaults to `true`, whether each key-value pair in the `Scenario Outline` example-row is automatically injected into the context as a variable (and not just `__row`), see [`Scenario Outline` Enhancements](#scenario-outline-enhancements)
+ `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
 `httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
 `httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)
 `userDefined` | JSON | See [karate-mock-servlet](karate-mock-servlet)
@@ -3580,17 +3581,19 @@ This is great for testing boundary conditions against a single end-point, with t
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
 * __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or *even* in-line JSON) - else it defaults to string.
 * __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
-* You can optionally use the [`karate.set(__row)`](#karate-setall) API to inject all the key-value pairs as variables in scope (in one shot), which can greatly simplify JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
+* __Auto Variables__: each column key-value will be available as a [variable](#def), which greatly simplifies JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
+  * You can disable the "auto variables" behavior by setting the `outlineVariablesAuto` [`configure` setting](#configure) to `false`. You can then use the [`karate.set(__row)`](#karate-setall) API to inject all the key-value pairs as variables in scope (in one shot), 
 * Any empty cells will result in a `null` value for that `__row.colName`
 
-These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-concatenation `<foo>` placeholder style or refer to `__row.foo` in JSON-friendly [expressions](#karate-expressions).
+These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-concatenation `<foo>` placeholder style or refer to the [variable](#def) `foo` (and also `__row.foo`) in JSON-friendly [expressions](#karate-expressions).
 
 Note that even the scenario name can accept placeholders - which is very useful in reports. 
 
 ```cucumber
 Scenario Outline: name is <name> and age is <age>
-  * def name = '<name>'
-  * match name == __row.name
+  * def temp = '<name>'
+  * match temp == name
+  * match temp == __row.name
   * def expected = __num == 0 ? 'name is Bob and age is 5' : 'name is Nyan and age is 6'
   * match expected == karate.info.scenarioName
 
@@ -3610,8 +3613,6 @@ Scenario Outline: magic variables with type hints
 
 Scenario Outline: magic variables with embedded expressions
   * def expected = __num == 0 ? { name: 'Bob', alive: false } : { name: 'Nyan', alive: true }
-  * match expected == { name: '#(__row.name)', alive: '#(__row.alive)' }
-  * eval karate.set(__row)
   * match expected == { name: '#(name)', alive: '#(alive)' }
 
   Examples:

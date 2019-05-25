@@ -24,8 +24,6 @@ Scenario Outline: name: <name> and country: <country>
 Scenario Outline: name: <name> and country: <country>
     above example simplified / improved using type-hints and karate's enhancements to example row handling
 
-    # one-liner to make all the row key-value-pairs available as variables in scope
-    * eval karate.set(__row)
     Given path 'search'
     # since the next line is standard JSON + embedded-expressions, it can be easily extracted into a re-usable file
     And params { name: '#(name)', country: '#(country)', active: '#(active)', limit: '#(limit)' }
@@ -88,7 +86,7 @@ Scenario Outline: expressions - index: <index> and country: <country>
 
     Given path 'search'
     # both mechanisms for data substitution are available at the same time
-    And params { name: '#(<name>)', country: '#(__row.country)', active: '#(__row.active)', limit: '#(__row.limit)' }
+    And params { name: '#(<name>)', country: '#(country)', active: '#(active)', limit: '#(limit)' }
     When method get
     Then status 200
     # note how the row index is a magic variable
