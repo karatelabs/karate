@@ -211,19 +211,19 @@ public class ScriptValue {
             case JSON:
                 String json = getValue(DocumentContext.class).jsonString();
                 return new ScriptValue(JsonPath.parse(json));
-            case JS_OBJECT:            
-            case JS_ARRAY:                
+            case JS_OBJECT:
+            case JS_ARRAY:
             case MAP:
                 if (deep) {
                     String strMap = getAsJsonDocument().jsonString();
-                    return new ScriptValue(JsonPath.parse(strMap));   
+                    return new ScriptValue(JsonPath.parse(strMap));
                 } else {
                     return new ScriptValue(new LinkedHashMap(getValue(Map.class)));
                 }
             case LIST:
                 if (deep) {
                     String strList = getAsJsonDocument().jsonString();
-                    return new ScriptValue(JsonPath.parse(strList));  
+                    return new ScriptValue(JsonPath.parse(strList));
                 } else {
                     return new ScriptValue(new ArrayList(getValue(List.class)));
                 }
@@ -237,7 +237,7 @@ public class ScriptValue {
             case JSON:
                 return getValue(DocumentContext.class);
             case JS_ARRAY: // happens for json resulting from nashorn
-                ScriptObjectMirror som = getValue(ScriptObjectMirror.class);                
+                ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
                 return JsonPath.parse(som.values());
             case JS_OBJECT: // is a map-like object, happens for json resulting from nashorn
             case MAP: // this happens because some jsonpath operations result in Map
@@ -359,7 +359,7 @@ public class ScriptValue {
             return Integer.valueOf(getAsString());
         }
     }
-    
+
     public String getAsString() {
         switch (type) {
             case NULL:
@@ -446,7 +446,30 @@ public class ScriptValue {
         this(value, null);
     }
 
+    private static Object convertFromNashorn(Object o) {
+        if (o instanceof ScriptObjectMirror) {
+            ScriptObjectMirror som = (ScriptObjectMirror) o;
+            if (som.isFunction()) {
+                return o;
+            }
+            Object out = JsonUtils.toJsonDoc(o).read("$");
+            if (out instanceof Map) {
+                som.forEach((k, v) -> {
+                    if (v instanceof ScriptObjectMirror) {
+                        ScriptObjectMirror child = (ScriptObjectMirror) v;
+                        if (child.isFunction()) { // only 1st level functions will be retained
+                            ((Map) out).put(k, child);
+                        }
+                    }                    
+                });
+            }
+            return out;
+        }
+        return o;
+    }
+
     public ScriptValue(Object value, String source) {
+        value = convertFromNashorn(value);
         this.value = value;
         this.source = source;
         if (value == null) {
@@ -457,19 +480,10 @@ public class ScriptValue {
             type = Type.XML;
         } else if (value instanceof List) {
             type = Type.LIST;
+        } else if (value instanceof ScriptObjectMirror) {
+            type = Type.JS_FUNCTION;
         } else if (value instanceof Map) {
-            if (value instanceof ScriptObjectMirror) {
-                ScriptObjectMirror som = (ScriptObjectMirror) value;
-                if (som.isArray()) {
-                    type = Type.JS_ARRAY;
-                } else if (som.isFunction()) {
-                    type = Type.JS_FUNCTION;
-                } else {
-                    type = Type.JS_OBJECT;
-                }
-            } else {
-                type = Type.MAP;
-            }
+            type = Type.MAP;
         } else if (value instanceof String) {
             type = Type.STRING;
         } else if (value instanceof byte[]) {

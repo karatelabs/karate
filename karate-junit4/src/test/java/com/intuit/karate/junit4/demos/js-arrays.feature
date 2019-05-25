@@ -41,12 +41,8 @@ Scenario: set via json-path can be done in js
     * eval karate.set('json', '$.foo[]', { bar: 'baz' })
     * match json == { foo: [{ bar: 'baz' }] }
 
-Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/karate/issues/225
-    adding this test to detect if ever the JDK behavior changes
-    * def actual = ({ a: [1, 2, 3]})
-    * match actual == { a: { '0': 1, '1': 2, '2': 3 }}
-    * def temp = [1, 2, 3]
-    * def actual = ({ a: temp })
+Scenario: ensure nested nashorn arrays convert correctly
+    * def actual = ({ a: [1, 2, 3] })
     * match actual == { a: [1, 2, 3] }
 
 Scenario: karate forEach operation on lists

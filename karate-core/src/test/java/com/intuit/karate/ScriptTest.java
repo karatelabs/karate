@@ -1678,7 +1678,7 @@ public class ScriptTest {
         value = JsonUtils.removeCyclicReferences(value);
         DocumentContext doc = JsonUtils.toJsonDoc(value);
         Map temp = doc.read("$");
-        Match.equals(temp, "{ env: 'dev', child: { env: 'dev', child: '#jdk.nashorn.api.scripting.ScriptObjectMirror' } }");
+        Match.equals(temp, "{ env: 'dev', child: '#java.util.LinkedHashMap' }");
     }
 
 }
