@@ -1054,8 +1054,6 @@ public class Script {
         DocumentContext actualDoc;
         switch (actual.getType()) {
             case JSON:
-            case JS_ARRAY:
-            case JS_OBJECT:
             case MAP:
             case LIST:
                 actualDoc = actual.getAsJsonDocument();
@@ -1130,11 +1128,7 @@ public class Script {
             case JSON: // convert to map or list
                 expObject = expected.getValue(DocumentContext.class).read("$");
                 break;
-            case JS_ARRAY: // array returned by js function, needs conversion to list
-                ScriptObjectMirror som = expected.getValue(ScriptObjectMirror.class);
-                expObject = new ArrayList(som.values());
-                break;
-            default: // btw JS_OBJECT is already a map 
+            default: 
                 expObject = expected.getValue();
         }
         switch (matchType) {
@@ -1648,8 +1642,6 @@ public class Script {
                     case JSON:
                         // force to java map (or list)
                         argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
-                    case JS_ARRAY:
-                    case JS_OBJECT:
                     case MAP:
                     case LIST:
                     case STRING:
@@ -1673,13 +1665,6 @@ public class Script {
                         break;
                     case MAP:
                         callArg = argValue.getValue(Map.class);
-                        break;
-                    case JS_OBJECT:
-                        callArg = argValue.getValue(ScriptObjectMirror.class);
-                        break;
-                    case JS_ARRAY:
-                        ScriptObjectMirror temp = argValue.getValue(ScriptObjectMirror.class);
-                        callArg = temp.values();
                         break;
                     case NULL:
                         break;
