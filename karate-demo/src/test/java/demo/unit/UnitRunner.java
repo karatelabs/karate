@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
  * @author pthomas3
  */
 @RunWith(Karate.class)
-public class FizzBuzzRunner {
+public class UnitRunner {
     
     @BeforeClass
     public static void beforeClass() {
