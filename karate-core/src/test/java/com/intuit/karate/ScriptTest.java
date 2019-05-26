@@ -1680,14 +1680,17 @@ public class ScriptTest {
         Map temp = doc.read("$");
         Match.equals(temp, "{ env: 'dev', child: '#java.util.LinkedHashMap' }");
     }
-    
+
     @Test
     public void testMatchFunctionOnLhs() {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ return true }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "fun()", null, "true", ctx).pass);
+        Script.assign("fun", "function(){ return { a: 1 } }", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "fun()", null, "{ a: 1 }", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "fun().a", null, "1", ctx).pass);
     }
-    
+
     @Test
     public void testKarateToJson() {
         ScenarioContext ctx = getContext();
@@ -1698,6 +1701,6 @@ public class ScriptTest {
         Script.assign("bar", "karate.toJson(sp, true)", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "foo", null, "{ foo: null, bar: 10 }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ bar: 10 }", ctx).pass);
-    }    
+    }
 
 }

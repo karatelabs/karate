@@ -3581,9 +3581,9 @@ This is great for testing boundary conditions against a single end-point, with t
 Karate has enhanced the Cucumber `Scenario Outline` as follows:
 * __Type Hints__: if the `Examples` column header has a `!` appended, each value will be evaluated as a JavaScript data-type (number, boolean, or *even* in-line JSON) - else it defaults to string.
 * __Magic Variables__: `__row` gives you the entire row as a JSON object, and `__num` gives you the row index (the first row is `0`).
-* __Auto Variables__: each column key-value will be available as a [variable](#def), which greatly simplifies JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
-  * You can disable the "auto variables" behavior by setting the `outlineVariablesAuto` [`configure` setting](#configure) to `false`. You can then use the [`karate.set(__row)`](#karate-setall) API to inject all the key-value pairs as variables in scope (in one shot), 
-* Any empty cells will result in a `null` value for that `__row.colName`
+* __Auto Variables__: in addition to `__row`, each column key-value will be available as a separate [variable](#def), which greatly simplifies JSON manipulation - especially when you want to re-use JSON [files](#reading-files) containing [embedded expressions](#embedded-expressions).
+  * You can disable the "auto variables" behavior by setting the `outlineVariablesAuto` [`configure` setting](#configure) to `false`.
+* Any empty cells will result in a `null` value for that column-key
 
 These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-concatenation `<foo>` placeholder style or refer to the [variable](#def) `foo` (and also `__row.foo`) in JSON-friendly [expressions](#karate-expressions).
 

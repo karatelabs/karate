@@ -683,10 +683,12 @@ public class Script {
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
             name = name.substring(1);
         }
-        path = StringUtils.trimToNull(path);
-        if (path == null) {
-            if (name.endsWith(")")) { // attempt to evaluate LHS as-is (java / js function)
-                ScriptValue actual = evalKarateExpression(expression, context);
+        path = StringUtils.trimToNull(path);        
+        if (path == null) {            
+            int pos = name.lastIndexOf(')');
+            // if the LHS ends with a right-paren (function invoke) or involves a function-invoke + property accessor
+            if (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.')) {
+                ScriptValue actual = evalKarateExpression(expression, context); // attempt to evaluate LHS as-is
                 return matchScriptValue(matchType, actual, VAR_ROOT, expected, context);
             }
             StringUtils.Pair pair = parseVariableAndPath(name);
