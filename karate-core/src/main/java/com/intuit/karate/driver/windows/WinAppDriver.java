@@ -94,4 +94,9 @@ public class WinAppDriver extends WebDriver {
         http.path("element", id, "click").post("{}");
     }
 
+    @Override
+    protected String getJsonForInput(String text) {
+        return new Json().set("value[0]", text).toString();
+    }
+
 }

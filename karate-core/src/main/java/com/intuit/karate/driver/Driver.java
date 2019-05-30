@@ -129,6 +129,8 @@ public interface Driver {
     void setCookie(Map<String, Object> cookie);
 
     List<Map> getCookies();
+
+    List<String> getWindowHandles();
     
     String getDialog();
 
