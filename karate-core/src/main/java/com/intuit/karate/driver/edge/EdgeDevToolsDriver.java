@@ -30,6 +30,7 @@ import com.intuit.karate.shell.CommandThread;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -77,6 +78,11 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     @Override
     public void close() {
         // eval("window.close()", null); // this brings up an alert
+    }
+
+    @Override
+    public List<String> getWindowHandles() {
+        return null;
     }
 
     @Override

@@ -383,11 +383,16 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
+    public List<String> getWindowHandles() {
+        return http.path("window", "handles").get().jsonPath("$.value").asList();
+    }
+
+    @Override
     public void switchTo(String titleOrUrl) {
         if (titleOrUrl == null) {
             return;
         }
-        List<String> list = http.path("window", "handles").get().jsonPath("$.value").asList();
+        List<String> list = getWindowHandles();
         for (String handle : list) {
             http.path("window").post(getJsonForHandle(handle));
             String title = getTitle();

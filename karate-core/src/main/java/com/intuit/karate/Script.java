@@ -683,8 +683,14 @@ public class Script {
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
             name = name.substring(1);
         }
-        path = StringUtils.trimToNull(path);
-        if (path == null) {
+        path = StringUtils.trimToNull(path);        
+        if (path == null) {            
+            int pos = name.lastIndexOf(')');
+            // if the LHS ends with a right-paren (function invoke) or involves a function-invoke + property accessor
+            if (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.')) {
+                ScriptValue actual = evalKarateExpression(expression, context); // attempt to evaluate LHS as-is
+                return matchScriptValue(matchType, actual, VAR_ROOT, expected, context);
+            }
             StringUtils.Pair pair = parseVariableAndPath(name);
             name = pair.left;
             path = pair.right;
@@ -1047,8 +1053,6 @@ public class Script {
         DocumentContext actualDoc;
         switch (actual.getType()) {
             case JSON:
-            case JS_ARRAY:
-            case JS_OBJECT:
             case MAP:
             case LIST:
                 actualDoc = actual.getAsJsonDocument();
@@ -1123,11 +1127,7 @@ public class Script {
             case JSON: // convert to map or list
                 expObject = expected.getValue(DocumentContext.class).read("$");
                 break;
-            case JS_ARRAY: // array returned by js function, needs conversion to list
-                ScriptObjectMirror som = expected.getValue(ScriptObjectMirror.class);
-                expObject = new ArrayList(som.values());
-                break;
-            default: // btw JS_OBJECT is already a map 
+            default: 
                 expObject = expected.getValue();
         }
         switch (matchType) {
@@ -1641,8 +1641,6 @@ public class Script {
                     case JSON:
                         // force to java map (or list)
                         argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
-                    case JS_ARRAY:
-                    case JS_OBJECT:
                     case MAP:
                     case LIST:
                     case STRING:
@@ -1666,13 +1664,6 @@ public class Script {
                         break;
                     case MAP:
                         callArg = argValue.getValue(Map.class);
-                        break;
-                    case JS_OBJECT:
-                        callArg = argValue.getValue(ScriptObjectMirror.class);
-                        break;
-                    case JS_ARRAY:
-                        ScriptObjectMirror temp = argValue.getValue(ScriptObjectMirror.class);
-                        callArg = temp.values();
                         break;
                     case NULL:
                         break;

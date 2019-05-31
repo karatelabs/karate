@@ -46,6 +46,12 @@ public abstract class AppiumDriver extends WebDriver {
             json.set("using", "accessibility id").set("value", id.substring(1));
         } else if (id.startsWith("#")) {
             json.set("using", "id").set("value", id.substring(1));
+        } else if (id.startsWith(":")) {
+            json.set("using", "-ios predicate string").set("value", id.substring(1));
+        } else if (id.startsWith("^")){
+            json.set("using", "-ios class chain").set("value", id.substring(1));
+        } else if (id.startsWith("-")){
+            json.set("using", "-android uiautomator").set("value", id.substring(1));
         } else {
             json.set("using", "name").set("value", id);
         }

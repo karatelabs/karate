@@ -312,6 +312,18 @@ public class ScriptBridge implements PerfContext {
         DocumentContext doc = Script.toJsonDoc(sv, context);
         return JsonUtils.fromJson(doc.jsonString(), className);
     }
+    
+    public Object toJson(Object o) {
+        return toJson(o, false);
+    }
+    
+    public Object toJson(Object o, boolean removeNulls) {
+        Object result = JsonUtils.toJsonDoc(o).read("$");
+        if (removeNulls) {
+            JsonUtils.removeKeysWithNullValues(result);
+        }
+        return result;
+    }
 
     public Object call(String fileName) {
         return call(fileName, null);
