@@ -28,12 +28,9 @@ You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling
 
 ### Gradle
 
-The [build.gradle](build.gradle) provides a `gatlingRun` task that executes the gatling test of this project.
+For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](build.gradle) provides a `gatlingRun` task that executes the Gatling test of the `karate-netty` project - which you can use as a reference. The approach is fairly simple, and does not require the use of any Gradle Gatling plugins.
 
-This gradle setup is fairly simple and doesn't make use of any gradle gatling plugins.
-
-Most problems using karate with gradle occure when resources are not configured properly. 
-So make sure that all your `*.js` and `*.feature` files will be copied to the resource folder when you build the project.
+Most problems when using Karate with Gradle occur when "test-resources" are not configured properly. So make sure that all your `*.js` and `*.feature` files are copied to the "resources" folder - when you build the project.
 
 ## Sample Project:
 Refer: https://github.com/ptrthomas/karate-gatling-demo

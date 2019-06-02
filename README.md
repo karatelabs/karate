@@ -294,7 +294,7 @@ If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-j
 
 ## Gradle
 
-Alternatively for Gradle you need these two entries:
+Alternatively for [Gradle](https://gradle.org) you need these two entries:
 
 ```yml
     testCompile 'com.intuit.karate:karate-junit4:0.9.2'
@@ -353,7 +353,7 @@ This can be easily achieved with the following tweak to your maven `<build>` sec
 
 This is very common in the world of Maven users and keep in mind that these are tests and not production code.  
 
-Alternatively, if using gradle then add the following `sourceSets` definition
+Alternatively, if using Gradle then add the following `sourceSets` definition
          
 ```yml
 sourceSets {
@@ -560,7 +560,7 @@ Multiple feature files (or paths) can be specified, de-limited by the space char
 
 ### Command Line - Gradle
 
-For gradle you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
+For Gradle you must extend the test task to allow the `karate.options` to be passed to the runtime (otherwise they get consumed by Gradle itself). To do that, add the following:
 
 ```yml
 test {
@@ -573,7 +573,7 @@ test {
 }
 ```
 
-And then the above command in gradle would look like:
+And then the above command in Gradle would look like:
 
 ```
 ./gradlew test -Dtest=CatsRunner

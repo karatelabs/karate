@@ -1,11 +1,9 @@
-
 buildscript {
     ext {
-        // Version 0.9.2 won't work, bc of https://github.com/intuit/karate/issues/737
-        // #737 is fixed in 0.9.3
-        karateVersion = '0.9.3.RC2'
+        karateVersion = '1.0.0'
     }
 }
+
 plugins {
     id 'scala'
 }
@@ -16,23 +14,21 @@ repositories {
 }
 
 dependencies {
-
     implementation 'org.scala-lang:scala-library:2.12.8'
 
-//  Remove these dependcies when you want to ues this `build.gradle` file for you own gatling project.
+    // remove these dependencies when you use this "build.gradle" file for your own gatling project
     compile "com.intuit.karate:karate-apache:${karateVersion}"
     compile 'io.gatling.highcharts:gatling-charts-highcharts:3.0.2'
 
-//    Add these dependencies when you want to use this `build.gradle` file for your own gatling project.
-//    testCompile "com.intuit.karate:karate-apache:${karateVersion}"
-//    testCompile("com.intuit.karate:karate-gatling:${karateVersion}")
-//    testCompile 'io.gatling.highcharts:gatling-charts-highcharts:3.0.2'
+    // add these dependencies when you use this "build.gradle" file for your own gatling project.
+    // testCompile "com.intuit.karate:karate-apache:${karateVersion}"
+    // testCompile("com.intuit.karate:karate-gatling:${karateVersion}")
+    // testCompile 'io.gatling.highcharts:gatling-charts-highcharts:3.0.2'
 
-    testCompile"io.gatling:gatling-app:3.0.2"
+    testCompile "io.gatling:gatling-app:3.0.2"
 }
 
 test {
-
     // pull karate options into the runtime
     systemProperty "karate.options", System.properties.getProperty("karate.options")
 
@@ -44,11 +40,10 @@ test {
 }
 
 sourceSets {
-
     test {
         resources {
-            // `*.feature` files in `src/test/scala` should be treated as resource files.
-            srcDirs = ['src/test/resources','src/test/scala']
+            // "*.feature" files in "src/test/scala" should be treated as resource files
+            srcDirs = ['src/test/resources', 'src/test/scala']
         }
     }
 }

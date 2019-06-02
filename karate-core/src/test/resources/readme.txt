@@ -1,6 +1,7 @@
 mvn versions:set -DnewVersion=1.0.0
 (edit archetype karate.version)
 (edit README.md maven 5 places)
+(edit karate-gatling/build.gradle 1 place)
 mvn versions:commit
 mvn clean deploy -P pre-release,release
 
