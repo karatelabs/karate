@@ -409,16 +409,18 @@ public class ScriptValue {
         // pre-process and convert any nashorn js objects into vanilla Map / List
         if (value instanceof ScriptObjectMirror) {
             ScriptObjectMirror som = (ScriptObjectMirror) value;
-            if (!som.isFunction()) {
+            if (!som.isFunction()) {                
                 value = JsonUtils.toJsonDoc(value).read("$"); // results in Map or List
                 if (value instanceof Map) {
                     Map map = (Map) value;
-                    som.forEach((k, v) -> { // check if any JS functions need to be left as-is
+                    som.forEach((k, v) -> { // check if any special objects need to be preserved
                         if (v instanceof ScriptObjectMirror) {
                             ScriptObjectMirror child = (ScriptObjectMirror) v;
-                            if (child.isFunction()) { // only 1st level functions will be retained
+                            if (child.isFunction()) { // only 1st level JS functions will be retained
                                 map.put(k, child);
                             }
+                        } else { // only 1st level non-JS (e.g. Java) objects will be retained
+                            map.put(k, v);
                         }
                     });
                 }

@@ -3585,7 +3585,7 @@ Karate has enhanced the Cucumber `Scenario Outline` as follows:
   * You can disable the "auto variables" behavior by setting the `outlineVariablesAuto` [`configure` setting](#configure) to `false`.
 * Any empty cells will result in a `null` value for that column-key
 
-These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-concatenation `<foo>` placeholder style or refer to the [variable](#def) `foo` (and also `__row.foo`) in JSON-friendly [expressions](#karate-expressions).
+These are best explained with [examples](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/outline.feature). You can choose between the string-placeholder style `<foo>` or *directly* refer to the [variable](#def) `foo` (or even the *whole row* JSON as `__row`) in JSON-friendly [expressions](#karate-expressions).
 
 Note that even the scenario name can accept placeholders - which is very useful in reports. 
 
