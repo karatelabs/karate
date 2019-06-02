@@ -26,6 +26,15 @@ Since the above does *not* include the [`karate-apache` (or `karate-jersey`)]((h
 
 You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling-maven-plugin), refer to the below [sample project](https://github.com/ptrthomas/karate-gatling-demo) for how to use this for a typical Karate project where feature files are in `src/test/java`. For convenience we recommend you keep even the Gatling simulation files in the same folder hierarchy, even though they are technically files with a `*.scala` extension.
 
+### Gradle
+
+The [build.gradle](build.gradle) provides a `gatlingRun` task that executes the gatling test of this project.
+
+This gradle setup is fairly simple and doesn't make use of any gradle gatling plugins.
+
+Most problems using karate with gradle occure when resources are not configured properly. 
+So make sure that all your `*.js` and `*.feature` files will be copied to the resource folder when you build the project.
+
 ## Sample Project:
 Refer: https://github.com/ptrthomas/karate-gatling-demo
 
