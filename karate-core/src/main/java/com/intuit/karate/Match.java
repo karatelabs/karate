@@ -66,7 +66,7 @@ public class Match {
     private Match(Logger logger, String exp) {
         FeatureContext featureContext = FeatureContext.forEnv();
         String httpClass = logger == null ? DummyHttpClient.class.getName() : null;
-        CallContext callContext = new CallContext(null, null, 0, null, -1, false, false,
+        CallContext callContext = new CallContext(null, null, 0, null, -1, null, false, false,
                 httpClass, null, false);
         context = new ScenarioContext(featureContext, callContext, null, logger);
         if (exp != null) {

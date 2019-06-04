@@ -72,9 +72,7 @@ public class ScriptBridge implements PerfContext {
 
     public ScriptBridge(ScenarioContext context) {
         this.context = context;
-        if (context.callDepth == 0) {
-            CURRENT_CONTEXT.set(context); // see call() below
-        }
+        CURRENT_CONTEXT.set(context); // needed for call() edge case
     }
 
     public ScenarioContext getContext() {
@@ -336,9 +334,9 @@ public class ScriptBridge implements PerfContext {
         switch (sv.getType()) {
             case FEATURE:
                 Feature feature = sv.getValue(Feature.class);
-                // solve for edge case where this.context is from function inited before call heirarchy was determined
-                ScenarioContext currentContext = CURRENT_CONTEXT.get();
-                return Script.evalFeatureCall(feature, arg, currentContext == null ? context : currentContext, false).getValue();
+                // last param is for edge case where this.context is from function 
+                // inited before call hierarchy was determined, see CallContext
+                return Script.evalFeatureCall(feature, arg, context, false, CURRENT_CONTEXT.get()).getValue();
             case JS_FUNCTION:
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
                 return Script.evalFunctionCall(som, arg, context).getValue();

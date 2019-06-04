@@ -1671,7 +1671,7 @@ public class Script {
                         throw new RuntimeException("only json, list/array or map allowed as feature call argument");
                 }
                 Feature feature = sv.getValue(Feature.class);
-                return evalFeatureCall(feature, callArg, context, reuseParentConfig);
+                return evalFeatureCall(feature, callArg, context, reuseParentConfig, null);
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
@@ -1695,7 +1695,8 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context, boolean reuseParentConfig) {
+    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context, 
+            boolean reuseParentConfig, ScenarioContext reportContext) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1706,7 +1707,7 @@ public class Script {
                 if (rowArg instanceof Map) {
                     Map rowArgMap = (Map) rowArg;
                     try {
-                        CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig);
+                        CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig, reportContext);
                         ScriptValue rowResult = evalFeatureCall(callContext);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
@@ -1733,7 +1734,7 @@ public class Script {
         } else if (callArg == null || callArg instanceof Map) {
             Map<String, Object> argAsMap = (Map) callArg;
             try {
-                CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig);
+                CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig, reportContext);
                 return evalFeatureCall(callContext);
             } catch (KarateException ke) {
                 String message = "feature call failed: " + feature.getRelativePath()
