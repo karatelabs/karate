@@ -72,7 +72,9 @@ public class ScriptBridge implements PerfContext {
 
     public ScriptBridge(ScenarioContext context) {
         this.context = context;
-        CURRENT_CONTEXT.set(context); // see call() below
+        if (context.callDepth == 0) {
+            CURRENT_CONTEXT.set(context); // see call() below
+        }
     }
 
     public ScenarioContext getContext() {
