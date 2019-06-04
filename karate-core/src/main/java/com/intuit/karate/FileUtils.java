@@ -573,12 +573,14 @@ public class FileUtils {
     private static void collectFeatureFiles(URL url, String searchPath, List<Resource> files) {
         boolean classpath = url != null;
         int colonPos = searchPath.lastIndexOf(':');
-        int line;
-        if (colonPos != -1) { //
-            line = Integer.valueOf(searchPath.substring(colonPos + 1));
-            searchPath = searchPath.substring(0, colonPos);
-        } else {
-            line = -1;
+        int line = -1;
+        if (colonPos != -1) { // line number has been appended
+            try {
+                line = Integer.valueOf(searchPath.substring(colonPos + 1));
+                searchPath = searchPath.substring(0, colonPos);
+            } catch (Exception e) {
+                // defensive coding, abort attempting to parse line number
+            }
         }
         Path rootPath;
         Path search;
