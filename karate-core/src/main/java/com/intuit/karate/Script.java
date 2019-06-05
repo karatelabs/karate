@@ -1761,7 +1761,7 @@ public class Script {
             result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
         }
         // hack to pass call result back to caller step
-        callContext.context.addCallResult(result);
+        callContext.reportContext.addCallResult(result);
         result.setCallArg(callContext.callArg);
         result.setLoopIndex(callContext.loopIndex);
         if (result.isFailed()) {
