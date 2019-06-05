@@ -681,7 +681,7 @@ The parallel runner will always run `Feature`-s in parallel. Karate will also ru
 The parallel runner will output a `timeline.html` file in the report output directory mentioned above (`target/surefire-reports` by default) which is useful for visually verifying or troubleshooting the effectiveness of the test-run ([see video](https://twitter.com/KarateDSL/status/1049321708241317888)).
 
 ### `@parallel=false`
-In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s but you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag on only those `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
+In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s. And if you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag above only *those* `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
 
 > There is also an API to run a chosen set of features (and tags) which may be useful in cases where you dynamically want to select features at run time. Refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java)
 
@@ -698,7 +698,7 @@ This report is recommended especially because Karate's integration includes the 
 
 <img src="karate-demo/src/test/resources/karate-maven-report-http.jpg" height="600px"/>
 
-The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-using-jacoco).
+The demo also features [code-coverage using Jacoco](karate-demo#code-coverage-using-jacoco). Some third-party report-server solutions integrate with Karate such as [ReportPortal.io](https://github.com/reportportal/agent-java-karate).
 
 ## Logging
 > This is optional, and Karate will work without the logging config in place, but the default console logging may be too verbose for your needs.
