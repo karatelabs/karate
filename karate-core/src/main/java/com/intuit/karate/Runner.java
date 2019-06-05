@@ -86,7 +86,7 @@ public class Runner {
             new File(reportDir).mkdirs();
         }
         final String finalReportDir = reportDir;
-        logger.info("Karate version: {}", FileUtils.getKarateVersion());
+        // logger.info("Karate version: {}", FileUtils.getKarateVersion());
         Results results = Results.startTimer(threadCount);
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount);
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
