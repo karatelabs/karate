@@ -574,7 +574,7 @@ public class FileUtils {
         boolean classpath = url != null;
         int colonPos = searchPath.lastIndexOf(':');
         int line = -1;
-        if (colonPos != -1) { // line number has been appended
+        if (colonPos > 1) { // line number has been appended, and not windows "C:\foo" kind of path
             try {
                 line = Integer.valueOf(searchPath.substring(colonPos + 1));
                 searchPath = searchPath.substring(0, colonPos);
