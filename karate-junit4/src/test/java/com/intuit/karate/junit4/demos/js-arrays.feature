@@ -511,3 +511,9 @@ Scenario: using the java indexOf api (will change with graal)
     * def names = $[*].name
     * def index = names.indexOf('b')
     * match index == 1
+
+Scenario: karate.forEach() and js arguments (may change with graal)
+    * def vals = []
+    * def fun = function(){ karate.forEach(arguments, function(k, v){ vals.add(v) }) }
+    * eval fun('a', 'b', 'c')
+    * match vals == ['a', 'b', 'c']
