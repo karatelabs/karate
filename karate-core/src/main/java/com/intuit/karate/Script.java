@@ -1118,7 +1118,7 @@ public class Script {
         } catch (PathNotFoundException e) {
             if (expected.isString()) {
                 String expString = expected.getAsString();
-                if ("#notpresent".equals(expString) || "#ignore".equals(expString)) {
+                if (isOptionalMacro(expString) || "#notpresent".equals(expString) || "#ignore".equals(expString)) {
                     return AssertionResult.PASS;
                 }
             }
