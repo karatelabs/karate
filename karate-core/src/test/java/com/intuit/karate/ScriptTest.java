@@ -523,6 +523,8 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "'#present'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "'#notpresent'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'#notpresent'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "'#ignore'", ctx).pass);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'#ignore'", ctx).pass);        
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'#present'", ctx).pass);
     }
 

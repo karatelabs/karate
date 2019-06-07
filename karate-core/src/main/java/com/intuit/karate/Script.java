@@ -1116,11 +1116,13 @@ public class Script {
         try {
             actObject = actualDoc.read(path); // note that the path for actObject is 'reset' to '$' here
         } catch (PathNotFoundException e) {
-            if (expected.isString() && "#notpresent".equals(expected.getValue())) {
-                return AssertionResult.PASS;
-            } else {
-                return matchFailed(matchType, path, null, expected.getValue(), "actual json-path does not exist");
+            if (expected.isString()) {
+                String expString = expected.getAsString();
+                if ("#notpresent".equals(expString) || "#ignore".equals(expString)) {
+                    return AssertionResult.PASS;
+                }
             }
+            return matchFailed(matchType, path, null, expected.getValue(), "actual json-path does not exist");
         }
         Object expObject;
         switch (expected.getType()) {
