@@ -43,6 +43,8 @@ import com.intuit.karate.netty.WebSocketOptions;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -373,6 +375,16 @@ public class ScriptBridge implements PerfContext {
 
     public HttpRequest getPrevRequest() {
         return context.getPrevRequest();
+    }
+    
+    public String exec(String command) {
+        Runtime runtime = Runtime.getRuntime();
+        try {
+            InputStream is = runtime.exec(command).getInputStream();
+            return FileUtils.toString(is);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }        
     }
 
     public Object eval(String exp) {
