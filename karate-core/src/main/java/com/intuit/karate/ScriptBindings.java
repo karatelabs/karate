@@ -78,18 +78,12 @@ public class ScriptBindings implements Bindings {
     public static final String BODY_PATH = "bodyPath";
     public static final String SERVER_PORT = "serverPort";
 
-    private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
-
     public ScriptBindings(ScenarioContext context) {
         this.vars = context.vars;
         this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
         bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
-        // the next line calls an eval with 'incomplete' bindings
-        // i.e. only the 'karate' bridge has been bound so far
-        ScriptValue readFunction = eval(READ_FUNCTION, this);
-        // and only now are the bindings complete - with the 'read' function
-        adds.put(READ, readFunction.getValue());
+        adds.put(READ, context.read);
     }
 
     private static final String READ_INVOKE = "%s('%s%s')";

@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,9 +86,7 @@ public class ScriptBridge implements PerfContext {
     }
 
     public Object read(String fileName) {
-        ScriptValue sv = FileUtils.readFile(fileName, context);
-        // json should behave like json within js / function
-        return sv.isJsonLike() ? sv.getAfterConvertingFromJsonOrXmlIfNeeded() : sv.getValue();
+        return context.read.apply(fileName);
     }
 
     public String readAsString(String fileName) {
@@ -151,6 +150,26 @@ public class ScriptBridge implements PerfContext {
             return null;
         }
     }
+
+    public int sizeOf(List list) {
+        return list.size();
+    }
+    
+    public int sizeOf(Map map) {
+        return map.size();
+    }    
+
+    public List keysOf(Map map) {
+        return new ArrayList(map.keySet());
+    }
+
+    public List valuesOf(List list) {
+        return list;
+    }
+    
+    public List valuesOf(Map map) {
+        return new ArrayList(map.values());
+    }    
 
     public Map<String, Object> match(Object actual, Object expected) {
         AssertionResult result = Script.matchNestedObject('.', "$", MatchType.EQUALS, actual, null, actual, expected, context);
@@ -281,6 +300,23 @@ public class ScriptBridge implements PerfContext {
         return out;
     }
 
+    public List appendTo(String name, Object... values) {
+        ScriptValue sv = context.vars.get(name);
+        if (sv == null || !sv.isListLike()) {
+            return Collections.EMPTY_LIST;
+        }
+        List list = sv.getAsList();
+        for (Object o : values) {
+            if (o instanceof Collection) {
+                list.addAll((Collection) o);
+            } else {
+                list.add(o);
+            }
+        }
+        context.vars.put(name, list);
+        return list;
+    }
+
     public Object jsonPath(Object o, String exp) {
         DocumentContext doc;
         if (o instanceof DocumentContext) {
@@ -313,11 +349,11 @@ public class ScriptBridge implements PerfContext {
         DocumentContext doc = Script.toJsonDoc(sv, context);
         return JsonUtils.fromJson(doc.jsonString(), className);
     }
-    
+
     public Object toJson(Object o) {
         return toJson(o, false);
     }
-    
+
     public Object toJson(Object o, boolean removeNulls) {
         Object result = JsonUtils.toJsonDoc(o).read("$");
         if (removeNulls) {
@@ -376,7 +412,7 @@ public class ScriptBridge implements PerfContext {
     public HttpRequest getPrevRequest() {
         return context.getPrevRequest();
     }
-    
+
     public String exec(String command) {
         Runtime runtime = Runtime.getRuntime();
         try {
@@ -384,7 +420,7 @@ public class ScriptBridge implements PerfContext {
             return FileUtils.toString(is);
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }        
+        }
     }
 
     public Object eval(String exp) {
@@ -448,10 +484,10 @@ public class ScriptBridge implements PerfContext {
     public WebSocketClient webSocket(String url) {
         return webSocket(url, null, null);
     }
-    
+
     public WebSocketClient webSocket(String url, Function<String, Boolean> handler) {
         return webSocket(url, handler, null);
-    }    
+    }
 
     public WebSocketClient webSocket(String url, Function<String, Boolean> handler, Map<String, Object> map) {
         if (handler == null) {
@@ -465,10 +501,10 @@ public class ScriptBridge implements PerfContext {
     public WebSocketClient webSocketBinary(String url) {
         return webSocketBinary(url, null, null);
     }
-    
+
     public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler) {
         return webSocketBinary(url, handler, null);
-    }    
+    }
 
     public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler, Map<String, Object> map) {
         if (handler == null) {

@@ -517,3 +517,19 @@ Scenario: karate.forEach() and js arguments (may change with graal)
     * def fun = function(){ karate.forEach(arguments, function(k, v){ vals.add(v) }) }
     * eval fun('a', 'b', 'c')
     * match vals == ['a', 'b', 'c']
+
+Scenario: lists - karate.sizeOf() keysOf() valuesOf() appendTo()
+    * def foo = [1, 2, 3]
+    * match karate.sizeOf(foo) == 3
+    * match karate.valuesOf(foo) == [1, 2, 3]
+    * def bar = karate.appendTo('foo', 4)
+    * match foo == [1, 2, 3, 4]
+    * match bar == [1, 2, 3, 4]
+    * def bar = karate.appendTo('foo', [5, 6])
+    * match foo == [1, 2, 3, 4, 5, 6]
+    * match bar == [1, 2, 3, 4, 5, 6]
+
+Scenario: maps - karate.sizeOf() keysOf() valuesOf() appendTo()
+    * def foo = { a: 1, b: 2, c: 3 }
+    * match karate.sizeOf(foo) == 3
+    * match karate.keysOf(foo) == ['a', 'b', 'c']

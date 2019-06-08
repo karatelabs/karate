@@ -79,6 +79,15 @@ public class ScenarioContext {
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
 
+    public final Function<String, Object> read = s -> {
+        ScriptValue sv = FileUtils.readFile(s, this);
+        if (sv.isXml()) {
+            return sv.getValue();
+        } else { // json should behave like json within js / function
+            return sv.getAfterConvertingFromJsonOrXmlIfNeeded();
+        }
+    };
+
     // these can get re-built or swapped, so cannot be final
     private Config config;
     private HttpClient client;
@@ -105,9 +114,9 @@ public class ScenarioContext {
     // async
     private final Object LOCK = new Object();
     private Object signalResult;
-    
+
     // websocket    
-    private List<WebSocketClient> webSocketClients;    
+    private List<WebSocketClient> webSocketClients;
 
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHooks != null) {
