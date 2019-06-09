@@ -136,13 +136,17 @@ Feature files (or search paths) to be tested don't need command-line flags or op
 java -jar karate.jar my-test.feature
 ```
 #### Custom Classpath
-Use the `-cp` or `--classpath` option (which should appear *after* the `karate.jar` part)
+Karate allows you to use custom Java code or 3rd party Java libraries using [Java interop](https://github.com/intuit/karate#calling-java). Normally those who do this use Karate in the context of [Maven](https://maven.apache.org) or [Gradle](https://gradle.org) - and the [classpath](https://github.com/intuit/karate#classpath) would be set automatically.
+
+You can use the standalone JAR and still depend on external Java code - but you have to set the classpath for this to work. The entry-point for the Karate command-line app is `com.intuit.karate.Main`. Here is an example of using the 3rd-party [SikuliX](http://sikulix.com) library, assuming it is in the current working directory.
 
 ```
-java -jar karate.jar -cp src/test/java my-test.feature
+java -cp karate.jar:sikulixapi.jar com.intuit.karate.Main test.feature
 ```
 
-This is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/intuit/karate#configuration) will be looked for in the classpath itself.
+If on Windows, note that the path-separator is `;` instead of `:` as seen above for Mac / Linux. Refer this [post](https://stackoverflow.com/a/56458094/143475) for more details.
+
+This approach is useful if you are trying to point the standalone Karate JAR file to a project structure that comes from the Java / Maven world. And the [`karate-config.js`](https://github.com/intuit/karate#configuration) will be looked for in the classpath itself.
 
 #### Scenario Name
 If you only want to run a single `Scenario` by name, use the `-n` or `--name` option:

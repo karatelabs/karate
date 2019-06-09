@@ -97,10 +97,7 @@ public class Main implements Callable<Void> {
     String env;
 
     @Option(names = {"-u", "--ui"}, description = "show user interface")
-    boolean ui;
-    
-    @Option(names = {"-cp", "--classpath"}, description = "additional classpath entries")
-    File[] classpath;    
+    boolean ui;   
 
     public static void main(String[] args) {
         boolean isOutputArg = false;
@@ -145,16 +142,6 @@ public class Main implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {
-        // attempt classpath modification first
-        if (classpath != null) {
-            try {
-                for (File file : classpath) {
-                    FileUtils.addToClasspath(file);
-                }
-            } catch (Exception e) {
-                logger.warn("unable to modify classpath: {}", e.getMessage());
-            }
-        }
         if (tests != null) {
             if (ui) {
                 App.main(new String[]{new File(tests.get(0)).getAbsolutePath(), env});

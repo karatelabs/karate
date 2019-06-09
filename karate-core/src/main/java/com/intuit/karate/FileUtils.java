@@ -13,7 +13,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -619,16 +618,6 @@ public class FileUtils {
         }
         String command = System.getProperty("sun.java.command", "");
         return command.contains("org.gradle.") ? "build" : "target";
-    }
-
-    // https://stackoverflow.com/a/21931044/143475
-    public static void addToClasspath(File file) throws Exception {
-        URI url = file.toURI();
-        URLClassLoader urlClassLoader = (URLClassLoader) ClassLoader.getSystemClassLoader();
-        Class<URLClassLoader> urlClass = URLClassLoader.class;
-        Method method = urlClass.getDeclaredMethod("addURL", new Class[]{URL.class});
-        method.setAccessible(true);
-        method.invoke(urlClassLoader, new Object[]{url.toURL()});
     }
 
     public static enum Platform {
