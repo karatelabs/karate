@@ -47,7 +47,7 @@ Scenario: ensure nested nashorn arrays convert correctly
 
 Scenario: karate forEach operation on lists
     * def res = []
-    * def fun = function(x){ res.add(x * x) }
+    * def fun = function(x){ karate.appendTo('res', x * x) }
     * def list = [1, 2, 3]
     * eval karate.forEach(list, fun)
     * match res == [1, 4, 9]
@@ -74,7 +74,14 @@ Scenario: karate forEach operation on maps
     * def keys = []
     * def vals = []
     * def idxs = []
-    * def fun = function(x, y, i){ keys.add(x); vals.add(y); idxs.add(i) }
+    * def fun = 
+    """
+    function(x, y, i) { 
+      karate.appendTo('keys', x); 
+      karate.appendTo('vals', y); 
+      karate.appendTo('idxs', i); 
+    }
+    """
     * def map = { a: 2, b: 4, c: 6 }
     * eval karate.forEach(map, fun)
     * match keys == ['a', 'b', 'c']
@@ -91,7 +98,7 @@ Scenario: karate find index of first match (primitive)
     * def list = [1, 2, 3, 4]
     * def searchFor = 3
     * def foundAt = []
-    * def fun = function(x, i){ if (x == searchFor) foundAt.add(i) }
+    * def fun = function(x, i){ if (x == searchFor) karate.appendTo('foundAt', i) }
     * eval karate.forEach(list, fun)
     * match foundAt == [2]
 
@@ -99,7 +106,7 @@ Scenario: karate find index of first match (complex)
     * def list = [{ a: 1, b: 'x'}, { a: 2, b: 'y'}, { a: 3, b: 'z'}]
     * def searchFor = { a: 2, b: '#string'}
     * def foundAt = []
-    * def fun = function(x, i){ if (karate.match(x, searchFor).pass) foundAt.add(i) }
+    * def fun = function(x, i){ if (karate.match(x, searchFor).pass) karate.appendTo('foundAt', i) }
     * eval karate.forEach(list, fun)
     * match foundAt == [1]
 
