@@ -1,6 +1,6 @@
 buildscript {
     ext {
-        karateVersion = '1.0.0'
+        karateVersion = '0.9.3'
     }
 }
 

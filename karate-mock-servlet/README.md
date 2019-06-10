@@ -38,6 +38,16 @@ Everything is typically tied together in [bootstrap configuration](https://githu
 
 Use the test configuration for this `karate-mock-servlet` project as a reference: [`karate-config.js`](src/test/java/karate-config.js)
 
+## Limitations
+Most teams would not run into these, but if you do, please [consider contributing](https://github.com/intuit/karate/projects/3#card-22529274) !
+
+* Servlet filters that may be "default" in "real" spring / boot apps etc will be missing, for e.g. encoding and error handling. Currently we lack a way to add custom filters to the "fake" servlet.
+* File Upload is not supported.
+* Other similar edge-cases (such as redirects) are not supported.
+
+Teams typically use the mock-servlet for simple JSON / XML request-response use cases. If you find some file-upload or negative-test scenarios failing because of the above limitations, you can choose to [`tag`](https://github.com/intuit/karate#tags) those tests to run only in your end-to-end integration test environment.
+
+
 
 
 

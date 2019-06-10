@@ -275,13 +275,13 @@ So you need two `<dependencies>`:
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-apache</artifactId>
-    <version>0.9.2</version>
+    <version>0.9.3</version>
     <scope>test</scope>
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
     <artifactId>karate-junit4</artifactId>
-    <version>0.9.2</version>
+    <version>0.9.3</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -297,8 +297,8 @@ If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-j
 Alternatively for [Gradle](https://gradle.org) you need these two entries:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit4:0.9.2'
-    testCompile 'com.intuit.karate:karate-apache:0.9.2'
+    testCompile 'com.intuit.karate:karate-junit4:0.9.3'
+    testCompile 'com.intuit.karate:karate-apache:0.9.3'
 ```
 
 ### Quickstart
@@ -312,7 +312,7 @@ You can replace the values of `com.mycompany` and `myproject` as per your needs.
 mvn archetype:generate \
 -DarchetypeGroupId=com.intuit.karate \
 -DarchetypeArtifactId=karate-archetype \
--DarchetypeVersion=0.9.2 \
+-DarchetypeVersion=0.9.3 \
 -DgroupId=com.mycompany \
 -DartifactId=myproject
 ```
@@ -1999,12 +1999,12 @@ Example:
 
 ```
 # trust all server certificates, in the feature file
-* configure ssl = {trustAll: true});
+* configure ssl = { trustAll: true };
 ```
 
 ```
 # trust all server certificates, global configuration in 'karate-config.js'
-karate.configure('ssl', {trustAll: true});
+karate.configure('ssl', { trustAll: true });
 ```
 
 # Payload Assertions
@@ -2078,9 +2078,13 @@ In case you were wondering, variables (and even expressions) are supported on th
 * match foo == bar
 ```
 
-If you are wondering about the finer details of the `match` syntax, the left-hand-side has to be either a variable name, or a 'named' JsonPath or XPath expression. And the right-hand-side can be any valid [Karate expression](#karate-expressions).
+If you are wondering about the finer details of the `match` syntax, the left-hand-side has to be either a 
+* variable name - e.g. `foo`
+* a 'named' JsonPath or XPath expression - e.g. `foo.bar`
+* any valid function or method call - e.g. `foo.bar()` or `foo.bar('hello').baz`
+* or anything wrapped in parantheses which will be evaluated - e.g. `(foo + bar)` or `(42)`
 
-> Refer to the section on [JsonPath short-cuts](#jsonpath-short-cuts) for a deeper understanding of 'named' JsonPath expressions in Karate.
+And the right-hand-side can be any valid [Karate expression](#karate-expressions). Refer to the section on [JsonPath short-cuts](#jsonpath-short-cuts) for a deeper understanding of 'named' JsonPath expressions in Karate.
 
 ### `match !=` (not equals)
 The 'not equals' operator `!=` works as you would expect:
