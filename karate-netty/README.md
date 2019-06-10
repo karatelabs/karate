@@ -128,8 +128,6 @@ java -jar karate.jar -m my-mock.feature -p 8443 -c my-cert.crt -k my-key.key
 ### Running Tests
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
 
-> Note that if you are depending on external Java libraries or custom code to be compiled, this won't work unless you [add custom code or libraries to the classpath](https://stackoverflow.com/a/54201204/143475).
-
 Feature files (or search paths) to be tested don't need command-line flags or options and can be just listed at the end of the command.
 
 ```
