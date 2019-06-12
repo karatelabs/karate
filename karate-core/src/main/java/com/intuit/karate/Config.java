@@ -198,10 +198,7 @@ public class Config {
                     proxyUri = (String) map.get("uri");
                     proxyUsername = (String) map.get("username");
                     proxyPassword = (String) map.get("password");
-                    ScriptObjectMirror temp = (ScriptObjectMirror) map.get("nonProxyHosts");
-                    if (temp != null) {
-                        nonProxyHosts = (List) temp.values();
-                    }
+                    nonProxyHosts = (List) map.get("nonProxyHosts");
                 }
                 return true;
             case "userDefined":
