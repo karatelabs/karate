@@ -3161,7 +3161,7 @@ Operation | Description
 <a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
 <a name="karate-prevrequest"><code>karate.prevRequest</code></a> | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)
 <a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
-<a name="karate-read"><code>karate.read(filename)</code></a> | read from a file, behaves exactly like [`read`](#reading-files)
+<a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to do `karate.read()`, and just `read()` is sufficient.
 <a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
 <a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
 <a name="karate-repeat"><code>karate.repeat(count, function)</code></a> | useful for building an array with `count` items or doing something `count` times, refer this [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/repeat.feature). Also see [loops](#loops).

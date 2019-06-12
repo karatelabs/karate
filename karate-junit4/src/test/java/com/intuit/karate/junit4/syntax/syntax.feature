@@ -236,7 +236,7 @@ function(args) {
 * assert query == 'query q { company { taxAgencies(first: 5) { } } }'
 
 # called function scripts can read from the file system
-* def reader = function() { return karate.read('demo-json.json') }
+* def reader = function() { return read('demo-json.json') }
 * def fromFile = call reader
 * match fromFile == { from: 'file' }
 

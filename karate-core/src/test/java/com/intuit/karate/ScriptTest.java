@@ -868,7 +868,7 @@ public class ScriptTest {
     @Test
     public void testJsonReturnedFromJsRead() {
         ScenarioContext ctx = getContext();
-        Script.assign("fun", "function(){ return karate.read('classpath:test.json') }", ctx);
+        Script.assign("fun", "function(){ return read('classpath:test.json') }", ctx);
         Script.assign("val", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "val", null, "{ foo: 'bar' }", ctx).pass);
     }
@@ -876,7 +876,7 @@ public class ScriptTest {
     @Test
     public void testJsonFromJsRead() {
         ScenarioContext ctx = getContext();
-        Script.assign("fun", "function(){ var temp = karate.read('classpath:test.json'); return temp.foo == 'bar'; }", ctx);
+        Script.assign("fun", "function(){ var temp = read('classpath:test.json'); return temp.foo == 'bar'; }", ctx);
         Script.assign("val", "call fun", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "val", null, "true", ctx).pass);
     }
