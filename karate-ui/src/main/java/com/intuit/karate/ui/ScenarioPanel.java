@@ -89,7 +89,9 @@ public class ScenarioPanel extends BorderPane {
         hbox.getChildren().add(runAllButton);
         stepPanels = new ArrayList();
         unit.getSteps().forEach(step -> addStepPanel(step));
-        lastStep.setLast(true);
+        if (lastStep != null) {
+            lastStep.setLast(true);
+        }
         VBox vbox = new VBox(App.PADDING);
         varsPanel = new VarsPanel(session, this);
         vbox.getChildren().add(varsPanel);
