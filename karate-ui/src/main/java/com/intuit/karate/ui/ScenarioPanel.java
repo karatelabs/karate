@@ -52,7 +52,7 @@ public class ScenarioPanel extends BorderPane {
     private final ScenarioExecutionUnit unit;
     private final VBox content;
     private final VarsPanel varsPanel;
-    private final ConsolePanel consolePanel;
+    protected final ConsolePanel consolePanel;
 
     private final List<StepPanel> stepPanels;
     private StepPanel lastStep;
@@ -112,10 +112,6 @@ public class ScenarioPanel extends BorderPane {
     public void refreshVars() {
         varsPanel.refresh();
     }
-    
-    public void refreshConsole() {
-		consolePanel.refresh();
-	}
 
     public void runAll() {
         reset();
@@ -197,7 +193,6 @@ public class ScenarioPanel extends BorderPane {
     public void reset() {
         unit.reset(initialContext.copy());
         refreshVars();
-        refreshConsole();
         for (StepPanel stepPanel : stepPanels) {
             stepPanel.initStyles();
         }

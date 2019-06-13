@@ -167,6 +167,9 @@ public class StepPanel extends AnchorPane {
         } else {
             unit.getContext().setCallable(null);
         }
+        if (!nonStop) {
+            scenarioPanel.consolePanel.runIfPreStepEnabled();
+        }
         StepResult stepResult = unit.execute(step);
         unit.result.setStepResult(index, stepResult);
         session.setCurrentlyExecutingScenario(unit);
