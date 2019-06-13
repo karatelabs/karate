@@ -356,6 +356,14 @@ The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing
 ## `requestHeaders`
 Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains) or [`acceptContains()`](#acceptcontains) helpers are what you would use most of the time.
 
+If you really need to "route" to a `Scenario` based on a custom header value, you can use the [`karate.get()`](https://github.com/intuit/karate#karate-get) API - which will gracefully return `null` if the JsonPath does not exist. For example, the following would match a header of the form: `val: foo`
+
+```cucumber
+Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == 'foo'
+```
+
+Note that you can define your custom JS re-usable functions in the `Background` which can make complex matching logic easier to implement.
+
 ## `requestParams`
 A map-like' object of all query-string parameters and the values will always be an array. The built-in convenience function [`paramValue()`](#paramValue) is what you would use most of the time.
 

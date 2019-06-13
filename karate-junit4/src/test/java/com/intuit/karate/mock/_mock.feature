@@ -75,3 +75,9 @@ Scenario: pathMatches('/v1/multipart')
 Scenario: pathMatches('/v1/form')
     # TODO urlencoded form handling on server side
     * def response = { success: true }
+
+Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == 'foo'
+    * def response = { val: 'foo' }
+
+Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == 'bar'
+    * def response = { val: 'bar' }
