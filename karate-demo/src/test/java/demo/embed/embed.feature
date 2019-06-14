@@ -1,11 +1,11 @@
 Feature: report embed
 
 Scenario: embed html
-    * eval karate.embed('<h1>Hello World</h1>', 'text/html')
+    * karate.embed('<h1>Hello World</h1>', 'text/html')
 
 Scenario: embed image
     * def bytes = read('../upload/karate-logo.jpg')
-    * eval karate.embed(bytes, 'image/jpeg')
+    * karate.embed(bytes, 'image/jpeg')
 
 Scenario: embed pdf
     # since the cucumber html reporting plugin does not support rendering PDF-s inline

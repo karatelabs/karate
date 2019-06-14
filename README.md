@@ -2769,7 +2769,7 @@ Scenario: forEach works even on object key-values, not just arrays
     }
     """
     * def map = { a: 2, b: 4, c: 6 }
-    * eval karate.forEach(map, fun)
+    * karate.forEach(map, fun)
     * match keys == ['a', 'b', 'c']
     * match vals == [2, 4, 6]
     * match idxs == [0, 1, 2]
@@ -2785,7 +2785,7 @@ Given the examples above, it has to be said that a best practice with Karate is 
 
 * def foo = []
 * def fun = function(i){ karate.appendTo('foo', i) }
-* eval karate.repeat(5, fun)
+* karate.repeat(5, fun)
 * match foo == [0, 1, 2, 3, 4]
 
 # generate test data easily
@@ -3326,7 +3326,13 @@ There are a few situations where this comes in handy:
 
 # do something only if a condition is true
 * eval if (zone == 'zone1') karate.set('temp', 'after')
+```
 
+A __very__ convenient twist here is that if you are calling a method on a variable that has been [defined](#def) - you can *omit* the `eval`. This is especially useful when using the [`karate`](#the-karate-object) object, and for general-purpose scripting needs such as [UI automation](karate-core). Note how `karate.set()` and `karate.remove()` below are used directly as a script "statement".
+
+> In regular-expression terms, any line that is in the form `^([^\s]+)\.(.+)` will be treated as `^ eval (.+)`
+
+```cucumber
 # you can use multiple lines of JavaScript if needed
 * eval
   """
@@ -3345,9 +3351,9 @@ There are a few situations where this comes in handy:
 # use dynamic path expressions to mutate json
 * eval json[key] = 2
 * match json == { a: 1, b: 2 }
-* eval karate.remove('json', '$.' + key)
+* karate.remove('json', '$.' + key)
 * match json == { a: 1 }
-* eval karate.set('json', '$.c[]', { d: 'e' })
+* karate.set('json', '$.c[]', { d: 'e' })
 * match json == { a: 1, c: [{ d: 'e' }] }
 ```
 
@@ -3464,7 +3470,7 @@ Background:
 * def QueueConsumer = Java.type('mock.contract.QueueConsumer')
 * def queue = new QueueConsumer(queueName)
 * def handler = function(msg){ karate.signal(msg) }
-* eval queue.listen(handler)
+* queue.listen(handler)
 * url paymentServiceUrl + '/payments'
 
 Scenario: create, get, update, list and delete payments
@@ -3495,7 +3501,7 @@ Here is an example, where the same websocket connection is used to send as well 
 ```cucumber
 * def handler = function(msg){ return msg.startsWith('hello') }
 * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
-* eval socket.send('Billie')
+* socket.send('Billie')
 * def result = socket.listen(5000)
 * match result == 'hello Billie !'
 ```

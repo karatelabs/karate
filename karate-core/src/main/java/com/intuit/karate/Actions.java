@@ -130,10 +130,10 @@ public interface Actions {
     
     void yaml(String name, String expression);
     
+    void evalDot(String name, String expression);
+    
     //==========================================================================
     //
-    void driver(String expression);
-    
-    void driverDot(String expression);
+    void driver(String expression);        
 
 }

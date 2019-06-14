@@ -377,9 +377,9 @@ public class StepActions implements Actions {
     }
 
     @Override
-    @When("^driver\\.(.+)")
-    public void driverDot(String expression) {
-        context.driverDot(expression);
+    @When("^([^\\s]+)\\.(.+)")
+    public void evalDot(String name, String expression) {
+        context.evalDot(name, expression);
     }
 
 }

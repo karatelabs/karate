@@ -287,7 +287,7 @@ And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
 ### `driver.waitUntil()`
 Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
 ```cucumber
-* eval driver.waitUntil("document.readyState == 'complete'")
+* driver.waitUntil("document.readyState == 'complete'")
 ```
 
 ### `driver.eval()`

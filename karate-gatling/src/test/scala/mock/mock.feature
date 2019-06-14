@@ -20,7 +20,7 @@ Feature: cats stateful crud
     * def response = request
 
   Scenario: pathMatches('/cats/{id}') && methodIs('delete')
-    * eval karate.remove('cats', '$.' + pathParams.id)
+    * karate.remove('cats', '$.' + pathParams.id)
     * def response = ''
     * def afterScenario = delay
 

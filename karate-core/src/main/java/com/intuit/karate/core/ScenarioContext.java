@@ -873,8 +873,8 @@ public class ScenarioContext {
         }
     }
 
-    public void driverDot(String expression) {
-        eval(ScriptBindings.DRIVER_DOT + expression);
+    public void evalDot(String name, String expression) {
+        eval(name + "." + expression);
     }
 
     public void stop() {

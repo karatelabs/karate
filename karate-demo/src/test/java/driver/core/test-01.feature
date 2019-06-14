@@ -80,11 +80,11 @@ Scenario Outline: using <config>
   And match driver.text('#eg02DivId') == 'hello world'
 
   * def bytes = driver.screenshot('#eg02DivId')
-  * eval karate.write(bytes, 'partial-' + config.type + '.png')
+  * karate.write(bytes, 'partial-' + config.type + '.png')
   * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
 
   When driver.click('^New Tab')
-  And eval driver.waitUntil("document.readyState == 'complete'")
+  And driver.waitUntil("document.readyState == 'complete'")
 
   When driver.switchTo('Page Two')
   Then match driver.title == 'Page Two'

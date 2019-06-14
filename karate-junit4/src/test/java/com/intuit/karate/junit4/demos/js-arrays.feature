@@ -38,7 +38,7 @@ Scenario: json-path can be performed in js
 
 Scenario: set via json-path can be done in js
     * def json = { foo: [] }
-    * eval karate.set('json', '$.foo[]', { bar: 'baz' })
+    * karate.set('json', '$.foo[]', { bar: 'baz' })
     * match json == { foo: [{ bar: 'baz' }] }
 
 Scenario: ensure nested nashorn arrays convert correctly
@@ -49,7 +49,7 @@ Scenario: karate forEach operation on lists
     * def res = []
     * def fun = function(x){ karate.appendTo('res', x * x) }
     * def list = [1, 2, 3]
-    * eval karate.forEach(list, fun)
+    * karate.forEach(list, fun)
     * match res == [1, 4, 9]
 
 Scenario: karate map operation
@@ -83,7 +83,7 @@ Scenario: karate forEach operation on maps
     }
     """
     * def map = { a: 2, b: 4, c: 6 }
-    * eval karate.forEach(map, fun)
+    * karate.forEach(map, fun)
     * match keys == ['a', 'b', 'c']
     * match vals == [2, 4, 6]
     * match idxs == [0, 1, 2]
@@ -99,7 +99,7 @@ Scenario: karate find index of first match (primitive)
     * def searchFor = 3
     * def foundAt = []
     * def fun = function(x, i){ if (x == searchFor) karate.appendTo('foundAt', i) }
-    * eval karate.forEach(list, fun)
+    * karate.forEach(list, fun)
     * match foundAt == [2]
 
 Scenario: karate find index of first match (complex)
@@ -107,7 +107,7 @@ Scenario: karate find index of first match (complex)
     * def searchFor = { a: 2, b: '#string'}
     * def foundAt = []
     * def fun = function(x, i){ if (karate.match(x, searchFor).pass) karate.appendTo('foundAt', i) }
-    * eval karate.forEach(list, fun)
+    * karate.forEach(list, fun)
     * match foundAt == [1]
 
 Scenario: map with key - for the common case of converting arrays of primitives into arrays of objects
@@ -170,8 +170,7 @@ Scenario: work around for the above
         """
     * def products = read('products.json')
     * def result = []
-    * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) result.add(products[i]) 
-    # >
+    * karate.repeat(products.length, function(i){ if (hasId(products[i], 1)) result.add(products[i]) })
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
 
 Scenario: work around but using karate.filter

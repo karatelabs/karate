@@ -18,7 +18,7 @@ Scenario:
       'token_client_salt': 'd340a54c43d5642e21289f7ede858995'
     }
     """
-    * eval Signer.sign('382700b563f4', params)
+    * Signer.sign('382700b563f4', params)
     * path 'echo'
     * form fields params
     * method post

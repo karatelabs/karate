@@ -8,7 +8,7 @@ Scenario: return a list
 Scenario: just eval
     * def foo = []
     * def fun = function(i){ foo.add(i) }
-    * eval karate.repeat(5, fun)
+    * karate.repeat(5, fun)
     * match foo == [0, 1, 2, 3, 4]
 
 Scenario: use a variable for loop count
