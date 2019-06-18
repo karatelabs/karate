@@ -164,7 +164,7 @@ Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
 ## JS API
 The built-in `driver` JS object is where you script UI automation.
 
-Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and as a convenience, you can omit the `eval` keyword when executing an action - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
+Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and you can omit the `eval` keyword when calling a method (or setting a property) on it - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
