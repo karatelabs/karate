@@ -376,7 +376,7 @@ public class ScriptBridge implements PerfContext {
                 return Script.evalFeatureCall(feature, arg, context, false, CURRENT_CONTEXT.get()).getValue();
             case JS_FUNCTION:
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return Script.evalFunctionCall(som, arg, context).getValue();
+                return Script.evalJsFunctionCall(som, arg, context).getValue();
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
@@ -523,7 +523,7 @@ public class ScriptBridge implements PerfContext {
         if (!som.isFunction()) {
             throw new RuntimeException("not a JS function: " + som);
         }
-        return context.listen(timeout, () -> Script.evalFunctionCall(som, null, context));
+        return context.listen(timeout, () -> Script.evalJsFunctionCall(som, null, context));
     }
 
     public Object listen(long timeout) {

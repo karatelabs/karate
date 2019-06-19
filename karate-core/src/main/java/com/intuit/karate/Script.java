@@ -637,17 +637,17 @@ public class Script {
     }
 
     public static DocumentContext toJsonDoc(ScriptValue sv, ScenarioContext context) {
-        if (sv.getType() == JSON) { // optimize
+        if (sv.isJson()) { // optimize
             return (DocumentContext) sv.getValue();
         } else if (sv.isListLike()) {
             return JsonPath.parse(sv.getAsList());
         } else if (sv.isMapLike()) {
             return JsonPath.parse(sv.getAsMap());
-        } else if (sv.isUnknownType()) { // POJO
+        } else if (sv.isUnknown()) { // POJO
             return JsonUtils.toJsonDoc(sv.getValue());
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
-            if (temp.getType() != JSON) {
+            if (!temp.isJson()) {
                 throw new RuntimeException("cannot convert, not a json string: " + sv);
             }
             return temp.getValue(DocumentContext.class);
@@ -661,11 +661,11 @@ public class Script {
             return sv.getValue(Node.class);
         } else if (sv.isMapLike()) {
             return XmlUtils.fromMap(sv.getAsMap());
-        } else if (sv.isUnknownType()) {
+        } else if (sv.isUnknown()) { // POJO
             return XmlUtils.toXmlDoc(sv.getValue());
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
-            if (temp.getType() != XML) {
+            if (!temp.isXml()) {
                 throw new RuntimeException("cannot convert, not an xml string: " + sv);
             }
             return temp.getValue(Document.class);
@@ -683,8 +683,8 @@ public class Script {
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
             name = name.substring(1);
         }
-        path = StringUtils.trimToNull(path);        
-        if (path == null) {            
+        path = StringUtils.trimToNull(path);
+        if (path == null) {
             int pos = name.lastIndexOf(')');
             // if the LHS ends with a right-paren (function invoke) or involves a function-invoke + property accessor
             if (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.')) {
@@ -1129,7 +1129,7 @@ public class Script {
             case JSON: // convert to map or list
                 expObject = expected.getValue(DocumentContext.class).read("$");
                 break;
-            default: 
+            default:
                 expObject = expected.getValue();
         }
         switch (matchType) {
@@ -1638,6 +1638,9 @@ public class Script {
         ScriptValue argValue = evalKarateExpression(argString, context);
         ScriptValue sv = evalKarateExpression(name, context);
         switch (sv.getType()) {
+            case JAVA_FUNCTION:
+                Function function = sv.getValue(Function.class);
+                return evalJavaFunctionCall(function, argValue.getValue(), context);
             case JS_FUNCTION:
                 switch (argValue.getType()) {
                     case JSON:
@@ -1654,7 +1657,7 @@ public class Script {
                         throw new RuntimeException("only json or primitives allowed as (single) function call argument");
                 }
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return evalFunctionCall(som, argValue.getValue(), context);
+                return evalJsFunctionCall(som, argValue.getValue(), context);
             case FEATURE:
                 Object callArg = null;
                 switch (argValue.getType()) {
@@ -1670,7 +1673,7 @@ public class Script {
                     case NULL:
                         break;
                     default:
-                        throw new RuntimeException("only json, list/array or map allowed as feature call argument");
+                        throw new RuntimeException("only json/map or list/array allowed as feature call argument");
                 }
                 Feature feature = sv.getValue(Feature.class);
                 return evalFeatureCall(feature, callArg, context, reuseParentConfig, null);
@@ -1680,7 +1683,18 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScenarioContext context) {
+    public static ScriptValue evalJavaFunctionCall(Function function, Object callArg, ScenarioContext context) {
+        try {
+            Object result = function.apply(callArg);
+            return new ScriptValue(result);
+        } catch (Exception e) {
+            String message = "java function call failed: " + e.getMessage();
+            context.logger.error(message);
+            throw new KarateException(message);
+        }
+    }
+
+    public static ScriptValue evalJsFunctionCall(ScriptObjectMirror som, Object callArg, ScenarioContext context) {
         Object result;
         try {
             if (callArg != null) {
@@ -1697,7 +1711,7 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context, 
+    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context,
             boolean reuseParentConfig, ScenarioContext reportContext) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;

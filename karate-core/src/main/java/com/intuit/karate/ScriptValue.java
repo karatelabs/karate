@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.w3c.dom.Node;
 
@@ -56,7 +57,8 @@ public class ScriptValue {
         JS_FUNCTION,
         BYTE_ARRAY,
         INPUT_STREAM,
-        FEATURE
+        FEATURE,
+        JAVA_FUNCTION
     }
 
     private final Object value;
@@ -95,6 +97,8 @@ public class ScriptValue {
                 return "stream";
             case FEATURE:
                 return "feature";
+            case JAVA_FUNCTION:
+                return "java()";
             default:
                 return "???";
         }
@@ -124,7 +128,7 @@ public class ScriptValue {
         return type == Type.BYTE_ARRAY;
     }
 
-    public boolean isUnknownType() {
+    public boolean isUnknown() {
         return type == Type.UNKNOWN;
     }
 
@@ -164,6 +168,10 @@ public class ScriptValue {
         }
     }
 
+    public boolean isJson() {
+        return type == Type.JSON;
+    }
+    
     public boolean isJsonLike() {
         switch (type) {
             case JSON:
@@ -186,6 +194,7 @@ public class ScriptValue {
             case INPUT_STREAM:
             case FEATURE:
             case JS_FUNCTION:
+            case JAVA_FUNCTION:
                 return this;
             case XML:
                 String xml = XmlUtils.toString(getValue(Node.class));
@@ -248,7 +257,7 @@ public class ScriptValue {
 
     public ScriptValue invokeFunction(ScenarioContext context, Object callArg) {
         ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
-        return Script.evalFunctionCall(som, callArg, context);
+        return Script.evalJsFunctionCall(som, callArg, context);
     }
 
     public Map<String, Object> evalAsMap(ScenarioContext context) {
@@ -307,7 +316,7 @@ public class ScriptValue {
                 return FileUtils.toString(getValue(InputStream.class)).toLowerCase();
             case STRING:
                 return value.toString().toLowerCase();
-            default: // NULL, UNKNOWN, JS_FUNCTION, BYTE_ARRAY, PRIMITIVE
+            default: // NULL, UNKNOWN, JS_FUNCTION, JAVA_FUNCTION, BYTE_ARRAY, PRIMITIVE
                 return value;
         }
     }
@@ -455,6 +464,8 @@ public class ScriptValue {
             type = Type.PRIMITIVE;
         } else if (value instanceof Feature) {
             type = Type.FEATURE;
+        } else if (value instanceof Function) {
+            type = Type.JAVA_FUNCTION;
         } else {
             type = Type.UNKNOWN;
         }
