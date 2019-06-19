@@ -3627,22 +3627,28 @@ Scenario Outline: name is <name> and age is <age>
     | Nyan | 6   |
 
 Scenario Outline: magic variables with type hints
-  * def expected = __num == 0 ? { name: 'Bob', age: 5 } : { name: 'Nyan', age: 6 }
-  * match __row == expected
+  * def expected = [{ name: 'Bob', age: 5 }, { name: 'Nyan', age: 6 }]
+  * match __row == expected[__num]
 
   Examples:
     | name | age! |
     | Bob  | 5    |
     | Nyan | 6    |
 
-Scenario Outline: magic variables with embedded expressions
-  * def expected = __num == 0 ? { name: 'Bob', alive: false } : { name: 'Nyan', alive: true }
-  * match expected == { name: '#(name)', alive: '#(alive)' }
+Scenario Outline: embedded expressions and type hints
+  * match __row == { name: '#(name)', alive: '#boolean' }
 
   Examples:
     | name | alive! |
     | Bob  | false  |
     | Nyan | true   |
+
+Scenario Outline: inline json
+  * match __row == { first: 'hello', second: { a: 1 } }
+
+  Examples:
+    | first  | second!  |
+    | hello  | { a: 1 } |
 ```
 
 For another example, see: [`examples.feature`](karate-demo/src/test/java/demo/outline/examples.feature).

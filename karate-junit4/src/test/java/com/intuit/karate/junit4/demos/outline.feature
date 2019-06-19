@@ -13,23 +13,23 @@ Scenario Outline: name is <name> and age is <age>
     | Nyan | 6   |
 
 Scenario Outline: magic variables with type hints
-  * def expected = __num == 0 ? { name: 'Bob', age: 5 } : { name: 'Nyan', age: 6 }
-  * match __row == expected
+  * def expected = [{ name: 'Bob', age: 5 }, { name: 'Nyan', age: 6 }]
+  * match __row == expected[__num]
 
   Examples:
     | name | age! |
     | Bob  | 5    |
     | Nyan | 6    |
 
-Scenario Outline: magic variables with embedded expressions
-  * match __row == { name: '#(name)', alive: '#(alive)' }
+Scenario Outline: embedded expressions and type hints
+  * match __row == { name: '#(name)', alive: '#boolean' }
 
   Examples:
     | name | alive! |
     | Bob  | false  |
     | Nyan | true   |
 
-Scenario Outline: inline JSON
+Scenario Outline: inline json
   * match __row == { first: 'hello', second: { a: 1 } }
 
   Examples:
