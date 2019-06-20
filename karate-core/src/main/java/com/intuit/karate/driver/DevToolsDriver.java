@@ -72,9 +72,13 @@ public abstract class DevToolsDriver implements Driver {
         logger.debug("page id: {}", pageId);
         WebSocketOptions wsOptions = new WebSocketOptions(webSocketUrl);
         wsOptions.setMaxPayloadSize(options.maxPayloadSize);
-        wsOptions.setTextConsumer(text -> { 
-            // this is just to avoid swamping the console when large base64 encoded binary responses happen
-            logger.debug("<< {}", logger.isTraceEnabled() ? text : StringUtils.truncate(text, 1024, true));
+        wsOptions.setTextConsumer(text -> {
+            if (logger.isTraceEnabled()) {
+                logger.trace("<< {}", text);
+            } else {
+                // to avoid swamping the console when large base64 encoded binary responses happen
+                logger.debug("<< {}", StringUtils.truncate(text, 1024, true));
+            }
             Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
@@ -116,7 +120,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         if (dtm.isMethod("Page.windowOpen")) {
             currentUrl = dtm.getParam("url").getAsString();
-        }        
+        }
     }
 
     //==========================================================================
