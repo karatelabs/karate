@@ -82,7 +82,7 @@ public class Runner {
             threadCount = 1;
         }
         if (reportDir == null) {
-            reportDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
+            reportDir = FileUtils.getBuildDir() + File.separator + ScriptBindings.SUREFIRE_REPORTS;
             new File(reportDir).mkdirs();
         }
         final String finalReportDir = reportDir;

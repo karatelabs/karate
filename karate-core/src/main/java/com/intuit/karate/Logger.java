@@ -54,6 +54,10 @@ public class Logger {
         return logAppender;
     }
 
+    public boolean isTraceEnabled() {
+        return LOGGER.isTraceEnabled();
+    }
+    
     public Logger(Class clazz) {
         LOGGER = LoggerFactory.getLogger(clazz);
     }

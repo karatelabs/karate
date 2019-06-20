@@ -3645,6 +3645,8 @@ Scenario Outline: embedded expressions and type hints
 
 Scenario Outline: inline json
   * match __row == { first: 'hello', second: { a: 1 } }
+  * match first == 'hello'
+  * match second == { a: 1 }
 
   Examples:
     | first  | second!  |

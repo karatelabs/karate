@@ -26,6 +26,7 @@ package com.intuit.karate.driver;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.CommandThread;
@@ -71,8 +72,9 @@ public abstract class DevToolsDriver implements Driver {
         logger.debug("page id: {}", pageId);
         WebSocketOptions wsOptions = new WebSocketOptions(webSocketUrl);
         wsOptions.setMaxPayloadSize(options.maxPayloadSize);
-        wsOptions.setTextConsumer(text -> {
-            logger.debug("<< {}", text);
+        wsOptions.setTextConsumer(text -> { 
+            // this is just to avoid swamping the console when large base64 encoded binary responses happen
+            logger.debug("<< {}", logger.isTraceEnabled() ? text : StringUtils.truncate(text, 1024, true));
             Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
@@ -490,8 +492,6 @@ public abstract class DevToolsDriver implements Driver {
     public void highlight(String id) {
         eval(options.highlighter(id));
     }
-
-
 
     @Override
     public void switchTo(String titleOrUrl) {

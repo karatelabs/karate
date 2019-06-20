@@ -155,8 +155,10 @@ public class Main implements Callable<Void> {
                     System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
                 }
                 List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
-                Results results = Runner.parallel(tags, fixed, name, null, threads, output);
-                Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(output), new String[]{"json"}, true);
+                // this avoids mixing json created by other means which will break the cucumber report
+                String jsonOutputDir = output + File.separator + ScriptBindings.SUREFIRE_REPORTS;
+                Results results = Runner.parallel(tags, fixed, name, null, threads, jsonOutputDir);
+                Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
                 Configuration config = new Configuration(new File(output), new Date() + "");

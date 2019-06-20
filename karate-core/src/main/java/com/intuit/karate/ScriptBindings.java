@@ -60,12 +60,13 @@ public class ScriptBindings implements Bindings {
     public static final String KARATE_ENV = "karate.env";
     public static final String KARATE_CONFIG_DIR = "karate.config.dir";
     private static final String KARATE_DASH_CONFIG = "karate-config";
-    private static final String KARATE_DASH_BASE = "karate-base";
+    private static final String KARATE_DASH_BASE = "karate-base";    
     private static final String DOT_JS = ".js";
     public static final String KARATE_CONFIG_JS = KARATE_DASH_CONFIG + DOT_JS;
     private static final String KARATE_BASE_JS = KARATE_DASH_BASE + DOT_JS;
     public static final String READ = "read";
     public static final String DRIVER = "driver";
+    public static final String SUREFIRE_REPORTS = "surefire-reports";
     
     // netty / test-doubles
     public static final String PATH_MATCHES = "pathMatches";
