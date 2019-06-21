@@ -9,14 +9,14 @@ Feature: cats stateful crud
     * def cat = request
     * def id = uuid()
     * set cat.id = id
-    * eval cats[id] = cat
+    * cats[id] = cat
     * def response = cat
 
   Scenario: pathMatches('/cats')
     * def response = $cats.*
 
   Scenario: pathMatches('/cats/{id}') && methodIs('put')
-    * eval cats[pathParams.id] = request
+    * cats[pathParams.id] = request
     * def response = request
 
   Scenario: pathMatches('/cats/{id}') && methodIs('delete')

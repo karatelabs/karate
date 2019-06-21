@@ -13,4 +13,4 @@ Scenario: embed pdf
     # it does involve an extra click but there are limitations on loading PDF-s into IFRAME-s
     * def bytes = read('../upload/test.pdf')
     * def embedder = read('embed-pdf.js')
-    * eval embedder(bytes)
+    * embedder(bytes)

@@ -68,6 +68,10 @@ public interface Actions {
 
     void evalDocstring(String exp);
     
+    void eval(String name, String dotOrParen, String expression);
+    
+    void evalIf(String expression);
+    
     void formField(String name, List<String> values);
 
     void formFields(String expr);
@@ -128,9 +132,7 @@ public interface Actions {
 
     void url(String expression);
     
-    void yaml(String name, String expression);
-    
-    void evalDot(String name, String expression);
+    void yaml(String name, String expression);        
     
     //==========================================================================
     //

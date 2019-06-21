@@ -303,7 +303,7 @@ Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request
     * def id = uuid()
     * set cat.id = id
-    * eval cats[id] = cat
+    * cats[id] = cat
     * def response = cat
 
 Scenario: pathMatches('/cats')
@@ -515,7 +515,7 @@ Stop evaluating any more steps in the `Scenario` and return the `response`. Usef
 ```cucumber
 Scenario: pathMatches('/v1/abort')
     * def response = { success: true }
-    * eval if (response.success) karate.abort()
+    * if (response.success) karate.abort()
     * print 'this will not be printed'
 ```
 
@@ -545,7 +545,7 @@ If you have started the server programmatically via Java, you can keep a referen
 # Other Examples
 ## The World's Smallest MicroService !
 
-Which at 276 characters - is small enough to fit within a single tweet ! It implements a '`POST`', '`GET` by id' and '`GET` all' for a `/cats` resource:
+Which at 271 characters - is small enough to fit within a single tweet ! It implements a '`POST`', '`GET` by id' and '`GET` all' for a `/cats` resource:
 
 ```cucumber
 Feature:
@@ -558,7 +558,7 @@ Scenario: methodIs('post')
 * def c = request
 * def id = ~~(id + 1)
 * set c.id = id
-* eval m[id + ''] = c
+* m[id + ''] = c
 * def response = c
 
 Scenario: pathMatches('/cats/{id}')

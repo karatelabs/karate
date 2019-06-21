@@ -367,6 +367,18 @@ public class StepActions implements Actions {
     public void evalDocstring(String exp) {
         context.eval(exp);
     }
+    
+    @Override
+    @When("^([\\w]+)([^\\s^\\w])(.+)")
+    public void eval(String name, String dotOrParen, String expression) {
+        context.eval(name + dotOrParen + expression);
+    } 
+    
+    @Override
+    @When("^if (.+)")
+    public void evalIf(String exp) {
+        context.eval("if " + exp);
+    }    
 
     //==========================================================================
     //
@@ -374,12 +386,6 @@ public class StepActions implements Actions {
     @When("^driver (.+)")
     public void driver(String expression) {
         context.driver(expression);
-    }
-
-    @Override
-    @When("^([^\\s]+)\\.(.+)")
-    public void evalDot(String name, String expression) {
-        context.evalDot(name, expression);
     }
 
 }

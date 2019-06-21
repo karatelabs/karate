@@ -873,10 +873,6 @@ public class ScenarioContext {
         }
     }
 
-    public void evalDot(String name, String expression) {
-        eval(name + "." + expression);
-    }
-
     public void stop() {
         if (reuseParentContext) {
             if (driver != null) {

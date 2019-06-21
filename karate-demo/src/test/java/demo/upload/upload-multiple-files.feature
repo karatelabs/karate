@@ -8,7 +8,7 @@ Scenario: upload multiple files
     * set json.myFile1 = { read: 'test.pdf', filename: 'upload-name1.pdf', contentType: 'application/pdf' }
     # if you have dynamic keys you can do this
     * def key = 'myFile2'
-    * eval json[key] = { read: 'test.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
+    * json[key] = { read: 'test.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
     Given path 'files', 'multiple'
     # so you can dynamically construct this json if there are multiple files
     And multipart files json

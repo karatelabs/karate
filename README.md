@@ -1839,7 +1839,7 @@ The single JSON argument needs to be in the form `{ field1: { read: 'file1.ext' 
 * set json.myFile1 = { read: 'test1.pdf', filename: 'upload-name1.pdf', contentType: 'application/pdf' }
 # if you have dynamic keys you can do this
 * def key = 'myFile2'
-* eval json[key] = { read: 'test2.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
+* json[key] = { read: 'test2.pdf', filename: 'upload-name2.pdf', contentType: 'application/pdf' }
 And multipart files json
 ```
 
@@ -3136,7 +3136,7 @@ A JavaScript function or [Karate expression](#karate-expressions) at runtime has
 
 Operation | Description
 --------- | -----------
-<a name="karate-abort"><code>karate.abort()</code></a> | you can prematurely exit a `Scenario` by combining this with [conditional logic](#conditional-logic) like so: `* eval if (condition) karate.abort()` - please use [sparingly](https://martinfowler.com/articles/nonDeterminism.html) !
+<a name="karate-abort"><code>karate.abort()</code></a> | you can prematurely exit a `Scenario` by combining this with [conditional logic](#conditional-logic) like so: `* if (condition) karate.abort()` - please use [sparingly](https://martinfowler.com/articles/nonDeterminism.html) !
 <a name="karate-append"><code>karate.append(... items)</code></a> | useful to create lists out of items (which can be lists as well)
 <a name="karate-appendto"><code>karate.appendTo(name, ... items)</code></a> | useful to append to a list-like variable (that has to exist) in scope
 <a name="karate-call"><code>karate.call(fileName, [arg])</code></a> | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
@@ -3330,9 +3330,14 @@ There are a few situations where this comes in handy:
 * eval if (zone == 'zone1') karate.set('temp', 'after')
 ```
 
-A __very__ convenient twist here is that if you are calling a method on a variable that has been [defined](#def) - you can *omit* the `eval`. This is especially useful when using the [`karate`](#the-karate-object) object, and for general-purpose scripting needs such as [UI automation](karate-core). Note how `karate.set()` and `karate.remove()` below are used directly as a script "statement".
+As a convenience, you can omit the `eval` keyword and so you can shorten the above to:
 
-> In regular-expression terms, any line that is in the form `^([^\s]+)\.(.+)` will be treated as `^ eval (.+)`
+```cucumber
+* myJavaScriptFunction()
+* if (zone == 'zone1') karate.set('temp', 'after')
+```
+
+This is __very__ convenient especially if you are calling a method on a variable that has been [defined](#def) such as the [`karate`](#the-karate-object) object, and for general-purpose scripting needs such as [UI automation](karate-core). Note how `karate.set()` and `karate.remove()` below are used directly as a script "statement".
 
 ```cucumber
 # you can use multiple lines of JavaScript if needed
@@ -3351,7 +3356,7 @@ A __very__ convenient twist here is that if you are calling a method on a variab
 * def json = { a: 1 }
 * def key = 'b'
 # use dynamic path expressions to mutate json
-* eval json[key] = 2
+* json[key] = 2
 * match json == { a: 1, b: 2 }
 * karate.remove('json', '$.' + key)
 * match json == { a: 1 }
@@ -3379,10 +3384,10 @@ And this is another, using [`karate.call()`](#karate-call). Here we want to [`ca
 * def result = responseStatus == 404 ? {} : karate.call('delete-user.feature')
 ```
 
-Or if we don't care about the result, we can use [`eval`](#eval):
+Or if we don't care about the result, we can [`eval`](#eval) an `if` statement:
 
 ```cucumber
-* eval if (responseStatus == 200) karate.call('delete-user.feature')
+* if (responseStatus == 200) karate.call('delete-user.feature')
 ```
 
 And this may give you more ideas. You can always use a [JavaScript function](#javascript-functions) or [call Java](#calling-java) for more complex logic.
@@ -3395,7 +3400,7 @@ And this may give you more ideas. You can always use a [JavaScript function](#ja
 In some rare cases you need to exit a `Scenario` based on some condition. You can use [`karate.abort()`](#karate-abort) like so:
 
 ```cucumber
-* eval if (responseStatus == 404) karate.abort()
+* if (responseStatus == 404) karate.abort()
 ```
 
 Also refer to [polling](#polling) for more ideas.

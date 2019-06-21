@@ -505,7 +505,7 @@ Scenario: match in js
     * def foo = { hello: 'world' }
     * def result = karate.match(foo, { hello: '#string'} )
     * match result == { pass: true, message: null }
-    * eval if (result.pass) karate.log('*** passed')
+    * if (result.pass) karate.log('*** passed')
 
 Scenario: using the java contains api (will change with graal)
     * def allowed = ['Music', 'Entertainment', 'Documentaries', 'Family']
@@ -521,7 +521,7 @@ Scenario: using the java indexOf api (will change with graal)
 Scenario: karate.forEach() and js arguments (may change with graal)
     * def vals = []
     * def fun = function(){ karate.forEach(arguments, function(k, v){ vals.add(v) }) }
-    * eval fun('a', 'b', 'c')
+    * fun('a', 'b', 'c')
     * match vals == ['a', 'b', 'c']
 
 Scenario: lists - karate.sizeOf() keysOf() valuesOf() appendTo()
