@@ -2447,6 +2447,9 @@ Then match cat.kittens[*].id contains [42]
 Then match cat.kittens[*].id contains [23, 42]
 Then match cat.kittens[*].id contains [42, 23]
 
+# the .. operator is great because it matches nodes at any depth in the JSON "tree"
+Then match cat..name == ['Billie', 'Bob', 'Wild']
+
 # and yes, you can assert against nested objects within JSON arrays !
 Then match cat.kittens contains [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]
 
@@ -2991,7 +2994,57 @@ Notice how once the `authToken` variable is initialized, it is used by the above
 
 If a few steps in your flow need to temporarily change (or completely bypass) the currently-set header-manipulation scheme, just update `configure headers` to a new value (or set it to `null`) in the middle of a script. Then use the [`header`](#header) keyword to do a custom 'over-ride' if needed.
 
-The [karate-demo](karate-demo) has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature) 
+The [karate-demo](karate-demo) has an example showing various ways to `configure` or set headers: [`headers.feature`](karate-demo/src/test/java/demo/headers/headers.feature)
+
+# The `karate` object
+A JavaScript function or [Karate expression](#karate-expressions) at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
+
+Operation | Description
+--------- | -----------
+<a name="karate-abort"><code>karate.abort()</code></a> | you can prematurely exit a `Scenario` by combining this with [conditional logic](#conditional-logic) like so: `* if (condition) karate.abort()` - please use [sparingly](https://martinfowler.com/articles/nonDeterminism.html) !
+<a name="karate-append"><code>karate.append(... items)</code></a> | useful to create lists out of items (which can be lists as well)
+<a name="karate-appendto"><code>karate.appendTo(name, ... items)</code></a> | useful to append to a list-like variable (that has to exist) in scope
+<a name="karate-call"><code>karate.call(fileName, [arg])</code></a> | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
+<a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guaranteed to run **only once** even across multiple features *and* parallel threads (recommended only for advanced users) - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js) / [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
+<a name="karate-configure"><code>karate.configure(key, value)</code></a> | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
+<a name="karate-embed"><code>karate.embed(object, mimeType)</code></a> | embeds the object (can be raw bytes or an image) into the JSON report output, see this [example](karate-demo/src/test/java/demo/embed/embed.feature)
+<a name="karate-env"><code>karate.env</code></a> | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
+<a name="karate-eval"><code>karate.eval(expression)</code></a> | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
+<a name="karate-exec"><code>karate.exec(command)</code></a> | convenient way to execute an OS specific command and return the console output, useful for calling non-Java code (that can even return data) or for starting user-interfaces to be automated
+<a name="karate-filter"><code>karate.filter(list, predicate)</code></a> | functional-style 'filter' operation useful to filter list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index]) that returns a `boolean`
+`karate.forEach(list, function)` | functional-style 'loop' operation useful to traverse list-like (or even map-like) objects (e.g. JSON / arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index]) for lists and (key, [value], [index]) for JSON / maps
+<a name="karate-get"><code>karate.get(name)</code></a> | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
+<a name="karate-info"><code>karate.info</code></a> | within a test (or within the [`afterScenario`](#configure) function if configured) you can access metadata such as the `Scenario` name, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
+<a name="karate-jsonpath"><code>karate.jsonPath(json, expression)</code></a> | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into JavaScript, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+<a name="karate-keysof"><code>karate.keysOf(object)</code></a> | returns only the keys of a map-like object
+<a name="karate-listen"><code>karate.listen(timeout)</code></a> | wait until [`karate.signal(result)`](#karate-signal) has been called or time-out after `timeout` milliseconds, see [async](#async)
+<a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
+<a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
+<a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
+<a name="karate-mapwithkey"><code>karate.mapWithKey(list, string)</code></a> | convenient for the common case of transforming an array of primitives into an array of objects, see [JSON transforms](#json-transforms)
+<a name="karate-match"><code>karate.match(actual, expected)</code></a> | brings the power of the *fuzzy* [`match`](#match) syntax into Karate-JS, returns a JSON in the form `{ pass: '#boolean', message: '#string' }` and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
+<a name="karate-merge"><code>karate.merge(... maps)</code></a> | useful to merge the key-values of two (or more) JSON (or map-like) objects
+<a name="karate-pretty"><code>karate.pretty(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
+<a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
+<a name="karate-prevrequest"><code>karate.prevRequest</code></a> | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)
+<a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
+<a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to ever do `karate.read()`, and just `read()` is sufficient
+<a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
+<a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
+<a name="karate-repeat"><code>karate.repeat(count, function)</code></a> | useful for building an array with `count` items or doing something `count` times, refer this [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/repeat.feature). Also see [loops](#loops).
+<a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
+<a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/set.feature)
+<a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
+<a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
+<a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
+<a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
+<a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
+<a name="karate-tagvalues"><code>karate.tagValues</code></a> | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
+<a name="karate-tobean"><code>karate.toBean(json, className)</code></a> | converts a JSON string or map-like object into a Java object, given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
+<a name="karate-tojson"><code>karate.toJson(object)</code></a> | converts a Java object into JSON, and `karate.toJson(object, true)` will strip all keys that have `null` values from the resulting JSON, convenient for unit-testing Java code, see [example](karate-demo/src/test/java/demo/unit/cat.feature)
+<a name="karate-valuesof"><code>karate.valuesOf(object)</code></a> | returns only the values of a map-like object (or itself if a list-like object)
+<a name="karate-websocket"><code>karate.webSocket(url, handler)</code></a> | see [websocket](#websocket)
+<a name="karate-xmlpath"><code>karate.xmlPath(xml, expression)</code></a> | Just like [`karate.jsonPath()`](#karate-jsonpath) - but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
 
 # Code Reuse / Common Routines
 ## `call`
@@ -3131,56 +3184,6 @@ In real-life scripts, you would typically also use this capability of Karate to 
 
 > Also refer to the [`eval`](#eval) keyword for a simpler way to execute arbitrary JavaScript that can be useful in some situations.
 
-### The `karate` object
-A JavaScript function or [Karate expression](#karate-expressions) at runtime has access to a utility object in a variable named: `karate`.  This provides the following methods:
-
-Operation | Description
---------- | -----------
-<a name="karate-abort"><code>karate.abort()</code></a> | you can prematurely exit a `Scenario` by combining this with [conditional logic](#conditional-logic) like so: `* if (condition) karate.abort()` - please use [sparingly](https://martinfowler.com/articles/nonDeterminism.html) !
-<a name="karate-append"><code>karate.append(... items)</code></a> | useful to create lists out of items (which can be lists as well)
-<a name="karate-appendto"><code>karate.appendTo(name, ... items)</code></a> | useful to append to a list-like variable (that has to exist) in scope
-<a name="karate-call"><code>karate.call(fileName, [arg])</code></a> | invoke a [`*.feature` file](#calling-other-feature-files) or a [JavaScript function](#calling-javascript-functions) the same way that [`call`](#call) works (with an optional solitary argument)
-<a name="karate-callsingle"><code>karate.callSingle(fileName, [arg])</code></a> | like the above, but guaranteed to run **only once** even across multiple features *and* parallel threads (recommended only for advanced users) - refer to this example: [`karate-config.js`](karate-demo/src/test/java/karate-config.js) / [`headers-single.feature`](karate-demo/src/test/java/demo/headers/headers-single.feature)
-<a name="karate-configure"><code>karate.configure(key, value)</code></a> | does the same thing as the [`configure`](#configure) keyword, and a very useful example is to do `karate.configure('connectTimeout', 5000);` in [`karate-config.js`](#configuration) - which has the 'global' effect of not wasting time if a connection cannot be established within 5 seconds
-<a name="karate-embed"><code>karate.embed(object, mimeType)</code></a> | embeds the object (can be raw bytes or an image) into the JSON report output, see this [example](karate-demo/src/test/java/demo/embed/embed.feature)
-<a name="karate-env"><code>karate.env</code></a> | gets the value (read-only) of the environment property 'karate.env', and this is typically used for bootstrapping [configuration](#configuration)
-<a name="karate-eval"><code>karate.eval(expression)</code></a> | for really advanced needs, you can programmatically generate a snippet of JavaScript which can be evaluated at run-time, you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature)
-<a name="karate-exec"><code>karate.exec(command)</code></a> | convenient way to execute an OS specific command and return the console output, useful for calling non-Java code (that can even return data) or for starting user-interfaces to be automated
-<a name="karate-filter"><code>karate.filter(list, predicate)</code></a> | functional-style 'filter' operation useful to filter list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index]) that returns a `boolean`
-`karate.forEach(list, function)` | functional-style 'loop' operation useful to traverse list-like (or even map-like) objects (e.g. JSON / arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index]) for lists and (key, [value], [index]) for JSON / maps
-<a name="karate-get"><code>karate.get(name)</code></a> | get the value of a variable by name (or JsonPath expression), if not found - this returns `null` which is easier to handle in JavaScript (than `undefined`)
-<a name="karate-info"><code>karate.info</code></a> | within a test (or within the [`afterScenario`](#configure) function if configured) you can access metadata such as the `Scenario` name, refer to this example: [`hooks.feature`](karate-demo/src/test/java/demo/hooks/hooks.feature)
-<a name="karate-jsonpath"><code>karate.jsonPath(json, expression)</code></a> | brings the power of [JsonPath](https://github.com/json-path/JsonPath) into JavaScript, and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
-<a name="karate-keysof"><code>karate.keysOf(object)</code></a> | returns only the keys of a map-like object
-<a name="karate-listen"><code>karate.listen(timeout)</code></a> | wait until [`karate.signal(result)`](#karate-signal) has been called or time-out after `timeout` milliseconds, see [async](#async)
-<a name="karate-log"><code>karate.log(... args)</code></a> | log to the same logger (and log file) being used by the parent process, logging can be suppressed with [`configure printEnabled`](#configure) set to `false`
-<a name="karate-lowercase"><code>karate.lowerCase(object)</code></a> | useful to brute-force all keys and values in a JSON or XML payload to lower-case, useful in some cases, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/lower-case.feature)
-<a name="karate-map"><code>karate.map(list, function)</code></a> | functional-style 'map' operation useful to transform list-like objects (e.g. JSON arrays), see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature), the second argument has to be a JS function (item, [index])
-<a name="karate-mapwithkey"><code>karate.mapWithKey(list, string)</code></a> | convenient for the common case of transforming an array of primitives into an array of objects, see [JSON transforms](#json-transforms)
-<a name="karate-match"><code>karate.match(actual, expected)</code></a> | brings the power of the *fuzzy* [`match`](#match) syntax into Karate-JS, returns a JSON in the form `{ pass: '#boolean', message: '#string' }` and you can find an example [here](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/js-arrays.feature).
-<a name="karate-merge"><code>karate.merge(... maps)</code></a> | useful to merge the key-values of two (or more) JSON (or map-like) objects
-<a name="karate-pretty"><code>karate.pretty(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the JSON value, also see: [`print`](#print)
-<a name="karate-prettyxml"><code>karate.prettyXml(value)</code></a> | return a 'pretty-printed', nicely indented string representation of the XML value, also see: [`print`](#print)
-<a name="karate-prevrequest"><code>karate.prevRequest</code></a> | for advanced users, you can inspect the *actual* HTTP request after it happens, useful if you are writing a framework over Karate, refer to this example: [`request.feature`](karate-demo/src/test/java/demo/request/request.feature)
-<a name="karate-properties"><code>karate.properties[key]</code></a> | get the value of any Java system-property by name, useful for [advanced custom configuration](#dynamic-port-numbers)
-<a name="karate-read"><code>karate.read(filename)</code></a> | the same [`read()`](#reading-files) function - which is pre-defined even within JS blocks, so there is no need to ever do `karate.read()`, and just `read()` is sufficient
-<a name="karate-readasstring"><code>karate.readAsString(filename)</code></a> | [rarely used](#read-file-as-string), behaves exactly like [`read`](#reading-files) - but does *not* auto convert to JSON or XML
-<a name="karate-remove"><code>karate.remove(name, path)</code></a> | very rarely used - when needing to perform conditional removal of XML nodes. Behaves the same way as the [`remove`](#remove) keyword.
-<a name="karate-repeat"><code>karate.repeat(count, function)</code></a> | useful for building an array with `count` items or doing something `count` times, refer this [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/repeat.feature). Also see [loops](#loops).
-<a name="karate-set"><code>karate.set(name, value)</code></a> | sets the value of a variable (immediately), which may be needed in case any other routines (such as the [configured headers](#configure-headers)) depend on that variable
-<a name="karate-setall"><code>karate.set(object)</code></a> | where the single argument is expected to be a `Map` or JSON-like, and will perform the above `karate.set()` operation for all key-value pairs in one-shot, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/set.feature)
-<a name="karate-setpath"><code>karate.set(name, path, value)</code></a> | only needed when you need to conditionally build payload elements, especially XML. This is best explained via [an example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature#L211), and it behaves the same way as the [`set`](#set) keyword. Also see [`eval`](#eval).
-<a name="karate-setxml"><code>karate.setXml(name, xmlString)</code></a> | rarely used, refer to the example above
-<a name="karate-signal"><code>karate.signal(result)</code></a> | trigger an event that [`karate.listen(timeout)`](#karate-listen) is waiting for, and pass the data, see [async](#async)
-<a name="karate-sizeof"><code>karate.sizeOf(object)</code></a> | returns the size of the map-like or list-like object
-<a name="karate-tags"><code>karate.tags</code></a> | for advanced users - scripts can introspect the tags that apply to the current scope, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
-<a name="karate-tagvalues"><code>karate.tagValues</code></a> | for even more advanced users - Karate natively supports tags in a `@name=val1,val2` format, and there is an inheritance mechanism where `Scenario` level tags can over-ride `Feature` level tags, refer to this example: [`tags.feature`](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/tags.feature)
-<a name="karate-tobean"><code>karate.toBean(json, className)</code></a> | converts a JSON string or map-like object into a Java object, given the Java class name as the second argument, refer to this [file](karate-junit4/src/test/java/com/intuit/karate/junit4/demos/type-conv.feature) for an example
-<a name="karate-tojson"><code>karate.toJson(object)</code></a> | converts a Java object into JSON, and `karate.toJson(object, true)` will strip all keys that have `null` values from the resulting JSON, convenient for unit-testing Java code, see [example](karate-demo/src/test/java/demo/unit/cat.feature)
-<a name="karate-valuesof"><code>karate.valuesOf(object)</code></a> | returns only the values of a map-like object (or itself if a list-like object)
-<a name="karate-websocket"><code>karate.webSocket(url, handler)</code></a> | see [websocket](#websocket)
-<a name="karate-xmlpath"><code>karate.xmlPath(xml, expression)</code></a> | Just like [`karate.jsonPath()`](#karate-jsonpath) - but for XML, and allows you to use dynamic XPath if needed, see [example](karate-junit4/src/test/java/com/intuit/karate/junit4/xml/xml.feature).
-
 ### JS function argument rules for `call`
 When using `call` (or [`callonce`](#callonce)), only one argument is allowed. But this does not limit you in any way, because similar to how you can [call `*.feature files`](#calling-other-feature-files), you can pass a whole JSON object as the argument. In the case of the `call` of a JavaScript function, you can also pass a JSON array or a primitive (string, number, boolean) as the solitary argument, and the function implementation is expected to handle whatever is passed.
 
@@ -3280,7 +3283,7 @@ Note that JSON gets auto-converted to `Map` (or `List`) when making the cross-ov
 
 Another example is [`dogs.feature`](karate-demo/src/test/java/demo/dogs/dogs.feature) -  which actually makes JDBC (database) calls, and since the data returned from the Java code is JSON, the last section of the test is able to use [`match`](#match) *very* effectively for data assertions.
 
-A great example of how you can extend Karate, even bypass the HTTP client but still use Karate's test-automation effectively, is this [gRPC](https://grpc.io) example by [@thinkerou](https://github.com/thinkerou): [`karate-grpc`](https://github.com/thinkerou/karate-grpc).
+A great example of how you can extend Karate, even bypass the HTTP client but still use Karate's test-automation effectively, is this [gRPC](https://grpc.io) example by [@thinkerou](https://github.com/thinkerou): [`karate-grpc`](https://github.com/thinkerou/karate-grpc). And you can even handle asynchronous flows such as [listening to message-queues](#async).
 
 #### HTTP Basic Authentication Example
 This should make it clear why Karate does not provide 'out of the box' support for any particular HTTP authentication scheme. Things are designed so that you can plug-in what you need, without needing to compile Java code. You get to choose how to manage your environment-specific configuration values such as user-names and passwords.
