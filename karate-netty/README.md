@@ -246,32 +246,33 @@ The `com.intuit.karate.netty.FeatureServer` class has a static `start()` method 
 * `file`: a `java.io.File` reference to the `*.feature` file you want to run as a server
 * `port`: `int` value of the port you want to use. `0` means, Karate will dynamically choose a free port (the value of which you can retrieve later)
 * `ssl`: `boolean` flag that if true, starts an HTTPS server and auto-generates a certificate if it doesn't find one, see [SSL](#ssl)
-* `args`: `java.util.Map` of key-value pairs that can be used to pass custom [variables](https://github.com/intuit/karate#setting-and-using-variables) into the `*.feature` evaluation context - or `null` if not-applicable
+* `arg`: `java.util.Map` of key-value pairs that can be used to pass custom [variables](https://github.com/intuit/karate#setting-and-using-variables) into the `*.feature` evaluation context - or `null` if not-applicable
+
+> There is an alternate `start()` method that takes `java.io.File` references to the certificate and key if you want to use a custom certificate chain. Refer to the code for details: [`FeatureServer.java`](../karate-core/src/main/java/com/intuit/karate/netty/FeatureServer.java)
 
 The static `start()` method returns a `FeatureServer` object on which you can call a `getPort()` method to get the port on which the server was started.
 
-And `FeatureServer` has a `stop()` method that will [stop](#stopping) the server.
+And a `FeatureServer` instance has a `stop()` method that will [stop](#stopping) the server.
 
 You can look at this demo example for reference: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) - note how the dynamic port number can be retrieved and passed to other elements in your test set-up.
 
 ## Within a Karate Test
-Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using [Java interop](https://github.com/intuit/karate#calling-java). The code that starts a mock server is quite simple and can be wrapped in a JavaScript function as follows:
+Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using the `karate.start()` API. The argument can be a string or JSON. If a string, it is processed as the path to the mock feature file, and behaves like the [`read()`](https://github.com/intuit/karate#reading-files) function.
 
-```javascript
-function fn() {
-  var Mock = Java.type('com.intuit.karate.netty.FeatureServer');
-  var file = new java.io.File('src/test/java/mock/web/cats-mock.feature');
-  var server = Mock.start(file, 0, false, null);
-  return server.port;
-}
-```
+For more control, the argument to `karate.start()` can be a JSON with the following keys expected, only the `mock` is mandatory:
 
-Now using this in a Karate test is simple. This example also shows how [conditional logic](https://github.com/intuit/karate#conditional-logic) can be used effectively.
+* `mock` - (string) path to the mock feature file, e.g. `classpath:my-mock.feature` or relative paths work just like [`read()`](https://github.com/intuit/karate#reading-files).
+* `port` - (int) defaults to `0`, see section on [embedding](#embedding) above
+* `ssl` - (boolean) defaults to `false`, see above
+* `cert` - (string) see above
+* `key` - (string) see above
+* `arg` - (json) see above
+
+So starting a mock from a Karate test is simple. This example also shows how [conditional logic](https://github.com/intuit/karate#conditional-logic) can be used effectively.
 
 ```feature
 Background:
-  * def starter = read('start-mock.js')
-  * def port = karate.env == 'mock' ? starter() : 8080
+  * def port = karate.env == 'mock' ? karate.start('cats-mock.feature').port : 8080
   * url 'http://localhost:' + port + '/cats'
 ```
 

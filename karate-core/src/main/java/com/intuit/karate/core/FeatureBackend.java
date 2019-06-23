@@ -73,7 +73,7 @@ public class FeatureBackend {
         this(feature, null);
     }
 
-    public FeatureBackend(Feature feature, Map<String, Object> vars) {
+    public FeatureBackend(Feature feature, Map<String, Object> arg) {
         this.feature = feature;
         featureName = feature.getPath().toFile().getName();
         CallContext callContext = new CallContext(null, false);
@@ -86,8 +86,8 @@ public class FeatureBackend {
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
         putBinding(ScriptBindings.BODY_PATH, context);
-        if (vars != null) {
-            vars.forEach((k, v) -> context.vars.put(k, v));
+        if (arg != null) {
+            arg.forEach((k, v) -> context.vars.put(k, v));
         }
         // the background is evaluated one-time
         if (feature.isBackgroundPresent()) {

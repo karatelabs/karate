@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 public class CatsMockRunner {
 
     @BeforeClass
-    public  static void beforeClass() {
+    public static void beforeClass() {
         System.setProperty("karate.env", "mock");
     }
 

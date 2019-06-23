@@ -38,6 +38,7 @@ import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
+import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.jayway.jsonpath.DocumentContext;
@@ -600,6 +601,46 @@ public class ScriptBridge implements PerfContext {
             return xmlPath(sv.getValue(), path);
         } else {
             return jsonPath(sv.getValue(), path);
+        }
+    }
+    
+    public FeatureServer start(String mock) {
+        return start(Collections.singletonMap("mock", mock));
+    } 
+    
+    public FeatureServer start(Map<String, Object> config) {
+        String mock = (String) config.get("mock");
+        if (mock == null) {
+            throw new RuntimeException("'mock' is missing: " + config);
+        }        
+        ScriptValue mockSv = FileUtils.readFile(mock, context);
+        if (!mockSv.isFeature()) {
+            throw new RuntimeException("'mock' is not a feature file: " + config + ", " + mockSv);
+        }
+        Feature feature = mockSv.getValue(Feature.class);        
+        String certFile = (String) config.get("cert");
+        String keyFile = (String) config.get("key");
+        Boolean ssl = (Boolean) config.get("ssl");
+        if (ssl == null) {
+            ssl = false;
+        }
+        Integer port = (Integer) config.get("port");
+        if (port == null) {
+            port = 0;
+        }
+        Map<String, Object> arg = (Map) config.get("arg");
+        if (certFile != null && keyFile != null) {
+            ScriptValue certSv = FileUtils.readFile(certFile, context);
+            if (!certSv.isStream()) {
+                throw new RuntimeException("'cert' is not valid: " + config + ", " + certSv);
+            }
+            ScriptValue keySv = FileUtils.readFile(keyFile, context);
+            if (!keySv.isStream()) {
+                throw new RuntimeException("'key' is not valid: " + config + ", " + keySv);
+            }
+            return new FeatureServer(feature, port, certSv.getAsStream(), keySv.getAsStream(), arg);
+        } else {
+            return new FeatureServer(feature, port, ssl, arg);
         }
     }
 

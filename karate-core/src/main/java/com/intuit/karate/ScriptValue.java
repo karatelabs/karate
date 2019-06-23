@@ -127,6 +127,10 @@ public class ScriptValue {
     public boolean isByteArray() {
         return type == Type.BYTE_ARRAY;
     }
+    
+    public boolean isFeature() {
+        return type == Type.FEATURE;
+    }
 
     public boolean isUnknown() {
         return type == Type.UNKNOWN;
