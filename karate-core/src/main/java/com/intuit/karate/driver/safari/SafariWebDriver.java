@@ -80,7 +80,7 @@ public class SafariWebDriver extends WebDriver {
     public void activate() {
         if (!options.headless) {
             try {
-                switch (FileUtils.getPlatform()) {
+                switch (FileUtils.getOsType()) {
                     case MACOS:
                         Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Safari\" to activate"});
                         break;

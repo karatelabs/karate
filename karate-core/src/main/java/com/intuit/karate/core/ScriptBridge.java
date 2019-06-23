@@ -608,8 +608,8 @@ public class ScriptBridge implements PerfContext {
     }
     
     public Map<String, Object> getOs() {
-        String name = FileUtils.getPlatformName();
-        String type = FileUtils.getPlatform(name).toString().toLowerCase();
+        String name = FileUtils.getOsName();
+        String type = FileUtils.getOsType(name).toString().toLowerCase();
         Map<String, Object> map = new HashMap(2);
         map.put("name", name);
         map.put("type", type);

@@ -628,22 +628,22 @@ public class FileUtils {
     }
 
     public static boolean isOsWindows() {
-        return getPlatform() == OsType.WINDOWS;
+        return getOsType() == OsType.WINDOWS;
     }
 
     public static boolean isOsMac() {
-        return getPlatform() == OsType.MACOS;
+        return getOsType() == OsType.MACOS;
     }
     
-    public static String getPlatformName() {
+    public static String getOsName() {
         return System.getProperty("os.name");
     }
     
-    public static OsType getPlatform() {
-        return getPlatform(getPlatformName());
+    public static OsType getOsType() {
+        return getOsType(getOsName());
     }
 
-    public static OsType getPlatform(String name) {
+    public static OsType getOsType(String name) {
         if (name == null) {
             name = "unknown";
         } else {
