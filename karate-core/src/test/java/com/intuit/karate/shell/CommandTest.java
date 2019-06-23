@@ -14,7 +14,7 @@ public class CommandTest {
     
     @Test
     public void testCommand() {
-    	String cmd = FileUtils.isWindows() ? "print \"hello\"" : "ls";
+    	String cmd = FileUtils.isOsWindows() ? "print \"hello\"" : "ls";
 		CommandThread command = new CommandThread(null, null, "target/command.log", new File("src"), cmd, "-al");
 		command.start();
         int exitCode = command.waitSync();

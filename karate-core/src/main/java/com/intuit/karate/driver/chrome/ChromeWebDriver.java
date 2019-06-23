@@ -97,7 +97,7 @@ public class ChromeWebDriver extends WebDriver {
         if (!options.headless) {
             try {
                 switch (FileUtils.getPlatform()) {
-                    case MAC:
+                    case MACOS:
                         Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Chrome\" to activate"});
                         break;
                     default:

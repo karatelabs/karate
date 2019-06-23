@@ -507,6 +507,11 @@ Scenario: match in js
     * match result == { pass: true, message: null }
     * if (result.pass) karate.log('*** passed')
 
+Scenario: karate.os
+    * def temp = karate.os
+    * print 'os:', temp
+    * match temp == { type: '#string', name: '#string' }
+
 Scenario: using the java contains api (will change with graal)
     * def allowed = ['Music', 'Entertainment', 'Documentaries', 'Family']
     * def actual = ['Entertainment', 'Family']

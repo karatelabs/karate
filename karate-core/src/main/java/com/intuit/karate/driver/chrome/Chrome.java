@@ -53,7 +53,7 @@ public class Chrome extends DevToolsDriver {
 
     public static Chrome start(ScenarioContext context, Map<String, Object> map, Logger logger) {
         DriverOptions options = new DriverOptions(context, map, logger, 9222, 
-                FileUtils.isWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
+                FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
         options.arg("--user-data-dir=" + options.workingDirPath);

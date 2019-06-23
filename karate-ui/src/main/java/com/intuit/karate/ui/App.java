@@ -162,7 +162,7 @@ public class App extends Application {
     }
 
     private void setDockIconForMac() {
-        if (FileUtils.isMac()) {
+        if (FileUtils.isOsMac()) {
             try {
                 ImageIcon icon = new ImageIcon(getClass().getClassLoader().getResource(KARATE_LOGO));
                 // com.apple.eawt.Application.getApplication().setDockIconImage(icon.getImage());

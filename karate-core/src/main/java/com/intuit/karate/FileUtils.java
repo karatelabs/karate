@@ -620,31 +620,43 @@ public class FileUtils {
         return command.contains("org.gradle.") ? "build" : "target";
     }
 
-    public static enum Platform {
+    public static enum OsType {
         WINDOWS,
-        MAC,
+        MACOS,
         UNIX,
         UNKNOWN
     }
 
-    public static boolean isWindows() {
-        return getPlatform() == Platform.WINDOWS;
+    public static boolean isOsWindows() {
+        return getPlatform() == OsType.WINDOWS;
     }
 
-    public static boolean isMac() {
-        return getPlatform() == Platform.MAC;
+    public static boolean isOsMac() {
+        return getPlatform() == OsType.MACOS;
+    }
+    
+    public static String getPlatformName() {
+        return System.getProperty("os.name");
+    }
+    
+    public static OsType getPlatform() {
+        return getPlatform(getPlatformName());
     }
 
-    public static Platform getPlatform() {
-        String os = System.getProperty("os.name", "").toLowerCase();
-        if (os.contains("win")) {
-            return Platform.WINDOWS;
-        } else if (os.contains("mac")) {
-            return Platform.MAC;
-        } else if (os.contains("nix") || os.contains("nux")) {
-            return Platform.UNIX;
+    public static OsType getPlatform(String name) {
+        if (name == null) {
+            name = "unknown";
         } else {
-            return Platform.UNKNOWN;
+            name = name.toLowerCase();
+        }        
+        if (name.contains("win")) {
+            return OsType.WINDOWS;
+        } else if (name.contains("mac")) {
+            return OsType.MACOS;
+        } else if (name.contains("nix") || name.contains("nux")) {
+            return OsType.UNIX;
+        } else {
+            return OsType.UNKNOWN;
         }
     }
 

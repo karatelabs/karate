@@ -21,9 +21,9 @@ public class AndroidDriver extends AppiumDriver {
     }
 
     public static AndroidDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 4723, FileUtils.isWindows() ? "cmd.exe" : "appium");
+        DriverOptions options = new DriverOptions(context, map, logger, 4723, FileUtils.isOsWindows() ? "cmd.exe" : "appium");
         // additional commands needed to start appium on windows
-        if (FileUtils.isWindows()){
+        if (FileUtils.isOsWindows()){
             options.arg("/C");
             options.arg("cmd.exe");
             options.arg("/K");
