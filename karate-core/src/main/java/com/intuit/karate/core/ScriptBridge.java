@@ -65,40 +65,40 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class ScriptBridge implements PerfContext {
-
+    
     private static final Object GLOBALS_LOCK = new Object();
     private static final Map<String, Object> GLOBALS = new HashMap();
-
+    
     public final ScenarioContext context;
-
+    
     private static final ThreadLocal<ScenarioContext> CURRENT_CONTEXT = new ThreadLocal();
-
+    
     public ScriptBridge(ScenarioContext context) {
         this.context = context;
         CURRENT_CONTEXT.set(context); // needed for call() edge case
     }
-
+    
     public ScenarioContext getContext() {
         return context;
     }
-
+    
     public void configure(String key, Object o) {
         context.configure(key, new ScriptValue(o));
     }
-
+    
     public Object read(String fileName) {
         return context.read.apply(fileName);
     }
-
+    
     public String readAsString(String fileName) {
         return FileUtils.readFileAsString(fileName, context);
     }
-
+    
     public String pretty(Object o) {
         ScriptValue sv = new ScriptValue(o);
         return sv.getAsPrettyString();
     }
-
+    
     public String prettyXml(Object o) {
         ScriptValue sv = new ScriptValue(o);
         if (sv.isXml()) {
@@ -113,11 +113,11 @@ public class ScriptBridge implements PerfContext {
             return XmlUtils.toString(doc, true);
         }
     }
-
+    
     public void set(String name, Object o) {
         context.vars.put(name, o);
     }
-
+    
     public void setXml(String name, String xml) {
         context.vars.put(name, XmlUtils.toXmlDoc(xml));
     }
@@ -136,7 +136,7 @@ public class ScriptBridge implements PerfContext {
     public void remove(String name, String path) {
         Script.removeValueByPath(name, path, context);
     }
-
+    
     public Object get(String exp) {
         ScriptValue sv;
         try {
@@ -151,7 +151,7 @@ public class ScriptBridge implements PerfContext {
             return null;
         }
     }
-
+    
     public int sizeOf(List list) {
         return list.size();
     }
@@ -159,11 +159,11 @@ public class ScriptBridge implements PerfContext {
     public int sizeOf(Map map) {
         return map.size();
     }    
-
+    
     public List keysOf(Map map) {
         return new ArrayList(map.keySet());
     }
-
+    
     public List valuesOf(List list) {
         return list;
     }
@@ -171,7 +171,7 @@ public class ScriptBridge implements PerfContext {
     public List valuesOf(Map map) {
         return new ArrayList(map.values());
     }    
-
+    
     public Map<String, Object> match(Object actual, Object expected) {
         AssertionResult result = Script.matchNestedObject('.', "$", MatchType.EQUALS, actual, null, actual, expected, context);
         Map<String, Object> map = new HashMap(2);
@@ -179,7 +179,7 @@ public class ScriptBridge implements PerfContext {
         map.put("message", result.message);
         return map;
     }
-
+    
     public void forEach(Map<String, Object> map, ScriptObjectMirror som) {
         if (map == null) {
             return;
@@ -190,7 +190,7 @@ public class ScriptBridge implements PerfContext {
         AtomicInteger i = new AtomicInteger();
         map.forEach((k, v) -> som.call(som, k, v, i.getAndIncrement()));
     }
-
+    
     public void forEach(List list, ScriptObjectMirror som) {
         if (list == null) {
             return;
@@ -202,7 +202,7 @@ public class ScriptBridge implements PerfContext {
             som.call(som, list.get(i), i);
         }
     }
-
+    
     public Object map(List list, ScriptObjectMirror som) {
         if (list == null) {
             return new ArrayList();
@@ -217,7 +217,7 @@ public class ScriptBridge implements PerfContext {
         }
         return res;
     }
-
+    
     public Object filter(List list, ScriptObjectMirror som) {
         if (list == null) {
             return new ArrayList();
@@ -243,7 +243,34 @@ public class ScriptBridge implements PerfContext {
         }
         return res;
     }
-
+    
+    public Object filterKeys(Map<String, Object> map, Map<String, Object> filter) {
+        if (map == null) {
+            return new LinkedHashMap();
+        }
+        if (filter == null) {
+            return map;
+        }
+        Map out = new LinkedHashMap(filter.size());
+        filter.keySet().forEach(k -> out.put(k, map.get(k)));
+        return out;
+    }
+    
+    public Object filterKeys(Map<String, Object> map, List keys) {
+        return filterKeys(map, keys.toArray());
+    }
+    
+    public Object filterKeys(Map map, Object ... keys) {
+        if (map == null) {
+            return new LinkedHashMap();
+        }
+        Map out = new LinkedHashMap(keys.length);
+        for (Object key : keys) {
+            out.put(key, map.get(key));
+        }
+        return out;
+    }    
+    
     public Object repeat(int n, ScriptObjectMirror som) {
         if (!som.isFunction()) {
             throw new RuntimeException("not a JS function: " + som);
@@ -255,7 +282,7 @@ public class ScriptBridge implements PerfContext {
         }
         return res;
     }
-
+    
     public Object mapWithKey(List list, String key) {
         if (list == null) {
             return new ArrayList();
@@ -268,7 +295,7 @@ public class ScriptBridge implements PerfContext {
         }
         return res;
     }
-
+    
     public Object merge(Map... maps) {
         Map out = new LinkedHashMap();
         if (maps == null) {
@@ -282,7 +309,7 @@ public class ScriptBridge implements PerfContext {
         }
         return out;
     }
-
+    
     public Object append(Object... items) {
         List out = new ArrayList();
         if (items == null) {
@@ -300,7 +327,7 @@ public class ScriptBridge implements PerfContext {
         }
         return out;
     }
-
+    
     public List appendTo(String name, Object... values) {
         ScriptValue sv = context.vars.get(name);
         if (sv == null || !sv.isListLike()) {
@@ -317,7 +344,7 @@ public class ScriptBridge implements PerfContext {
         context.vars.put(name, list);
         return list;
     }
-
+    
     public Object jsonPath(Object o, String exp) {
         DocumentContext doc;
         if (o instanceof DocumentContext) {
@@ -327,12 +354,12 @@ public class ScriptBridge implements PerfContext {
         }
         return doc.read(exp);
     }
-
+    
     public Object lowerCase(Object o) {
         ScriptValue sv = new ScriptValue(o);
         return sv.toLowerCase();
     }
-
+    
     public Object xmlPath(Object o, String path) {
         if (!(o instanceof Node)) {
             if (o instanceof Map) {
@@ -344,17 +371,17 @@ public class ScriptBridge implements PerfContext {
         ScriptValue sv = Script.evalXmlPathOnXmlNode((Node) o, path);
         return sv.getValue();
     }
-
+    
     public Object toBean(Object o, String className) {
         ScriptValue sv = new ScriptValue(o);
         DocumentContext doc = Script.toJsonDoc(sv, context);
         return JsonUtils.fromJson(doc.jsonString(), className);
     }
-
+    
     public Object toJson(Object o) {
         return toJson(o, false);
     }
-
+    
     public Object toJson(Object o, boolean removeNulls) {
         Object result = JsonUtils.toJsonDoc(o).read("$");
         if (removeNulls) {
@@ -362,11 +389,11 @@ public class ScriptBridge implements PerfContext {
         }
         return result;
     }
-
+    
     public Object call(String fileName) {
         return call(fileName, null);
     }
-
+    
     public Object call(String fileName, Object arg) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
         switch (sv.getType()) {
@@ -383,11 +410,11 @@ public class ScriptBridge implements PerfContext {
                 return null;
         }
     }
-
+    
     public Object callSingle(String fileName) {
         return callSingle(fileName, null);
     }
-
+    
     public Object callSingle(String fileName, Object arg) {
         if (GLOBALS.containsKey(fileName)) {
             context.logger.trace("callSingle cache hit: {}", fileName);
@@ -409,11 +436,11 @@ public class ScriptBridge implements PerfContext {
             return result;
         }
     }
-
+    
     public HttpRequest getPrevRequest() {
         return context.getPrevRequest();
     }
-
+    
     public String exec(String command) {
         Runtime runtime = Runtime.getRuntime();
         try {
@@ -423,29 +450,29 @@ public class ScriptBridge implements PerfContext {
             throw new RuntimeException(e);
         }
     }
-
+    
     public Object eval(String exp) {
         ScriptValue sv = Script.evalJsExpression(exp, context);
         return sv.getValue();
     }
-
+    
     public List<String> getTags() {
         return context.tags;
     }
-
+    
     public Map<String, List<String>> getTagValues() {
         return context.tagValues;
     }
-
+    
     public Map<String, Object> getInfo() {
         DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
         return doc.read("$");
     }
-
+    
     public void proceed() {
         proceed(null);
     }
-
+    
     public void proceed(String requestUrlBase) {
         HttpRequestBuilder request = new HttpRequestBuilder();
         String urlBase = requestUrlBase == null ? getAsString(ScriptValueMap.VAR_REQUEST_URL_BASE) : requestUrlBase;
@@ -460,11 +487,11 @@ public class ScriptBridge implements PerfContext {
         context.setPrevResponse(response);
         context.updateResponseVars();
     }
-
+    
     public void abort() {
         throw new KarateAbortException(null);
     }
-
+    
     public void embed(Object o, String contentType) {
         ScriptValue sv = new ScriptValue(o);
         if (contentType == null) {
@@ -475,21 +502,21 @@ public class ScriptBridge implements PerfContext {
         embed.setMimeType(contentType);
         context.prevEmbed = embed;
     }
-
+    
     public void write(Object o, String path) {
         ScriptValue sv = new ScriptValue(o);
         path = FileUtils.getBuildDir() + File.separator + path;
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
     }
-
+    
     public WebSocketClient webSocket(String url) {
         return webSocket(url, null, null);
     }
-
+    
     public WebSocketClient webSocket(String url, Function<String, Boolean> handler) {
         return webSocket(url, handler, null);
     }
-
+    
     public WebSocketClient webSocket(String url, Function<String, Boolean> handler, Map<String, Object> map) {
         if (handler == null) {
             handler = t -> true; // auto signal for websocket tests
@@ -498,15 +525,15 @@ public class ScriptBridge implements PerfContext {
         options.setTextHandler(handler);
         return context.webSocket(options);
     }
-
+    
     public WebSocketClient webSocketBinary(String url) {
         return webSocketBinary(url, null, null);
     }
-
+    
     public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler) {
         return webSocketBinary(url, handler, null);
     }
-
+    
     public WebSocketClient webSocketBinary(String url, Function<byte[], Boolean> handler, Map<String, Object> map) {
         if (handler == null) {
             handler = t -> true; // auto signal for websocket tests
@@ -515,43 +542,43 @@ public class ScriptBridge implements PerfContext {
         options.setBinaryHandler(handler);
         return context.webSocket(options);
     }
-
+    
     public void signal(Object result) {
         context.signal(result);
     }
-
+    
     public Object listen(long timeout, ScriptObjectMirror som) {
         if (!som.isFunction()) {
             throw new RuntimeException("not a JS function: " + som);
         }
         return context.listen(timeout, () -> Script.evalJsFunctionCall(som, null, context));
     }
-
+    
     public Object listen(long timeout) {
         return context.listen(timeout, null);
     }
-
+    
     private ScriptValue getValue(String name) {
         ScriptValue sv = context.vars.get(name);
         return sv == null ? ScriptValue.NULL : sv;
     }
-
+    
     private String getAsString(String name) {
         return getValue(name).getAsString();
     }
-
+    
     public boolean pathMatches(String path) {
         String uri = getAsString(ScriptValueMap.VAR_REQUEST_URI);
         Map<String, String> map = HttpUtils.parseUriPattern(path, uri);
         set(ScriptBindings.PATH_PARAMS, map);
         return map != null;
     }
-
+    
     public boolean methodIs(String method) {
         String actual = getAsString(ScriptValueMap.VAR_REQUEST_METHOD);
         return actual.equalsIgnoreCase(method);
     }
-
+    
     public Object paramValue(String name) {
         Map<String, List<String>> params = (Map) getValue(ScriptValueMap.VAR_REQUEST_PARAMS).getValue();
         if (params == null) {
@@ -566,7 +593,7 @@ public class ScriptBridge implements PerfContext {
         }
         return list;
     }
-
+    
     public boolean headerContains(String name, String test) {
         Map<String, List<String>> headers = (Map) getValue(ScriptValueMap.VAR_REQUEST_HEADERS).getValue();
         if (headers == null) {
@@ -583,15 +610,15 @@ public class ScriptBridge implements PerfContext {
         }
         return false;
     }
-
+    
     public boolean typeContains(String test) {
         return headerContains(HttpUtils.HEADER_CONTENT_TYPE, test);
     }
-
+    
     public boolean acceptContains(String test) {
         return headerContains(HttpUtils.HEADER_ACCEPT, test);
     }
-
+    
     public Object bodyPath(String path) {
         ScriptValue sv = context.vars.get(ScriptValueMap.VAR_REQUEST);
         if (sv == null || sv.isNull()) {
@@ -606,7 +633,7 @@ public class ScriptBridge implements PerfContext {
     
     public FeatureServer start(String mock) {
         return start(Collections.singletonMap("mock", mock));
-    } 
+    }    
     
     public FeatureServer start(Map<String, Object> config) {
         String mock = (String) config.get("mock");
@@ -643,7 +670,7 @@ public class ScriptBridge implements PerfContext {
             return new FeatureServer(feature, port, ssl, arg);
         }
     }
-
+    
     public String getEnv() {
         return context.featureContext.env;
     }
@@ -656,21 +683,21 @@ public class ScriptBridge implements PerfContext {
         map.put("type", type);
         return map;
     }    
-
+    
     public Properties getProperties() {
         return System.getProperties();
     }
-
+    
     public void setLocation(String expression) {
         context.driver(expression);
     }
-
+    
     public void log(Object... objects) {
         if (context.isPrintEnabled()) {
             context.logger.info("{}", new LogWrapper(objects));
         }
     }
-
+    
     @Override
     public void capturePerfEvent(String name, long startTime, long endTime) {
         PerfEvent event = new PerfEvent(startTime, endTime, name, 200);
@@ -679,13 +706,13 @@ public class ScriptBridge implements PerfContext {
 
     // make sure toString() is lazy
     static class LogWrapper {
-
+        
         private final Object[] objects;
-
+        
         LogWrapper(Object... objects) {
             this.objects = objects;
         }
-
+        
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
@@ -694,7 +721,7 @@ public class ScriptBridge implements PerfContext {
             }
             return sb.toString();
         }
-
+        
     }
-
+    
 }

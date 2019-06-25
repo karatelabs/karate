@@ -129,6 +129,13 @@ Scenario: map with key - for the common case of converting arrays of primitives 
     * def data = karate.mapWithKey(list, 'foo')
     * match data == []
 
+Scenario: filterKeys
+    * def foo = { a: 1, b: 2, c: 3 }
+    * def bar = { a: 'x', c: 'y' }
+    * match karate.filterKeys(foo, bar) == { a: 1, c: 3 }
+    * match karate.filterKeys(foo, 'b') == { b: 2 }
+    * match karate.filterKeys(foo, ['a', 'b']) == { a: 1, b: 2 }
+
 Scenario: merge
     * def foo = { a: 1 }
     * def bar = karate.merge(foo, { b: 2 })
