@@ -3436,7 +3436,7 @@ Here below are a few more common examples:
 
 Utility | Recipe
 ------- | ------                               
-| System Time | `function(){ return java.lang.System.currentTimeMillis() }`
+| System Time (as a string) | `function(){ return java.lang.System.currentTimeMillis() + '' }`
 | UUID  | `function(){ return java.util.UUID.randomUUID() + '' }`
 | Random Number (`0` to `max-1`) | `function(max){ return Math.floor(Math.random() * max) }`
 | Case Insensitive Comparison | `function(a, b){ return a.equalsIgnoreCase(b) }`
