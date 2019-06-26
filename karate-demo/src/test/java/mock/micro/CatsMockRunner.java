@@ -14,11 +14,11 @@ import org.junit.runner.RunWith;
  */
 @RunWith(Karate.class)
 @KarateOptions(features = "classpath:mock/micro/cats.feature")
-public class MicroMockRunner {
+public class CatsMockRunner {
     
     @BeforeClass
     public static void beforeClass() {
-        File file = FileUtils.getFileRelativeTo(MicroMockRunner.class, "cats-mock.feature");
+        File file = FileUtils.getFileRelativeTo(CatsMockRunner.class, "cats-mock.feature");
         FeatureServer server = FeatureServer.start(file, 0, false, null);
         System.setProperty("karate.env", "mock");
         System.setProperty("mock.cats.url", "http://localhost:" + server.getPort() + "/cats");

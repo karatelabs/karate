@@ -7,7 +7,7 @@ Background:
 Scenario: methodIs('post')
 * def c = request
 * def id = ~~(id + 1)
-* set c.id = id
+* c.id = id
 * m[id + ''] = c
 * def response = c
 

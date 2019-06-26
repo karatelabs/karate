@@ -1642,22 +1642,8 @@ public class Script {
                 Function function = sv.getValue(Function.class);
                 return evalJavaFunctionCall(function, argValue.getValue(), context);
             case JS_FUNCTION:
-                switch (argValue.getType()) {
-                    case JSON:
-                        // force to java map (or list)
-                        argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
-                    case MAP:
-                    case LIST:
-                    case STRING:
-                    case INPUT_STREAM:
-                    case PRIMITIVE:
-                    case NULL:
-                        break;
-                    default:
-                        throw new RuntimeException("only json or primitives allowed as (single) function call argument");
-                }
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return evalJsFunctionCall(som, argValue.getValue(), context);
+                return evalJsFunctionCall(som, argValue.getAfterConvertingFromJsonOrXmlIfNeeded(), context);
             case FEATURE:
                 Object callArg = null;
                 switch (argValue.getType()) {
