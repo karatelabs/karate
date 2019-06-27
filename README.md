@@ -412,20 +412,7 @@ Assuming you use JUnit, there are some good reasons for the recommended (best pr
 For details on what actually goes into a script or `*.feature` file, refer to the [syntax guide](#syntax-guide).
 
 ## IDE Support
-Many popular text editors such as [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=stevejpurves.cucumber) have support for the [Gherkin](https://docs.cucumber.io/gherkin/) syntax. Using a Java IDE with Cucumber-JVM support is recommended for the best developer experience. Also check out the [Karate plugin for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) created by Kirk Slota.
-
-### Running in Eclipse or IntelliJ
-If you use the open-source [Eclipse Java IDE](http://www.eclipse.org), you should consider installing the free [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/). It provides syntax coloring, and the best part is that you can 'right-click' and run Karate test scripts without needing to write a single line of Java code.
-
-If you use [IntelliJ IDEA](https://www.jetbrains.com/idea/), Cucumber support is [built-in](https://www.jetbrains.com/idea/help/cucumber.html), and you can even select a single [`Scenario`](#script-structure) within a `Feature` to run at a time. If you are using the free [Community Edition](https://www.jetbrains.com/idea/download/), you can easily install the "Gherkin" and "Cucumber for Java" plugins.
-
-> Important: For the IntelliJ Community Edition, the "Substeps IntelliJ Plugin" is not compatible and should *not* be installed.
-
-For both Eclipse and IntelliJ, when you run a feature (or package with multiple features) via the IDE - you will get the [JUnit HTML report](#junit-html-report).
-
-### Troubleshooting Cucumber IDE Support
-* On Eclipse you may see warnings such as `Step 'xxx' does not have a matching glue code` or `required(..)+ loop did not match anything at input Scenario:`, and on IntelliJ: `Unimplemented substep definition`. Refer to [this ticket](https://github.com/intuit/karate/issues/90) on how to solve this.
-* On IntelliJ you may run into issues if JavaFX is not installed by default (e.g. on Ubuntu). Refer to [this ticket](https://github.com/intuit/karate/issues/124#issuecomment-320212727) for solutions.
+Refer to the wiki - [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
 
 #### `file.encoding`
 
