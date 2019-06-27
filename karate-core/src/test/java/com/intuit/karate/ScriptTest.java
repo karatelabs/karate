@@ -527,7 +527,7 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'#ignore'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json.foo", null, "'##string'", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'##string'", ctx).pass);
-        assertTrue(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'##number'", ctx).pass);         
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'##number'", ctx).pass);
         assertFalse(Script.matchNamed(MatchType.EQUALS, "json.nope", null, "'#present'", ctx).pass);
     }
 
@@ -1617,6 +1617,13 @@ public class ScriptTest {
         assertFalse(Script.matchNamed(MatchType.CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.NOT_EQUALS, "json", null, "{ a: '#notpresent' }", ctx).pass);
         assertTrue(Script.matchNamed(MatchType.NOT_CONTAINS, "json", null, "{ a: '#notpresent' }", ctx).pass);
+    }
+
+    @Test
+    public void testJsonPathWhenActualIsEmptyString() {
+        ScenarioContext ctx = getContext();
+        Script.assign("response", "''", ctx);
+        assertFalse(Script.matchNamed(MatchType.EQUALS, "$.foo", null, "'#notnull'", ctx).pass);
     }
 
     @Test

@@ -714,6 +714,10 @@ public class Script {
         switch (actual.getType()) {
             case STRING:
             case INPUT_STREAM:
+                // this is the entry point so if the "root" is a string, path should be "$"
+                if (path.length() > 1) { // so if the path is expecting JSON e.g. $.foo (not a string), fail right here
+                    return matchFailed(matchType, path, actual.getValue(), expected, "actual value is not JSON-like");
+                }
                 return matchString(matchType, actual, expected, path, context);
             case XML:
                 if ("$".equals(path)) {
