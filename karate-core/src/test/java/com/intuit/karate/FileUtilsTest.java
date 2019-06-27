@@ -119,22 +119,21 @@ public class FileUtilsTest {
     public void testRemovePrefix() {
         assertEquals("baz", FileUtils.removePrefix("foobar:baz"));
         assertEquals("foobarbaz", FileUtils.removePrefix("foobarbaz"));
-
         assertNull(FileUtils.removePrefix(null));
     }
 
     @Test
     public void testToStringBytes() {
-        final byte[] bytes = { 102, 111, 111, 98, 97, 114 };
+        final byte[] bytes = {102, 111, 111, 98, 97, 114};
         assertEquals("foobar", FileUtils.toString(bytes));
-        assertNull(FileUtils.toString((byte[])null));
+        assertNull(FileUtils.toString((byte[]) null));
     }
 
     @Test
     public void testToBytesString() {
-        final byte[] bytes = { 102, 111, 111, 98, 97, 114 };
+        final byte[] bytes = {102, 111, 111, 98, 97, 114};
         assertArrayEquals(bytes, FileUtils.toBytes("foobar"));
-        assertNull(FileUtils.toBytes((String)null));
+        assertNull(FileUtils.toBytes((String) null));
     }
 
     @Test
@@ -183,21 +182,21 @@ public class FileUtilsTest {
         }
         assertTrue(found);
     }
-    
+
     @Test
     public void testScanFileWithLineNumber() {
         String relativePath = "classpath:com/intuit/karate/test/test.feature:3";
         List<Resource> files = FileUtils.scanForFeatureFiles(Collections.singletonList(relativePath), getClass().getClassLoader());
         assertEquals(1, files.size());
         assertEquals(3, files.get(0).getLine());
-    }    
+    }
 
     @Test
     public void testScanFilePath() {
         String relativePath = "classpath:com/intuit/karate/test";
         List<Resource> files = FileUtils.scanForFeatureFiles(true, relativePath, getClass().getClassLoader());
         assertEquals(1, files.size());
-    }    
+    }
 
     @Test
     public void testRelativePathForClass() {

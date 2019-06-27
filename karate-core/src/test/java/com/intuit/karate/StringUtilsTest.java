@@ -40,7 +40,8 @@ import static org.junit.Assert.*;
  */
 public class StringUtilsTest {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testPair() {
@@ -155,4 +156,5 @@ public class StringUtilsTest {
         assertEquals(0,
                 StringUtils.wrappedLinesEstimate("", 2));
     }
+    
 }

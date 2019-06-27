@@ -33,45 +33,46 @@ import static org.junit.Assert.assertTrue;
 
 public class TagTest {
 
-  final Tag tag = new Tag(5, "@foo=bar,baz");
+    final Tag tag = new Tag(5, "@foo=bar,baz");
 
-  @Test
-  public void testGetLine() {
-    assertEquals(5, tag.getLine());
-  }
+    @Test
+    public void testGetLine() {
+        assertEquals(5, tag.getLine());
+    }
 
-  @Test
-  public void testGetText() {
-    assertEquals("foo=bar,baz", tag.getText());
-  }
+    @Test
+    public void testGetText() {
+        assertEquals("foo=bar,baz", tag.getText());
+    }
 
-  @Test
-  public void testGetName() {
-    assertEquals("foo", tag.getName());
-  }
+    @Test
+    public void testGetName() {
+        assertEquals("foo", tag.getName());
+    }
 
-  @Test
-  public void testGetValues() {
-    assertEquals(Arrays.asList("bar", "baz"), tag.getValues());
-  }
+    @Test
+    public void testGetValues() {
+        assertEquals(Arrays.asList("bar", "baz"), tag.getValues());
+    }
 
-  @Test
-  public void testToString() {
-    assertEquals("@foo=bar,baz", new Tag(5, "@foo=bar,baz").toString());
-    assertEquals("@foo=", new Tag(5, "@foo=").toString());
-    assertEquals("@foobar,baz", new Tag(5, "@foobar,baz").toString());
-  }
+    @Test
+    public void testToString() {
+        assertEquals("@foo=bar,baz", new Tag(5, "@foo=bar,baz").toString());
+        assertEquals("@foo=", new Tag(5, "@foo=").toString());
+        assertEquals("@foobar,baz", new Tag(5, "@foobar,baz").toString());
+    }
 
-  @Test
-  public void testHashcode() {
-    assertEquals(894422763, tag.hashCode());
-  }
+    @Test
+    public void testHashcode() {
+        assertEquals(894422763, tag.hashCode());
+    }
 
-  @Test
-  public void testEquals() {
-    assertTrue(tag.equals(tag));
-    assertFalse(tag.equals(null));
-    assertFalse(tag.equals(new Tag(0, "@baz=bar,foo")));
-    assertFalse(tag.equals("foo"));
-  }
+    @Test
+    public void testEquals() {
+        assertTrue(tag.equals(tag));
+        assertFalse(tag.equals(null));
+        assertFalse(tag.equals(new Tag(0, "@baz=bar,foo")));
+        assertFalse(tag.equals("foo"));
+    }
+    
 }
