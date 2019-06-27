@@ -130,11 +130,12 @@ Scenario: map with key - for the common case of converting arrays of primitives 
     * match data == []
 
 Scenario: filterKeys
-    * def foo = { a: 1, b: 2, c: 3 }
-    * def bar = { a: 'x', c: 'y' }
-    * match karate.filterKeys(foo, bar) == { a: 1, c: 3 }
-    * match karate.filterKeys(foo, 'b', 'c') == { b: 2, c: 3 }
-    * match karate.filterKeys(foo, ['a', 'b']) == { a: 1, b: 2 }
+    * def schema = { a: '#string', b: '#number', c: '#boolean' }
+    * def response = { a: 'x', c: true }
+    # very useful for validating a response against a schema "super-set"
+    * match response == karate.filterKeys(schema, response)
+    * match karate.filterKeys(response, 'b', 'c') == { c: true }
+    * match karate.filterKeys(response, ['a', 'b']) == { a: 'x' }
 
 Scenario: merge
     * def foo = { a: 1 }

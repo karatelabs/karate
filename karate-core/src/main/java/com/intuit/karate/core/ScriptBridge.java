@@ -252,7 +252,11 @@ public class ScriptBridge implements PerfContext {
             return map;
         }
         Map out = new LinkedHashMap(filter.size());
-        filter.keySet().forEach(k -> out.put(k, map.get(k)));
+        filter.keySet().forEach(k -> {
+            if (map.containsKey(k)) {
+                out.put(k, map.get(k));
+            }
+        });
         return out;
     }
     
@@ -266,7 +270,9 @@ public class ScriptBridge implements PerfContext {
         }
         Map out = new LinkedHashMap(keys.length);
         for (Object key : keys) {
-            out.put(key, map.get(key));
+            if (map.containsKey(key)) {
+                out.put(key, map.get(key));
+            }            
         }
         return out;
     }    
