@@ -1717,8 +1717,9 @@ public class Script {
                         ScriptValue rowResult = evalFeatureCall(callContext);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
+                        String argString = new ScriptValue(rowArg).getAsString(); // convert if JS object from [object: Object]
                         String message = "feature call (loop) failed at index: " + i + "\ncaller: "
-                                + feature.getRelativePath() + "\narg: " + rowArg + "\n" + ke.getMessage();
+                                + feature.getRelativePath() + "\narg: " + argString + "\n" + ke.getMessage();
                         errors.add(message);
                         // log but don't stop (yet)
                         context.logger.error("{}", message);
@@ -1743,8 +1744,9 @@ public class Script {
                 CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig, reportContext);
                 return evalFeatureCall(callContext);
             } catch (KarateException ke) {
+                String argString = new ScriptValue(callArg).getAsString(); // convert if JS object from [object: Object] 
                 String message = "feature call failed: " + feature.getRelativePath()
-                        + "\narg: " + callArg + "\n" + ke.getMessage();
+                        + "\narg: " + argString + "\n" + ke.getMessage();
                 context.logger.error("{}", message);
                 throw new KarateException(message, ke);
             }
