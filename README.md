@@ -2757,9 +2757,9 @@ Scenario: forEach works even on object key-values, not just arrays
     * def fun = 
     """
     function(x, y, i) { 
-      karate.appendTo('keys', x); 
-      karate.appendTo('vals', y); 
-      karate.appendTo('idxs', i); 
+      karate.appendTo(keys, x); 
+      karate.appendTo(vals, y); 
+      karate.appendTo(idxs, i); 
     }
     """
     * def map = { a: 2, b: 4, c: 6 }
@@ -2796,7 +2796,7 @@ Given the examples above, it has to be said that a best practice with Karate is 
 * match foo == [0, 2, 4, 6, 8]
 
 * def foo = []
-* def fun = function(i){ karate.appendTo('foo', i) }
+* def fun = function(i){ karate.appendTo(foo, i) }
 * karate.repeat(5, fun)
 * match foo == [0, 1, 2, 3, 4]
 

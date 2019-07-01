@@ -325,7 +325,14 @@ public class ScriptBridge implements PerfContext {
             if (item == null) {
                 continue;
             }
-            if (item instanceof Collection) {
+            if (item instanceof ScriptObjectMirror) { // no need when graal
+                ScriptObjectMirror som = (ScriptObjectMirror) item;
+                if (som.isArray()) {
+                    out.addAll(som.values());
+                } else {
+                    out.add(som);
+                }
+            } else if (item instanceof Collection) {
                 out.addAll((Collection) item);
             } else {
                 out.add(item);
@@ -339,17 +346,21 @@ public class ScriptBridge implements PerfContext {
         if (sv == null || !sv.isListLike()) {
             return Collections.EMPTY_LIST;
         }
-        List list = sv.getAsList();
+        List list = appendTo(sv.getAsList(), values);
+        context.vars.put(name, list);
+        return list;
+    }
+    
+    public List appendTo(List list, Object... values) {
         for (Object o : values) {
             if (o instanceof Collection) {
                 list.addAll((Collection) o);
             } else {
                 list.add(o);
             }
-        }
-        context.vars.put(name, list);
+        }        
         return list;
-    }
+    }    
     
     public Object jsonPath(Object o, String exp) {
         DocumentContext doc;

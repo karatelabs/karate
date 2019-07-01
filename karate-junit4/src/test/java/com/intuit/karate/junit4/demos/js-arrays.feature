@@ -47,7 +47,7 @@ Scenario: ensure nested nashorn arrays convert correctly
 
 Scenario: karate forEach operation on lists
     * def res = []
-    * def fun = function(x){ karate.appendTo('res', x * x) }
+    * def fun = function(x){ karate.appendTo(res, x * x) }
     * def list = [1, 2, 3]
     * karate.forEach(list, fun)
     * match res == [1, 4, 9]
@@ -77,9 +77,9 @@ Scenario: karate forEach operation on maps
     * def fun = 
     """
     function(x, y, i) { 
-      karate.appendTo('keys', x); 
-      karate.appendTo('vals', y); 
-      karate.appendTo('idxs', i); 
+      karate.appendTo(keys, x); 
+      karate.appendTo(vals, y); 
+      karate.appendTo(idxs, i); 
     }
     """
     * def map = { a: 2, b: 4, c: 6 }
@@ -98,7 +98,7 @@ Scenario: karate find index of first match (primitive)
     * def list = [1, 2, 3, 4]
     * def searchFor = 3
     * def foundAt = []
-    * def fun = function(x, i){ if (x == searchFor) karate.appendTo('foundAt', i) }
+    * def fun = function(x, i){ if (x == searchFor) karate.appendTo(foundAt, i) }
     * karate.forEach(list, fun)
     * match foundAt == [2]
 
@@ -106,7 +106,7 @@ Scenario: karate find index of first match (complex)
     * def list = [{ a: 1, b: 'x'}, { a: 2, b: 'y'}, { a: 3, b: 'z'}]
     * def searchFor = { a: 2, b: '#string'}
     * def foundAt = []
-    * def fun = function(x, i){ if (karate.match(x, searchFor).pass) karate.appendTo('foundAt', i) }
+    * def fun = function(x, i){ if (karate.match(x, searchFor).pass) karate.appendTo(foundAt, i) }
     * karate.forEach(list, fun)
     * match foundAt == [1]
 
@@ -146,6 +146,12 @@ Scenario: append
     * def foo = [{ a: 1 }]
     * def bar = karate.append(foo, { b: 2 })
     * match bar == [{ a: 1 }, { b: 2 }]
+    * def foo = { a: 1 }
+    * def bar = karate.append(foo, { b: 2})
+    * match bar == [{ a: 1 }, { b: 2 }]
+    # ensure this works even within js
+    * def fun = function(){ var x = [1, 2]; return karate.append(x, 3, 4) }
+    * match fun() == [1, 2, 3, 4]
 
 Scenario: simplest way to get the size of a json object
     * def json = { a: 1, b: 2, c: 3 }
@@ -541,12 +547,14 @@ Scenario: lists - karate.sizeOf() keysOf() valuesOf() appendTo()
     * def foo = [1, 2, 3]
     * match karate.sizeOf(foo) == 3
     * match karate.valuesOf(foo) == [1, 2, 3]
-    * def bar = karate.appendTo('foo', 4)
+    * def bar = karate.appendTo(foo, 4)
     * match foo == [1, 2, 3, 4]
     * match bar == [1, 2, 3, 4]
-    * def bar = karate.appendTo('foo', [5, 6])
+    * def bar = karate.appendTo(foo, [5, 6])
     * match foo == [1, 2, 3, 4, 5, 6]
     * match bar == [1, 2, 3, 4, 5, 6]
+    * def fun = function(){ var x = [1, 2]; return karate.appendTo(x, 3, 4) }
+    * match fun() == [1, 2, 3, 4]
 
 Scenario: maps - karate.sizeOf() keysOf() valuesOf() appendTo()
     * def foo = { a: 1, b: 2, c: 3 }
