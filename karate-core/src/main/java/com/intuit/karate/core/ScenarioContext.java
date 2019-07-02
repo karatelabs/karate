@@ -755,6 +755,17 @@ public class ScenarioContext {
         }
     }
 
+    public String getIfVariableReferenceElseEvalJsExpression(String exp) { //checks if an expression is a variable or contain variable in itself and return ScriptValue
+        ScriptValue sv = Script.getIfVariableReference(exp, this);
+        if (sv == null) {
+            try {
+                sv = Script.evalJsExpression(exp, this);
+            } catch (Exception e) {
+            }
+        }
+        return sv == null ? exp : sv.getAsPrettyString();
+    }
+
     public void status(int status) {
         if (status != prevResponse.getStatus()) {
             String rawResponse = vars.get(ScriptValueMap.VAR_RESPONSE).getAsString();

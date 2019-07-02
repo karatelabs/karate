@@ -19,7 +19,6 @@ import static org.junit.Assert.*;
 import org.w3c.dom.Document;
 
 /**
- *
  * @author pthomas3
  */
 public class ScriptTest {
@@ -952,6 +951,17 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo bar=\"1\"/></root>", ctx).pass);
         Script.setValueByPath("xml/root/foo[2]", null, "1", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "xml", null, "<root><foo bar=\"1\"/><foo>1</foo></root>", ctx).pass);
+        //jsonpath contain variable or jsonpath is a variable
+        Script.assign("json", "{ foo: 'bar' }", ctx);
+        //1
+        Script.assign("wholePathVariable", "'$.foo'", ctx);
+        Script.setValueByPath("json", "wholePathVariable", "'hello2'", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'hello2' }", ctx).pass);
+        //2
+        Script.assign("partPathVariable", "'foo'", ctx);
+        Script.assign("expressionWithVariable", "'$.'+partPathVariable", ctx);
+        Script.setValueByPath("json", "expressionWithVariable", "'hello3'", ctx);
+        assertTrue(Script.matchNamed(MatchType.EQUALS, "json", null, "{ foo: 'hello3' }", ctx).pass);
     }
 
     @Test

@@ -72,7 +72,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- *
  * @author pthomas3
  */
 public class Script {
@@ -723,8 +722,8 @@ public class Script {
                 if ("$".equals(path)) {
                     path = "/"; // whole document, also edge case where variable name was 'response'
                 }
-            // break; 
-            // fall through to JSON. yes, dot notation can be used on XML !!
+                // break;
+                // fall through to JSON. yes, dot notation can be used on XML !!
             default:
                 if (isDollarPrefixed(path)) {
                     return matchJsonOrObject(matchType, actual, path, expected, context);
@@ -1588,6 +1587,7 @@ public class Script {
             path = nameAndPath.right;
         }
         validateVariableName(name);
+        path = context.getIfVariableReferenceElseEvalJsExpression(path); //checks if a path is a variable or path contain variable in itself
         if (isJsonPath(path)) {
             ScriptValue target = context.vars.get(name);
             if (target == null || target.isNull()) {
