@@ -520,10 +520,12 @@ public class ScriptBridge implements PerfContext {
         context.prevEmbed = embed;
     }
     
-    public void write(Object o, String path) {
+    public File write(Object o, String path) {
         ScriptValue sv = new ScriptValue(o);
         path = FileUtils.getBuildDir() + File.separator + path;
-        FileUtils.writeToFile(new File(path), sv.getAsByteArray());
+        File file = new File(path);
+        FileUtils.writeToFile(file, sv.getAsByteArray());
+        return file;
     }
     
     public WebSocketClient webSocket(String url) {
