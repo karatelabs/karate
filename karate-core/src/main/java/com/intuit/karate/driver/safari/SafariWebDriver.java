@@ -81,7 +81,7 @@ public class SafariWebDriver extends WebDriver {
         if (!options.headless) {
             try {
                 switch (FileUtils.getOsType()) {
-                    case MACOS:
+                    case MACOSX:
                         Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Safari\" to activate"});
                         break;
                     default:

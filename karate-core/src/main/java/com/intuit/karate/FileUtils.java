@@ -622,8 +622,8 @@ public class FileUtils {
 
     public static enum OsType {
         WINDOWS,
-        MACOS,
-        UNIX,
+        MACOSX,
+        LINUX,
         UNKNOWN
     }
 
@@ -631,8 +631,8 @@ public class FileUtils {
         return getOsType() == OsType.WINDOWS;
     }
 
-    public static boolean isOsMac() {
-        return getOsType() == OsType.MACOS;
+    public static boolean isOsMacOsX() {
+        return getOsType() == OsType.MACOSX;
     }
     
     public static String getOsName() {
@@ -652,9 +652,9 @@ public class FileUtils {
         if (name.contains("win")) {
             return OsType.WINDOWS;
         } else if (name.contains("mac")) {
-            return OsType.MACOS;
+            return OsType.MACOSX;
         } else if (name.contains("nix") || name.contains("nux")) {
-            return OsType.UNIX;
+            return OsType.LINUX;
         } else {
             return OsType.UNKNOWN;
         }

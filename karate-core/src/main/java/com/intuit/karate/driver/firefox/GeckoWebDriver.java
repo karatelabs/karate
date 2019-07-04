@@ -65,7 +65,7 @@ public class GeckoWebDriver extends WebDriver {
         if (!options.headless) {
             try {
                 switch (FileUtils.getOsType()) {
-                    case MACOS:
+                    case MACOSX:
                         Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Firefox\" to activate"});
                         break;
                     default:
