@@ -12,5 +12,5 @@ mvn install -P fatjar
 release https://bintray.com/ptrthomas/karate
 
 update https://github.com/ptrthomas/karate-gatling-demo
-
 update https://github.com/ptrthomas/payment-service
+update https://github.com/ptrthomas/karate-sikulix-demo
