@@ -24,7 +24,6 @@
 package com.intuit.karate.netty;
 
 import java.net.URI;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -58,10 +57,7 @@ public class WebSocketOptions {
             if (temp != null) {
                 maxPayloadSize = temp;
             }
-            headers = new HashMap<>();
-            if (options.get("headers") != null ) {
-                headers.putAll((Map<String, Object>) options.get("headers"));
-            }
+            headers = (Map) options.get("headers");
         }
     }
 
