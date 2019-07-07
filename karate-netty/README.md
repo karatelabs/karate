@@ -98,6 +98,8 @@ It will take you only 2 minutes to see Karate's mock-server capabilities in acti
   * `java -jar karate.jar cats-test.feature`
 * You will see HTML reports in the `target/cucumber-html-reports` directory
 
+Another (possibly simpler) version of the above example is included in this demo project: [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) - and you can skip the step of downloading the "sikulix" JAR. This project is quite handy if you need to demo Karate (tests, mocks and UI) to others !
+
 Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
 ## Usage
