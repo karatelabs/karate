@@ -246,7 +246,6 @@ And you don't need to create additional Java classes for any of the payloads tha
   * Intelligent defaults
 
 ## Real World Examples
-
 A set of real-life examples can be found here: [Karate Demos](karate-demo)
 
 ## Comparison with REST-assured
@@ -263,10 +262,11 @@ For teams familiar with or currently using [REST-assured](http://rest-assured.io
 You can find a lot more references [in the wiki](https://github.com/intuit/karate/wiki/Community-News). Karate also has its own 'tag' and a very active and supportive community at [Stack Overflow](https://stackoverflow.com/questions/tagged/karate).
 
 # Getting Started
-Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org) or [Eclipse](#eclipse-quickstart) to be installed.
+Karate requires [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 8 (at least version 1.8.0_112 or greater) and then either [Maven](http://maven.apache.org), [Gradle](https://gradle.org), [Eclipse](#eclipse-quickstart) or [IntelliJ](https://github.com/intuit/karate/wiki/IDE-Support#intellij-community-edition) to be installed.
+
+> If you are new to programming or test-automation, refer to this video for [getting started with just the (free) IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). Other options are the [quickstart](#quickstart) or the [standalone executable](karate-netty#standalone-jar).
 
 ## Maven
-
 Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
 
 So you need two `<dependencies>`:
@@ -293,7 +293,6 @@ If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-j
 > The [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) is no longer part of the core framework from 0.9.3 onwards, and is an optional dependency called `karate-ui`.
 
 ## Gradle
-
 Alternatively for [Gradle](https://gradle.org) you need these two entries:
 
 ```yml
@@ -319,15 +318,8 @@ mvn archetype:generate \
 
 This will create a folder called `myproject` (or whatever you set the name to).
 
-> You can also try using Karate as a [stand-alone executable](karate-netty#standalone-jar) which is a good option if you have difficulties with the above process, or if you are not comfortable with Maven or Java.
-
-### Eclipse Quickstart
-
-You can refer to this [nice blog post and video](https://www.joecolantonio.com/2017/03/23/rest-test-tool-karate-api-testing/) by Joe Colantonio which provides step by step instructions on how to get started using Eclipse (without having to run the command above). Use the latest available version of Karate (refer to the `archetypeVersion` above), and also make sure you install the [Cucumber-Eclipse plugin](https://cucumber.io/cucumber-eclipse/) !
-
-Another blog post which is a good step-by-step reference is [this one by Micha Kops](https://semaphoreci.com/community/tutorials/testing-a-java-spring-boot-rest-api-with-karate) - especially if you use the 'default' maven folder structure instead of the one recommended below.
-
-And one more up-to-date and useful reference is this [step-by-step guide by Andy Knight](https://automationpanda.com/2018/12/10/testing-web-services-with-karate/) using Visual Studio Code instead of Eclipse or IntelliJ.
+### IntelliJ Quickstart
+Refer to this video for [getting started with the free IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). It simplifies the above process, since you only need to install IntelliJ. For Eclipse, refer to the wiki on [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
 
 ## Folder Structure
 A Karate test script has the file extension `.feature` which is the standard followed by Cucumber.  You are free to organize your files using regular Java package conventions.
@@ -415,7 +407,6 @@ For details on what actually goes into a script or `*.feature` file, refer to th
 Refer to the wiki - [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
 
 #### `file.encoding`
-
 In some cases, for large payloads and especially when the default system encoding is not `UTF-8` (Windows or non-US locales), you may run into issues where a `java.io.ByteArrayInputStream` is encountered instead of a string. Other errors could be a `java.net.URISyntaxException` and [`match`](#match) not working as expected because of special or foreign characters, e.g. German or `ISO-8859-15`. Typical symptoms are your tests working fine via the IDE but not when running via Maven or Gradle. The solution is to ensure that when Karate tests run, the JVM `file.encoding` is set to `UTF-8`. This can be done via the [`maven-surefire-plugin` configuration](http://maven.apache.org/surefire/maven-surefire-plugin/test-mojo.html#argLine). Add the plugin to the `<build>/<plugins>` section of your `pom.xml` if not already present: 
 
 ```xml
