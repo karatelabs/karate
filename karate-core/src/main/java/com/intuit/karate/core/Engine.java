@@ -410,7 +410,7 @@ public class Engine {
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
             FileUtils.writeToFile(file, xml);
-            System.out.println("HTML report: (paste into browser to view) | Karate version: "
+            System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
                     + FileUtils.getKarateVersion() + "\n"
                     + file.toURI()
                     + "\n---------------------------------------------------------\n");
