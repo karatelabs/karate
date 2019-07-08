@@ -6,6 +6,8 @@ Scenario: check if ./karate-config-custom.js was invoked
     * match envoverride == 'done'
     * match baseconfig == 'overridden'
     * match greeter.sayHello('John') == 'Hello John!'
+    * match utils.hello() == 'hello'
+    * match utils.world() == 'world'
     
     # call with param set
     * def res = call child { param: 'foo' }
