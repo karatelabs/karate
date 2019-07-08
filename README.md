@@ -473,6 +473,24 @@ class SampleTest {
 }
 ```
 
+You should be able to right-click and run a single method using your IDE - which should be sufficient when you are in development mode. But to be able to run JUnit 5 tests from the command-line, you need to ensure that the latest version of the [maven-surefire-plugin](https://maven.apache.org/surefire/maven-surefire-plugin/examples/junit-platform.html) is present in your project `pom.xml` (within the `<build>/<plugins>` section):
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <version>2.22.2</version>
+</plugin>
+```
+
+To run a single test method, for example the `testTags()` in the example above, you can do this:
+
+```
+mvn test -Dtest=SampleTest#testTags
+```
+
+Also look at how to run tests via the [command-line](#command-line) and the [parallel runner](#junit-5-parallel-execution).
+
 ### JUnit HTML report
 When you use a JUnit runner - after the execution of each feature, an HTML report is output to the `target/surefire-reports` folder and the full path will be printed to the console (see [video](https://twitter.com/KarateDSL/status/935029435140489216)).
 
@@ -580,7 +598,7 @@ You can 'lock down' the fact that you only want to execute the single JUnit clas
 <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-surefire-plugin</artifactId>
-    <version>2.10</version>
+    <version>${maven.surefire.version}</version>
     <configuration>
         <includes>
             <include>animals/AnimalsTest.java</include>
@@ -615,6 +633,7 @@ And most importantly - you can run tests in parallel without having to depend on
 ## Parallel Execution
 Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle.
 
+### JUnit 4 Parallel Execution
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class !
 
 ```java
@@ -636,8 +655,30 @@ public class TestParallel {
 }
 ```
 
+### JUnit 5 Parallel Execution
+For [JUnit 5](#junit-5) you can omit the `public` modifier for the class and method, and there are some changes to `import` package names. And the method signature of the `assertTrue` has flipped around a bit:
+
+```java
+import com.intuit.karate.KarateOptions;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+@KarateOptions(tags = {"~@ignore"})
+class TestParallel {
+
+    @Test
+    void testParallel() {
+        Results results = Runner.parallel(getClass(), 5, "target/surefire-reports");
+        assertTrue(results.getFailCount() == 0, results.getErrorMessages());
+    }
+
+}
+```
+
 Things to note:
-* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `Runner.parallel()` static method in `karate-core`.
+* For JUnit 4 - you don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `Runner.parallel()` static method in `karate-core`.
 * You can use the returned `Results` object to check if any scenarios failed, and to even summarize the errors
 * The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@KarateOptions` annotation, it will be processed (see below).
 * The second argument is the number of threads to use.
@@ -656,7 +697,7 @@ scenarios:  145 | passed:   145 | failed: 0
 
 The parallel runner will always run `Feature`-s in parallel. Karate will also run `Scenario`-s in parallel by default. So if you have a `Feature` with multiple `Scenario`-s in it - they will execute in parallel, and even each `Examples` row in a `Scenario Outline` will do so ! 
 
-The parallel runner will output a `timeline.html` file in the report output directory mentioned above (`target/surefire-reports` by default) which is useful for visually verifying or troubleshooting the effectiveness of the test-run ([see video](https://twitter.com/KarateDSL/status/1049321708241317888)).
+A `timeline.html` file will also be saved to the report output directory mentioned above (`target/surefire-reports` by default) - which is useful for visually verifying or troubleshooting the effectiveness of the test-run ([see video](https://twitter.com/KarateDSL/status/1049321708241317888)).
 
 ### `@parallel=false`
 In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s. And if you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag above only *those* `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
