@@ -911,7 +911,6 @@ The business of web-services testing requires access to low-level aspects such a
 Karate does not attempt to have tests be in "natural language" like how Cucumber tests are [traditionally expected to be](https://docs.cucumber.io/gherkin/reference/). That said, the syntax is very concise, and the convention of every step having to start with either `Given`, `And`, `When` or `Then`, makes things very readable. You end up with a decent approximation of BDD even though web-services by nature are "headless", without a UI, and not really human-friendly.
 
 #### Cucumber vs Karate
-
 > Karate was based on Cucumber-JVM until version 0.8.0 but the parser and engine were [re-written from scratch](https://github.com/intuit/karate/issues/444) in 0.9.0 onwards. So we use the same [Gherkin](https://docs.cucumber.io/gherkin/) syntax - but the similarity ends there.
 
 If you are familiar with Cucumber (JVM), you may be wondering if you need to write [step-definitions](https://docs.cucumber.io/gherkin/step-organization/). The answer is **no**.
@@ -1420,6 +1419,12 @@ You can also [re-use other `*.feature`](#calling-other-feature-files) files from
 * def result = call read('classpath:some-reusable-steps.feature')
 ```
 
+When a *called* feature depends on some side-by-side resources such as JSON or JS files, you can use the `this:` prefix to ensure that relative paths work correctly - because by default Karate calculates relative paths from the "root" feature or the top-most "caller".
+
+```cucumber
+* def data = read('this:payload.json')
+```
+
 If a file does not end in `.json`, `.xml`, `.yaml`, `.js`, `.csv` or `.txt`, it is treated as a stream - which is typically what you would need for [`multipart`](#multipart-field) file uploads.
 
 ```cucumber
@@ -1455,6 +1460,14 @@ The rarely used `file:` prefix is also supported. You could use it for 'hard-cod
 ```cucumber
 * def payload = read('file:target/large.xml')
 ```
+
+To summarize the possible prefixes:
+
+Prefix | Description
+------ | -----------
+`classpath:` | relative to the [classpath](#classpath), recommended for re-usable features 
+`file:` | do not use this unless you know what you are doing, see above
+`this:` | when in a *called* feature, ensure that files are resolved relative to the current feature file
 
 Take a look at the [Karate Demos](karate-demo) for real-life examples of how you can use files for validating HTTP responses, like this one: [`read-files.feature`](karate-demo/src/test/java/demo/read/read-files.feature).
 
