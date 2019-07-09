@@ -318,6 +318,8 @@ mvn archetype:generate \
 
 This will create a folder called `myproject` (or whatever you set the name to).
 
+> There is an issue with the `0.9.4` quickstart, please read this as well: [fix for 0.9.4 Maven archetype](https://github.com/intuit/karate/issues/823#issuecomment-509608205).
+
 ### IntelliJ Quickstart
 Refer to this video for [getting started with the free IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). It simplifies the above process, since you only need to install IntelliJ. For Eclipse, refer to the wiki on [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
 
@@ -482,6 +484,8 @@ You should be able to right-click and run a single method using your IDE - which
     <version>2.22.2</version>
 </plugin>
 ```
+
+> There is an issue with the `0.9.4` JUnit 5 dependencies, you will need to manually add [`junit-jupiter-engine` as a dependency](https://github.com/intuit/karate/issues/823#issuecomment-509608205).
 
 To run a single test method, for example the `testTags()` in the example above, you can do this:
 
