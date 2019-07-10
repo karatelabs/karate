@@ -94,6 +94,11 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
+    public DriverOptions getOptions() {
+        return options;
+    }        
+
+    @Override
     public void setLocation(String url) {
         Json json = new Json().set("url", url);
         http.path("url").post(json);
@@ -202,7 +207,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void submit(String name) {
         click(name);
-        waitUntil("document.readyState == 'complete'");
+        waitForPage();
     }
 
     @Override

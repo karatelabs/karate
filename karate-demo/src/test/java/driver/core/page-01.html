@@ -3,6 +3,7 @@
   <head>
     <title>Page One</title>
     <script src="karate.js"></script>
+    <script>setTimeout(function(){ karate.setHtml('eg01WaitParentId', '<div id="eg01WaitId">APPEARED!</div>') }, 5000)</script>
   </head>
   <body>
     <div id="eg01">
@@ -10,6 +11,7 @@
       <input id="eg01DisabledId" type="text" disabled="true" />
       <input name="eg01SubmitName" id="eg01SubmitId" type="submit" onclick="karate.setHtml('eg01DivId', karate.get('eg01InputId').value)" />
       <div id="eg01DivId"></div>
+      <div id="eg01WaitParentId"></div>
     </div>
   </body>
 </html>

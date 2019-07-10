@@ -215,7 +215,7 @@ There is a second rarely used variant which will wait for a JavaScript [dialog](
 ```
 
 ### `driver.submit()`
-Triggers a click event on the DOM element, *and* waits for the next page to load.
+Triggers a click event on the DOM element, *and* waits for the next page to load (internally calls [`driver.waitForPage()`](#driverwaitforpage)
 ```cucumber
 * driver.submit('.myClass')
 ```
@@ -288,6 +288,16 @@ And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
 Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
 ```cucumber
 * driver.waitUntil("document.readyState == 'complete'")
+```
+
+### `driver.waitForPage()`
+Short-cut for the commonly used `driver.waitUntil("document.readyState == 'complete'")`
+
+### `driver.waitForElement()`
+Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`driver.waitUntil()`](#driverwaituntil)
+
+```cucumber
+And driver.waitForElement('#eg01WaitId')
 ```
 
 ### `driver.eval()`

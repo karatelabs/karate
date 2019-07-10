@@ -144,6 +144,11 @@ public abstract class DevToolsDriver implements Driver {
         String objectId = dtm.getResult("objectId").getAsString();
         return method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
     }
+    
+    @Override
+    public DriverOptions getOptions() {
+        return options;
+    }    
 
     @Override
     public void activate() {

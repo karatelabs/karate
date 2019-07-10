@@ -686,8 +686,9 @@ public class Script {
         path = StringUtils.trimToNull(path);
         if (path == null) {
             int pos = name.lastIndexOf(')');
+            // unfortunate edge-case to support "driver.location" and the like
             // if the LHS ends with a right-paren (function invoke) or involves a function-invoke + property accessor
-            if (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.')) {
+            if (name.startsWith("driver.") || (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.'))) {
                 ScriptValue actual = evalKarateExpression(expression, context); // attempt to evaluate LHS as-is
                 return matchScriptValue(matchType, actual, VAR_ROOT, expected, context);
             }

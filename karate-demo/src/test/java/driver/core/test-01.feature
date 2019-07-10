@@ -9,6 +9,8 @@ Scenario Outline: using <config>
   * configure driver = config
 
   Given driver webUrlBase + '/page-01'
+
+  And driver.waitForElement('#eg01WaitId')
     
   * def cookie1 = { name: 'foo', value: 'bar' }
   And match driver.cookies contains '#(^cookie1)'
@@ -84,7 +86,7 @@ Scenario Outline: using <config>
   * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
 
   When driver.click('^New Tab')
-  And driver.waitUntil("document.readyState == 'complete'")
+  And driver.waitForPage()
 
   When driver.switchTo('Page Two')
   Then match driver.title == 'Page Two'
@@ -113,7 +115,7 @@ Scenario Outline: using <config>
 
 Examples:
     | config | dimensions |
-    # | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
+    | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
     | { type: 'chromedriver' } | { left: 100, top: 0, width: 300, height: 800 } |
     | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
     | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |

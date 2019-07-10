@@ -51,19 +51,19 @@ public interface Driver {
     void fullscreen();
 
     void focus(String id);
-    
+
     void clear(String id);
 
     void input(String name, String value);
-    
+
     void input(String name, String value, boolean clear);
 
     void click(String expression);
-    
+
     void click(String expression, boolean waitForDialog);
-    
+
     void select(String expression, String text);
-    
+
     void select(String expression, int index);
 
     void submit(String expression);
@@ -77,46 +77,59 @@ public interface Driver {
     String text(String id);
 
     String value(String id);
-    
+
     void value(String id, String value);
-    
+
     String attribute(String id, String name);
-    
+
     String property(String id, String name);
-    
+
     String css(String id, String name);
-    
+
     String name(String id);
-    
+
     Map<String, Object> rect(String id);
-    
+
     boolean enabled(String id);
 
-    void waitUntil(String expression);
-    
     Object eval(String expression);
 
     Map<String, Object> cookie(String name);
 
     void deleteCookie(String name);
-    
+
     void clearCookies();
-    
+
     void dialog(boolean accept);
-    
+
     void dialog(boolean accept, String text);
-    
+
     byte[] screenshot();
-    
-    byte[] screenshot(String id);   
-    
+
+    byte[] screenshot(String id);
+
     void highlight(String id);
-    
+
     void switchTo(String titleOrUrl);
 
-    // javabean naming convention is intentional ===============================
+    // waits ===================================================================
     //
-    void setLocation(String expression);    
+    void waitUntil(String expression);
+
+    default void waitForPage() {
+        waitUntil("document.readyState == 'complete'");
+    }
+    
+    default void waitForElement(String id) {
+        String js = getOptions().elementSelector(id);
+        waitUntil(js + " != null");
+    }
+
+    // javabean naming convention is intentional ===============================       
+    //
+    DriverOptions getOptions(); // for internal use
+    
+    void setLocation(String expression);
 
     void setDimensions(Map<String, Object> map);
 
@@ -131,7 +144,7 @@ public interface Driver {
     List<Map> getCookies();
 
     List<String> getWindowHandles();
-    
+
     String getDialog();
 
 }
