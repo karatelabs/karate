@@ -294,7 +294,17 @@ Wait for the JS expression to evaluate to `true`. Will poll using the retry sett
 Short-cut for the commonly used `driver.waitUntil("document.readyState == 'complete'")`
 
 ### `driver.waitForElement()`
-Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`driver.waitUntil()`](#driverwaituntil)
+Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`driver.waitUntil()`](#driverwaituntil).
+
+### `driver.waitAndClick()`
+Combines [`driver.waitForElement()`](#driverwaitforelement) and [`driver.click()`](#driverclick) into one. Use this only if you must, because there is a slight performance penalty you pay for the "wait check". This is useful when you have very dynamic HTML where elements are not loaded when the page is first navigated to - and this is quite typical for Single Page Application (SPA) frameworks.
+
+```cucumber
+* driver.waitAndClick("//span[text()='Invoices']")
+```
+
+### `driver.waitAndSubmit()`
+Similar to the above, combines [`driver.waitForElement()`](#driverwaitforelement) and [`driver.submit()`](#driversubmit) into one.
 
 ```cucumber
 And driver.waitForElement('#eg01WaitId')

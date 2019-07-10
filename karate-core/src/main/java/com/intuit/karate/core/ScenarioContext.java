@@ -248,7 +248,7 @@ public class ScenarioContext {
             config.setClientClass(call.httpClientClass);
             rootFeatureContext = featureContext;
         }
-        client = HttpClient.construct(config, this);
+        client = HttpClient.construct(config, this);        
         bindings = new ScriptBindings(this);
         if (call.context == null && call.evalKarateConfig) {
             // base config is only looked for in the classpath

@@ -124,6 +124,16 @@ public interface Driver {
         String js = getOptions().elementSelector(id);
         waitUntil(js + " != null");
     }
+    
+    default void waitAndClick(String id) {
+        waitForElement(id);
+        click(id);        
+    }
+    
+    default void waitAndSubmit(String id) {
+        waitForElement(id);
+        submit(id);
+    }
 
     // javabean naming convention is intentional ===============================       
     //
