@@ -41,9 +41,8 @@ import java.util.function.Predicate;
  *
  * @author pthomas3
  */
-public abstract class DevToolsDriver implements Driver {
-
-    protected final Logger logger;
+public abstract class DevToolsDriver implements Driver {    
+    
     protected final DriverOptions options;
     protected final CommandThread command;
     protected final WebSocketClient client;
@@ -61,10 +60,19 @@ public abstract class DevToolsDriver implements Driver {
     public int getNextId() {
         return ++nextId;
     }
+    
+    // mutable
+    protected Logger logger;
+
+    @Override
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+        client.setLogger(logger);
+    }    
 
     protected DevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
-        this.options = options;
-        this.logger = options.driverLogger;
+        logger = options.driverLogger;
+        this.options = options;        
         this.command = command;
         this.waitState = new WaitState(options);
         int pos = webSocketUrl.lastIndexOf('/');
@@ -83,7 +91,7 @@ public abstract class DevToolsDriver implements Driver {
             DevToolsMessage dtm = new DevToolsMessage(this, map);
             receive(dtm);
         });
-        client = new WebSocketClient(wsOptions);
+        client = new WebSocketClient(wsOptions, logger);
     }
 
     public int waitSync() {
@@ -144,6 +152,12 @@ public abstract class DevToolsDriver implements Driver {
         String objectId = dtm.getResult("objectId").getAsString();
         return method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
     }
+    
+    protected void waitIfNeeded(String name) {
+        if (options.isAlwaysWait()) {
+            waitForElement(name);
+        }
+    }    
     
     @Override
     public DriverOptions getOptions() {
@@ -269,31 +283,37 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void click(String id, boolean waitForDialog) {
+        waitIfNeeded(id);
         evaluate(options.elementSelector(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
     }
 
     @Override
     public void select(String id, String text) {
+        waitIfNeeded(id);
         evaluate(options.optionSelector(id, text), null);
     }
 
     @Override
     public void select(String id, int index) {
+        waitIfNeeded(id);
         evaluate(options.optionSelector(id, index), null);
     }
 
     @Override
     public void submit(String id) {
-        DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
+        waitIfNeeded(id);
+        evaluate(options.elementSelector(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
     }
 
     @Override
     public void focus(String id) {
+        waitIfNeeded(id);
         evaluate(options.elementSelector(id) + ".focus()", null);
     }
 
     @Override
     public void clear(String id) {
+        waitIfNeeded(id);
         evaluate(options.elementSelector(id) + ".value = ''", null);
     }
 
@@ -303,18 +323,18 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void input(String id, String value, boolean clear) {
+    public void input(String id, String value, boolean clear) {        
         if (clear) {
             clear(id);
         }
-        focus(id);
+        focus(id); // will waitIfNeeded()
         for (char c : value.toCharArray()) {
             method("Input.dispatchKeyEvent").param("type", "keyDown").param("text", c + "").send();
         }
     }
 
     @Override
-    public String text(String id) {
+    public String text(String id) {        
         return property(id, "textContent");
     }
 
@@ -330,23 +350,27 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void value(String id, String value) {
+        waitIfNeeded(id);
         evaluate(options.elementSelector(id) + ".value = '" + value + "'", null);
     }
 
     @Override
     public String attribute(String id, String name) {
+        waitIfNeeded(id);
         DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".getAttribute('" + name + "')", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
+        waitIfNeeded(id);
         DevToolsMessage dtm = evaluate(options.elementSelector(id) + "['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String css(String id, String name) {
+        waitIfNeeded(id);
         DevToolsMessage dtm = evaluate("getComputedStyle(" + options.elementSelector(id) + ")['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
@@ -358,12 +382,14 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Map<String, Object> rect(String id) {
+        waitIfNeeded(id);
         DevToolsMessage dtm = evaluateAndGetResult(options.elementSelector(id) + ".getBoundingClientRect()", null);
         return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
     }
 
     @Override
     public boolean enabled(String id) {
+        waitIfNeeded(id);
         DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".disabled", null);
         return !dtm.getResult().isBooleanTrue();
     }
@@ -503,7 +529,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void switchTo(String titleOrUrl) {
+    public void switchPage(String titleOrUrl) {
         if (titleOrUrl == null) {
             return;
         }

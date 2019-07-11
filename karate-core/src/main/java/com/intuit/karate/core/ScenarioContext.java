@@ -65,7 +65,9 @@ import java.util.function.Function;
  */
 public class ScenarioContext {
 
-    public final Logger logger;
+    // this is public - but just makes swapping logger simple TODO cleanup
+    public Logger logger;
+    
     public final ScriptBindings bindings;
     public final int callDepth;
     public final boolean reuseParentContext;
@@ -301,7 +303,7 @@ public class ScenarioContext {
     public ScenarioContext copy(ScenarioInfo info, Logger logger) {
         return new ScenarioContext(this, info, logger);
     }
-
+    
     public ScenarioContext copy() {
         return new ScenarioContext(this, scenarioInfo, logger);
     }
@@ -808,7 +810,7 @@ public class ScenarioContext {
     }
 
     public WebSocketClient webSocket(WebSocketOptions options) {
-        WebSocketClient webSocketClient = new WebSocketClient(options);
+        WebSocketClient webSocketClient = new WebSocketClient(options, logger);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
         }
@@ -875,8 +877,12 @@ public class ScenarioContext {
 
     public void stop() {
         if (reuseParentContext) {
-            if (driver != null) {
+            if (driver != null) { // a called feature inited the driver
                 parentContext.setDriver(driver);
+                // switch driver log to ensure continuity
+                if (driver.getOptions().showDriverLog) {
+                    driver.setLogger(parentContext.logger);
+                }
             }
             parentContext.webSocketClients = webSocketClients;
             return;

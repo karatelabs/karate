@@ -40,13 +40,21 @@ import java.util.Map;
 public abstract class WebDriver implements Driver {
 
     protected final DriverOptions options;
-    protected final Logger logger;
     protected final CommandThread command;
     protected final Http http;
     private final String sessionId;
     private final String windowId;
-    
+
     protected boolean open = true;
+    
+    // mutable
+    protected Logger logger;
+
+    @Override
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+        http.setLogger(logger);
+    }     
 
     protected WebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
         this.options = options;
@@ -55,7 +63,14 @@ public abstract class WebDriver implements Driver {
         this.http = http;
         this.sessionId = sessionId;
         this.windowId = windowId;
-    }        
+    }
+
+    // currently duplicated in the driver implementations
+    protected void waitIfNeeded(String name) {
+        if (options.isAlwaysWait()) {
+            waitForElement(name);
+        }
+    }
 
     private ScriptValue evalInternal(String expression) {
         Json json = new Json().set("script", expression).set("args", "[]");
@@ -69,13 +84,13 @@ public abstract class WebDriver implements Driver {
     protected String getJsonForInput(String text) {
         return new Json().set("text", text).toString();
     }
-    
+
     protected String getJsonForHandle(String text) {
         return new Json().set("handle", text).toString();
-    }    
-    
+    }
+
     protected String getElementLocator(String id) {
-        Json json = new Json();        
+        Json json = new Json();
         if (id.startsWith("^")) {
             json.set("using", "link text").set("value", id.substring(1));
         } else if (id.startsWith("*")) {
@@ -96,7 +111,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public DriverOptions getOptions() {
         return options;
-    }        
+    }
 
     @Override
     public void setLocation(String url) {
@@ -144,7 +159,7 @@ public abstract class WebDriver implements Driver {
     public void forward() {
         http.path("forward").post("{}");
     }
-    
+
     @Override
     public void maximize() {
         http.path("window", "maximize").post("{}");
@@ -158,25 +173,28 @@ public abstract class WebDriver implements Driver {
     @Override
     public void fullscreen() {
         http.path("window", "fullscreen").post("{}");
-    }    
+    }
 
     @Override
     public void focus(String id) {
+        waitIfNeeded(id);
         evalInternal(options.elementSelector(id) + ".focus()");
     }
-    
+
     @Override
     public void clear(String id) {
+        waitIfNeeded(id);
         http.path("element", id, "clear").post("{}");
     }
 
     @Override
     public void input(String name, String value) {
         input(name, value, false);
-    }    
+    }
 
     @Override
     public void input(String name, String value, boolean clear) {
+        waitIfNeeded(name);
         String id = getElementId(name);
         if (clear) {
             clear(id);
@@ -191,18 +209,21 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void click(String id, boolean ignored) {
+        waitIfNeeded(id);
         evalInternal(options.elementSelector(id) + ".click()");
-    }        
+    }
 
     @Override
     public void select(String id, String text) {
+        waitIfNeeded(id);
         evalInternal(options.optionSelector(id, text));
-    }     
-    
-   @Override
+    }
+
+    @Override
     public void select(String id, int index) {
+        waitIfNeeded(id);
         evalInternal(options.optionSelector(id, index));
-    }    
+    }
 
     @Override
     public void submit(String name) {
@@ -248,47 +269,52 @@ public abstract class WebDriver implements Driver {
     public String value(String locator) {
         return property(locator, "value");
     }
-    
+
     @Override
     public void value(String locator, String value) {
         evalInternal(options.elementSelector(locator) + ".value = '" + value + "'");
-    }    
-    
+    }
+
     @Override
     public String attribute(String locator, String name) {
+        waitIfNeeded(locator);
         String id = getElementId(locator);
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
-    }   
-    
+    }
+
     @Override
     public String property(String locator, String name) {
+        waitIfNeeded(locator);
         String id = getElementId(locator);
         return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
-    }   
-    
+    }
+
     @Override
     public String css(String locator, String name) {
+        waitIfNeeded(locator);
         String id = getElementId(locator);
         return http.path("element", id, "css", name).get().jsonPath("$.value").asString();
-    }   
-    
+    }
+
     @Override
     public String name(String locator) {
         return property(locator, "tagName");
-    }    
+    }
 
     @Override
     public Map<String, Object> rect(String locator) {
+        waitIfNeeded(locator);
         String id = getElementId(locator);
-        return http.path("element", id, "rect").get().jsonPath("$.value").asMap();        
-    }   
+        return http.path("element", id, "rect").get().jsonPath("$.value").asMap();
+    }
 
     @Override
     public boolean enabled(String locator) {
+        waitIfNeeded(locator);
         String id = getElementId(locator);
-        return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();         
-    }        
-    
+        return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();
+    }
+
     private String prefixReturn(String expression) {
         return expression.startsWith("return ") ? expression : "return " + expression;
     }
@@ -309,7 +335,7 @@ public abstract class WebDriver implements Driver {
     public Object eval(String expression) {
         expression = prefixReturn(expression);
         return evalInternal(expression).getValue();
-    }        
+    }
 
     @Override
     public String getTitle() {
@@ -319,7 +345,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public List<Map> getCookies() {
         return http.path("cookie").get().jsonPath("$.value").asList();
-    }    
+    }
 
     @Override
     public Map<String, Object> cookie(String name) {
@@ -329,7 +355,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void setCookie(Map<String, Object> cookie) {
         http.path("cookie").post(Collections.singletonMap("cookie", cookie));
-    }    
+    }
 
     @Override
     public void deleteCookie(String name) {
@@ -339,7 +365,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void clearCookies() {
         http.path("cookie").delete();
-    }        
+    }
 
     @Override
     public void dialog(boolean accept) {
@@ -349,7 +375,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public String getDialog() {
         return http.path("alert", "text").get().jsonPath("$.value").asString();
-    }        
+    }
 
     @Override
     public void dialog(boolean accept, String text) {
@@ -359,7 +385,7 @@ public abstract class WebDriver implements Driver {
             http.path("alert", "text").post(Collections.singletonMap("text", text));
             http.path("alert", "accept").post("{}");
         }
-    }     
+    }
 
     @Override
     public byte[] screenshot() {
@@ -375,14 +401,14 @@ public abstract class WebDriver implements Driver {
         } else {
             temp = http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
         }
-        return Base64.getDecoder().decode(temp); 
+        return Base64.getDecoder().decode(temp);
     }
 
     @Override
     public void highlight(String id) {
         eval(options.highlighter(id));
-    }        
-    
+    }
+
     protected String getWindowHandleKey() {
         return "handle";
     }
@@ -393,7 +419,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void switchTo(String titleOrUrl) {
+    public void switchPage(String titleOrUrl) {
         if (titleOrUrl == null) {
             return;
         }
@@ -410,6 +436,6 @@ public abstract class WebDriver implements Driver {
                 return;
             }
         }
-    }        
+    }
 
 }

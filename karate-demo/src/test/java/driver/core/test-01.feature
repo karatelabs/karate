@@ -88,7 +88,7 @@ Scenario Outline: using <config>
   When driver.click('^New Tab')
   And driver.waitForPage()
 
-  When driver.switchTo('Page Two')
+  When driver.switchPage('Page Two')
   Then match driver.title == 'Page Two'
   And match driver.location contains webUrlBase + '/page-02'
 

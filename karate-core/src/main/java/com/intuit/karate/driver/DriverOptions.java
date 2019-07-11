@@ -76,6 +76,16 @@ public class DriverOptions {
     public final String processLogFile;
     public final int maxPayloadSize;
     public final List<String> args = new ArrayList();
+    // mutable during a test
+    private boolean alwaysWait = false;
+
+    public boolean isAlwaysWait() {
+        return alwaysWait;
+    }
+
+    public void setAlwaysWait(boolean alwaysWait) {
+        this.alwaysWait = alwaysWait;
+    }
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -163,7 +173,7 @@ public class DriverOptions {
         }
         return "document.querySelector(\"" + id + "\")";
     }
-    
+
     public int getRetryInterval() {
         if (context == null) {
             return Config.DEFAULT_RETRY_INTERVAL;
@@ -171,26 +181,26 @@ public class DriverOptions {
             return context.getConfig().getRetryInterval();
         }
     }
-    
+
     public int getRetryCount() {
         if (context == null) {
             return Config.DEFAULT_RETRY_COUNT;
         } else {
             return context.getConfig().getRetryCount();
         }
-    }    
+    }
 
     public String wrapInFunctionInvoke(String text) {
         return "(function(){ " + text + " })()";
     }
-    
+
     public String highlighter(String id) {
         String e = elementSelector(id);
         String temp = "var e = " + e + ";"
                 + " var old = e.getAttribute('style');"
                 + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
                 + " setTimeout(function(){ e.setAttribute('style', old) }, 3000);";
-        return wrapInFunctionInvoke(temp); 
+        return wrapInFunctionInvoke(temp);
     }
 
     public String optionSelector(String id, String text) {
@@ -217,7 +227,7 @@ public class DriverOptions {
                 + " if (i === t) e.options[i].selected = true";
         return wrapInFunctionInvoke(temp);
     }
-    
+
     public void sleep() {
         sleep(getRetryInterval());
     }
@@ -260,10 +270,10 @@ public class DriverOptions {
         }
         return out;
     }
-    
+
     public String removeProtocol(String url) {
         int pos = url.indexOf("://");
         return pos == -1 ? url : url.substring(pos + 3);
-    }    
+    }
 
 }

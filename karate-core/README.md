@@ -296,19 +296,38 @@ Short-cut for the commonly used `driver.waitUntil("document.readyState == 'compl
 ### `driver.waitForElement()`
 Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`driver.waitUntil()`](#driverwaituntil).
 
-### `driver.waitAndClick()`
-Combines [`driver.waitForElement()`](#driverwaitforelement) and [`driver.click()`](#driverclick) into one. Use this only if you must, because there is a slight performance penalty you pay for the "wait check". This is useful when you have very dynamic HTML where elements are not loaded when the page is first navigated to - and this is quite typical for Single Page Application (SPA) frameworks.
-
-```cucumber
-* driver.waitAndClick("//span[text()='Invoices']")
-```
-
-### `driver.waitAndSubmit()`
-Similar to the above, combines [`driver.waitForElement()`](#driverwaitforelement) and [`driver.submit()`](#driversubmit) into one.
-
 ```cucumber
 And driver.waitForElement('#eg01WaitId')
 ```
+
+Also see [`driver.alwaysWait`](#driveralwayswait).
+
+### `driver.alwaysWait`
+
+When you have very dynamic HTML where many elements are not loaded when the page is first navigated to - which is quite typical for Single Page Application (SPA) frameworks, you may find yourself having to do a lot of `driver.waitForElement()` calls, for example:
+
+```cucumber
+* driver.waitForElement('#someId')
+* driver.click('#someId')
+* driver.waitForElement('#anotherId')
+* driver.click('#anotherId')
+* driver.waitForElement('#yetAnotherId')
+* driver.input('#yetAnotherId', 'foo')
+```
+
+You can switch on a capability of Karate's UI automation driver support to "always wait":
+
+```cucumber
+* driver.alwaysWait = true
+* driver.click('#someId')
+* driver.click('#anotherId')
+* driver.input('#yetAnotherId', 'foo')
+* driver.alwaysWait = false
+```
+
+It is good practice to set it back to `false` if there are subsequent steps in your feature that do not need to "always wait".
+
+Use `driver.alwaysWait = true` only if absolutely necessary - since each `waitForElement()` call has a slight performance penalty.
 
 ### `driver.eval()`
 Will actually attempt to evaluate the given string as JavaScript within the browser.
@@ -370,10 +389,10 @@ Also works as a "getter" to retrieve the text of the currently visible dialog:
 * match driver.dialog == 'Please enter your name:'
 ```
 
-### `driver.switchTo()`
+### `driver.switchPage()`
 When multiple browser tabs are present, allows you to switch to one based on page title (or URL).
 ```cucumber
-When driver.switchTo('Page Two')
+When driver.switchPage('Page Two')
 ```
 
 ### `driver.screenshot()`

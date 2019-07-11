@@ -36,6 +36,10 @@ public class Http {
         this.match = match;
     }
     
+    public void setLogger(Logger logger) {
+        match.context.logger = logger;
+    }
+    
     public Http url(String url) {
         match.url(url);
         return this;

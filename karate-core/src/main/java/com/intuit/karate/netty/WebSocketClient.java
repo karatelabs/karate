@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.netty;
 
+import com.intuit.karate.Logger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -36,8 +37,6 @@ import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import java.util.function.Function;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -45,7 +44,8 @@ import org.slf4j.LoggerFactory;
  */
 public class WebSocketClient implements WebSocketListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketClient.class);
+    // mutable
+    private Logger logger;
 
     private final Channel channel;
     private final EventLoopGroup group;
@@ -71,7 +71,12 @@ public class WebSocketClient implements WebSocketListener {
         }
     }
 
-    public WebSocketClient(WebSocketOptions options) {
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+    }        
+
+    public WebSocketClient(WebSocketOptions options, Logger logger) {
+        this.logger = logger;
         this.textHandler = options.getTextHandler();
         this.binaryHandler = options.getBinaryHandler();
         group = new NioEventLoopGroup();

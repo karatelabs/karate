@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Logger;
 import java.util.List;
 import java.util.Map;
 
@@ -110,7 +111,7 @@ public interface Driver {
 
     void highlight(String id);
 
-    void switchTo(String titleOrUrl);
+    void switchPage(String titleOrUrl);
 
     // waits ===================================================================
     //
@@ -119,26 +120,26 @@ public interface Driver {
     default void waitForPage() {
         waitUntil("document.readyState == 'complete'");
     }
-    
-    default void waitForElement(String id) {
-        String js = getOptions().elementSelector(id);
+
+    default void waitForElement(String name) {
+        String js = getOptions().elementSelector(name);
         waitUntil(js + " != null");
     }
-    
-    default void waitAndClick(String id) {
-        waitForElement(id);
-        click(id);        
+
+    default void setAlwaysWait(boolean always) {
+        getOptions().setAlwaysWait(always);
     }
-    
-    default void waitAndSubmit(String id) {
-        waitForElement(id);
-        submit(id);
+
+    default boolean isAlwaysWait() {
+        return getOptions().isAlwaysWait();
     }
 
     // javabean naming convention is intentional ===============================       
     //
     DriverOptions getOptions(); // for internal use
-    
+       
+    void setLogger(Logger logger); // for internal use
+
     void setLocation(String expression);
 
     void setDimensions(Map<String, Object> map);
