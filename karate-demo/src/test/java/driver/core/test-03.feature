@@ -1,4 +1,4 @@
-Feature: scratch pad
+Feature: scratch pad 1
 
 Scenario:
   * configure driver = { type: 'chrome', showDriverLog: true }

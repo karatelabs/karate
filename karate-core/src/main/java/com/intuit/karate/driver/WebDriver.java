@@ -437,5 +437,19 @@ public abstract class WebDriver implements Driver {
             }
         }
     }
+    
+    @Override
+    public void switchFrame(int index) {
+        String json = new Json().set("id", index).toString();
+        http.path("frame").post(json);        
+    }    
+
+    @Override
+    public void switchFrame(String locator) {
+        waitIfNeeded(locator);
+        String id = getElementId(locator);
+        String json = new Json().set("id.ELEMENT", id).toString();
+        http.path("frame").post(json);
+    }        
 
 }

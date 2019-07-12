@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Json;
 import com.intuit.karate.ScriptValue;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -58,16 +59,13 @@ public class DevToolsMessage {
     public boolean isMethod(String method) {
         return method.equals(this.method);
     }
-
-    public String getFrameUrl() {
+    
+    public <T> T get(String path, Class<T> clazz) {
         if (params == null) {
             return null;
         }
-        Map<String, Object> frame = (Map) params.get("frame");
-        if (frame == null) {
-            return null;
-        }
-        return (String) frame.get("url");
+        Json json = new Json(params);
+        return json.get(path, clazz);
     }
 
     public Map<String, Object> getParams() {

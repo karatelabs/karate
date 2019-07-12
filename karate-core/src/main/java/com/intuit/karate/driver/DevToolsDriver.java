@@ -30,9 +30,11 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.CommandThread;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -41,17 +43,21 @@ import java.util.function.Predicate;
  *
  * @author pthomas3
  */
-public abstract class DevToolsDriver implements Driver {    
-    
+public abstract class DevToolsDriver implements Driver {
+
     protected final DriverOptions options;
     protected final CommandThread command;
     protected final WebSocketClient client;
 
     private final WaitState waitState;
-    protected final String pageId;
+    protected final String rootTargetId;
 
     private Integer windowId;
     private String windowState;
+    private String frameId;
+
+    private final Map<String, String> frameUrlIdMap = new LinkedHashMap();
+    private final Map<String, Integer> frameContextMap = new LinkedHashMap();
 
     protected String currentUrl;
     protected String currentDialogText;
@@ -60,7 +66,7 @@ public abstract class DevToolsDriver implements Driver {
     public int getNextId() {
         return ++nextId;
     }
-    
+
     // mutable
     protected Logger logger;
 
@@ -68,16 +74,16 @@ public abstract class DevToolsDriver implements Driver {
     public void setLogger(Logger logger) {
         this.logger = logger;
         client.setLogger(logger);
-    }    
+    }
 
     protected DevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
         logger = options.driverLogger;
-        this.options = options;        
+        this.options = options;
         this.command = command;
         this.waitState = new WaitState(options);
         int pos = webSocketUrl.lastIndexOf('/');
-        pageId = webSocketUrl.substring(pos + 1);
-        logger.debug("page id: {}", pageId);
+        rootTargetId = webSocketUrl.substring(pos + 1);
+        logger.debug("root target id: {}", rootTargetId);
         WebSocketOptions wsOptions = new WebSocketOptions(webSocketUrl);
         wsOptions.setMaxPayloadSize(options.maxPayloadSize);
         wsOptions.setTextConsumer(text -> {
@@ -123,25 +129,57 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.isMethod("Page.javascriptDialogOpening")) {
             currentDialogText = dtm.getParam("message").getAsString();
         }
-        if (dtm.isMethod("Page.frameNavigated") && dtm.getFrameUrl().startsWith("http")) {
-            currentUrl = dtm.getFrameUrl();
+        if (dtm.isMethod("Page.frameNavigated")) {
+            String frameNavId = dtm.get("frame.id", String.class);
+            String frameNavUrl = dtm.get("frame.url", String.class);
+            if (rootTargetId.equals(frameNavId)) { // root page navigated
+                currentUrl = frameNavUrl;
+            } else {                
+                frameUrlIdMap.put(frameNavUrl, frameNavId);
+            }
         }
         if (dtm.isMethod("Page.windowOpen")) {
             currentUrl = dtm.getParam("url").getAsString();
+        }
+        if (dtm.isMethod("Page.frameStartedLoading")) {
+            String frameLoadId = dtm.get("frameId", String.class);
+            if (rootTargetId.equals(frameLoadId)) { // root page is loading
+                frameUrlIdMap.clear();
+                frameLoadId = null;
+            }
+        }
+        if (dtm.isMethod("Runtime.executionContextsCleared")) {
+            frameContextMap.clear();
+        }
+        if (dtm.isMethod("Runtime.executionContextCreated")) {
+            String contextFrameId = dtm.get("context.auxData.frameId", String.class);
+            Integer contextId = dtm.get("context.id", Integer.class);
+            frameContextMap.put(contextFrameId, contextId);
         }
     }
 
     //==========================================================================
     //
+    private Integer getContextId() {
+        if (frameId == null) {
+            return null;
+        }
+        return frameContextMap.get(frameId);
+    }
+    
     protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
         DevToolsMessage dtm;
+        Integer contextId = getContextId();
         do {
             if (count > 0) {
                 logger.debug("evaluate attempt #{}", count + 1);
             }
-            dtm = method("Runtime.evaluate")
-                    .param("expression", expression).send(condition);
+            DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
+            if (contextId != null) {
+                toSend.param("contextId", contextId);
+            }
+            dtm = toSend.send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
         } while (dtm != null && dtm.isResultError() && count++ < 3);
         return dtm;
@@ -152,32 +190,32 @@ public abstract class DevToolsDriver implements Driver {
         String objectId = dtm.getResult("objectId").getAsString();
         return method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
     }
-    
+
     protected void waitIfNeeded(String name) {
         if (options.isAlwaysWait()) {
             waitForElement(name);
         }
-    }    
-    
+    }
+
     @Override
     public DriverOptions getOptions() {
         return options;
-    }    
+    }
 
     @Override
     public void activate() {
-        method("Target.activateTarget").param("targetId", pageId).send();
+        method("Target.activateTarget").param("targetId", rootTargetId).send();
     }
 
     protected void initWindowIdAndState() {
-        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", pageId).send();
+        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootTargetId).send();
         windowId = dtm.getResult("windowId").getValue(Integer.class);
         windowState = (String) dtm.getResult("bounds").getAsMap().get("windowState");
     }
 
     @Override
     public Map<String, Object> getDimensions() {
-        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", pageId).send();
+        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootTargetId).send();
         return dtm.getResult("bounds").getAsMap();
     }
 
@@ -323,7 +361,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void input(String id, String value, boolean clear) {        
+    public void input(String id, String value, boolean clear) {
         if (clear) {
             clear(id);
         }
@@ -334,7 +372,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public String text(String id) {        
+    public String text(String id) {
         return property(id, "textContent");
     }
 
@@ -554,12 +592,39 @@ public abstract class DevToolsDriver implements Driver {
         }
     }
 
+    @Override
+    public void switchFrame(int index) {
+        if (index < frameUrlIdMap.size()) {
+            List<String> frameIds = new ArrayList(frameUrlIdMap.values());
+            frameId = frameIds.get(index);
+        }
+    }
+
+    @Override
+    public void switchFrame(String locator) {
+        if (locator == null) {
+            frameId = null;
+            return;
+        }
+        waitIfNeeded(locator);
+        DevToolsMessage dtm = evaluate(options.elementSelector(locator) + ".contentWindow.location.href", null);
+        String url = dtm.getResult().getAsString();
+        if (url == null) {
+            return;
+        }
+        frameId = frameUrlIdMap.get(url);
+    }
+
     public void enableNetworkEvents() {
         method("Network.enable").send();
     }
 
     public void enablePageEvents() {
         method("Page.enable").send();
+    }
+
+    public void enableRuntimeEvents() {
+        method("Runtime.enable").send();
     }
 
 }

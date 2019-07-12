@@ -391,8 +391,30 @@ Also works as a "getter" to retrieve the text of the currently visible dialog:
 
 ### `driver.switchPage()`
 When multiple browser tabs are present, allows you to switch to one based on page title (or URL).
+
 ```cucumber
 When driver.switchPage('Page Two')
+```
+
+### `driver.switchFrame()`
+This "sets context" to a chosen frame (`<iframe>`) within thae page. There are 2 variants, one that takes an integer as the param, in which case the frame is selected based on the order of appearance in the page:
+
+```cucumber
+When driver.switchFrame(0)
+```
+
+Or you use a [locator](#locators) that points to the `<iframe>` element that you need to "switch to":
+
+```cucumber
+When driver.switchFrame('#frame01')
+```
+
+After you have switched, any future actions such as [`driver.click()`](#driverclick) would operate within the "selected" `<iframe>`.
+
+To "reset" so that you are back to the "root" page, just switch to `null`:
+
+```cucumber
+When driver.switchFrame(null)
 ```
 
 ### `driver.screenshot()`

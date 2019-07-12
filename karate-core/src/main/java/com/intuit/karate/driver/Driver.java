@@ -112,6 +112,10 @@ public interface Driver {
     void highlight(String id);
 
     void switchPage(String titleOrUrl);
+    
+    void switchFrame(int index);
+    
+    void switchFrame(String id);
 
     // waits ===================================================================
     //
