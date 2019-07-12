@@ -222,10 +222,11 @@ public class FeatureParser extends KarateParserBaseListener {
         Iterator<String> iterator = lines.iterator();
         while (iterator.hasNext()) {
             String line = iterator.next();
+            int firstTextPos = indexOfFirstText(line);
             if (marginPos == -1) {
-                marginPos = indexOfFirstText(line);
+                marginPos = firstTextPos;
             }
-            if (marginPos < line.length()) {
+            if (marginPos < line.length() && marginPos <= firstTextPos) {
                 line = line.substring(marginPos);
             }
             if (iterator.hasNext()) {
