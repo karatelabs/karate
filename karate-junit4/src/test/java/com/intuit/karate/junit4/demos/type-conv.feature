@@ -13,6 +13,16 @@ Scenario: multi-line text
     """
     * match query == read('query.txt').replaceAll("\r", "")
 
+Scenario: multi-line text with the starting line indented
+    * text query =
+    """
+      {
+abcd
+efgh   
+      }
+    """
+    * match query == read('query2.txt').replaceAll("\r", "")
+
 Scenario Outline: multi-line text in a scenario outline
     * text query =
     """

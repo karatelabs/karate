@@ -466,6 +466,22 @@ Scenario: pathMatches('/v1/cats')
 
 See the [`Background`](#background) example for how the `uuid` function can be defined.
 
+One of the great things about Karate is how easy it is to read JSON or XML from files. So when you have large complex responses, you can easily do this:
+
+```cucumber
+    * def response = read('get-cats-response.json')
+```
+
+All the Karate capabilities to mutate payloads such as [embedded expressions](#https://github.com/intuit/karate#embedded-expressions) are available at your disposal.
+
+To give you some interesting ideas, say you had a program written in a different language (e.g. Python) and it happened to be invoke-able on the command line. And if it returns a JSON string on the console output - then using the [`karate.exec()`](https://github.com/intuit/karate#karate-exec) API you can actually do this:
+
+```cucumber
+    * def response = karate.exec('some os command')
+```
+
+Because of Karate's [Java interop capabilities](https://github.com/intuit/karate#calling-java) there is no limit to what you can do. Need to call a database and return data ? No problem ! Of course at this point you may need to stop and think if you need to use a *real* app server. But that said, Karate gives you a way to create full fledged micro-services in minutes - far faster than how you would using traditional technologies such as Tomcat, Node / Express, Flask / Django and the like.
+
 ## `responseHeaders`
 You can easily set multiple headers as JSON in one step as follows:
 
