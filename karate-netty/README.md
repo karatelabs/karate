@@ -466,13 +466,13 @@ Scenario: pathMatches('/v1/cats')
 
 See the [`Background`](#background) example for how the `uuid` function can be defined.
 
-One of the great things about Karate is how easy it is to read JSON or XML from files. So when you have large complex responses, you can easily do this:
+One of the great things about Karate is how easy it is to [read JSON or XML from files](https://github.com/intuit/karate#reading-files). So when you have large complex responses, you can easily do this:
 
 ```cucumber
     * def response = read('get-cats-response.json')
 ```
 
-All the Karate capabilities to mutate payloads such as [embedded expressions](#https://github.com/intuit/karate#embedded-expressions) are available at your disposal.
+Note that [embedded expressions](https://github.com/intuit/karate#embedded-expressions) work even for content loaded using `read()` !
 
 To give you some interesting ideas, say you had a program written in a different language (e.g. Python) and it happened to be invoke-able on the command line. And if it returns a JSON string on the console output - then using the [`karate.exec()`](https://github.com/intuit/karate#karate-exec) API you can actually do this:
 

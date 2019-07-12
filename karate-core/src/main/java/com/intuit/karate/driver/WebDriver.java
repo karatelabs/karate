@@ -182,8 +182,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void clear(String id) {
-        waitIfNeeded(id);
+    public void clear(String id) {        
         http.path("element", id, "clear").post("{}");
     }
 
@@ -198,7 +197,7 @@ public abstract class WebDriver implements Driver {
         String id = getElementId(name);
         if (clear) {
             clear(id);
-        }
+        }                
         http.path("element", id, "value").post(getJsonForInput(value));
     }
 

@@ -76,8 +76,10 @@ public class DriverOptions {
     public final String processLogFile;
     public final int maxPayloadSize;
     public final List<String> args = new ArrayList();
-    // mutable during a test
+    
+// mutable during a test
     private boolean alwaysWait = false;
+    private Integer retryInterval;
 
     public boolean isAlwaysWait() {
         return alwaysWait;
@@ -86,6 +88,10 @@ public class DriverOptions {
     public void setAlwaysWait(boolean alwaysWait) {
         this.alwaysWait = alwaysWait;
     }
+
+    public void setRetryInterval(Integer retryInterval) {
+        this.retryInterval = retryInterval;
+    }        
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -171,10 +177,13 @@ public class DriverOptions {
         if (id.startsWith("/")) {
             return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
         }
-        return "document.querySelector(\"" + id + "\")";
+        return "document.querySelector('" + id + "')";
     }
 
     public int getRetryInterval() {
+        if (retryInterval != null && retryInterval > 0) {
+            return retryInterval;
+        }
         if (context == null) {
             return Config.DEFAULT_RETRY_INTERVAL;
         } else {

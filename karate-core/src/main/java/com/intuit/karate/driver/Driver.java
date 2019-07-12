@@ -129,6 +129,12 @@ public interface Driver {
         String js = getOptions().elementSelector(name);
         waitUntil(js + " != null");
     }
+    
+    default void waitForElement(String name, int timeout) {        
+        getOptions().setRetryInterval(timeout);
+        waitForElement(name);
+        getOptions().setRetryInterval(null);
+    }    
 
     default void setAlwaysWait(boolean always) {
         getOptions().setAlwaysWait(always);
@@ -137,6 +143,19 @@ public interface Driver {
     default boolean isAlwaysWait() {
         return getOptions().isAlwaysWait();
     }
+    
+    default void setRetryInterval(Integer interval) {
+        getOptions().setRetryInterval(interval);
+    }
+    
+    default boolean exists(String name) {
+        String js = getOptions().elementSelector(name);
+        Object o = eval(js + " != null");
+        if (o instanceof Boolean) {
+            return (Boolean) o;
+        }
+        return false;
+    }
 
     // javabean naming convention is intentional ===============================       
     //
@@ -144,7 +163,7 @@ public interface Driver {
        
     void setLogger(Logger logger); // for internal use
 
-    void setLocation(String expression);
+    void setLocation(String expression);    
 
     void setDimensions(Map<String, Object> map);
 
@@ -152,7 +171,7 @@ public interface Driver {
 
     String getLocation();
 
-    String getTitle();
+    String getTitle();        
 
     void setCookie(Map<String, Object> cookie);
 

@@ -329,6 +329,23 @@ It is good practice to set it back to `false` if there are subsequent steps in y
 
 Use `driver.alwaysWait = true` only if absolutely necessary - since each `waitForElement()` call has a slight performance penalty.
 
+### `driver.retryInterval`
+To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script. This is very useful when you have one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), see this example:
+
+```cucumber
+* driver.retryInterval = 10000
+* driver.click('#longWait')
+* driver.click('#anotherLongWait')
+* driver.retryInterval = null
+```
+
+### `driver.exists()`
+This behaves slightly differently because it does *not* auto-wait even if `driver.alwaysWait = true`. Convenient to check if an element exists and then quickly move on if it doesn't.
+
+```cucumber
+* if (driver.exists('#some-modal)) driver.click('.btn-close')
+```
+
 ### `driver.eval()`
 Will actually attempt to evaluate the given string as JavaScript within the browser.
 

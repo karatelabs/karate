@@ -116,7 +116,7 @@ Scenario Outline: using <config>
 Examples:
     | config | dimensions |
     | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
-    # | { type: 'chromedriver' } | { left: 100, top: 0, width: 300, height: 800 } |
+    | { type: 'chromedriver' } | { left: 100, top: 0, width: 300, height: 800 } |
     # | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
     # | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |
     # | { type: 'mswebdriver' } |

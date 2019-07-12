@@ -351,7 +351,6 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void clear(String id) {
-        waitIfNeeded(id);
         evaluate(options.elementSelector(id) + ".value = ''", null);
     }
 
@@ -362,10 +361,12 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void input(String id, String value, boolean clear) {
+        waitIfNeeded(id);
         if (clear) {
             clear(id);
         }
-        focus(id); // will waitIfNeeded()
+        // focus
+        evaluate(options.elementSelector(id) + ".focus()", null);
         for (char c : value.toCharArray()) {
             method("Input.dispatchKeyEvent").param("type", "keyDown").param("text", c + "").send();
         }
