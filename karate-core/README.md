@@ -397,7 +397,7 @@ When driver.switchPage('Page Two')
 ```
 
 ### `driver.switchFrame()`
-This "sets context" to a chosen frame (`<iframe>`) within thae page. There are 2 variants, one that takes an integer as the param, in which case the frame is selected based on the order of appearance in the page:
+This "sets context" to a chosen frame (`<iframe>`) within the page. There are 2 variants, one that takes an integer as the param, in which case the frame is selected based on the order of appearance in the page:
 
 ```cucumber
 When driver.switchFrame(0)

@@ -446,6 +446,10 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void switchFrame(String locator) {
+        if (locator == null) { // reset to parent frame
+            http.path("frame", "parent").post("{}");
+            return;
+        }
         waitIfNeeded(locator);
         String id = getElementId(locator);
         String json = new Json().set("id.ELEMENT", id).toString();
