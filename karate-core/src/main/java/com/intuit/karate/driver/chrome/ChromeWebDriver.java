@@ -63,8 +63,8 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    protected String getJsonPathForElementId() {
-        return "$.value.ELEMENT";
+    protected String getElementKey() {
+        return "ELEMENT";
     }
 
     @Override
@@ -75,8 +75,13 @@ public class ChromeWebDriver extends WebDriver {
     @Override
     protected String getJsonForHandle(String text) {
         return new Json().set("name", text).toString();
-    }    
-    
+    }
+
+    @Override
+    protected String getJsonForFrame(String text) {
+        return new Json().set("id.ELEMENT", text).toString();
+    }
+
     @Override
     public String html(String locator) {
         return attribute(locator, "innerHTML");
@@ -86,11 +91,11 @@ public class ChromeWebDriver extends WebDriver {
     public String value(String locator) {
         return attribute(locator, "value");
     }
-    
+
     @Override
     public String name(String locator) {
         return attribute(locator, "tagName");
-    }    
+    }
 
     @Override
     public void activate() {
@@ -108,5 +113,16 @@ public class ChromeWebDriver extends WebDriver {
             }
         }
     }
+
+    @Override
+    public void switchFrame(String locator) {
+        if (locator == null) { // reset to parent frame
+            http.path("frame", "parent").post("{}");
+            return;
+        }
+        waitIfNeeded(locator);
+        String id = get(locator);
+        http.path("frame").post(getJsonForFrame(id));
+    }        
 
 }

@@ -134,9 +134,8 @@ public abstract class DevToolsDriver implements Driver {
             String frameNavUrl = dtm.get("frame.url", String.class);
             if (rootTargetId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
-            } else {                
-                frameUrlIdMap.put(frameNavUrl, frameNavId);
             }
+            frameUrlIdMap.put(frameNavUrl, frameNavId);
         }
         if (dtm.isMethod("Page.windowOpen")) {
             currentUrl = dtm.getParam("url").getAsString();
@@ -166,7 +165,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         return frameContextMap.get(frameId);
     }
-    
+
     protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
         int count = 0;
         DevToolsMessage dtm;
@@ -196,6 +195,24 @@ public abstract class DevToolsDriver implements Driver {
             waitForElement(name);
         }
     }
+    
+    protected int getRootNodeId() {
+        return method("DOM.getDocument").param("depth", 0).send().getResult("root.nodeId", Integer.class);
+    }
+
+    @Override
+    public Object get(String locator) {
+        return method("DOM.querySelector")
+                .param("nodeId", getRootNodeId())
+                .param("selector", locator).send().getResult("nodeId").getAsInt();
+    }
+
+    @Override
+    public List getAll(String locator) {
+        return method("DOM.querySelectorAll")
+                .param("nodeId", getRootNodeId())
+                .param("selector", locator).send().getResult("nodeIds").getAsList();
+    }        
 
     @Override
     public DriverOptions getOptions() {
@@ -237,7 +254,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void quit() {
         if (!options.headless) {
-            method("Browser.close").send(WaitState.CHROME_INSPECTOR_DETACHED);
+            method("Browser.close").send(WaitState.INSPECTOR_DETACHED);
         }
         if (command != null) {
             command.close();
@@ -246,12 +263,12 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void setLocation(String url) {
-        method("Page.navigate").param("url", url).send(WaitState.CHROME_DOM_CONTENT);
+        method("Page.navigate").param("url", url).send(WaitState.FRAME_STOPPED_LOADING);
     }
 
     @Override
     public void refresh() {
-        method("Page.reload").send(WaitState.CHROME_DOM_CONTENT);
+        method("Page.reload").send(WaitState.FRAME_STOPPED_LOADING);
     }
 
     @Override
@@ -269,7 +286,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         Map<String, Object> entry = list.get(targetIndex);
         Integer id = (Integer) entry.get("id");
-        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.CHROME_DOM_CONTENT);
+        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.FRAME_STOPPED_LOADING);
     }
 
     @Override
@@ -322,7 +339,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void click(String id, boolean waitForDialog) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".click()", waitForDialog ? WaitState.CHROME_DIALOG_OPENING : null);
+        evaluate(options.elementSelector(id) + ".click()", waitForDialog ? WaitState.DIALOG_OPENING : null);
     }
 
     @Override
@@ -340,7 +357,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void submit(String id) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".click()", WaitState.CHROME_DOM_CONTENT);
+        evaluate(options.elementSelector(id) + ".click()", WaitState.FRAME_STOPPED_LOADING);
     }
 
     @Override
@@ -595,6 +612,10 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void switchFrame(int index) {
+        if (index == -1) {
+            frameId = null;
+            return;
+        }
         if (index < frameUrlIdMap.size()) {
             List<String> frameIds = new ArrayList(frameUrlIdMap.values());
             frameId = frameIds.get(index);

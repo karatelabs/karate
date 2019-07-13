@@ -156,6 +156,10 @@ public interface Driver {
     DriverOptions getOptions(); // for internal use
        
     void setLogger(Logger logger); // for internal use
+    
+    Object get(String locator); // for internal use
+    
+    List getAll(String locator); // for internal use
 
     void setLocation(String expression);    
 

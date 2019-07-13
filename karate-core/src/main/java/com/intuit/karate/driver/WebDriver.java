@@ -46,7 +46,7 @@ public abstract class WebDriver implements Driver {
     private final String windowId;
 
     protected boolean open = true;
-    
+
     // mutable
     protected Logger logger;
 
@@ -54,7 +54,7 @@ public abstract class WebDriver implements Driver {
     public void setLogger(Logger logger) {
         this.logger = logger;
         http.setLogger(logger);
-    }     
+    }
 
     protected WebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
         this.options = options;
@@ -77,8 +77,8 @@ public abstract class WebDriver implements Driver {
         return http.path("execute", "sync").post(json).jsonPath("$.value").value();
     }
 
-    protected String getJsonPathForElementId() {
-        return "get[0] $..element-6066-11e4-a52e-4f735466cecf";
+    protected String getElementKey() {
+        return "element-6066-11e4-a52e-4f735466cecf";
     }
 
     protected String getJsonForInput(String text) {
@@ -87,6 +87,10 @@ public abstract class WebDriver implements Driver {
 
     protected String getJsonForHandle(String text) {
         return new Json().set("handle", text).toString();
+    }
+
+    protected String getJsonForFrame(String text) {
+        return new Json().set("id", text).toString();
     }
 
     protected String getElementLocator(String id) {
@@ -103,9 +107,16 @@ public abstract class WebDriver implements Driver {
         return json.toString();
     }
 
-    protected String getElementId(String id) { // TODO refactor
+    @Override
+    public String get(String id) {
         String body = getElementLocator(id);
-        return http.path("element").post(body).jsonPath(getJsonPathForElementId()).asString();
+        return http.path("element").post(body).jsonPath("get[0] $.." + getElementKey()).asString();
+    }
+
+    @Override
+    public List<String> getAll(String id) {
+        String body = getElementLocator(id);
+        return http.path("elements").post(body).jsonPath("$.." + getElementKey()).asList();
     }
 
     @Override
@@ -182,7 +193,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void clear(String id) {        
+    public void clear(String id) {
         http.path("element", id, "clear").post("{}");
     }
 
@@ -194,10 +205,10 @@ public abstract class WebDriver implements Driver {
     @Override
     public void input(String name, String value, boolean clear) {
         waitIfNeeded(name);
-        String id = getElementId(name);
+        String id = get(name);
         if (clear) {
             clear(id);
-        }                
+        }
         http.path("element", id, "value").post(getJsonForInput(value));
     }
 
@@ -260,7 +271,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String text(String locator) {
-        String id = getElementId(locator);
+        String id = get(locator);
         return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }
 
@@ -277,21 +288,21 @@ public abstract class WebDriver implements Driver {
     @Override
     public String attribute(String locator, String name) {
         waitIfNeeded(locator);
-        String id = getElementId(locator);
+        String id = get(locator);
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
     }
 
     @Override
     public String property(String locator, String name) {
         waitIfNeeded(locator);
-        String id = getElementId(locator);
+        String id = get(locator);
         return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
     }
 
     @Override
     public String css(String locator, String name) {
         waitIfNeeded(locator);
-        String id = getElementId(locator);
+        String id = get(locator);
         return http.path("element", id, "css", name).get().jsonPath("$.value").asString();
     }
 
@@ -303,14 +314,14 @@ public abstract class WebDriver implements Driver {
     @Override
     public Map<String, Object> rect(String locator) {
         waitIfNeeded(locator);
-        String id = getElementId(locator);
+        String id = get(locator);
         return http.path("element", id, "rect").get().jsonPath("$.value").asMap();
     }
 
     @Override
     public boolean enabled(String locator) {
         waitIfNeeded(locator);
-        String id = getElementId(locator);
+        String id = get(locator);
         return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();
     }
 
@@ -393,7 +404,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public byte[] screenshot(String locator) {
-        String id = locator == null ? null : getElementId(locator);
+        String id = locator == null ? null : get(locator);
         String temp;
         if (id == null) {
             temp = http.path("screenshot").get().jsonPath("$.value").asString();
@@ -436,12 +447,16 @@ public abstract class WebDriver implements Driver {
             }
         }
     }
-    
+
     @Override
     public void switchFrame(int index) {
+        if (index == -1) {
+            http.path("frame", "parent").post("{}");
+            return;
+        }
         String json = new Json().set("id", index).toString();
-        http.path("frame").post(json);        
-    }    
+        http.path("frame").post(json);
+    }
 
     @Override
     public void switchFrame(String locator) {
@@ -449,10 +464,18 @@ public abstract class WebDriver implements Driver {
             http.path("frame", "parent").post("{}");
             return;
         }
-        waitIfNeeded(locator);
-        String id = getElementId(locator);
-        String json = new Json().set("id.ELEMENT", id).toString();
-        http.path("frame").post(json);
-    }        
+        String frameId = get(locator);
+        if (frameId == null) {
+            return;
+        }
+        List<String> ids = getAll("iframe,frame");
+        for (int i = 0; i < ids.size(); i++) {
+            String id = ids.get(i);
+            if (frameId.equals(id)) {
+                switchFrame(i);
+                break;
+            }
+        }
+    }
 
 }

@@ -25,6 +25,7 @@ package com.intuit.karate.driver.firefox;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
+import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
@@ -59,6 +60,11 @@ public class GeckoWebDriver extends WebDriver {
         driver.activate();
         return driver;
     }
+    
+    @Override
+    protected String getJsonForFrame(String text) {
+        return new Json().set("frameId", text).toString();
+    }    
 
     @Override
     public void activate() {

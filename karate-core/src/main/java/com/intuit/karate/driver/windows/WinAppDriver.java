@@ -83,14 +83,14 @@ public class WinAppDriver extends WebDriver {
     }
 
     @Override
-    protected String getElementId(String id) {
+    public String get(String id) {
         String body = getElementSelector(id);
         return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
     }
 
     @Override
     public void click(String selector) {
-        String id = getElementId(selector);
+        String id = get(selector);
         http.path("element", id, "click").post("{}");
     }
 

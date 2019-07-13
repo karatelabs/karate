@@ -40,10 +40,10 @@ public class WaitState {
     private DevToolsMessage lastReceived;
 
     private final Predicate<DevToolsMessage> DEFAULT = m -> lastSent.getId().equals(m.getId()) && m.getResult() != null;
-    public static final Predicate<DevToolsMessage> CHROME_FRAME_RESIZED = forEvent("Page.frameResized");
-    public static final Predicate<DevToolsMessage> CHROME_INSPECTOR_DETACHED = forEvent("Inspector.detached");
-    public static final Predicate<DevToolsMessage> CHROME_DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
-    public static final Predicate<DevToolsMessage> CHROME_DOM_CONTENT = forEvent("Page.domContentEventFired");
+    public static final Predicate<DevToolsMessage> FRAME_RESIZED = forEvent("Page.frameResized");
+    public static final Predicate<DevToolsMessage> INSPECTOR_DETACHED = forEvent("Inspector.detached");
+    public static final Predicate<DevToolsMessage> DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
+    public static final Predicate<DevToolsMessage> FRAME_STOPPED_LOADING = forEvent("Page.frameStoppedLoading");
 
     public static Predicate<DevToolsMessage> forEvent(String name) {
         return m -> name.equals(m.getMethod());

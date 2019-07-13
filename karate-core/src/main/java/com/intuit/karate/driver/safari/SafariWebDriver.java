@@ -59,12 +59,12 @@ public class SafariWebDriver extends WebDriver {
         SafariWebDriver driver = new SafariWebDriver(options, command, http, sessionId, windowId);
         driver.activate();
         return driver;
-    }    
-    
+    }
+
     @Override
     public void setDimensions(Map<String, Object> map) {
         Integer x = (Integer) map.remove("left");
-        Integer y = (Integer) map.remove("top");  
+        Integer y = (Integer) map.remove("top");
         // webdriver bug where 0 or 1 is mis-interpreted as boolean !
         if (x != null) {
             map.put("x", x < 2 ? 2 : x);
@@ -91,6 +91,6 @@ public class SafariWebDriver extends WebDriver {
                 logger.warn("native window switch failed: {}", e.getMessage());
             }
         }
-    }    
+    }
 
 }

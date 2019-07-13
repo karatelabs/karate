@@ -79,6 +79,14 @@ public class DevToolsMessage {
     public ScriptValue getResult() {
         return result;
     }
+    
+    public <T> T getResult(String path, Class<T> clazz) {
+        if (result == null) {
+            return null;
+        }
+        Json json = new Json(result.getValue());
+        return json.get(path, clazz);        
+    }
 
     public void setResult(ScriptValue result) {
         this.result = result;

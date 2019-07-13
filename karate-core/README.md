@@ -330,7 +330,7 @@ It is good practice to set it back to `false` if there are subsequent steps in y
 Use `driver.alwaysWait = true` only if absolutely necessary - since each `waitForElement()` call has a slight performance penalty.
 
 ### `driver.retryInterval`
-To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script. This is very useful when you have one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), see this example:
+To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script (in milliseconds). This is very useful when you have only one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), see this example:
 
 ```cucumber
 * driver.retryInterval = 10000
