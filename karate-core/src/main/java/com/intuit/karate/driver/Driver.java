@@ -130,12 +130,6 @@ public interface Driver {
         waitUntil(js + " != null");
     }
     
-    default void waitForElement(String name, int timeout) {        
-        getOptions().setRetryInterval(timeout);
-        waitForElement(name);
-        getOptions().setRetryInterval(null);
-    }    
-
     default void setAlwaysWait(boolean always) {
         getOptions().setAlwaysWait(always);
     }
