@@ -311,6 +311,11 @@ Scenario: comparing 2 payloads
     * def bar = { baz: 'ban', hello: 'world' }
     * match foo == bar
 
+Scenario: contains will recurse
+    * def original = { a: 1, b: 2, c: 3, d: { a: 1, b: 2 } }
+    * def expected = { a: 1, c: 3, d: { b: 2 } }
+    * match original contains expected
+
 Scenario: js eval
     * def temperature = { celsius: 100, fahrenheit: 212 }
     * string expression = 'temperature.celsius'

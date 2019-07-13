@@ -1329,7 +1329,9 @@ public class Script {
                     continue; // end edge case for key not present
                 }
                 Object childAct = actMap.get(key);
-                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
+                ScriptValue childActValue = new ScriptValue(childAct);
+                MatchType childMatchType = childActValue.isJsonLike() ? matchType : MatchType.EQUALS;
+                AssertionResult ar = matchNestedObject(delimiter, childPath, childMatchType, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match                    
                     if (matchType == MatchType.CONTAINS_ANY) {
                         return AssertionResult.PASS; // exit early
