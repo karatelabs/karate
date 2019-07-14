@@ -192,7 +192,7 @@ public abstract class DevToolsDriver implements Driver {
 
     protected void waitIfNeeded(String name) {
         if (options.isAlwaysWait()) {
-            waitForElement(name);
+            wait(name);
         }
     }
     
@@ -451,7 +451,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void waitUntil(String expression) {
+    public boolean waitUntil(String expression) {
         int max = options.getRetryCount();
         int count = 0;
         ScriptValue sv;
@@ -461,6 +461,7 @@ public abstract class DevToolsDriver implements Driver {
             DevToolsMessage dtm = evaluate(expression, null);
             sv = dtm.getResult();
         } while (!sv.isBooleanTrue() && count++ < max);
+        return sv.isBooleanTrue();
     }
 
     @Override

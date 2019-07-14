@@ -62,10 +62,10 @@ If Chrome is not installed in the default location, you can pass a String argume
 
 ## Examples
 ### Web Browser
-* [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature)
-* [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature)
+* [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature) - simple example that navigates to GitHub and Google Search
+* [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
 ### Windows
-* [Example](../karate-demo/src/test/java/driver/windows/calc.feature)
+* [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) for an alternative approach.
 
 ## Driver Configuration
 
@@ -188,15 +188,24 @@ Then match driver.title == 'Test Page'
 ```
 
 ### `driver.dimensions`
+Set the size of the browser window:
 ```cucumber
  And driver.dimensions = { left: 0, top: 0, width: 300, height: 800 }
- ```
+```
+
+### `driver.rect()`
+Get the position and size of a given element. It will be a JSON in the form below:
+```cucumber
+  * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
+```
 
 ### `driver.input()`
 2 string arguments: [locator](#locators) and value to enter.
 ```cucumber
 * driver.input('input[name=someName]', 'test input')
 ```
+> This can be also [shortened](#short-cuts) to `input(locator, value)`.
+
 Add a 3rd boolean `true` argument to clear the input field before entering keystrokes.
 ```cucumber
 * driver.input('input[name=someName]', 'test input', true)
@@ -208,6 +217,7 @@ Just triggers a click event on the DOM element, does *not* wait for a page load.
 ```cucumber
 * driver.click('input[name=someName]')
 ```
+> This can be also [shortened](#short-cuts) to `click(locator)`.
 
 There is a second rarely used variant which will wait for a JavaScript [dialog](#driverdialog) to appear:
 ```cucumber
@@ -219,6 +229,7 @@ Triggers a click event on the DOM element, *and* waits for the next page to load
 ```cucumber
 * driver.submit('.myClass')
 ```
+> This can be also [shortened](#short-cuts) to `submit(locator)`.
 
 ### `driver.select()`
 Specially for select boxes. There are four variations and use the [locator](#locators) conventions.
@@ -236,6 +247,7 @@ Given driver.select('select[name=data1]', 'option2')
 # select by index
 Given driver.select('select[name=data1]', 2)
 ```
+> Except the last one - these can be also [shortened](#short-cuts) to `select(locator, option)`.
 
 ### `driver.focus()`
 ```cucumber
@@ -259,18 +271,21 @@ Get the `innerHTML`. Example:
 ```cucumber
 And match driver.html('.myClass') == '<span>Class Locator Test</span>'
 ```
+> This can be also [shortened](#short-cuts) to `html(locator)`.
 
 ### `driver.text()`
 Get the text-content. Example:
 ```cucumber
 And match driver.text('.myClass') == 'Class Locator Test'
 ```
+> This can be also [shortened](#short-cuts) to `text(locator)`.
 
 ### `driver.value()`
 Get the HTML form-element value. Example:
 ```cucumber
 And match driver.value('.myClass') == 'some value'
 ```
+> This can be also [shortened](#short-cuts) to `value(locator)`.
 
 ### `driver.value(set)`
 Set the HTML form-element value. Example:
@@ -284,6 +299,12 @@ Get the HTML element attribute value. Example:
 And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
 ```
 
+### `driver.enabled()`
+If the element is `enabled` and not `disabled`:
+```cucumber
+And match driver.enabled('#eg01DisabledId') == false
+```
+
 ### `driver.waitUntil()`
 Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
 ```cucumber
@@ -293,57 +314,66 @@ Wait for the JS expression to evaluate to `true`. Will poll using the retry sett
 ### `driver.waitForPage()`
 Short-cut for the commonly used `driver.waitUntil("document.readyState == 'complete'")`
 
-### `driver.waitForElement()`
+### `driver.wait()`
 Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`driver.waitUntil()`](#driverwaituntil).
 
 ```cucumber
-And driver.waitForElement('#eg01WaitId')
+And driver.wait('#eg01WaitId')
+```
+
+> This can be also [shortened](#short-cuts) to `wait(locator)`.
+
+Since this returns `true` if the element eventually appeared, you can fail the test if the element does not appear after the re-tries like this:
+```cucumber
+And assert driver.wait('#eg01WaitId')
 ```
 
 Also see [`driver.alwaysWait`](#driveralwayswait).
 
 ### `driver.alwaysWait`
 
-When you have very dynamic HTML where many elements are not loaded when the page is first navigated to - which is quite typical for Single Page Application (SPA) frameworks, you may find yourself having to do a lot of `driver.waitForElement()` calls, for example:
+When you have very dynamic HTML where many elements are not loaded when the page is first navigated to - which is quite typical for Single Page Application (SPA) frameworks, you may find yourself having to do a lot of `driver.wait()` calls, for example:
 
 ```cucumber
-* driver.waitForElement('#someId')
-* driver.click('#someId')
-* driver.waitForElement('#anotherId')
-* driver.click('#anotherId')
-* driver.waitForElement('#yetAnotherId')
-* driver.input('#yetAnotherId', 'foo')
+* wait('#someId')
+* click('#someId')
+* wait('#anotherId')
+* click('#anotherId')
+* wait('#yetAnotherId')
+* input('#yetAnotherId', 'foo')
 ```
 
 You can switch on a capability of Karate's UI automation driver support to "always wait":
 
 ```cucumber
 * driver.alwaysWait = true
-* driver.click('#someId')
-* driver.click('#anotherId')
-* driver.input('#yetAnotherId', 'foo')
+* click('#someId')
+* click('#anotherId')
+* input('#yetAnotherId', 'foo')
 * driver.alwaysWait = false
 ```
 
 It is good practice to set it back to `false` if there are subsequent steps in your feature that do not need to "always wait".
 
-Use `driver.alwaysWait = true` only if absolutely necessary - since each `waitForElement()` call has a slight performance penalty.
+Use `driver.alwaysWait = true` only if absolutely necessary - since each `wait()` call has a slight performance penalty.
 
 ### `driver.retryInterval`
 To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script (in milliseconds). This is very useful when you have only one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), see this example:
 
 ```cucumber
 * driver.retryInterval = 10000
-* driver.click('#longWait')
-* driver.click('#anotherLongWait')
+* click('#longWait')
+* click('#anotherLongWait')
 * driver.retryInterval = null
 ```
 
 ### `driver.exists()`
 This behaves slightly differently because it does *not* auto-wait even if `driver.alwaysWait = true`. Convenient to check if an element exists and then quickly move on if it doesn't.
 
+> This can be also [shortened](#short-cuts) to `exists(locator)`.
+
 ```cucumber
-* if (driver.exists('#some-modal)) driver.click('.btn-close')
+* if (exists('#some-modal)) click('.btn-close')
 ```
 
 ### `driver.eval()`
@@ -428,7 +458,7 @@ When driver.switchFrame('#frame01')
 
 After you have switched, any future actions such as [`driver.click()`](#driverclick) would operate within the "selected" `<iframe>`.
 
-To "reset" so that you are back to the "root" page, just switch to `null`:
+To "reset" so that you are back to the "root" page, just switch to `null` (or integer value `-1`):
 
 ```cucumber
 When driver.switchFrame(null)
@@ -445,4 +475,35 @@ Useful to visually highlight an element in the browser, especially when working 
 
 ```cucumber
 * driver.highlight('#eg01DivId')
+```
+
+# Short Cuts
+As a convenience, the following API methods on the [`driver`]() object can be called *directly* as method references. They have been carefully chosen based on how often they are expected to be used. So your test steps will look a lot less repetitive.
+
+method | type
+------ | ----
+[`input()`](#driverinput) | action
+[`select()`](#driverselect) | action
+[`click()`](#driverclick) | action
+[`submit()`](#driversubmit) | action
+[`wait()`](#driverwait) | assertion
+[`exists()`](#driverexists) | assertion
+[`text()`](#drivertext) | assertion
+[`html()`](#driverhtml) | assertion
+[`value()`](#drivervalue) | assertion
+
+For example where you have:
+```cucumber
+  * driver.click('#someId')
+  * driver.click('.someCss')
+  * driver.click('/some/xpath')
+  * match driver.text('#otherId') == 'hello world'
+```
+
+You can shorten to:
+```cucumber
+  * click('#someId')
+  * click('.someCss')
+  * click('/some/xpath')
+  * match text('#otherId') == 'hello world'
 ```

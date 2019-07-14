@@ -6,8 +6,8 @@ Scenario:
   * driver webUrlBase + '/page-04'
   * match driver.location == webUrlBase + '/page-04'
   * driver.switchFrame('#frame01')
-  * driver.input('#eg01InputId', 'hello world')
-  * driver.click('#eg01SubmitId')
-  * match driver.text('#eg01DivId') == 'hello world'
+  * input('#eg01InputId', 'hello world')
+  * click('#eg01SubmitId')
+  * match text('#eg01DivId') == 'hello world'
   * driver.switchFrame(null)
-  * match driver.text('#eg01DivId') == 'this div is outside the iframe'
+  * match text('#eg01DivId') == 'this div is outside the iframe'

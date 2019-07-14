@@ -119,15 +119,15 @@ public interface Driver {
 
     // waits ===================================================================
     //
-    void waitUntil(String expression);
+    boolean waitUntil(String expression);
 
     default void waitForPage() {
         waitUntil("document.readyState == 'complete'");
     }
 
-    default void waitForElement(String name) {
+    default boolean wait(String name) {
         String js = getOptions().elementSelector(name);
-        waitUntil(js + " != null");
+        return waitUntil(js + " != null");
     }
     
     default void setAlwaysWait(boolean always) {
@@ -177,6 +177,6 @@ public interface Driver {
 
     List<String> getWindowHandles();
 
-    String getDialog();
+    String getDialog();    
 
 }

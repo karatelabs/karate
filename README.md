@@ -203,7 +203,7 @@ And you don't need to create additional Java classes for any of the payloads tha
 # Features
 * Java knowledge is not required and even non-programmers can write tests
 * Scripts are plain-text, require no compilation step or IDE, and teams can collaborate using Git / standard SCM
-* Based on the popular Cucumber / Gherkin standard - with [IDE support](#running-in-eclipse-or-intellij) and syntax-coloring options
+* Based on the popular Cucumber / Gherkin standard - with [IDE support](https://github.com/intuit/karate/wiki/IDE-Support) and syntax-coloring options
 * Elegant [DSL](https://en.wikipedia.org/wiki/Domain-specific_language) syntax 'natively' supports JSON and XML - including [JsonPath](#set) and [XPath](#xpath-functions) expressions
 * Eliminate the need for 'Java Beans' or 'helper code' to represent payloads and HTTP end-points, and [dramatically reduce the lines of code](https://twitter.com/KarateDSL/status/873035687817117696) needed for a test
 * Ideal for testing the highly dynamic responses from [GraphQL](http://graphql.org) API-s because of Karate's built-in [text-manipulation](#text) and [JsonPath](https://github.com/json-path/JsonPath#path-examples) capabilities
@@ -672,8 +672,6 @@ public class TestParallel {
 ### JUnit 5 Parallel Execution
 For [JUnit 5](#junit-5) you can omit the `public` modifier for the class and method, and there are some changes to `import` package names. The method signature of the `assertTrue` has flipped around a bit.
 
-> To programmatically choose and run a set of features (and tags) at run time, refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java) for yet another alternative API that uses a `List<String>` of tags and paths.
-
 ```java
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
@@ -693,9 +691,12 @@ class TestParallel {
 
 * You don't use `@Karate.Test` for the method, and you just use the JUnit 5 `@Test` annotation.
 * Instead of using the [`@KarateOptions`](#karate-options) annotation (which will also work), you can use an alternate form of the `Runner.parallel()` API that takes tags and feature paths as the last "var arg" argument.
-* [Tags (or tag combinations)](#tags) are detected if an argument starts with a `@` or a `~`. You can expicitly refer to multiple features relative to the [`classpath:`](#classpath) or to a folder (or folders), giving you great flexibility to "compose" tests.
 * The report output directory will default to `target/surefire-reports`, so you can use a shorter API that starts with the parallel thread count, e.g.:
   * `Runner.parallel(5, "~@ignore", "classpath:animals")`.
+* [Tags (or tag combinations)](#tags) are detected if an argument starts with a `@` or a `~`. You can expicitly refer to multiple features relative to the [`classpath:`](#classpath) or to a folder (or folders), giving you great flexibility to "compose" tests, e.g:
+  * `Runner.parallel(5, "~@ignore", "@smoke1,@smoke2", "classpath:animals/cats/crud.feature", "classpath:animals/dogs")`
+
+> To programmatically choose and run a set of features (and tags) at run time, refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java) for yet another alternative API that uses a `List<String>` of tags and paths.
 
 ### Parallel Stats
 For convenience, some stats are logged to the console when execution completes, which should look something like this:

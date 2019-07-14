@@ -57,6 +57,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -67,7 +69,7 @@ public class ScenarioContext {
 
     // this is public - but just makes swapping logger simple TODO cleanup
     public Logger logger;
-    
+
     public final ScriptBindings bindings;
     public final int callDepth;
     public final boolean reuseParentContext;
@@ -250,7 +252,7 @@ public class ScenarioContext {
             config.setClientClass(call.httpClientClass);
             rootFeatureContext = featureContext;
         }
-        client = HttpClient.construct(config, this);        
+        client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
         if (call.context == null && call.evalKarateConfig) {
             // base config is only looked for in the classpath
@@ -303,7 +305,7 @@ public class ScenarioContext {
     public ScenarioContext copy(ScenarioInfo info, Logger logger) {
         return new ScenarioContext(this, info, logger);
     }
-    
+
     public ScenarioContext copy() {
         return new ScenarioContext(this, scenarioInfo, logger);
     }
@@ -852,10 +854,33 @@ public class ScenarioContext {
     }
 
     // driver ==================================================================       
-    //
+    //    
+    private void put(String name, Consumer<String> value) {
+        bindings.putAdditionalVariable(name, value);
+    }
+
+    private void put2(String name, BiConsumer<String, String> value) {
+        bindings.putAdditionalVariable(name, value);
+    }
+
+    private void put3(String name, Function<String, Object> value) {
+        bindings.putAdditionalVariable(name, value);
+    }   
+
     private void setDriver(Driver driver) {
         this.driver = driver;
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
+        // action short cuts
+        put2("input", driver::input);
+        put2("select", driver::select);
+        put("click", driver::click);
+        put("submit", driver::submit);
+        // assertion short cuts
+        put3("wait", driver::wait);
+        put3("exists", driver::exists);
+        put3("text", driver::text);
+        put3("html", driver::html);
+        put3("value", driver::value);
     }
 
     public void driver(String expression) {

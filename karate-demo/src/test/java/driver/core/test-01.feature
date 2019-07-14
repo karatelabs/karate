@@ -11,7 +11,7 @@ Scenario Outline: using <config>
   Given driver webUrlBase + '/page-01'
   
   # wait for very slow loading element
-  And driver.waitForElement('#eg01WaitId')
+  And assert driver.wait('#eg01WaitId')
     
   # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }

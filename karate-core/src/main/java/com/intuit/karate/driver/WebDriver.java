@@ -68,7 +68,7 @@ public abstract class WebDriver implements Driver {
     // currently duplicated in the driver implementations
     protected void waitIfNeeded(String name) {
         if (options.isAlwaysWait()) {
-            waitForElement(name);
+            wait(name);
         }
     }
 
@@ -330,7 +330,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void waitUntil(String expression) {
+    public boolean waitUntil(String expression) {
         expression = prefixReturn(expression);
         int max = options.getRetryCount();
         int count = 0;
@@ -339,6 +339,7 @@ public abstract class WebDriver implements Driver {
             options.sleep();
             sv = evalInternal(expression);
         } while (!sv.isBooleanTrue() && count++ < max);
+        return sv.isBooleanTrue();
     }
 
     @Override

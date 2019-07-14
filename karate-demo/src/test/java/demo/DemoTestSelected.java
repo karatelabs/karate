@@ -10,7 +10,7 @@ import org.junit.Test;
 
 /**
  * an alternative way to run selected paths, tags and even features using the
- * java api here you don't need to use the CucumberOptions and you can
+ * java api here you don't need to use the KarateOptions annotation and you can
  * dynamically determine the features that need to be executed
  *
  * @author pthomas3
