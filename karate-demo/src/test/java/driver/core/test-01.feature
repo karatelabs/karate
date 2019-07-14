@@ -98,6 +98,8 @@ Scenario Outline: using <config>
   # screenshot
   * def bytes = driver.screenshot('#eg02DivId')
   * karate.write(bytes, 'partial-' + config.type + '.png')
+
+  # get element dimensions
   * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
 
   # new tab opens, wait for page
@@ -134,7 +136,7 @@ Scenario Outline: using <config>
   When driver.submit('#eg02SubmitId')
   And match driver.text('#eg01Data1') == 'option2'
 
-  # switch context to iframe by index
+  # switch to iframe by index
   Given driver webUrlBase + '/page-04'
   And match driver.location == webUrlBase + '/page-04'
   And driver.switchFrame(0)
@@ -143,10 +145,10 @@ Scenario Outline: using <config>
   Then match driver.text('#eg01DivId') == 'hello world'
 
   # switch back to parent frame
-  * driver.switchFrame(null)
-  * match driver.text('#eg01DivId') == 'this div is outside the iframe'
+  When driver.switchFrame(null)
+  Then match driver.text('#eg01DivId') == 'this div is outside the iframe'
 
-  # switch context to iframe by locator
+  # switch to iframe by locator
   Given driver webUrlBase + '/page-04'
   And match driver.location == webUrlBase + '/page-04'
   And driver.switchFrame('#frame01')
@@ -158,8 +160,8 @@ Examples:
     | config | dimensions |
     # | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
     | { type: 'chromedriver' } | { left: 100, top: 0, width: 300, height: 800 } |
-    # | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
-    # | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |
+    | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
+    | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |
     # | { type: 'mswebdriver' } |
     # | { type: 'msedge' } |
     

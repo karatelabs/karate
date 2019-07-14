@@ -635,7 +635,11 @@ The big drawback of the approach above is that you cannot run tests in parallel.
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
 ## Parallel Execution
-Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle.
+Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle. Look at both the examples below - that show different ways of "choosing" features to run.
+
+* You can use the returned `Results` object to check if any scenarios failed, and to even summarize the errors
+* [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports will be generated in the "`reportDir`" path you specify, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`)
+* [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`
 
 ### JUnit 4 Parallel Execution
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class !
@@ -659,37 +663,42 @@ public class TestParallel {
 }
 ```
 
+* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `Runner.parallel()` static method in `karate-core`.
+* The first argument to the `parallel()` method can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@KarateOptions` annotation, it will be processed.
+* Options passed to `@KarateOptions` would work as expected, provided you point the `Runner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites).
+* The second argument is the number of threads to use.
+* The third argument is optional, and is the `reportDir` [mentioned above](#parallel-execution).
+
 ### JUnit 5 Parallel Execution
-For [JUnit 5](#junit-5) you can omit the `public` modifier for the class and method, and there are some changes to `import` package names. And the method signature of the `assertTrue` has flipped around a bit:
+For [JUnit 5](#junit-5) you can omit the `public` modifier for the class and method, and there are some changes to `import` package names. The method signature of the `assertTrue` has flipped around a bit.
+
+> To programmatically choose and run a set of features (and tags) at run time, refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java) for yet another alternative API that uses a `List<String>` of tags and paths.
 
 ```java
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
-@KarateOptions(tags = {"~@ignore"})
 class TestParallel {
 
     @Test
     void testParallel() {
-        Results results = Runner.parallel(getClass(), 5, "target/surefire-reports");
+        Results results = Runner.parallel("target/surefire-reports", 5, "~@ignore", "classpath:animals");
         assertTrue(results.getFailCount() == 0, results.getErrorMessages());
     }
 
 }
 ```
 
-Things to note:
-* For JUnit 4 - you don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `Runner.parallel()` static method in `karate-core`.
-* You can use the returned `Results` object to check if any scenarios failed, and to even summarize the errors
-* The first argument can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@KarateOptions` annotation, it will be processed (see below).
-* The second argument is the number of threads to use.
-* [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports will be generated in the path you specify as the third parameter, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`). This argument is optional and will default to `target/surefire-reports`.
-* [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`.
-* Options passed to `@KarateOptions` would work as expected, provided you point the `Runner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites).
-* For convenience, some stats are logged to the console when execution completes, which should look something like this:
+* You don't use `@Karate.Test` for the method, and you just use the JUnit 5 `@Test` annotation.
+* Instead of using the [`@KarateOptions`](#karate-options) annotation (which will also work), you can use an alternate form of the `Runner.parallel()` API that takes tags and feature paths as the last "var arg" argument.
+* [Tags (or tag combinations)](#tags) are detected if an argument starts with a `@` or a `~`. You can expicitly refer to multiple features relative to the [`classpath:`](#classpath) or to a folder (or folders), giving you great flexibility to "compose" tests.
+* The report output directory will default to `target/surefire-reports`, so you can use a shorter API that starts with the parallel thread count, e.g.:
+  * `Runner.parallel(5, "~@ignore", "classpath:animals")`.
+
+### Parallel Stats
+For convenience, some stats are logged to the console when execution completes, which should look something like this:
 
 ```
 ======================================================
@@ -705,8 +714,6 @@ A `timeline.html` file will also be saved to the report output directory mention
 
 ### `@parallel=false`
 In rare cases you may want to suppress the default of `Scenario`-s executing in parallel and the special [`tag`](#tags) `@parallel=false` can be used. If you place it above the [`Feature`](#script-structure) keyword, it will apply to all `Scenario`-s. And if you just want one or two `Scenario`-s to NOT run in parallel, you can place this tag above only *those* `Scenario`-s. See [example](karate-demo/src/test/java/demo/encoding/encoding.feature).
-
-> There is also an API to run a chosen set of features (and tags) which may be useful in cases where you dynamically want to select features at run time. Refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java)
 
 ## Test Reports
 As mentioned above, most CI tools would be able to process the JUnit XML output of the [parallel runner](#parallel-execution) and determine the status of the build as well as generate reports.

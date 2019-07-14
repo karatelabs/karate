@@ -64,6 +64,24 @@ public class Runner {
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
         return parallel(tags, paths, null, null, threadCount, reportDir);
     }
+    
+    public static Results parallel(int threadCount, String ... tagsOrPaths) {
+        return parallel(null, threadCount, tagsOrPaths);
+    }
+    
+    public static Results parallel(String reportDir, int threadCount, String ... tagsOrPaths) {
+        List<String> tags = new ArrayList();
+        List<String> paths = new ArrayList();
+        for (String s : tagsOrPaths) {
+            s = StringUtils.trimToEmpty(s);
+            if (s.startsWith("~") || s.startsWith("@")) {
+                tags.add(s);
+            } else {
+                paths.add(s);
+            }
+        }
+        return parallel(tags, paths, threadCount, reportDir);
+    }    
 
     public static Results parallel(List<String> tags, List<String> paths, String scenarioName, 
             Collection<ExecutionHook> hooks, int threadCount, String reportDir) {

@@ -75,7 +75,11 @@ public class DevToolsMessage {
     public void setParams(Map<String, Object> params) {
         this.params = params;
     }
-
+    
+    public boolean isResultPresent() {
+        return result != null;
+    }    
+    
     public ScriptValue getResult() {
         return result;
     }
