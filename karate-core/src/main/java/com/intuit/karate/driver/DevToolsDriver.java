@@ -373,15 +373,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void input(String id, String value) {
-        input(id, value, false);
-    }
-
-    @Override
-    public void input(String id, String value, boolean clear) {
         waitIfNeeded(id);
-        if (clear) {
-            clear(id);
-        }
         // focus
         evaluate(options.elementSelector(id) + ".focus()", null);
         for (char c : value.toCharArray()) {

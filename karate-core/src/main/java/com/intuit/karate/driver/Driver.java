@@ -57,8 +57,6 @@ public interface Driver {
 
     void input(String name, String value);
 
-    void input(String name, String value, boolean clear);
-
     void click(String expression);
 
     void click(String expression, boolean waitForDialog);
@@ -153,6 +151,8 @@ public interface Driver {
 
     // javabean naming convention is intentional ===============================       
     //
+    public static final Keys KEYS = new Keys();    
+    
     DriverOptions getOptions(); // for internal use
        
     void setLogger(Logger logger); // for internal use

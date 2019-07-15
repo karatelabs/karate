@@ -206,10 +206,14 @@ Get the position and size of a given element. It will be a JSON in the form belo
 ```
 > This can be also [shortened](#short-cuts) to `input(locator, value)`.
 
-Add a 3rd boolean `true` argument to clear the input field before entering keystrokes.
+Special keys such as `ENTER`, `TAB` etc. can be specified like this:
+
 ```cucumber
-* driver.input('input[name=someName]', 'test input', true)
+* driver.input('#someInput', 'test input' + Keys.ENTER)
 ```
+
+A special variable called `Keys` will be available and you can see all the possible key codes [here](src/main/java/com/intuit/karate/driver/Keys.java).
+
 Also see [`driver.value(locator, value)`](#drivervalueset) and [`driver.clear()`](#driverclear)
 
 ### `driver.click()`
@@ -332,7 +336,7 @@ Also see [`driver.alwaysWait`](#driveralwayswait).
 
 ### `driver.alwaysWait`
 
-When you have very dynamic HTML where many elements are not loaded when the page is first navigated to - which is quite typical for Single Page Application (SPA) frameworks, you may find yourself having to do a lot of `driver.wait()` calls, for example:
+When you have very dynamic HTML where many elements are not loaded when the page is first navigated to - which is quite typical for Single Page Application (SPA) frameworks, you may find yourself having to do a lot of `wait()` calls, for example:
 
 ```cucumber
 * wait('#someId')
@@ -343,7 +347,7 @@ When you have very dynamic HTML where many elements are not loaded when the page
 * input('#yetAnotherId', 'foo')
 ```
 
-You can switch on a capability of Karate's UI automation driver support to "always wait":
+You can switch on a capability of Karate's UI automation driver support to "always wait", which means a [`wait()`](#driverwait) will be fired automatically behind the scenes - for *all* subsequent steps:
 
 ```cucumber
 * driver.alwaysWait = true
@@ -353,12 +357,12 @@ You can switch on a capability of Karate's UI automation driver support to "alwa
 * driver.alwaysWait = false
 ```
 
-It is good practice to set it back to `false` if there are subsequent steps in your feature that do not need to "always wait".
+It is good practice to set it back to `false` if there are more steps in your feature that do not need to "always wait".
 
-Use `driver.alwaysWait = true` only if absolutely necessary - since each `wait()` call has a slight performance penalty.
+Use `driver.alwaysWait = true` only if absolutely necessary - since each `wait()` call (that happens behind the scenes) has a slight performance penalty.
 
 ### `driver.retryInterval`
-To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script (in milliseconds). This is very useful when you have only one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), see this example:
+To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script (in milliseconds). This is very useful when you have only one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), here is an example:
 
 ```cucumber
 * driver.retryInterval = 10000
@@ -368,7 +372,7 @@ To *temporarily* change the default [retry interval](https://github.com/intuit/k
 ```
 
 ### `driver.exists()`
-This behaves slightly differently because it does *not* auto-wait even if `driver.alwaysWait = true`. Convenient to check if an element exists and then quickly move on if it doesn't.
+This behaves slightly differently because it does *not* [auto-wait](#driveralwayswait) even if `driver.alwaysWait = true`. Convenient to check if an element exists and then quickly move on if it doesn't.
 
 > This can be also [shortened](#short-cuts) to `exists(locator)`.
 
@@ -482,6 +486,7 @@ As a convenience, the following API methods on the [`driver`]() object can be ca
 
 method | type
 ------ | ----
+[`clear()`](#driverclear) | action
 [`input()`](#driverinput) | action
 [`select()`](#driverselect) | action
 [`click()`](#driverclick) | action

@@ -47,6 +47,7 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.driver.Keys;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.jayway.jsonpath.DocumentContext;
@@ -865,12 +866,15 @@ public class ScenarioContext {
 
     private void put3(String name, Function<String, Object> value) {
         bindings.putAdditionalVariable(name, value);
-    }   
+    }
 
     private void setDriver(Driver driver) {
         this.driver = driver;
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
+        ScriptValue keys = ScriptBindings.eval("Java.type('com.intuit.karate.driver.Keys')", null);
+        bindings.putAdditionalVariable("Keys", keys.getValue());
         // action short cuts
+        put("clear", driver::clear);
         put2("input", driver::input);
         put2("select", driver::select);
         put("click", driver::click);

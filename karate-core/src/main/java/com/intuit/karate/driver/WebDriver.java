@@ -193,23 +193,15 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void clear(String id) {
+    public void clear(String locator) {
+        String id = get(locator);
         http.path("element", id, "clear").post("{}");
     }
 
     @Override
     public void input(String name, String value) {
-        input(name, value, false);
-    }
-
-    @Override
-    public void input(String name, String value, boolean clear) {
         waitIfNeeded(name);
-        String id = get(name);
-        if (clear) {
-            clear(id);
-        }
-        http.path("element", id, "value").post(getJsonForInput(value));
+        http.path("element", get(name), "value").post(getJsonForInput(value));
     }
 
     @Override
@@ -271,6 +263,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String text(String locator) {
+        waitIfNeeded(locator);
         String id = get(locator);
         return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }

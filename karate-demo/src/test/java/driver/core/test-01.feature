@@ -32,7 +32,8 @@ Scenario Outline: using <config>
   And match driver.enabled('#eg01DisabledId') == false
 
   # clear before input
-  When driver.input('#eg01InputId', 'something else', true)
+  When driver.clear('#eg01InputId')
+  And driver.input('#eg01InputId', 'something else')
   And match driver.value('#eg01InputId') == 'something else'  
   When driver.value('#eg01InputId', 'something more')
   And match driver.value('#eg01InputId') == 'something more'
