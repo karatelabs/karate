@@ -79,13 +79,14 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         String displayName = unit.scenario.getDisplayMeta() + " " + unit.scenario.getName();
         return DynamicTest.dynamicTest(displayName, () -> {
             featureUnit.run(unit);
-            if (unit.result.isFailed()) {
-                Assertions.fail(unit.result.getError().getMessage());
-            }
-            if (unit.isLast()) {
+            boolean failed = unit.result.isFailed();
+            if (unit.isLast() || failed) {
                 featureUnit.stop();
                 exec.result.printStats(null);
                 Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
+            }
+            if (failed) {
+                Assertions.fail(unit.result.getError().getMessage());
             }
         });
     }
