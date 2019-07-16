@@ -28,10 +28,6 @@ package com.intuit.karate.driver;
  * @author pthomas3
  */
 public class Keys {
-    
-    public Keys() {
-        // restricted access
-    }
 
     public static final char NULL = '\uE000';
     public static final char CANCEL = '\uE001';

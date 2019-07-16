@@ -110,9 +110,9 @@ public interface Driver {
     void highlight(String id);
 
     void switchPage(String titleOrUrl);
-    
+
     void switchFrame(int index);
-    
+
     void switchFrame(String id);
 
     // waits ===================================================================
@@ -127,7 +127,7 @@ public interface Driver {
         String js = getOptions().elementSelector(name);
         return waitUntil(js + " != null");
     }
-    
+
     default void setAlwaysWait(boolean always) {
         getOptions().setAlwaysWait(always);
     }
@@ -135,11 +135,11 @@ public interface Driver {
     default boolean isAlwaysWait() {
         return getOptions().isAlwaysWait();
     }
-    
+
     default void setRetryInterval(Integer interval) {
         getOptions().setRetryInterval(interval);
     }
-    
+
     default boolean exists(String name) {
         String js = getOptions().elementSelector(name);
         Object o = eval(js + " != null");
@@ -150,18 +150,16 @@ public interface Driver {
     }
 
     // javabean naming convention is intentional ===============================       
-    //
-    public static final Keys KEYS = new Keys();    
-    
+    //    
     DriverOptions getOptions(); // for internal use
-       
+
     void setLogger(Logger logger); // for internal use
-    
+
     Object get(String locator); // for internal use
-    
+
     List getAll(String locator); // for internal use
 
-    void setLocation(String expression);    
+    void setLocation(String expression);
 
     void setDimensions(Map<String, Object> map);
 
@@ -169,7 +167,7 @@ public interface Driver {
 
     String getLocation();
 
-    String getTitle();        
+    String getTitle();
 
     void setCookie(Map<String, Object> cookie);
 
@@ -177,6 +175,6 @@ public interface Driver {
 
     List<String> getWindowHandles();
 
-    String getDialog();    
+    String getDialog();
 
 }
