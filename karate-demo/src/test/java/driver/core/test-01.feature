@@ -117,6 +117,21 @@ Scenario Outline: using <config>
   And match driver.title == 'Page Three'
   And match driver.location == webUrlBase + '/page-03'
 
+  # get html for all elements that match
+  When def list = driver.htmls('div div')
+  Then match list == '#[3]'
+  And match each list contains '@@data'
+
+  # get text for all elements that match
+  When def list = driver.texts('div div')
+  Then match list == '#[3]'
+  And match each list contains '@@data'
+
+  # get value for all elements that match
+  When def list = driver.values("input[name='data2']")
+  Then match list == '#[3]'
+  And match each list contains 'check'
+
   # select option with text
   Given driver.select('select[name=data1]', '^Option Two')
   And driver.click('input[value=check2]')

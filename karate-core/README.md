@@ -277,6 +277,14 @@ And match html('#eg01DivId') == '<div id="eg01DivId">this div is outside the ifr
 ```
 > This can be also [shortened](#short-cuts) to `html(locator)`.
 
+### `driver.htmls()`
+Like [`driver.html()`](#driverhtml) but will return a list / array for all elements found by the locator.
+```cucumber
+When def list = driver.htmls('div div')
+Then match list == '#[3]'
+And match each list contains '@@data'
+```
+
 ### `driver.text()`
 Get the text-content. Example:
 ```cucumber
@@ -284,12 +292,28 @@ And match driver.text('.myClass') == 'Class Locator Test'
 ```
 > This can be also [shortened](#short-cuts) to `text(locator)`.
 
+### `driver.texts()`
+Like [`driver.text()`](#drivertext) but will return a list / array for all elements found by the locator.
+```cucumber
+When def list = driver.texts('div div')
+Then match list == '#[3]'
+And match each list contains '@@data'
+```
+
 ### `driver.value()`
 Get the HTML form-element value. Example:
 ```cucumber
 And match driver.value('.myClass') == 'some value'
 ```
 > This can be also [shortened](#short-cuts) to `value(locator)`.
+
+### `driver.values()`
+Like [`driver.text()`](#drivervalue) but will return a list / array for all elements found by the locator.
+```cucumber
+When def list = driver.values("input[name='data2']")
+Then match list == '#[3]'
+And match each list contains 'check'
+```
 
 ### `driver.value(set)`
 Set the HTML form-element value. Example:

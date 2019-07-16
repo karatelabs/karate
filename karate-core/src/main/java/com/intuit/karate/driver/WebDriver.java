@@ -28,6 +28,7 @@ import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.CommandThread;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -262,15 +263,52 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
+    public List<String> htmls(String locator) {
+        List<String> ids = getAll(locator);
+        List<String> list = new ArrayList(ids.size());
+        for (String id : ids) {
+            String html = getPropertyById(id, "outerHTML");
+            list.add(html);
+        }
+        return list;
+    }
+
+    protected String getTextById(String id) {
+        return http.path("element", id, "text").get().jsonPath("$.value").asString();
+    }
+
+    @Override
     public String text(String locator) {
         waitIfNeeded(locator);
         String id = get(locator);
-        return http.path("element", id, "text").get().jsonPath("$.value").asString();
+        return getTextById(id);
+    }
+
+    @Override
+    public List<String> texts(String locator) {
+        List<String> ids = getAll(locator);
+        List<String> list = new ArrayList(ids.size());
+        for (String id : ids) {
+            String text = getTextById(id);
+            list.add(text);
+        }
+        return list;
     }
 
     @Override
     public String value(String locator) {
         return property(locator, "value");
+    }
+
+    @Override
+    public List<String> values(String locator) {
+        List<String> ids = getAll(locator);
+        List<String> list = new ArrayList(ids.size());
+        for (String id : ids) {
+            String property = getPropertyById(id, "value");
+            list.add(property);
+        }
+        return list;
     }
 
     @Override
@@ -285,11 +323,15 @@ public abstract class WebDriver implements Driver {
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
     }
 
+    protected String getPropertyById(String id, String name) {
+        return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
+    }
+
     @Override
     public String property(String locator, String name) {
         waitIfNeeded(locator);
         String id = get(locator);
-        return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
+        return getPropertyById(id, name);
     }
 
     @Override

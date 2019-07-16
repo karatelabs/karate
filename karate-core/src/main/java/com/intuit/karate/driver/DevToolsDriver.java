@@ -193,24 +193,32 @@ public abstract class DevToolsDriver implements Driver {
             wait(name);
         }
     }
-    
+
     protected int getRootNodeId() {
         return method("DOM.getDocument").param("depth", 0).send().getResult("root.nodeId", Integer.class);
     }
 
     @Override
     public Object get(String locator) {
-        return method("DOM.querySelector")
+        DevToolsMessage dtm = method("DOM.querySelector")
                 .param("nodeId", getRootNodeId())
-                .param("selector", locator).send().getResult("nodeId").getAsInt();
+                .param("selector", locator).send();
+        if (dtm.isResultError()) {
+            return null;
+        }
+        return dtm.getResult("nodeId").getAsInt();
     }
 
     @Override
     public List getAll(String locator) {
-        return method("DOM.querySelectorAll")
+        DevToolsMessage dtm = method("DOM.querySelectorAll")
                 .param("nodeId", getRootNodeId())
-                .param("selector", locator).send().getResult("nodeIds").getAsList();
-    }        
+                .param("selector", locator).send();
+        if (dtm.isResultError()) {
+            return Collections.EMPTY_LIST;
+        }
+        return dtm.getResult("nodeIds").getAsList();
+    }
 
     @Override
     public DriverOptions getOptions() {
@@ -384,14 +392,57 @@ public abstract class DevToolsDriver implements Driver {
         return property(id, "textContent");
     }
 
+    private String callFunction(int nodeId, String function) {
+        DevToolsMessage dtm = method("DOM.resolveNode").param("nodeId", nodeId).send();
+        String objectId = dtm.getResult("object.objectId", String.class);
+        dtm = method("Runtime.callFunctionOn")
+                .param("objectId", objectId)
+                .param("functionDeclaration", function)
+                .send();
+        return dtm.getResult().getAsString();
+    }
+
+    @Override
+    public List<String> texts(String locator) {
+        List<Integer> ids = getAll(locator);
+        List<String> list = new ArrayList(ids.size());
+        for (int id : ids) {
+            String text = callFunction(id, "function(){ return this.textContent }");
+            list.add(text);
+        }
+        return list;
+    }
+
     @Override
     public String html(String id) {
         return property(id, "outerHTML");
-    }   
+    }
 
     @Override
-    public String value(String id) {
-        return property(id, "value");
+    public List<String> htmls(String locator) {
+        List<Integer> ids = getAll(locator);
+        List<String> list = new ArrayList(ids.size());
+        for (int id : ids) {
+            DevToolsMessage dtm = method("DOM.getOuterHTML").param("nodeId", id).send();
+            list.add(dtm.getResult().getAsString());
+        }
+        return list;
+    }
+
+    @Override
+    public String value(String locator) {
+        return property(locator, "value");
+    }
+
+    @Override
+    public List<String> values(String locator) {
+        List<Integer> ids = getAll(locator);
+        List<String> list = new ArrayList(ids.size());
+        for (int id : ids) {
+            String value = callFunction(id, "function(){ return this.value }");
+            list.add(value);
+        }
+        return list;
     }
 
     @Override

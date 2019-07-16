@@ -49,47 +49,51 @@ public interface Driver {
 
     void fullscreen();
 
-    void focus(String id);
+    void focus(String locator);
 
-    void clear(String id);
+    void clear(String locator);
 
-    void input(String name, String value);
+    void input(String locator, String value);
 
-    void click(String expression);
+    void click(String locator);
 
-    void click(String expression, boolean waitForDialog);
+    void click(String locator, boolean waitForDialog);
 
-    void select(String expression, String text);
+    void select(String locator, String text);
 
-    void select(String expression, int index);
+    void select(String locator, int index);
 
-    void submit(String expression);
+    void submit(String locator);
 
     void close();
 
     void quit();
 
-    String html(String id);
+    String html(String locator);
     
-    // List<String> htmls(String id);
+    List<String> htmls(String locator);
 
-    String text(String id);
+    String text(String locator);
+    
+    List<String> texts(String locator);
 
-    String value(String id);
+    String value(String locator);
+    
+    List<String> values(String locator);
 
-    void value(String id, String value);
+    void value(String locator, String value);
 
-    String attribute(String id, String name);
+    String attribute(String locator, String name);
 
-    String property(String id, String name);
+    String property(String locator, String name);
 
-    String css(String id, String name);
+    String css(String locator, String name);
 
-    String name(String id);
+    String name(String locator);
 
-    Map<String, Object> rect(String id);
+    Map<String, Object> rect(String locator);
 
-    boolean enabled(String id);
+    boolean enabled(String locator);
 
     Object eval(String expression);
 
@@ -101,19 +105,19 @@ public interface Driver {
 
     void dialog(boolean accept);
 
-    void dialog(boolean accept, String text);
+    void dialog(boolean accept, String input);
 
     byte[] screenshot();
 
-    byte[] screenshot(String id);
+    byte[] screenshot(String locator);
 
-    void highlight(String id);
+    void highlight(String locator);
 
     void switchPage(String titleOrUrl);
 
     void switchFrame(int index);
 
-    void switchFrame(String id);
+    void switchFrame(String locator);
 
     // waits ===================================================================
     //
@@ -123,8 +127,8 @@ public interface Driver {
         waitUntil("document.readyState == 'complete'");
     }
 
-    default boolean wait(String name) {
-        String js = getOptions().elementSelector(name);
+    default boolean wait(String locator) {
+        String js = getOptions().elementSelector(locator);
         return waitUntil(js + " != null");
     }
 
@@ -140,8 +144,8 @@ public interface Driver {
         getOptions().setRetryInterval(interval);
     }
 
-    default boolean exists(String name) {
-        String js = getOptions().elementSelector(name);
+    default boolean exists(String locator) {
+        String js = getOptions().elementSelector(locator);
         Object o = eval(js + " != null");
         if (o instanceof Boolean) {
             return (Boolean) o;
@@ -159,7 +163,7 @@ public interface Driver {
 
     List getAll(String locator); // for internal use
 
-    void setLocation(String expression);
+    void setLocation(String url);
 
     void setDimensions(Map<String, Object> map);
 
