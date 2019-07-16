@@ -514,10 +514,7 @@ public class ScriptBridge implements PerfContext {
         if (contentType == null) {
             contentType = HttpUtils.getContentType(sv);
         }
-        Embed embed = new Embed();
-        embed.setBytes(sv.getAsByteArray());
-        embed.setMimeType(contentType);
-        context.prevEmbed = embed;
+        context.embed(sv.getAsByteArray(), contentType);
     }
     
     public File write(Object o, String path) {

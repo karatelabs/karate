@@ -344,28 +344,30 @@ public class Engine {
         if (sb.length() > 0) {
             parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
         }
-        Embed embed = stepResult.getEmbed();
-        if (embed != null) {
-            Node embedNode;
-            String mimeType = embed.getMimeType().toLowerCase();
-            if (mimeType.contains("image")) {
-                embedNode = node(doc, "img", null);
-                String src = "data:" + embed.getMimeType() + ";base64," + embed.getBase64();
-                XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
-            } else if (mimeType.contains("html")) {
-                Node html;
-                try {
-                    html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
-                } catch (Exception e) {
-                    html = div(doc, null, e.getMessage());
+        List<Embed> embeds = stepResult.getEmbeds();
+        if (embeds != null) {
+            for (Embed embed : embeds) {
+                Node embedNode;
+                String mimeType = embed.getMimeType().toLowerCase();
+                if (mimeType.contains("image")) {
+                    embedNode = node(doc, "img", null);
+                    String src = "data:" + embed.getMimeType() + ";base64," + embed.getBase64();
+                    XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
+                } else if (mimeType.contains("html")) {
+                    Node html;
+                    try {
+                        html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
+                    } catch (Exception e) {
+                        html = div(doc, null, e.getMessage());
+                    }
+                    html = doc.importNode(html, true);
+                    embedNode = div(doc, null, html);
+                } else {
+                    embedNode = div(doc, null);
+                    embedNode.setTextContent(embed.getAsString());
                 }
-                html = doc.importNode(html, true);
-                embedNode = div(doc, null, html);
-            } else {
-                embedNode = div(doc, null);
-                embedNode.setTextContent(embed.getAsString());
+                parent.appendChild(div(doc, "embed", embedNode));
             }
-            parent.appendChild(div(doc, "embed", embedNode));
         }
         List<FeatureResult> callResults = stepResult.getCallResults();
         if (callResults != null) { // this is a 'call'

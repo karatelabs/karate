@@ -197,7 +197,7 @@ public class ScenarioExecutionUnit implements Runnable {
             Result execResult = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
             // embed collection for each step happens here
-            Embed embed = actions.context.getAndClearEmbed();
+            List<Embed> embeds = actions.context.getAndClearEmbeds();
             if (execResult.isAborted()) { // we log only aborts for visibility
                 actions.context.logger.debug("abort at {}", step.getDebugInfo());
             } else if (execResult.isFailed()) {
@@ -206,7 +206,7 @@ public class ScenarioExecutionUnit implements Runnable {
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(appender.collect());
             boolean showLog = actions.context.getConfig().isShowLog();
-            return new StepResult(hidden, step, execResult, showLog ? stepLog : null, embed, callResults);
+            return new StepResult(hidden, step, execResult, showLog ? stepLog : null, embeds, callResults);
         }
     }
 

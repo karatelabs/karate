@@ -111,7 +111,7 @@ public class ScenarioContext {
     private PerfEvent prevPerfEvent;
 
     // report embed
-    protected Embed prevEmbed;
+    private List<Embed> prevEmbeds;
 
     // ui support
     private Function<CallContext, FeatureResult> callable;
@@ -799,9 +799,9 @@ public class ScenarioContext {
         Script.evalJsExpression(exp, this);
     }
 
-    public Embed getAndClearEmbed() {
-        Embed temp = prevEmbed;
-        prevEmbed = null;
+    public List<Embed> getAndClearEmbeds() {
+        List<Embed> temp = prevEmbeds;
+        prevEmbeds = null;
         return temp;
     }
 
@@ -809,7 +809,10 @@ public class ScenarioContext {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
-        prevEmbed = embed;
+        if (prevEmbeds == null) {
+            prevEmbeds = new ArrayList();
+        }
+        prevEmbeds.add(embed);
     }
 
     public WebSocketClient webSocket(WebSocketOptions options) {
