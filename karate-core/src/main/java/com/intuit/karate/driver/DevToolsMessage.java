@@ -192,6 +192,10 @@ public class DevToolsMessage {
     public DevToolsMessage send(Predicate<DevToolsMessage> condition) {
         return driver.sendAndWait(this, condition);
     }
+    
+    String getRootFrameId() {
+        return driver.rootTargetId;
+    }
 
     @Override
     public String toString() {

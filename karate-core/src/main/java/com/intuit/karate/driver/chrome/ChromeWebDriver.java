@@ -84,7 +84,7 @@ public class ChromeWebDriver extends WebDriver {
 
     @Override
     public String html(String locator) {
-        return attribute(locator, "innerHTML");
+        return attribute(locator, "outerHTML");
     }
 
     @Override

@@ -33,8 +33,6 @@ import java.util.Map;
  */
 public interface Driver {
 
-    // constructor takes a Map<String, Object> always
-    //
     void activate();
 
     void refresh();
@@ -72,6 +70,8 @@ public interface Driver {
     void quit();
 
     String html(String id);
+    
+    // List<String> htmls(String id);
 
     String text(String id);
 

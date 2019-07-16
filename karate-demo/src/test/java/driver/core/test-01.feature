@@ -48,7 +48,7 @@ Scenario Outline: using <config>
   # navigate to page and css checks
   When driver webUrlBase + '/page-02'
   Then match driver.text('.eg01Cls') == 'Class Locator Test'
-  And match driver.html('.eg01Cls') == '<span>Class Locator Test</span>'
+  And match driver.html('.eg01Cls') == '<div class="eg01Cls" style="background-color: yellow"><span>Class Locator Test</span></div>'
   And match driver.title == 'Page Two'
   And match driver.location == webUrlBase + '/page-02'
   And match driver.css('.eg01Cls', 'background-color') contains '(255, 255, 0'
@@ -159,7 +159,7 @@ Scenario Outline: using <config>
 
 Examples:
     | config | dimensions |
-    # | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
+    | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
     | { type: 'chromedriver' } | { left: 100, top: 0, width: 300, height: 800 } |
     | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
     | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |

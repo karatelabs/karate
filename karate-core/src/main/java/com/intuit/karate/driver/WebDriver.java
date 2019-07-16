@@ -258,7 +258,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String html(String locator) {
-        return property(locator, "innerHTML");
+        return property(locator, "outerHTML");
     }
 
     @Override

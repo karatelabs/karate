@@ -43,10 +43,22 @@ public class WaitState {
     public static final Predicate<DevToolsMessage> FRAME_RESIZED = forEvent("Page.frameResized");
     public static final Predicate<DevToolsMessage> INSPECTOR_DETACHED = forEvent("Inspector.detached");
     public static final Predicate<DevToolsMessage> DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
-    public static final Predicate<DevToolsMessage> FRAME_STOPPED_LOADING = forEvent("Page.frameStoppedLoading");
 
     public static Predicate<DevToolsMessage> forEvent(String name) {
         return m -> name.equals(m.getMethod());
+    }
+
+    public static Predicate<DevToolsMessage> rootFrameStoppedLoading() {
+        return m -> {
+            if (!"Page.frameStoppedLoading".equals(m.getMethod())) {
+                return false;
+            }
+            String frameId = m.getParam("frameId").getAsString();
+            if (frameId == null) {
+                return false;
+            }
+            return frameId.equals(m.getRootFrameId());
+        };
     }
 
     public static final Predicate<DevToolsMessage> NO_WAIT = m -> true;

@@ -271,9 +271,9 @@ Close the page / tab.
 Close the browser.
 
 ### `driver.html()`
-Get the `innerHTML`. Example:
+Get the `outerHTML`, so will include the markup of the selected element. Useful for `match contains` assertions. Example:
 ```cucumber
-And match driver.html('.myClass') == '<span>Class Locator Test</span>'
+And match html('#eg01DivId') == '<div id="eg01DivId">this div is outside the iframe</div>'
 ```
 > This can be also [shortened](#short-cuts) to `html(locator)`.
 

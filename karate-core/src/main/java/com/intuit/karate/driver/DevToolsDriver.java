@@ -134,8 +134,9 @@ public abstract class DevToolsDriver implements Driver {
             String frameNavUrl = dtm.get("frame.url", String.class);
             if (rootTargetId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
+            } else { // important: exclude root from frame list we maintain
+                frameUrlIdMap.put(frameNavUrl, frameNavId);
             }
-            frameUrlIdMap.put(frameNavUrl, frameNavId);
         }
         if (dtm.isMethod("Page.windowOpen")) {
             currentUrl = dtm.getParam("url").getAsString();
@@ -144,16 +145,13 @@ public abstract class DevToolsDriver implements Driver {
             String frameLoadId = dtm.get("frameId", String.class);
             if (rootTargetId.equals(frameLoadId)) { // root page is loading
                 frameUrlIdMap.clear();
-                frameLoadId = null;
             }
-        }
-        if (dtm.isMethod("Runtime.executionContextsCleared")) {
-            frameContextMap.clear();
         }
         if (dtm.isMethod("Runtime.executionContextCreated")) {
             String contextFrameId = dtm.get("context.auxData.frameId", String.class);
             Integer contextId = dtm.get("context.id", Integer.class);
             frameContextMap.put(contextFrameId, contextId);
+            logger.trace("execution context map: {}", frameContextMap);
         }
     }
 
@@ -263,12 +261,12 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void setLocation(String url) {
-        method("Page.navigate").param("url", url).send(WaitState.FRAME_STOPPED_LOADING);
+        method("Page.navigate").param("url", url).send(WaitState.rootFrameStoppedLoading());
     }
 
     @Override
     public void refresh() {
-        method("Page.reload").send(WaitState.FRAME_STOPPED_LOADING);
+        method("Page.reload").send(WaitState.rootFrameStoppedLoading());
     }
 
     @Override
@@ -286,7 +284,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         Map<String, Object> entry = list.get(targetIndex);
         Integer id = (Integer) entry.get("id");
-        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.FRAME_STOPPED_LOADING);
+        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.rootFrameStoppedLoading());
     }
 
     @Override
@@ -357,7 +355,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void submit(String id) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".click()", WaitState.FRAME_STOPPED_LOADING);
+        evaluate(options.elementSelector(id) + ".click()", WaitState.rootFrameStoppedLoading());
     }
 
     @Override
@@ -388,8 +386,8 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public String html(String id) {
-        return property(id, "innerHTML");
-    }
+        return property(id, "outerHTML");
+    }   
 
     @Override
     public String value(String id) {
