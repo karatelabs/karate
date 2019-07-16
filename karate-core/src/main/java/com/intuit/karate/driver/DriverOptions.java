@@ -76,7 +76,7 @@ public class DriverOptions {
     public final String processLogFile;
     public final int maxPayloadSize;
     public final List<String> args = new ArrayList();
-    
+
 // mutable during a test
     private boolean alwaysWait = false;
     private Integer retryInterval;
@@ -91,7 +91,7 @@ public class DriverOptions {
 
     public void setRetryInterval(Integer retryInterval) {
         this.retryInterval = retryInterval;
-    }        
+    }
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -169,10 +169,15 @@ public class DriverOptions {
     }
 
     public String elementSelector(String id) {
+        return elementSelector("*", id);
+    }
+
+    // TODO for chrome finders htmls() texts() values() etc only CSS selectors work
+    public String elementSelector(String name, String id) {
         if (id.startsWith("^")) {
-            id = "//a[text()='" + id.substring(1) + "']";
+            id = "//" + name + "[text()='" + id.substring(1) + "']";
         } else if (id.startsWith("*")) {
-            id = "//a[contains(text(),'" + id.substring(1) + "')]";
+            id = "//" + name + "[contains(text(),'" + id.substring(1) + "')]";
         }
         if (id.startsWith("/")) {
             return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
