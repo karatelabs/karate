@@ -50,7 +50,7 @@ public abstract class DevToolsDriver implements Driver {
     protected final WebSocketClient client;
 
     private final WaitState waitState;
-    protected final String rootTargetId;
+    protected final String rootFrameId;
 
     private Integer windowId;
     private String windowState;
@@ -82,8 +82,8 @@ public abstract class DevToolsDriver implements Driver {
         this.command = command;
         this.waitState = new WaitState(options);
         int pos = webSocketUrl.lastIndexOf('/');
-        rootTargetId = webSocketUrl.substring(pos + 1);
-        logger.debug("root target id: {}", rootTargetId);
+        rootFrameId = webSocketUrl.substring(pos + 1);
+        logger.debug("root frame id: {}", rootFrameId);
         WebSocketOptions wsOptions = new WebSocketOptions(webSocketUrl);
         wsOptions.setMaxPayloadSize(options.maxPayloadSize);
         wsOptions.setTextConsumer(text -> {
@@ -132,9 +132,9 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.isMethod("Page.frameNavigated")) {
             String frameNavId = dtm.get("frame.id", String.class);
             String frameNavUrl = dtm.get("frame.url", String.class);
-            if (rootTargetId.equals(frameNavId)) { // root page navigated
+            if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
-            } else { // important: exclude root from frame list we maintain
+            } else { // important: exclude root from frame lookup we maintain
                 frameUrlIdMap.put(frameNavUrl, frameNavId);
             }
         }
@@ -142,8 +142,8 @@ public abstract class DevToolsDriver implements Driver {
             currentUrl = dtm.getParam("url").getAsString();
         }
         if (dtm.isMethod("Page.frameStartedLoading")) {
-            String frameLoadId = dtm.get("frameId", String.class);
-            if (rootTargetId.equals(frameLoadId)) { // root page is loading
+            String frameLoadingId = dtm.get("frameId", String.class);
+            if (rootFrameId.equals(frameLoadingId)) { // root page is loading
                 frameUrlIdMap.clear();
             }
         }
@@ -151,7 +151,6 @@ public abstract class DevToolsDriver implements Driver {
             String contextFrameId = dtm.get("context.auxData.frameId", String.class);
             Integer contextId = dtm.get("context.id", Integer.class);
             frameContextMap.put(contextFrameId, contextId);
-            logger.trace("execution context map: {}", frameContextMap);
         }
     }
 
@@ -227,18 +226,18 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void activate() {
-        method("Target.activateTarget").param("targetId", rootTargetId).send();
+        method("Target.activateTarget").param("targetId", rootFrameId).send();
     }
 
     protected void initWindowIdAndState() {
-        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootTargetId).send();
+        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
         windowId = dtm.getResult("windowId").getValue(Integer.class);
         windowState = (String) dtm.getResult("bounds").getAsMap().get("windowState");
     }
 
     @Override
     public Map<String, Object> getDimensions() {
-        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootTargetId).send();
+        DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
         return dtm.getResult("bounds").getAsMap();
     }
 

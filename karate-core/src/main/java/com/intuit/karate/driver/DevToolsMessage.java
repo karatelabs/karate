@@ -194,7 +194,7 @@ public class DevToolsMessage {
     }
     
     String getRootFrameId() {
-        return driver.rootTargetId;
+        return driver.rootFrameId;
     }
 
     @Override

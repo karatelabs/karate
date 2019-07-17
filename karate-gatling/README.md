@@ -148,10 +148,10 @@ And now in the feature file you can do this:
 * print __gatling.catName
 ```
 
-You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) will gracefully return `null` if a variable does not exist or is not defined.
+You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) has an optional second argument to use as a "default" value if the variable does not exist or is `null`.
 
 ```cucumber
-* def name = karate.get('__gatling') ? __gatling.catName : 'Billie'
+* def name = karate.get('__gatling.catName', 'Billie')
 ```
 
 For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](https://github.com/ptrthomas/karate-gatling-demo/tree/master/src/test/java/mock).
