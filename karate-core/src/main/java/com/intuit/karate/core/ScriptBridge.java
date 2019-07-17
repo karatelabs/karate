@@ -152,6 +152,11 @@ public class ScriptBridge implements PerfContext {
         }
     }
     
+    public Object get(String exp, Object defaultValue) {
+        Object result = get(exp);
+        return result == null ? defaultValue : result;
+    }
+    
     public int sizeOf(List list) {
         return list.size();
     }

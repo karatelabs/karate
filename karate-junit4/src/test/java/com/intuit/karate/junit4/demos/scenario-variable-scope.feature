@@ -17,5 +17,8 @@ Scenario:
 Scenario:
     * assert a == 1
     * assert typeof b == 'undefined'
+    # get else default value
+    * def b = karate.get('b', 42)
+    * match b == 42
     * match c == {}
     
