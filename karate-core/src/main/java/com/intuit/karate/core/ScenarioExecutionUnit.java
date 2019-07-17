@@ -48,6 +48,7 @@ public class ScenarioExecutionUnit implements Runnable {
     private List<Step> steps;
     private StepActions actions;
     private boolean stopped = false;
+    private boolean aborted = false;
     private StepResult lastStepResult;
     private Runnable next;
     private boolean last;
@@ -192,13 +193,14 @@ public class ScenarioExecutionUnit implements Runnable {
     public StepResult execute(Step step) {
         boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
         if (stopped) {
-            return new StepResult(hidden, step, Result.skipped(), null, null, null);
+            return new StepResult(hidden, step, aborted ? Result.passed(0) : Result.skipped(), null, null, null);
         } else {
             Result execResult = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
             // embed collection for each step happens here
             List<Embed> embeds = actions.context.getAndClearEmbeds();
             if (execResult.isAborted()) { // we log only aborts for visibility
+                aborted = true;
                 actions.context.logger.debug("abort at {}", step.getDebugInfo());
             } else if (execResult.isFailed()) {
                 actions.context.setScenarioError(execResult.getError());

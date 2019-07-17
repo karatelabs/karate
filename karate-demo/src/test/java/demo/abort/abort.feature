@@ -1,4 +1,3 @@
-@ignore
 Feature: abort should skip (but not fail) a test
 
 Scenario: you can conditionally exit a test

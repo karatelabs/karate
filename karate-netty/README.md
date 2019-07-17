@@ -570,6 +570,8 @@ So you have control before and after the actual call, and you can modify the req
 # Stopping
 A simple HTTP `GET` to `/__admin/stop` is sufficient to stop a running server gracefully. So you don't need to resort to killing the process, which can lead to issues especially on Windows - such as the port not being released.
 
+> Tip: for stopping HTTPS servers, you can use [curl](https://curl.haxx.se) like this: `curl -k https://localhost:8443/__admin/stop`
+
 If you have started the server programmatically via Java, you can keep a reference to the `FeatureServer` instance and call the `stop()` method. Here is an example: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java).
 
 # Other Examples
