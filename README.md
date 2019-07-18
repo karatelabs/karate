@@ -1076,7 +1076,7 @@ A few special built-in variables such as `$` (which is a [reference to the JSON 
 A [special case](#remove-if-null) of embedded expressions can remove a JSON key (or XML element / attribute) if the expression evaluates to `null`.
 
 #### Rules for Embedded Expressions
-They work only within JSON or XML. And the expression *has* to start with `"#(` and end with `)` - so note that string-concatenation may not work quite the way you expect:
+* They work only within JSON or XML and when on the Right Hand Side of a `def` or `match` or when you [`read()`](#reading-files) a JSON or XML file. And the expression *has* to start with `"#(` and end with `)` - so note that string-concatenation may not work quite the way you expect:
 
 ```cucumber
 # wrong !

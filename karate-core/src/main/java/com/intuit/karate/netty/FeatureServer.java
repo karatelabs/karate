@@ -24,12 +24,17 @@
 package com.intuit.karate.netty;
 
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.core.FeatureParser;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
@@ -64,6 +69,7 @@ public class FeatureServer {
     private final boolean ssl;
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
+    private final FeatureBackend backend;
 
     public int getPort() {
         return port;
@@ -100,26 +106,26 @@ public class FeatureServer {
             throw new RuntimeException(e);
         }
     }
-    
+
     private static SslContext getSslContext(InputStream certStream, InputStream keyStream) {
         try {
             return SslContextBuilder.forServer(certStream, keyStream).build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
-    
+    }
+
     public FeatureServer(Feature feature, int port, InputStream certStream, InputStream keyStream, Map<String, Object> arg) {
         this(feature, port, getSslContext(certStream, keyStream), arg);
-    }    
+    }
 
     private FeatureServer(File file, int port, File certificate, File privateKey, Map<String, Object> arg) {
         this(toFeature(file), port, getSslContext(certificate, privateKey), arg);
     }
-    
+
     public FeatureServer(Feature feature, int port, boolean ssl, Map<String, Object> arg) {
         this(feature, port, ssl ? getSslContext() : null, arg);
-    }    
+    }
 
     private FeatureServer(File file, int port, boolean ssl, Map<String, Object> arg) {
         this(toFeature(file), port, ssl ? getSslContext() : null, arg);
@@ -129,7 +135,7 @@ public class FeatureServer {
         File parent = file.getParentFile();
         if (parent == null) { // when running via command line and same dir
             file = new File(file.getAbsolutePath());
-        }        
+        }
         return FeatureParser.parse(file);
     }
 
@@ -137,13 +143,24 @@ public class FeatureServer {
         ssl = sslCtx != null;
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
-        FeatureServerInitializer initializer = new FeatureServerInitializer(sslCtx, feature, arg, () -> stop());
+        backend = new FeatureBackend(feature, arg);
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(getClass().getName(), LogLevel.TRACE))
-                    .childHandler(initializer);
+                    .childHandler(new ChannelInitializer() {
+                        @Override
+                        protected void initChannel(Channel c) {
+                            ChannelPipeline p = c.pipeline();
+                            if (ssl) {
+                                p.addLast(sslCtx.newHandler(c.alloc()));
+                            }
+                            p.addLast(new HttpServerCodec());
+                            p.addLast(new HttpObjectAggregator(1048576));
+                            p.addLast(new FeatureServerHandler(backend, ssl, () -> stop()));
+                        }
+                    });
             channel = b.bind(requestedPort).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             host = "127.0.0.1"; //isa.getHostString();
