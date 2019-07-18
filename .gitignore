@@ -12,5 +12,6 @@ gradlew
 gradlew.*
 dependency-reduced-pom.xml
 karate-demo/activemq-data/
+karate-netty/*.pem
 karate-junit4/src/test/java/com/intuit/karate/junit4/dev
 
