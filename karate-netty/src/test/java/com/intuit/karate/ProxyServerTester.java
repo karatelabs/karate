@@ -25,9 +25,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class ProxyServerTest {
+public class ProxyServerTester {
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ProxyServerTest.class);
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ProxyServerTester.class);
 
     private static ProxyServer proxy;
     private static FeatureServer server;
@@ -35,7 +35,7 @@ public class ProxyServerTest {
     @BeforeClass
     public static void beforeClass() {
         proxy = new ProxyServer(0);
-        File file = FileUtils.getFileRelativeTo(ProxyServerTest.class, "server.feature");
+        File file = FileUtils.getFileRelativeTo(ProxyServerTester.class, "server.feature");
         server = FeatureServer.start(file, 0, false, null);
         int port = server.getPort();
         System.setProperty("karate.server.port", port + "");
