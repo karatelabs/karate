@@ -42,6 +42,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.Future;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLContext;
@@ -60,7 +61,8 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
     private ProxyRemoteHandler remoteHandler;
     protected Channel clientChannel;
     private final Map<String, ProxyRemoteHandler> REMOTE_HANDLERS = new ConcurrentHashMap();
-    private final Object LOCK = new Object();
+    private final Object SSL_LOCK = new Object();
+    private final Object READ_LOCK = new Object();
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
@@ -103,7 +105,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
         b.channel(NioSocketChannel.class);
         b.handler(new ChannelInitializer() {
             @Override
-            protected void initChannel(Channel remoteChannel) {
+            protected void initChannel(Channel remoteChannel) throws Exception {
                 ChannelPipeline p = remoteChannel.pipeline();
                 if (pc.ssl) {
                     SSLContext sslContext = NettyUtils.getSslContext(null);
@@ -116,24 +118,26 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                         if (logger.isTraceEnabled()) {
                             logger.trace("** ssl: server handshake done: {}", remoteChannel);
                         }
-                        HttpResponse response = NettyUtils.connectionEstablished();
-                        response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
-                        clientChannel.writeAndFlush(response);
                         SSLEngine clientSslEngine = sslContext.createSSLEngine();
                         clientSslEngine.setUseClientMode(false);
                         clientSslEngine.setNeedClientAuth(false);
                         SslHandler clientSslHandler = new SslHandler(clientSslEngine);
-                        clientChannel.pipeline().addFirst(clientSslHandler);
+                        HttpResponse response = NettyUtils.connectionEstablished();
+                        response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);                                                
+                        clientChannel.eventLoop().execute(() -> {
+                            clientChannel.writeAndFlush(response);
+                            clientChannel.pipeline().addFirst(clientSslHandler);
+                        });                        
                         clientSslHandler.handshakeFuture().addListener(chf -> {
                             if (logger.isTraceEnabled()) {
                                 logger.trace("** ssl: client handshake done: {}", clientChannel);
                             }
-                            synchronized (LOCK) {
-                                LOCK.notify();
+                            synchronized (SSL_LOCK) {
+                                SSL_LOCK.notify();
                             }
-                        });                        
-                        synchronized (LOCK) {
-                            LOCK.wait();
+                        });
+                        synchronized (SSL_LOCK) {
+                            SSL_LOCK.wait();
                         }
                     });
                 }
@@ -142,30 +146,36 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                 remoteHandler = new ProxyRemoteHandler(clientChannel);
                 REMOTE_HANDLERS.put(pc.hostColonPort, remoteHandler);
                 p.addLast(remoteHandler);
+                if (logger.isTraceEnabled()) {
+                    logger.trace("updated remote handlers: {}", REMOTE_HANDLERS);
+                }
             }
         });
-        ChannelFuture f = b.connect(pc.host, pc.port);
-        if (pc.ssl) {
-            f.addListener((ChannelFutureListener) future -> {
-                if (future.isSuccess()) {
+        ChannelFuture cf = b.connect(pc.host, pc.port);
+        cf.addListener((ChannelFutureListener) future -> {
+            if (future.isSuccess()) {
+                if (pc.ssl) {
                     if (logger.isTraceEnabled()) {
-                        logger.trace("** connected (ssl): {}", f.channel());
+                        logger.trace("** connected (ssl): {}", cf.channel());
                     }
-                } else {
-                    NettyUtils.flushAndClose(clientChannel);
+                } else { // not ssl
+                    Channel remoteChannel = cf.channel();
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("** connected (not-ssl): {}", remoteChannel);
+                    }
+                    NettyUtils.fixHeadersForProxy(request);
+                    remoteChannel.writeAndFlush(request);
+                    synchronized (READ_LOCK) {
+                        READ_LOCK.notify();
+                    }
                 }
-            });
-        } else { // not ssl
-            f.await(); // one-time: if we don't wait, we read next chunk too soon
-            if (f.isSuccess()) {
-                Channel remoteChannel = f.channel();
-                if (logger.isTraceEnabled()) {
-                    logger.trace("** connected (not-ssl): {}", remoteChannel);
-                }
-                NettyUtils.fixHeadersForProxy(request);
-                remoteChannel.writeAndFlush(request);
             } else {
                 NettyUtils.flushAndClose(clientChannel);
+            }
+        });
+        if (!pc.ssl) {
+            synchronized (READ_LOCK) {
+                READ_LOCK.wait();
             }
         }
     }
