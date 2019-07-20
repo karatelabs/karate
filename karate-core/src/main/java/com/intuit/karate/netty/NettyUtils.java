@@ -107,7 +107,9 @@ public class NettyUtils {
             keyStoreFile = new File(KEYSTORE_FILENAME);
         }
         if (keyStoreFile.exists()) {
-            logger.info("keystore file already exists: {}", keyStoreFile);
+            if (logger.isTraceEnabled()) {
+                logger.trace("keystore file already exists: {}", keyStoreFile);
+            }
             return keyStoreFile;
         }
         File parentFile = keyStoreFile.getParentFile();

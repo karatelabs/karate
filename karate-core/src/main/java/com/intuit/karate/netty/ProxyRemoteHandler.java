@@ -30,6 +30,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,11 +50,11 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
-        logger.debug("<< {}", msg);
-        // TODO remove await
-        clientChannel.writeAndFlush(msg).await();
-        if (msg instanceof LastHttpContent) {
+    protected void channelRead0(ChannelHandlerContext ctx, HttpObject response) throws Exception {
+        logger.debug("<< {}", response);
+        ReferenceCountUtil.retain(response);
+        clientChannel.writeAndFlush(response);
+        if (response instanceof LastHttpContent) {
             clientChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
         }
     }
