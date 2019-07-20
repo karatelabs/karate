@@ -23,9 +23,7 @@
  */
 package com.intuit.karate.netty;
 
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpObject;
@@ -53,9 +51,9 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
     protected void channelRead0(ChannelHandlerContext ctx, HttpObject response) throws Exception {
         logger.debug("<< {}", response);
         ReferenceCountUtil.retain(response);
-        clientChannel.writeAndFlush(response);
+        clientChannel.write(response);
         if (response instanceof LastHttpContent) {
-            clientChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+            NettyUtils.flushAndClose(clientChannel);
         }
     }
 
@@ -74,5 +72,10 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
         ctx.close();
         NettyUtils.flushAndClose(clientChannel);
     }
+
+    @Override
+    public String toString() {
+        return remoteChannel + "";
+    }        
 
 }

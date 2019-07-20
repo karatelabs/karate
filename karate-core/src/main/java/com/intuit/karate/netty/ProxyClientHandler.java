@@ -60,6 +60,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
     private ProxyRemoteHandler remoteHandler;
     protected Channel clientChannel;
     private final Map<String, ProxyRemoteHandler> REMOTE_HANDLERS = new ConcurrentHashMap();
+    private final Object LOCK = new Object();
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
@@ -106,10 +107,10 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                 ChannelPipeline p = remoteChannel.pipeline();
                 if (pc.ssl) {
                     SSLContext sslContext = NettyUtils.getSslContext(null);
-                    SSLEngine se = sslContext.createSSLEngine(pc.host, pc.port);
-                    se.setUseClientMode(true);
-                    se.setNeedClientAuth(false);
-                    SslHandler remoteSslHandler = new SslHandler(se);
+                    SSLEngine remoteSslEngine = sslContext.createSSLEngine(pc.host, pc.port);
+                    remoteSslEngine.setUseClientMode(true);
+                    remoteSslEngine.setNeedClientAuth(false);
+                    SslHandler remoteSslHandler = new SslHandler(remoteSslEngine);
                     p.addLast(remoteSslHandler);
                     remoteSslHandler.handshakeFuture().addListener(rhf -> {
                         if (logger.isTraceEnabled()) {
@@ -118,14 +119,21 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                         HttpResponse response = NettyUtils.connectionEstablished();
                         response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
                         clientChannel.writeAndFlush(response);
-                        SSLEngine ce = sslContext.createSSLEngine();
-                        ce.setUseClientMode(false);
-                        ce.setNeedClientAuth(false);
-                        SslHandler clientSslHandler = new SslHandler(ce);
+                        SSLEngine clientSslEngine = sslContext.createSSLEngine();
+                        clientSslEngine.setUseClientMode(false);
+                        clientSslEngine.setNeedClientAuth(false);
+                        SslHandler clientSslHandler = new SslHandler(clientSslEngine);
                         clientChannel.pipeline().addFirst(clientSslHandler);
-                        if (logger.isTraceEnabled()) {
-                            clientSslHandler.handshakeFuture()
-                                    .addListener(chf -> logger.trace("** ssl: client handshake done: {}", clientChannel));
+                        clientSslHandler.handshakeFuture().addListener(chf -> {
+                            if (logger.isTraceEnabled()) {
+                                logger.trace("** ssl: client handshake done: {}", clientChannel);
+                            }
+                            synchronized (LOCK) {
+                                LOCK.notify();
+                            }
+                        });                        
+                        synchronized (LOCK) {
+                            LOCK.wait();
                         }
                     });
                 }
