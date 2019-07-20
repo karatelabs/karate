@@ -141,7 +141,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                 }
                 p.addLast(new HttpRequestEncoder());
                 p.addLast(new HttpResponseDecoder());
-                remoteHandler = new ProxyRemoteHandler(clientChannel);
+                remoteHandler = new ProxyRemoteHandler(ProxyClientHandler.this, pc.ssl ? null : request);
                 REMOTE_HANDLERS.put(pc.hostColonPort, remoteHandler);
                 p.addLast(remoteHandler);
                 if (logger.isTraceEnabled()) {
@@ -152,21 +152,8 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
         ChannelFuture cf = b.connect(pc.host, pc.port);
         cf.addListener((ChannelFutureListener) future -> {
             if (future.isSuccess()) {
-                if (pc.ssl) {
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("** connected (ssl): {}", cf.channel());
-                    }
-                } else { // not ssl
-                    Channel remoteChannel = cf.channel();
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("** connected (not-ssl): {}", remoteChannel);
-                    }
-                    NettyUtils.fixHeadersForProxy(request);
-                    remoteChannel.writeAndFlush(request).addListener(l -> {
-                        synchronized (LOCK) {
-                            LOCK.notify();
-                        }
-                    });
+                if (logger.isTraceEnabled()) {
+                    logger.trace("** ready: {} - {}", pc, cf.channel());
                 }
             } else {
                 NettyUtils.flushAndClose(clientChannel);
@@ -176,6 +163,12 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
             synchronized (LOCK) {
                 LOCK.wait();
             }
+        }
+    }
+
+    protected void releaseLock() {
+        synchronized (LOCK) {
+            LOCK.notify();
         }
     }
 

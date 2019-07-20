@@ -29,6 +29,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
@@ -42,11 +43,15 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
 
     private static final Logger logger = LoggerFactory.getLogger(ProxyRemoteHandler.class);
 
+    private final ProxyClientHandler clientHandler;
     private final Channel clientChannel;
+    private final HttpRequest initialRequest;
     protected Channel remoteChannel;
 
-    public ProxyRemoteHandler(Channel clientChannel) {
-        this.clientChannel = clientChannel;
+    public ProxyRemoteHandler(ProxyClientHandler clientHandler, HttpRequest initialRequest) {
+        this.clientHandler = clientHandler;
+        this.clientChannel = clientHandler.clientChannel;
+        this.initialRequest = initialRequest;
     }
 
     @Override
@@ -66,6 +71,11 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         remoteChannel = ctx.channel();
+        if (initialRequest != null) { // only if not ssl
+            NettyUtils.fixHeadersForProxy(initialRequest);
+            ctx.writeAndFlush(initialRequest);
+            clientHandler.releaseLock();
+        }
     }
 
     @Override

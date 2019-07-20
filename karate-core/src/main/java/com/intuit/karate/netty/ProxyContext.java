@@ -60,6 +60,11 @@ public class ProxyContext {
         hostColonPort = host + ':' + port;
     }
 
+    @Override
+    public String toString() {
+        return (ssl ? "https" : "http") + "://" + host + ":" + port;
+    }    
+    
     private static int parsePort(String raw, boolean ssl) {
         try {
             return Integer.valueOf(raw);
