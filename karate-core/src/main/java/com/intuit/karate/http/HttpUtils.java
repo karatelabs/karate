@@ -11,18 +11,15 @@ import java.net.HttpCookie;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
-import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import javax.net.ssl.TrustManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.net.ssl.SSLContext;
 
 /**
  *
@@ -51,21 +48,6 @@ public class HttpUtils {
 
     private HttpUtils() {
         // only static methods
-    }
-
-    public static SSLContext getSslContext(String algorithm) {
-        TrustManager[] certs = new TrustManager[]{new LenientTrustManager()};
-        SSLContext ctx = null;
-        if (algorithm == null) {
-            algorithm = "TLS";
-        }
-        try {
-            ctx = SSLContext.getInstance(algorithm);
-            ctx.init(null, certs, new SecureRandom());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return ctx;
     }
 
     public static KeyStore getKeyStore(ScenarioContext context, String trustStoreFile, String password, String type) {

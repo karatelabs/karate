@@ -9,7 +9,7 @@ Background:
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request
     * def id = ~~(id + 1)
-    * set cat.id = id
+    * cat.id = id
     * cats[id + ''] = cat
     * def response = cat
 

@@ -668,6 +668,7 @@ public class TestParallel {
 * Options passed to `@KarateOptions` would work as expected, provided you point the `Runner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites).
 * The second argument is the number of threads to use.
 * The third argument is optional, and is the `reportDir` [mentioned above](#parallel-execution).
+* The `@KarateOptions` can be limiting in some cases when you want to inherit from other test classes - or when you want to dynamically and programmatically determine the tags and features to be included. See the [JUnit 5 example](#junit-5-parallel-execution) for an alternative form of the `Runner.parallel()` API. 
 
 ### JUnit 5 Parallel Execution
 For [JUnit 5](#junit-5) you can omit the `public` modifier for the class and method, and there are some changes to `import` package names. The method signature of the `assertTrue` has flipped around a bit.
@@ -3744,7 +3745,7 @@ The limitation of the Cucumber `Scenario Outline:` (seen above) is that the numb
 Also see the option below, where you can data-drive an `Examples:` table using JSON.
 
 ### Dynamic Scenario Outline
-You can feed an `Examples` table from a JSON array, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.  Here is an example:
+You can feed an `Examples` table from a JSON array, which is great for those situations where the table-content is dynamically resolved at run-time. This capability is triggered when the table consists of a single "cell", i.e. there is exactly one row and one column in the table.  Here is an example (also see [this video](https://twitter.com/KarateDSL/status/1051433711814627329)):
 
 ```cucumber
 Feature: scenario outline using a dynamic table

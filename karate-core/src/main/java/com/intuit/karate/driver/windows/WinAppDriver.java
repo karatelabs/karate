@@ -28,7 +28,7 @@ import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Collections;
 import java.util.Map;
@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class WinAppDriver extends WebDriver {
 
-    public WinAppDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    public WinAppDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
@@ -47,7 +47,7 @@ public class WinAppDriver extends WebDriver {
         DriverOptions options = new DriverOptions(context, map, logger, 4727, 
                 "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
         options.arg(options.port + "");
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
         Http http = Http.forUrl(options.driverLogger, urlBase);
         Map<String, Object> capabilities = options.newMapWithSelectedKeys(map, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");

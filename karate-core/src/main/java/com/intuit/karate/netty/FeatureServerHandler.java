@@ -123,7 +123,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         if (cause.getMessage() == null) {
             cause.printStackTrace();
         } else {
-            backend.getContext().logger.error("error, closing connection: {}", cause.getMessage());
+            backend.getContext().logger.error("closing connection: {}", cause.getMessage());
         }
         ctx.close();
     }

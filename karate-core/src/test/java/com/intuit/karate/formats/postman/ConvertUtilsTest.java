@@ -1,8 +1,5 @@
 package com.intuit.karate.formats.postman;
 
-import com.intuit.karate.formats.postman.PostmanItem;
-import com.intuit.karate.formats.postman.PostmanRequest;
-import com.intuit.karate.formats.postman.PostmanUtils;
 import com.intuit.karate.FileUtils;
 import org.junit.Test;
 import org.slf4j.Logger;

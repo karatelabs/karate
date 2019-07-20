@@ -6,7 +6,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.AppiumDriver;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 
 import java.util.Collections;
 import java.util.Map;
@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public class AndroidDriver extends AppiumDriver {
 
-    protected AndroidDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    protected AndroidDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
@@ -30,7 +30,7 @@ public class AndroidDriver extends AppiumDriver {
             options.arg("appium");
         }
         options.arg("--port=" + options.port);
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port + "/wd/hub";
         Http http = Http.forUrl(options.driverLogger, urlBase);
         http.config("readTimeout","120000");

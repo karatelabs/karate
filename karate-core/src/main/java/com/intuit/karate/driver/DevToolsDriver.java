@@ -29,7 +29,7 @@ import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -46,7 +46,7 @@ import java.util.function.Predicate;
 public abstract class DevToolsDriver implements Driver {
 
     protected final DriverOptions options;
-    protected final CommandThread command;
+    protected final Command command;
     protected final WebSocketClient client;
 
     private final WaitState waitState;
@@ -76,7 +76,7 @@ public abstract class DevToolsDriver implements Driver {
         client.setLogger(logger);
     }
 
-    protected DevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
+    protected DevToolsDriver(DriverOptions options, Command command, String webSocketUrl) {
         logger = options.driverLogger;
         this.options = options;
         this.command = command;

@@ -24,7 +24,7 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.*;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 
 /**
  * @author babusekaran
@@ -33,11 +33,11 @@ public abstract class AppiumDriver extends WebDriver {
 
     protected final DriverOptions options;
     protected final Logger logger;
-    protected final CommandThread command;
+    protected final Command command;
     protected final Http http;
     private final String sessionId;
 
-    protected AppiumDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    protected AppiumDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
         this.options = options;
         this.logger = options.driverLogger;

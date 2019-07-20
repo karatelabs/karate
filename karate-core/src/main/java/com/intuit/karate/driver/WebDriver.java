@@ -27,7 +27,7 @@ import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -41,7 +41,7 @@ import java.util.Map;
 public abstract class WebDriver implements Driver {
 
     protected final DriverOptions options;
-    protected final CommandThread command;
+    protected final Command command;
     protected final Http http;
     private final String sessionId;
     private final String windowId;
@@ -57,7 +57,7 @@ public abstract class WebDriver implements Driver {
         http.setLogger(logger);
     }
 
-    protected WebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    protected WebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         this.options = options;
         this.logger = options.driverLogger;
         this.command = command;

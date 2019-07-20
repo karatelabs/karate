@@ -27,7 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
 import java.util.Collections;
@@ -47,7 +47,7 @@ public class Chrome extends DevToolsDriver {
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
 
-    public Chrome(DriverOptions options, CommandThread command, String webSocketUrl) {
+    public Chrome(DriverOptions options, Command command, String webSocketUrl) {
         super(options, command, webSocketUrl);
     }    
 
@@ -61,7 +61,7 @@ public class Chrome extends DevToolsDriver {
         if (options.headless) {
             options.arg("--headless");
         }
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         Http http = Http.forUrl(options.driverLogger, "http://" + options.host + ":" + options.port);
         String webSocketUrl = http.path("json").get()
                 .jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        

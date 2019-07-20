@@ -36,7 +36,7 @@ import com.intuit.karate.driver.firefox.GeckoWebDriver;
 import com.intuit.karate.driver.ios.IosDriver;
 import com.intuit.karate.driver.safari.SafariWebDriver;
 import com.intuit.karate.driver.windows.WinAppDriver;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 
 import java.io.File;
 import java.io.IOException;
@@ -127,11 +127,11 @@ public class DriverOptions {
         args.add(arg);
     }
 
-    public CommandThread startProcess() {
+    public Command startProcess() {
         if (executable == null) {
             return null;
         }
-        CommandThread command = new CommandThread(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+        Command command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
         command.start();
         waitForPort(host, port);
         return command;

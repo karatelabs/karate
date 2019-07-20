@@ -29,7 +29,7 @@ import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class ChromeWebDriver extends WebDriver {
 
-    public ChromeWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    public ChromeWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
@@ -47,7 +47,7 @@ public class ChromeWebDriver extends WebDriver {
         DriverOptions options = new DriverOptions(context, map, logger, 9515, "chromedriver");
         options.arg("--port=" + options.port);
         options.arg("--user-data-dir=" + options.workingDirPath);
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
         Http http = Http.forUrl(options.driverLogger, urlBase);
         String sessionId = http.path("session")

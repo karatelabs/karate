@@ -26,7 +26,7 @@ package com.intuit.karate.driver.edge;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
 
@@ -39,7 +39,7 @@ import java.util.Map;
  */
 public class EdgeDevToolsDriver extends DevToolsDriver {
 
-    public EdgeDevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
+    public EdgeDevToolsDriver(DriverOptions options, Command command, String webSocketUrl) {
         super(options, command, webSocketUrl);
     }
 
@@ -48,7 +48,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         options.arg("--devtools-server-port");
         options.arg(options.port + "");
         options.arg("about:blank");
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         Http http = Http.forUrl(options.driverLogger, "http://" + options.host + ":" + options.port);
         String webSocketUrl = http.path("json", "list").get()
                 .jsonPath("get[0] $[?(@.type=='Page')].webSocketDebuggerUrl").asString();
