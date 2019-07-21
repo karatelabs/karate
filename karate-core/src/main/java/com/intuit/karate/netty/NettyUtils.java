@@ -33,6 +33,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -42,6 +43,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.security.KeyStore;
 import java.security.Security;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -145,6 +149,24 @@ public class NettyUtils {
     public static void fixHeadersForProxy(HttpRequest request) {
         String adjustedUri = ProxyContext.removeHostColonPort(request.uri());
         request.setUri(adjustedUri);
+        request.headers().remove(HttpHeaderNames.CONNECTION);
+        // addViaHeader(request, PROXY_ALIAS);
     }
+    
+    public static void addViaHeader(HttpMessage msg, String alias) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(msg.protocolVersion().majorVersion()).append('.');
+        sb.append(msg.protocolVersion().minorVersion()).append(' ');
+        sb.append(alias);
+        List<String> list;
+        if (msg.headers().contains(HttpHeaderNames.VIA)) {
+            List<String> existing = msg.headers().getAll(HttpHeaderNames.VIA);
+            list = new ArrayList(existing);
+            list.add(sb.toString());
+        } else {
+            list = Collections.singletonList(sb.toString());
+        }
+        msg.headers().set(HttpHeaderNames.VIA, list);
+    }    
 
 }

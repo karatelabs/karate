@@ -56,7 +56,9 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, HttpObject response) throws Exception {
-        logger.debug("<< {}", response);
+        if (logger.isTraceEnabled()) {
+            logger.debug("<< {}", response);
+        }
         ReferenceCountUtil.retain(response);
         clientChannel.eventLoop().execute(() -> {
             clientChannel.write(response);
@@ -73,6 +75,9 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
         remoteChannel = ctx.channel();
         if (initialRequest != null) { // only if not ssl
             NettyUtils.fixHeadersForProxy(initialRequest);
+            if (logger.isTraceEnabled()) {
+                logger.debug(">>>> initial: {}", initialRequest);
+            }
             ctx.writeAndFlush(initialRequest);
             clientHandler.releaseLock();
         }

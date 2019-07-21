@@ -85,14 +85,18 @@ public class ProxyContext {
     }
 
     private static String extractHostColonPort(String uri) {
-        if (uri.startsWith("http")) {
-            uri = uri.substring(uri.indexOf('/') + 2);
-        }
         int pos = uri.indexOf('/');
-        if (pos != -1) {
-            uri = uri.substring(0, pos);
+        if (pos == -1) {
+            return uri;
         }
-        return uri;
+        if (uri.startsWith("http") && pos < 7) {
+            uri = uri.substring(pos + 2);
+        }
+        pos = uri.indexOf('/');
+        if (pos == -1) {
+            return uri; 
+        }
+        return uri.substring(0, pos);
     }
 
     public static String removeHostColonPort(String uri) {

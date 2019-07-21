@@ -86,17 +86,22 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
         }
         HttpRequest request = (HttpRequest) httpObject;
         ProxyContext pc = new ProxyContext(request);
-        remoteHandler = NettyUtils.isConnect(request) ? null : REMOTE_HANDLERS.get(pc.hostColonPort);
+        if (remoteHandler == null && !NettyUtils.isConnect(request)) {
+            remoteHandler = REMOTE_HANDLERS.get(pc.hostColonPort);
+        }
         if (remoteHandler != null) {
+            if (logger.isTraceEnabled()) {
+                logger.trace(">> before: {}", request);
+            }
             NettyUtils.fixHeadersForProxy(request);
             if (logger.isTraceEnabled()) {
-                logger.trace(">> write: {}", request);
+                logger.trace(">>>> after: {}", request);
             }
             remoteHandler.remoteChannel.writeAndFlush(request);
             return;
         }
         if (logger.isTraceEnabled()) {
-            logger.trace(">> init: {}", request);
+            logger.trace(">> init: {} - {}", pc, request);
         }
         Bootstrap b = new Bootstrap();
         b.group(new NioEventLoopGroup(4));
@@ -130,13 +135,9 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                             if (logger.isTraceEnabled()) {
                                 logger.trace("** ssl: client handshake done: {}", clientChannel);
                             }
-                            synchronized (LOCK) {
-                                LOCK.notify();
-                            }
+                            releaseLock();
                         });
-                        synchronized (LOCK) {
-                            LOCK.wait();
-                        }
+                        lockAndWait();
                     });
                 }
                 p.addLast(new HttpRequestEncoder());
@@ -160,9 +161,13 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
             }
         });
         if (!pc.ssl) {
-            synchronized (LOCK) {
-                LOCK.wait();
-            }
+            lockAndWait();
+        }
+    }
+
+    private void lockAndWait() throws Exception {
+        synchronized (LOCK) {
+            LOCK.wait();
         }
     }
 
