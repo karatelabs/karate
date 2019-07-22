@@ -60,7 +60,7 @@ public class HttpUtils {
         }
         try {
             KeyStore keyStore = KeyStore.getInstance(type);
-            InputStream is = FileUtils.getFileStream(trustStoreFile, context);
+            InputStream is = FileUtils.readFileAsStream(trustStoreFile, context);
             keyStore.load(is, passwordChars);
             context.logger.debug("key store key count for {}: {}", trustStoreFile, keyStore.size());
             return keyStore;

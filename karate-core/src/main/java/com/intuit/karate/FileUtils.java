@@ -126,7 +126,7 @@ public class FileUtils {
             DocumentContext doc = JsonUtils.fromYaml(contents);
             return new ScriptValue(doc, text);
         } else {
-            InputStream is = getFileStream(text, context);
+            InputStream is = readFileAsStream(text, context);
             return new ScriptValue(is, text);
         }
     }
@@ -160,8 +160,7 @@ public class FileUtils {
 
     private static Resource toResource(String path, ScenarioContext context) {
         if (isClassPath(path)) {
-            ClassLoader cl = context.getClass().getClassLoader();
-            return new Resource(fromRelativeClassPath(path, cl), path, -1);
+            return new Resource(context, path);
         } else if (isFilePath(path)) {
             String temp = removePrefix(path);
             return new Resource(new File(temp), path);
@@ -169,12 +168,12 @@ public class FileUtils {
             String temp = removePrefix(path);
             Path parentPath = context.featureContext.parentPath;
             Path childPath = parentPath.resolve(temp);
-            return new Resource(childPath, path, -1);
+            return new Resource(context, childPath);
         } else {
             try {
                 Path parentPath = context.rootFeatureContext.parentPath;
                 Path childPath = parentPath.resolve(path);
-                return new Resource(childPath, path, -1);
+                return new Resource(context, childPath);
             } catch (Exception e) {
                 logger.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
@@ -183,19 +182,21 @@ public class FileUtils {
     }
 
     public static String readFileAsString(String path, ScenarioContext context) {
-        try {
-            InputStream is = getFileStream(path, context);
-            return toString(is);
-        } catch (Exception e) {
-            String message = String.format("could not find or read file: %s", path);
-            context.logger.trace("{}", message);
-            throw new KarateFileNotFoundException(message);
-        }
+        return toString(readFileAsStream(path, context));
     }
 
-    public static InputStream getFileStream(String path, ScenarioContext context) {
-        Resource fr = toResource(path, context);
-        return fr.getStream();
+    public static InputStream readFileAsStream(String path, ScenarioContext context) {
+        try {
+            return toResource(path, context).getStream();
+        } catch (Exception e) {
+            InputStream inputStream = context.getResourceAsStream(removePrefix(path));
+            if (inputStream == null) {
+                String message = String.format("could not find or read file: %s", path);
+                context.logger.trace("{}", message);
+                throw new KarateFileNotFoundException(message);
+            }
+            return inputStream;
+        }
     }
 
     public static String toPackageQualifiedName(String path) {
@@ -599,7 +600,7 @@ public class FileUtils {
         } catch (IOException e) { // NoSuchFileException            
             return;
         }
-        for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
+        for (Iterator<Path> paths = stream.iterator(); paths.hasNext(); ) {
             Path path = paths.next();
             Path fileName = path.getFileName();
             if (fileName != null && fileName.toString().endsWith(".feature")) {
@@ -634,11 +635,11 @@ public class FileUtils {
     public static boolean isOsMacOsX() {
         return getOsType() == OsType.MACOSX;
     }
-    
+
     public static String getOsName() {
         return System.getProperty("os.name");
     }
-    
+
     public static OsType getOsType() {
         return getOsType(getOsName());
     }
@@ -648,7 +649,7 @@ public class FileUtils {
             name = "unknown";
         } else {
             name = name.toLowerCase();
-        }        
+        }
         if (name.contains("win")) {
             return OsType.WINDOWS;
         } else if (name.contains("mac")) {
@@ -659,5 +660,4 @@ public class FileUtils {
             return OsType.UNKNOWN;
         }
     }
-
 }

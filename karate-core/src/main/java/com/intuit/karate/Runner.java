@@ -83,8 +83,8 @@ public class Runner {
         return parallel(tags, paths, threadCount, reportDir);
     }    
 
-    public static Results parallel(List<String> tags, List<String> paths, String scenarioName, 
-            Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
+    public static Results parallel(List<String> tags, List<String> paths, String scenarioName,
+                                   Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
         String tagSelector = tags == null ? null : Tags.fromKarateOptionsTags(tags);
         List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
         return parallel(tagSelector, files, scenarioName, hooks, threadCount, reportDir);
@@ -94,8 +94,8 @@ public class Runner {
         return parallel(tagSelector, resources, null, null, threadCount, reportDir);
     }
 
-    public static Results parallel(String tagSelector, List<Resource> resources, String scenarioName, 
-            Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
+    public static Results parallel(String tagSelector, List<Resource> resources, String scenarioName,
+                                   Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
         if (threadCount < 1) {
             threadCount = 1;
         }
@@ -106,7 +106,7 @@ public class Runner {
         final String finalReportDir = reportDir;
         // logger.info("Karate version: {}", FileUtils.getKarateVersion());
         Results results = Results.startTimer(threadCount);
-        ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount);
+        ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount, Executors.privilegedThreadFactory());
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
         int executedFeatureCount = 0;
         try {
@@ -122,7 +122,7 @@ public class Runner {
                 FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
                 CallContext callContext = CallContext.forAsync(feature, hooks, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir,
-                        r -> featureExecutor.submit(r), scenarioExecutor);
+                        r -> featureExecutor.submit(r), scenarioExecutor, Thread.currentThread().getContextClassLoader());
                 featureResults.add(execContext.result);
                 FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
                 unit.setNext(() -> {
@@ -131,8 +131,8 @@ public class Runner {
                         File file = Engine.saveResultJson(finalReportDir, result, null);
                         if (result.getScenarioCount() < 500) {
                             // TODO this routine simply cannot handle that size
-                            Engine.saveResultXml(finalReportDir, result, null);    
-                        }                        
+                            Engine.saveResultXml(finalReportDir, result, null);
+                        }
                         String status = result.isFailed() ? "fail" : "pass";
                         logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
                         result.printStats(file.getPath());
