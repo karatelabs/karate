@@ -686,7 +686,7 @@ public class ScriptBridge implements PerfContext {
             if (!keySv.isStream()) {
                 throw new RuntimeException("'key' is not valid: " + config + ", " + keySv);
             }
-            return new FeatureServer(feature, port, certSv.getAsStream(), keySv.getAsStream(), arg);
+            return new FeatureServer(feature, port, ssl, certSv.getAsStream(), keySv.getAsStream(), arg);
         } else {
             return new FeatureServer(feature, port, ssl, arg);
         }

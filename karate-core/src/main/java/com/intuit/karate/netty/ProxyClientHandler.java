@@ -35,6 +35,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpRequestEncoder;
@@ -85,8 +86,10 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
             return;
         }
         HttpRequest request = (HttpRequest) httpObject;
-        ProxyContext pc = new ProxyContext(request);
-        if (remoteHandler == null && !NettyUtils.isConnect(request)) {
+        boolean isConnect = HttpMethod.CONNECT.equals(request.method());
+        ProxyContext pc = new ProxyContext(request, isConnect);
+        // if ssl CONNECT, always create new remote pipeline
+        if (remoteHandler == null && !isConnect) {
             remoteHandler = REMOTE_HANDLERS.get(pc.hostColonPort);
         }
         if (remoteHandler != null) {
@@ -110,7 +113,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
             @Override
             protected void initChannel(Channel remoteChannel) throws Exception {
                 ChannelPipeline p = remoteChannel.pipeline();
-                if (pc.ssl) {
+                if (isConnect) {
                     SSLContext sslContext = NettyUtils.getSslContext(null);
                     SSLEngine remoteSslEngine = sslContext.createSSLEngine(pc.host, pc.port);
                     remoteSslEngine.setUseClientMode(true);
@@ -135,14 +138,14 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                             if (logger.isTraceEnabled()) {
                                 logger.trace("** ssl: client handshake done: {}", clientChannel);
                             }
-                            releaseLock();
+                            unlockAndProceed();
                         });
                         lockAndWait();
                     });
                 }
                 p.addLast(new HttpRequestEncoder());
                 p.addLast(new HttpResponseDecoder());
-                remoteHandler = new ProxyRemoteHandler(ProxyClientHandler.this, pc.ssl ? null : request);
+                remoteHandler = new ProxyRemoteHandler(ProxyClientHandler.this, isConnect ? null : request);
                 REMOTE_HANDLERS.put(pc.hostColonPort, remoteHandler);
                 p.addLast(remoteHandler);
                 if (logger.isTraceEnabled()) {
@@ -160,7 +163,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                 NettyUtils.flushAndClose(clientChannel);
             }
         });
-        if (!pc.ssl) {
+        if (!isConnect) {
             lockAndWait();
         }
     }
@@ -171,7 +174,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
         }
     }
 
-    protected void releaseLock() {
+    protected void unlockAndProceed() {
         synchronized (LOCK) {
             LOCK.notify();
         }

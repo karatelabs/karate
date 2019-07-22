@@ -129,10 +129,6 @@ public class NettyUtils {
         return keyStoreFile;
     }
 
-    public static boolean isConnect(HttpRequest request) {
-        return HttpMethod.CONNECT.equals(request.method());
-    }
-
     public static FullHttpResponse httpResponse(HttpResponseStatus status, ByteBuf body, String contentType, int contentLength) {
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, body);
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, contentLength);

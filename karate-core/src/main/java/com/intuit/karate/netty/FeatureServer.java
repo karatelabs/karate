@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.netty;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.core.FeatureParser;
@@ -40,27 +41,32 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
+
 import java.io.File;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.function.Supplier;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
  * @author pthomas3
  */
 public class FeatureServer {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureServer.class);
 
+    public static final String DEFAULT_CERT_NAME = "cert.pem";
+    public static final String DEFAULT_KEY_NAME = "key.pem";
+
     public static FeatureServer start(File featureFile, int port, boolean ssl, Map<String, Object> arg) {
         return new FeatureServer(featureFile, port, ssl, arg);
     }
 
-    public static FeatureServer start(File featureFile, int port, File certFile, File privateKeyFile, Map<String, Object> arg) {
-        return new FeatureServer(featureFile, port, certFile, privateKeyFile, arg);
+    public static FeatureServer start(File featureFile, int port, boolean ssl, File certFile, File privateKeyFile, Map<String, Object> arg) {
+        return new FeatureServer(featureFile, port, ssl, certFile, privateKeyFile, arg);
     }
 
     private final Channel channel;
@@ -90,45 +96,60 @@ public class FeatureServer {
         logger.info("stop: shutdown complete");
     }
 
-    public static SslContext getSslContext() { // self signed
-        try {
-            SelfSignedCertificate ssc = new SelfSignedCertificate();
-            return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    private static Supplier<SslContext> getContextSupplier(File certFileProvided, File keyFileProvided) {
+        return () -> {
+            try {
+                File certFile = certFileProvided;
+                File keyFile = keyFileProvided;
+                if (certFile == null || keyFile == null) {
+                    // attempt to re-use as far as possible
+                    String buildDir = FileUtils.getBuildDir();
+                    certFile = new File(buildDir + File.separator + DEFAULT_CERT_NAME);
+                    keyFile = new File(buildDir + File.separator + DEFAULT_KEY_NAME);
+                }
+                if (!certFile.exists() || !keyFile.exists()) {
+                    logger.warn("ssl - " + certFile + " and / or " + keyFile + " not found, will create");
+                    NettyUtils.createSelfSignedCertificate(certFile, keyFile);
+                } else {
+                    logger.info("ssl - re-using existing files: {} and {}", certFile, keyFile);
+                }
+                return SslContextBuilder.forServer(certFile, keyFile).build();
+            } catch (Exception e) {
+                logger.warn("failed to create ssl context, will attempt throwaway creation: {}", e.getMessage());
+                try {
+                    SelfSignedCertificate ssc = new SelfSignedCertificate();
+                    return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
+                } catch (Exception ee) {
+                    throw new RuntimeException(ee);
+                }
+            }
+        };
     }
 
-    private static SslContext getSslContext(File certFile, File keyFile) {
-        try {
-            return SslContextBuilder.forServer(certFile, keyFile).build();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    private static Supplier<SslContext> getContextSupplierFromStreams(InputStream certStream, InputStream keyStream) {
+        return () -> {
+            try {
+                return SslContextBuilder.forServer(certStream, keyStream).build();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
     }
 
-    private static SslContext getSslContext(InputStream certStream, InputStream keyStream) {
-        try {
-            return SslContextBuilder.forServer(certStream, keyStream).build();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public FeatureServer(Feature feature, int port, boolean ssl, InputStream certStream, InputStream keyStream, Map<String, Object> arg) {
+        this(feature, port, ssl, getContextSupplierFromStreams(certStream, keyStream), arg);
     }
 
-    public FeatureServer(Feature feature, int port, InputStream certStream, InputStream keyStream, Map<String, Object> arg) {
-        this(feature, port, FeatureServer.getSslContext(certStream, keyStream), arg);
-    }
-
-    private FeatureServer(File file, int port, File certificate, File privateKey, Map<String, Object> arg) {
-        this(toFeature(file), port, FeatureServer.getSslContext(certificate, privateKey), arg);
+    private FeatureServer(File file, int port, boolean ssl, File certificate, File privateKey, Map<String, Object> arg) {
+        this(toFeature(file), port, ssl, getContextSupplier(certificate, privateKey), arg);
     }
 
     public FeatureServer(Feature feature, int port, boolean ssl, Map<String, Object> arg) {
-        this(feature, port, ssl ? getSslContext() : null, arg);
+        this(feature, port, ssl, getContextSupplier(null, null), arg);
     }
 
     private FeatureServer(File file, int port, boolean ssl, Map<String, Object> arg) {
-        this(toFeature(file), port, ssl ? getSslContext() : null, arg);
+        this(toFeature(file), port, ssl, getContextSupplier(null, null), arg);
     }
 
     private static Feature toFeature(File file) {
@@ -139,8 +160,8 @@ public class FeatureServer {
         return FeatureParser.parse(file);
     }
 
-    private FeatureServer(Feature feature, int requestedPort, SslContext sslCtx, Map<String, Object> arg) {
-        ssl = sslCtx != null;
+    private FeatureServer(Feature feature, int requestedPort, boolean ssl, Supplier<SslContext> contextSupplier, Map<String, Object> arg) {
+        this.ssl = ssl;
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
         backend = new FeatureBackend(feature, arg);
@@ -154,11 +175,11 @@ public class FeatureServer {
                         protected void initChannel(Channel c) {
                             ChannelPipeline p = c.pipeline();
                             if (ssl) {
-                                p.addLast(sslCtx.newHandler(c.alloc()));
+                                p.addLast(contextSupplier.get().newHandler(c.alloc()));
                             }
                             p.addLast(new HttpServerCodec());
                             p.addLast(new HttpObjectAggregator(1048576));
-                            p.addLast(new FeatureServerHandler(backend, ssl, () -> stop()));
+                            p.addLast(new FeatureServerHandler(backend, ssl, contextSupplier, () -> stop()));
                         }
                     });
             channel = b.bind(requestedPort).sync().channel();

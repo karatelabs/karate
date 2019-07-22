@@ -49,6 +49,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
 
+import java.util.function.Supplier;
+
 /**
  *
  * @author pthomas3
@@ -56,12 +58,14 @@ import io.netty.util.CharsetUtil;
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final FeatureBackend backend;
-    private final Runnable stopFunction;
+    private final Runnable stopFunction;    
     private final boolean ssl;
+    private final Supplier<SslContext> contextSupplier;
 
-    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Runnable stopFunction) {
+    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Supplier<SslContext> contextSupplier, Runnable stopFunction) {
         this.backend = backend;
         this.ssl = ssl;
+        this.contextSupplier = contextSupplier;
         this.stopFunction = stopFunction;
     }
 
@@ -82,8 +86,8 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
             nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
             stopFunction.run();
-        } else if (HttpMethod.CONNECT.equals(msg.method())) {
-            SslContext sslContext = FeatureServer.getSslContext();
+        } else if (HttpMethod.CONNECT.equals(msg.method())) { // HTTPS proxy         
+            SslContext sslContext = contextSupplier.get();
             SslHandler sslHandler = sslContext.newHandler(ctx.alloc());
             FullHttpResponse response = NettyUtils.connectionEstablished();
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);

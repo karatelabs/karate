@@ -79,7 +79,7 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
                 logger.debug(">>>> initial: {}", initialRequest);
             }
             ctx.writeAndFlush(initialRequest);
-            clientHandler.releaseLock();
+            clientHandler.unlockAndProceed();
         }
     }
 

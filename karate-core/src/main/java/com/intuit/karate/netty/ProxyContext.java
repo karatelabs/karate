@@ -36,14 +36,14 @@ public class ProxyContext {
 
     public final String host;
     public final int port;
-    public final boolean ssl;
+    private final boolean ssl;
     public final String hostColonPort;
 
     private static final int HTTPS_PORT = 443;
     private static final int HTTP_PORT = 80;
 
-    public ProxyContext(HttpRequest request) {
-        this(getHostColonPortFromHeader(request), NettyUtils.isConnect(request));
+    public ProxyContext(HttpRequest request, boolean ssl) {
+        this(getHostColonPortFromHeader(request), ssl);
     }
 
     public ProxyContext(String uri, boolean ssl) {

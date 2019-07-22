@@ -54,8 +54,6 @@ public class Main implements Callable<Void> {
 
     private static final String DEFAULT_OUTPUT_DIR = "target";
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
-    private static final String CERT_FILE = "cert.pem";
-    private static final String KEY_FILE = "key.pem";
 
     private static Logger logger;
 
@@ -69,13 +67,14 @@ public class Main implements Callable<Void> {
     Integer port;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
-            + CERT_FILE + "' and '" + KEY_FILE + "' if they exist in the working directory, or generate them")
+            + FeatureServer.DEFAULT_CERT_NAME + "' and '" + FeatureServer.DEFAULT_KEY_NAME
+            + "' if they exist in the working directory, or generate them")
     boolean ssl;
 
-    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + CERT_FILE + ")")
+    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + FeatureServer.DEFAULT_CERT_NAME + ")")
     File cert;
 
-    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
+    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + FeatureServer.DEFAULT_KEY_NAME + ")")
     File key;
 
     @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")
@@ -180,29 +179,13 @@ public class Main implements Callable<Void> {
                 return null;
             }
         }
-        FeatureServer server;
-        if (cert != null) {
-            ssl = true;
+        // these files will not be created, unless ssl or ssl proxying happens
+        // and then they will be lazy-initialized
+        if (cert == null || key == null) {
+            cert = new File(FeatureServer.DEFAULT_CERT_NAME);
+            key = new File(FeatureServer.DEFAULT_KEY_NAME);
         }
-        if (ssl) {
-            if (cert == null) {
-                cert = new File(CERT_FILE);
-                key = new File(KEY_FILE);
-            }
-            if (!cert.exists() || !key.exists()) {
-                logger.warn("ssl requested, but " + CERT_FILE + " and/or " + KEY_FILE + " not found in working directory, will create");
-                try {
-                    NettyUtils.createSelfSignedCertificate(cert, key);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
-                logger.info("ssl on, using existing files: {} and {}", CERT_FILE, KEY_FILE);
-            }
-            server = FeatureServer.start(mock, port, cert, key, null);
-        } else {
-            server = FeatureServer.start(mock, port, false, null);
-        }
+        FeatureServer server = FeatureServer.start(mock, port, ssl, cert, key, null);
         server.waitSync();
         return null;
     }
