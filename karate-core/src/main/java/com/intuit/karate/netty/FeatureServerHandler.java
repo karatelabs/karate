@@ -45,10 +45,9 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 
 /**
  *
@@ -71,7 +70,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         ctx.flush();
     }
 
-    private static final String STOP_URI = "/__admin/stop";    
+    private static final String STOP_URI = "/__admin/stop";
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
@@ -84,15 +83,12 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
             stopFunction.run();
         } else if (HttpMethod.CONNECT.equals(msg.method())) {
-            SSLContext sslContext = NettyUtils.getSslContext(null);
-            SSLEngine sslEngine = sslContext.createSSLEngine();
-            sslEngine.setUseClientMode(false);
-            sslEngine.setNeedClientAuth(false);
-            SslHandler sslHandler = new SslHandler(sslEngine);
+            SslContext sslContext = FeatureServer.getSslContext();
+            SslHandler sslHandler = sslContext.newHandler(ctx.alloc());
             FullHttpResponse response = NettyUtils.connectionEstablished();
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
-            ctx.write(response);
-            ctx.channel().pipeline().addFirst(sslHandler);
+            ctx.writeAndFlush(response).addListener(l -> ctx.channel().pipeline().addFirst(sslHandler));
+            // do NOT close channel
             return;
         } else {
             StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
@@ -124,13 +120,13 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus, responseBuf);
             } else {
                 nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus);
-            }            
+            }
             MultiValuedMap karateHeaders = response.getHeaders();
             if (karateHeaders != null) {
                 HttpHeaders nettyHeaders = nettyResponse.headers();
                 karateHeaders.forEach((k, v) -> nettyHeaders.add(k, v));
-            }            
-        }        
+            }
+        }
         ctx.write(nettyResponse);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }

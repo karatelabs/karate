@@ -90,7 +90,7 @@ public class FeatureServer {
         logger.info("stop: shutdown complete");
     }
 
-    private static SslContext getSslContext() { // self signed
+    public static SslContext getSslContext() { // self signed
         try {
             SelfSignedCertificate ssc = new SelfSignedCertificate();
             return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
@@ -116,11 +116,11 @@ public class FeatureServer {
     }
 
     public FeatureServer(Feature feature, int port, InputStream certStream, InputStream keyStream, Map<String, Object> arg) {
-        this(feature, port, getSslContext(certStream, keyStream), arg);
+        this(feature, port, FeatureServer.getSslContext(certStream, keyStream), arg);
     }
 
     private FeatureServer(File file, int port, File certificate, File privateKey, Map<String, Object> arg) {
-        this(toFeature(file), port, getSslContext(certificate, privateKey), arg);
+        this(toFeature(file), port, FeatureServer.getSslContext(certificate, privateKey), arg);
     }
 
     public FeatureServer(Feature feature, int port, boolean ssl, Map<String, Object> arg) {
