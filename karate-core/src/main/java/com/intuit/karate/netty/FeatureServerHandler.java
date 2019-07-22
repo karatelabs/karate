@@ -38,11 +38,17 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 
 /**
  *
@@ -77,6 +83,17 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
             nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
             stopFunction.run();
+        } else if (HttpMethod.CONNECT.equals(msg.method())) {
+            SSLContext sslContext = NettyUtils.getSslContext(null);
+            SSLEngine sslEngine = sslContext.createSSLEngine();
+            sslEngine.setUseClientMode(false);
+            sslEngine.setNeedClientAuth(false);
+            SslHandler sslHandler = new SslHandler(sslEngine);
+            FullHttpResponse response = NettyUtils.connectionEstablished();
+            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
+            ctx.write(response);
+            ctx.channel().pipeline().addFirst(sslHandler);
+            return;
         } else {
             StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
             HttpRequest request = new HttpRequest();
