@@ -873,6 +873,7 @@ public class ScenarioContext {
 
     private void setDriver(Driver driver) {
         this.driver = driver;
+        driver.getOptions().setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
         ScriptValue keys = ScriptBindings.eval("Java.type('com.intuit.karate.driver.Keys')", null);
         bindings.putAdditionalVariable("Keys", keys.getValue());

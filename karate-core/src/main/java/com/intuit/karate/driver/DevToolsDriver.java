@@ -34,9 +34,11 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -54,10 +56,12 @@ public abstract class DevToolsDriver implements Driver {
 
     private Integer windowId;
     private String windowState;
-    private String frameId;
+    private String currentFrameId;
+    protected boolean domContentEventFired;
 
     private final Map<String, String> frameUrlIdMap = new LinkedHashMap();
     private final Map<String, Integer> frameContextMap = new LinkedHashMap();
+    protected final Set<String> framesStillLoading = new HashSet();
 
     protected String currentUrl;
     protected String currentDialogText;
@@ -144,9 +148,17 @@ public abstract class DevToolsDriver implements Driver {
         if (dtm.isMethod("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.get("frameId", String.class);
             if (rootFrameId.equals(frameLoadingId)) { // root page is loading
+                domContentEventFired = false;
                 frameUrlIdMap.clear();
-            }
+                framesStillLoading.clear();
+            } else {
+                framesStillLoading.add(frameLoadingId);
+            }            
         }
+        if (dtm.isMethod("Page.frameStoppedLoading")) {
+            String frameLoadedId = dtm.get("frameId", String.class);
+            framesStillLoading.remove(frameLoadedId);
+        }        
         if (dtm.isMethod("Runtime.executionContextCreated")) {
             String contextFrameId = dtm.get("context.auxData.frameId", String.class);
             Integer contextId = dtm.get("context.id", Integer.class);
@@ -157,10 +169,10 @@ public abstract class DevToolsDriver implements Driver {
     //==========================================================================
     //
     private Integer getContextId() {
-        if (frameId == null) {
+        if (currentFrameId == null) {
             return null;
         }
-        return frameContextMap.get(frameId);
+        return frameContextMap.get(currentFrameId);
     }
     
     protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
@@ -275,13 +287,12 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void setLocation(String url) {
         method("Page.navigate").param("url", url)
-                // this is from pure experience needs analysis TODO
-                .send(currentUrl == null ? WaitState.DOM_CONTENT_EVENT : WaitState.ROOT_FRAME_LOADED);
+                .send(WaitState.ALL_FRAMES_LOADED);
     }
 
     @Override
     public void refresh() {
-        method("Page.reload").send(WaitState.ROOT_FRAME_LOADED);
+        method("Page.reload").send(WaitState.ALL_FRAMES_LOADED);
     }
 
     @Override
@@ -299,7 +310,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         Map<String, Object> entry = list.get(targetIndex);
         Integer id = (Integer) entry.get("id");
-        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.ROOT_FRAME_LOADED);
+        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.ALL_FRAMES_LOADED);
     }
 
     @Override
@@ -370,7 +381,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void submit(String id) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".click()", WaitState.ROOT_FRAME_LOADED);
+        evaluate(options.elementSelector(id) + ".click()", WaitState.ALL_FRAMES_LOADED);
     }
 
     @Override
@@ -665,19 +676,19 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void switchFrame(int index) {
         if (index == -1) {
-            frameId = null;
+            currentFrameId = null;
             return;
         }
         if (index < frameUrlIdMap.size()) {
             List<String> frameIds = new ArrayList(frameUrlIdMap.values());
-            frameId = frameIds.get(index);
+            currentFrameId = frameIds.get(index);
         }
     }
 
     @Override
     public void switchFrame(String locator) {
         if (locator == null) {
-            frameId = null;
+            currentFrameId = null;
             return;
         }
         waitIfNeeded(locator);
@@ -686,7 +697,7 @@ public abstract class DevToolsDriver implements Driver {
         if (url == null) {
             return;
         }
-        frameId = frameUrlIdMap.get(url);
+        currentFrameId = frameUrlIdMap.get(url);
     }
 
     public void enableNetworkEvents() {

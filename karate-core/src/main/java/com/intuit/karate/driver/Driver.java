@@ -71,15 +71,15 @@ public interface Driver {
     void quit();
 
     String html(String locator);
-    
+
     List<String> htmls(String locator);
 
     String text(String locator);
-    
+
     List<String> texts(String locator);
 
     String value(String locator);
-    
+
     List<String> values(String locator);
 
     void value(String locator, String value);
@@ -108,10 +108,6 @@ public interface Driver {
 
     void dialog(boolean accept, String input);
 
-    byte[] screenshot(boolean embed);
-
-    byte[] screenshot(String locator, boolean embed);    
-
     void highlight(String locator);
 
     void switchPage(String titleOrUrl);
@@ -119,14 +115,18 @@ public interface Driver {
     void switchFrame(int index);
 
     void switchFrame(String locator);
-    
+
+    byte[] screenshot(boolean embed);
+
+    byte[] screenshot(String locator, boolean embed);
+
     default byte[] screenshot() {
         return screenshot(true);
     }
-    
+
     default byte[] screenshot(String locator) {
         return screenshot(locator, true);
-    }    
+    }
 
     // waits ===================================================================
     //

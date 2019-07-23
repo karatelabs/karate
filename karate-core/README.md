@@ -512,6 +512,9 @@ If you want to disable the HTML report "embed" part, pass an additional boolean 
 * driver.screenshot('#someDiv', false)
 ```
 
+### `driver.screenshotFullPage()
+Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
+
 ### `driver.pdf()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
 

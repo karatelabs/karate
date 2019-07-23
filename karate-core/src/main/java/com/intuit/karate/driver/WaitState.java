@@ -44,15 +44,19 @@ public class WaitState {
     public static final Predicate<DevToolsMessage> INSPECTOR_DETACHED = forEvent("Inspector.detached");
     public static final Predicate<DevToolsMessage> DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
     public static final Predicate<DevToolsMessage> DOM_CONTENT_EVENT = forEvent("Page.domContentEventFired");
-    public static final Predicate<DevToolsMessage> ROOT_FRAME_LOADED = m -> {
-        if (!"Page.frameStoppedLoading".equals(m.getMethod())) {
-            return false;
+    public static final Predicate<DevToolsMessage> ALL_FRAMES_LOADED = m -> {
+        // page is considered ready only when the dom is ready
+        // AND all child frames have loaded
+        if ("Page.domContentEventFired".equals(m.getMethod())) {
+            m.driver.domContentEventFired = true;
+            if (m.driver.framesStillLoading.isEmpty()) {
+                return true;
+            }
         }
-        String frameId = m.getParam("frameId").getAsString();
-        if (frameId == null) {
-            return false;
+        if ("Page.frameStoppedLoading".equals(m.getMethod())) {
+            return m.driver.framesStillLoading.isEmpty();
         }
-        return frameId.equals(m.getRootFrameId());
+        return false;
     };
     
     public static Predicate<DevToolsMessage> forEvent(String name) {

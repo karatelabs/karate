@@ -54,9 +54,8 @@ import java.util.Map;
  */
 public class DriverOptions {
 
-    public static final long DEFAULT_TIMEOUT = 30 * 1000; // 30 seconds
-
-    public final ScenarioContext context;
+    public static final long DEFAULT_TIMEOUT = 30 * 1000; // 30 seconds    
+    
     public final Map<String, Object> options;
     public final long timeout;
     public final boolean start;
@@ -78,10 +77,21 @@ public class DriverOptions {
     public final List<String> addOptions;
     public final List<String> args = new ArrayList();
 
-// mutable during a test
+    // mutable during a test
     private boolean alwaysWait = false;
     private Integer retryInterval;
+    
+    // mutable when we return from called features
+    private ScenarioContext context;
 
+    public void setContext(ScenarioContext context) {
+        this.context = context;
+    }
+
+    public ScenarioContext getContext() {
+        return context;
+    }        
+    
     public boolean isAlwaysWait() {
         return alwaysWait;
     }

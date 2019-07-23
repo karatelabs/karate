@@ -37,7 +37,7 @@ import java.util.function.Predicate;
  */
 public class DevToolsMessage {
 
-    private final DevToolsDriver driver;
+    protected final DevToolsDriver driver;
 
     private Integer id;
     private final String method;
@@ -191,10 +191,6 @@ public class DevToolsMessage {
 
     public DevToolsMessage send(Predicate<DevToolsMessage> condition) {
         return driver.sendAndWait(this, condition);
-    }
-    
-    String getRootFrameId() {
-        return driver.rootFrameId;
     }
 
     @Override
