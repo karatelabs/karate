@@ -53,7 +53,7 @@ public class ScriptBindings implements Bindings {
     // all threads will share this ! thread isolation is via Bindings (this class)
     private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
 
-    protected final ScriptBridge bridge;
+    public final ScriptBridge bridge;
 
     private final ScriptValueMap vars;
     private final Map<String, Object> adds;

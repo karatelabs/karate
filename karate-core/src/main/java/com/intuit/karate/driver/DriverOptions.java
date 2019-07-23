@@ -56,7 +56,7 @@ public class DriverOptions {
 
     public static final long DEFAULT_TIMEOUT = 30 * 1000; // 30 seconds
 
-    private final ScenarioContext context;
+    public final ScenarioContext context;
     public final Map<String, Object> options;
     public final long timeout;
     public final boolean start;
@@ -293,6 +293,10 @@ public class DriverOptions {
     public String removeProtocol(String url) {
         int pos = url.indexOf("://");
         return pos == -1 ? url : url.substring(pos + 3);
+    }
+    
+    public void embedPngImage(byte[] bytes) {
+        context.embed(bytes, "image/png");
     }
 
 }

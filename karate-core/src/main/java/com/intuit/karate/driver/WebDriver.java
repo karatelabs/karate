@@ -123,7 +123,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public DriverOptions getOptions() {
         return options;
-    }
+    }      
 
     @Override
     public void setLocation(String url) {
@@ -371,7 +371,10 @@ public abstract class WebDriver implements Driver {
         int count = 0;
         ScriptValue sv;
         do {
-            options.sleep();
+            if (count > 0) {
+                logger.debug("waitUntil retry #{}", count);
+                options.sleep();
+            }
             sv = evalInternal(expression);
         } while (!sv.isBooleanTrue() && count++ < max);
         return sv.isBooleanTrue();
@@ -434,12 +437,12 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public byte[] screenshot() {
-        return screenshot(null);
+    public byte[] screenshot(boolean embed) {
+        return screenshot(null, embed);
     }
 
     @Override
-    public byte[] screenshot(String locator) {
+    public byte[] screenshot(String locator, boolean embed) {
         String id = locator == null ? null : get(locator);
         String temp;
         if (id == null) {
@@ -447,7 +450,11 @@ public abstract class WebDriver implements Driver {
         } else {
             temp = http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
         }
-        return Base64.getDecoder().decode(temp);
+        byte[] bytes = Base64.getDecoder().decode(temp);
+        if (embed) {
+            options.embedPngImage(bytes);            
+        }
+        return bytes;
     }
 
     @Override

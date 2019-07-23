@@ -494,7 +494,23 @@ When driver.switchFrame(null)
 ```
 
 ### `driver.screenshot()`
-Two forms, if a [locator](#locators) is provided only that HTML element will be captured, else the browser viewport will be captured.
+Two forms, if a [locator](#locators) is provided only that HTML element will be captured, else the entire browser viewport will be captured. A byte array will be returned.
+
+This will also do a [`karate.embed()`](https://github.com/intuit/karate#karate-embed) so that the image appears in the HTML report.
+
+```cucumber
+* driver.screenshot()
+# or
+* driver.screenshot('#someDiv')
+```
+
+If you want to disable the HTML report "embed" part, pass an additional boolean argument as `false`, e.g: 
+
+```cucumber
+* driver.screenshot(false)
+# or
+* driver.screenshot('#someDiv', false)
+```
 
 ### `driver.pdf()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).

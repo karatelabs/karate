@@ -97,8 +97,7 @@ Scenario Outline: using <config>
   And match driver.text('#eg02DivId') == 'hello world'
 
   # screenshot
-  * def bytes = driver.screenshot('#eg02DivId')
-  * karate.write(bytes, 'partial-' + config.type + '.png')
+  * driver.screenshot('#eg02DivId')
 
   # get element dimensions
   * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
@@ -174,8 +173,8 @@ Scenario Outline: using <config>
 
 Examples:
     | config | dimensions |
-    | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
-    | { type: 'chromedriver' } | { left: 100, top: 0, width: 300, height: 800 } |
+    # | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
+    | { type: 'chromedriver' } | { left: 50, top: 0, width: 250, height: 800 } |
     | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
     | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |
     # | { type: 'mswebdriver' } |

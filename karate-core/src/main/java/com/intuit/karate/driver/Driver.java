@@ -24,6 +24,7 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.ScriptBridge;
 import java.util.List;
 import java.util.Map;
 
@@ -107,9 +108,9 @@ public interface Driver {
 
     void dialog(boolean accept, String input);
 
-    byte[] screenshot();
+    byte[] screenshot(boolean embed);
 
-    byte[] screenshot(String locator);
+    byte[] screenshot(String locator, boolean embed);    
 
     void highlight(String locator);
 
@@ -118,6 +119,14 @@ public interface Driver {
     void switchFrame(int index);
 
     void switchFrame(String locator);
+    
+    default byte[] screenshot() {
+        return screenshot(true);
+    }
+    
+    default byte[] screenshot(String locator) {
+        return screenshot(locator, true);
+    }    
 
     // waits ===================================================================
     //

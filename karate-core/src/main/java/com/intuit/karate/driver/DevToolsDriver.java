@@ -162,14 +162,20 @@ public abstract class DevToolsDriver implements Driver {
         }
         return frameContextMap.get(frameId);
     }
-
+    
     protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
+        return evaluate(expression, condition, false);
+    }   
+
+    protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition, boolean retry) {
         int count = 0;
         DevToolsMessage dtm;
         Integer contextId = getContextId();
+        int retryCount = retry ? 3 : 0;
         do {
             if (count > 0) {
-                logger.debug("evaluate attempt #{}", count + 1);
+                logger.debug("eval attempt #{}", count + 1);
+                options.sleep();
             }
             DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
             if (contextId != null) {
@@ -177,7 +183,7 @@ public abstract class DevToolsDriver implements Driver {
             }
             dtm = toSend.send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
-        } while (dtm != null && dtm.isResultError() && count++ < 3);
+        } while (dtm != null && dtm.isResultError() && count++ < retryCount);
         return dtm;
     }
 
@@ -268,12 +274,14 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void setLocation(String url) {
-        method("Page.navigate").param("url", url).send(WaitState.rootFrameStoppedLoading());
+        method("Page.navigate").param("url", url)
+                // this is from pure experience needs analysis TODO
+                .send(currentUrl == null ? WaitState.DOM_CONTENT_EVENT : WaitState.ROOT_FRAME_LOADED);
     }
 
     @Override
     public void refresh() {
-        method("Page.reload").send(WaitState.rootFrameStoppedLoading());
+        method("Page.reload").send(WaitState.ROOT_FRAME_LOADED);
     }
 
     @Override
@@ -291,7 +299,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         Map<String, Object> entry = list.get(targetIndex);
         Integer id = (Integer) entry.get("id");
-        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.rootFrameStoppedLoading());
+        method("Page.navigateToHistoryEntry").param("entryId", id).send(WaitState.ROOT_FRAME_LOADED);
     }
 
     @Override
@@ -362,7 +370,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void submit(String id) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".click()", WaitState.rootFrameStoppedLoading());
+        evaluate(options.elementSelector(id) + ".click()", WaitState.ROOT_FRAME_LOADED);
     }
 
     @Override
@@ -496,8 +504,10 @@ public abstract class DevToolsDriver implements Driver {
         int count = 0;
         ScriptValue sv;
         do {
-            options.sleep();
-            logger.debug("poll try #{}", count + 1);
+            if (count > 0) {
+                logger.debug("waitUntil retry #{}", count);
+                options.sleep();
+            }
             DevToolsMessage dtm = evaluate(expression, null);
             sv = dtm.getResult();
         } while (!sv.isBooleanTrue() && count++ < max);
@@ -586,12 +596,12 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public byte[] screenshot() {
-        return screenshot(null);
+    public byte[] screenshot(boolean embed) {
+        return screenshot(null, embed);
     }
 
     @Override
-    public byte[] screenshot(String id) {
+    public byte[] screenshot(String id, boolean embed) {
         DevToolsMessage dtm;
         if (id == null) {
             dtm = method("Page.captureScreenshot").send();
@@ -601,23 +611,24 @@ public abstract class DevToolsDriver implements Driver {
             dtm = method("Page.captureScreenshot").param("clip", map).send();
         }
         String temp = dtm.getResult("data").getAsString();
-        return Base64.getDecoder().decode(temp);
+        byte[] bytes = Base64.getDecoder().decode(temp);
+        if (embed) {
+            options.embedPngImage(bytes);
+        }
+        return bytes;
     }
 
-    public byte[] screenshot(boolean fullPage) {
-        if (fullPage) {
-            DevToolsMessage layout = method("Page.getLayoutMetrics").send();
-            Map<String, Object> size = layout.getResult("contentSize").getAsMap();
-            Map<String, Object> map = options.newMapWithSelectedKeys(size, "height", "width");
-            map.put("x", 0);
-            map.put("y", 0);
-            map.put("scale", 1);
-            DevToolsMessage dtm = method("Page.captureScreenshot").param("clip", map).send();
-            String temp = dtm.getResult("data").getAsString();
-            return Base64.getDecoder().decode(temp);
-        } else {
-            return screenshot();
-        }
+    // chrome only
+    public byte[] screenshotFullPage() {
+        DevToolsMessage layout = method("Page.getLayoutMetrics").send();
+        Map<String, Object> size = layout.getResult("contentSize").getAsMap();
+        Map<String, Object> map = options.newMapWithSelectedKeys(size, "height", "width");
+        map.put("x", 0);
+        map.put("y", 0);
+        map.put("scale", 1);
+        DevToolsMessage dtm = method("Page.captureScreenshot").param("clip", map).send();
+        String temp = dtm.getResult("data").getAsString();
+        return Base64.getDecoder().decode(temp);
     }
 
     @Override
