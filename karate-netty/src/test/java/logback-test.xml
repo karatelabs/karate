@@ -14,7 +14,7 @@
         </encoder>
     </appender>    
    
-    <logger name="com.intuit" level="debug"/>
+    <logger name="com.intuit" level="trace"/>
    
     <root level="warn">
         <appender-ref ref="STDOUT" />

@@ -34,7 +34,7 @@ public class ProxyServerTest {
 
     @BeforeClass
     public static void beforeClass() {
-        proxy = new ProxyServer(0);
+        proxy = new ProxyServer(0, null);
         File file = FileUtils.getFileRelativeTo(ProxyServerTest.class, "server.feature");
         server = FeatureServer.start(file, 0, false, null);
         int port = server.getPort();

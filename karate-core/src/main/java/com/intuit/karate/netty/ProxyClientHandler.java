@@ -33,16 +33,14 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpRequestEncoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.util.ReferenceCountUtil;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLContext;
@@ -54,38 +52,28 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> {
+public class ProxyClientHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private static final Logger logger = LoggerFactory.getLogger(ProxyClientHandler.class);
 
-    private ProxyRemoteHandler remoteHandler;
-    protected Channel clientChannel;
+    protected final ResponseFilter responseFilter;
     private final Map<String, ProxyRemoteHandler> REMOTE_HANDLERS = new ConcurrentHashMap();
     private final Object LOCK = new Object();
+    
+    private ProxyRemoteHandler remoteHandler;
+    protected Channel clientChannel;
 
+    public ProxyClientHandler(ResponseFilter responseFilter) {
+        this.responseFilter = responseFilter;
+    }
+    
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         clientChannel = ctx.channel();
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, HttpObject httpObject) throws Exception {
-        if (!(httpObject instanceof HttpRequest)) {
-            if (remoteHandler != null) {
-                if (logger.isTraceEnabled()) {
-                    logger.trace(">> pass: {}", httpObject);
-                }
-                ReferenceCountUtil.retain(httpObject);
-                remoteHandler.remoteChannel.writeAndFlush(httpObject);
-                return;
-            }
-            // last chunk for ssl CONNECT, can be safely ignored
-            if (logger.isTraceEnabled()) {
-                logger.trace(">> skip: {}", httpObject);
-            }
-            return;
-        }
-        HttpRequest request = (HttpRequest) httpObject;
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
         boolean isConnect = HttpMethod.CONNECT.equals(request.method());
         ProxyContext pc = new ProxyContext(request, isConnect);
         // if ssl CONNECT, always create new remote pipeline
@@ -93,14 +81,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
             remoteHandler = REMOTE_HANDLERS.get(pc.hostColonPort);
         }
         if (remoteHandler != null) {
-            if (logger.isTraceEnabled()) {
-                logger.trace(">> before: {}", request);
-            }
-            NettyUtils.fixHeadersForProxy(request);
-            if (logger.isTraceEnabled()) {
-                logger.trace(">>>> after: {}", request);
-            }
-            remoteHandler.remoteChannel.writeAndFlush(request);
+            remoteHandler.send(request);
             return;
         }
         if (logger.isTraceEnabled()) {
@@ -143,8 +124,8 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<HttpObject> 
                         lockAndWait();
                     });
                 }
-                p.addLast(new HttpRequestEncoder());
-                p.addLast(new HttpResponseDecoder());
+                p.addLast(new HttpClientCodec());
+                p.addLast(new HttpObjectAggregator(1048576));
                 remoteHandler = new ProxyRemoteHandler(ProxyClientHandler.this, isConnect ? null : request);
                 REMOTE_HANDLERS.put(pc.hostColonPort, remoteHandler);
                 p.addLast(remoteHandler);

@@ -30,8 +30,8 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpRequestDecoder;
-import io.netty.handler.codec.http.HttpResponseEncoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
 import java.net.InetSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +68,7 @@ public class ProxyServer {
         logger.info("stop: shutdown complete");
     }
 
-    public ProxyServer(int requestedPort) {
+    public ProxyServer(int requestedPort, ResponseFilter responseFilter) {
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup(8);
         try {
@@ -79,9 +79,9 @@ public class ProxyServer {
                         @Override
                         protected void initChannel(Channel c) {
                             ChannelPipeline p = c.pipeline();
-                            p.addLast(new HttpResponseEncoder());
-                            p.addLast(new HttpRequestDecoder());
-                            p.addLast(new ProxyClientHandler());
+                            p.addLast(new HttpServerCodec());
+                            p.addLast(new HttpObjectAggregator(1048576));
+                            p.addLast(new ProxyClientHandler(responseFilter));
                         }
                     });
             channel = b.bind(requestedPort).sync().channel();

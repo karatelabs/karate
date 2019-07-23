@@ -23,14 +23,12 @@
  */
 package com.intuit.karate.netty;
 
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,11 +37,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> {
+public class ProxyRemoteHandler extends SimpleChannelInboundHandler<FullHttpResponse> {
 
     private static final Logger logger = LoggerFactory.getLogger(ProxyRemoteHandler.class);
 
     private final ProxyClientHandler clientHandler;
+    private final ResponseFilter responseFilter;
     private final Channel clientChannel;
     private final HttpRequest initialRequest;
     protected Channel remoteChannel;
@@ -51,34 +50,36 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<HttpObject> 
     public ProxyRemoteHandler(ProxyClientHandler clientHandler, HttpRequest initialRequest) {
         this.clientHandler = clientHandler;
         this.clientChannel = clientHandler.clientChannel;
+        this.responseFilter = clientHandler.responseFilter;
         this.initialRequest = initialRequest;
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, HttpObject response) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse response) throws Exception {
         if (logger.isTraceEnabled()) {
             logger.debug("<< {}", response);
         }
         ReferenceCountUtil.retain(response);
-        clientChannel.eventLoop().execute(() -> {
-            clientChannel.write(response);
-            if (response instanceof LastHttpContent) {
-                clientChannel.writeAndFlush(Unpooled.EMPTY_BUFFER)
-                        .addListener(ChannelFutureListener.CLOSE);
-            }
-        });
+        clientChannel.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+    }
 
+    protected void send(HttpRequest request) {
+        if (logger.isTraceEnabled()) {
+            logger.trace(">> before: {}", request);
+        }
+        NettyUtils.fixHeadersForProxy(request);
+        if (logger.isTraceEnabled()) {
+            logger.trace(">>>> after: {}", request);
+        }
+        ReferenceCountUtil.retain(request);
+        remoteChannel.writeAndFlush(request);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         remoteChannel = ctx.channel();
         if (initialRequest != null) { // only if not ssl
-            NettyUtils.fixHeadersForProxy(initialRequest);
-            if (logger.isTraceEnabled()) {
-                logger.debug(">>>> initial: {}", initialRequest);
-            }
-            ctx.writeAndFlush(initialRequest);
+            send(initialRequest);
             clientHandler.unlockAndProceed();
         }
     }

@@ -99,7 +99,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             HttpRequest request = new HttpRequest();
             if (url.left == null) {
                 String requestScheme = ssl ? "https" : "http";
-                String host = msg.headers().get(HttpUtils.HEADER_HOST);
+                String host = msg.headers().get(HttpHeaderNames.HOST);
                 request.setUrlBase(requestScheme + "://" + host);
             } else {
                 request.setUrlBase(url.left);

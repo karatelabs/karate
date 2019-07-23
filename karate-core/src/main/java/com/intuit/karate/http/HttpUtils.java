@@ -30,8 +30,6 @@ public class HttpUtils {
     public static final String HEADER_CONTENT_TYPE = "Content-Type";
     public static final String HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String HEADER_ACCEPT = "Accept";
-    public static final String HEADER_COOKIE = "Cookie";
-    public static final String HEADER_HOST = "Host";
     public static final String HEADER_ALLOW = "Allow";
     public static final String HEADER_AC_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
     public static final String HEADER_AC_ALLOW_METHODS = "Access-Control-Allow-Methods";

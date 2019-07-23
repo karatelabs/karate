@@ -1,6 +1,8 @@
 package com.intuit.karate;
 
+import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.netty.ProxyServer;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +16,7 @@ public class ProxyServerSslMain {
 
     @Test
     public void testProxy() {
-        ProxyServer server = new ProxyServer(8090);
+        ProxyServer server = new ProxyServer(8090, null);
         server.waitSync();
     }
 

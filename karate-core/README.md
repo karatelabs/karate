@@ -110,6 +110,7 @@ key | description
 `headless` | only applies to `type: 'chrome'` for now
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
+`addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
 
 ## Driver Types
 type | default<br/>port | default<br/>executable | description

@@ -75,6 +75,7 @@ public class DriverOptions {
     public final String workingDirPath;
     public final String processLogFile;
     public final int maxPayloadSize;
+    public final List<String> addOptions;
     public final List<String> args = new ArrayList();
 
 // mutable during a test
@@ -109,6 +110,7 @@ public class DriverOptions {
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
         showProcessLog = get("showProcessLog", false);
+        addOptions = get("addOptions", null);
         uniqueName = type + "_" + System.currentTimeMillis();
         String packageName = getClass().getPackage().getName();
         processLogger = showProcessLog ? this.logger : new Logger(packageName + "." + uniqueName);
@@ -130,6 +132,9 @@ public class DriverOptions {
     public Command startProcess() {
         if (executable == null) {
             return null;
+        }
+        if (addOptions != null) {
+            args.addAll(addOptions);
         }
         Command command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
         command.start();

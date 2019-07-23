@@ -24,6 +24,7 @@
 package com.intuit.karate.netty;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.http.LenientTrustManager;
 import com.intuit.karate.shell.Command;
 import io.netty.buffer.ByteBuf;
@@ -34,7 +35,6 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMessage;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
@@ -129,10 +129,15 @@ public class NettyUtils {
         return keyStoreFile;
     }
 
-    public static FullHttpResponse httpResponse(HttpResponseStatus status, ByteBuf body, String contentType, int contentLength) {
-        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, body);
-        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, contentLength);
-        response.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType);
+    public static FullHttpResponse transform(FullHttpResponse original, String body, StringUtils.Pair ... addHeaders) {
+        byte[] bytes = FileUtils.toBytes(body);
+        ByteBuf bodyBuf = Unpooled.copiedBuffer(bytes);
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, original.status(), bodyBuf);
+        response.headers().set(original.headers());
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);
+        for (StringUtils.Pair header : addHeaders) {
+            response.headers().set(header.left, header.right);
+        }
         return response;
     }
 
@@ -148,7 +153,7 @@ public class NettyUtils {
         request.headers().remove(HttpHeaderNames.CONNECTION);
         // addViaHeader(request, PROXY_ALIAS);
     }
-    
+
     public static void addViaHeader(HttpMessage msg, String alias) {
         StringBuilder sb = new StringBuilder();
         sb.append(msg.protocolVersion().majorVersion()).append('.');
@@ -163,6 +168,6 @@ public class NettyUtils {
             list = Collections.singletonList(sb.toString());
         }
         msg.headers().set(HttpHeaderNames.VIA, list);
-    }    
+    }
 
 }
