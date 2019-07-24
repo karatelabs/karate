@@ -15,7 +15,6 @@ Scenario Outline: <type>
   When driver.switchFrame(null)
   Then match driver.text('#eg01DivId') == 'this div is outside the iframe'
 
-
 Examples:
   | type         |
   | chrome       |

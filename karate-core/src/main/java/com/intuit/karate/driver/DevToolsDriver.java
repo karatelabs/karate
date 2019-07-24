@@ -138,12 +138,11 @@ public abstract class DevToolsDriver implements Driver {
             String frameNavUrl = dtm.get("frame.url", String.class);
             if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
+                logger.trace("** page navigated to root frame: {} - {}", frameNavId, frameNavUrl);
             } else { // important: exclude root from frame lookup we maintain
                 frameUrlIdMap.put(frameNavUrl, frameNavId);
+                logger.trace("** updated frame id map: {}", frameUrlIdMap);
             }
-        }
-        if (dtm.isMethod("Page.windowOpen")) {
-            currentUrl = dtm.getParam("url").getAsString();
         }
         if (dtm.isMethod("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.get("frameId", String.class);
@@ -151,18 +150,22 @@ public abstract class DevToolsDriver implements Driver {
                 domContentEventFired = false;
                 frameUrlIdMap.clear();
                 framesStillLoading.clear();
+                logger.trace("** root frame started loading, cleared all page state: {}", frameLoadingId);
             } else {
                 framesStillLoading.add(frameLoadingId);
+                logger.trace("** frame started loading, added to in-progress list: {}", framesStillLoading);
             }            
         }
         if (dtm.isMethod("Page.frameStoppedLoading")) {
             String frameLoadedId = dtm.get("frameId", String.class);
             framesStillLoading.remove(frameLoadedId);
+            logger.trace("** frame stopped loading: {}, removed from in-progress list: {}", frameLoadedId, framesStillLoading);
         }        
         if (dtm.isMethod("Runtime.executionContextCreated")) {
             String contextFrameId = dtm.get("context.auxData.frameId", String.class);
             Integer contextId = dtm.get("context.id", Integer.class);
             frameContextMap.put(contextFrameId, contextId);
+            logger.trace("** execution context created, updated map: {}", frameContextMap);
         }
     }
 

@@ -49,12 +49,26 @@ public class WaitState {
         // AND all child frames have loaded
         if ("Page.domContentEventFired".equals(m.getMethod())) {
             m.driver.domContentEventFired = true;
+            m.driver.logger.trace("** set dom event fired flag to true");
             if (m.driver.framesStillLoading.isEmpty()) {
+                m.driver.logger.trace("** no frames still loading, wait done");
                 return true;
+            } else {
+                m.driver.logger.trace("** frames still loading, will wait: {}", m.driver.framesStillLoading);
+                return false;
             }
         }
         if ("Page.frameStoppedLoading".equals(m.getMethod())) {
-            return m.driver.framesStillLoading.isEmpty();
+            if (!m.driver.domContentEventFired) {
+                m.driver.logger.trace("** dom still loading, will wait, frames loading: {}", m.driver.framesStillLoading);
+                return false;
+            }
+            if (m.driver.framesStillLoading.isEmpty()) {
+                m.driver.logger.trace("** dom loaded, and all frames loaded, wait done");
+                return true;
+            } else {
+                m.driver.logger.trace("** dom loaded - but frames still loading: {}", m.driver.framesStillLoading);
+            }
         }
         return false;
     };

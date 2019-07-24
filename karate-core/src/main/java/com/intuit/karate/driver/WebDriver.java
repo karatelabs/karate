@@ -211,9 +211,12 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void click(String id, boolean ignored) {
-        waitIfNeeded(id);
-        evalInternal(options.elementSelector(id) + ".click()");
+    public void click(String locator, boolean ignored) {
+        waitIfNeeded(locator);
+        evalInternal(options.elementSelector(locator) + ".click()");
+        // the spec doesn't work :(
+        // String id = get(locator);
+        // http.path("element", id, "click").post("{}");        
     }
 
     @Override
