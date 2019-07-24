@@ -10,12 +10,7 @@
     <artifactId>karate-ui</artifactId>
     <packaging>jar</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>12-ea+9</version>
-        </dependency>        
+    <dependencies>      
         <dependency>
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-core</artifactId>
@@ -28,6 +23,21 @@
             <scope>test</scope>
         </dependency>                                                                                                                                                                                                      		
     </dependencies>
+    
+    <profiles>
+        <profile>
+            <activation>
+                <jdk>12</jdk>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-controls</artifactId>
+                    <version>12-ea+9</version>
+                </dependency>                  
+            </dependencies>
+        </profile>
+    </profiles>    
     
     <build>
         <testResources>
