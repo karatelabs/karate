@@ -1,5 +1,5 @@
 language: java
 jdk:
-  - openjdk8
+  - oraclejdk9
 script: mvn install -P pre-release -Dmaven.javadoc.skip=true -B -V
 
