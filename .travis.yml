@@ -1,6 +1,6 @@
 language: java
 jdk:
-  - oraclejdk12
+  - oraclejdk11
 sudo: false
 install: true
 script: mvn install -P pre-release -Dmaven.javadoc.skip=true -B -V
