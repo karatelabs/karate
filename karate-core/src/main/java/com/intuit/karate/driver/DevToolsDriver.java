@@ -630,7 +630,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     // chrome only
-    public byte[] screenshotFullPage() {
+    public byte[] screenshotFull() {
         DevToolsMessage layout = method("Page.getLayoutMetrics").send();
         Map<String, Object> size = layout.getResult("contentSize").getAsMap();
         Map<String, Object> map = options.newMapWithSelectedKeys(size, "height", "width");

@@ -36,8 +36,9 @@ public class ProxyContext {
 
     public final String host;
     public final int port;
-    private final boolean ssl;
+    public final boolean ssl;
     public final String hostColonPort;
+    public final String uri;
 
     private static final int HTTPS_PORT = 443;
     private static final int HTTP_PORT = 80;
@@ -46,15 +47,16 @@ public class ProxyContext {
         this(getHostColonPortFromHeader(request), ssl);
     }
 
-    public ProxyContext(String uri, boolean ssl) {
+    public ProxyContext(String raw, boolean ssl) {
         this.ssl = ssl;
-        uri = extractHostColonPort(uri);
-        int pos = uri.indexOf(':');
+        raw = extractHostColonPort(raw);
+        uri = removeHostColonPort(raw);
+        int pos = raw.indexOf(':');
         if (pos != -1) {
-            host = uri.substring(0, pos);
-            port = parsePort(uri.substring(pos + 1), ssl);
+            host = raw.substring(0, pos);
+            port = parsePort(raw.substring(pos + 1), ssl);
         } else {
-            host = uri;
+            host = raw;
             port = ssl ? HTTPS_PORT : HTTP_PORT;
         }
         hostColonPort = host + ':' + port;

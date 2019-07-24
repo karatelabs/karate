@@ -41,6 +41,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.File;
 import java.io.FileInputStream;
+import java.net.URI;
 import java.security.KeyStore;
 import java.security.Security;
 import java.util.ArrayList;
@@ -129,15 +130,17 @@ public class NettyUtils {
         return keyStoreFile;
     }
 
-    public static FullHttpResponse transform(FullHttpResponse original, String body, StringUtils.Pair ... addHeaders) {
+    public static DefaultFullHttpResponse createResponse(HttpResponseStatus status, String body) {
         byte[] bytes = FileUtils.toBytes(body);
         ByteBuf bodyBuf = Unpooled.copiedBuffer(bytes);
-        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, original.status(), bodyBuf);
-        response.headers().set(original.headers());
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, bodyBuf);
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);
-        for (StringUtils.Pair header : addHeaders) {
-            response.headers().set(header.left, header.right);
-        }
+        return response;
+    }
+
+    public static FullHttpResponse transform(FullHttpResponse original, String body) {
+        DefaultFullHttpResponse response = createResponse(original.status(), body);
+        response.headers().set(original.headers());
         return response;
     }
 
@@ -168,6 +171,26 @@ public class NettyUtils {
             list = Collections.singletonList(sb.toString());
         }
         msg.headers().set(HttpHeaderNames.VIA, list);
+    }
+
+    public static StringUtils.Pair parseUriIntoUrlBaseAndPath(String rawUri) {
+        int pos = rawUri.indexOf('/');
+        if (pos == -1) {
+            return StringUtils.pair(null, "");
+        }
+        URI uri;
+        try {
+            uri = new URI(rawUri);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (uri.getHost() == null) {
+            return StringUtils.pair(null, rawUri);
+        }
+        String path = uri.getRawPath();
+        pos = rawUri.indexOf(path);
+        String urlBase = rawUri.substring(0, pos);
+        return StringUtils.pair(urlBase, rawUri.substring(pos));
     }
 
 }

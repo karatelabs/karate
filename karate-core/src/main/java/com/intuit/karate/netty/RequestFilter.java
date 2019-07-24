@@ -24,17 +24,16 @@
 package com.intuit.karate.netty;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
 import java.util.function.Function;
 
 /**
  *
  * @author pthomas3
  */
-public interface ResponseFilter extends Function<ProxyResponse, FullHttpResponse> {
-    
-    default FullHttpResponse apply(ProxyContext context, FullHttpRequest request, FullHttpResponse response) {
-        return apply(new ProxyResponse(context, request, response));
+public interface RequestFilter extends Function<ProxyRequest, ProxyResponse> {
+
+    default ProxyResponse apply(ProxyContext context, FullHttpRequest request) {
+        return apply(new ProxyRequest(context, request));
     }
 
 }

@@ -125,26 +125,6 @@ public class HttpUtils {
         }
     }
 
-    public static StringUtils.Pair parseUriIntoUrlBaseAndPath(String rawUri) {
-        int pos = rawUri.indexOf('/');
-        if (pos == -1) {
-            return StringUtils.pair(null, "");
-        }
-        URI uri;
-        try {
-            uri = new URI(rawUri);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        if (uri.getHost() == null) {
-            return StringUtils.pair(null, rawUri);
-        }
-        String path = uri.getRawPath();
-        pos = rawUri.indexOf(path);
-        String urlBase = rawUri.substring(0, pos);
-        return StringUtils.pair(urlBase, rawUri.substring(pos));
-    }
-
     public static Map<String, Cookie> parseCookieHeaderString(String header) {
         List<HttpCookie> list = HttpCookie.parse(header);
         Map<String, Cookie> map = new HashMap(list.size());

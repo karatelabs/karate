@@ -27,7 +27,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
-import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -95,7 +94,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             // do NOT close channel
             return;
         } else {
-            StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
+            StringUtils.Pair url = NettyUtils.parseUriIntoUrlBaseAndPath(msg.uri());
             HttpRequest request = new HttpRequest();
             if (url.left == null) {
                 String requestScheme = ssl ? "https" : "http";

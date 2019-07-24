@@ -35,6 +35,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMethod;
@@ -56,6 +57,7 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private static final Logger logger = LoggerFactory.getLogger(ProxyClientHandler.class);
 
+    protected final RequestFilter requestFilter;
     protected final ResponseFilter responseFilter;
     private final Map<String, ProxyRemoteHandler> REMOTE_HANDLERS = new ConcurrentHashMap();
     private final Object LOCK = new Object();
@@ -63,7 +65,8 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private ProxyRemoteHandler remoteHandler;
     protected Channel clientChannel;
 
-    public ProxyClientHandler(ResponseFilter responseFilter) {
+    public ProxyClientHandler(RequestFilter requestFilter, ResponseFilter responseFilter) {
+        this.requestFilter = requestFilter;
         this.responseFilter = responseFilter;
     }
     
@@ -125,8 +128,9 @@ public class ProxyClientHandler extends SimpleChannelInboundHandler<FullHttpRequ
                     });
                 }
                 p.addLast(new HttpClientCodec());
-                p.addLast(new HttpObjectAggregator(1048576));
-                remoteHandler = new ProxyRemoteHandler(ProxyClientHandler.this, isConnect ? null : request);
+                p.addLast(new HttpContentDecompressor());
+                p.addLast(new HttpObjectAggregator(1048576));                 
+                remoteHandler = new ProxyRemoteHandler(pc, ProxyClientHandler.this, isConnect ? null : request);
                 REMOTE_HANDLERS.put(pc.hostColonPort, remoteHandler);
                 p.addLast(remoteHandler);
                 if (logger.isTraceEnabled()) {

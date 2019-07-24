@@ -59,6 +59,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -869,7 +870,7 @@ public class ScenarioContext {
 
     private void put3(String name, Function<String, Object> value) {
         bindings.putAdditionalVariable(name, value);
-    }
+    }   
 
     private void setDriver(Driver driver) {
         this.driver = driver;

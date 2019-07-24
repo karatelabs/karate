@@ -25,16 +25,27 @@ package com.intuit.karate.netty;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import java.util.function.Function;
+import io.netty.handler.codec.http.HttpHeaderNames;
 
 /**
  *
  * @author pthomas3
  */
-public interface ResponseFilter extends Function<ProxyResponse, FullHttpResponse> {
+public class ProxyResponse {
+
+    public final ProxyContext context;
+    public final FullHttpRequest request;
+    public final FullHttpResponse response;
+
+    public ProxyResponse(ProxyContext context, FullHttpRequest request, FullHttpResponse response) {
+        this.context = context;
+        this.request = request;
+        this.response = response;
+    }
     
-    default FullHttpResponse apply(ProxyContext context, FullHttpRequest request, FullHttpResponse response) {
-        return apply(new ProxyResponse(context, request, response));
+    public boolean isHtml() {
+        String contentType = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        return contentType != null && contentType.contains("html");
     }
 
 }

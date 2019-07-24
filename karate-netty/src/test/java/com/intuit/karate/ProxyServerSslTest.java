@@ -38,7 +38,7 @@ public class ProxyServerSslTest {
 
     @BeforeClass
     public static void beforeClass() {
-        proxy = new ProxyServer(0, null);
+        proxy = new ProxyServer(0, null, null);
         File file = FileUtils.getFileRelativeTo(ProxyServerSslTest.class, "server.feature");
         server = FeatureServer.start(file, 0, true, null);
         int port = server.getPort();

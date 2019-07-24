@@ -68,7 +68,7 @@ public class ProxyServer {
         logger.info("stop: shutdown complete");
     }
 
-    public ProxyServer(int requestedPort, ResponseFilter responseFilter) {
+    public ProxyServer(int requestedPort, RequestFilter requestFilter, ResponseFilter responseFilter) {
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup(8);
         try {
@@ -81,7 +81,7 @@ public class ProxyServer {
                             ChannelPipeline p = c.pipeline();
                             p.addLast(new HttpServerCodec());
                             p.addLast(new HttpObjectAggregator(1048576));
-                            p.addLast(new ProxyClientHandler(responseFilter));
+                            p.addLast(new ProxyClientHandler(requestFilter, responseFilter));
                         }
                     });
             channel = b.bind(requestedPort).sync().channel();

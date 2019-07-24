@@ -155,12 +155,16 @@ public interface Driver {
 
     default boolean exists(String locator) {
         String js = getOptions().elementSelector(locator);
-        Object o = eval(js + " != null");
-        if (o instanceof Boolean) {
-            return (Boolean) o;
-        }
-        return false;
-    }
+        String evalJs = js + " != null";
+        Object o = eval(evalJs);
+        if (o instanceof Boolean && (Boolean) o) {
+            return true;
+        }        
+        // one more time only after one sleep
+        getOptions().sleep();
+        o = eval(evalJs);
+        return o instanceof Boolean ? (Boolean) o : false;
+    }    
 
     // javabean naming convention is intentional ===============================       
     //    

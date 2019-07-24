@@ -27,8 +27,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,15 +41,21 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<FullHttpResp
 
     private static final Logger logger = LoggerFactory.getLogger(ProxyRemoteHandler.class);
 
+    private final ProxyContext proxyContext;
     private final ProxyClientHandler clientHandler;
+    private final RequestFilter requestFilter;
     private final ResponseFilter responseFilter;
     private final Channel clientChannel;
-    private final HttpRequest initialRequest;
-    protected Channel remoteChannel;
+    private final FullHttpRequest initialRequest;
 
-    public ProxyRemoteHandler(ProxyClientHandler clientHandler, HttpRequest initialRequest) {
+    protected Channel remoteChannel;
+    protected FullHttpRequest currentRequest;
+
+    public ProxyRemoteHandler(ProxyContext proxyContext, ProxyClientHandler clientHandler, FullHttpRequest initialRequest) {
+        this.proxyContext = proxyContext;
         this.clientHandler = clientHandler;
         this.clientChannel = clientHandler.clientChannel;
+        this.requestFilter = clientHandler.requestFilter;
         this.responseFilter = clientHandler.responseFilter;
         this.initialRequest = initialRequest;
     }
@@ -59,20 +65,45 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<FullHttpResp
         if (logger.isTraceEnabled()) {
             logger.debug("<< {}", response);
         }
-        ReferenceCountUtil.retain(response);
-        clientChannel.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+        FullHttpResponse filtered
+                = responseFilter == null ? null : responseFilter.apply(proxyContext, currentRequest, response);
+        if (filtered == null) {
+            ReferenceCountUtil.retain(response);
+            filtered = response;
+        } else {
+            if (logger.isTraceEnabled()) {
+                logger.debug("<<<< {}", filtered);
+            }
+        }
+        clientChannel.writeAndFlush(filtered).addListener(ChannelFutureListener.CLOSE);
     }
 
-    protected void send(HttpRequest request) {
+    protected void send(FullHttpRequest request) {
+        currentRequest = request;
+        FullHttpRequest filtered;
+        if (requestFilter != null) {
+            ProxyResponse pr = requestFilter.apply(proxyContext, request);
+            if (pr != null && pr.response != null) { // short circuit
+                clientChannel.writeAndFlush(pr.response);
+                return;
+            }
+            filtered = pr == null ? null : pr.request; // if not null, is transformed
+        } else {
+            filtered = null;
+        }
         if (logger.isTraceEnabled()) {
             logger.trace(">> before: {}", request);
         }
-        NettyUtils.fixHeadersForProxy(request);
-        if (logger.isTraceEnabled()) {
-            logger.trace(">>>> after: {}", request);
+        if (filtered == null) {
+            ReferenceCountUtil.retain(request);
+            filtered = request;
+        } else {
+            if (logger.isTraceEnabled()) {
+                logger.trace(">>>> after: {}", filtered);
+            }
         }
-        ReferenceCountUtil.retain(request);
-        remoteChannel.writeAndFlush(request);
+        NettyUtils.fixHeadersForProxy(filtered);
+        remoteChannel.writeAndFlush(filtered);
     }
 
     @Override
