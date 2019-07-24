@@ -3,9 +3,9 @@ package com.intuit.karate;
 import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.netty.ProxyResponse;
 import com.intuit.karate.netty.ProxyServer;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpResponseStatus;
+//import io.netty.handler.codec.http.FullHttpResponse;
+//import io.netty.handler.codec.http.HttpHeaderNames;
+//import io.netty.handler.codec.http.HttpResponseStatus;
 import java.io.File;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
@@ -24,11 +24,11 @@ public class ProxyServerSslMain {
     public void testProxy() {
         ProxyServer server = new ProxyServer(8090,
                 req -> {
-                    if ("httpbin.org".equals(req.context.host)) {
-                        FullHttpResponse response = NettyUtils.createResponse(HttpResponseStatus.OK, html);
-                        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "text/html");
-                        return new ProxyResponse(req.context, req.request, response);
-                    }
+//                    if ("httpbin.org".equals(req.context.host)) {
+//                        FullHttpResponse response = NettyUtils.createResponse(HttpResponseStatus.OK, html);
+//                        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "text/html");
+//                        return new ProxyResponse(req.context, req.request, response);
+//                    }
                     return null;
                 },
                 res -> {
