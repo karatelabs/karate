@@ -129,8 +129,12 @@ public class NettyUtils {
                 keyStoreFile.getName(), "-storepass", KEYSTORE_PASSWORD, "-file", keyStoreFile.getName() + ".der");
         return keyStoreFile;
     }
+    
+    public static FullHttpResponse createResponse(int status, String body) {
+        return createResponse(HttpResponseStatus.valueOf(status), body);
+    }    
 
-    public static DefaultFullHttpResponse createResponse(HttpResponseStatus status, String body) {
+    public static FullHttpResponse createResponse(HttpResponseStatus status, String body) {
         byte[] bytes = FileUtils.toBytes(body);
         ByteBuf bodyBuf = Unpooled.copiedBuffer(bytes);
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, bodyBuf);
@@ -139,7 +143,7 @@ public class NettyUtils {
     }
 
     public static FullHttpResponse transform(FullHttpResponse original, String body) {
-        DefaultFullHttpResponse response = createResponse(original.status(), body);
+        FullHttpResponse response = createResponse(original.status(), body);
         response.headers().set(original.headers());
         return response;
     }

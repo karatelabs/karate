@@ -24,6 +24,7 @@
 package com.intuit.karate.netty;
 
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
 
 /**
  *
@@ -34,9 +35,18 @@ public class ProxyRequest {
     public final ProxyContext context; 
     public final FullHttpRequest request;
     
+    public String uri() {
+        return request.uri();
+    }
+    
     public ProxyRequest(ProxyContext context, FullHttpRequest request) {
         this.context = context;
         this.request = request;
     }
+    
+    public ProxyResponse fake(int status, String body) {
+        FullHttpResponse response = NettyUtils.createResponse(status, body);
+        return new ProxyResponse(null, null, response);
+    }    
     
 }

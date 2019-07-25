@@ -25,7 +25,6 @@ package com.intuit.karate.netty;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderNames;
 
 /**
  *
@@ -36,16 +35,30 @@ public class ProxyResponse {
     public final ProxyContext context;
     public final FullHttpRequest request;
     public final FullHttpResponse response;
+    
+    public String uri() {
+        return request.uri();
+    }    
+
+    public ProxyResponse transform(String body) {
+        return new ProxyResponse(context, request, NettyUtils.transform(response, body));
+    }
+    
+    public ProxyResponse fake(int status, String body) {
+        return new ProxyResponse(context, request, NettyUtils.createResponse(status, body));
+    }
 
     public ProxyResponse(ProxyContext context, FullHttpRequest request, FullHttpResponse response) {
         this.context = context;
         this.request = request;
         this.response = response;
     }
-    
-    public boolean isHtml() {
-        String contentType = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        return contentType != null && contentType.contains("html");
+
+    public ProxyResponse header(String key, Object value) {
+        if (response != null) {
+            response.headers().add(key, value);
+        }
+        return this;
     }
 
 }

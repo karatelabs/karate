@@ -65,17 +65,16 @@ public class ProxyRemoteHandler extends SimpleChannelInboundHandler<FullHttpResp
         if (logger.isTraceEnabled()) {
             logger.debug("<< {}", response);
         }
-        FullHttpResponse filtered
-                = responseFilter == null ? null : responseFilter.apply(proxyContext, currentRequest, response);
-        if (filtered == null) {
+        ProxyResponse filtered = responseFilter == null ? null : responseFilter.apply(proxyContext, currentRequest, response);
+        if (filtered == null || filtered.response == null) {
             ReferenceCountUtil.retain(response);
-            filtered = response;
         } else {
+            response = filtered.response;
             if (logger.isTraceEnabled()) {
-                logger.debug("<<<< {}", filtered);
-            }
-        }
-        clientChannel.writeAndFlush(filtered).addListener(ChannelFutureListener.CLOSE);
+                logger.debug("<<<< {}", response);
+            }            
+        }        
+        clientChannel.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
     }
 
     protected void send(FullHttpRequest request) {
