@@ -56,11 +56,8 @@ public abstract class DevToolsDriver implements Driver {
 
     private Integer windowId;
     private String windowState;
-    private String currentFrameId;
+    private Integer executionContextId;
     protected boolean domContentEventFired;
-
-    private final Map<String, String> frameUrlIdMap = new LinkedHashMap();
-    private final Map<String, Integer> frameContextMap = new LinkedHashMap();
     protected final Set<String> framesStillLoading = new HashSet();
 
     protected String currentUrl;
@@ -138,54 +135,35 @@ public abstract class DevToolsDriver implements Driver {
             String frameNavUrl = dtm.get("frame.url", String.class);
             if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
-                logger.trace("** page navigated to root frame: {} - {}", frameNavId, frameNavUrl);
-            } else { // important: exclude root from frame lookup we maintain
-                frameUrlIdMap.put(frameNavUrl, frameNavId);
-                logger.trace("** updated frame id map: {}", frameUrlIdMap);
             }
         }
         if (dtm.isMethod("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.get("frameId", String.class);
             if (rootFrameId.equals(frameLoadingId)) { // root page is loading
                 domContentEventFired = false;
-                frameUrlIdMap.clear();
                 framesStillLoading.clear();
                 logger.trace("** root frame started loading, cleared all page state: {}", frameLoadingId);
             } else {
                 framesStillLoading.add(frameLoadingId);
                 logger.trace("** frame started loading, added to in-progress list: {}", framesStillLoading);
-            }            
+            }
         }
         if (dtm.isMethod("Page.frameStoppedLoading")) {
             String frameLoadedId = dtm.get("frameId", String.class);
             framesStillLoading.remove(frameLoadedId);
-            logger.trace("** frame stopped loading: {}, removed from in-progress list: {}", frameLoadedId, framesStillLoading);
-        }        
-        if (dtm.isMethod("Runtime.executionContextCreated")) {
-            String contextFrameId = dtm.get("context.auxData.frameId", String.class);
-            Integer contextId = dtm.get("context.id", Integer.class);
-            frameContextMap.put(contextFrameId, contextId);
-            logger.trace("** execution context created, updated map: {}", frameContextMap);
+            logger.trace("** frame stopped loading: {}, remaining in-progress: {}", frameLoadedId, framesStillLoading);
         }
     }
 
     //==========================================================================
     //
-    private Integer getContextId() {
-        if (currentFrameId == null) {
-            return null;
-        }
-        return frameContextMap.get(currentFrameId);
-    }
-    
     protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
         return evaluate(expression, condition, false);
-    }   
+    }
 
     protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition, boolean retry) {
         int count = 0;
         DevToolsMessage dtm;
-        Integer contextId = getContextId();
         int retryCount = retry ? 3 : 0;
         do {
             if (count > 0) {
@@ -193,8 +171,8 @@ public abstract class DevToolsDriver implements Driver {
                 options.sleep();
             }
             DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
-            if (contextId != null) {
-                toSend.param("contextId", contextId);
+            if (executionContextId != null) {
+                toSend.param("contextId", executionContextId);
             }
             dtm = toSend.send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
@@ -219,7 +197,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Object get(String locator) {
+    public Integer get(String locator) {
         DevToolsMessage dtm = method("DOM.querySelector")
                 .param("nodeId", getRootNodeId())
                 .param("selector", locator).send();
@@ -413,14 +391,18 @@ public abstract class DevToolsDriver implements Driver {
         return property(id, "textContent");
     }
 
-    private String callFunction(int nodeId, String function) {
+    private <T> T callFunctionOnNode(int nodeId, String function, Class<T> type) {
         DevToolsMessage dtm = method("DOM.resolveNode").param("nodeId", nodeId).send();
         String objectId = dtm.getResult("object.objectId", String.class);
-        dtm = method("Runtime.callFunctionOn")
+        return callFunctionOnObject(objectId, function, type);
+    }
+
+    private <T> T callFunctionOnObject(String objectId, String function, Class<T> type) {
+        DevToolsMessage dtm = method("Runtime.callFunctionOn")
                 .param("objectId", objectId)
                 .param("functionDeclaration", function)
                 .send();
-        return dtm.getResult().getAsString();
+        return dtm.getResult().getValue(type);
     }
 
     @Override
@@ -428,7 +410,7 @@ public abstract class DevToolsDriver implements Driver {
         List<Integer> ids = getAll(locator);
         List<String> list = new ArrayList(ids.size());
         for (int id : ids) {
-            String text = callFunction(id, "function(){ return this.textContent }");
+            String text = callFunctionOnNode(id, "function(){ return this.textContent }", String.class);
             list.add(text);
         }
         return list;
@@ -460,7 +442,7 @@ public abstract class DevToolsDriver implements Driver {
         List<Integer> ids = getAll(locator);
         List<String> list = new ArrayList(ids.size());
         for (int id : ids) {
-            String value = callFunction(id, "function(){ return this.value }");
+            String value = callFunctionOnNode(id, "function(){ return this.value }", String.class);
             list.add(value);
         }
         return list;
@@ -679,28 +661,46 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void switchFrame(int index) {
         if (index == -1) {
-            currentFrameId = null;
+            executionContextId = null;
             return;
         }
-        if (index < frameUrlIdMap.size()) {
-            List<String> frameIds = new ArrayList(frameUrlIdMap.values());
-            currentFrameId = frameIds.get(index);
+        List<Integer> ids = getAll("iframe,frame");
+        if (index < ids.size()) {
+            Integer nodeId = ids.get(index);
+            setExecutionContext(nodeId, index);
+        } else {
+            logger.warn("unable to switch frame by index: {}", index);
         }
     }
 
     @Override
     public void switchFrame(String locator) {
         if (locator == null) {
-            currentFrameId = null;
+            executionContextId = null;
             return;
         }
         waitIfNeeded(locator);
-        DevToolsMessage dtm = evaluate(options.elementSelector(locator) + ".contentWindow.location.href", null);
-        String url = dtm.getResult().getAsString();
-        if (url == null) {
+        Integer nodeId = get(locator);
+        if (nodeId == null) {
             return;
         }
-        currentFrameId = frameUrlIdMap.get(url);
+        setExecutionContext(nodeId, locator);
+    }
+    
+    private void setExecutionContext(int nodeId, Object locator) {
+        DevToolsMessage dtm = method("DOM.describeNode")
+                .param("nodeId", nodeId)
+                .param("depth", 0)
+                .send();
+        String frameId = dtm.getResult("node.frameId", String.class);
+        if (frameId == null) {
+            logger.warn("unable to find frame by nodeId: {}", locator);
+        }
+        dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();
+        executionContextId = dtm.getResult("executionContextId").getValue(Integer.class);
+        if (executionContextId == null) {
+            logger.warn("execution context is null, unable to switch frame by locator: {}", locator);
+        }        
     }
 
     public void enableNetworkEvents() {

@@ -684,7 +684,7 @@ class TestParallel {
     @Test
     void testParallel() {
         Results results = Runner.parallel("target/surefire-reports", 5, "~@ignore", "classpath:animals");
-        assertTrue(results.getFailCount() == 0, results.getErrorMessages());
+        assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
 }
