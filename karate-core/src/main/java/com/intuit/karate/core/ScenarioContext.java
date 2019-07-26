@@ -883,7 +883,7 @@ public class ScenarioContext {
 
     // driver ==================================================================       
     //
-    private void put(String name, Consumer<String> value) {
+    private void put1(String name, Consumer<String> value) {
         bindings.putAdditionalVariable(name, value);
     }
 
@@ -893,7 +893,7 @@ public class ScenarioContext {
 
     private void put3(String name, Function<String, Object> value) {
         bindings.putAdditionalVariable(name, value);
-    }   
+    }
 
     private void setDriver(Driver driver) {
         this.driver = driver;
@@ -902,11 +902,11 @@ public class ScenarioContext {
         ScriptValue keys = ScriptBindings.eval("Java.type('com.intuit.karate.driver.Keys')", null);
         bindings.putAdditionalVariable("Keys", keys.getValue());
         // action short cuts
-        put("clear", driver::clear);
+        put1("clear", driver::clear);
         put2("input", driver::input);
         put2("select", driver::select);
-        put("click", driver::click);
-        put("submit", driver::submit);
+        put1("click", driver::click);
+        put1("submit", driver::submit);
         // assertion short cuts
         put3("wait", driver::wait);
         put3("exists", driver::exists);

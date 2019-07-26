@@ -57,7 +57,7 @@ public abstract class DevToolsDriver implements Driver {
     private String windowState;
     private Integer executionContextId;
     protected String sessionId;
-    
+
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
     private final Map<String, String> frameSessions = new HashMap();
@@ -105,6 +105,9 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     public int waitSync() {
+        if (command == null) {
+            return -1;
+        }
         return command.waitSync();
     }
 
@@ -129,21 +132,21 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     public void receive(DevToolsMessage dtm) {
-        if (dtm.isMethod("Page.domContentEventFired")) {
+        if (dtm.methodIs("Page.domContentEventFired")) {
             domContentEventFired = true;
             logger.trace("** set dom ready flag to true");
         }
-        if (dtm.isMethod("Page.javascriptDialogOpening")) {
+        if (dtm.methodIs("Page.javascriptDialogOpening")) {
             currentDialogText = dtm.getParam("message").getAsString();
         }
-        if (dtm.isMethod("Page.frameNavigated")) {
+        if (dtm.methodIs("Page.frameNavigated")) {
             String frameNavId = dtm.get("frame.id", String.class);
             String frameNavUrl = dtm.get("frame.url", String.class);
             if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
             }
         }
-        if (dtm.isMethod("Page.frameStartedLoading")) {
+        if (dtm.methodIs("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.get("frameId", String.class);
             if (rootFrameId.equals(frameLoadingId)) { // root page is loading
                 domContentEventFired = false;
@@ -155,12 +158,12 @@ public abstract class DevToolsDriver implements Driver {
                 logger.trace("** frame started loading, added to in-progress list: {}", framesStillLoading);
             }
         }
-        if (dtm.isMethod("Page.frameStoppedLoading")) {
+        if (dtm.methodIs("Page.frameStoppedLoading")) {
             String frameLoadedId = dtm.get("frameId", String.class);
             framesStillLoading.remove(frameLoadedId);
             logger.trace("** frame stopped loading: {}, remaining in-progress: {}", frameLoadedId, framesStillLoading);
         }
-        if (dtm.isMethod("Target.attachedToTarget")) {
+        if (dtm.methodIs("Target.attachedToTarget")) {
             frameSessions.put(dtm.get("targetInfo.targetId", String.class), dtm.get("sessionId", String.class));
             logger.trace("** added frame session: {}", frameSessions);
         }
@@ -170,32 +173,28 @@ public abstract class DevToolsDriver implements Driver {
 
     //==========================================================================
     //
-    protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
-        return evaluate(expression, condition, false);
+    private DevToolsMessage evaluateInternal(String expression, Predicate<DevToolsMessage> condition) {
+        DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
+        if (executionContextId != null) {
+            toSend.param("contextId", executionContextId);
+        }
+        return toSend.send(condition);
     }
 
-    protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition, boolean retry) {
-        int count = 0;
-        DevToolsMessage dtm;
-        int retryCount = retry ? 3 : 0;
-        do {
-            if (count > 0) {
-                logger.debug("eval retry attempt #{}", count);
-                options.sleep();
-            }
-            DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
-            if (executionContextId != null) {
-                toSend.param("contextId", executionContextId);
-            }
-            dtm = toSend.send(condition);
-            condition = null; // retries don't care about user-condition, e.g. page on-load
-        } while (dtm.isResultError() && count++ < retryCount);
+    protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
+        DevToolsMessage dtm = evaluateInternal(expression, condition);
         if (dtm.isResultError()) {
-            String message = "js eval failed after " + retryCount 
-                    + ", retries: " + expression
+            String message = "js eval failed once:" + expression
                     + ", error: " + dtm.getResult().getAsString();
-            logger.error(message);
-            throw new RuntimeException(message);
+            logger.warn(message);
+            options.sleep();
+            dtm = evaluateInternal(expression, condition);
+            if (dtm.isResultError()) {
+                message = "js eval failed twice:" + expression
+                        + ", error: " + dtm.getResult().getAsString();
+                logger.error(message);
+                throw new RuntimeException(message);
+            }
         }
         return dtm;
     }
@@ -524,8 +523,13 @@ public abstract class DevToolsDriver implements Driver {
                 logger.debug("waitUntil retry #{}", count);
                 options.sleep();
             }
-            DevToolsMessage dtm = evaluate(expression, null);
-            sv = dtm.getResult();
+            try {
+                DevToolsMessage dtm = evaluate(expression, null);
+                sv = dtm.getResult();
+            } catch (Exception e) {
+                sv = ScriptValue.FALSE;
+                logger.warn("waitUntil evaluate failed: {}", e.getMessage());
+            }
         } while (!sv.isBooleanTrue() && count++ < max);
         return sv.isBooleanTrue();
     }
@@ -742,7 +746,7 @@ public abstract class DevToolsDriver implements Driver {
     public void enableRuntimeEvents() {
         method("Runtime.enable").send();
     }
-    
+
     public void enableTargetEvents() {
         method("Target.setAutoAttach")
                 .param("autoAttach", true)

@@ -44,6 +44,7 @@ import org.w3c.dom.Node;
 public class ScriptValue {
 
     public static final ScriptValue NULL = new ScriptValue(null);
+    public static final ScriptValue FALSE = new ScriptValue(false);
 
     public static enum Type {
         NULL,

@@ -228,7 +228,11 @@ public class FeatureBackend {
         // trying to avoid creating a map unless absolutely necessary
         if (responseHeadersMap != null) {
             if (configResponseHeadersMap != null) {
-                responseHeadersMap.putAll(configResponseHeadersMap);
+                // this is slightly different from how the client-side configure headers works
+                // here, scenarios can over-ride what the "global" hook does
+                for (Map.Entry<String, Object> e : configResponseHeadersMap.entrySet()) {
+                    responseHeadersMap.putIfAbsent(e.getKey(), e.getValue());
+                }
             }
         } else if (configResponseHeadersMap != null) {
             responseHeadersMap = configResponseHeadersMap;

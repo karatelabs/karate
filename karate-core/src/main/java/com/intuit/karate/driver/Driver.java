@@ -94,9 +94,7 @@ public interface Driver {
 
     Map<String, Object> rect(String locator);
 
-    boolean enabled(String locator);
-
-    Object eval(String expression);
+    boolean enabled(String locator);    
 
     Map<String, Object> cookie(String name);
 
@@ -127,6 +125,13 @@ public interface Driver {
     default byte[] screenshot(String locator) {
         return screenshot(locator, true);
     }
+    
+    Object eval(String expression);
+    
+    default Object eval(String locator, String expression) {
+        String js = getOptions().elementSelectorFunction(locator, expression);
+        return eval(js);
+    }
 
     // waits ===================================================================
     //
@@ -140,6 +145,11 @@ public interface Driver {
         String js = getOptions().elementSelector(locator);
         return waitUntil(js + " != null");
     }
+    
+    default boolean wait(String locator, String expression) {
+        String js = getOptions().elementSelectorFunction(locator, expression);        
+        return waitUntil(js);
+    }    
 
     default void setAlwaysWait(boolean always) {
         getOptions().setAlwaysWait(always);

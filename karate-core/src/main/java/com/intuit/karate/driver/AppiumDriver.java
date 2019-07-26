@@ -31,30 +31,14 @@ import com.intuit.karate.shell.Command;
  */
 public abstract class AppiumDriver extends WebDriver {
 
-    protected final DriverOptions options;
-    protected final Logger logger;
-    protected final Command command;
-    protected final Http http;
-    private final String sessionId;
-
     protected AppiumDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
-        this.options = options;
-        this.logger = options.driverLogger;
-        this.command = command;
-        this.http = http;
-        this.sessionId = sessionId;
     }
 
     @Override
     public String attribute(String locator, String name) {
         String id = get(locator);
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
-    }
-
-    private ScriptValue evalInternal(String expression) {
-        Json json = new Json().set("script", expression).set("args", "[]");
-        return http.path("execute", "sync").post(json).jsonPath("$.value").value();
     }
 
     private String getElementSelector(String id) {

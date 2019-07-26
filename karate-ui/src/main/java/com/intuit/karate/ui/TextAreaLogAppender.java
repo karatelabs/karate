@@ -53,7 +53,11 @@ public class TextAreaLogAppender implements LogAppender {
 
     @Override
     public void append(String text) {
-        textArea.appendText(text);
+        try {
+            textArea.appendText(text);
+        } catch (Exception e) {
+            System.err.println("*** javafx text area error: " + e);
+        }
     }
 
     @Override

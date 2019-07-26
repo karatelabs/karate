@@ -12,6 +12,14 @@ Scenario Outline: using <config>
   
   # wait for very slow loading element
   And assert driver.wait('#eg01WaitId')
+
+  # a powerful variants of the above, call any js on the element
+  And assert driver.wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
+  And assert driver.wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+  And assert driver.wait('#eg01WaitId', '!_.disabled')
+  And match driver.eval('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
+  And match driver.eval('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
+  And match driver.eval('#eg01WaitId', '!_.disabled') == true
     
   # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }

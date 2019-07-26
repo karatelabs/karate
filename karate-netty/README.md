@@ -367,7 +367,7 @@ Everything on the right side of the "base URL" (see above). This will include ev
 The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing things like: `requestMethod == 'GET'` - "best practice" is to use the [`methodIs()`](#methodis) helper function for request matching.
 
 ## `requestHeaders`
-Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains), [`acceptContains()`](#acceptcontains) or [`headerContains()`](#headercontains) helpers are what you would use most of the time.
+Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains) and [`acceptContains()`](#acceptcontains) helpers are what you would use most of the time.
 
 If you really need to "route" to a `Scenario` based on a custom header value, you can use the [`karate.get()`](https://github.com/intuit/karate#karate-get) API - which will gracefully return `null` if the JsonPath does not exist. For example, the following would match a header of the form: `val: foo`
 
@@ -422,15 +422,6 @@ Just like the above, to make matching the `Accept` header easier.
 Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
     * def cat = cats[pathParams.id]
     * def response = <cat><id>#(cat.id)</id><name>#(cat.name)</name></cat>
-```
-
-## `headerContains()`
-This should be sufficient to test that a particular header has a certain value, even though between the scenes it does a string "contains" check which can be convenient. If you really need an "exact" match, see [`requestHeaders`](#requestheaders).
-
-For example, the following would match a header of the form: `val: foo`
-
-```cucumber
-Scenario: pathMatches('/v1/headers') && headerContains('val', 'foo')
 ```
 
 ## `bodyPath()`
@@ -505,6 +496,8 @@ Many times you want a set of "common" headers to be returned for *every* end-poi
 Background:
     * configure responseHeaders = { 'Content-Type': 'application/json' }
 ```
+
+Note that `Scenario` level [`responseHeaders`](#responseheaders) can over-ride anything set by the "global" `configure responseHeaders`. This is convenient, as you may have a majority of end-points with the same `Content-Type`, and only one or two exceptions such as `text/html` or `text/javascript`.
 
 ## `configure cors`
 This allows a wide range of browsers or HTTP clients to make requests to a Karate server without running into [CORS issues](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). And this is perfect for UI / Front-End teams who can even work off an HTML file on the file-system.

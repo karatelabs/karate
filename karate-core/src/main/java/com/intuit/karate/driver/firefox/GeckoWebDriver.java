@@ -83,4 +83,10 @@ public class GeckoWebDriver extends WebDriver {
         }
     }
 
+    @Override
+    public void waitForPage() {        
+        super.waitForPage();
+        getAll("iframe");
+    }        
+
 }

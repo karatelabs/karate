@@ -140,7 +140,7 @@ public class DriverOptions {
     }
 
     public Command startProcess() {
-        if (executable == null) {
+        if (executable == null || !start) {
             return null;
         }
         if (addOptions != null) {
@@ -255,6 +255,14 @@ public class DriverOptions {
                 + " for (var i = 0; i < e.options.length; ++i)"
                 + " if (i === t) e.options[i].selected = true";
         return wrapInFunctionInvoke(temp);
+    }
+    
+    public String elementSelectorFunction(String locator, String expression) {  
+        char first = expression.charAt(0);
+        String predicate = (first == '_' || first == '!') ? "function(_){ return " + expression + " }": expression;
+        String temp = "var e = " + elementSelector(locator) 
+                + "; var fun = " + predicate + "; return fun(e)";
+        return wrapInFunctionInvoke(temp);        
     }
 
     public void sleep() {

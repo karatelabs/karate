@@ -350,11 +350,23 @@ Will wait until the element (by [locator](#locators)) is present in the page and
 And driver.wait('#eg01WaitId')
 ```
 
-> This can be also [shortened](#short-cuts) to `wait(locator)`.
+> This (but not the variation below) can be also [shortened](#short-cuts) to `wait(locator)`.
 
 Since this returns `true` if the element eventually appeared, you can fail the test if the element does not appear after the re-tries like this:
 ```cucumber
 And assert driver.wait('#eg01WaitId')
+```
+
+A very useful variant is where you can supply a JavaScript "predicate" function (or expression) that will be evaluated *on* the element returned  by the selector in the HTML DOM. Note that most of the time you will prefer the short-cut form that begins with an underscore (or bang), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
+
+> One limitation is that you cannot use double-quotes in these expressions, so stick to the pattern below.
+
+```cucumber
+And assert driver.wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
+
+# if the expression begins with "_" or "!", Karate will wrap the function for you !
+And assert driver.wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+And assert driver.wait('#eg01WaitId', '!_.disabled')
 ```
 
 Also see [`driver.alwaysWait`](#driveralwayswait).
@@ -407,6 +419,20 @@ This behaves slightly differently because it does *not* [auto-wait](#driveralway
 
 ### `driver.eval()`
 Will actually attempt to evaluate the given string as JavaScript within the browser.
+
+```cucumber
+* assert 3 == driver.eval("1 + 2")
+```
+
+A more useful variation is to evaluate JavaScript that has a reference to the HTML DOM element retrieved by a [locator](#locators). For example:
+
+```cucumber
+And match driver.eval('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
+# which can be shortened to:
+And match driver.eval('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
+```
+
+Normally you would use [`driver.text()`](#drivertext) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`driver.wait()`](#driverwait).
 
 ### `driver.refresh()`
 Normal page reload, does not clear cache.

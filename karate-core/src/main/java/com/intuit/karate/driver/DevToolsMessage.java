@@ -65,7 +65,7 @@ public class DevToolsMessage {
         return method;
     }
 
-    public boolean isMethod(String method) {
+    public boolean methodIs(String method) {
         return method.equals(this.method);
     }
     

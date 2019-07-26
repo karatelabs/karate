@@ -58,7 +58,6 @@ public class Chrome extends DevToolsDriver {
         options.arg("--no-first-run");
         options.arg("--user-data-dir=" + options.workingDirPath);
         options.arg("--disable-popup-blocking");
-        options.arg("–-disable-web-security");
         if (options.headless) {
             options.arg("--headless");
         }

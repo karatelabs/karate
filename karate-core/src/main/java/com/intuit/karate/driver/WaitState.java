@@ -45,7 +45,7 @@ public class WaitState {
     public static final Predicate<DevToolsMessage> ALL_FRAMES_LOADED = m -> {
         // page is considered ready only when the dom is ready
         // AND all child frames that STARTED loading BEFORE the dom became ready
-        if (m.isMethod("Page.domContentEventFired")) {            
+        if (m.methodIs("Page.domContentEventFired")) {            
             if (m.driver.framesStillLoading.isEmpty()) {
                 m.driver.logger.trace("** dom ready, and no frames loading, wait done");
                 return true;
@@ -54,7 +54,7 @@ public class WaitState {
                 return false;
             }
         }
-        if (m.isMethod("Page.frameStoppedLoading")) {
+        if (m.methodIs("Page.frameStoppedLoading")) {
             if (!m.driver.domContentEventFired) {
                 m.driver.logger.trace("** dom not ready, will wait, and frames loading: {}", m.driver.framesStillLoading);
                 return false;
