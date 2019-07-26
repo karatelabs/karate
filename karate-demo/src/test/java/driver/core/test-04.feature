@@ -6,7 +6,7 @@ Scenario Outline: <type>
 
   Given driver webUrlBase + '/page-04'
   And match driver.location == webUrlBase + '/page-04'
-  And driver.switchFrame(0)
+  And driver.switchFrame('#frame01')
   When driver.input('#eg01InputId', 'hello world')
   And driver.click('#eg01SubmitId')
   Then match driver.text('#eg01DivId') == 'hello world'
@@ -18,6 +18,6 @@ Scenario Outline: <type>
 Examples:
   | type         |
   | chrome       |
-  | chromedriver |
-  | geckodriver  |
-  | safaridriver |
+#  | chromedriver |
+#  | geckodriver  |
+#  | safaridriver |

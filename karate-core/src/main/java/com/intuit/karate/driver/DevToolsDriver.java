@@ -57,14 +57,17 @@ public abstract class DevToolsDriver implements Driver {
     private Integer windowId;
     private String windowState;
     private Integer executionContextId;
+    protected String sessionId;
+    
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
+    private final Map<String, String> frameSessions = new HashMap();
 
     protected String currentUrl;
     protected String currentDialogText;
     private int nextId;
 
-    public int getNextId() {
+    public int nextId() {
         return ++nextId;
     }
 
@@ -75,6 +78,7 @@ public abstract class DevToolsDriver implements Driver {
     public void setLogger(Logger logger) {
         this.logger = logger;
         client.setLogger(logger);
+        waitState.setLogger(logger);
     }
 
     protected DevToolsDriver(DriverOptions options, Command command, String webSocketUrl) {
@@ -113,7 +117,7 @@ public abstract class DevToolsDriver implements Driver {
         Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
         DevToolsMessage dtm = new DevToolsMessage(this, map);
         if (dtm.getId() == null) {
-            dtm.setId(getNextId());
+            dtm.setId(nextId());
         }
         return sendAndWait(dtm, null);
     }
@@ -126,7 +130,10 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     public void receive(DevToolsMessage dtm) {
-        waitState.receive(dtm);
+        if (dtm.isMethod("Page.domContentEventFired")) {
+            domContentEventFired = true;
+            logger.trace("** set dom ready flag to true");
+        }
         if (dtm.isMethod("Page.javascriptDialogOpening")) {
             currentDialogText = dtm.getParam("message").getAsString();
         }
@@ -142,6 +149,7 @@ public abstract class DevToolsDriver implements Driver {
             if (rootFrameId.equals(frameLoadingId)) { // root page is loading
                 domContentEventFired = false;
                 framesStillLoading.clear();
+                frameSessions.clear();
                 logger.trace("** root frame started loading, cleared all page state: {}", frameLoadingId);
             } else {
                 framesStillLoading.add(frameLoadingId);
@@ -153,6 +161,12 @@ public abstract class DevToolsDriver implements Driver {
             framesStillLoading.remove(frameLoadedId);
             logger.trace("** frame stopped loading: {}, remaining in-progress: {}", frameLoadedId, framesStillLoading);
         }
+        if (dtm.isMethod("Target.attachedToTarget")) {
+            frameSessions.put(dtm.get("targetInfo.targetId", String.class), dtm.get("sessionId", String.class));
+            logger.trace("** added frame session: {}", frameSessions);
+        }
+        // all needed state is set above before we get into conditional checks
+        waitState.receive(dtm);
     }
 
     //==========================================================================
@@ -167,7 +181,7 @@ public abstract class DevToolsDriver implements Driver {
         int retryCount = retry ? 3 : 0;
         do {
             if (count > 0) {
-                logger.debug("eval attempt #{}", count + 1);
+                logger.debug("eval retry attempt #{}", count);
                 options.sleep();
             }
             DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
@@ -176,7 +190,14 @@ public abstract class DevToolsDriver implements Driver {
             }
             dtm = toSend.send(condition);
             condition = null; // retries don't care about user-condition, e.g. page on-load
-        } while (dtm != null && dtm.isResultError() && count++ < retryCount);
+        } while (dtm.isResultError() && count++ < retryCount);
+        if (dtm.isResultError()) {
+            String message = "js eval failed after " + retryCount 
+                    + ", retries: " + expression
+                    + ", error: " + dtm.getResult().getAsString();
+            logger.error(message);
+            throw new RuntimeException(message);
+        }
         return dtm;
     }
 
@@ -662,6 +683,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(int index) {
         if (index == -1) {
             executionContextId = null;
+            sessionId = null;
             return;
         }
         List<Integer> ids = getAll("iframe,frame");
@@ -677,6 +699,7 @@ public abstract class DevToolsDriver implements Driver {
     public void switchFrame(String locator) {
         if (locator == null) {
             executionContextId = null;
+            sessionId = null;
             return;
         }
         waitIfNeeded(locator);
@@ -686,7 +709,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         setExecutionContext(nodeId, locator);
     }
-    
+
     private void setExecutionContext(int nodeId, Object locator) {
         DevToolsMessage dtm = method("DOM.describeNode")
                 .param("nodeId", nodeId)
@@ -695,12 +718,18 @@ public abstract class DevToolsDriver implements Driver {
         String frameId = dtm.getResult("node.frameId", String.class);
         if (frameId == null) {
             logger.warn("unable to find frame by nodeId: {}", locator);
+            return;
+        }
+        sessionId = frameSessions.get(frameId);
+        if (sessionId != null) {
+            logger.trace("found out of process frame and sessionId: {} - {}", frameId, sessionId);
+            return;
         }
         dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();
         executionContextId = dtm.getResult("executionContextId").getValue(Integer.class);
         if (executionContextId == null) {
             logger.warn("execution context is null, unable to switch frame by locator: {}", locator);
-        }        
+        }
     }
 
     public void enableNetworkEvents() {
@@ -713,6 +742,13 @@ public abstract class DevToolsDriver implements Driver {
 
     public void enableRuntimeEvents() {
         method("Runtime.enable").send();
+    }
+    
+    public void enableTargetEvents() {
+        method("Target.setAutoAttach")
+                .param("autoAttach", true)
+                .param("waitForDebuggerOnStart", false)
+                .param("flatten", true).send();
     }
 
 }

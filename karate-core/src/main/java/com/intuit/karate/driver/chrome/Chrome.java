@@ -70,6 +70,7 @@ public class Chrome extends DevToolsDriver {
         chrome.activate();
         chrome.enablePageEvents();
         chrome.enableRuntimeEvents();
+        chrome.enableTargetEvents();
         if (!options.headless) {
             chrome.initWindowIdAndState();
         }

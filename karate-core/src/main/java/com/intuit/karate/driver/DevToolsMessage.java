@@ -40,6 +40,7 @@ public class DevToolsMessage {
     protected final DevToolsDriver driver;
 
     private Integer id;
+    private String sessionId;
     private final String method;
     private Map<String, Object> params;
     private ScriptValue result;
@@ -52,6 +53,14 @@ public class DevToolsMessage {
         this.id = id;
     }
 
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }    
+    
     public String getMethod() {
         return method;
     }
@@ -130,8 +139,9 @@ public class DevToolsMessage {
 
     public DevToolsMessage(DevToolsDriver driver, String method) {
         this.driver = driver;
-        id = driver.getNextId();
+        id = driver.nextId();
         this.method = method;
+        sessionId = driver.sessionId;
     }
 
     public DevToolsMessage(DevToolsDriver driver, Map<String, Object> map) {
@@ -175,6 +185,9 @@ public class DevToolsMessage {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(4);
         map.put("id", id);
+        if (sessionId != null) {
+            map.put("sessionId", sessionId);
+        }
         map.put("method", method);
         if (params != null) {
             map.put("params", params);
@@ -197,6 +210,9 @@ public class DevToolsMessage {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[id: ").append(id);
+        if (sessionId != null) {
+            sb.append(", sessionId: ").append(sessionId);
+        }        
         if (method != null) {
             sb.append(", method: ").append(method);
         }

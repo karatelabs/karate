@@ -2,17 +2,13 @@ package com.intuit.karate.junit4.files;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
 import com.intuit.karate.Resource;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.core.Tags;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.boot.loader.JarLauncher;

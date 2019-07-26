@@ -33,7 +33,6 @@ import java.util.function.Predicate;
 public class WaitState {
 
     private final DriverOptions options;
-    private final Logger logger;
 
     private DevToolsMessage lastSent;
     private Predicate<DevToolsMessage> condition;
@@ -43,45 +42,47 @@ public class WaitState {
     public static final Predicate<DevToolsMessage> FRAME_RESIZED = forEvent("Page.frameResized");
     public static final Predicate<DevToolsMessage> INSPECTOR_DETACHED = forEvent("Inspector.detached");
     public static final Predicate<DevToolsMessage> DIALOG_OPENING = forEvent("Page.javascriptDialogOpening");
-    public static final Predicate<DevToolsMessage> DOM_CONTENT_EVENT = forEvent("Page.domContentEventFired");
     public static final Predicate<DevToolsMessage> ALL_FRAMES_LOADED = m -> {
         // page is considered ready only when the dom is ready
-        // AND all child frames have loaded
-        if ("Page.domContentEventFired".equals(m.getMethod())) {
-            m.driver.domContentEventFired = true;
-            m.driver.logger.trace("** set dom event fired flag to true");
+        // AND all child frames that STARTED loading BEFORE the dom became ready
+        if (m.isMethod("Page.domContentEventFired")) {            
             if (m.driver.framesStillLoading.isEmpty()) {
-                m.driver.logger.trace("** no frames still loading, wait done");
+                m.driver.logger.trace("** dom ready, and no frames loading, wait done");
                 return true;
             } else {
-                m.driver.logger.trace("** frames still loading, will wait: {}", m.driver.framesStillLoading);
+                m.driver.logger.trace("** dom ready, but frames still loading, will wait: {}", m.driver.framesStillLoading);
                 return false;
             }
         }
-        if ("Page.frameStoppedLoading".equals(m.getMethod())) {
+        if (m.isMethod("Page.frameStoppedLoading")) {
             if (!m.driver.domContentEventFired) {
-                m.driver.logger.trace("** dom still loading, will wait, frames loading: {}", m.driver.framesStillLoading);
+                m.driver.logger.trace("** dom not ready, will wait, and frames loading: {}", m.driver.framesStillLoading);
                 return false;
             }
             if (m.driver.framesStillLoading.isEmpty()) {
-                m.driver.logger.trace("** dom loaded, and all frames loaded, wait done");
+                m.driver.logger.trace("** dom ready, and no frames loading, wait done");
                 return true;
             } else {
-                m.driver.logger.trace("** dom loaded - but frames still loading: {}", m.driver.framesStillLoading);
+                m.driver.logger.trace("** dom ready, but frames still loading, will wait: {}", m.driver.framesStillLoading);
             }
         }
         return false;
     };
-    
+
     public static Predicate<DevToolsMessage> forEvent(String name) {
         return m -> name.equals(m.getMethod());
-    }    
-
-    public static final Predicate<DevToolsMessage> NO_WAIT = m -> true;
+    }
 
     public WaitState(DriverOptions options) {
         this.options = options;
         logger = options.driverLogger;
+    }
+
+    // mutable when driver logger is swapped
+    private Logger logger;
+
+    public void setLogger(Logger logger) {
+        this.logger = logger;
     }
 
     public DevToolsMessage waitAfterSend(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
@@ -99,7 +100,7 @@ public class WaitState {
         if (lastReceived != null) {
             logger.trace("<< notified: {}", dtm);
         } else {
-            logger.warn("<< timed out: {}", dtm);
+            logger.warn("<< timed out after milliseconds: {} - {}", options.timeout, dtm);
         }
         return lastReceived;
     }
