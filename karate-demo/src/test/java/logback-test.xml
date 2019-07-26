@@ -14,7 +14,7 @@
         </encoder>
     </appender>    
    
-    <logger name="com.intuit.karate" level="trace"/>
+    <logger name="com.intuit.karate" level="DEBUG"/>
     <logger name="demo" level="DEBUG"/>
     <logger name="mock" level="DEBUG"/>
    
