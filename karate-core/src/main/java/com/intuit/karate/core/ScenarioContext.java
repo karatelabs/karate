@@ -47,11 +47,12 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.driver.Keys;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -84,6 +85,7 @@ public class ScenarioContext {
     public final Collection<ExecutionHook> executionHooks;
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
+    private final ClassLoader classLoader;
 
     public final Function<String, Object> read = s -> {
         ScriptValue sv = FileUtils.readFile(s, this);
@@ -197,6 +199,14 @@ public class ScenarioContext {
         return callable;
     }
 
+    public URL getResource(String name) {
+        return classLoader.getResource(name);
+    }
+
+    public InputStream getResourceAsStream(String name) {
+        return classLoader.getResourceAsStream(name);
+    }
+
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
             return;
@@ -215,7 +225,12 @@ public class ScenarioContext {
     }
 
     public ScenarioContext(FeatureContext featureContext, CallContext call, Scenario scenario, Logger logger) {
+        this(featureContext, call, null, scenario, logger);
+    }
+
+    public ScenarioContext(FeatureContext featureContext, CallContext call, ClassLoader classLoader, Scenario scenario, Logger logger) {
         this.featureContext = featureContext;
+        this.classLoader = classLoader == null ? resolveClassLoader(call) : classLoader;
         if (logger == null) { // ensure this.logger is set properly
             logger = new Logger();
         }
@@ -304,6 +319,13 @@ public class ScenarioContext {
         logger.trace("karate context init - initial properties: {}", vars);
     }
 
+    private static ClassLoader resolveClassLoader(CallContext call) {
+        if (call.context == null) {
+            return Thread.currentThread().getContextClassLoader();
+        }
+        return call.context.classLoader;
+    }
+
     public ScenarioContext copy(ScenarioInfo info, Logger logger) {
         return new ScenarioContext(this, info, logger);
     }
@@ -314,6 +336,7 @@ public class ScenarioContext {
 
     private ScenarioContext(ScenarioContext sc, ScenarioInfo info, Logger logger) {
         featureContext = sc.featureContext;
+        classLoader = sc.classLoader;
         this.logger = logger;
         callDepth = sc.callDepth;
         reuseParentContext = sc.reuseParentContext;
@@ -859,7 +882,7 @@ public class ScenarioContext {
     }
 
     // driver ==================================================================       
-    //    
+    //
     private void put(String name, Consumer<String> value) {
         bindings.putAdditionalVariable(name, value);
     }

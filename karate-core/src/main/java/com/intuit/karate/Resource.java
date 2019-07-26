@@ -23,10 +23,12 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.ScenarioContext;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,15 +42,21 @@ import java.util.Map;
 public class Resource {
 
     private final boolean file;
-    private final Path path;   
+    private final Path path;
     private final int line;
     private final String relativePath;
     private final String packageQualifiedName;
-    
+    private URL url;
+
     public static final Resource EMPTY = new Resource(Paths.get(""), "", -1);
 
     public Resource(File file, String relativePath) {
         this(file.toPath(), relativePath, -1);
+    }
+
+    public Resource(URL url, String relativePath, int line) {
+        this(Paths.get(url.getPath()), relativePath, line);
+        this.url = url;
     }
 
     public Resource(Path path, String relativePath, int line) {
@@ -59,10 +67,29 @@ public class Resource {
         packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
     }
 
+    public Resource(ScenarioContext sc, Path path) {
+        this(sc, path.normalize().toString());
+    }
+
+    public Resource(ScenarioContext sc, String relativePath) {
+        String strippedPath = FileUtils.removePrefix(relativePath);
+        URL resource = sc.getResource(strippedPath);
+        if (resource != null) {
+            this.url = resource;
+            this.path = Paths.get(resource.getPath());
+        } else {
+            this.path = new File(strippedPath).toPath();
+        }
+        this.line = -1;
+        file = !path.toUri().getScheme().equals("jar");
+        this.relativePath = relativePath;
+        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+    }
+
     public String getFileNameWithoutExtension() {
         return FileUtils.removeFileExtension(path.getFileName().toString());
     }
-    
+
     public String getRelativePath() {
         return relativePath;
     }
@@ -73,17 +100,19 @@ public class Resource {
 
     public Path getPath() {
         return path;
-    }        
+    }
 
     public int getLine() {
         return line;
-    }        
+    }
 
     private static final Map<String, byte[]> STREAM_CACHE = new HashMap();
 
     public InputStream getStream() {
         try {
-            if (file) {
+            if (url != null) {
+                return url.openStream();
+            } else if (file) {
                 return new FileInputStream(path.toFile());
             } else {
                 byte[] bytes = STREAM_CACHE.get(relativePath);

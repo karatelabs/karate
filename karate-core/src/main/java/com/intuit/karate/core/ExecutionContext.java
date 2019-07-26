@@ -44,16 +44,23 @@ public class ExecutionContext {
     public final FeatureResult result;
     public final Consumer<Runnable> system;
     public final ExecutorService scenarioExecutor;
+    public final ClassLoader classLoader;
 
     private final File reportDir;
 
     public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
-            Consumer<Runnable> system, ExecutorService scenarioExecutor) {
+                            Consumer<Runnable> system, ExecutorService scenarioExecutor) {
+        this(startTime, featureContext, callContext, reportDirString, system, scenarioExecutor, null);
+    }
+
+    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
+                            Consumer<Runnable> system, ExecutorService scenarioExecutor, ClassLoader classLoader) {
         this.scenarioExecutor = scenarioExecutor;
         this.startTime = startTime;
         result = new FeatureResult(featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;
+        this.classLoader = classLoader;
         if (callContext.perfMode) {
             reportDir = null;
         } else {

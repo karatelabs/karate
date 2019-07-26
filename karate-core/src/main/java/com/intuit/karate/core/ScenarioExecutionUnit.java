@@ -139,7 +139,7 @@ public class ScenarioExecutionUnit implements Runnable {
             // karate-config.js will be processed here 
             // when the script-context constructor is called
             try {
-                actions = new StepActions(exec.featureContext, exec.callContext, scenario, logger);
+                actions = new StepActions(exec.featureContext, exec.callContext, exec.classLoader, scenario, logger);
             } catch (Exception e) {
                 initFailed = true;
                 result.addError("scenario init failed", e);

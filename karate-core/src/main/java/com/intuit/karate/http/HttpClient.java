@@ -265,7 +265,7 @@ public abstract class HttpClient<T> {
             if (config.getClientClass() != null) {
                 className = config.getClientClass();
             } else {
-                InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
+                InputStream is = context.getResourceAsStream(KARATE_HTTP_PROPERTIES);
                 if (is == null) {
                     String msg = KARATE_HTTP_PROPERTIES + " not found";
                     throw new RuntimeException(msg);
