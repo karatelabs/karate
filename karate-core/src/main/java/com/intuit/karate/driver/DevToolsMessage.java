@@ -154,13 +154,12 @@ public class DevToolsMessage {
             Object inner = temp.get("result");
             if (inner instanceof List) {
                 result = new ScriptValue(toMap((List) inner));
-            } else { // TODO improve this logic
+            } else {
                 Map innerMap = (Map) inner;
-                String type = (String) innerMap.get("type");
                 String subtype = (String) innerMap.get("subtype");
-                if ("object".equals(type) || "error".equals(subtype)) {
+                if ("error".equals(subtype) || innerMap.containsKey("objectId")) {
                     result = new ScriptValue(innerMap);
-                } else {
+                } else { // Runtime.evaluate "returnByValue" is true
                     result = new ScriptValue(innerMap.get("value"));
                 }
             }

@@ -24,6 +24,7 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Logger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -71,15 +72,9 @@ public interface Driver {
 
     String html(String locator);
 
-    List<String> htmls(String locator);
-
     String text(String locator);
 
-    List<String> texts(String locator);
-
     String value(String locator);
-
-    List<String> values(String locator);
 
     void value(String locator, String value);
 
@@ -87,13 +82,11 @@ public interface Driver {
 
     String property(String locator, String name);
 
-    String css(String locator, String name);
-
     String name(String locator);
 
-    Map<String, Object> rect(String locator);
-
     boolean enabled(String locator);
+    
+    Map<String, Object> rect(String locator);
 
     Map<String, Object> cookie(String name);
 
@@ -125,11 +118,16 @@ public interface Driver {
         return screenshot(locator, true);
     }
 
-    Object evaluate(String expression);
+    Object script(String expression);
 
-    default Object evaluate(String locator, String expression) {
-        String js = getOptions().elementSelectorFunction(locator, expression);
-        return Driver.this.evaluate(js);
+    default Object script(String locator, String expression) {
+        String js = getOptions().selectorScript(locator, expression);
+        return script(js);
+    }
+
+    default List scripts(String locator, String expression) {
+        String js = getOptions().selectorAllScript(locator, expression);
+        return (List) script(js);        
     }
 
     // waits ===================================================================
@@ -141,12 +139,12 @@ public interface Driver {
     }
 
     default boolean wait(String locator) {
-        String js = getOptions().elementSelector(locator);
+        String js = getOptions().selector(locator);
         return waitUntil(js + " != null");
     }
 
     default boolean wait(String locator, String expression) {
-        String js = getOptions().elementSelectorFunction(locator, expression);
+        String js = getOptions().selectorScript(locator, expression);
         return waitUntil(js);
     }
 
@@ -163,28 +161,20 @@ public interface Driver {
     }
 
     default boolean exists(String locator) {
-        String js = getOptions().elementSelector(locator);
+        String js = getOptions().selector(locator);
         String evalJs = js + " != null";
-        Object o = Driver.this.evaluate(evalJs);
+        Object o = script(evalJs);
         if (o instanceof Boolean && (Boolean) o) {
             return true;
         }
         // one more time only after one sleep
         getOptions().sleep();
-        o = Driver.this.evaluate(evalJs);
+        o = script(evalJs);
         return o instanceof Boolean ? (Boolean) o : false;
     }
 
     // javabean naming convention is intentional ===============================        
     //    
-    DriverOptions getOptions(); // for internal use        
-
-    void setLogger(Logger logger); // for internal use
-
-    Object get(String locator); // for internal use
-
-    List getAll(String locator); // for internal use
-
     void setLocation(String url);
 
     void setDimensions(Map<String, Object> map);
@@ -199,8 +189,18 @@ public interface Driver {
 
     List<Map> getCookies();
 
-    List<String> getWindowHandles();
+    List<String> getPages();
 
     String getDialog();
+
+    // for internal use ========================================================
+    //
+    DriverOptions getOptions();
+
+    void setLogger(Logger logger);
+
+    Object elementId(String locator);
+
+    List elementIds(String locator);
 
 }

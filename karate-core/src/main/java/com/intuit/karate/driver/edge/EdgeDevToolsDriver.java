@@ -72,17 +72,12 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
 
     @Override
     public void input(String id, String value) {
-        eval(options.elementSelector(id) + ".value = \"" + value + "\"", null);
+        eval(options.selector(id) + ".value = \"" + value + "\"", null);
     }
 
     @Override
     public void close() {
         // eval("window.close()", null); // this brings up an alert
-    }
-
-    @Override
-    public List<String> getWindowHandles() {
-        return null;
     }
 
     @Override

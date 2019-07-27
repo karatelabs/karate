@@ -32,7 +32,6 @@ import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -96,11 +95,6 @@ public class Chrome extends DevToolsDriver {
     
     public static Chrome startHeadless() {
         return start(Collections.singletonMap("headless", true));
-    }
-
-    @Override
-    public List<String> getWindowHandles() {
-        return null;
     }
 
 }

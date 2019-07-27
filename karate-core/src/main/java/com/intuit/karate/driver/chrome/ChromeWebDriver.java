@@ -120,7 +120,7 @@ public class ChromeWebDriver extends WebDriver {
             http.path("frame", "parent").post("{}");
             return;
         }
-        String id = get(locator);
+        String id = elementId(locator);
         http.path("frame").post(getJsonForFrame(id));
     }        
 

@@ -185,14 +185,14 @@ And input('#eg02InputId', Key.SHIFT)
 Then match text('#eg02DivId') == '16'
 ```
 
-When it comes to JavaBean getters and setters, you could call them directly, but the `driver.propertyName` form is much better to read, and you save trouble of typing out round brackets. So instead of doing this:
+When it comes to JavaBean getters and setters, you could call them directly, but the `driver.propertyName` form is much better to read, and you save the trouble of typing out round brackets. So instead of doing this:
 
 ```cucumber
 And match getLocation() contains 'page-01'
 When setLocation(webUrlBase + '/page-02')
 ```
 
-Prefer this more readable form:
+You should prefer this form, which is more readable:
 ```cucumber
 And match driver.location contains 'page-01'
 When driver.location = webUrlBase + '/page-02'
@@ -220,14 +220,21 @@ Then match driver.title == 'Test Page'
 ### `driver.dimensions`
 Set the size of the browser window:
 ```cucumber
- And driver.dimensions = { left: 0, top: 0, width: 300, height: 800 }
+ And driver.dimensions = { x: 0, y: 0, width: 300, height: 800 }
 ```
 
-### `driver.rect()`
-Get the position and size of a given element. It will be a JSON in the form below:
+This also works as a "getter" to get the current window dimensions.
 ```cucumber
-  * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
+* def dims = driver.dimensions
 ```
+The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
+
+### `driver.rect()`
+Get the dimensions of an element by [locator](#locators) as follows:
+```cucumber
+* def dims = rect('#someid')
+```
+The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
 
 ### `driver.input()`
 2 string arguments: [locator](#locators) and value to enter.
@@ -304,40 +311,16 @@ Get the `outerHTML`, so will include the markup of the selected element. Useful 
 And match html('#eg01DivId') == '<div id="eg01DivId">this div is outside the iframe</div>'
 ```
 
-### `driver.htmls()`
-Like [`driver.html()`](#driverhtml) but will return a list / array for all elements found by the locator.
-```cucumber
-When def list = htmls('div div')
-Then match list == '#[3]'
-And match each list contains '@@data'
-```
-
 ### `driver.text()`
 Get the text-content. Example:
 ```cucumber
 And match text('.myClass') == 'Class Locator Test'
 ```
 
-### `driver.texts()`
-Like [`driver.text()`](#drivertext) but will return a list / array for all elements found by the locator.
-```cucumber
-When def list = texts('div div')
-Then match list == '#[3]'
-And match each list contains '@@data'
-```
-
 ### `driver.value()`
 Get the HTML form-element value. Example:
 ```cucumber
 And match value('.myClass') == 'some value'
-```
-
-### `driver.values()`
-Like [`driver.text()`](#drivervalue) but will return a list / array for all elements found by the locator.
-```cucumber
-When def list = values("input[name='data2']")
-Then match list == '#[3]'
-And match each list contains 'check'
 ```
 
 ### `driver.value(set)`
@@ -439,19 +422,19 @@ This behaves slightly differently because it does *not* [auto-wait](#driveralway
 * if (exists('#some-modal)) click('.btn-close')
 ```
 
-### `driver.evaluate()`
+### `driver.script()`
 Will actually attempt to evaluate the given string as JavaScript within the browser.
 
 ```cucumber
-* assert 3 == evaluate("1 + 2")
+* assert 3 == script("1 + 2")
 ```
 
-A more useful variation is to `eval` JavaScript that has a reference to the HTML DOM element retrieved by a [locator](#locators). For example:
+A more useful variation is to perform a JavaScript `eval` on a reference to the HTML DOM element retrieved by a [locator](#locators). For example:
 
 ```cucumber
-And match evaluate('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
+And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
 # which can be shortened to:
-And match evaluate('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
+And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 ```
 
 Normally you would use [`driver.text()`](#drivertext) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`driver.wait()`](#driverwait).

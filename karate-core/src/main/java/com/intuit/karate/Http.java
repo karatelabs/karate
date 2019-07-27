@@ -46,6 +46,7 @@ public class Http {
     }
     
     public Http path(String ... paths) {
+        // match.clear();
         match.path(paths);
         return this;
     }    

@@ -26,9 +26,9 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
+import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.Command;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -94,7 +94,7 @@ public abstract class WebDriver implements Driver {
         return new Json().set("id", text).toString();
     }
 
-    protected String getElementLocator(String id) {
+    protected String selectorPayload(String id) {
         Json json = new Json();
         if (id.startsWith("^")) {
             json.set("using", "link text").set("value", id.substring(1));
@@ -109,21 +109,19 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public String get(String id) {
-        String body = getElementLocator(id);
-        return http.path("element").post(body).jsonPath("get[0] $.." + getElementKey()).asString();
+    public String elementId(String id) {
+        return http.path("element").post(selectorPayload(id)).jsonPath("get[0] $.." + getElementKey()).asString();
     }
 
     @Override
-    public List<String> getAll(String id) {
-        String body = getElementLocator(id);
-        return http.path("elements").post(body).jsonPath("$.." + getElementKey()).asList();
+    public List<String> elementIds(String id) {
+        return http.path("elements").post(selectorPayload(id)).jsonPath("$.." + getElementKey()).asList();
     }
 
     @Override
     public DriverOptions getOptions() {
         return options;
-    }      
+    }
 
     @Override
     public void setLocation(String url) {
@@ -133,22 +131,12 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Map<String, Object> getDimensions() {
-        Map map = http.path("window", "rect").get().asMap();
-        Integer left = (Integer) map.remove("x");
-        Integer top = (Integer) map.remove("y");
-        map.put("left", left);
-        map.put("top", top);
-        return map;
+        return http.path("window", "rect").get().jsonPath("$.value").asMap();
     }
 
     @Override
     public void setDimensions(Map<String, Object> map) {
-        Integer x = (Integer) map.remove("left");
-        Integer y = (Integer) map.remove("top");
-        map.put("x", x);
-        map.put("y", y);
-        Json json = new Json(map);
-        http.path("window", "rect").post(json);
+        http.path("window", "rect").post(map);
     }
 
     @Override
@@ -190,19 +178,19 @@ public abstract class WebDriver implements Driver {
     @Override
     public void focus(String id) {
         waitIfNeeded(id);
-        eval(options.elementSelector(id) + ".focus()");
+        eval(options.selector(id) + ".focus()");
     }
 
     @Override
     public void clear(String locator) {
-        String id = get(locator);
+        String id = elementId(locator);
         http.path("element", id, "clear").post("{}");
     }
 
     @Override
     public void input(String name, String value) {
         waitIfNeeded(name);
-        http.path("element", get(name), "value").post(getJsonForInput(value));
+        http.path("element", elementId(name), "value").post(getJsonForInput(value));
     }
 
     @Override
@@ -213,7 +201,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void click(String locator, boolean ignored) {
         waitIfNeeded(locator);
-        eval(options.elementSelector(locator) + ".click()");
+        eval(options.selector(locator) + ".click()");
         // the spec doesn't work :(
         // String id = get(locator);
         // http.path("element", id, "click").post("{}");        
@@ -266,36 +254,10 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public List<String> htmls(String locator) {
-        List<String> ids = getAll(locator);
-        List<String> list = new ArrayList(ids.size());
-        for (String id : ids) {
-            String html = getPropertyById(id, "outerHTML");
-            list.add(html);
-        }
-        return list;
-    }
-
-    protected String getTextById(String id) {
-        return http.path("element", id, "text").get().jsonPath("$.value").asString();
-    }
-
-    @Override
     public String text(String locator) {
         waitIfNeeded(locator);
-        String id = get(locator);
-        return getTextById(id);
-    }
-
-    @Override
-    public List<String> texts(String locator) {
-        List<String> ids = getAll(locator);
-        List<String> list = new ArrayList(ids.size());
-        for (String id : ids) {
-            String text = getTextById(id);
-            list.add(text);
-        }
-        return list;
+        String id = elementId(locator);
+        return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }
 
     @Override
@@ -304,25 +266,14 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public List<String> values(String locator) {
-        List<String> ids = getAll(locator);
-        List<String> list = new ArrayList(ids.size());
-        for (String id : ids) {
-            String property = getPropertyById(id, "value");
-            list.add(property);
-        }
-        return list;
-    }
-
-    @Override
     public void value(String locator, String value) {
-        eval(options.elementSelector(locator) + ".value = '" + value + "'");
+        eval(options.selector(locator) + ".value = '" + value + "'");
     }
 
     @Override
     public String attribute(String locator, String name) {
         waitIfNeeded(locator);
-        String id = get(locator);
+        String id = elementId(locator);
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
     }
 
@@ -333,33 +284,26 @@ public abstract class WebDriver implements Driver {
     @Override
     public String property(String locator, String name) {
         waitIfNeeded(locator);
-        String id = get(locator);
+        String id = elementId(locator);
         return getPropertyById(id, name);
-    }
-
-    @Override
-    public String css(String locator, String name) {
-        waitIfNeeded(locator);
-        String id = get(locator);
-        return http.path("element", id, "css", name).get().jsonPath("$.value").asString();
     }
 
     @Override
     public String name(String locator) {
         return property(locator, "tagName");
     }
-
+    
     @Override
     public Map<String, Object> rect(String locator) {
         waitIfNeeded(locator);
-        String id = get(locator);
+        String id = elementId(locator);
         return http.path("element", id, "rect").get().jsonPath("$.value").asMap();
-    }
+    }    
 
     @Override
     public boolean enabled(String locator) {
         waitIfNeeded(locator);
-        String id = get(locator);
+        String id = elementId(locator);
         return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();
     }
 
@@ -384,7 +328,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public Object evaluate(String expression) {
+    public Object script(String expression) {
         expression = prefixReturn(expression);
         return eval(expression).getValue();
     }
@@ -446,7 +390,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public byte[] screenshot(String locator, boolean embed) {
-        String id = locator == null ? null : get(locator);
+        String id = locator == null ? null : elementId(locator);
         String temp;
         if (id == null) {
             temp = http.path("screenshot").get().jsonPath("$.value").asString();
@@ -455,22 +399,18 @@ public abstract class WebDriver implements Driver {
         }
         byte[] bytes = Base64.getDecoder().decode(temp);
         if (embed) {
-            options.embedPngImage(bytes);            
+            options.embedPngImage(bytes);
         }
         return bytes;
     }
 
     @Override
     public void highlight(String id) {
-        evaluate(options.highlighter(id));
-    }
-
-    protected String getWindowHandleKey() {
-        return "handle";
+        script(options.highlighter(id));
     }
 
     @Override
-    public List<String> getWindowHandles() {
+    public List<String> getPages() {
         return http.path("window", "handles").get().jsonPath("$.value").asList();
     }
 
@@ -479,7 +419,7 @@ public abstract class WebDriver implements Driver {
         if (titleOrUrl == null) {
             return;
         }
-        List<String> list = getWindowHandles();
+        List<String> list = getPages();
         for (String handle : list) {
             http.path("window").post(getJsonForHandle(handle));
             String title = getTitle();
@@ -510,11 +450,11 @@ public abstract class WebDriver implements Driver {
             http.path("frame", "parent").post("{}");
             return;
         }
-        String frameId = get(locator);
+        String frameId = elementId(locator);
         if (frameId == null) {
             return;
         }
-        List<String> ids = getAll("iframe,frame");
+        List<String> ids = elementIds("iframe,frame");
         for (int i = 0; i < ids.size(); i++) {
             String id = ids.get(i);
             if (frameId.equals(id)) {

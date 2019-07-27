@@ -13,13 +13,13 @@ Scenario Outline: using <config>
   # wait for very slow loading element
   And assert wait('#eg01WaitId')
 
-  # a powerful variants of the above, call any js on the element
+  # powerful variants of the above, call any js on the element
   And assert wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
   And assert wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
   And assert wait('#eg01WaitId', '!_.disabled')
-  And match evaluate('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
-  And match evaluate('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
-  And match evaluate('#eg01WaitId', '!_.disabled') == true
+  And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
+  And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
+  And match script('#eg01WaitId', '!_.disabled') == true
 
   # key events
   And input('#eg02InputId', Key.SHIFT)
@@ -63,7 +63,6 @@ Scenario Outline: using <config>
   And match html('.eg01Cls') == '<div class="eg01Cls" style="background-color: yellow"><span>Class Locator Test</span></div>'
   And match driver.title == 'Page Two'
   And match driver.location == webUrlBase + '/page-02'
-  And match css('.eg01Cls', 'background-color') contains '(255, 255, 0'
 
   # set cookie
   Given def cookie2 = { name: 'hello', value: 'world' }
@@ -108,11 +107,11 @@ Scenario Outline: using <config>
   And dialog(true, 'hello world')
   And match text('#eg02DivId') == 'hello world'
 
-  # screenshot
+  # screenshot of selected element
   * screenshot('#eg02DivId')
 
   # get element dimensions
-  * match rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
+  * match rect('#eg02DivId') contains { x: '#number', y: '#number', width: '#number', height: '#number' }
 
   # new tab opens, wait for page
   When click('^New Tab')
@@ -128,18 +127,33 @@ Scenario Outline: using <config>
   And match driver.title == 'Page Three'
   And match driver.location == webUrlBase + '/page-03'
 
-  # get html for all elements that match
-  When def list = htmls('div div')
+  # get html for all elements that match css selector
+  When def list = scripts('div div', '_.innerHTML')
   Then match list == '#[3]'
   And match each list contains '@@data'
 
-  # get text for all elements that match
-  When def list = texts('div div')
+  # get html for all elements that match xpath selector
+  When def list = scripts('//option', '_.innerHTML')
+  Then match list == '#[3]'
+  And match each list contains 'Option'
+
+  # get text for all elements that match css selector
+  When def list = scripts('div div', '_.textContent')
   Then match list == '#[3]'
   And match each list contains '@@data'
 
-  # get value for all elements that match
-  When def list = values("input[name='data2']")
+  # get text for all elements that match xpath selector
+  When def list = scripts('//option', '_.textContent')
+  Then match list == '#[3]'
+  And match each list contains 'Option'
+
+  # get value for all elements that match css selector
+  When def list = scripts("input[name='data2']", '_.value')
+  Then match list == '#[3]'
+  And match each list contains 'check'
+
+  # get value for all elements that match xpath selector
+  When def list = scripts("//input[@name='data2']", '_.value')
   Then match list == '#[3]'
   And match each list contains 'check'
 
@@ -185,10 +199,10 @@ Scenario Outline: using <config>
 
 Examples:
     | config | dimensions |
-    | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
-    | { type: 'chromedriver' } | { left: 50, top: 0, width: 250, height: 800 } |
-    | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
-    | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |
+    | { type: 'chrome' } | { x: 0, y: 0, width: 300, height: 800 } |
+    | { type: 'chromedriver' } | { x: 50, y: 0, width: 250, height: 800 } |
+    | { type: 'geckodriver' } | { x: 600, y: 0, width: 300, height: 800 } |
+    | { type: 'safaridriver' } | { x: 1000, y: 0, width: 300, height: 800 } |
     # | { type: 'mswebdriver' } |
     # | { type: 'msedge' } |
     

@@ -186,21 +186,26 @@ public class DriverOptions {
         }
     }
 
-    public String elementSelector(String id) {
-        return elementSelector("*", id);
+    public String selector(String locator) {
+        return selector("*", locator);
     }
 
-    // TODO for chrome finders htmls() texts() values() etc only CSS selectors work
-    public String elementSelector(String name, String id) {
-        if (id.startsWith("^")) {
-            id = "//" + name + "[text()='" + id.substring(1) + "']";
-        } else if (id.startsWith("*")) {
-            id = "//" + name + "[contains(text(),'" + id.substring(1) + "')]";
+    private static String preProcessIfWildCard(String elementName, String locator) {
+        if (locator.startsWith("^")) {
+            return "//" + elementName + "[text()='" + locator.substring(1) + "']";
         }
-        if (id.startsWith("/")) {
-            return "document.evaluate(\"" + id + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
+        if (locator.startsWith("*")) {
+            return "//" + elementName + "[contains(text(),'" + locator.substring(1) + "')]";
         }
-        return "document.querySelector('" + id + "')";
+        return locator;
+    }
+
+    public String selector(String elementName, String locator) {
+        locator = preProcessIfWildCard(elementName, locator);
+        if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
+            return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
+        }
+        return "document.querySelector(\"" + locator + "\")";
     }
 
     public int getRetryInterval() {
@@ -227,7 +232,7 @@ public class DriverOptions {
     }
 
     public String highlighter(String id) {
-        String e = elementSelector(id);
+        String e = selector(id);
         String temp = "var e = " + e + ";"
                 + " var old = e.getAttribute('style');"
                 + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
@@ -245,7 +250,7 @@ public class DriverOptions {
         } else {
             condition = "e.options[i].value === t";
         }
-        String e = elementSelector(id);
+        String e = selector(id);
         String temp = "var e = " + e + "; var t = \"" + text + "\";"
                 + " for (var i = 0; i < e.options.length; ++i)"
                 + " if (" + condition + ") e.options[i].selected = true";
@@ -253,18 +258,38 @@ public class DriverOptions {
     }
 
     public String optionSelector(String id, int index) {
-        String e = elementSelector(id);
+        String e = selector(id);
         String temp = "var e = " + e + "; var t = " + index + ";"
                 + " for (var i = 0; i < e.options.length; ++i)"
                 + " if (i === t) e.options[i].selected = true";
         return wrapInFunctionInvoke(temp);
     }
 
-    public String elementSelectorFunction(String locator, String expression) {
+    private String fun(String expression) {
         char first = expression.charAt(0);
-        String predicate = (first == '_' || first == '!') ? "function(_){ return " + expression + " }" : expression;
-        String temp = "var e = " + elementSelector(locator)
-                + "; var fun = " + predicate + "; return fun(e)";
+        return (first == '_' || first == '!') ? "function(_){ return " + expression + " }" : expression;
+    }
+
+    public String selectorScript(String locator, String expression) {
+        String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator) + "; return fun(e)";
+        return wrapInFunctionInvoke(temp);
+    }
+
+    public String selectorAllScript(String locator, String expression) {
+        locator = preProcessIfWildCard("*", locator);
+        boolean isXpath = locator.startsWith("/");
+        String selector;
+        if (isXpath) {
+            selector = "document.evaluate(\"" + locator + "\", document, null, 5, null)";
+        } else {
+            selector = "document.querySelectorAll(\"" + locator + "\")";
+        }
+        String temp = "var res = []; var fun = " + fun(expression) + "; var es = " + selector + "; ";
+        if (isXpath) {
+            temp = temp + "var e = null; while(e = es.iterateNext()) res.push(fun(e)); return res";
+        } else {
+            temp = temp + "es.forEach(function(e){ res.push(fun(e)) }); return res";
+        }                
         return wrapInFunctionInvoke(temp);
     }
 

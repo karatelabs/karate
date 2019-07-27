@@ -57,6 +57,10 @@ public class Match {
         this(null, null);
     }
     
+    public void clear() {
+        prevValue = ScriptValue.NULL;
+    }
+    
     public static Match init(Object o) {
         Match match = new Match(null, null);
         match.prevValue = new ScriptValue(o);

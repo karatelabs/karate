@@ -174,7 +174,8 @@ public abstract class DevToolsDriver implements Driver {
     //==========================================================================
     //
     private DevToolsMessage evalOnce(String expression, Predicate<DevToolsMessage> condition) {
-        DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
+        DevToolsMessage toSend = method("Runtime.evaluate")
+                .param("expression", expression).param("returnByValue", true);
         if (executionContextId != null) {
             toSend.param("contextId", executionContextId);
         }
@@ -188,7 +189,7 @@ public abstract class DevToolsDriver implements Driver {
                     + ", error: " + dtm.getResult().getAsString();
             logger.warn(message);
             options.sleep();
-            dtm = evalOnce(expression, condition);
+            dtm = evalOnce(expression, null); // no wait condition for the re-try
             if (dtm.isResultError()) {
                 message = "js eval failed twice:" + expression
                         + ", error: " + dtm.getResult().getAsString();
@@ -197,12 +198,6 @@ public abstract class DevToolsDriver implements Driver {
             }
         }
         return dtm;
-    }
-
-    protected DevToolsMessage evaluateAndGetResult(String expression, Predicate<DevToolsMessage> condition) {
-        DevToolsMessage dtm = eval(expression, condition);
-        String objectId = dtm.getResult("objectId").getAsString();
-        return method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
     }
 
     protected void waitIfNeeded(String name) {
@@ -216,7 +211,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Integer get(String locator) {
+    public Integer elementId(String locator) {
         DevToolsMessage dtm = method("DOM.querySelector")
                 .param("nodeId", getRootNodeId())
                 .param("selector", locator).send();
@@ -227,7 +222,17 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public List getAll(String locator) {
+    public List elementIds(String locator) {
+        if (locator.startsWith("/")) { // special handling for xpath
+            getRootNodeId(); // just so that DOM.getDocument is called else DOM.performSearch fails
+            DevToolsMessage dtm = method("DOM.performSearch").param("query", locator).send();
+            String searchId = dtm.getResult("searchId", String.class);
+            int resultCount = dtm.getResult("resultCount", Integer.class);
+            dtm = method("DOM.getSearchResults")
+                    .param("searchId", searchId)
+                    .param("fromIndex", 0).param("toIndex", resultCount).send();
+            return dtm.getResult("nodeIds", List.class);
+        }
         DevToolsMessage dtm = method("DOM.querySelectorAll")
                 .param("nodeId", getRootNodeId())
                 .param("selector", locator).send();
@@ -256,11 +261,20 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public Map<String, Object> getDimensions() {
         DevToolsMessage dtm = method("Browser.getWindowForTarget").param("targetId", rootFrameId).send();
-        return dtm.getResult("bounds").getAsMap();
+        Map<String, Object> map = dtm.getResult("bounds").getAsMap();
+        Integer x = (Integer) map.remove("left");
+        Integer y = (Integer) map.remove("top");
+        map.put("x", x);
+        map.put("y", y); 
+        return map;
     }
 
     @Override
     public void setDimensions(Map<String, Object> map) {
+        Integer left = (Integer) map.remove("x");
+        Integer top = (Integer) map.remove("y");
+        map.put("left", left);
+        map.put("top", top);         
         Map temp = getDimensions();
         temp.putAll(map);
         temp.remove("windowState");
@@ -363,7 +377,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void click(String id, boolean waitForDialog) {
         waitIfNeeded(id);
-        eval(options.elementSelector(id) + ".click()", waitForDialog ? WaitState.DIALOG_OPENING : null);
+        eval(options.selector(id) + ".click()", waitForDialog ? WaitState.DIALOG_OPENING : null);
     }
 
     @Override
@@ -381,25 +395,25 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void submit(String id) {
         waitIfNeeded(id);
-        eval(options.elementSelector(id) + ".click()", WaitState.ALL_FRAMES_LOADED);
+        eval(options.selector(id) + ".click()", WaitState.ALL_FRAMES_LOADED);
     }
 
     @Override
     public void focus(String id) {
         waitIfNeeded(id);
-        eval(options.elementSelector(id) + ".focus()", null);
+        eval(options.selector(id) + ".focus()", null);
     }
 
     @Override
     public void clear(String id) {
-        eval(options.elementSelector(id) + ".value = ''", null);
+        eval(options.selector(id) + ".value = ''", null);
     }
 
     @Override
     public void input(String id, String value) {
         waitIfNeeded(id);
         // focus
-        eval(options.elementSelector(id) + ".focus()", null);
+        eval(options.selector(id) + ".focus()", null);
         for (char c : value.toCharArray()) {
             DevToolsMessage toSend = method("Input.dispatchKeyEvent").param("type", "keyDown");
             Integer keyCode = Key.INSTANCE.CODES.get(c);
@@ -432,30 +446,8 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public List<String> texts(String locator) {
-        List<Integer> ids = getAll(locator);
-        List<String> list = new ArrayList(ids.size());
-        for (int id : ids) {
-            String text = callFunctionOnNode(id, "function(){ return this.textContent }", String.class);
-            list.add(text);
-        }
-        return list;
-    }
-
-    @Override
     public String html(String id) {
         return property(id, "outerHTML");
-    }
-
-    @Override
-    public List<String> htmls(String locator) {
-        List<Integer> ids = getAll(locator);
-        List<String> list = new ArrayList(ids.size());
-        for (int id : ids) {
-            DevToolsMessage dtm = method("DOM.getOuterHTML").param("nodeId", id).send();
-            list.add(dtm.getResult().getAsString());
-        }
-        return list;
     }
 
     @Override
@@ -464,40 +456,22 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public List<String> values(String locator) {
-        List<Integer> ids = getAll(locator);
-        List<String> list = new ArrayList(ids.size());
-        for (int id : ids) {
-            String value = callFunctionOnNode(id, "function(){ return this.value }", String.class);
-            list.add(value);
-        }
-        return list;
-    }
-
-    @Override
     public void value(String id, String value) {
         waitIfNeeded(id);
-        eval(options.elementSelector(id) + ".value = '" + value + "'", null);
+        eval(options.selector(id) + ".value = '" + value + "'", null);
     }
 
     @Override
     public String attribute(String id, String name) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = eval(options.elementSelector(id) + ".getAttribute('" + name + "')", null);
+        DevToolsMessage dtm = eval(options.selector(id) + ".getAttribute('" + name + "')", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = eval(options.elementSelector(id) + "['" + name + "']", null);
-        return dtm.getResult().getAsString();
-    }
-
-    @Override
-    public String css(String id, String name) {
-        waitIfNeeded(id);
-        DevToolsMessage dtm = eval("getComputedStyle(" + options.elementSelector(id) + ")['" + name + "']", null);
+        DevToolsMessage dtm = eval(options.selector(id) + "['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
@@ -507,16 +481,9 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Map<String, Object> rect(String id) {
-        waitIfNeeded(id);
-        DevToolsMessage dtm = evaluateAndGetResult(options.elementSelector(id) + ".getBoundingClientRect()", null);
-        return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
-    }
-
-    @Override
     public boolean enabled(String id) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = eval(options.elementSelector(id) + ".disabled", null);
+        DevToolsMessage dtm = eval(options.selector(id) + ".disabled", null);
         return !dtm.getResult().isBooleanTrue();
     }
 
@@ -542,7 +509,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Object evaluate(String expression) {
+    public Object script(String expression) {
         return eval(expression, null).getResult().getValue();
     }
 
@@ -628,6 +595,16 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
+    public Map<String, Object> rect(String id) {
+        String expression = options.selector(id) + ".getBoundingClientRect()";
+        //  important to not set returnByValue to true
+        DevToolsMessage dtm = method("Runtime.evaluate").param("expression", expression).send();
+        String objectId = dtm.getResult("objectId").getAsString();
+        dtm = method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();        
+        return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
+    }
+
+    @Override
     public byte[] screenshot(String id, boolean embed) {
         DevToolsMessage dtm;
         if (id == null) {
@@ -660,8 +637,14 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void highlight(String id) {
-        evaluate(options.highlighter(id));
+        script(options.highlighter(id));
     }
+
+    @Override
+    public List<String> getPages() {
+        DevToolsMessage dtm = method("Target.getTargets").send();
+        return dtm.getResult("targetInfos.targetId").getAsList();
+    }        
 
     @Override
     public void switchPage(String titleOrUrl) {
@@ -696,7 +679,7 @@ public abstract class DevToolsDriver implements Driver {
             sessionId = null;
             return;
         }
-        List<Integer> ids = getAll("iframe,frame");
+        List<Integer> ids = elementIds("iframe,frame");
         if (index < ids.size()) {
             Integer nodeId = ids.get(index);
             setExecutionContext(nodeId, index);
@@ -713,7 +696,7 @@ public abstract class DevToolsDriver implements Driver {
             return;
         }
         waitIfNeeded(locator);
-        Integer nodeId = get(locator);
+        Integer nodeId = elementId(locator);
         if (nodeId == null) {
             return;
         }
@@ -732,7 +715,7 @@ public abstract class DevToolsDriver implements Driver {
         }
         sessionId = frameSessions.get(frameId);
         if (sessionId != null) {
-            logger.trace("found out of process frame and sessionId: {} - {}", frameId, sessionId);
+            logger.trace("found out-of-process frame - session: {} - {}", frameId, sessionId);
             return;
         }
         dtm = method("Page.createIsolatedWorld").param("frameId", frameId).send();

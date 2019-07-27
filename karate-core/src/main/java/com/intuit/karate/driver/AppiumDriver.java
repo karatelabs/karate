@@ -37,7 +37,7 @@ public abstract class AppiumDriver extends WebDriver {
 
     @Override
     public String attribute(String locator, String name) {
-        String id = get(locator);
+        String id = elementId(locator);
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
     }
 
@@ -62,20 +62,20 @@ public abstract class AppiumDriver extends WebDriver {
     }
 
     @Override
-    public String get(String id) {
+    public String elementId(String id) {
         String body = getElementSelector(id);
         return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
     }
 
     @Override
     public void clear(String selector) {
-        String id = get(selector);
+        String id = elementId(selector);
         http.path("element", id, "clear").post("{}");
     }
 
     @Override
     public void click(String selector) {
-        String id = get(selector);
+        String id = elementId(selector);
         http.path("element", id, "click").post("{}");
     }
 
@@ -91,7 +91,7 @@ public abstract class AppiumDriver extends WebDriver {
 
     @Override
     public String text(String locator) {
-        String id = get(locator);
+        String id = elementId(locator);
         return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }
 

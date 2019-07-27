@@ -20,7 +20,4 @@ Scenario: try to login to github
   And input("input[name=q]", 'karate dsl')
   When submit("input[name=btnI]")
   Then match driver.location == 'https://github.com/intuit/karate'
-
-  * def bytes = driver.screenshot()
-  * karate.embed(bytes, 'image/png')
-   
+  And screenshot()
