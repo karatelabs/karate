@@ -143,7 +143,7 @@ win <br/> android <br/> ios| (none) | name | `Submit`
 win <br/> android <br/> ios | `@` | accessibility id | `@CalculatorResults`
 win <br/> android <br/> ios | `#` | id | `#MyButton`
 ios| `:` | -ios predicate string | `:name == 'OK' type == XCUIElementTypeButton`
-ios| `^` | -ios class chain | ``^**/XCUIElementTypeTable[`name == 'dataTable'`]``
+ios| `^` | -ios class chain | `^**/XCUIElementTypeTable[name == 'dataTable']`
 android| `-` | -android uiautomator | `-input[name=someName]`
 
 ## Keywords
@@ -168,6 +168,35 @@ The built-in `driver` JS object is where you script UI automation.
 Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and you can omit the `eval` keyword when calling a method (or setting a property) on it - and when you don't need to save any result using [`def`](https://github.com/intuit/karate#def).
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
+
+
+### Short Cuts
+Asa convenience, *all* the methods on the `driver` have been injected into the context as special (JavaScript) variables so you can omit the "`driver.`" part and save a lot of typing. For example instead of:
+
+```cucumber
+And driver.input('#eg02InputId', Key.SHIFT)
+Then match driver.text('#eg02DivId') == '16'
+```
+
+You can shorten all that to:
+
+```cucumber
+And input('#eg02InputId', Key.SHIFT)
+Then match text('#eg02DivId') == '16'
+```
+
+When it comes to JavaBean getters and setters, you could call them directly, but the `driver.propertyName` form is much better to read, and you save trouble of typing out round brackets. So instead of doing this:
+
+```cucumber
+And match getLocation() contains 'page-01'
+When setLocation(webUrlBase + '/page-02')
+```
+
+Prefer this more readable form:
+```cucumber
+And match driver.location contains 'page-01'
+When driver.location = webUrlBase + '/page-02'
+```
 
 ### `driver.location`
 Get the current URL / address for matching. Example:
@@ -205,12 +234,11 @@ Get the position and size of a given element. It will be a JSON in the form belo
 ```cucumber
 * driver.input('input[name=someName]', 'test input')
 ```
-> This can be also [shortened](#short-cuts) to `input(locator, value)`.
 
 Special keys such as `ENTER`, `TAB` etc. can be specified like this:
 
 ```cucumber
-* driver.input('#someInput', 'test input' + Key.ENTER)
+* input('#someInput', 'test input' + Key.ENTER)
 ```
 
 A special variable called `Key` will be available and you can see all the possible key codes [here](src/main/java/com/intuit/karate/driver/Key.java).
@@ -222,46 +250,44 @@ Just triggers a click event on the DOM element, does *not* wait for a page load.
 ```cucumber
 * driver.click('input[name=someName]')
 ```
-> This can be also [shortened](#short-cuts) to `click(locator)`.
 
 There is a second rarely used variant which will wait for a JavaScript [dialog](#driverdialog) to appear:
 ```cucumber
-* driver.click('input[name=someName]', true)
+* click('input[name=someName]', true)
 ```
 
 ### `driver.submit()`
 Triggers a click event on the DOM element, *and* waits for the next page to load (internally calls [`driver.waitForPage()`](#driverwaitforpage)
+
 ```cucumber
 * driver.submit('.myClass')
 ```
-> This can be also [shortened](#short-cuts) to `submit(locator)`.
 
 ### `driver.select()`
 Specially for select boxes. There are four variations and use the [locator](#locators) conventions.
 
 ```cucumber
 # select by displayed text
-Given driver.select('select[name=data1]', '^Option Two')
+Given select('select[name=data1]', '^Option Two')
 
 # select by partial displayed text
-And driver.select('select[name=data1]', '*Two')
+And select('select[name=data1]', '*Two')
 
 # select by `value`
-Given driver.select('select[name=data1]', 'option2')
+Given select('select[name=data1]', 'option2')
 
 # select by index
-Given driver.select('select[name=data1]', 2)
+Given select('select[name=data1]', 2)
 ```
-> Except the last one - these can be also [shortened](#short-cuts) to `select(locator, option)`.
 
 ### `driver.focus()`
 ```cucumber
-* driver.focus('.myClass')
+* focus('.myClass')
 ```
 
 ### `driver.clear()`
 ```cucumber
-* driver.clear('#myInput')
+* clear('#myInput')
 ```
 If this does not work, try [`driver.value(selector, value)`](#drivervalueset)
 
@@ -273,15 +299,15 @@ Close the browser.
 
 ### `driver.html()`
 Get the `outerHTML`, so will include the markup of the selected element. Useful for `match contains` assertions. Example:
+
 ```cucumber
 And match html('#eg01DivId') == '<div id="eg01DivId">this div is outside the iframe</div>'
 ```
-> This can be also [shortened](#short-cuts) to `html(locator)`.
 
 ### `driver.htmls()`
 Like [`driver.html()`](#driverhtml) but will return a list / array for all elements found by the locator.
 ```cucumber
-When def list = driver.htmls('div div')
+When def list = htmls('div div')
 Then match list == '#[3]'
 And match each list contains '@@data'
 ```
@@ -289,14 +315,13 @@ And match each list contains '@@data'
 ### `driver.text()`
 Get the text-content. Example:
 ```cucumber
-And match driver.text('.myClass') == 'Class Locator Test'
+And match text('.myClass') == 'Class Locator Test'
 ```
-> This can be also [shortened](#short-cuts) to `text(locator)`.
 
 ### `driver.texts()`
 Like [`driver.text()`](#drivertext) but will return a list / array for all elements found by the locator.
 ```cucumber
-When def list = driver.texts('div div')
+When def list = texts('div div')
 Then match list == '#[3]'
 And match each list contains '@@data'
 ```
@@ -304,14 +329,13 @@ And match each list contains '@@data'
 ### `driver.value()`
 Get the HTML form-element value. Example:
 ```cucumber
-And match driver.value('.myClass') == 'some value'
+And match value('.myClass') == 'some value'
 ```
-> This can be also [shortened](#short-cuts) to `value(locator)`.
 
 ### `driver.values()`
 Like [`driver.text()`](#drivervalue) but will return a list / array for all elements found by the locator.
 ```cucumber
-When def list = driver.values("input[name='data2']")
+When def list = values("input[name='data2']")
 Then match list == '#[3]'
 And match each list contains 'check'
 ```
@@ -319,25 +343,27 @@ And match each list contains 'check'
 ### `driver.value(set)`
 Set the HTML form-element value. Example:
 ```cucumber
-When driver.value('#eg01InputId', 'something more')
+When value('#eg01InputId', 'something more')
 ```
 
 ### `driver.attribute()`
 Get the HTML element attribute value. Example:
 ```cucumber
-And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
+And match attribute('#eg01SubmitId', 'type') == 'submit'
 ```
 
 ### `driver.enabled()`
 If the element is `enabled` and not `disabled`:
 ```cucumber
-And match driver.enabled('#eg01DisabledId') == false
+And match enabled('#eg01DisabledId') == false
 ```
+
+Also see [`karate.wait()`](#karatewait) for an example of how to *wait* until an element is enabled or until any other element property becomes the target value.
 
 ### `driver.waitUntil()`
 Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
 ```cucumber
-* driver.waitUntil("document.readyState == 'complete'")
+* waitUntil("document.readyState == 'complete'")
 ```
 
 ### `driver.waitForPage()`
@@ -347,14 +373,12 @@ Short-cut for the commonly used `driver.waitUntil("document.readyState == 'compl
 Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`driver.waitUntil()`](#driverwaituntil).
 
 ```cucumber
-And driver.wait('#eg01WaitId')
+And wait('#eg01WaitId')
 ```
-
-> This (but not the variation below) can be also [shortened](#short-cuts) to `wait(locator)`.
 
 Since this returns `true` if the element eventually appeared, you can fail the test if the element does not appear after the re-tries like this:
 ```cucumber
-And assert driver.wait('#eg01WaitId')
+And assert wait('#eg01WaitId')
 ```
 
 A very useful variant is where you can supply a JavaScript "predicate" function (or expression) that will be evaluated *on* the element returned  by the selector in the HTML DOM. Note that most of the time you will prefer the short-cut form that begins with an underscore (or bang), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
@@ -362,11 +386,11 @@ A very useful variant is where you can supply a JavaScript "predicate" function 
 > One limitation is that you cannot use double-quotes in these expressions, so stick to the pattern below.
 
 ```cucumber
-And assert driver.wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
+And assert wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
 
 # if the expression begins with "_" or "!", Karate will wrap the function for you !
-And assert driver.wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
-And assert driver.wait('#eg01WaitId', '!_.disabled')
+And assert wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+And assert wait('#eg01WaitId', '!_.disabled')
 ```
 
 Also see [`driver.alwaysWait`](#driveralwayswait).
@@ -396,7 +420,7 @@ You can switch on a capability of Karate's UI automation driver support to "alwa
 
 It is good practice to set it back to `false` if there are more steps in your feature that do not need to "always wait".
 
-Use `driver.alwaysWait = true` only if absolutely necessary - since each `wait()` call (that happens behind the scenes) has a slight performance penalty.
+Use `driver.alwaysWait = true` only if absolutely necessary - since each `wait()` call (that happens behind the scenes) has a slight performance penalty. The preferred pattern is to use a `wait()` for one element (typically the first you interact with), to make sure the page is loaded - and then all other operations on the page may not need an extra `wait()`.
 
 ### `driver.retryInterval`
 To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script (in milliseconds). This is very useful when you have only one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), here is an example:
@@ -411,25 +435,23 @@ To *temporarily* change the default [retry interval](https://github.com/intuit/k
 ### `driver.exists()`
 This behaves slightly differently because it does *not* [auto-wait](#driveralwayswait) even if `driver.alwaysWait = true`. Convenient to check if an element exists and then quickly move on if it doesn't.
 
-> This can be also [shortened](#short-cuts) to `exists(locator)`.
-
 ```cucumber
 * if (exists('#some-modal)) click('.btn-close')
 ```
 
-### `driver.eval()`
+### `driver.evaluate()`
 Will actually attempt to evaluate the given string as JavaScript within the browser.
 
 ```cucumber
-* assert 3 == driver.eval("1 + 2")
+* assert 3 == evaluate("1 + 2")
 ```
 
-A more useful variation is to evaluate JavaScript that has a reference to the HTML DOM element retrieved by a [locator](#locators). For example:
+A more useful variation is to `eval` JavaScript that has a reference to the HTML DOM element retrieved by a [locator](#locators). For example:
 
 ```cucumber
-And match driver.eval('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
+And match evaluate('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
 # which can be shortened to:
-And match driver.eval('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
+And match evaluate('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 ```
 
 Normally you would use [`driver.text()`](#drivertext) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`driver.wait()`](#driverwait).
@@ -463,7 +485,7 @@ Get a cookie by name:
 ```cucumber
 * def cookie1 = { name: 'foo', value: 'bar' }
 And match driver.cookies contains '#(^cookie1)'
-And match driver.cookie('foo') contains cookie1
+And match cookie('foo') contains cookie1
 ```
 
 ### `driver.cookies`
@@ -472,14 +494,14 @@ See above examples.
 ### `driver.deleteCookie()`
 Delete a cookie by name:
 ```cucumber
-When driver.deleteCookie('foo')
+When deleteCookie('foo')
 Then match driver.cookies !contains '#(^cookie1)'
 ```
 
 ### `driver.clearCookies()`
 Clear all cookies.
 ```cucumber
-When driver.clearCookies()
+When clearCookies()
 Then match driver.cookies == '#[0]'
 ```
 
@@ -495,28 +517,26 @@ Also works as a "getter" to retrieve the text of the currently visible dialog:
 When multiple browser tabs are present, allows you to switch to one based on page title (or URL).
 
 ```cucumber
-When driver.switchPage('Page Two')
+When switchPage('Page Two')
 ```
 
 ### `driver.switchFrame()`
 This "sets context" to a chosen frame (`<iframe>`) within the page. There are 2 variants, one that takes an integer as the param, in which case the frame is selected based on the order of appearance in the page:
 
 ```cucumber
-When driver.switchFrame(0)
+When switchFrame(0)
 ```
 
-Or you use a [locator](#locators) that points to the `<iframe>` element that you need to "switch to":
+Or you use a [locator](#locators) that points to the `<iframe>` element that you need to "switch to".
 
 ```cucumber
-When driver.switchFrame('#frame01')
+When switchFrame('#frame01')
 ```
 
-After you have switched, any future actions such as [`driver.click()`](#driverclick) would operate within the "selected" `<iframe>`.
-
-To "reset" so that you are back to the "root" page, just switch to `null` (or integer value `-1`):
+After you have switched, any future actions such as [`driver.click()`](#driverclick) would operate within the "selected" `<iframe>`. To "reset" so that you are back to the "root" page, just switch to `null` (or integer value `-1`):
 
 ```cucumber
-When driver.switchFrame(null)
+When switchFrame(null)
 ```
 
 ### `driver.screenshot()`
@@ -525,17 +545,17 @@ Two forms, if a [locator](#locators) is provided only that HTML element will be 
 This will also do a [`karate.embed()`](https://github.com/intuit/karate#karate-embed) so that the image appears in the HTML report.
 
 ```cucumber
-* driver.screenshot()
+* screenshot()
 # or
-* driver.screenshot('#someDiv')
+* screenshot('#someDiv')
 ```
 
 If you want to disable the HTML report "embed" part, pass an additional boolean argument as `false`, e.g: 
 
 ```cucumber
-* driver.screenshot(false)
+* screenshot(false)
 # or
-* driver.screenshot('#someDiv', false)
+* screenshot('#someDiv', false)
 ```
 
 ### `driver.screenshotFull()
@@ -548,37 +568,5 @@ Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](
 Useful to visually highlight an element in the browser, especially when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
 
 ```cucumber
-* driver.highlight('#eg01DivId')
-```
-
-# Short Cuts
-As a convenience, the following API methods on the [`driver`]() object can be called *directly* as method references. They have been carefully chosen based on how often they are expected to be used. So your test steps will look a lot less repetitive.
-
-method | type
------- | ----
-[`clear()`](#driverclear) | action
-[`input()`](#driverinput) | action
-[`select()`](#driverselect) | action
-[`click()`](#driverclick) | action
-[`submit()`](#driversubmit) | action
-[`wait()`](#driverwait) | assertion
-[`exists()`](#driverexists) | assertion
-[`text()`](#drivertext) | assertion
-[`html()`](#driverhtml) | assertion
-[`value()`](#drivervalue) | assertion
-
-For example where you have:
-```cucumber
-  * driver.click('#someId')
-  * driver.click('.someCss')
-  * driver.click('/some/xpath')
-  * match driver.text('#otherId') == 'hello world'
-```
-
-You can shorten to:
-```cucumber
-  * click('#someId')
-  * click('.someCss')
-  * click('/some/xpath')
-  * match text('#otherId') == 'hello world'
+* highlight('#eg01DivId')
 ```

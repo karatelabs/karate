@@ -40,13 +40,16 @@ import com.intuit.karate.shell.Command;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  *
@@ -55,7 +58,7 @@ import java.util.Map;
 public class DriverOptions {
 
     public static final long DEFAULT_TIMEOUT = 30 * 1000; // 30 seconds    
-    
+
     public final Map<String, Object> options;
     public final long timeout;
     public final boolean start;
@@ -80,7 +83,7 @@ public class DriverOptions {
     // mutable during a test
     private boolean alwaysWait = false;
     private Integer retryInterval;
-    
+
     // mutable when we return from called features
     private ScenarioContext context;
 
@@ -90,8 +93,8 @@ public class DriverOptions {
 
     public ScenarioContext getContext() {
         return context;
-    }        
-    
+    }
+
     public boolean isAlwaysWait() {
         return alwaysWait;
     }
@@ -256,13 +259,13 @@ public class DriverOptions {
                 + " if (i === t) e.options[i].selected = true";
         return wrapInFunctionInvoke(temp);
     }
-    
-    public String elementSelectorFunction(String locator, String expression) {  
+
+    public String elementSelectorFunction(String locator, String expression) {
         char first = expression.charAt(0);
-        String predicate = (first == '_' || first == '!') ? "function(_){ return " + expression + " }": expression;
-        String temp = "var e = " + elementSelector(locator) 
+        String predicate = (first == '_' || first == '!') ? "function(_){ return " + expression + " }" : expression;
+        String temp = "var e = " + elementSelector(locator)
                 + "; var fun = " + predicate + "; return fun(e)";
-        return wrapInFunctionInvoke(temp);        
+        return wrapInFunctionInvoke(temp);
     }
 
     public void sleep() {
@@ -312,9 +315,17 @@ public class DriverOptions {
         int pos = url.indexOf("://");
         return pos == -1 ? url : url.substring(pos + 3);
     }
-    
+
     public void embedPngImage(byte[] bytes) {
         context.embed(bytes, "image/png");
+    }
+
+    public static final Set<String> DRIVER_METHOD_NAMES = new HashSet();
+
+    static {
+        for (Method m : Driver.class.getDeclaredMethods()) {
+            DRIVER_METHOD_NAMES.add(m.getName());
+        }
     }
 
 }

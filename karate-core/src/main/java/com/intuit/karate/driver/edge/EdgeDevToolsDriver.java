@@ -72,7 +72,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
 
     @Override
     public void input(String id, String value) {
-        evaluate(options.elementSelector(id) + ".value = \"" + value + "\"", null);
+        eval(options.elementSelector(id) + ".value = \"" + value + "\"", null);
     }
 
     @Override

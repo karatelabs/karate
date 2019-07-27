@@ -11,59 +11,59 @@ Scenario Outline: using <config>
   Given driver webUrlBase + '/page-01'
   
   # wait for very slow loading element
-  And assert driver.wait('#eg01WaitId')
+  And assert wait('#eg01WaitId')
 
   # a powerful variants of the above, call any js on the element
-  And assert driver.wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
-  And assert driver.wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
-  And assert driver.wait('#eg01WaitId', '!_.disabled')
-  And match driver.eval('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
-  And match driver.eval('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
-  And match driver.eval('#eg01WaitId', '!_.disabled') == true
+  And assert wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
+  And assert wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+  And assert wait('#eg01WaitId', '!_.disabled')
+  And match evaluate('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
+  And match evaluate('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
+  And match evaluate('#eg01WaitId', '!_.disabled') == true
 
   # key events
-  And driver.input('#eg02InputId', Key.SHIFT)
-  Then match driver.text('#eg02DivId') == '16'
+  And input('#eg02InputId', Key.SHIFT)
+  Then match text('#eg02DivId') == '16'
     
   # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }
   And match driver.cookies contains '#(^cookie1)'
-  And match driver.cookie('foo') contains cookie1
+  And match cookie('foo') contains cookie1
 
   # set window size
   And driver.dimensions = <dimensions>
 
   # navigation and dom checks
-  And driver.input('#eg01InputId', 'hello world')
-  When driver.click('input[name=eg01SubmitName]')
-  Then match driver.text('#eg01DivId') == 'hello world'
-  And match driver.value('#eg01InputId') == 'hello world'  
-  And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
-  And match driver.name('#eg01SubmitId') == 'INPUT'
-  And match driver.enabled('#eg01InputId') == true
-  And match driver.enabled('#eg01DisabledId') == false
+  And input('#eg01InputId', 'hello world')
+  When click('input[name=eg01SubmitName]')
+  Then match text('#eg01DivId') == 'hello world'
+  And match value('#eg01InputId') == 'hello world'  
+  And match attribute('#eg01SubmitId', 'type') == 'submit'
+  And match name('#eg01SubmitId') == 'INPUT'
+  And match enabled('#eg01InputId') == true
+  And match enabled('#eg01DisabledId') == false
 
   # clear before input
-  When driver.clear('#eg01InputId')
-  And driver.input('#eg01InputId', 'something else')
-  And match driver.value('#eg01InputId') == 'something else'  
-  When driver.value('#eg01InputId', 'something more')
-  And match driver.value('#eg01InputId') == 'something more'
+  When clear('#eg01InputId')
+  And input('#eg01InputId', 'something else')
+  And match value('#eg01InputId') == 'something else'  
+  When value('#eg01InputId', 'something more')
+  And match value('#eg01InputId') == 'something more'
   
   # refresh
-  When driver.refresh()
+  When refresh()
   Then match driver.location == webUrlBase + '/page-01'
-  And match driver.text('#eg01DivId') == ''
-  And match driver.value('#eg01InputId') == ''
+  And match text('#eg01DivId') == ''
+  And match value('#eg01InputId') == ''
   And match driver.title == 'Page One'
 
   # navigate to page and css checks
   When driver webUrlBase + '/page-02'
-  Then match driver.text('.eg01Cls') == 'Class Locator Test'
-  And match driver.html('.eg01Cls') == '<div class="eg01Cls" style="background-color: yellow"><span>Class Locator Test</span></div>'
+  Then match text('.eg01Cls') == 'Class Locator Test'
+  And match html('.eg01Cls') == '<div class="eg01Cls" style="background-color: yellow"><span>Class Locator Test</span></div>'
   And match driver.title == 'Page Two'
   And match driver.location == webUrlBase + '/page-02'
-  And match driver.css('.eg01Cls', 'background-color') contains '(255, 255, 0'
+  And match css('.eg01Cls', 'background-color') contains '(255, 255, 0'
 
   # set cookie
   Given def cookie2 = { name: 'hello', value: 'world' }
@@ -71,117 +71,117 @@ Scenario Outline: using <config>
   Then match driver.cookies contains '#(^cookie2)'
 
   # delete cookie
-  When driver.deleteCookie('foo')
+  When deleteCookie('foo')
   Then match driver.cookies !contains '#(^cookie1)'
 
   # clear cookies
-  When driver.clearCookies()
+  When clearCookies()
   Then match driver.cookies == '#[0]'
 
   # back and forward
-  When driver.back()
+  When back()
   Then match driver.location == webUrlBase + '/page-01'
   And match driver.title == 'Page One'
-  When driver.forward()
+  When forward()
   Then match driver.location == webUrlBase + '/page-02'
   And match driver.title == 'Page Two'
 
   # dialog - alert
-  When driver.click('^Show Alert', true)
+  When click('^Show Alert', true)
   Then match driver.dialog == 'this is an alert'
-  And driver.dialog(true)
+  And dialog(true)
 
   # dialog - confirm true
-  When driver.click('^Show Confirm', true)
+  When click('^Show Confirm', true)
   Then match driver.dialog == 'this is a confirm'
-  And driver.dialog(false)
-  And match driver.text('#eg02DivId') == 'Cancel'
+  And dialog(false)
+  And match text('#eg02DivId') == 'Cancel'
 
   # dialog - confirm false
-  When driver.click('^Show Confirm', true)
-  And driver.dialog(true)
-  And match driver.text('#eg02DivId') == 'OK'
+  When click('^Show Confirm', true)
+  And dialog(true)
+  And match text('#eg02DivId') == 'OK'
 
   # dialog - prompt
-  When driver.click('^Show Prompt', true)
+  When click('^Show Prompt', true)
   Then match driver.dialog == 'this is a prompt'
-  And driver.dialog(true, 'hello world')
-  And match driver.text('#eg02DivId') == 'hello world'
+  And dialog(true, 'hello world')
+  And match text('#eg02DivId') == 'hello world'
 
   # screenshot
-  * driver.screenshot('#eg02DivId')
+  * screenshot('#eg02DivId')
 
   # get element dimensions
-  * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
+  * match rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
 
   # new tab opens, wait for page
-  When driver.click('^New Tab')
-  And driver.waitForPage()
+  When click('^New Tab')
+  And waitForPage()
 
   # switch back to first tab
-  When driver.switchPage('Page Two')
+  When switchPage('Page Two')
   Then match driver.title == 'Page Two'
   And match driver.location contains webUrlBase + '/page-02'
 
   # submit - action that waits for page navigation
-  When driver.submit('*Page Three')
+  When submit('*Page Three')
   And match driver.title == 'Page Three'
   And match driver.location == webUrlBase + '/page-03'
 
   # get html for all elements that match
-  When def list = driver.htmls('div div')
+  When def list = htmls('div div')
   Then match list == '#[3]'
   And match each list contains '@@data'
 
   # get text for all elements that match
-  When def list = driver.texts('div div')
+  When def list = texts('div div')
   Then match list == '#[3]'
   And match each list contains '@@data'
 
   # get value for all elements that match
-  When def list = driver.values("input[name='data2']")
+  When def list = values("input[name='data2']")
   Then match list == '#[3]'
   And match each list contains 'check'
 
   # select option with text
-  Given driver.select('select[name=data1]', '^Option Two')
-  And driver.click('input[value=check2]')
-  When driver.submit('#eg02SubmitId')
-  And match driver.text('#eg01Data1') == 'option2'
-  And match driver.text('#eg01Data2') == 'check2'
+  Given select('select[name=data1]', '^Option Two')
+  And click('input[value=check2]')
+  When submit('#eg02SubmitId')
+  And match text('#eg01Data1') == 'option2'
+  And match text('#eg01Data2') == 'check2'
 
   # select option containing text
-  Given driver.select('select[name=data1]', '*Two')
-  And driver.click('[value=check2]')
-  And driver.click('[value=check1]')
-  When driver.submit('#eg02SubmitId')
-  And match driver.text('#eg01Data1') == 'option2'
-  And match driver.text('#eg01Data2') == '["check1","check2"]'
+  Given select('select[name=data1]', '*Two')
+  And click('[value=check2]')
+  And click('[value=check1]')
+  When submit('#eg02SubmitId')
+  And match text('#eg01Data1') == 'option2'
+  And match text('#eg01Data2') == '["check1","check2"]'
 
   # select option by value
-  Given driver.select('select[name=data1]', 'option2')
-  When driver.submit('#eg02SubmitId')
-  And match driver.text('#eg01Data1') == 'option2'
+  Given select('select[name=data1]', 'option2')
+  When submit('#eg02SubmitId')
+  And match text('#eg01Data1') == 'option2'
 
   # switch to iframe by index
   Given driver webUrlBase + '/page-04'
   And match driver.location == webUrlBase + '/page-04'
-  And driver.switchFrame(0)
-  When driver.input('#eg01InputId', 'hello world')
-  And driver.click('#eg01SubmitId')
-  Then match driver.text('#eg01DivId') == 'hello world'
+  And switchFrame(0)
+  When input('#eg01InputId', 'hello world')
+  And click('#eg01SubmitId')
+  Then match text('#eg01DivId') == 'hello world'
 
   # switch back to parent frame
-  When driver.switchFrame(null)
-  Then match driver.text('#eg01DivId') == 'this div is outside the iframe'
+  When switchFrame(null)
+  Then match text('#eg01DivId') == 'this div is outside the iframe'
 
   # switch to iframe by locator
   Given driver webUrlBase + '/page-04'
   And match driver.location == webUrlBase + '/page-04'
-  And driver.switchFrame('#frame01')
-  When driver.input('#eg01InputId', 'hello world')
-  And driver.click('#eg01SubmitId')
-  Then match driver.text('#eg01DivId') == 'hello world'
+  And switchFrame('#frame01')
+  When input('#eg01InputId', 'hello world')
+  And click('#eg01SubmitId')
+  Then match text('#eg01DivId') == 'hello world'
 
 Examples:
     | config | dimensions |

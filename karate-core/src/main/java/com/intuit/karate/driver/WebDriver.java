@@ -73,7 +73,7 @@ public abstract class WebDriver implements Driver {
         }
     }
 
-    private ScriptValue evalInternal(String expression) {
+    private ScriptValue eval(String expression) {
         Json json = new Json().set("script", expression).set("args", "[]");
         return http.path("execute", "sync").post(json).jsonPath("$.value").value();
     }
@@ -190,7 +190,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void focus(String id) {
         waitIfNeeded(id);
-        evalInternal(options.elementSelector(id) + ".focus()");
+        eval(options.elementSelector(id) + ".focus()");
     }
 
     @Override
@@ -213,7 +213,7 @@ public abstract class WebDriver implements Driver {
     @Override
     public void click(String locator, boolean ignored) {
         waitIfNeeded(locator);
-        evalInternal(options.elementSelector(locator) + ".click()");
+        eval(options.elementSelector(locator) + ".click()");
         // the spec doesn't work :(
         // String id = get(locator);
         // http.path("element", id, "click").post("{}");        
@@ -222,13 +222,13 @@ public abstract class WebDriver implements Driver {
     @Override
     public void select(String id, String text) {
         waitIfNeeded(id);
-        evalInternal(options.optionSelector(id, text));
+        eval(options.optionSelector(id, text));
     }
 
     @Override
     public void select(String id, int index) {
         waitIfNeeded(id);
-        evalInternal(options.optionSelector(id, index));
+        eval(options.optionSelector(id, index));
     }
 
     @Override
@@ -316,7 +316,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void value(String locator, String value) {
-        evalInternal(options.elementSelector(locator) + ".value = '" + value + "'");
+        eval(options.elementSelector(locator) + ".value = '" + value + "'");
     }
 
     @Override
@@ -378,15 +378,15 @@ public abstract class WebDriver implements Driver {
                 logger.debug("waitUntil retry #{}", count);
                 options.sleep();
             }
-            sv = evalInternal(expression);
+            sv = eval(expression);
         } while (!sv.isBooleanTrue() && count++ < max);
         return sv.isBooleanTrue();
     }
 
     @Override
-    public Object eval(String expression) {
+    public Object evaluate(String expression) {
         expression = prefixReturn(expression);
-        return evalInternal(expression).getValue();
+        return eval(expression).getValue();
     }
 
     @Override
@@ -462,7 +462,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void highlight(String id) {
-        eval(options.highlighter(id));
+        evaluate(options.highlighter(id));
     }
 
     protected String getWindowHandleKey() {

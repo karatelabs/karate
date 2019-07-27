@@ -93,7 +93,7 @@ public interface Driver {
 
     Map<String, Object> rect(String locator);
 
-    boolean enabled(String locator);    
+    boolean enabled(String locator);
 
     Map<String, Object> cookie(String name);
 
@@ -124,12 +124,12 @@ public interface Driver {
     default byte[] screenshot(String locator) {
         return screenshot(locator, true);
     }
-    
-    Object eval(String expression);
-    
-    default Object eval(String locator, String expression) {
+
+    Object evaluate(String expression);
+
+    default Object evaluate(String locator, String expression) {
         String js = getOptions().elementSelectorFunction(locator, expression);
-        return eval(js);
+        return Driver.this.evaluate(js);
     }
 
     // waits ===================================================================
@@ -144,11 +144,11 @@ public interface Driver {
         String js = getOptions().elementSelector(locator);
         return waitUntil(js + " != null");
     }
-    
+
     default boolean wait(String locator, String expression) {
-        String js = getOptions().elementSelectorFunction(locator, expression);        
+        String js = getOptions().elementSelectorFunction(locator, expression);
         return waitUntil(js);
-    }    
+    }
 
     default void setAlwaysWait(boolean always) {
         getOptions().setAlwaysWait(always);
@@ -165,19 +165,19 @@ public interface Driver {
     default boolean exists(String locator) {
         String js = getOptions().elementSelector(locator);
         String evalJs = js + " != null";
-        Object o = eval(evalJs);
+        Object o = Driver.this.evaluate(evalJs);
         if (o instanceof Boolean && (Boolean) o) {
             return true;
-        }        
+        }
         // one more time only after one sleep
         getOptions().sleep();
-        o = eval(evalJs);
+        o = Driver.this.evaluate(evalJs);
         return o instanceof Boolean ? (Boolean) o : false;
-    }    
+    }
 
-    // javabean naming convention is intentional ===============================       
+    // javabean naming convention is intentional ===============================        
     //    
-    DriverOptions getOptions(); // for internal use
+    DriverOptions getOptions(); // for internal use        
 
     void setLogger(Logger logger); // for internal use
 

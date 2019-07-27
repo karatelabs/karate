@@ -173,7 +173,7 @@ public abstract class DevToolsDriver implements Driver {
 
     //==========================================================================
     //
-    private DevToolsMessage evaluateInternal(String expression, Predicate<DevToolsMessage> condition) {
+    private DevToolsMessage evalOnce(String expression, Predicate<DevToolsMessage> condition) {
         DevToolsMessage toSend = method("Runtime.evaluate").param("expression", expression);
         if (executionContextId != null) {
             toSend.param("contextId", executionContextId);
@@ -181,14 +181,14 @@ public abstract class DevToolsDriver implements Driver {
         return toSend.send(condition);
     }
 
-    protected DevToolsMessage evaluate(String expression, Predicate<DevToolsMessage> condition) {
-        DevToolsMessage dtm = evaluateInternal(expression, condition);
+    protected DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
+        DevToolsMessage dtm = evalOnce(expression, condition);
         if (dtm.isResultError()) {
             String message = "js eval failed once:" + expression
                     + ", error: " + dtm.getResult().getAsString();
             logger.warn(message);
             options.sleep();
-            dtm = evaluateInternal(expression, condition);
+            dtm = evalOnce(expression, condition);
             if (dtm.isResultError()) {
                 message = "js eval failed twice:" + expression
                         + ", error: " + dtm.getResult().getAsString();
@@ -200,7 +200,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     protected DevToolsMessage evaluateAndGetResult(String expression, Predicate<DevToolsMessage> condition) {
-        DevToolsMessage dtm = evaluate(expression, condition);
+        DevToolsMessage dtm = eval(expression, condition);
         String objectId = dtm.getResult("objectId").getAsString();
         return method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
     }
@@ -363,43 +363,43 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void click(String id, boolean waitForDialog) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".click()", waitForDialog ? WaitState.DIALOG_OPENING : null);
+        eval(options.elementSelector(id) + ".click()", waitForDialog ? WaitState.DIALOG_OPENING : null);
     }
 
     @Override
     public void select(String id, String text) {
         waitIfNeeded(id);
-        evaluate(options.optionSelector(id, text), null);
+        eval(options.optionSelector(id, text), null);
     }
 
     @Override
     public void select(String id, int index) {
         waitIfNeeded(id);
-        evaluate(options.optionSelector(id, index), null);
+        eval(options.optionSelector(id, index), null);
     }
 
     @Override
     public void submit(String id) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".click()", WaitState.ALL_FRAMES_LOADED);
+        eval(options.elementSelector(id) + ".click()", WaitState.ALL_FRAMES_LOADED);
     }
 
     @Override
     public void focus(String id) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".focus()", null);
+        eval(options.elementSelector(id) + ".focus()", null);
     }
 
     @Override
     public void clear(String id) {
-        evaluate(options.elementSelector(id) + ".value = ''", null);
+        eval(options.elementSelector(id) + ".value = ''", null);
     }
 
     @Override
     public void input(String id, String value) {
         waitIfNeeded(id);
         // focus
-        evaluate(options.elementSelector(id) + ".focus()", null);
+        eval(options.elementSelector(id) + ".focus()", null);
         for (char c : value.toCharArray()) {
             DevToolsMessage toSend = method("Input.dispatchKeyEvent").param("type", "keyDown");
             Integer keyCode = Key.INSTANCE.CODES.get(c);
@@ -477,27 +477,27 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void value(String id, String value) {
         waitIfNeeded(id);
-        evaluate(options.elementSelector(id) + ".value = '" + value + "'", null);
+        eval(options.elementSelector(id) + ".value = '" + value + "'", null);
     }
 
     @Override
     public String attribute(String id, String name) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".getAttribute('" + name + "')", null);
+        DevToolsMessage dtm = eval(options.elementSelector(id) + ".getAttribute('" + name + "')", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = evaluate(options.elementSelector(id) + "['" + name + "']", null);
+        DevToolsMessage dtm = eval(options.elementSelector(id) + "['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String css(String id, String name) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = evaluate("getComputedStyle(" + options.elementSelector(id) + ")['" + name + "']", null);
+        DevToolsMessage dtm = eval("getComputedStyle(" + options.elementSelector(id) + ")['" + name + "']", null);
         return dtm.getResult().getAsString();
     }
 
@@ -516,7 +516,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public boolean enabled(String id) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = evaluate(options.elementSelector(id) + ".disabled", null);
+        DevToolsMessage dtm = eval(options.elementSelector(id) + ".disabled", null);
         return !dtm.getResult().isBooleanTrue();
     }
 
@@ -531,7 +531,7 @@ public abstract class DevToolsDriver implements Driver {
                 options.sleep();
             }
             try {
-                DevToolsMessage dtm = evaluate(expression, null);
+                DevToolsMessage dtm = eval(expression, null);
                 sv = dtm.getResult();
             } catch (Exception e) {
                 sv = ScriptValue.FALSE;
@@ -542,13 +542,13 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Object eval(String expression) {
-        return evaluate(expression, null).getResult().getValue();
+    public Object evaluate(String expression) {
+        return eval(expression, null).getResult().getValue();
     }
 
     @Override
     public String getTitle() {
-        DevToolsMessage dtm = evaluate("document.title", null);
+        DevToolsMessage dtm = eval("document.title", null);
         return dtm.getResult().getAsString();
     }
 
@@ -660,7 +660,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void highlight(String id) {
-        eval(options.highlighter(id));
+        evaluate(options.highlighter(id));
     }
 
     @Override

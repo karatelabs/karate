@@ -5,9 +5,10 @@ Scenario Outline: <type>
   * def webUrlBase = karate.properties['web.url.base']
 
   Given driver webUrlBase + '/page-01'
-  And driver.input('#eg02InputId', Key.SHIFT)
-  Then match driver.text('#eg02DivId') == '16'
-
+  And match driver.location contains 'page-01'
+  Then driver.location = webUrlBase + '/page-01'
+  And input('#eg02InputId', Key.SHIFT)
+  Then match text('#eg02DivId') == '16'
 
 Examples:
   | type         |

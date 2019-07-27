@@ -60,9 +60,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -884,36 +881,20 @@ public class ScenarioContext {
 
     // driver ==================================================================       
     //
-    private void put1(String name, Consumer<String> value) {
-        bindings.putAdditionalVariable(name, value);
-    }
-
-    private void put2(String name, BiConsumer<String, String> value) {
-        bindings.putAdditionalVariable(name, value);
-    }
-
-    private void put3(String name, Function<String, Object> value) {
-        bindings.putAdditionalVariable(name, value);
-    }
-
     private void setDriver(Driver driver) {
         this.driver = driver;
         driver.getOptions().setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);        
+        // the most interesting hack in the world
+        for (String methodName : DriverOptions.DRIVER_METHOD_NAMES) {
+            String js = "function(){ if (arguments.length == 0) return driver." + methodName + "();"
+                    + " if (arguments.length == 1) return driver." + methodName + "(arguments[0]);"
+                    + " return driver." + methodName + "(arguments[0], arguments[1]) }";
+            ScriptValue sv = ScriptBindings.eval(js, bindings);
+            bindings.putAdditionalVariable(methodName, sv.getValue());
+        }
         bindings.putAdditionalVariable("Key", Key.INSTANCE);
-        // action short cuts
-        put1("clear", driver::clear);
-        put2("input", driver::input);
-        put2("select", driver::select);
-        put1("click", driver::click);
-        put1("submit", driver::submit);
-        // assertion short cuts
-        put3("wait", driver::wait);
-        put3("exists", driver::exists);
-        put3("text", driver::text);
-        put3("html", driver::html);
-        put3("value", driver::value);
-    }
+    }        
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
