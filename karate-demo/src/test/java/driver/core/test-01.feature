@@ -20,6 +20,10 @@ Scenario Outline: using <config>
   And match driver.eval('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
   And match driver.eval('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
   And match driver.eval('#eg01WaitId', '!_.disabled') == true
+
+  # key events
+  And driver.input('#eg02InputId', Key.SHIFT)
+  Then match driver.text('#eg02DivId') == '16'
     
   # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }

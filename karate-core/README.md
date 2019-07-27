@@ -210,10 +210,10 @@ Get the position and size of a given element. It will be a JSON in the form belo
 Special keys such as `ENTER`, `TAB` etc. can be specified like this:
 
 ```cucumber
-* driver.input('#someInput', 'test input' + Keys.ENTER)
+* driver.input('#someInput', 'test input' + Key.ENTER)
 ```
 
-A special variable called `Keys` will be available and you can see all the possible key codes [here](src/main/java/com/intuit/karate/driver/Keys.java).
+A special variable called `Key` will be available and you can see all the possible key codes [here](src/main/java/com/intuit/karate/driver/Key.java).
 
 Also see [`driver.value(locator, value)`](#drivervalueset) and [`driver.clear()`](#driverclear)
 

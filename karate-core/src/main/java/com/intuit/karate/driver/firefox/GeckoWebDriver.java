@@ -86,6 +86,8 @@ public class GeckoWebDriver extends WebDriver {
     @Override
     public void waitForPage() {        
         super.waitForPage();
+        // TODO this is just because geckodriver is bad at waiting for page complete
+        // so we just make it do more work to slow things down
         getAll("iframe");
     }        
 

@@ -24,7 +24,6 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.core.ScriptBridge;
 import java.util.List;
 import java.util.Map;
 

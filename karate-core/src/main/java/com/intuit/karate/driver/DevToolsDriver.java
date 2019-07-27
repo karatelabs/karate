@@ -401,7 +401,14 @@ public abstract class DevToolsDriver implements Driver {
         // focus
         evaluate(options.elementSelector(id) + ".focus()", null);
         for (char c : value.toCharArray()) {
-            method("Input.dispatchKeyEvent").param("type", "keyDown").param("text", c + "").send();
+            DevToolsMessage toSend = method("Input.dispatchKeyEvent").param("type", "keyDown");
+            Integer keyCode = Key.INSTANCE.CODES.get(c);
+            if (keyCode == null) {
+                toSend.param("text", c + "");
+            } else {
+                toSend.param("windowsVirtualKeyCode", keyCode);
+            }
+            toSend.send();
         }
     }
 

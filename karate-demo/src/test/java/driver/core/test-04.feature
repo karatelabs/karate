@@ -4,20 +4,14 @@ Scenario Outline: <type>
   * configure driver = { type: '#(type)', showDriverLog: true }
   * def webUrlBase = karate.properties['web.url.base']
 
-  Given driver webUrlBase + '/page-04'
-  And match driver.location == webUrlBase + '/page-04'
-  And driver.switchFrame('#frame01')
-  When driver.input('#eg01InputId', 'hello world')
-  And driver.click('#eg01SubmitId')
-  Then match driver.text('#eg01DivId') == 'hello world'
+  Given driver webUrlBase + '/page-01'
+  And driver.input('#eg02InputId', Key.SHIFT)
+  Then match driver.text('#eg02DivId') == '16'
 
-  # switch back to parent frame
-  When driver.switchFrame(null)
-  Then match driver.text('#eg01DivId') == 'this div is outside the iframe'
 
 Examples:
   | type         |
   | chrome       |
-#  | chromedriver |
-#  | geckodriver  |
-#  | safaridriver |
+  | chromedriver |
+  | geckodriver  |
+  | safaridriver |
