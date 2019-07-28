@@ -30,7 +30,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -265,7 +264,7 @@ public abstract class DevToolsDriver implements Driver {
         Integer x = (Integer) map.remove("left");
         Integer y = (Integer) map.remove("top");
         map.put("x", x);
-        map.put("y", y); 
+        map.put("y", y);
         return map;
     }
 
@@ -274,7 +273,7 @@ public abstract class DevToolsDriver implements Driver {
         Integer left = (Integer) map.remove("x");
         Integer top = (Integer) map.remove("y");
         map.put("left", left);
-        map.put("top", top);         
+        map.put("top", top);
         Map temp = getDimensions();
         temp.putAll(map);
         temp.remove("windowState");
@@ -414,13 +413,24 @@ public abstract class DevToolsDriver implements Driver {
         waitIfNeeded(id);
         // focus
         eval(options.selector(id) + ".focus()", null);
-        for (char c : value.toCharArray()) {
-            DevToolsMessage toSend = method("Input.dispatchKeyEvent").param("type", "keyDown");
-            Integer keyCode = Key.INSTANCE.CODES.get(c);
-            if (keyCode == null) {
-                toSend.param("text", c + "");
+        Input input = new Input(value);
+        while (input.hasNext()) {
+            char c = input.next();
+            int modifier = input.getModifier();
+            DevToolsMessage toSend = method("Input.dispatchKeyEvent");            
+            if (c <= Key.INSTANCE.META) {
+                if (modifier != 0) {
+                    toSend.param("modifier", modifier)
+                            .param("type", "rawKeyDown")
+                            .param("windowsVirtualKeyCode", Key.INSTANCE.CODES.get(c));
+                } else {
+                    toSend.param("type", "char")
+                            .param("text", c + "");
+                }
             } else {
-                toSend.param("windowsVirtualKeyCode", keyCode);
+                toSend.param("type", "rawKeyDown")
+                        .param("modifier", modifier)
+                        .param("windowsVirtualKeyCode", Key.INSTANCE.CODES.get(c));
             }
             toSend.send();
         }
@@ -600,7 +610,7 @@ public abstract class DevToolsDriver implements Driver {
         //  important to not set returnByValue to true
         DevToolsMessage dtm = method("Runtime.evaluate").param("expression", expression).send();
         String objectId = dtm.getResult("objectId").getAsString();
-        dtm = method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();        
+        dtm = method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
         return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
     }
 
@@ -644,7 +654,7 @@ public abstract class DevToolsDriver implements Driver {
     public List<String> getPages() {
         DevToolsMessage dtm = method("Target.getTargets").send();
         return dtm.getResult("targetInfos.targetId").getAsList();
-    }        
+    }
 
     @Override
     public void switchPage(String titleOrUrl) {

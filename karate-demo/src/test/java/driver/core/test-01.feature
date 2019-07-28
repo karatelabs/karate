@@ -21,9 +21,9 @@ Scenario Outline: using <config>
   And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
   And match script('#eg01WaitId', '!_.disabled') == true
 
-  # key events
-  And input('#eg02InputId', Key.SHIFT)
-  Then match text('#eg02DivId') == '16'
+  # key events and key combinations
+  And input('#eg02InputId', Key.CONTROL + 'a')
+  Then match text('#eg02DivId') contains (config.type == 'geckodriver' ? '17d17u65d' : '17d65d')
     
   # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }
@@ -35,9 +35,9 @@ Scenario Outline: using <config>
 
   # navigation and dom checks
   And input('#eg01InputId', 'hello world')
-  When click('input[name=eg01SubmitName]')
-  Then match text('#eg01DivId') == 'hello world'
-  And match value('#eg01InputId') == 'hello world'  
+  When click('input[name=eg01SubmitName]')  
+  And match value('#eg01InputId') == (config.type == 'safaridriver' ? '' : 'hello world')
+  Then match text('#eg01DivId') == (config.type == 'safaridriver' ? '' : 'hello world')
   And match attribute('#eg01SubmitId', 'type') == 'submit'
   And match name('#eg01SubmitId') == 'INPUT'
   And match enabled('#eg01InputId') == true

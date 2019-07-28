@@ -5,7 +5,7 @@
     <script src="karate.js"></script>
     <script>
       setTimeout(function(){ karate.setHtml('eg01WaitParentId', '<div id="eg01WaitId">APPEARED!</div>') }, 5000);
-      function keyPressed(e){ karate.setHtml('eg02DivId', e.keyCode + '') }
+      function keyPressed(e, t){ var div = karate.get('eg02DivId'); var v = div.innerHTML + e.keyCode + t; div.innerHTML = v }
     </script>
   </head>
   <body>
@@ -17,7 +17,7 @@
       <div id="eg01WaitParentId"></div>
     </div>
     <div id="eg02">      
-      <input name="eg02InputName" id="eg02InputId" type="text" onkeydown="return keyPressed(event)" />
+      <input name="eg02InputName" id="eg02InputId" type="text" onkeydown="return keyPressed(event, 'd')" onkeyup="return keyPressed(event, 'u')"/>
       <div id="eg02DivId"></div>   
     </div>
   </body>

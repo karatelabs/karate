@@ -33,6 +33,10 @@ import java.util.Map;
 public class Key {
 
     public static final Key INSTANCE = new Key();    
+    
+    public static String keyIdentifier(char c) {
+        return "\\u" + Integer.toHexString(c | 0x10000).substring(1);
+    }
 
     public final char NULL = '\uE000';
     public final char CANCEL = '\uE001';
@@ -92,6 +96,7 @@ public class Key {
     public final char F10 = '\uE03A';
     public final char F11 = '\uE03B';
     public final char F12 = '\uE03C';
+    public final char META = '\uE03D';
 
     public final Map<Character, Integer> CODES = new HashMap();
 
@@ -149,5 +154,71 @@ public class Key {
         CODES.put(DELETE, 127);
         CODES.put(INSERT, 155);
         CODES.put(HELP, 156);
+        CODES.put(META, 157);
+        //======================================================================
+        CODES.put(' ', 32);
+        CODES.put(',', 44);
+        CODES.put('-', 45);
+        CODES.put('.', 46);
+        CODES.put('/', 47);
+        CODES.put('0', 48);
+        CODES.put('1', 49);
+        CODES.put('2', 50);
+        CODES.put('3', 51);
+        CODES.put('4', 52);
+        CODES.put('5', 53);
+        CODES.put('6', 54);
+        CODES.put('7', 55);
+        CODES.put('8', 56);
+        CODES.put('9', 57);
+        CODES.put(';', 59);
+        CODES.put('=', 61);
+        CODES.put('a', 65);
+        CODES.put('b', 66);
+        CODES.put('c', 67);
+        CODES.put('d', 68);
+        CODES.put('e', 69);
+        CODES.put('f', 70);
+        CODES.put('g', 71);
+        CODES.put('h', 72);
+        CODES.put('i', 73);
+        CODES.put('j', 74);
+        CODES.put('k', 75);
+        CODES.put('l', 76);
+        CODES.put('m', 77);
+        CODES.put('n', 78);
+        CODES.put('o', 79);
+        CODES.put('p', 80);
+        CODES.put('q', 81);
+        CODES.put('r', 82);
+        CODES.put('s', 83);
+        CODES.put('t', 84);
+        CODES.put('u', 85);
+        CODES.put('v', 86);
+        CODES.put('w', 87);
+        CODES.put('x', 88);
+        CODES.put('y', 89);
+        CODES.put('z', 90);
+        CODES.put('[', 91);
+        CODES.put('\\', 92);
+        CODES.put(']', 93);
+        CODES.put('&', 150);        
+        CODES.put('*', 151);
+        CODES.put('"', 152);
+        CODES.put('<', 153);
+        CODES.put('>', 160);
+        CODES.put('{', 161);
+        CODES.put('}', 162);
+        CODES.put('`', 192);
+        CODES.put('\'', 222);
+        CODES.put('@', 512);
+        CODES.put(':', 513);
+        CODES.put('$', 515);
+        CODES.put('!', 517);
+        CODES.put('(', 519);
+        CODES.put('#', 520);
+        CODES.put('+', 521);
+        CODES.put(')', 522);
+        CODES.put('_', 523);
     }
 }
