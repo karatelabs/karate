@@ -418,7 +418,7 @@ public abstract class DevToolsDriver implements Driver {
             char c = input.next();
             int modifier = input.getModifier();
             DevToolsMessage toSend = method("Input.dispatchKeyEvent");            
-            if (c <= Key.INSTANCE.META) {
+            if (c < Key.INSTANCE.NULL) { // normal character
                 if (modifier != 0) {
                     toSend.param("modifier", modifier)
                             .param("type", "rawKeyDown")
