@@ -4,6 +4,8 @@ import java.util.Collections
 import java.util.function.Consumer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.pattern.ask
+import akka.util.Timeout
 import com.intuit.karate.Runner
 import com.intuit.karate.core._
 import com.intuit.karate.http.HttpRequestBuilder
@@ -14,6 +16,9 @@ import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
 
 import scala.collection.JavaConverters._
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
 
 class KarateActor extends Actor {
   override def receive: Receive = {
@@ -21,14 +26,27 @@ class KarateActor extends Actor {
       m.run()
       context.stop(self)
     }
+    case m: FiniteDuration => {
+      val waiter = sender()
+      val task: Runnable = () => waiter ! Nil
+      context.system.scheduler.scheduleOnce(m, self, task)
+    }
   }
 }
 
-class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem, val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
+class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem,
+                   val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
 
   def getActor(): ActorRef = {
     val actorName = "karate-" + protocol.actorCount.incrementAndGet()
     system.actorOf(Props[KarateActor], actorName)
+  }
+
+  def pause(time: Int) = {
+    val duration = Duration(time, MILLISECONDS)
+    implicit val timeout = Timeout(Duration(time + 5000, MILLISECONDS))
+    val future = getActor() ? duration
+    Await.result(future, Duration.Inf)
   }
 
   override def execute(session: Session) = {
@@ -43,11 +61,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
         val customName = protocol.nameResolver.apply(req, ctx)
         val finalName = if (customName != null) customName else protocol.defaultNameResolver.apply(req, ctx)
         val pauseTime = protocol.pauseFor(finalName, req.getMethod)
-        if (pauseTime > 0) {
-          // this is probably bad scala / akka practice
-          // TODO proper throttling strategy
-          Thread.sleep(pauseTime)
-        }
+        if (pauseTime > 0) pause(pauseTime)
         return if (customName != null) customName else req.getMethod + " " + finalName
       }
 
@@ -60,8 +74,10 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
     }
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
+    val pauseFunction: Consumer[java.lang.Integer] = t => pause(t)
     val asyncNext: Runnable = () => next ! session
-    val attribs: Object = (session.attributes + ("userId" -> session.userId)).asInstanceOf[Map[String, AnyRef]].asJava
+    val attribs: Object = (session.attributes + ("userId" -> session.userId) + ("pause" -> pauseFunction))
+      .asInstanceOf[Map[String, AnyRef]].asJava
     val arg = Collections.singletonMap("__gatling", attribs)
     Runner.callAsync(name, arg, executionHook, asyncSystem, asyncNext)
 
