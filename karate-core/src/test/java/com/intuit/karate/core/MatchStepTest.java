@@ -1,4 +1,4 @@
-package com.intuit.karate;
+package com.intuit.karate.core;
 
 import com.intuit.karate.core.MatchStep;
 import com.intuit.karate.core.MatchType;
@@ -22,6 +22,7 @@ public class MatchStepTest {
 
     @Test
     public void testMatchStep() {
+        test("aXml //active == '#regex (false|true)'", EQUALS, "aXml", "//active", "'#regex (false|true)'");
         test("hello ==", EQUALS, "hello", null, null);
         test("hello world == foo", EQUALS, "hello", "world", "foo");
         test("each hello world == foo", EACH_EQUALS, "hello", "world", "foo");

@@ -82,7 +82,8 @@ public class MatchStep {
                 throw new RuntimeException("syntax error, expected '==' for match");
             }
             lhsEndPos = min(equalPos, notEqualPos);
-            if (lhsEndPos > spacePos && rightParenPos != -1 && rightParenPos > lhsEndPos) {
+            if (lhsEndPos > spacePos && rightParenPos != -1 
+                    && rightParenPos > lhsEndPos && rightParenPos < leftParenPos) {
                 equalPos = raw.indexOf(" ==", rightParenPos);
                 notEqualPos = raw.indexOf(" !=", rightParenPos);
                 if (equalPos == -1 && notEqualPos == -1) {
