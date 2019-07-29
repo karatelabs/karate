@@ -82,7 +82,8 @@ public class DriverOptions {
 
     // mutable during a test
     private boolean alwaysWait = false;
-    private Integer retryInterval;
+    private Integer retryInterval = null;
+    private String submitTarget = null;
 
     // mutable when we return from called features
     private ScenarioContext context;
@@ -106,6 +107,14 @@ public class DriverOptions {
     public void setRetryInterval(Integer retryInterval) {
         this.retryInterval = retryInterval;
     }
+
+    public String getSubmitTarget() {
+        return submitTarget;
+    }
+
+    public void setSubmitTarget(String submitTarget) {
+        this.submitTarget = submitTarget;
+    }    
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);

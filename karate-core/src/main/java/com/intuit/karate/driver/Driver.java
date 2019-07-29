@@ -24,7 +24,6 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Logger;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -58,13 +57,9 @@ public interface Driver {
 
     void click(String locator);
 
-    void click(String locator, boolean waitForDialog);
-
     void select(String locator, String text);
 
-    void select(String locator, int index);
-
-    void submit(String locator);
+    void select(String locator, int index);    
 
     void close();
 
@@ -86,7 +81,7 @@ public interface Driver {
 
     boolean enabled(String locator);
     
-    Map<String, Object> rect(String locator);
+    Map<String, Object> position(String locator);
 
     Map<String, Object> cookie(String name);
 
@@ -117,6 +112,8 @@ public interface Driver {
     default byte[] screenshot(String locator) {
         return screenshot(locator, true);
     }
+    
+    Driver submit();
 
     Object script(String expression);
 

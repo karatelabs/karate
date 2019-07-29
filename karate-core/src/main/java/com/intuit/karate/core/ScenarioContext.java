@@ -884,7 +884,7 @@ public class ScenarioContext {
     private void setDriver(Driver driver) {
         this.driver = driver;
         driver.getOptions().setContext(this);
-        bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);        
+        bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
         // the most interesting hack in the world
         for (String methodName : DriverOptions.DRIVER_METHOD_NAMES) {
             String js = "function(){ if (arguments.length == 0) return driver." + methodName + "();"
@@ -894,7 +894,7 @@ public class ScenarioContext {
             bindings.putAdditionalVariable(methodName, sv.getValue());
         }
         bindings.putAdditionalVariable("Key", Key.INSTANCE);
-    }        
+    }
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);

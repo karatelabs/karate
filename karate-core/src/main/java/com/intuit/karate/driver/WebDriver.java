@@ -26,13 +26,13 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
-import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.shell.Command;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  *
@@ -66,10 +66,28 @@ public abstract class WebDriver implements Driver {
         this.windowId = windowId;
     }
 
-    // currently duplicated in the driver implementations
-    protected void waitIfNeeded(String name) {
+    protected <T> T waitIfNeeded(String locator, Supplier<T> action) {
         if (options.isAlwaysWait()) {
-            wait(name);
+            wait(locator);
+        }
+        String before = options.getSubmitTarget();
+        if (before != null) {
+            logger.trace("submit requested, will wait for page load after next action on : {}", locator);
+            options.setSubmitTarget(null); // clear the submit flag
+            T result = action.get();
+            int count = 0, max = options.getRetryCount();
+            String after;
+            do {
+                if (count > 0) {
+                    logger.trace("waiting for document to change, retry #{}", count);
+                    options.sleep();
+                }
+                after = elementId("html");
+            } while (count++ < max && before.equals(after));
+            waitForPage();
+            return result;
+        } else {
+            return action.get();
         }
     }
 
@@ -109,13 +127,15 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public String elementId(String id) {
-        return http.path("element").post(selectorPayload(id)).jsonPath("get[0] $.." + getElementKey()).asString();
+    public String elementId(String locator) {
+        return http.path("element")
+                .post(selectorPayload(locator)).jsonPath("get[0] $.." + getElementKey()).asString();
     }
 
     @Override
-    public List<String> elementIds(String id) {
-        return http.path("elements").post(selectorPayload(id)).jsonPath("$.." + getElementKey()).asList();
+    public List<String> elementIds(String locator) {
+        return http.path("elements")
+                .post(selectorPayload(locator)).jsonPath("$.." + getElementKey()).asList();
     }
 
     @Override
@@ -176,53 +196,49 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void focus(String id) {
-        waitIfNeeded(id);
-        eval(options.selector(id) + ".focus()");
+    public void focus(String locator) {
+        waitIfNeeded(locator, () -> eval(options.selector(locator) + ".focus()"));
     }
 
     @Override
     public void clear(String locator) {
-        String id = elementId(locator);
-        http.path("element", id, "clear").post("{}");
+        waitIfNeeded(locator, () -> {
+            String id = elementId(locator);
+            return http.path("element", id, "clear").post("{}");
+        });
     }
 
     @Override
-    public void input(String name, String value) {
-        waitIfNeeded(name);
-        http.path("element", elementId(name), "value").post(getJsonForInput(value));
+    public void input(String locator, String value) {
+        waitIfNeeded(locator, () -> {
+            String id = elementId(locator);
+            http.path("element", id, "value").post(getJsonForInput(value));
+            return null;
+        });
     }
 
     @Override
-    public void click(String id) {
-        click(id, false);
-    }
-
-    @Override
-    public void click(String locator, boolean ignored) {
-        waitIfNeeded(locator);
-        eval(options.selector(locator) + ".click()");
+    public void click(String locator) {
+        waitIfNeeded(locator, () -> eval(options.selector(locator) + ".click()"));
         // the spec doesn't work :(
         // String id = get(locator);
         // http.path("element", id, "click").post("{}");        
     }
 
     @Override
-    public void select(String id, String text) {
-        waitIfNeeded(id);
-        eval(options.optionSelector(id, text));
+    public Driver submit() {
+        options.setSubmitTarget(elementId("html"));
+        return this;
     }
 
     @Override
-    public void select(String id, int index) {
-        waitIfNeeded(id);
-        eval(options.optionSelector(id, index));
+    public void select(String locator, String text) {
+        waitIfNeeded(locator, () -> eval(options.optionSelector(locator, text)));
     }
 
     @Override
-    public void submit(String name) {
-        click(name);
-        waitForPage();
+    public void select(String locator, int index) {
+        waitIfNeeded(locator, () -> eval(options.optionSelector(locator, index)));
     }
 
     @Override
@@ -237,7 +253,11 @@ public abstract class WebDriver implements Driver {
             close();
         }
         // delete session
-        http.delete();
+        try {
+            http.delete();
+        } catch (Exception e) {
+            logger.warn("session delete failed: {}", e.getMessage());
+        }
         if (command != null) {
             command.close();
         }
@@ -255,9 +275,10 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String text(String locator) {
-        waitIfNeeded(locator);
-        String id = elementId(locator);
-        return http.path("element", id, "text").get().jsonPath("$.value").asString();
+        return waitIfNeeded(locator, () -> {
+            String id = elementId(locator);
+            return http.path("element", id, "text").get().jsonPath("$.value").asString();
+        });
     }
 
     @Override
@@ -267,44 +288,44 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void value(String locator, String value) {
-        eval(options.selector(locator) + ".value = '" + value + "'");
+        waitIfNeeded(locator, () -> eval(options.selector(locator) + ".value = '" + value + "'"));
     }
 
     @Override
     public String attribute(String locator, String name) {
-        waitIfNeeded(locator);
-        String id = elementId(locator);
-        return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
-    }
-
-    protected String getPropertyById(String id, String name) {
-        return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
+        return waitIfNeeded(locator, () -> {
+            String id = elementId(locator);
+            return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
+        });
     }
 
     @Override
     public String property(String locator, String name) {
-        waitIfNeeded(locator);
-        String id = elementId(locator);
-        return getPropertyById(id, name);
+        return waitIfNeeded(locator, () -> {
+            String id = elementId(locator);
+            return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
+        });
     }
 
     @Override
     public String name(String locator) {
         return property(locator, "tagName");
     }
-    
+
     @Override
-    public Map<String, Object> rect(String locator) {
-        waitIfNeeded(locator);
-        String id = elementId(locator);
-        return http.path("element", id, "rect").get().jsonPath("$.value").asMap();
-    }    
+    public Map<String, Object> position(String locator) {
+        return waitIfNeeded(locator, () -> {
+            String id = elementId(locator);
+            return http.path("element", id, "rect").get().jsonPath("$.value").asMap();
+        });
+    }
 
     @Override
     public boolean enabled(String locator) {
-        waitIfNeeded(locator);
-        String id = elementId(locator);
-        return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();
+        return waitIfNeeded(locator, () -> {
+            String id = elementId(locator);
+            return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();
+        });
     }
 
     private String prefixReturn(String expression) {
@@ -390,12 +411,14 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public byte[] screenshot(String locator, boolean embed) {
-        String id = locator == null ? null : elementId(locator);
         String temp;
-        if (id == null) {
+        if (locator == null) {
             temp = http.path("screenshot").get().jsonPath("$.value").asString();
         } else {
-            temp = http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
+            temp = waitIfNeeded(locator, () -> {
+                String id = elementId(locator);
+                return http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
+            });
         }
         byte[] bytes = Base64.getDecoder().decode(temp);
         if (embed) {
@@ -405,8 +428,8 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void highlight(String id) {
-        script(options.highlighter(id));
+    public void highlight(String locator) {
+        script(options.highlighter(locator));
     }
 
     @Override
@@ -450,18 +473,21 @@ public abstract class WebDriver implements Driver {
             http.path("frame", "parent").post("{}");
             return;
         }
-        String frameId = elementId(locator);
-        if (frameId == null) {
-            return;
-        }
-        List<String> ids = elementIds("iframe,frame");
-        for (int i = 0; i < ids.size(); i++) {
-            String id = ids.get(i);
-            if (frameId.equals(id)) {
-                switchFrame(i);
-                break;
+        waitIfNeeded(locator, () -> {
+            String frameId = elementId(locator);
+            if (frameId == null) {
+                return null;
             }
-        }
+            List<String> ids = elementIds("iframe,frame");
+            for (int i = 0; i < ids.size(); i++) {
+                String id = ids.get(i);
+                if (frameId.equals(id)) {
+                    switchFrame(i);
+                    break;
+                }
+            }
+            return null;
+        });
     }
 
 }

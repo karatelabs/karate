@@ -56,11 +56,11 @@ public class Match {
     public Match() {
         this(null, null);
     }
-    
+
     public void clear() {
         prevValue = ScriptValue.NULL;
     }
-    
+
     public static Match init(Object o) {
         Match match = new Match(null, null);
         match.prevValue = new ScriptValue(o);
@@ -124,9 +124,13 @@ public class Match {
         return prevValue;
     }
 
-    public boolean statusIs(Integer expected) {
-        prevValue = Script.evalKarateExpression("responseStatus", context);
-        return expected.equals(prevValue.getValue());
+    public Match handleError() {
+        int code = Script.evalKarateExpression("responseStatus", context).getAsInt();
+        if (code >= 400) {
+            context.logger.warn("http response code: {}, response: {}, request: {}", 
+                    code, response().asString(), context.getPrevRequest());
+        }
+        return this;
     }
 
     public boolean isBooleanTrue() {
@@ -238,24 +242,24 @@ public class Match {
 
     public Match httpGet() {
         context.method("get");
-        return this;
+        return handleError();
     }
 
     public Match httpPost(ScriptValue body) {
         context.request(body);
         context.method("post");
-        return this;
+        return handleError();
     }
 
     public Match httpPost(Object body) {
         context.request(new ScriptValue(body).getAsString());
         context.method("post");
-        return this;
+        return handleError();
     }
 
     public Match httpDelete() {
         context.method("delete");
-        return this;
+        return handleError();
     }
 
     public Match response() {
@@ -293,8 +297,8 @@ public class Match {
         return m.matchText(exp, matchType);
     }
 
-    public Match config(String key, String value){
-        context.configure(key,value);
+    public Match config(String key, String value) {
+        context.configure(key, value);
         return this;
     }
 

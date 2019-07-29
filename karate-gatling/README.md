@@ -94,11 +94,11 @@ When method get
 
 #### `pauseFor()`
 
-You can also set pause times (in milliseconds) per URL pattern *and* HTTP method (`get`, `post` etc.) if needed (see [limitations](#limitations)). 
+You can also set pause times (in milliseconds) per URL pattern *and* HTTP method (`get`, `post` etc.) if needed (see [limitations](#limitations)). If non-zero, this pause will be applied *before* the invocation of the matching HTTP request.
 
 We recommend you set that to `0` for everything unless you really need to artifically limit the requests per second. Note how you can use `Nil` to default to `0` for all HTTP methods for a URL pattern. Make sure you wire up the `protocol` in the Gatling `setUp`. If you use a [`nameResolver`](#nameresolver), even those names can be used in the `pauseFor` lookup (instead of a URL pattern).
 
-Also see how to [`pause()`](#pause) without blocking threads if you really need to do it *within* a Karate feature.
+Also see how to [`pause()`](#think-time) without blocking threads if you really need to do it *within* a Karate feature, for e.g. to simulate user "think time" - in more detail.
 
 ### `karateFeature()`
 This declares a whole Karate feature as a "flow". Note how you can have concurrent flows in the same Gatling simulation.
@@ -118,25 +118,6 @@ The Gatling session attributes and `userId` would be available in a Karate varia
 ```
 
 This is useful as an alternative to using a random UUID where you want to create unique users, and makes it easy to co-relate values to your test-run in some situations.
-
-#### pause()
-Gatling provides a way to [`pause()`](https://gatling.io/docs/current/general/scenario/#scenario-pause) between HTTP requests, to simulate "think time". When you have all your requests in a feature file, this can be difficult to simulate - and you may think that adding `java.lang.Thread.sleep()` here and there will do the trick. But no - what a `Thread.sleep()` will do is *block threads* - is a very bad thing in a performance simulation. This will get in the way of Gatling, which is specialized to generate load in a non-blocking fashion.
-
-For this - the [Gatling session](#gatling-session) mentioned above has a `pause(milliseconds)` function available. And following the pattern to [detect if the feature is being run by Gatling](#detecting-gatling-at-run-time) - you can do this:
-
-```cucumber
-* def sleep = function(ms){ java.lang.Thread.sleep(ms) }
-# or function(ms){ } for a no-op !
-* def pause = karate.get('__gatling.pause', sleep)
-```
-
-And now, whenever you need, you can add a pause between API invocations in a feature file:
-
-```cucumber
-* pause(5000)
-```
-
-You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
 
 ### Feeders
 Because of the above mechanism which allows Karate to "see" Gatling session data, you can use [feeders](https://gatling.io/docs/current/session/feeder) effectively. For example:
@@ -177,6 +158,25 @@ You would typically want your feature file to be usable when not being run via G
 ```
 
 For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](https://github.com/ptrthomas/karate-gatling-demo/tree/master/src/test/java/mock).
+
+#### Think Time
+Gatling provides a way to [`pause()`](https://gatling.io/docs/current/general/scenario/#scenario-pause) between HTTP requests, to simulate user "think time". But when you have all your requests in a Karate feature file, this can be difficult to simulate - and you may think that adding `java.lang.Thread.sleep()` here and there will do the trick. But no, what a `Thread.sleep()` will do is *block threads* - which is a very bad thing in a load simulation. This will get in the way of Gatling, which is specialized to generate load in a non-blocking fashion.
+
+For this - the [Gatling session](#gatling-session) mentioned above has a `pause(milliseconds)` function available. And following the pattern to [detect if the feature is being run by Gatling](#detecting-gatling-at-run-time) - you can do this:
+
+```cucumber
+* def sleep = function(ms){ java.lang.Thread.sleep(ms) }
+# or function(ms){ } for a no-op !
+* def pause = karate.get('__gatling.pause', sleep)
+```
+
+And now, whenever you need, you can add a pause between API invocations in a feature file:
+
+```cucumber
+* pause(5000)
+```
+
+You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
 
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.

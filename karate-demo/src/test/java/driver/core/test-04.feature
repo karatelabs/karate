@@ -4,9 +4,12 @@ Scenario Outline: <type>
   * configure driver = { type: '#(type)', showDriverLog: true }
   * def webUrlBase = karate.properties['web.url.base']
 
-  Given driver webUrlBase + '/page-01'
-  And input('#eg02InputId', Key.CONTROL + 'a')
-  Then match text('#eg02DivId') contains (type == 'geckodriver' ? '17d17u65d' : '17d65d')
+  Given driver webUrlBase + '/page-04'
+  And match driver.location == webUrlBase + '/page-04'
+  And switchFrame('#frame01')
+  When input('#eg01InputId', 'hello world')
+  And click('#eg01SubmitId')
+  Then match text('#eg01DivId') == 'hello world'
 
 Examples:
 | type         |

@@ -45,7 +45,7 @@ public class WaitState {
     public static final Predicate<DevToolsMessage> ALL_FRAMES_LOADED = m -> {
         // page is considered ready only when the dom is ready
         // AND all child frames that STARTED loading BEFORE the dom became ready
-        if (m.methodIs("Page.domContentEventFired")) {            
+        if (m.methodIs("Page.domContentEventFired")) {
             if (m.driver.framesStillLoading.isEmpty()) {
                 m.driver.logger.trace("** dom ready, and no frames loading, wait done");
                 return true;
@@ -83,6 +83,10 @@ public class WaitState {
 
     public void setLogger(Logger logger) {
         this.logger = logger;
+    }
+
+    public void setCondition(Predicate<DevToolsMessage> condition) {
+        this.condition = condition;
     }
 
     public DevToolsMessage waitAfterSend(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {

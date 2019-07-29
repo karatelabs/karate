@@ -229,14 +229,14 @@ This also works as a "getter" to get the current window dimensions.
 ```
 The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
 
-### `driver.rect()`
-Get the dimensions of an element by [locator](#locators) as follows:
+### `position()`
+Get the position and size of an element by [locator](#locators) as follows:
 ```cucumber
-* def dims = rect('#someid')
+* def pos = position('#someid')
 ```
 The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#number', height: '#number' }`
 
-### `driver.input()`
+### `input()`
 2 string arguments: [locator](#locators) and value to enter.
 ```cucumber
 * driver.input('input[name=someName]', 'test input')
@@ -250,27 +250,32 @@ Special keys such as `ENTER`, `TAB` etc. can be specified like this:
 
 A special variable called `Key` will be available and you can see all the possible key codes [here](src/main/java/com/intuit/karate/driver/Key.java).
 
-Also see [`driver.value(locator, value)`](#drivervalueset) and [`driver.clear()`](#driverclear)
+Also see [`value(locator, value)`](#valueset) and [`driver.clear()`](#clear)
 
-### `driver.click()`
-Just triggers a click event on the DOM element, does *not* wait for a page load.
+### `submit()`
+Karate has an elegant approach to handling any action such as [`click()`](#click) that results in a new page load. You "signal" that a submit is expected by calling the `submit()` function (which returns a `Driver` object) and then "chaining" the action that is expected to trigger a page load.
+
+```cucumber
+When submit().click('*Page Three')
+```
+
+The advantage of this approach is that it works with any of the actions. So even if your next step is the `ENTER` key, you can do this:
+
+```cucumber
+When submit().input('#someform', Key.ENTER)
+```
+
+Karate will do the best it can to detect a page change and wait for the load to complete before proceeding to *any* step that follows.
+
+### `click()`
+Just triggers a click event on the DOM element
 ```cucumber
 * driver.click('input[name=someName]')
 ```
 
-There is a second rarely used variant which will wait for a JavaScript [dialog](#driverdialog) to appear:
-```cucumber
-* click('input[name=someName]', true)
-```
+Also see [`submit()`](#submit)
 
-### `driver.submit()`
-Triggers a click event on the DOM element, *and* waits for the next page to load (internally calls [`driver.waitForPage()`](#driverwaitforpage)
-
-```cucumber
-* driver.submit('.myClass')
-```
-
-### `driver.select()`
+### `select()`
 Specially for select boxes. There are four variations and use the [locator](#locators) conventions.
 
 ```cucumber
@@ -287,73 +292,73 @@ Given select('select[name=data1]', 'option2')
 Given select('select[name=data1]', 2)
 ```
 
-### `driver.focus()`
+### `focus()`
 ```cucumber
 * focus('.myClass')
 ```
 
-### `driver.clear()`
+### `clear()`
 ```cucumber
 * clear('#myInput')
 ```
-If this does not work, try [`driver.value(selector, value)`](#drivervalueset)
+If this does not work, try [`value(selector, value)`](#valueset)
 
-### `driver.close()`
+### `close()`
 Close the page / tab.
 
-### `driver.quit()`
+### `quit()`
 Close the browser.
 
-### `driver.html()`
+### `html()`
 Get the `outerHTML`, so will include the markup of the selected element. Useful for `match contains` assertions. Example:
 
 ```cucumber
 And match html('#eg01DivId') == '<div id="eg01DivId">this div is outside the iframe</div>'
 ```
 
-### `driver.text()`
+### `text()`
 Get the text-content. Example:
 ```cucumber
 And match text('.myClass') == 'Class Locator Test'
 ```
 
-### `driver.value()`
+### `value()`
 Get the HTML form-element value. Example:
 ```cucumber
 And match value('.myClass') == 'some value'
 ```
 
-### `driver.value(set)`
+### `value(set)`
 Set the HTML form-element value. Example:
 ```cucumber
 When value('#eg01InputId', 'something more')
 ```
 
-### `driver.attribute()`
+### `attribute()`
 Get the HTML element attribute value. Example:
 ```cucumber
 And match attribute('#eg01SubmitId', 'type') == 'submit'
 ```
 
-### `driver.enabled()`
+### `enabled()`
 If the element is `enabled` and not `disabled`:
 ```cucumber
 And match enabled('#eg01DisabledId') == false
 ```
 
-Also see [`karate.wait()`](#karatewait) for an example of how to *wait* until an element is enabled or until any other element property becomes the target value.
+Also see [`wait()`](#wait) for an example of how to *wait* until an element is enabled or until any other element property becomes the target value.
 
-### `driver.waitUntil()`
+### `waitUntil()`
 Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
 ```cucumber
 * waitUntil("document.readyState == 'complete'")
 ```
 
-### `driver.waitForPage()`
-Short-cut for the commonly used `driver.waitUntil("document.readyState == 'complete'")`
+### `waitForPage()`
+Short-cut for the commonly used `waitUntil("document.readyState == 'complete'")`
 
-### `driver.wait()`
-Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`driver.waitUntil()`](#driverwaituntil).
+### `wait()`
+Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`waitUntil()`](#waituntil).
 
 ```cucumber
 And wait('#eg01WaitId')
@@ -391,7 +396,7 @@ When you have very dynamic HTML where many elements are not loaded when the page
 * input('#yetAnotherId', 'foo')
 ```
 
-You can switch on a capability of Karate's UI automation driver support to "always wait", which means a [`wait()`](#driverwait) will be fired automatically behind the scenes - for *all* subsequent steps:
+You can switch on a capability of Karate's UI automation driver support to "always wait", which means a [`wait()`](#wait) will be fired automatically behind the scenes - for *all* subsequent steps:
 
 ```cucumber
 * driver.alwaysWait = true
@@ -415,14 +420,14 @@ To *temporarily* change the default [retry interval](https://github.com/intuit/k
 * driver.retryInterval = null
 ```
 
-### `driver.exists()`
+### `exists()`
 This behaves slightly differently because it does *not* [auto-wait](#driveralwayswait) even if `driver.alwaysWait = true`. Convenient to check if an element exists and then quickly move on if it doesn't.
 
 ```cucumber
 * if (exists('#some-modal)) click('.btn-close')
 ```
 
-### `driver.script()`
+### `script()`
 Will actually attempt to evaluate the given string as JavaScript within the browser.
 
 ```cucumber
@@ -437,23 +442,33 @@ And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARE
 And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 ```
 
-Normally you would use [`driver.text()`](#drivertext) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`driver.wait()`](#driverwait).
+Normally you would use [`text()`](#text) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`wait()`](#wait).
 
-### `driver.refresh()`
+### `scripts()`
+Just like the above against an element by [locator](#locators), but will perform the script `eval()` on *all* matching elements (not just the first) and return the results as a JSON array / list.
+
+```cucumber
+# get text for all elements that match css selector
+When def list = scripts('div div', '_.textContent')
+Then match list == '#[3]'
+And match each list contains '@@data'
+```
+
+### `refresh()`
 Normal page reload, does not clear cache.
 
-### `driver.reload()`
+### `reload()`
 Hard page reload, after clearing the cache.
 
-### `driver.back()`
+### `back()`
 
-### `driver.forward()`
+### `forward()`
 
-### `driver.maximize()`
+### `maximize()`
 
-### `driver.minimize()`
+### `minimize()`
 
-### `driver.fullscreen()`
+### `fullscreen()`
 
 ### `driver.cookie` 
 Set a cookie:
@@ -463,7 +478,7 @@ When driver.cookie = cookie2
 Then match driver.cookies contains '#(^cookie2)'
 ```
 
-### `driver.cookie()`
+### `cookie()`
 Get a cookie by name:
 ```cucumber
 * def cookie1 = { name: 'foo', value: 'bar' }
@@ -474,21 +489,21 @@ And match cookie('foo') contains cookie1
 ### `driver.cookies`
 See above examples.
 
-### `driver.deleteCookie()`
+### `deleteCookie()`
 Delete a cookie by name:
 ```cucumber
 When deleteCookie('foo')
 Then match driver.cookies !contains '#(^cookie1)'
 ```
 
-### `driver.clearCookies()`
+### `clearCookies()`
 Clear all cookies.
 ```cucumber
 When clearCookies()
 Then match driver.cookies == '#[0]'
 ```
 
-### `driver.dialog()`
+### `dialog()`
 Two forms. The first takes a single boolean argument, whether to "accept" or "cancel". The second form has an additional string argument which is the text to enter for cases where the dialog is expecting user input.
 
 Also works as a "getter" to retrieve the text of the currently visible dialog:
@@ -496,15 +511,15 @@ Also works as a "getter" to retrieve the text of the currently visible dialog:
 * match driver.dialog == 'Please enter your name:'
 ```
 
-### `driver.switchPage()`
+### `switchPage()`
 When multiple browser tabs are present, allows you to switch to one based on page title (or URL).
 
 ```cucumber
 When switchPage('Page Two')
 ```
 
-### `driver.switchFrame()`
-This "sets context" to a chosen frame (`<iframe>`) within the page. There are 2 variants, one that takes an integer as the param, in which case the frame is selected based on the order of appearance in the page:
+### `switchFrame()`
+This "sets context" to a chosen frame (or `<iframe>`) within the page. There are 2 variants, one that takes an integer as the param, in which case the frame is selected based on the order of appearance in the page:
 
 ```cucumber
 When switchFrame(0)
@@ -516,16 +531,16 @@ Or you use a [locator](#locators) that points to the `<iframe>` element that you
 When switchFrame('#frame01')
 ```
 
-After you have switched, any future actions such as [`driver.click()`](#driverclick) would operate within the "selected" `<iframe>`. To "reset" so that you are back to the "root" page, just switch to `null` (or integer value `-1`):
+After you have switched, any future actions such as [`click()`](#click) would operate within the "selected" `<iframe>`. To "reset" so that you are back to the "root" page, just switch to `null` (or integer value `-1`):
 
 ```cucumber
 When switchFrame(null)
 ```
 
-### `driver.screenshot()`
-Two forms, if a [locator](#locators) is provided only that HTML element will be captured, else the entire browser viewport will be captured. A byte array will be returned.
+### `screenshot()`
+Two forms, if a [locator](#locators) is provided - only that HTML element will be captured, else the entire browser viewport will be captured. A byte array will be returned.
 
-This will also do a [`karate.embed()`](https://github.com/intuit/karate#karate-embed) so that the image appears in the HTML report.
+This will also do automatically perform a [`karate.embed()`](https://github.com/intuit/karate#karate-embed) so that the image appears in the HTML report.
 
 ```cucumber
 * screenshot()
@@ -533,7 +548,7 @@ This will also do a [`karate.embed()`](https://github.com/intuit/karate#karate-e
 * screenshot('#someDiv')
 ```
 
-If you want to disable the HTML report "embed" part, pass an additional boolean argument as `false`, e.g: 
+If you want to disable the HTML report "auto-embedding", pass an additional boolean argument as `false`, e.g: 
 
 ```cucumber
 * screenshot(false)
@@ -541,14 +556,14 @@ If you want to disable the HTML report "embed" part, pass an additional boolean 
 * screenshot('#someDiv', false)
 ```
 
-### `driver.screenshotFull()
+### `screenshotFull()
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
 
-### `driver.pdf()`
+### `pdf()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
 
-### `driver.highlight()`
-Useful to visually highlight an element in the browser, especially when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
+### `highlight()`
+To visually highlight an element in the browser, especially useful when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
 
 ```cucumber
 * highlight('#eg01DivId')

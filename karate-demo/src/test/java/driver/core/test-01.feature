@@ -86,23 +86,23 @@ Scenario Outline: using <config>
   And match driver.title == 'Page Two'
 
   # dialog - alert
-  When click('^Show Alert', true)
+  When click('^Show Alert')
   Then match driver.dialog == 'this is an alert'
   And dialog(true)
 
   # dialog - confirm true
-  When click('^Show Confirm', true)
+  When click('^Show Confirm')
   Then match driver.dialog == 'this is a confirm'
   And dialog(false)
   And match text('#eg02DivId') == 'Cancel'
 
   # dialog - confirm false
-  When click('^Show Confirm', true)
+  When click('^Show Confirm')
   And dialog(true)
   And match text('#eg02DivId') == 'OK'
 
   # dialog - prompt
-  When click('^Show Prompt', true)
+  When click('^Show Prompt')
   Then match driver.dialog == 'this is a prompt'
   And dialog(true, 'hello world')
   And match text('#eg02DivId') == 'hello world'
@@ -111,7 +111,7 @@ Scenario Outline: using <config>
   * screenshot('#eg02DivId')
 
   # get element dimensions
-  * match rect('#eg02DivId') contains { x: '#number', y: '#number', width: '#number', height: '#number' }
+  * match position('#eg02DivId') contains { x: '#number', y: '#number', width: '#number', height: '#number' }
 
   # new tab opens, wait for page
   When click('^New Tab')
@@ -123,7 +123,7 @@ Scenario Outline: using <config>
   And match driver.location contains webUrlBase + '/page-02'
 
   # submit - action that waits for page navigation
-  When submit('*Page Three')
+  When submit().click('*Page Three')
   And match driver.title == 'Page Three'
   And match driver.location == webUrlBase + '/page-03'
 
@@ -160,7 +160,7 @@ Scenario Outline: using <config>
   # select option with text
   Given select('select[name=data1]', '^Option Two')
   And click('input[value=check2]')
-  When submit('#eg02SubmitId')
+  When submit().click('#eg02SubmitId')
   And match text('#eg01Data1') == 'option2'
   And match text('#eg01Data2') == 'check2'
 
@@ -168,13 +168,13 @@ Scenario Outline: using <config>
   Given select('select[name=data1]', '*Two')
   And click('[value=check2]')
   And click('[value=check1]')
-  When submit('#eg02SubmitId')
+  When submit().click('#eg02SubmitId')
   And match text('#eg01Data1') == 'option2'
   And match text('#eg01Data2') == '["check1","check2"]'
 
   # select option by value
   Given select('select[name=data1]', 'option2')
-  When submit('#eg02SubmitId')
+  When submit().click('#eg02SubmitId')
   And match text('#eg01Data1') == 'option2'
 
   # switch to iframe by index

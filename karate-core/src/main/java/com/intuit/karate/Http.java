@@ -28,45 +28,45 @@ package com.intuit.karate;
  * @author pthomas3
  */
 public class Http {
-    
+
     private final Match match;
-    
+
     // used in Match
     protected Http(Match match) {
         this.match = match;
     }
-    
+
     public void setLogger(Logger logger) {
         match.context.logger = logger;
     }
-    
+
     public Http url(String url) {
         match.url(url);
         return this;
     }
-    
-    public Http path(String ... paths) {
+
+    public Http path(String... paths) {
         // match.clear();
         match.path(paths);
         return this;
-    }    
-    
+    }
+
     public Match get() {
         return match.httpGet();
     }
-    
+
     public Match post(Json json) { // avoid extra eval
         return match.httpPost(json.getValue());
-    }    
-    
+    }
+
     public Match post(Object body) {
         return match.httpPost(body);
     }
-    
+
     public Match delete() {
         return match.httpDelete();
-    }    
-    
+    }
+
     public static Http forUrl(Logger logger, String url) {
         Http http = new Http(Match.withHttp(logger));
         return http.url(url);
@@ -75,5 +75,5 @@ public class Http {
     public Match config(String key, String value) {
         return match.config(key, value);
     }
-    
+
 }

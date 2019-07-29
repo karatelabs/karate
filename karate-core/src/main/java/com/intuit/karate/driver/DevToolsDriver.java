@@ -60,6 +60,7 @@ public abstract class DevToolsDriver implements Driver {
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
     private final Map<String, String> frameSessions = new HashMap();
+    private boolean submit;   
 
     protected String currentUrl;
     protected String currentDialogText;
@@ -114,19 +115,14 @@ public abstract class DevToolsDriver implements Driver {
         return new DevToolsMessage(this, method);
     }
 
-    public DevToolsMessage sendAndWait(String text) {
-        Map<String, Object> map = JsonUtils.toJsonDoc(text).read("$");
-        DevToolsMessage dtm = new DevToolsMessage(this, map);
-        if (dtm.getId() == null) {
-            dtm.setId(nextId());
-        }
-        return sendAndWait(dtm, null);
-    }
-
     public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         String json = JsonUtils.toJson(dtm.toMap());
         logger.debug(">> {}", json);
         client.send(json);
+        if (condition == null && submit) {
+            submit = false;
+            condition = WaitState.ALL_FRAMES_LOADED;
+        }
         return waitState.waitAfterSend(dtm, condition);
     }
 
@@ -137,6 +133,8 @@ public abstract class DevToolsDriver implements Driver {
         }
         if (dtm.methodIs("Page.javascriptDialogOpening")) {
             currentDialogText = dtm.getParam("message").getAsString();
+            // this will stop waiting NOW
+            waitState.setCondition(WaitState.DIALOG_OPENING);
         }
         if (dtm.methodIs("Page.frameNavigated")) {
             String frameNavId = dtm.get("frame.id", String.class);
@@ -200,6 +198,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     protected void waitIfNeeded(String name) {
+        // if the submit flag is true, whichever is the next message will wait for frames to load
         if (options.isAlwaysWait()) {
             wait(name);
         }
@@ -289,7 +288,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void quit() {
-        if (!options.headless) {
+        if (options.start && !options.headless) {
             method("Browser.close").send(WaitState.INSPECTOR_DETACHED);
         }
         if (command != null) {
@@ -370,13 +369,8 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void click(String id) {
-        click(id, false);
-    }
-
-    @Override
-    public void click(String id, boolean waitForDialog) {
         waitIfNeeded(id);
-        eval(options.selector(id) + ".click()", waitForDialog ? WaitState.DIALOG_OPENING : null);
+        eval(options.selector(id) + ".click()", null);
     }
 
     @Override
@@ -392,9 +386,9 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void submit(String id) {
-        waitIfNeeded(id);
-        eval(options.selector(id) + ".click()", WaitState.ALL_FRAMES_LOADED);
+    public Driver submit() {
+        submit = true;
+        return this;
     }
 
     @Override
@@ -417,7 +411,7 @@ public abstract class DevToolsDriver implements Driver {
         while (input.hasNext()) {
             char c = input.next();
             int modifier = input.getModifier();
-            DevToolsMessage toSend = method("Input.dispatchKeyEvent");            
+            DevToolsMessage toSend = method("Input.dispatchKeyEvent");
             if (c < Key.INSTANCE.NULL) { // normal character
                 if (modifier != 0) {
                     toSend.param("modifier", modifier)
@@ -605,7 +599,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Map<String, Object> rect(String id) {
+    public Map<String, Object> position(String id) {
         String expression = options.selector(id) + ".getBoundingClientRect()";
         //  important to not set returnByValue to true
         DevToolsMessage dtm = method("Runtime.evaluate").param("expression", expression).send();
@@ -620,7 +614,7 @@ public abstract class DevToolsDriver implements Driver {
         if (id == null) {
             dtm = method("Page.captureScreenshot").send();
         } else {
-            Map<String, Object> map = rect(id);
+            Map<String, Object> map = position(id);
             map.put("scale", 1);
             dtm = method("Page.captureScreenshot").param("clip", map).send();
         }
