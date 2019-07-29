@@ -60,7 +60,7 @@ public abstract class DevToolsDriver implements Driver {
     protected boolean domContentEventFired;
     protected final Set<String> framesStillLoading = new HashSet();
     private final Map<String, String> frameSessions = new HashMap();
-    private boolean submit;   
+    private boolean submit;
 
     protected String currentUrl;
     protected String currentDialogText;
@@ -402,6 +402,18 @@ public abstract class DevToolsDriver implements Driver {
         eval(options.selector(id) + ".value = ''", null);
     }
 
+    private void sendKey(char c, int modifier, String type, Integer keyCode) {
+        DevToolsMessage dtm = method("Input.dispatchKeyEvent")
+                .param("modifier", modifier)
+                .param("type", type);
+        if (keyCode != null) {
+            dtm.param("windowsVirtualKeyCode", keyCode);
+        } else {
+            dtm.param("text", c + "");
+        }
+        dtm.send();
+    }
+
     @Override
     public void input(String id, String value) {
         waitIfNeeded(id);
@@ -411,22 +423,23 @@ public abstract class DevToolsDriver implements Driver {
         while (input.hasNext()) {
             char c = input.next();
             int modifier = input.getModifier();
-            DevToolsMessage toSend = method("Input.dispatchKeyEvent");
+            Integer keyCode = Key.INSTANCE.CODES.get(c);
             if (c < Key.INSTANCE.NULL) { // normal character
-                if (modifier != 0) {
-                    toSend.param("modifier", modifier)
-                            .param("type", "rawKeyDown")
-                            .param("windowsVirtualKeyCode", Key.INSTANCE.CODES.get(c));
+                if (keyCode != null) {
+                    sendKey(c, modifier, "rawKeyDown", keyCode);
+                    sendKey(c, modifier, "char", null);
+                    sendKey(c, modifier, "keyUp", keyCode);
                 } else {
-                    toSend.param("type", "char")
-                            .param("text", c + "");
+                    sendKey(c, modifier, "char", null);
                 }
             } else {
-                toSend.param("type", "rawKeyDown")
-                        .param("modifier", modifier)
-                        .param("windowsVirtualKeyCode", Key.INSTANCE.CODES.get(c));
+                if (keyCode != null) {
+                    sendKey(c, modifier, "rawKeyDown", keyCode);
+                } else {
+                    logger.warn("unknown character / key code: {}", c);
+                    sendKey(c, modifier, "char", null);
+                }
             }
-            toSend.send();
         }
     }
 
