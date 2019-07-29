@@ -22,11 +22,14 @@ Scenario Outline: using <config>
   And match script('#eg01WaitId', '!_.disabled') == true
 
   # key events and key combinations
-  And input('#eg02InputId', 'aa')
-  Then match text('#eg02DivId') contains '65d65u'  
-  And script('#eg02DivId', "_.innerHTML = ''")
   And input('#eg02InputId', Key.CONTROL + 'a')
-  Then match text('#eg02DivId') contains (config.type == 'geckodriver' ? '17d17u65d65u' : '17d65d65u')  
+  And def temp = text('#eg02DivId')
+  And match temp contains '17d'
+  And match temp contains '65u'
+  And script('#eg02DivId', "_.innerHTML = ''")
+  When input('#eg02InputId', 'aa')
+  Then def temp = text('#eg02DivId')
+  And match temp contains '65u' 
     
   # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }
@@ -39,8 +42,8 @@ Scenario Outline: using <config>
   # navigation and dom checks
   And input('#eg01InputId', 'hello world')
   When click('input[name=eg01SubmitName]')
-  And match value('#eg01InputId') == (config.type == 'safaridriver' ? '' : 'hello world')
-  Then match text('#eg01DivId') == (config.type == 'safaridriver' ? '' : 'hello world')
+  And match value('#eg01InputId') == 'hello world'
+  Then match text('#eg01DivId') == 'hello world'
   And match attribute('#eg01SubmitId', 'type') == 'submit'
   And match name('#eg01SubmitId') == 'INPUT'
   And match enabled('#eg01InputId') == true

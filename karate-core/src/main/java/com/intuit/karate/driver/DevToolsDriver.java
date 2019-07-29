@@ -426,8 +426,8 @@ public abstract class DevToolsDriver implements Driver {
             Integer keyCode = Key.INSTANCE.CODES.get(c);
             if (c < Key.INSTANCE.NULL) { // normal character
                 if (keyCode != null) {
-                    sendKey(c, modifier, "rawKeyDown", keyCode);
-                    sendKey(c, modifier, "char", null);
+                    // sendKey(c, modifier, "rawKeyDown", keyCode);
+                    sendKey(c, modifier, "keyDown", null);
                     sendKey(c, modifier, "keyUp", keyCode);
                 } else {
                     sendKey(c, modifier, "char", null);

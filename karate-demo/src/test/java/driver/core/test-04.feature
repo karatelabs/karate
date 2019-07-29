@@ -6,10 +6,13 @@ Scenario Outline: <type>
 
   Given driver webUrlBase + '/page-01'
   And input('#eg02InputId', Key.CONTROL + 'a')
-  Then match text('#eg02DivId') contains '17d65d'
+  And def temp = text('#eg02DivId')
+  And match temp contains '17d'
+  And match temp contains '65u'
   And script('#eg02DivId', "_.innerHTML = ''")
-  And input('#eg02InputId', 'aa')
-  Then match text('#eg02DivId') contains '65d65u'
+  When input('#eg02InputId', 'aa')
+  Then def temp = text('#eg02DivId')
+  And match temp contains '65u'
   And input('#eg01InputId', 'hello world')
   When click('input[name=eg01SubmitName]')
   And match value('#eg01InputId') == (type == 'safaridriver' ? '' : 'hello world')
@@ -22,6 +25,6 @@ Scenario Outline: <type>
 Examples:
 | type         |
 | chrome       |
-#| chromedriver |
-#| geckodriver  |
+| chromedriver |
+| geckodriver  |
 #| safaridriver |
