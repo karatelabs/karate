@@ -74,7 +74,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
     }
 
     val asyncSystem: Consumer[Runnable] = r => getActor() ! r
-    val pauseFunction: Consumer[java.lang.Integer] = t => pause(t)
+    val pauseFunction: Consumer[java.lang.Number] = t => pause(t.intValue())
     val asyncNext: Runnable = () => next ! session
     val attribs: Object = (session.attributes + ("userId" -> session.userId) + ("pause" -> pauseFunction))
       .asInstanceOf[Map[String, AnyRef]].asJava
