@@ -43,12 +43,16 @@ public class Test {
         byte[] bytes = chrome.pdf(Collections.EMPTY_MAP);
         FileUtils.writeToFile(new File("target/github.pdf"), bytes);
         bytes = chrome.screenshot();
+        // this will attempt to capture the whole page, not just the visible part
+        // bytes = chrome.screenshotFull();
         FileUtils.writeToFile(new File("target/github.png"), bytes);
         chrome.quit();
     }
     
 }
 ```
+
+Note that in addition to `driver.screenshot()` there is a `driver.screenshotFull()` API that will attempt to capture the whole "scrolled" page, not just the part visible in the viewport.
 
 The parameters that you can optionally customize via the `Map` argument to the `pdf()` method are documented here: [`Page.printToPDF
 `](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF).

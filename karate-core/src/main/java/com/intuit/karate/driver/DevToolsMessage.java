@@ -43,6 +43,7 @@ public class DevToolsMessage {
     private String sessionId;
     private final String method;
     private Map<String, Object> params;
+    private Map<String, Object> error;
     private ScriptValue result;
 
     public Integer getId() {
@@ -59,8 +60,8 @@ public class DevToolsMessage {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
-    }    
-    
+    }
+
     public String getMethod() {
         return method;
     }
@@ -68,7 +69,7 @@ public class DevToolsMessage {
     public boolean methodIs(String method) {
         return method.equals(this.method);
     }
-    
+
     public <T> T get(String path, Class<T> clazz) {
         if (params == null) {
             return null;
@@ -84,21 +85,21 @@ public class DevToolsMessage {
     public void setParams(Map<String, Object> params) {
         this.params = params;
     }
-    
+
     public boolean isResultPresent() {
         return result != null;
-    }    
-    
+    }
+
     public ScriptValue getResult() {
         return result;
     }
-    
+
     public <T> T getResult(String path, Class<T> clazz) {
         if (result == null) {
             return null;
         }
         Json json = new Json(result.getValue());
-        return json.get(path, clazz);        
+        return json.get(path, clazz);
     }
 
     public void setResult(ScriptValue result) {
@@ -116,11 +117,14 @@ public class DevToolsMessage {
     }
 
     public boolean isResultError() {
+        if (error != null) {
+            return true;
+        }
         if (result == null || !result.isMapLike()) {
             return false;
         }
-        String error = (String) result.getAsMap().get("subtype");
-        return "error".equals(error);
+        String resultError = (String) result.getAsMap().get("subtype");
+        return "error".equals(resultError);
     }
 
     public ScriptValue getResult(String key) {
@@ -166,6 +170,7 @@ public class DevToolsMessage {
         } else {
             result = new ScriptValue(temp);
         }
+        error = (Map) map.get("error");
     }
 
     public DevToolsMessage param(String key, Object value) {
@@ -211,7 +216,7 @@ public class DevToolsMessage {
         sb.append("[id: ").append(id);
         if (sessionId != null) {
             sb.append(", sessionId: ").append(sessionId);
-        }        
+        }
         if (method != null) {
             sb.append(", method: ").append(method);
         }
@@ -221,6 +226,9 @@ public class DevToolsMessage {
         if (result != null) {
             sb.append(", result: ").append(result);
         }
+        if (error != null) {
+            sb.append(", error: ").append(error);
+        }        
         sb.append("]");
         return sb.toString();
     }

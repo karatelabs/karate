@@ -1,7 +1,8 @@
 package driver.demo;
 
-import com.intuit.karate.driver.Driver;
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.driver.chrome.Chrome;
+import java.io.File;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -17,7 +18,8 @@ public class Demo01JavaRunner {
     
     @Test
     public void testChrome() throws Exception {
-        Driver driver = Chrome.start();        
+        
+        Chrome driver = Chrome.start();        
         driver.setLocation("https://github.com/login");
         driver.input("#login_field", "dummy");
         driver.input("#password", "world");
@@ -28,6 +30,9 @@ public class Demo01JavaRunner {
         driver.input("input[name=q]", "karate dsl");
         driver.submit().click("input[name=btnI]");
         assertEquals("https://github.com/intuit/karate", driver.getLocation());
+        //byte[] bytes = driver.screenshot();
+        byte[] bytes = driver.screenshotFull();
+        FileUtils.writeToFile(new File("target/screenshot.png"), bytes);        
         driver.quit();
     }
     

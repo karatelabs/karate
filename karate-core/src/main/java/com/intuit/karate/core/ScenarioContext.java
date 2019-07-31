@@ -253,6 +253,9 @@ public class ScenarioContext {
             config = call.context.config;
             rootFeatureContext = call.context.rootFeatureContext;
             driver = call.context.driver;
+            if (driver != null) { // logger re-pointing
+                driver.getOptions().setContext(this);
+            }
             webSocketClients = call.context.webSocketClients;
         } else if (call.context != null) {
             parentContext = call.context;

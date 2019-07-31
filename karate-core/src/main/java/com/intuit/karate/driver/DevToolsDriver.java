@@ -648,6 +648,10 @@ public abstract class DevToolsDriver implements Driver {
         map.put("y", 0);
         map.put("scale", 1);
         DevToolsMessage dtm = method("Page.captureScreenshot").param("clip", map).send();
+        if (dtm.isResultError()) {
+            logger.error("unable to capture screenshot: {}", dtm);
+            return new byte[0];
+        }
         String temp = dtm.getResult("data").getAsString();
         return Base64.getDecoder().decode(temp);
     }

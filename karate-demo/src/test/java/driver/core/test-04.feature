@@ -15,8 +15,8 @@ Scenario Outline: <type>
   And match temp contains '65u'
   And input('#eg01InputId', 'hello world')
   When click('input[name=eg01SubmitName]')
-  And match value('#eg01InputId') == (type == 'safaridriver' ? '' : 'hello world')
-  Then match text('#eg01DivId') == (type == 'safaridriver' ? '' : 'hello world')
+  And match value('#eg01InputId') == 'hello world'
+  Then match text('#eg01DivId') == 'hello world'
   And match attribute('#eg01SubmitId', 'type') == 'submit'
   And match name('#eg01SubmitId') == 'INPUT'
   And match enabled('#eg01InputId') == true
@@ -27,4 +27,4 @@ Examples:
 | chrome       |
 | chromedriver |
 | geckodriver  |
-#| safaridriver |
+| safaridriver |

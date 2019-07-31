@@ -170,28 +170,34 @@ public class DriverOptions {
             logger.warn("type was null, defaulting to 'chrome'");
             type = "chrome";
         }
-        switch (type) {
-            case "chrome":
-                return Chrome.start(context, options, logger);
-            case "msedge":
-                return EdgeDevToolsDriver.start(context, options, logger);
-            case "chromedriver":
-                return ChromeWebDriver.start(context, options, logger);
-            case "geckodriver":
-                return GeckoWebDriver.start(context, options, logger);
-            case "safaridriver":
-                return SafariWebDriver.start(context, options, logger);
-            case "mswebdriver":
-                return MicrosoftWebDriver.start(context, options, logger);
-            case "winappdriver":
-                return WinAppDriver.start(context, options, logger);
-            case "android":
-                return AndroidDriver.start(context, options, logger);
-            case "ios":
-                return IosDriver.start(context, options, logger);
-            default:
-                logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-                return Chrome.start(context, options, logger);
+        try { // to make troubleshooting errors easier
+            switch (type) {
+                case "chrome":
+                    return Chrome.start(context, options, logger);
+                case "msedge":
+                    return EdgeDevToolsDriver.start(context, options, logger);
+                case "chromedriver":
+                    return ChromeWebDriver.start(context, options, logger);
+                case "geckodriver":
+                    return GeckoWebDriver.start(context, options, logger);
+                case "safaridriver":
+                    return SafariWebDriver.start(context, options, logger);
+                case "mswebdriver":
+                    return MicrosoftWebDriver.start(context, options, logger);
+                case "winappdriver":
+                    return WinAppDriver.start(context, options, logger);
+                case "android":
+                    return AndroidDriver.start(context, options, logger);
+                case "ios":
+                    return IosDriver.start(context, options, logger);
+                default:
+                    logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
+                    return Chrome.start(context, options, logger);
+            }            
+        } catch (Exception e) {
+            String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
+            logger.error(message);
+            throw new RuntimeException(message, e);
         }
     }
 
@@ -351,7 +357,9 @@ public class DriverOptions {
     }
 
     public void embedPngImage(byte[] bytes) {
-        context.embed(bytes, "image/png");
+        if (context != null) { // can be null if chrome java api
+            context.embed(bytes, "image/png");
+        }        
     }
 
     public static final Set<String> DRIVER_METHOD_NAMES = new HashSet();

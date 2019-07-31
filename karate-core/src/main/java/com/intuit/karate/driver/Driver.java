@@ -103,7 +103,7 @@ public interface Driver {
 
     byte[] screenshot(boolean embed);
 
-    byte[] screenshot(String locator, boolean embed);
+    byte[] screenshot(String locator, boolean embed);        
 
     default byte[] screenshot() {
         return screenshot(true);
