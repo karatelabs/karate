@@ -128,6 +128,10 @@ Scenario: json to java map - useful in some situations
     * def map = karate.toBean(response, 'java.util.LinkedHashMap')
     * def first = map.keySet().iterator().next()
     * match first == 'key1'
+    # short cut for the above
+    * def map = karate.toMap(response)
+    * def first = map.keySet().iterator().next()
+    * match first == 'key1'
 
 Scenario: java pojo to json
     * def className = 'com.intuit.karate.junit4.demos.SimplePojo'

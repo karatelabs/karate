@@ -29,7 +29,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.SocketAddress;
+import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -55,15 +60,53 @@ public class Command extends Thread {
         command.waitSync();
         return command.appender.collect();
     }
-    
+
     public static String execLine(File workingDir, String command) {
         StringTokenizer st = new StringTokenizer(command);
         String[] args = new String[st.countTokens()];
         for (int i = 0; st.hasMoreTokens(); i++) {
             args[i] = st.nextToken();
         }
-        return exec(workingDir, args);    
-    }    
+        return exec(workingDir, args);
+    }
+
+    public static int getFreePort() {
+        try {
+            ServerSocket s = new ServerSocket(0);
+            int port = s.getLocalPort();
+            LOGGER.debug("identified free local port: {}", port);
+            s.close();
+            return port;
+        } catch (Exception e) {
+            LOGGER.error("failed to find free port: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static boolean waitForPort(String host, int port) {
+        int attempts = 0;
+        long startTime = System.currentTimeMillis();
+        do {
+            SocketAddress address = new InetSocketAddress(host, port);
+            try {
+                if (attempts > 0) {
+                    LOGGER.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
+                }
+                SocketChannel sock = SocketChannel.open(address);
+                sock.close();
+                long elapsedTime = System.currentTimeMillis() - startTime;
+                LOGGER.debug("ready to accept connections after {} ms - {}:{}", elapsedTime, host, port);
+                return true;
+            } catch (IOException e) {
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception ee) {
+                    return false;
+                }
+            }
+        } while (attempts++ < 30);
+        return false;
+    }
 
     public Command(String... args) {
         this(null, null, null, null, args);
@@ -129,7 +172,6 @@ public class Command extends Thread {
             logger.debug("command: {}", argList);
             ProcessBuilder pb = new ProcessBuilder(args);
             logger.debug("env PATH: {}", pb.environment().get("PATH"));
-            logger.debug("executing command: {}", pb.command());
             if (workingDir != null) {
                 pb.directory(workingDir);
             }
@@ -145,7 +187,11 @@ public class Command extends Thread {
             if (!sharedAppender) {
                 appender.close();
             }
-            LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);
+            if (exitCode == 0) {
+                LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);
+            } else {
+                LOGGER.warn("exit code was non-zero: {} - {}", exitCode, argList);
+            }
         } catch (Exception e) {
             LOGGER.error("command error: {} - {}", argList, e.getMessage());
         }

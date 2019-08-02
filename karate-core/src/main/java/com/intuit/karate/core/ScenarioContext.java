@@ -926,13 +926,18 @@ public class ScenarioContext {
                 }
             }
             parentContext.webSocketClients = webSocketClients;
-            return;
+            return; // don't kill driver yet
         }
         if (webSocketClients != null) {
             webSocketClients.forEach(WebSocketClient::close);
         }
         if (driver != null) {
             driver.quit();
+            DriverOptions options  = driver.getOptions();
+            if (options.target != null) {
+                logger.debug("custom target configured, attempting stop()");
+                options.target.stop();
+            }
             driver = null;
         }
     }

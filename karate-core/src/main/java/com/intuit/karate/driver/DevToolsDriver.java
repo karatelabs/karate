@@ -290,6 +290,7 @@ public abstract class DevToolsDriver implements Driver {
     public void quit() {
         method("Target.closeTarget").param("targetId", rootFrameId).send(WaitState.INSPECTOR_DETACHED);
         // method("Browser.close").send();
+        client.close();
         if (command != null) {
             command.close();
         }

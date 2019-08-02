@@ -56,8 +56,8 @@ public class ScenarioExecutionUnit implements Runnable {
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
         this(scenario, results, exec, null, logger);
     }
-    
-    private static final Map<String, Integer> FILE_HANDLE_COUNT = new HashMap();    
+
+    private static final Map<String, Integer> FILE_HANDLE_COUNT = new HashMap();
 
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results,
             ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
@@ -67,23 +67,23 @@ public class ScenarioExecutionUnit implements Runnable {
         if (logger == null) {
             logger = new Logger();
             if (scenario.getIndex() < 500) {
-                if (exec.callContext.isCalled()) {                    
-                    String featureName = exec.featureContext.packageQualifiedName;                    
+                if (exec.callContext.isCalled()) {
+                    String featureName = exec.featureContext.packageQualifiedName;
                     Integer count = FILE_HANDLE_COUNT.get(featureName);
                     if (count == null) {
-                        count = 0;                        
+                        count = 0;
                     }
-                    count = count + 1;                    
-                    FILE_HANDLE_COUNT.put(featureName, count);                    
+                    count = count + 1;
+                    FILE_HANDLE_COUNT.put(featureName, count);
                     if (count < 500) {
                         // ensure no collisions for called features that are re-used across scenarios executing in parallel
                         appender = exec.getLogAppender(scenario.getUniqueId() + "_" + Thread.currentThread().getName(), logger);
                     } else { // this is a super-re-used feature, don't open any more files, same trade-off see below                        
                         appender = LogAppender.NO_OP;
-                    }                    
+                    }
                 } else {
                     appender = exec.getLogAppender(scenario.getUniqueId(), logger);
-                }                
+                }
             } else {
                 // avoid creating log-files for scenario outlines beyond a limit
                 // trade-off is we won't see inline logs in the html report                 
@@ -145,12 +145,11 @@ public class ScenarioExecutionUnit implements Runnable {
                 result.addError("scenario init failed", e);
             }
         }
-        ScenarioContext context = actions.context;
-        // before-scenario hook        
-        if (!initFailed && context.executionHooks != null) {
+        // before-scenario hook, important: actions.context will be null if initFailed
+        if (!initFailed && actions.context.executionHooks != null) {
             try {
-                for (ExecutionHook h : context.executionHooks) {
-                    h.beforeScenario(scenario, context);
+                for (ExecutionHook h : actions.context.executionHooks) {
+                    h.beforeScenario(scenario, actions.context);
                 }
             } catch (Exception e) {
                 initFailed = true;
@@ -170,10 +169,10 @@ public class ScenarioExecutionUnit implements Runnable {
                 }
                 if (scenario.isOutline()) { // init examples row magic variables
                     Map<String, Object> exampleData = scenario.getExampleData();
-                    context.vars.put("__row", exampleData);
-                    context.vars.put("__num", scenario.getExampleIndex());
-                    if (context.getConfig().isOutlineVariablesAuto()) {
-                        exampleData.forEach((k, v) -> context.vars.put(k, v));
+                    actions.context.vars.put("__row", exampleData);
+                    actions.context.vars.put("__num", scenario.getExampleIndex());
+                    if (actions.context.getConfig().isOutlineVariablesAuto()) {
+                        exampleData.forEach((k, v) -> actions.context.vars.put(k, v));
                     }
                 }
             }

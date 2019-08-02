@@ -79,6 +79,7 @@ public class DriverOptions {
     public final int maxPayloadSize;
     public final List<String> addOptions;
     public final List<String> args = new ArrayList();
+    public final Target target;
 
     // mutable during a test
     private boolean alwaysWait = false;
@@ -114,7 +115,7 @@ public class DriverOptions {
 
     public void setSubmitTarget(String submitTarget) {
         this.submitTarget = submitTarget;
-    }    
+    }
 
     private <T> T get(String key, T defaultValue) {
         T temp = (T) options.get(key);
@@ -143,12 +144,13 @@ public class DriverOptions {
                 args.add(new File(executable).getAbsolutePath());
             } else {
                 args.add(executable);
-            }            
+            }
         }
         workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
         workingDirPath = workingDir.getAbsolutePath();
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
+        target = get("target", null);
     }
 
     public void arg(String arg) {
@@ -156,7 +158,7 @@ public class DriverOptions {
     }
 
     public Command startProcess() {
-        if (executable == null || !start) {
+        if (target != null || !start) {
             return null;
         }
         if (addOptions != null) {
@@ -169,6 +171,13 @@ public class DriverOptions {
     }
 
     public static Driver start(ScenarioContext context, Map<String, Object> options, Logger logger) {
+        Target target = (Target) options.get("target");
+        if (target != null) {
+            logger.debug("custom target configured, calling start()");
+            Map<String, Object> map = target.start();
+            logger.debug("custom target returned options: {}", map);
+            options.putAll(map);
+        }
         String type = (String) options.get("type");
         if (type == null) {
             logger.warn("type was null, defaulting to 'chrome'");
@@ -197,10 +206,13 @@ public class DriverOptions {
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                     return Chrome.start(context, options, logger);
-            }            
-        } catch (Exception e) {            
+            }
+        } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
             logger.error(message);
+            if (target != null) {
+                target.stop();
+            }
             throw new RuntimeException(message, e);
         }
     }
@@ -308,7 +320,7 @@ public class DriverOptions {
             temp = temp + "var e = null; while(e = es.iterateNext()) res.push(fun(e)); return res";
         } else {
             temp = temp + "es.forEach(function(e){ res.push(fun(e)) }); return res";
-        }                
+        }
         return wrapInFunctionInvoke(temp);
     }
 
@@ -363,7 +375,7 @@ public class DriverOptions {
     public void embedPngImage(byte[] bytes) {
         if (context != null) { // can be null if chrome java api
             context.embed(bytes, "image/png");
-        }        
+        }
     }
 
     public static final Set<String> DRIVER_METHOD_NAMES = new HashSet();
