@@ -30,8 +30,8 @@ public class Demo01JavaRunner {
         driver.input("input[name=q]", "karate dsl");
         driver.submit().click("input[name=btnI]");
         assertEquals("https://github.com/intuit/karate", driver.getLocation());
-        //byte[] bytes = driver.screenshot();
-        byte[] bytes = driver.screenshotFull();
+        byte[] bytes = driver.screenshot();
+        // byte[] bytes = driver.screenshotFull();
         FileUtils.writeToFile(new File("target/screenshot.png"), bytes);        
         driver.quit();
     }

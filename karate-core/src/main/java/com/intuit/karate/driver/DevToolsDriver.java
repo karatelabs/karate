@@ -288,9 +288,8 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void quit() {
-        if (options.start && !options.headless) {
-            method("Browser.close").send(WaitState.INSPECTOR_DETACHED);
-        }
+        method("Target.closeTarget").param("targetId", rootFrameId).send(WaitState.INSPECTOR_DETACHED);
+        // method("Browser.close").send();
         if (command != null) {
             command.close();
         }

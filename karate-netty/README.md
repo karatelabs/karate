@@ -189,7 +189,19 @@ java -jar karate.jar -e e2e my-test.feature
 If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists in the current working directory, it will be used. You can specify a full path by setting the system property `karate.config.dir`. Note that this is an easy way to set a bunch of variables, just return a JSON with the keys and values you need.
 
 ```
-java -jar -Dkarate.config.dir=parentdir/somedir karate.jar my-test.feature
+java -Dkarate.config.dir=parentdir/somedir -jar karate.jar my-test.feature
+```
+
+If you want to pass any custom or environment variables, make sure they are *before* the `-jar` part else they are will not be passed to the JVM. For example:
+
+```cucumber
+java -Dfoo=bar -Dbaz=ban -jar karate.jar my-test.feature
+```
+
+And now you can get the value of `foo` from JavaScript or a [Karate expression](https://github.com/intuit/karate#karate-expressions) as follows:
+
+```javascript
+var foo = karate.properties['foo']
 ```
 
 #### Parallel Execution

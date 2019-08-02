@@ -66,6 +66,11 @@ public class Http {
     public Match delete() {
         return match.httpDelete();
     }
+    
+    
+    public int status() {
+        return match.httpStatus();
+    }
 
     public static Http forUrl(Logger logger, String url) {
         Http http = new Http(Match.withHttp(logger));

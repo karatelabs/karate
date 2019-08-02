@@ -139,7 +139,11 @@ public class DriverOptions {
         showDriverLog = get("showDriverLog", false);
         driverLogger = showDriverLog ? this.logger : new Logger(packageName + "." + uniqueName);
         if (executable != null) {
-            args.add(executable);
+            if (executable.startsWith(".")) { // honor path even when we set working dir
+                args.add(new File(executable).getAbsolutePath());
+            } else {
+                args.add(executable);
+            }            
         }
         workingDir = new File(FileUtils.getBuildDir() + File.separator + uniqueName);
         workingDirPath = workingDir.getAbsolutePath();
@@ -194,7 +198,7 @@ public class DriverOptions {
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
                     return Chrome.start(context, options, logger);
             }            
-        } catch (Exception e) {
+        } catch (Exception e) {            
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
             logger.error(message);
             throw new RuntimeException(message, e);

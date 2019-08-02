@@ -28,8 +28,7 @@ public class CommandTest {
     @Test
     public void testCommandReturn() {
     	String cmd = FileUtils.isOsWindows() ? "print \"karate\"" : "ls";
-        byte[] bytes = Command.exec(new File("target"), cmd);
-        String result = new String(bytes);
+        String result = Command.exec(new File("target"), cmd);
         assertTrue(result.contains("karate"));
     }    
     

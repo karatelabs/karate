@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.shell;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,7 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.StringTokenizer;
 
 public class Command extends Thread {
 
@@ -42,20 +42,28 @@ public class Command extends Thread {
     private final String uniqueName;
     private final Logger logger;
     private final String[] args;
-    private final List argList;    
+    private final List argList;
     private final boolean sharedAppender;
     private final LogAppender appender;
-    
+
     private Process process;
     private int exitCode = -1;
-    private byte[] output;
 
-    public static byte[] exec(File workingDir, String... args) {
+    public static String exec(File workingDir, String... args) {
         Command command = new Command(workingDir, args);
         command.start();
         command.waitSync();
-        return command.output;
+        return command.appender.collect();
     }
+    
+    public static String execLine(File workingDir, String command) {
+        StringTokenizer st = new StringTokenizer(command);
+        String[] args = new String[st.countTokens()];
+        for (int i = 0; st.hasMoreTokens(); i++) {
+            args[i] = st.nextToken();
+        }
+        return exec(workingDir, args);    
+    }    
 
     public Command(String... args) {
         this(null, null, null, null, args);
@@ -70,12 +78,14 @@ public class Command extends Thread {
         this.uniqueName = uniqueName == null ? System.currentTimeMillis() + "" : uniqueName;
         setName(this.uniqueName);
         this.logger = logger == null ? new Logger() : logger;
-        this.workingDir = workingDir == null ? new File(".") : workingDir;
+        this.workingDir = workingDir;
         this.args = args;
-        this.workingDir.mkdirs();
+        if (workingDir != null) {
+            workingDir.mkdirs();
+        }
         argList = Arrays.asList(args);
         if (logFile == null) {
-            appender = null;
+            appender = new StringLogAppender();
             sharedAppender = false;
         } else { // don't create new file if re-using an existing appender
             LogAppender temp = this.logger.getLogAppender();
@@ -119,21 +129,20 @@ public class Command extends Thread {
             logger.debug("command: {}", argList);
             ProcessBuilder pb = new ProcessBuilder(args);
             logger.debug("env PATH: {}", pb.environment().get("PATH"));
-            pb.directory(workingDir);
+            logger.debug("executing command: {}", pb.command());
+            if (workingDir != null) {
+                pb.directory(workingDir);
+            }
             pb.redirectErrorStream(true);
             process = pb.start();
-            if (appender != null) {
-                BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                String line;
-                while ((line = in.readLine()) != null) {
-                    appender.append(line);
-                    logger.debug("{}", line);
-                }
+            BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = in.readLine()) != null) {
+                appender.append(line);
+                logger.debug("{}", line);
             }
             exitCode = process.waitFor();
-            if (appender == null) {
-                output = FileUtils.toBytes(process.getInputStream());
-            } else if (!sharedAppender) {
+            if (!sharedAppender) {
                 appender.close();
             }
             LOGGER.debug("command complete, exit code: {} - {}", exitCode, argList);

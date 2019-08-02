@@ -123,9 +123,13 @@ public class Match {
     public ScriptValue value() {
         return prevValue;
     }
+    
+    public int httpStatus() {
+        return Script.evalKarateExpression("responseStatus", context).getAsInt();        
+    }
 
     public Match handleError() {
-        int code = Script.evalKarateExpression("responseStatus", context).getAsInt();
+        int code = httpStatus();
         if (code >= 400) {
             context.logger.warn("http response code: {}, response: {}, request: {}", 
                     code, response().asString(), context.getPrevRequest());
