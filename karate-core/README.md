@@ -134,7 +134,10 @@ Karate will call the `stop()` method at the end of a (non-called) `Scenario`. Co
 
 The `Map` returned by the `start()` method will be used to create the [driver configuration](#driver-configuration). Karate has a built-in implementation for Docker ([`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java)) that can be a good reference for you to create your own from scratch.
 
-There is a `karate.target(object)` API that is a convenience helper (which in the future may support other common target types in addition to Docker). Here below is an example of using it in [`karate-config.js`](https://github.com/intuit/karate#configuration), and using a particular [`chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) Docker image. The `targetType` is needed in addition to the [driver configuration](#driver-configuration) to tell Karate what kind of `Target` to return. You can omit the `start` (and even the `headless`) flag and it will logically be `false`, because now the `target` has the responsibility to start (and stop) the application under test. The `port` is automatically added by the `DockerTarget` Java code.
+There is a `karate.target(object)` API that is a convenience helper (which in the future may support other common target types in addition to Docker). Here below is an example of using it in [`karate-config.js`](https://github.com/intuit/karate#configuration), and using a particular [`chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) Docker image.
+
+* `targetType`: needed in addition to the [driver configuration](#driver-configuration) to tell Karate what kind of `Target` to return. You can omit the `start` (and even the `headless`) flag and it will logically be `false`, because now the `target` has the responsibility to start (and stop) the application under test. The `port` is automatically added by the `DockerTarget` Java code.
+* `dockerImage`: optional, but will ensure that the `DockerTarget` Java code will `docker pull` the image before launching a container
 
 > Use the `--security-opt seccomp=chrome.json` setting as documented for the [`chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) Docker image.
 
@@ -143,10 +146,16 @@ function fn() {
     var config = {
         baseUrl: 'https://qa.mycompany.com'
     };
+    var dockerImage = 'justinribeiro/chrome-headless';
     if (karate.env == 'ci') {
-        var target = karate.target({ targetType: 'docker', type: 'chrome' });
-        target.command = function(port){ return 'docker run -d -p '
-            + port + ':9222 --security-opt seccomp=./chrome.json justinribeiro/chrome-headless' };
+        var target = karate.target({
+            targetType: 'docker',
+            dockerImage: dockerImage,
+            type: 'chrome'
+        });
+        target.command = function(port){
+            return 'docker run -d -p ' + port + ':9222 --security-opt seccomp=src/test/java/chrome.json ' + dockerImage;
+        };
         config.driverConfig = karate.toMap({ target: target });
     }
     return config;
@@ -158,15 +167,15 @@ And if you have a custom Java implementation of a `Target`, you just need to rep
 ```javascript
     var DockerTarget = Java.type('com.intuit.karate.driver.DockerTarget');
     var target = new DockerTarget();
-    target.command = function(port){ return 'docker run -d -p '
+    target.command = function(port){ return 'docker run -d -p ' 
         + port + ':9222 --security-opt seccomp=./chrome.json justinribeiro/chrome-headless' };
     target.options = { type: 'chrome', showDriverLog: true }
     config.driverConfig = karate.toMap({ target: target });
 ```
 
 The [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) is a good example of how to:
-* get a free port
-* use it to shape the command dynamically
+* perform any pre-test set-up actions
+* get a free port and use it to shape the `start()` command dynamically
 * execute the command to start the target process
 * perform an HTTP health check to wait until we are ready to receive connections
 * and when `stop()` is called, indicate if a video recording is present (after retrieving it from the stopped container)
@@ -191,10 +200,16 @@ function fn() {
     var config = {
         baseUrl: 'https://qa.mycompany.com'
     };
+    var dockerImage = 'ptrthomas/karate-chrome:0.9.5.RC';
     if (karate.env == 'ci') {
-        var target = karate.target({ targetType: 'docker', type: 'chrome' });
+        var target = karate.target({
+            targetType: 'docker',
+            dockerImage: dockerImage,
+            type: 'chrome',
+            showDriverLog: true
+        });
         target.command = function(port){
-            return 'docker run -d -p ' + port + ':9222 --security-opt seccomp=./chrome.json ptrthomas/karate-chrome'
+            return 'docker run -d -p ' + port + ':9222 --security-opt seccomp=src/test/java/chrome.json ' + dockerImage;
         };
         config.driverConfig = karate.toMap({ target: target });
     }

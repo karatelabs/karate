@@ -75,6 +75,13 @@ public class DockerTarget implements Target {
         if (command == null) {
             throw new RuntimeException("docker target command (function) not set");
         }
+        if (options != null) {
+            String dockerImage = (String) options.get("dockerImage");
+            if (dockerImage != null) {
+                logger.debug("attempting to pull docker image: {}", dockerImage);
+                Command.execLine(null, "docker pull " + dockerImage);
+            }
+        }
         int port = Command.getFreePort();
         name = Command.execLine(null, command.apply(port));
         Map<String, Object> map = new HashMap();
