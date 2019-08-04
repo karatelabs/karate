@@ -23,10 +23,16 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.Command;
+import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -34,14 +40,16 @@ import java.util.function.Function;
  */
 public class DockerTarget implements Target {
 
+    protected static final Logger logger = LoggerFactory.getLogger(Command.class);
+
     private String name;
     private Function<Integer, String> command;
     private Map<String, Object> options;
-    
+
     public DockerTarget() {
         this(null);
     }
-    
+
     public DockerTarget(Map<String, Object> options) {
         this.options = options;
     }
@@ -52,7 +60,7 @@ public class DockerTarget implements Target {
 
     public Function<Integer, String> getCommand() {
         return command;
-    }        
+    }
 
     public void setOptions(Map<String, Object> options) {
         this.options = options;
@@ -60,7 +68,7 @@ public class DockerTarget implements Target {
 
     public Map<String, Object> getOptions() {
         return options;
-    }        
+    }
 
     @Override
     public Map<String, Object> start() {
@@ -74,13 +82,30 @@ public class DockerTarget implements Target {
         if (options != null) {
             map.putAll(options);
         }
-        Command.waitForPort("127.0.0.1", port);
+        Command.waitForHttp("http://127.0.0.1:" + port + "/json");
         return map;
     }
 
     @Override
-    public void stop() {
+    public Map<String, Object> stop() {
         Command.execLine(null, "docker stop " + name);
+        String shortName = name.contains("_") ? name : StringUtils.truncate(name, 12, false);
+        String dirName = "karate-chrome_" + shortName;
+        String resultsDir = Command.getBuildDir() + File.separator + dirName;
+        Command.execLine(null, "docker cp " + name + ":/tmp " + resultsDir);
+        String video = resultsDir + File.separator + "karate.mp4";
+        File file = new File(video);
+        if (!file.exists()) {
+            logger.warn("video file missing: {}", file);
+            return Collections.EMPTY_MAP;
+        }
+        // some hacking to respect the way the cucumber html report works
+        // AND preserve relative paths TODO
+        String newName = "embeddings" + File.separator + shortName + "_" + file.getName();
+        String dest = Command.getBuildDir() + File.separator
+                + "cucumber-html-reports" + File.separator + newName;
+        FileUtils.copy(file, new File(dest));
+        return Collections.singletonMap("video", newName);
     }
 
 }

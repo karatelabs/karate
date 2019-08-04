@@ -282,7 +282,7 @@ public class FileUtils {
 
     public static void copy(File src, File dest) {
         try {
-            writeToFile(dest, toString(new FileInputStream(src)));
+            writeToFile(dest, toBytes(new FileInputStream(src)));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

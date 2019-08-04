@@ -92,11 +92,12 @@ public class WaitState {
     public DevToolsMessage waitAfterSend(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
         lastReceived = null;
         lastSent = dtm;
-        this.condition = condition == null ? DEFAULT : condition;
+        this.condition = condition == null ? DEFAULT : condition;        
+        long timeout = dtm.getTimeout() == null ? options.timeout : dtm.getTimeout();
         synchronized (this) {
             logger.trace(">> wait: {}", dtm);
             try {
-                wait(options.timeout);
+                wait(timeout);
             } catch (InterruptedException e) {
                 logger.error("interrupted: {} wait: {}", e.getMessage(), dtm);
             }
@@ -104,7 +105,7 @@ public class WaitState {
         if (lastReceived != null) {
             logger.trace("<< notified: {}", dtm);
         } else {
-            logger.warn("<< timed out after milliseconds: {} - {}", options.timeout, dtm);
+            logger.warn("<< timed out after milliseconds: {} - {}", timeout, dtm);
         }
         return lastReceived;
     }

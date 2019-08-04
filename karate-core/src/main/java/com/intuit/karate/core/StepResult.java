@@ -38,11 +38,11 @@ public class StepResult {
     private static final Map<String, Object> DUMMY_MATCH;
 
     private final Step step;
-    private final Result result;
-    private final List<Embed> embeds;
+    private final Result result;    
     private final List<FeatureResult> callResults;
     private final boolean hidden;
-
+    
+    private List<Embed> embeds;
     private String stepLog;
 
     public void appendToStepLog(String log) {
@@ -130,6 +130,13 @@ public class StepResult {
 
     public List<Embed> getEmbeds() {
         return embeds;
+    }
+    
+    public void addEmbed(Embed embed) {
+        if (embeds == null) {
+            embeds = new ArrayList();
+        }
+        embeds.add(embed);
     }
 
     public List<FeatureResult> getCallResults() {

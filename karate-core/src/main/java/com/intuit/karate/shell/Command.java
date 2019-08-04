@@ -23,18 +23,16 @@
  */
 package com.intuit.karate.shell;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.Http;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.SocketAddress;
-import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -70,6 +68,10 @@ public class Command extends Thread {
         return exec(workingDir, args);
     }
 
+    public static String getBuildDir() {
+        return FileUtils.getBuildDir();
+    }
+
     public static int getFreePort() {
         try {
             ServerSocket s = new ServerSocket(0);
@@ -83,21 +85,25 @@ public class Command extends Thread {
         }
     }
 
-    public static boolean waitForPort(String host, int port) {
+    public static boolean waitForHttp(String url) {
         int attempts = 0;
         long startTime = System.currentTimeMillis();
+        Http http = Http.forUrl(null, url);
         do {
-            SocketAddress address = new InetSocketAddress(host, port);
+            if (attempts > 0) {
+                LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);
+            }
             try {
-                if (attempts > 0) {
-                    LOGGER.debug("poll attempt #{} for port to be ready - {}:{}", attempts, host, port);
+                http.get();
+                int status = http.status();
+                if (status == 200) {
+                    long elapsedTime = System.currentTimeMillis() - startTime;
+                    LOGGER.debug("ready to accept http connections after {} ms - {}", elapsedTime, url);
+                    return true;
+                } else {
+                    LOGGER.warn("http get returned non-ok status: {} - {}", status, url);
                 }
-                SocketChannel sock = SocketChannel.open(address);
-                sock.close();
-                long elapsedTime = System.currentTimeMillis() - startTime;
-                LOGGER.debug("ready to accept connections after {} ms - {}:{}", elapsedTime, host, port);
-                return true;
-            } catch (IOException e) {
+            } catch (Exception e) {
                 try {
                     Thread.sleep(1000);
                 } catch (Exception ee) {

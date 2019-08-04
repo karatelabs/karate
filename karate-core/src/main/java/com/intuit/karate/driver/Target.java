@@ -33,6 +33,6 @@ public interface Target {
     
     Map<String, Object> start();
     
-    void stop();
+    Map<String, Object> stop();
     
 }

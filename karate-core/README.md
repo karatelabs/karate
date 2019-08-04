@@ -125,14 +125,18 @@ public interface Target {
     
     Map<String, Object> start();
     
-    void stop();
+    Map<String, Object> stop();
     
 }
 ```
 
-The `Map` returned by the `start()` method will be used to create the [driver configuration](#driver-configuration). Karate has a built-in implementation for Docker that can be a good example for you to create your own: [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java).
+Karate will call the `stop()` method at the end of a (non-called) `Scenario`. Combined with Docker, headless Chrome and Karate's parallel-execution capability, this can be very effective to run web UI automation tests on a single node.
 
-There is a `karate.target(object)` API that is a convenience helper, which in the future may support other common target types in addition to Docker. Here below - is an example of using it in [`karate-config.js`](https://github.com/intuit/karate#configuration), and using the [`chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) Docker image. The `targetType` is needed in addition to the driver configuration to tell Karate what kind of `Target` to return. And if the `target` is present, you can omit the `start` flag, because now it is clearly the responsibility of the `target` to start the application under test.
+The `Map` returned by the `start()` method will be used to create the [driver configuration](#driver-configuration). Karate has a built-in implementation for Docker ([`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java)) that can be a good reference for you to create your own from scratch.
+
+There is a `karate.target(object)` API that is a convenience helper (which in the future may support other common target types in addition to Docker). Here below is an example of using it in [`karate-config.js`](https://github.com/intuit/karate#configuration), and using a particular [`chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) Docker image. The `targetType` is needed in addition to the [driver configuration](#driver-configuration) to tell Karate what kind of `Target` to return. You can omit the `start` (and even the `headless`) flag and it will logically be `false`, because now the `target` has the responsibility to start (and stop) the application under test. The `port` is automatically added by the `DockerTarget` Java code.
+
+> Use the `--security-opt seccomp=chrome.json` setting as documented for the [`chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) Docker image.
 
 ```javascript
 function fn() {
@@ -140,7 +144,7 @@ function fn() {
         baseUrl: 'https://qa.mycompany.com'
     };
     if (karate.env == 'ci') {
-        var target = karate.target({ targetType: 'docker', type: 'chrome', headless: true, showDriverLog: true });
+        var target = karate.target({ targetType: 'docker', type: 'chrome' });
         target.command = function(port){ return 'docker run -d -p '
             + port + ':9222 --security-opt seccomp=./chrome.json justinribeiro/chrome-headless' };
         config.driverConfig = karate.toMap({ target: target });
@@ -149,18 +153,54 @@ function fn() {
 }
 ```
 
-And if you have a custom Java implementation of a `Target`, you just need to replace where you see `karate.target()` above with the following pattern. You can easily construct any Java class, and you have access to things like the [`karate.env`](https://github.com/intuit/karate#switching-the-environment) if needed.
+And if you have a custom Java implementation of a `Target`, you just need to replace where you see `karate.target()` above with the following pattern. You can easily construct any custom Java class, and you have access to things like the [`karate.env`](https://github.com/intuit/karate#switching-the-environment) if needed.
 
 ```javascript
     var DockerTarget = Java.type('com.intuit.karate.driver.DockerTarget');
     var target = new DockerTarget();
     target.command = function(port){ return 'docker run -d -p '
         + port + ':9222 --security-opt seccomp=./chrome.json justinribeiro/chrome-headless' };
-    target.options = { type: 'chrome', headless: true, showDriverLog: true }
+    target.options = { type: 'chrome', showDriverLog: true }
     config.driverConfig = karate.toMap({ target: target });
 ```
 
-The [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) is a good example of how to get a free port, use it in a command creation strategy, execute the command, and wait for the port to be ready to receive connections. Controlling this from Java can take a lot of complexity out your build pipeline, keep things cross-platform, and you don't need to hunt for and line-up random shell scripts to do all these things.
+The [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) is a good example of how to:
+* get a free port
+* use it to shape the command dynamically
+* execute the command to start the target process
+* perform an HTTP health check to wait until we are ready to receive connections
+* and when `stop()` is called, indicate if a video recording is present (after retrieving it from the stopped container)
+
+Controlling this flow from Java can take a lot of complexity out your build pipeline and keep things cross-platform. And you don't need to line-up an assortment of shell-scripts to do all these things. You can easily include the steps of deploying (and un-deploying) the application-under-test using this approach - but probably the JUnit test-suite would be the right place for those.
+
+#### `karate-chrome`
+The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker image adds the following capabilities to [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/):
+
+* Chrome in non-headless mode
+* you can view the execution using a VNC client
+  * on a mac type: `open vnc://localhost:5900` on the terminal, and use `karate` as the password
+* a video of the test is saved to `/tmp/karate.mp4`
+* the [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) will embed the video into the HTML report
+
+> Use the `--security-opt seccomp=chrome.json` setting as documented for the [`chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) Docker image.
+
+Here is an example of use:
+
+```javascript
+function fn() {
+    var config = {
+        baseUrl: 'https://qa.mycompany.com'
+    };
+    if (karate.env == 'ci') {
+        var target = karate.target({ targetType: 'docker', type: 'chrome' });
+        target.command = function(port){
+            return 'docker run -d -p ' + port + ':9222 --security-opt seccomp=./chrome.json ptrthomas/karate-chrome'
+        };
+        config.driverConfig = karate.toMap({ target: target });
+    }
+    return config;
+}
+```
 
 ## Driver Types
 type | default<br/>port | default<br/>executable | description

@@ -45,6 +45,7 @@ public class DevToolsMessage {
     private Map<String, Object> params;
     private Map<String, Object> error;
     private ScriptValue result;
+    private Integer timeout;
 
     public Integer getId() {
         return id;
@@ -53,6 +54,14 @@ public class DevToolsMessage {
     public void setId(Integer id) {
         this.id = id;
     }
+
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeout = timeout;
+    }        
 
     public String getSessionId() {
         return sessionId;

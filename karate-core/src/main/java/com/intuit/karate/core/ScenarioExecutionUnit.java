@@ -222,7 +222,7 @@ public class ScenarioExecutionUnit implements Runnable {
                 actions.context.executionHooks.forEach(h -> h.afterScenario(result, actions.context));
             }
             // stop browser automation if running
-            actions.context.stop();
+            actions.context.stop(lastStepResult);
         }
         if (lastStepResult != null) {
             String stepLog = StringUtils.trimToNull(appender.collect());

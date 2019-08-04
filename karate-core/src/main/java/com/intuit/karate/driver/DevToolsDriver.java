@@ -170,23 +170,30 @@ public abstract class DevToolsDriver implements Driver {
 
     //==========================================================================
     //
-    private DevToolsMessage evalOnce(String expression, Predicate<DevToolsMessage> condition) {
+    private DevToolsMessage evalOnce(String expression, boolean quickly) {
         DevToolsMessage toSend = method("Runtime.evaluate")
                 .param("expression", expression).param("returnByValue", true);
         if (executionContextId != null) {
             toSend.param("contextId", executionContextId);
         }
-        return toSend.send(condition);
+        if (quickly) {
+            toSend.setTimeout(options.getRetryInterval());
+        }
+        return toSend.send(null);
     }
 
-    protected DevToolsMessage eval(String expression, Predicate<DevToolsMessage> condition) {
-        DevToolsMessage dtm = evalOnce(expression, condition);
+    protected DevToolsMessage eval(String expression) {
+        return eval(expression, false);
+    }
+    
+    private DevToolsMessage eval(String expression, boolean quickly) {
+        DevToolsMessage dtm = evalOnce(expression, quickly);
         if (dtm.isResultError()) {
             String message = "js eval failed once:" + expression
                     + ", error: " + dtm.getResult().getAsString();
             logger.warn(message);
             options.sleep();
-            dtm = evalOnce(expression, null); // no wait condition for the re-try
+            dtm = evalOnce(expression, quickly); // no wait condition for the re-try
             if (dtm.isResultError()) {
                 message = "js eval failed twice:" + expression
                         + ", error: " + dtm.getResult().getAsString();
@@ -199,8 +206,12 @@ public abstract class DevToolsDriver implements Driver {
 
     protected void waitIfNeeded(String name) {
         // if the submit flag is true, whichever is the next message will wait for frames to load
+        long startTime = System.currentTimeMillis();
         if (options.isAlwaysWait()) {
-            wait(name);
+            if (!wait(name)) {
+                long elapsedTime = System.currentTimeMillis() - startTime;
+                throw new RuntimeException("wait failed for: " + name + ", after milliseconds: " + elapsedTime);
+            }
         }
     }
 
@@ -370,19 +381,19 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void click(String id) {
         waitIfNeeded(id);
-        eval(options.selector(id) + ".click()", null);
+        eval(options.selector(id) + ".click()");
     }
 
     @Override
     public void select(String id, String text) {
         waitIfNeeded(id);
-        eval(options.optionSelector(id, text), null);
+        eval(options.optionSelector(id, text));
     }
 
     @Override
     public void select(String id, int index) {
         waitIfNeeded(id);
-        eval(options.optionSelector(id, index), null);
+        eval(options.optionSelector(id, index));
     }
 
     @Override
@@ -394,12 +405,12 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void focus(String id) {
         waitIfNeeded(id);
-        eval(options.selector(id) + ".focus()", null);
+        eval(options.selector(id) + ".focus()");
     }
 
     @Override
     public void clear(String id) {
-        eval(options.selector(id) + ".value = ''", null);
+        eval(options.selector(id) + ".value = ''");
     }
 
     private void sendKey(char c, int modifier, String type, Integer keyCode) {
@@ -418,7 +429,7 @@ public abstract class DevToolsDriver implements Driver {
     public void input(String id, String value) {
         waitIfNeeded(id);
         // focus
-        eval(options.selector(id) + ".focus()", null);
+        eval(options.selector(id) + ".focus()");
         Input input = new Input(value);
         while (input.hasNext()) {
             char c = input.next();
@@ -475,20 +486,20 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void value(String id, String value) {
         waitIfNeeded(id);
-        eval(options.selector(id) + ".value = '" + value + "'", null);
+        eval(options.selector(id) + ".value = '" + value + "'");
     }
 
     @Override
     public String attribute(String id, String name) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = eval(options.selector(id) + ".getAttribute('" + name + "')", null);
+        DevToolsMessage dtm = eval(options.selector(id) + ".getAttribute('" + name + "')");
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = eval(options.selector(id) + "['" + name + "']", null);
+        DevToolsMessage dtm = eval(options.selector(id) + "['" + name + "']");
         return dtm.getResult().getAsString();
     }
 
@@ -500,7 +511,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public boolean enabled(String id) {
         waitIfNeeded(id);
-        DevToolsMessage dtm = eval(options.selector(id) + ".disabled", null);
+        DevToolsMessage dtm = eval(options.selector(id) + ".disabled");
         return !dtm.getResult().isBooleanTrue();
     }
 
@@ -515,7 +526,7 @@ public abstract class DevToolsDriver implements Driver {
                 options.sleep();
             }
             try {
-                DevToolsMessage dtm = eval(expression, null);
+                DevToolsMessage dtm = eval(expression, true);
                 sv = dtm.getResult();
             } catch (Exception e) {
                 sv = ScriptValue.FALSE;
@@ -527,12 +538,12 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Object script(String expression) {
-        return eval(expression, null).getResult().getValue();
+        return eval(expression).getResult().getValue();
     }
 
     @Override
     public String getTitle() {
-        DevToolsMessage dtm = eval("document.title", null);
+        DevToolsMessage dtm = eval("document.title");
         return dtm.getResult().getAsString();
     }
 

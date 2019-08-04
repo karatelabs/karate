@@ -916,7 +916,7 @@ public class ScenarioContext {
         }
     }
 
-    public void stop() {
+    public void stop(StepResult lastStepResult) {
         if (reuseParentContext) {
             if (driver != null) { // a called feature inited the driver
                 parentContext.setDriver(driver);
@@ -936,7 +936,16 @@ public class ScenarioContext {
             DriverOptions options  = driver.getOptions();
             if (options.target != null) {
                 logger.debug("custom target configured, attempting stop()");
-                options.target.stop();
+                Map<String, Object> map = options.target.stop();
+                String video = (String) map.get("video");
+                if (video != null && lastStepResult != null) {
+                    logger.info("video file present, attaching to last step result: {}", video);
+                    String html = "<video controls><source src=\"" + video + "\" type=\"video/mp4\"></video>";
+                    Embed embed = new Embed();                    
+                    embed.setBytes(html.getBytes());
+                    embed.setMimeType("text/html");
+                    lastStepResult.addEmbed(embed);
+                }
             }
             driver = null;
         }
