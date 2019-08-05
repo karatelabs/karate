@@ -904,9 +904,9 @@ public class ScenarioContext {
         if (driver == null) {                        
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
-                options = new HashMap();
-                options.put("target", config.getDriverTarget());
+                options = new HashMap();                
             }
+            options.put("target", config.getDriverTarget());
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }

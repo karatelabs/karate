@@ -1998,11 +1998,13 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
 `outlineVariablesAuto` | boolean | defaults to `true`, whether each key-value pair in the `Scenario Outline` example-row is automatically injected into the context as a variable (and not just `__row`), see [`Scenario Outline` Enhancements](#scenario-outline-enhancements)
  `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
-`httpClientClass` | string | See [karate-mock-servlet](karate-mock-servlet)
-`httpClientInstance` | Java Object | See [karate-mock-servlet](karate-mock-servlet)
-`userDefined` | JSON | See [karate-mock-servlet](karate-mock-servlet)
-`responseHeaders` | JSON / JS function | See [karate-netty](karate-netty#configure-responseheaders)
-`cors` | boolean | See [karate-netty](karate-netty##configure-cors)
+`httpClientClass` | string | See [`karate-mock-servlet`](karate-mock-servlet)
+`httpClientInstance` | Java Object | See [`karate-mock-servlet`](karate-mock-servlet)
+`userDefined` | JSON | See [`karate-mock-servlet`](karate-mock-servlet)
+`responseHeaders` | JSON / JS function | See [`karate-netty`](karate-netty#configure-responseheaders)
+`cors` | boolean | See [`karate-netty`](karate-netty#configure-cors)
+`driver` | JSON | See [UI Automation](karate-core)
+`driverTarget` | JSON / Java Object | See [`configure driverTarget`](karate-core#configure-drivertarget)
 
 
 Examples:

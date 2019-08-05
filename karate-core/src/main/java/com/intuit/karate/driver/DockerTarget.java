@@ -109,10 +109,9 @@ public class DockerTarget implements Target {
         containerId = Command.execLine(null, command.apply(port));
         Map<String, Object> map = new HashMap();        
         if (options != null) {
-            options.remove("headless");
-            options.remove("start");
             map.putAll(options);
         }
+        map.put("start", false);
         map.put("port", port);
         map.put("type", "chrome");
         Command.waitForHttp("http://127.0.0.1:" + port + "/json");
