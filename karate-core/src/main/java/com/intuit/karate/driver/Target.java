@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.Logger;
 import java.util.Map;
 
 /**
@@ -34,5 +35,7 @@ public interface Target {
     Map<String, Object> start();
     
     Map<String, Object> stop();
+    
+    void setLogger(Logger logger);
     
 }

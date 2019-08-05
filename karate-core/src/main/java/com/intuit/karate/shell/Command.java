@@ -105,7 +105,7 @@ public class Command extends Thread {
                 }
             } catch (Exception e) {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                 } catch (Exception ee) {
                     return false;
                 }

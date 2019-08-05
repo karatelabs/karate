@@ -173,6 +173,7 @@ public class DriverOptions {
     public static Driver start(ScenarioContext context, Map<String, Object> options, Logger logger) {
         Target target = (Target) options.get("target");
         if (target != null) {
+            target.setLogger(logger);
             logger.debug("custom target configured, calling start()");
             Map<String, Object> map = target.start();
             logger.debug("custom target returned options: {}", map);

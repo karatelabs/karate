@@ -1,7 +1,9 @@
 Feature: browser automation
 
 Background:
-  # * configure driver = { type: 'chrome' }
+  # configure driver = { type: 'chrome', start: false, showDriverLog: true }
+  # configure driverTarget = { docker: 'justinribeiro/chrome-headless', showDriverLog: true }
+  # configure driverTarget = { docker: 'ptrthomas/karate-chrome:0.9.5.RC', showDriverLog: true }
   # * configure driver = { type: 'chromedriver', showDriverLog: true }
   * configure driver = { type: 'geckodriver', showDriverLog: true }
   # * configure driver = { type: 'safaridriver' }

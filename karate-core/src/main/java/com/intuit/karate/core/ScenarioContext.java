@@ -901,10 +901,11 @@ public class ScenarioContext {
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        if (driver == null) {
+        if (driver == null) {                        
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
                 options = new HashMap();
+                options.put("target", config.getDriverTarget());
             }
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
@@ -940,7 +941,7 @@ public class ScenarioContext {
                 String video = (String) map.get("video");
                 if (video != null && lastStepResult != null) {
                     logger.info("video file present, attaching to last step result: {}", video);
-                    String html = "<video controls><source src=\"" + video + "\" type=\"video/mp4\"></video>";
+                    String html = "<video controls=\"true\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
                     Embed embed = new Embed();                    
                     embed.setBytes(html.getBytes());
                     embed.setMimeType("text/html");

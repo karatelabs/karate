@@ -23,7 +23,7 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.FileUtils;
+import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.Command;
 import java.io.File;
@@ -31,8 +31,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -40,18 +38,51 @@ import org.slf4j.LoggerFactory;
  */
 public class DockerTarget implements Target {
 
-    protected static final Logger logger = LoggerFactory.getLogger(Command.class);
+    private Logger logger;
 
-    private String name;
+    private final String imageId;
+    private String containerId;
     private Function<Integer, String> command;
-    private Map<String, Object> options;
+    private final Map<String, Object> options;
+    
+    private boolean karateChrome = false;
 
-    public DockerTarget() {
-        this(null);
+    public DockerTarget(String dockerImage) {
+        this(Collections.singletonMap("docker", dockerImage));
     }
+
+    @Override
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+    }        
 
     public DockerTarget(Map<String, Object> options) {
         this.options = options;
+        if (options != null) {
+            imageId = (String) options.get("docker");
+            Integer vncPort = (Integer) options.get("vncPort");
+            String seccomp = (String) options.get("seccomp");
+            StringBuilder sb = new StringBuilder();
+            sb.append("docker run -d");
+            if (seccomp == null) {
+                sb.append(" --cap-add=SYS_ADMIN");
+            } else {
+                sb.append(" --security-opt seccomp=").append(seccomp);
+            }
+            if (vncPort != null) {
+                sb.append(" -p ").append(vncPort).append(":5900");
+            }
+            if (imageId != null) {
+                if (imageId.startsWith("justinribeiro/chrome-headless")) {
+                    command = p -> sb.toString() + " -p " + p + ":9222 " + imageId;
+                } else if (imageId.startsWith("ptrthomas/karate-chrome")) {
+                    karateChrome = true;
+                    command = p -> sb.toString() + " -p " + p + ":9222 " + imageId;
+                }
+            }
+        } else {
+            imageId = null;
+        }
     }
 
     public void setCommand(Function<Integer, String> command) {
@@ -62,57 +93,49 @@ public class DockerTarget implements Target {
         return command;
     }
 
-    public void setOptions(Map<String, Object> options) {
-        this.options = options;
-    }
-
-    public Map<String, Object> getOptions() {
-        return options;
-    }
-
     @Override
     public Map<String, Object> start() {
+        if (logger == null) {
+            logger = new Logger(getClass());
+        }
         if (command == null) {
             throw new RuntimeException("docker target command (function) not set");
         }
-        if (options != null) {
-            String dockerImage = (String) options.get("dockerImage");
-            if (dockerImage != null) {
-                logger.debug("attempting to pull docker image: {}", dockerImage);
-                Command.execLine(null, "docker pull " + dockerImage);
-            }
+        if (imageId != null) {
+            logger.debug("attempting to pull docker image: {}", imageId);
+            Command.execLine(null, "docker pull " + imageId);
         }
         int port = Command.getFreePort();
-        name = Command.execLine(null, command.apply(port));
-        Map<String, Object> map = new HashMap();
-        map.put("port", port);
+        containerId = Command.execLine(null, command.apply(port));
+        Map<String, Object> map = new HashMap();        
         if (options != null) {
+            options.remove("headless");
+            options.remove("start");
             map.putAll(options);
         }
+        map.put("port", port);
+        map.put("type", "chrome");
         Command.waitForHttp("http://127.0.0.1:" + port + "/json");
         return map;
     }
 
     @Override
     public Map<String, Object> stop() {
-        Command.execLine(null, "docker stop " + name);
-        String shortName = name.contains("_") ? name : StringUtils.truncate(name, 12, false);
+        Command.execLine(null, "docker stop " + containerId);
+        if (!karateChrome) { // no video
+            return Collections.EMPTY_MAP;
+        }        
+        String shortName = containerId.contains("_") ? containerId : StringUtils.truncate(containerId, 12, false);
         String dirName = "karate-chrome_" + shortName;
         String resultsDir = Command.getBuildDir() + File.separator + dirName;
-        Command.execLine(null, "docker cp " + name + ":/tmp " + resultsDir);
+        Command.execLine(null, "docker cp " + containerId + ":/tmp " + resultsDir);
         String video = resultsDir + File.separator + "karate.mp4";
         File file = new File(video);
         if (!file.exists()) {
             logger.warn("video file missing: {}", file);
             return Collections.EMPTY_MAP;
         }
-        // some hacking to respect the way the cucumber html report works
-        // AND preserve relative paths TODO
-        String newName = "embeddings" + File.separator + shortName + "_" + file.getName();
-        String dest = Command.getBuildDir() + File.separator
-                + "cucumber-html-reports" + File.separator + newName;
-        FileUtils.copy(file, new File(dest));
-        return Collections.singletonMap("video", newName);
+        return Collections.singletonMap("video", file.getAbsolutePath());
     }
 
 }

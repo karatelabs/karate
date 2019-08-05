@@ -32,8 +32,6 @@ import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.XmlUtils;
-import com.intuit.karate.driver.DockerTarget;
-import com.intuit.karate.driver.Target;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
@@ -394,14 +392,6 @@ public class ScriptBridge implements PerfContext {
         }
         ScriptValue sv = Script.evalXmlPathOnXmlNode((Node) o, path);
         return sv.getValue();
-    }
-    
-    public Target target(Map<String, Object> options) {
-        String targetType = (String) options.get("targetType");
-        switch (targetType) {
-            case "docker": return new DockerTarget(options);
-            default: throw new RuntimeException("unknown targetType: " + targetType);
-        }
     }
     
     public Object toBean(Object o, String className) {
