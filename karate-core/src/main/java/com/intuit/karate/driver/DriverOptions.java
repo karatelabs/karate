@@ -89,6 +89,10 @@ public class DriverOptions {
     // mutable when we return from called features
     private ScenarioContext context;
 
+    public static final String SCROLL_JS_FUNCTION = "function(e){ var d = window.getComputedStyle(e).display;"
+            + " while(d == 'none'){ e = e.parentElement; d = window.getComputedStyle(e).display }"
+            + " e.scrollIntoView({block: 'center'}) }";
+
     public void setContext(ScenarioContext context) {
         this.context = context;
     }

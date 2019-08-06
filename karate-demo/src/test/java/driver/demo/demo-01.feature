@@ -1,13 +1,12 @@
 Feature: browser automation
 
 Background:
-  # configure driver = { type: 'chrome', start: false, showDriverLog: true }
-  # configure driverTarget = { docker: 'justinribeiro/chrome-headless', showDriverLog: true }
-  # configure driverTarget = { docker: 'ptrthomas/karate-chrome:0.9.5.RC', showDriverLog: true }
+  * configure driver = { type: 'chrome', showDriverLog: true }
+  # * configure driverTarget = { docker: 'justinribeiro/chrome-headless', showDriverLog: true }
+  # * configure driverTarget = { docker: 'ptrthomas/karate-chrome', showDriverLog: true }
   # * configure driver = { type: 'chromedriver', showDriverLog: true }
-  * configure driver = { type: 'geckodriver', showDriverLog: true }
-  # * configure driver = { type: 'safaridriver' }
-  # * configure driver = { type: 'mswebdriver' }
+  # * configure driver = { type: 'geckodriver', showDriverLog: true }
+  # * configure driver = { type: 'safaridriver', showDriverLog: true }
 
 Scenario: try to login to github
     and then do a google search
@@ -22,4 +21,3 @@ Scenario: try to login to github
   And input("input[name=q]", 'karate dsl')
   When submit().click("input[name=btnI]")
   Then match driver.location == 'https://github.com/intuit/karate'
-  And screenshot()

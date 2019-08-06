@@ -116,7 +116,7 @@ key | description
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
 
-For more advanced options such as Docker or CI or for custom control, see [`configure driverTarget`](#configure-drivertarget).
+For more advanced options such as for Docker, CI, cloud-infra or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
 ### `configure driverTarget`
 The above options are fine for testing on "localhost" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable "target" where you just have to implement three methods:
@@ -201,11 +201,11 @@ The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker i
 * a video of the entire test is saved to `/tmp/karate.mp4`
 * after the test, when `stop()` is called, the [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) will embed the video into the HTML report (expand the last step in the `Scenario` to view)
 
-To try this out or if you need to investigate why a test is not behaving properly when running within Docker, these are the steps:
+To try this or especially when you need to investigate why a test is not behaving properly when running within Docker, these are the steps:
 
 * start the container:
   * `docker run -d -p 9222:9222 -p 5900:5900 --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
-  * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of the `--cap-add=SYS_ADMIN` option seen above
+  * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of `--cap-add=SYS_ADMIN`
 * point your VNC client to `localhost:5900`
   * for example on a Mac you can use this command: `open vnc://localhost:5900`
 * run a test using the following [`driver` configuration](#configure-driver):
@@ -369,6 +369,13 @@ When submit().input('#someform', Key.ENTER)
 
 Karate will do the best it can to detect a page change and wait for the load to complete before proceeding to *any* step that follows.
 
+## `delay()`
+Of course, you should *never* use this in a UI test (use [`wait()`](#wait) instead) but sometimes it is needed, for example to wait for animations to render before taking a screenshot. The nice thing here is that it returns a [`Driver`](#js-api) instance, so you can chain any other method and the "intent" will be clear. For example:
+
+```cucumber
+* delay(1000).screenshot()
+```
+
 ## `click()`
 Just triggers a click event on the DOM element
 ```cucumber
@@ -404,6 +411,19 @@ Given select('select[name=data1]', 2)
 * clear('#myInput')
 ```
 If this does not work, try [`value(selector, value)`](#valueset)
+
+## `scroll()`
+Scrolls to the element.
+```cucumber
+* scroll('#myInput')
+```
+
+Since a `scroll()` + `click()` or `input()` is a common combination, you can chain these:
+
+```cucumber
+* scroll('#myBtn').click()
+* scroll('#myTxt').input('hello')
+```
 
 ## `close()`
 Close the page / tab.

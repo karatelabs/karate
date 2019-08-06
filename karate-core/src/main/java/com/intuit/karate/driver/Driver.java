@@ -59,7 +59,7 @@ public interface Driver {
 
     void select(String locator, String text);
 
-    void select(String locator, int index);    
+    void select(String locator, int index);
 
     void close();
 
@@ -80,7 +80,7 @@ public interface Driver {
     String name(String locator);
 
     boolean enabled(String locator);
-    
+
     Map<String, Object> position(String locator);
 
     Map<String, Object> cookie(String name);
@@ -103,7 +103,7 @@ public interface Driver {
 
     byte[] screenshot(boolean embed);
 
-    byte[] screenshot(String locator, boolean embed);        
+    byte[] screenshot(String locator, boolean embed);
 
     default byte[] screenshot() {
         return screenshot(true);
@@ -112,7 +112,7 @@ public interface Driver {
     default byte[] screenshot(String locator) {
         return screenshot(locator, true);
     }
-    
+
     Driver submit();
 
     Object script(String expression);
@@ -124,7 +124,17 @@ public interface Driver {
 
     default List scripts(String locator, String expression) {
         String js = getOptions().selectorAllScript(locator, expression);
-        return (List) script(js);        
+        return (List) script(js);
+    }
+
+    default ElementDriver scroll(String locator) {
+        script(locator, DriverOptions.SCROLL_JS_FUNCTION);
+        return new ElementDriver(this, locator);
+    }
+    
+    default Driver delay(int millis) {
+        getOptions().sleep(millis);
+        return this;
     }
 
     // waits ===================================================================
