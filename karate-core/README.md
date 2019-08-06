@@ -152,12 +152,12 @@ To use either of the above, you do this in a Karate test:
 * configure driverTarget = { docker: 'justinribeiro/chrome-headless', showDriverLog: true }
 ```
 
-Or for more flexibility, you could do this in [`karate-config.js`](https://github.com/intuit/karate#configuration) and perform conditional logic based on [`karate.env`](https://github.com/intuit/karate#switching-the-environment):
+Or for more flexibility, you could do this in [`karate-config.js`](https://github.com/intuit/karate#configuration) and perform conditional logic based on [`karate.env`](https://github.com/intuit/karate#switching-the-environment). One very convenient aspect of `configure driverTarget` is that if invoked, it will over-ride any `configure driver` directives that exist. This means that you can have the below snippet activate *only* for your CI build, and you can leave your feature files set to point to what you would use in "dev-local" mode.
 
 ```javascript
 function fn() {
     var config = {
-        baseUrl: 'https://selfemployed-stage.intuit.com'
+        baseUrl: 'https://qa.mycompany.com'
     };
     if (karate.env == 'ci') {
         karate.configure('driverTarget', { docker: 'ptrthomas/karate-chrome' });
@@ -172,7 +172,7 @@ To use the [recommended `--security-opt seccomp=chrome.json` Docker option](http
 karate.configure('driverTarget', { docker: 'ptrthomas/karate-chrome', seccomp: 'src/test/java/chrome.json' });
 ```
 
-If you have a custom Java implementation of a `Target`, you can easily construct any custom Java class and `configure driverTarget`. This is how the above looks like (in JavaScript), done the "hard way":
+If you have a custom implementation of a `Target`, you can easily [construct any custom Java class](https://github.com/intuit/karate#calling-java) and pass it to `configure driverTarget`. Here below is the equivalent of the above, done the "hard way":
 
 ```javascript
 var DockerTarget = Java.type('com.intuit.karate.driver.DockerTarget');
@@ -183,7 +183,7 @@ target.command = function(port){ return 'docker run -d -p '
 karate.configure('driverTarget', target);
 ```
 
-The [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) is a good example of how to:
+The built-in [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) is a good example of how to:
 * perform any pre-test set-up actions
 * provision a free port and use it to shape the `start()` command dynamically
 * execute the command to start the target process
@@ -196,10 +196,24 @@ Controlling this flow from Java can take a lot of complexity out your build pipe
 The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker image adds the following capabilities to [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/):
 
 * Chrome in "full" mode (non-headless)
-* after starting the container, you can view the browser (if needed) using a VNC client pointed to `localhost:5900`
-  * on a mac type: `open vnc://localhost:5900` on the terminal, and use `karate` as the password
+* [Chrome DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) exposed on port 9222
+* VNC server exposed on port 5900 so that you can watch the browser in real-time
 * a video of the entire test is saved to `/tmp/karate.mp4`
 * after the test, when `stop()` is called, the [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java) will embed the video into the HTML report (expand the last step in the `Scenario` to view)
+
+To try this out or if you need to investigate why a test is not behaving properly when running within Docker, these are the steps:
+
+* start the container:
+  * `docker run -d -p 9222:9222 -p 5900:5900 --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
+  * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of the `--cap-add=SYS_ADMIN` option seen above
+* point your VNC client to `localhost:5900`
+  * for example on a Mac you can use this command: `open vnc://localhost:5900`
+* run a test using the following [`driver` configuration](#configure-driver):
+  * `* configure driver = { type: 'chrome', start: 'false', showDriverLog: true }`
+* you can even use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) to step-through a test
+* after stopping the container, you can dump the logs and video recording using this command:
+  * `docker cp <container-id>:/tmp .`
+  * this would include the `stderr` and `stdout` logs from Chrome, which can be helpful for troubleshooting
 
 ## Driver Types
 type | default<br/>port | default<br/>executable | description

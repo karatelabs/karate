@@ -3,7 +3,8 @@ FROM justinribeiro/chrome-headless
 LABEL maintainer="Peter Thomas"
 LABEL url="https://github.com/intuit/karate/tree/master/karate-docker/karate-chrome"
 
-# docker run -d -p 9222:9222 -p 5900:5900 --security-opt seccomp=./chrome.json ptrthomas/karate-chrome
+# refer https://hub.docker.com/r/justinribeiro/chrome-headless/ for how to get "chrome.json" or skip it
+# docker run -d -p 9222:9222 -p 5900:5900 --security-opt seccomp=~/chrome.json ptrthomas/karate-chrome
 # open vnc://localhost:5900
 # docker cp <containerId>:/tmp target
 
