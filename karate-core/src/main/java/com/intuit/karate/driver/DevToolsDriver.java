@@ -185,7 +185,7 @@ public abstract class DevToolsDriver implements Driver {
     protected DevToolsMessage eval(String expression) {
         return eval(expression, false);
     }
-    
+
     private DevToolsMessage eval(String expression, boolean quickly) {
         DevToolsMessage dtm = evalOnce(expression, quickly);
         if (dtm.isResultError()) {
@@ -418,7 +418,16 @@ public abstract class DevToolsDriver implements Driver {
                 .param("modifier", modifier)
                 .param("type", type);
         if (keyCode != null) {
-            dtm.param("windowsVirtualKeyCode", keyCode);
+            switch (keyCode) { // TODO wtf
+                case 9:
+                    dtm.param("key", "Tab");
+                    break;
+                case 13:
+                    dtm.param("key", "Enter");
+                    break;
+                default:
+                    dtm.param("windowsVirtualKeyCode", keyCode);
+            }
         } else {
             dtm.param("text", c + "");
         }
@@ -445,7 +454,7 @@ public abstract class DevToolsDriver implements Driver {
                 }
             } else {
                 if (keyCode != null) {
-                    sendKey(c, modifier, "rawKeyDown", keyCode);
+                    sendKey(c, modifier, "keyDown", keyCode);
                 } else {
                     logger.warn("unknown character / key code: {}", c);
                     sendKey(c, modifier, "char", null);

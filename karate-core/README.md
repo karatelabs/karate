@@ -350,6 +350,7 @@ The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#num
 * driver.input('input[name=someName]', 'test input')
 ```
 
+### Special Keys
 Special keys such as `ENTER`, `TAB` etc. can be specified like this:
 
 ```cucumber
@@ -367,7 +368,7 @@ Karate has an [elegant approach](#chaining) to handling any action such as [`cli
 When submit().click('*Page Three')
 ```
 
-The advantage of this approach is that it works with any of the actions. So even if your next step is the `ENTER` key, you can do this:
+The advantage of this approach is that it works with any of the actions. So even if your next step is the [`ENTER` key](#special-keys), you can do this:
 
 ```cucumber
 When submit().input('#someform', Key.ENTER)
@@ -476,12 +477,6 @@ And match enabled('#eg01DisabledId') == false
 
 Also see [`wait()`](#wait) for an example of how to *wait* until an element is enabled or until any other element property becomes the target value.
 
-## `waitUntil()`
-Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
-```cucumber
-* waitUntil("document.readyState == 'complete'")
-```
-
 ## `waitForPage()`
 Short-cut for the commonly used `waitUntil("document.readyState == 'complete'")`
 
@@ -498,12 +493,39 @@ Instead of using `waitFor()` you would typically ["chain"](#chaining) a [`retry(
 And retry().click('#eg01WaitId')
 ```
 
+## `waitForAny()`
+Rarely used - but accepts var-arg / multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the locator String of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
+
+But - since the [`exists()`](#exists) API is designed to handle the case when a given [locator](#locators) does *not* exist, you can write some very concise tests ! Here is a real-life example:
+
+```cucumber
+* retry(5, 10000).waitForAny('#nextButton', '#randomButton')
+* exists('#nextButton').click()
+* exists('#randomButton').click()
+```
+
+## `exists()`
+This method returns an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance which means it can be [chained](#chaining) as you expect. But there is a twist. If the [locator](#locators) does *not* exist, any attempt to perform actions on it will *not* fail your test - and silently perform a "no-op".
+
+This is designed specifically for the kind of situation described in the example for [`waitForAny()`]()#waitforany. If you wanted to check if the `Element` returned exists, you can use the "getter" as follows:
+
+```cucumber
+* assert exists('#someId').exists
+```
+
+Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and immediately check the HTML for the given locator. This is important because it is designed to answer the question "does the element exist in the HTML page *right now*".
+
 ## `waitUntil()`
-A very useful variant of [`waitFor()`](#waitfor) is where you supply a JavaScript "predicate" function (or expression) that will be evaluated *on* the element returned  by the selector in the HTML DOM. Note that most of the time you will prefer the short-cut form that begins with an underscore (or bang), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
+Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
+```cucumber
+* waitUntil("document.readyState == 'complete'")
+```
+
+A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function (or expression) that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut form that begins with an underscore (or bang), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
 
 This is especially useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` failed even after the configured number of [re-tries](#retry).
 
-> One limitation is that you cannot use double-quotes in these expressions, so stick to the pattern below.
+> One limitation is that you cannot use double-quotes *within* these expressions, so stick to the pattern below.
 
 ```cucumber
 And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
@@ -522,14 +544,14 @@ For tests that need to wait for slow pages or un-predictable loading times for e
   * if you really want, you can change this "globally" like this:
     * `configure('retry', { count: 10, interval: 5000 });` in [`karate-config.js`](https://github.com/intuit/karate#configuration)
     * or *any time* within a script like this: `* configure retry = { count: 10, interval: 5000 }`
-* by default any actions such as `click()` will *not* be re-tried and this is what you need most of the time for smooth tests
+* by default any actions such as `click()` will *not* be re-tried and this is what you need most of the time for tests that run smoothly and *quickly*
   * but some troublesome parts of your flow will require re-tries and this is where the `retry()` API comes in
   * there are 3 forms:
     * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
     * `retry(count)` - the next action will *temporarily* use the `count` provided as the limit for retry-attempts
     * `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
 
-And since you can [`chain()`](#chaining) the `retry()` API, you can have tests that clearly express the "intent to wait", and as one-liners, only where you need it:
+And since you can ["chain"](#chaining) the `retry()` API, you can have tests that clearly express the "intent to wait", and as one-liners, *only* where you need to:
 
 ```cucumber
 * retry().click('#someButton')
@@ -678,3 +700,55 @@ To visually highlight an element in the browser, especially useful when working 
 ```cucumber
 * highlight('#eg01DivId')
 ```
+
+# Locator Lookup
+Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project is of the opinion that things can be made simpler.
+
+One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or getting the value of some HTML. In Karate these are typically one-liners. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not results in maintainability and more importantly - readability issues.
+
+That said, there is some benefit to re-using [locators](#locators) and Karate's JSON [reading](https://github.com/intuit/karate#reading-files) and [native support](https://github.com/intuit/karate#json) turns out to be perfectly suitable to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
+
+First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators) (identified by the leading character) into this map. Also note that this is "pure JSON" which means you have excellent IDE support for syntax-coloring and ensuring well-formed-ness.
+
+```json
+{
+  "testAccounts": {
+    "numTransactions": "input[name='numTransactions']",
+    "submit": "#submitButton"
+  },
+  "leftNav": {
+    "home": "//span[text()='Home']",
+    "invoices": "//span[text()='Invoices']",
+    "transactions": "//span[text()='Transactions']"
+  },
+  "transactions": {
+    "addFirst": ".transactions .qwl-secondary-button",
+    "descriptionInput": ".description-cell input",
+    "description": ".description-cell .header5",
+    "amount": ".amount-cell input",
+  }
+}
+```
+
+Assuming the above JSON file is called `locators.json`, you can do this. Karate has [great options for re-usability](https://github.com/intuit/karate#calling-other-feature-files), so you can have this in a `common.feature`:
+
+```cucumber
+* call read 'locators.json'
+```
+
+> For those who are wondering how this works behind the scenes, since `read` refers to the [`read()`](https://github.com/intuit/karate#reading-files) function, the behavior of [`call`](https://github.com/intuit/karate#calling-javascript-functions) is that it will *invoke* the function *and* use what comes after it as the solitary function argument.
+
+This looks deceptively simple, but what it will do is pretty powerful. It will inject all top-level "keys" of the JSON file into the Karate "context" as global variables. In normal programming languages - global variables are a *bad thing*, but for test-automation (when you know what you are doing) this can be *really* convenient.
+
+So now you have `testAccounts`, `leftNav` and `transactions` as variables, and you have a nice "name-spacing" of locators to reference in your test scripts:
+
+```cucumber
+* input(testAccounts.numTransactions, '0')
+* click(testAccounts.submit)
+* click(leftNav.transactions)
+
+* retry().click(transactions.addFirst)
+* retry().input(transactions.descriptionInput, 'test')
+```
+
+So now you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself if this leads to any appreciable benefits, because the down-side is that you need to start switching between 2 files to write and maintain tests.

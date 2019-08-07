@@ -103,10 +103,10 @@ public class Key {
     private Key() { // singleton
         CODES.put(CANCEL, 3);
         CODES.put(BACK_SPACE, 8);
-        CODES.put(TAB, 9);
-        CODES.put(ENTER, 10);
+        CODES.put(TAB, 9);        
         CODES.put(CLEAR, 12);
         CODES.put(NULL, 12); // same as clear
+        CODES.put(ENTER, 13);
         CODES.put(SHIFT, 16);
         CODES.put(CONTROL, 17);
         CODES.put(ALT, 18);

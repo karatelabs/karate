@@ -24,6 +24,8 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Logger;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -128,7 +130,7 @@ public interface Driver {
 
     // element actions =========================================================
     default Element element(String locator) {
-        return new Element(this, locator);
+        return new DriverElement(this, locator);
     }
 
     default Element scroll(String locator) {
@@ -143,29 +145,52 @@ public interface Driver {
 
     Element focus(String locator);
 
-    Element clear(String locator);
-
-    Element input(String locator, String value);
+    Element clear(String locator);    
 
     Element click(String locator);
+    
+    Element input(String locator, String value);
 
     Element select(String locator, String text);
 
     Element select(String locator, int index);
 
     Element value(String locator, String value);
-
+    
     default Element waitFor(String locator) {
+        return element(waitForAny(locator));
+    }
+
+    default String waitForAny(String ... locators) {
         long startTime = System.currentTimeMillis();
-        String js = getOptions().selector(locator);
-        boolean found = waitUntil(js + " != null");
+        List<String> list = Arrays.asList(locators);
+        Iterator<String> iterator = list.iterator();
+        StringBuilder sb = new StringBuilder();
+        while (iterator.hasNext()) {
+            String locator = iterator.next();
+            String js = getOptions().selector(locator);
+            sb.append("(").append(js).append(" != null)");
+            if (iterator.hasNext()) {
+                sb.append(" ||");
+            }
+        }        
+        boolean found = waitUntil(sb.toString());
         // important: un-set the wait flag        
         getOptions().setWaitRequested(false);
         if (!found) {
             long elapsedTime = System.currentTimeMillis() - startTime;
-            throw new RuntimeException("wait failed for: " + locator + " after " + elapsedTime + " milliseconds");
+            throw new RuntimeException("wait failed for: " + list + " after " + elapsedTime + " milliseconds");
         }
-        return element(locator);
+        if (locators.length == 1) {
+            return locators[0];
+        }
+        for (String locator : locators) {
+            if (exists(locator).isExists()) {
+                return locator;
+            }
+        }
+        // this should never happen
+        throw new RuntimeException("unexpected wait failure for locators: " + list);
     }
 
     default Element waitUntil(String locator, String expression) {
@@ -177,7 +202,9 @@ public interface Driver {
             throw new RuntimeException("wait failed for: " + locator 
                     + " and condition: " + expression + " after " + elapsedTime + " milliseconds");
         }
-        return element(locator);
+        Element element = element(locator);
+        element.setExists(true);
+        return element;
     }
 
     // element state ===========================================================
@@ -194,11 +221,17 @@ public interface Driver {
 
     boolean enabled(String locator);
 
-    default boolean exists(String locator) {
+    default Element exists(String locator) {
         String js = getOptions().selector(locator);
         String evalJs = js + " != null";
         Object o = script(evalJs);
-        return o instanceof Boolean && (Boolean) o;
+        if (o instanceof Boolean && (Boolean) o) {
+            Element element = element(locator);
+            element.setExists(true);
+            return element;
+        } else {
+            return MissingElement.INSTANCE;
+        }
     }
 
     Map<String, Object> position(String locator);

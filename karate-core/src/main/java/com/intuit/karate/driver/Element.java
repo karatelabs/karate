@@ -27,78 +27,40 @@ package com.intuit.karate.driver;
  *
  * @author pthomas3
  */
-public class Element {
-
-    public final Driver driver;
-    public final String locator;
-
-    private String id;
-
-    public Element(Driver driver, String locator) {
-        this.driver = driver;
-        this.locator = locator;
-    }
-
-    public Element focus() {
-        return driver.focus(locator);
-    }
-
-    public Element clear() {
-        return driver.clear(locator);
-    }
+public interface Element {
     
-    public Element input(String text) {
-        return driver.input(locator, text);
-    }
+    boolean isExists(); // getter
     
-    public Element select(String text) {
-        return driver.select(locator, text);
-    }
+    void setExists(boolean exists); // setter
     
-    public Element select(int index) {
-        return driver.select(locator, index);
-    }    
-
-    public Element waitFor() {
-        return driver.waitFor(locator); // will throw exception if not found
-    }
-
-    public Element waitUntil(String expression) {
-        return driver.waitUntil(locator, expression); // will throw exception if not found
-    }
-
-    public byte[] screenshot() {
-        return driver.screenshot(locator);
-    }
-
-    public Object script(String expression) {
-        return driver.script(locator, expression);
-    }
-
-    //java bean naming conventions =============================================        
-    //    
-    public String getHtml() {
-        return driver.html(locator);
-    }
-
-    public void setHtml(String html) {
-        driver.script(locator, "_.outerHTML = '" + html + "'");
-    }
-
-    public String getText() {
-        return driver.text(locator);
-    }
-
-    public void setText(String text) {
-        driver.script(locator, "_.innerHTML = '" + text + "'");
-    }
-
-    public String getValue() {
-        return driver.value(locator);
-    }
-
-    public void setValue(String value) {
-        driver.value(locator, value);
-    }
-
+    Element focus();
+    
+    Element clear();
+    
+    Element click();
+    
+    Element input(String text);
+    
+    Element select(String text);
+    
+    Element select(int index);
+    
+    Element waitFor();
+    
+    Element waitUntil(String expression);
+    
+    Object script(String expression);
+    
+    String getHtml(); // getter
+    
+    void setHtml(String html); // setter
+    
+    String getText(); // getter
+    
+    void setText(String text); // setter    
+    
+    String getValue(); // getter
+    
+    void setValue(String value); // setter    
+    
 }
