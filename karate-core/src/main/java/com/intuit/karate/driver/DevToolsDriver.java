@@ -204,14 +204,9 @@ public abstract class DevToolsDriver implements Driver {
         return dtm;
     }
 
-    protected void waitIfNeeded(String name) {
-        // if the submit flag is true, whichever is the next message will wait for frames to load
-        long startTime = System.currentTimeMillis();
-        if (options.isAlwaysWait()) {
-            if (!wait(name)) {
-                long elapsedTime = System.currentTimeMillis() - startTime;
-                throw new RuntimeException("wait failed for: " + name + ", after milliseconds: " + elapsedTime);
-            }
+    protected void waitIfNeeded(String locator) {
+        if (options.isWaitRequested()) {
+            waitFor(locator); // will throw exception if not found
         }
     }
 
@@ -379,21 +374,24 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void click(String id) {
-        waitIfNeeded(id);
-        eval(options.selector(id) + ".click()");
+    public Element click(String locator) {
+        waitIfNeeded(locator);
+        eval(options.selector(locator) + ".click()");
+        return element(locator);
     }
 
     @Override
-    public void select(String id, String text) {
-        waitIfNeeded(id);
-        eval(options.optionSelector(id, text));
+    public Element select(String locator, String text) {
+        waitIfNeeded(locator);
+        eval(options.optionSelector(locator, text));
+        return element(locator);
     }
 
     @Override
-    public void select(String id, int index) {
-        waitIfNeeded(id);
-        eval(options.optionSelector(id, index));
+    public Element select(String locator, int index) {
+        waitIfNeeded(locator);
+        eval(options.optionSelector(locator, index));
+        return element(locator);
     }
 
     @Override
@@ -403,14 +401,16 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void focus(String id) {
-        waitIfNeeded(id);
-        eval(options.selector(id) + ".focus()");
+    public Element focus(String locator) {
+        waitIfNeeded(locator);
+        eval(options.selector(locator) + ".focus()");
+        return element(locator);
     }
 
     @Override
-    public void clear(String id) {
-        eval(options.selector(id) + ".value = ''");
+    public Element clear(String locator) {
+        eval(options.selector(locator) + ".value = ''");
+        return element(locator);
     }
 
     private void sendKey(char c, int modifier, String type, Integer keyCode) {
@@ -426,10 +426,10 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void input(String id, String value) {
-        waitIfNeeded(id);
+    public Element input(String locator, String value) {
+        waitIfNeeded(locator);
         // focus
-        eval(options.selector(id) + ".focus()");
+        eval(options.selector(locator) + ".focus()");
         Input input = new Input(value);
         while (input.hasNext()) {
             char c = input.next();
@@ -452,6 +452,7 @@ public abstract class DevToolsDriver implements Driver {
                 }
             }
         }
+        return element(locator);
     }
 
     @Override
@@ -484,9 +485,10 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void value(String id, String value) {
-        waitIfNeeded(id);
-        eval(options.selector(id) + ".value = '" + value + "'");
+    public Element value(String locator, String value) {
+        waitIfNeeded(locator);
+        eval(options.selector(locator) + ".value = '" + value + "'");
+        return element(locator);
     }
 
     @Override
@@ -501,11 +503,6 @@ public abstract class DevToolsDriver implements Driver {
         waitIfNeeded(id);
         DevToolsMessage dtm = eval(options.selector(id) + "['" + name + "']");
         return dtm.getResult().getAsString();
-    }
-
-    @Override
-    public String name(String id) {
-        return property(id, "tagName");
     }
 
     @Override
@@ -665,11 +662,6 @@ public abstract class DevToolsDriver implements Driver {
         }
         String temp = dtm.getResult("data").getAsString();
         return Base64.getDecoder().decode(temp);
-    }
-
-    @Override
-    public void highlight(String id) {
-        script(options.highlighter(id));
     }
 
     @Override

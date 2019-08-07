@@ -94,8 +94,8 @@ public class Command extends Thread {
                 LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);
             }
             try {
-                http.get();
-                int status = http.status();
+                Http.Response res = http.get();
+                int status = res.status();
                 if (status == 200) {
                     long elapsedTime = System.currentTimeMillis() - startTime;
                     LOGGER.debug("ready to accept http connections after {} ms - {}", elapsedTime, url);

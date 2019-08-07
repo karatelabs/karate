@@ -82,8 +82,9 @@ public class DriverOptions {
     public final Target target;
 
     // mutable during a test
-    private boolean alwaysWait = false;
+    private boolean waitRequested;
     private Integer retryInterval = null;
+    private Integer retryCount = null;
     private String submitTarget = null;
 
     // mutable when we return from called features
@@ -101,16 +102,20 @@ public class DriverOptions {
         return context;
     }
 
-    public boolean isAlwaysWait() {
-        return alwaysWait;
+    public boolean isWaitRequested() {
+        return waitRequested;
     }
 
-    public void setAlwaysWait(boolean alwaysWait) {
-        this.alwaysWait = alwaysWait;
+    public void setWaitRequested(boolean waitRequested) {
+        this.waitRequested = waitRequested;
     }
 
     public void setRetryInterval(Integer retryInterval) {
         this.retryInterval = retryInterval;
+    }
+
+    public void setRetryCount(Integer retryCount) {
+        this.retryCount = retryCount;
     }
 
     public String getSubmitTarget() {
@@ -245,7 +250,7 @@ public class DriverOptions {
     }
 
     public int getRetryInterval() {
-        if (retryInterval != null && retryInterval > 0) {
+        if (retryInterval != null) {
             return retryInterval;
         }
         if (context == null) {
@@ -256,6 +261,9 @@ public class DriverOptions {
     }
 
     public int getRetryCount() {
+        if (retryCount != null) {
+            return retryCount;
+        }
         if (context == null) {
             return Config.DEFAULT_RETRY_COUNT;
         } else {
@@ -267,8 +275,8 @@ public class DriverOptions {
         return "(function(){ " + text + " })()";
     }
 
-    public String highlighter(String id) {
-        String e = selector(id);
+    public String highlighter(String locator) {
+        String e = selector(locator);
         String temp = "var e = " + e + ";"
                 + " var old = e.getAttribute('style');"
                 + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"

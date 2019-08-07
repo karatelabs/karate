@@ -1,14 +1,11 @@
 Feature: scratch pad 2
 
 Scenario Outline: <type>
+  * def webUrlBase = karate.properties['web.url.base']
   * configure driver = { type: '#(type)', showDriverLog: true }
 
-  Given driver 'https://semantic-ui.com/modules/dropdown.html'
-  Then scroll('select[name=skills]').click()
-  And click('div[data-value=css]')
-  And click('div[data-value=html]')
-  And click('div[data-value=ember]')
-  And delay(1000).screenshot()
+  Given driver webUrlBase + '/page-01'
+  * script('1 + 2')
 
 Examples:
 | type         |

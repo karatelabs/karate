@@ -29,6 +29,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.driver.Element;
 
 import java.util.Map;
 
@@ -69,8 +70,9 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     }
 
     @Override
-    public void input(String id, String value) {
-        eval(options.selector(id) + ".value = \"" + value + "\"");
+    public Element input(String locator, String value) {
+        eval(options.selector(locator) + ".value = \"" + value + "\"");
+        return element(locator);
     }
 
     @Override

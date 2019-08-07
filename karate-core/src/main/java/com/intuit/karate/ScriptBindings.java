@@ -54,7 +54,7 @@ public class ScriptBindings implements Bindings {
     public final ScriptBridge bridge;
 
     private final ScriptValueMap vars;
-    private final Map<String, Object> adds;
+    public final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
     public static final String KARATE_ENV = "karate.env";

@@ -19,7 +19,7 @@
     <logger name="mock" level="DEBUG"/>
    
     <root level="warn">
-        <!-- <appender-ref ref="STDOUT" /> -->
+        <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
   

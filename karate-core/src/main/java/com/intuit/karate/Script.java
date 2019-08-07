@@ -589,6 +589,9 @@ public class Script {
         name = StringUtils.trimToEmpty(name);
         if (validateName) {
             validateVariableName(name);
+            if (context.bindings.adds.containsKey(name)) {
+                context.logger.warn("over-writing built-in variable named: {} - with new value: {}", name, exp);
+            }
         }
         ScriptValue sv;
         switch (assignType) {

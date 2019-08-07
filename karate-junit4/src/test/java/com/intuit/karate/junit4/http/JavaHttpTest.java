@@ -25,9 +25,9 @@ public class JavaHttpTest {
     @Test
     public void testHttp() {
         Http http = Http.forUrl(null, "http://localhost:" + server.getPort());
-        http.path("echo").get().response().equals("{ uri: '/echo' }");
+        http.path("echo").get().body().equals("{ uri: '/echo' }");
         String expected = "ws://127.0.0.1:9222/devtools/page/E54102F8004590484CC9FF85E2ECFCD0";
-        http.path("chrome").get().response()
+        http.path("chrome").get().body()
                 .equalsText("#[1]")
                 .jsonPath("get[0] $..webSocketDebuggerUrl")
                 .equalsText(expected);

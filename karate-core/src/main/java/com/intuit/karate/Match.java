@@ -28,7 +28,6 @@ import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.http.DummyHttpClient;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.minidev.json.JSONValue;
@@ -114,6 +113,11 @@ public class Match {
         prevValue = context.vars.put(name, o);
         return this;
     }
+    
+    public Match get(String key) {
+        prevValue = context.vars.get(key);
+        return this;
+    }
 
     public Match jsonPath(String exp) {
         prevValue = Script.evalKarateExpression(exp, context);
@@ -123,19 +127,6 @@ public class Match {
     public ScriptValue value() {
         return prevValue;
     }
-    
-    public int httpStatus() {
-        return Script.evalKarateExpression("responseStatus", context).getAsInt();        
-    }
-
-    public Match handleError() {
-        int code = httpStatus();
-        if (code >= 400) {
-            context.logger.warn("http response code: {}, response: {}, request: {}", 
-                    code, response().asString(), context.getPrevRequest());
-        }
-        return this;
-    }
 
     public boolean isBooleanTrue() {
         return prevValue.isBooleanTrue();
@@ -144,6 +135,10 @@ public class Match {
     public String asString() {
         return prevValue.getAsString();
     }
+    
+    public int asInt() {
+        return prevValue.getAsInt();
+    }    
 
     public <T> T asType(Class<T> clazz) {
         return prevValue.getValue(clazz);
@@ -187,7 +182,7 @@ public class Match {
         return matchText(exp, MatchType.EQUALS);
     }
 
-    private static String quote(String exp) {
+    public static String quote(String exp) {
         return exp == null ? "null" : "\"" + JSONValue.escape(exp) + "\"";
     }
 
@@ -221,53 +216,6 @@ public class Match {
     private Match match(Object o, MatchType matchType) {
         Script.matchNestedObject('.', "$", matchType,
                 prevValue.getValue(), null, null, o, context);
-        return this;
-    }
-
-    // http ====================================================================
-    //
-    public Http http() {
-        return new Http(this);
-    }
-
-    public Match url(String url) {
-        context.url(quote(url));
-        return this;
-    }
-
-    public Match path(String... paths) {
-        List<String> list = new ArrayList(paths.length);
-        for (String p : paths) {
-            list.add(quote(p));
-        }
-        context.path(list);
-        return this;
-    }
-
-    public Match httpGet() {
-        context.method("get");
-        return handleError();
-    }
-
-    public Match httpPost(ScriptValue body) {
-        context.request(body);
-        context.method("post");
-        return handleError();
-    }
-
-    public Match httpPost(Object body) {
-        context.request(new ScriptValue(body).getAsString());
-        context.method("post");
-        return handleError();
-    }
-
-    public Match httpDelete() {
-        context.method("delete");
-        return handleError();
-    }
-
-    public Match response() {
-        jsonPath("response");
         return this;
     }
 

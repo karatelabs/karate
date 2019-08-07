@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.shell.Command;
@@ -93,11 +94,6 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    public String name(String locator) {
-        return attribute(locator, "tagName");
-    }
-
-    @Override
     public void activate() {
         if (!options.headless) {
             try {
@@ -126,5 +122,11 @@ public class ChromeWebDriver extends WebDriver {
             return null;
         });
     }
+
+    @Override
+    protected boolean isJavaScriptError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return !value.isNull() && value.getAsString().contains("javascript error");
+    }        
 
 }

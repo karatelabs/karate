@@ -49,51 +49,13 @@ public interface Driver {
 
     void fullscreen();
 
-    void focus(String locator);
-
-    void clear(String locator);
-
-    void input(String locator, String value);
-
-    void click(String locator);
-
-    void select(String locator, String text);
-
-    void select(String locator, int index);
-
     void close();
 
     void quit();
 
-    String html(String locator);
-
-    String text(String locator);
-
-    String value(String locator);
-
-    void value(String locator, String value);
-
-    String attribute(String locator, String name);
-
-    String property(String locator, String name);
-
-    String name(String locator);
-
-    boolean enabled(String locator);
-
-    Map<String, Object> position(String locator);
-
-    Map<String, Object> cookie(String name);
-
-    void deleteCookie(String name);
-
-    void clearCookies();
-
-    void dialog(boolean accept);
-
-    void dialog(boolean accept, String input);
-
-    void highlight(String locator);
+    default void waitForPage() {
+        waitUntil("document.readyState == 'complete'");
+    }
 
     void switchPage(String titleOrUrl);
 
@@ -101,21 +63,151 @@ public interface Driver {
 
     void switchFrame(String locator);
 
-    byte[] screenshot(boolean embed);
+    String getLocation(); // getter
 
-    byte[] screenshot(String locator, boolean embed);
+    void setLocation(String url); // setter    
+
+    Map<String, Object> getDimensions(); // getter
+
+    void setDimensions(Map<String, Object> map); // setter
+
+    String getTitle(); // getter
+
+    List<String> getPages(); // getter
+
+    String getDialog(); // getter
+
+    byte[] screenshot(boolean embed);
 
     default byte[] screenshot() {
         return screenshot(true);
     }
 
+    Map<String, Object> cookie(String name);
+
+    void deleteCookie(String name);
+
+    void clearCookies();
+
+    List<Map> getCookies(); // getter
+
+    void setCookie(Map<String, Object> cookie); // setter
+
+    void dialog(boolean accept);
+
+    void dialog(boolean accept, String input);
+
+    Object script(String expression);
+
+    boolean waitUntil(String expression);
+
+    Driver submit();
+    
+    default Driver retry() {
+        getOptions().setWaitRequested(true);
+        return this;
+    }
+    
+    default Driver retry(int count) {
+        return retry(count, null);
+    }
+    
+    default Driver retry(int count, Integer interval) {
+        getOptions().setWaitRequested(true);
+        getOptions().setRetryCount(count);
+        if (interval != null) {
+            getOptions().setRetryInterval(interval);
+        }
+        return this;
+    }
+
+    default Driver delay(int millis) {
+        getOptions().sleep(millis);
+        return this;
+    }
+
+    // element actions =========================================================
+    default Element element(String locator) {
+        return new Element(this, locator);
+    }
+
+    default Element scroll(String locator) {
+        script(locator, DriverOptions.SCROLL_JS_FUNCTION);
+        return element(locator);
+    }
+
+    default Element highlight(String locator) {
+        script(getOptions().highlighter(locator));
+        return element(locator);
+    }
+
+    Element focus(String locator);
+
+    Element clear(String locator);
+
+    Element input(String locator, String value);
+
+    Element click(String locator);
+
+    Element select(String locator, String text);
+
+    Element select(String locator, int index);
+
+    Element value(String locator, String value);
+
+    default Element waitFor(String locator) {
+        long startTime = System.currentTimeMillis();
+        String js = getOptions().selector(locator);
+        boolean found = waitUntil(js + " != null");
+        // important: un-set the wait flag        
+        getOptions().setWaitRequested(false);
+        if (!found) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            throw new RuntimeException("wait failed for: " + locator + " after " + elapsedTime + " milliseconds");
+        }
+        return element(locator);
+    }
+
+    default Element waitUntil(String locator, String expression) {
+        long startTime = System.currentTimeMillis();
+        String js = getOptions().selectorScript(locator, expression);
+        boolean found = waitUntil(js);
+        if (!found) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            throw new RuntimeException("wait failed for: " + locator 
+                    + " and condition: " + expression + " after " + elapsedTime + " milliseconds");
+        }
+        return element(locator);
+    }
+
+    // element state ===========================================================
+    //
+    String html(String locator);
+
+    String text(String locator);
+
+    String value(String locator);
+
+    String attribute(String locator, String name);
+
+    String property(String locator, String name);
+
+    boolean enabled(String locator);
+
+    default boolean exists(String locator) {
+        String js = getOptions().selector(locator);
+        String evalJs = js + " != null";
+        Object o = script(evalJs);
+        return o instanceof Boolean && (Boolean) o;
+    }
+
+    Map<String, Object> position(String locator);
+
+    byte[] screenshot(String locator, boolean embed);
+
     default byte[] screenshot(String locator) {
         return screenshot(locator, true);
     }
-
-    Driver submit();
-
-    Object script(String expression);
 
     default Object script(String locator, String expression) {
         String js = getOptions().selectorScript(locator, expression);
@@ -126,79 +218,6 @@ public interface Driver {
         String js = getOptions().selectorAllScript(locator, expression);
         return (List) script(js);
     }
-
-    default ElementDriver scroll(String locator) {
-        script(locator, DriverOptions.SCROLL_JS_FUNCTION);
-        return new ElementDriver(this, locator);
-    }
-    
-    default Driver delay(int millis) {
-        getOptions().sleep(millis);
-        return this;
-    }
-
-    // waits ===================================================================
-    //
-    boolean waitUntil(String expression);
-
-    default void waitForPage() {
-        waitUntil("document.readyState == 'complete'");
-    }
-
-    default boolean wait(String locator) {
-        String js = getOptions().selector(locator);
-        return waitUntil(js + " != null");
-    }
-
-    default boolean wait(String locator, String expression) {
-        String js = getOptions().selectorScript(locator, expression);
-        return waitUntil(js);
-    }
-
-    default void setAlwaysWait(boolean always) {
-        getOptions().setAlwaysWait(always);
-    }
-
-    default boolean isAlwaysWait() {
-        return getOptions().isAlwaysWait();
-    }
-
-    default void setRetryInterval(Integer interval) {
-        getOptions().setRetryInterval(interval);
-    }
-
-    default boolean exists(String locator) {
-        String js = getOptions().selector(locator);
-        String evalJs = js + " != null";
-        Object o = script(evalJs);
-        if (o instanceof Boolean && (Boolean) o) {
-            return true;
-        }
-        // one more time only after one sleep
-        getOptions().sleep();
-        o = script(evalJs);
-        return o instanceof Boolean ? (Boolean) o : false;
-    }
-
-    // javabean naming convention is intentional ===============================        
-    //    
-    void setLocation(String url);
-
-    void setDimensions(Map<String, Object> map);
-
-    Map<String, Object> getDimensions();
-
-    String getLocation();
-
-    String getTitle();
-
-    void setCookie(Map<String, Object> cookie);
-
-    List<Map> getCookies();
-
-    List<String> getPages();
-
-    String getDialog();
 
     // for internal use ========================================================
     //

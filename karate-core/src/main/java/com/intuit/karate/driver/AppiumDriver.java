@@ -68,15 +68,10 @@ public abstract class AppiumDriver extends WebDriver {
     }
 
     @Override
-    public void clear(String selector) {
-        String id = elementId(selector);
-        http.path("element", id, "clear").post("{}");
-    }
-
-    @Override
-    public void click(String selector) {
-        String id = elementId(selector);
+    public Element click(String locator) {
+        String id = elementId(locator);
         http.path("element", id, "click").post("{}");
+        return element(locator);
     }
 
     public void setContext(String context) {

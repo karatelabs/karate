@@ -11,12 +11,12 @@ Scenario Outline: using <config>
   Given driver webUrlBase + '/page-01'
   
   # wait for very slow loading element
-  And assert wait('#eg01WaitId')
+  And waitFor('#eg01WaitId')
 
   # powerful variants of the above, call any js on the element
-  And assert wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
-  And assert wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
-  And assert wait('#eg01WaitId', '!_.disabled')
+  And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
+  And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+  And waitUntil('#eg01WaitId', '!_.disabled')
   And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
   And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
   And match script('#eg01WaitId', '!_.disabled') == true
@@ -45,7 +45,7 @@ Scenario Outline: using <config>
   And match value('#eg01InputId') == 'hello world'
   Then match text('#eg01DivId') == 'hello world'
   And match attribute('#eg01SubmitId', 'type') == 'submit'
-  And match name('#eg01SubmitId') == 'INPUT'
+  And match script('#eg01SubmitId', '_.tagName') == 'INPUT'
   And match enabled('#eg01InputId') == true
   And match enabled('#eg01DisabledId') == false
 

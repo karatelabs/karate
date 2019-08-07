@@ -26,7 +26,6 @@ package com.intuit.karate.driver.chrome;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Logger;
-import com.intuit.karate.Match;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
@@ -64,14 +63,14 @@ public class Chrome extends DevToolsDriver {
         Command command = options.startProcess();
         String url = "http://" + options.host + ":" + options.port;
         Http http = Http.forUrl(options.driverLogger, url);
-        Match match = http.path("json").get();
-        if (match.response().asList().isEmpty()) {
+        Http.Response res = http.path("json").get();
+        if (res.body().asList().isEmpty()) {
             if (command != null) {
                 command.close();    
             }            
             throw new RuntimeException("chrome server returned empty list from " + url);
         }
-        String webSocketUrl = match.jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        
+        String webSocketUrl = res.jsonPath("get[0] $[?(@.type=='page')].webSocketDebuggerUrl").asString();        
         Chrome chrome = new Chrome(options, command, webSocketUrl);
         chrome.activate();
         chrome.enablePageEvents();

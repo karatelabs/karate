@@ -116,7 +116,7 @@ key | description
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
 
-For more advanced options such as for Docker, CI, cloud-infra or custom needs, see [`configure driverTarget`](#configure-drivertarget).
+For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
 ### `configure driverTarget`
 The above options are fine for testing on "localhost" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable "target" where you just have to implement three methods:
@@ -249,30 +249,30 @@ ios| `:` | -ios predicate string | `:name == 'OK' type == XCUIElementTypeButton`
 ios| `^` | -ios class chain | `^**/XCUIElementTypeTable[name == 'dataTable']`
 android| `-` | -android uiautomator | `-input[name=someName]`
 
-## Keywords
+# Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
-### `driver`
+## `driver`
 Navigate to a web-address and initializes the `driver` instance for future step operations as per what is [configured](#configure-driver). And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [`karate-config.js`](https://github.com/intuit/karate#configuration). For example:
 
 ```cucumber
 Given driver webUrlBase + '/page-01'
 ```
-#### `driver` JSON
+### `driver` JSON
 A variation where the argument is JSON instead of a URL / address-string, used only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
 
 ```cucumber
 Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
 ```
 
-## JS API
-The built-in `driver` JS object is where you script UI automation.
+# JS API
+The built-in `driver` JS object is where you script UI automation. It will be initialized only after the [`driver`](#driver) keyword has been used to navigate to a web-page (or application).
 
 Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and you can omit the `eval` keyword when calling a method (or setting a property) on it.
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
-### Short Cuts
+## Short Cuts
 Asa convenience, *all* the methods on the `driver` have been injected into the context as special (JavaScript) variables so you can omit the "`driver.`" part and save a lot of typing. For example instead of:
 
 ```cucumber
@@ -298,6 +298,12 @@ You should prefer this form, which is more readable:
 ```cucumber
 And match driver.location contains 'page-01'
 When driver.location = webUrlBase + '/page-02'
+```
+### Chaining
+All the methods that return a [`Driver`](src/main/java/com/intuit/karate/driver/Driver.java) or [`Element`](src/main/java/com/intuit/karate/driver/Element.java) are "chain-able" which means you can combine them to signal certain types of "intent" for example to [`retry()`](#retry) until an HTML element is present:
+
+```cucumber
+* retry().click('#someId')
 ```
 
 ## `driver.location`
@@ -355,7 +361,7 @@ A special variable called `Key` will be available and you can see all the possib
 Also see [`value(locator, value)`](#valueset) and [`driver.clear()`](#clear)
 
 ## `submit()`
-Karate has an elegant approach to handling any action such as [`click()`](#click) that results in a new page load. You "signal" that a submit is expected by calling the `submit()` function (which returns a `Driver` object) and then "chaining" the action that is expected to trigger a page load.
+Karate has an [elegant approach](#chaining) to handling any action such as [`click()`](#click) that results in a new page load. You "signal" that a submit is expected by calling the `submit()` function (which returns a `Driver` object) and then "chaining" the action that is expected to trigger a page load.
 
 ```cucumber
 When submit().click('*Page Three')
@@ -370,7 +376,7 @@ When submit().input('#someform', Key.ENTER)
 Karate will do the best it can to detect a page change and wait for the load to complete before proceeding to *any* step that follows.
 
 ## `delay()`
-Of course, you should *never* use this in a UI test (use [`wait()`](#wait) instead) but sometimes it is needed, for example to wait for animations to render before taking a screenshot. The nice thing here is that it returns a [`Driver`](#js-api) instance, so you can chain any other method and the "intent" will be clear. For example:
+Of course, you should *never* use this in a UI test (use [`wait()`](#wait) instead) but sometimes it is needed, for example to wait for animations to render before taking a screenshot. The nice thing here is that it returns a [`Driver`](#chaining) instance, so you can chain any other method and the "intent" will be clear. For example:
 
 ```cucumber
 * delay(1000).screenshot()
@@ -385,7 +391,7 @@ Just triggers a click event on the DOM element
 Also see [`submit()`](#submit)
 
 ## `select()`
-Specially for select boxes. There are four variations and use the [locator](#locators) conventions.
+Note that most of the time, it is better to fire a [`click()`](#click) on the `<option>` element. But you can try this for normal `<select>` boxes that have not been overly "ehnanced" by JavaScript. There are four variations and use the [locator](#locators) conventions.
 
 ```cucumber
 # select by displayed text
@@ -418,7 +424,7 @@ Scrolls to the element.
 * scroll('#myInput')
 ```
 
-Since a `scroll()` + `click()` or `input()` is a common combination, you can chain these:
+Since a `scroll()` + `click()` or `input()` is a common combination, you can [chain](#chaining) these:
 
 ```cucumber
 * scroll('#myBtn').click()
@@ -479,73 +485,56 @@ Wait for the JS expression to evaluate to `true`. Will poll using the retry sett
 ## `waitForPage()`
 Short-cut for the commonly used `waitUntil("document.readyState == 'complete'")`
 
-## `wait()`
-Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`waitUntil()`](#waituntil).
+## `waitFor()`
+Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`waitUntil()`](#waituntil). This will fail the test if the element does not appear after the configured number of re-tries.
 
 ```cucumber
-And wait('#eg01WaitId')
+And waitFor('#eg01WaitId')
 ```
 
-Since this returns `true` if the element eventually appeared, you can fail the test if the element does not appear after the re-tries like this:
+Instead of using `waitFor()` you would typically ["chain"](#chaining) a [`retry()`](#retry) like this:
+
 ```cucumber
-And assert wait('#eg01WaitId')
+And retry().click('#eg01WaitId')
 ```
 
-A very useful variant is where you can supply a JavaScript "predicate" function (or expression) that will be evaluated *on* the element returned  by the selector in the HTML DOM. Note that most of the time you will prefer the short-cut form that begins with an underscore (or bang), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
+## `waitUntil()`
+A very useful variant of [`waitFor()`](#waitfor) is where you supply a JavaScript "predicate" function (or expression) that will be evaluated *on* the element returned  by the selector in the HTML DOM. Note that most of the time you will prefer the short-cut form that begins with an underscore (or bang), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
+
+This is especially useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` failed even after the configured number of [re-tries](#retry).
 
 > One limitation is that you cannot use double-quotes in these expressions, so stick to the pattern below.
 
 ```cucumber
-And assert wait('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
+And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
 
 # if the expression begins with "_" or "!", Karate will wrap the function for you !
-And assert wait('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
-And assert wait('#eg01WaitId', '!_.disabled')
+And assert waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+And assert waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
-Also see [`driver.alwaysWait`](#driveralwayswait).
+## `retry()`
+For tests that need to wait for slow pages or un-predictable loading times for elements, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
 
-## `driver.alwaysWait`
-When you have very dynamic HTML where many elements are not loaded when the page is first navigated to - which is quite typical for Single Page Application (SPA) frameworks, you may find yourself having to do a lot of `wait()` calls, for example:
+* the [default retry settings](https://github.com/intuit/karate#retry-until) are
+  * `count`: 3, `interval`: 3000 milliseconds
+  * it is recommended you stick to these, which should suffice for most applications
+  * if you really want, you can change this "globally" like this:
+    * `configure('retry', { count: 10, interval: 5000 });` in [`karate-config.js`](https://github.com/intuit/karate#configuration)
+    * or *any time* within a script like this: `* configure retry = { count: 10, interval: 5000 }`
+* by default any actions such as `click()` will *not* be re-tried and this is what you need most of the time for smooth tests
+  * but some troublesome parts of your flow will require re-tries and this is where the `retry()` API comes in
+  * there are 3 forms:
+    * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
+    * `retry(count)` - the next action will *temporarily* use the `count` provided as the limit for retry-attempts
+    * `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
 
-```cucumber
-* wait('#someId')
-* click('#someId')
-* wait('#anotherId')
-* click('#anotherId')
-* wait('#yetAnotherId')
-* input('#yetAnotherId', 'foo')
-```
-
-You can switch on a capability of Karate's UI automation driver support to "always wait", which means a [`wait()`](#wait) will be fired automatically behind the scenes - for *all* subsequent steps:
-
-```cucumber
-* driver.alwaysWait = true
-* click('#someId')
-* click('#anotherId')
-* input('#yetAnotherId', 'foo')
-* driver.alwaysWait = false
-```
-
-It is good practice to set it back to `false` if there are more steps in your feature that do not need to "always wait".
-
-Use `driver.alwaysWait = true` only if absolutely necessary - since each `wait()` call (that happens behind the scenes) has a slight performance penalty. The preferred pattern is to use a `wait()` for one element (typically the first you interact with), to make sure the page is loaded - and then all other operations on the page may not need an extra `wait()`.
-
-## `driver.retryInterval`
-To *temporarily* change the default [retry interval](https://github.com/intuit/karate#retry-until) within the flow of a script (in milliseconds). This is very useful when you have only one or two screens that take a *really* long time to load. You can switch back to normal mode by setting this to `null` (or `0`), here is an example:
+And since you can [`chain()`](#chaining) the `retry()` API, you can have tests that clearly express the "intent to wait", and as one-liners, only where you need it:
 
 ```cucumber
-* driver.retryInterval = 10000
-* click('#longWait')
-* click('#anotherLongWait')
-* driver.retryInterval = null
-```
-
-## `exists()`
-This behaves slightly differently because it does *not* [auto-wait](#driveralwayswait) even if `driver.alwaysWait = true`. Convenient to check if an element exists and then quickly move on if it doesn't.
-
-```cucumber
-* if (exists('#some-modal)) click('.btn-close')
+* retry().click('#someButton')
+* retry(5).input('#someTxt', 'hello')
+* retry(3, 10000).waitUntil('#reallySlowButton', '!_.disabled')
 ```
 
 ## `script()`
