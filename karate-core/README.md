@@ -113,7 +113,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 <tr>
   <th>Cookies</th>
   <td>
-      <a href="#cookie"><code>cookie()<code></a>
+      <a href="#cookie"><code>cookie()</code></a>
     | <a href="#drivercookie"><code>driver.cookie</code></a>
     | <a href="#drivercookies"><code>driver.cookies</code></a>
     | <a href="#deletecookie"><code>deleteCookie()</code></a>
@@ -121,9 +121,9 @@ With the help of the community, we would like to try valiantly - to see if we ca
   </td>
 </tr>
 <tr>
-  <th>Chrome Java API</th>
+  <th>Chrome</th>
   <td>
-      <a href="#chrome-java-api">Example</a>
+      <a href="#chrome-java-api">Java API</a>
     | <a href="#pdf"><code>pdf()</code></a>
     | <a href="#screenshotfull"><code>screenshotFull()</code></a>
   </td> 
@@ -136,8 +136,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * WebDriver support without any intermediate server
-* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609) without any intermediate server or "grid" setup
-* Parallel testing in Continuous Integration [via Docker](#configure-drivertarget) without any intermediate server or "grid"
+* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI platform or [Docker](#configure-drivertarget) without any intermediate server or "grid" setup
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * Android and iOS mobile support via [Appium](http://appium.io), see [details](https://github.com/intuit/karate/issues/743)
 * Karate can start the executable (WebDriver / Chrome, WinAppDriver, Appium Server) automatically for you
@@ -145,18 +144,16 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
 * Simple [retry and polling](#retry) based "wait" strategy - no need to wrestle with esoteric concepts such as "implicit waits"
 
-# Syntax Guide
-
-## Examples
-### Web Browser
+# Examples
+## Web Browser
 * [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature) - simple example that navigates to GitHub and Google Search
 * [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
-### Windows
+## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) for an alternative approach.
 
-## Driver Configuration
+# Driver Configuration
 
-### `configure driver`
+## `configure driver`
 
 This below declares that the native (direct) Chrome integration should be used, on both Mac OS and Windows - from the default installed location.
 
@@ -201,7 +198,7 @@ key | description
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
-### `configure driverTarget`
+## `configure driverTarget`
 The above options are fine for testing on "localhost" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable "target" where you just have to implement three methods:
 
 ```java
@@ -224,6 +221,7 @@ public interface Target {
 
 Combined with Docker, headless Chrome and Karate's parallel-execution capability - this simple `start()` and `stop()` lifecycle can effectively run web UI automation tests in parallel on a single node.
 
+### `DckerTarget`
 Karate has a built-in implementation for Docker ([`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java)) that supports 2 existing Docker images out of the box:
 
 * [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) - for Chrome "native" in headless mode
@@ -255,6 +253,7 @@ To use the [recommended `--security-opt seccomp=chrome.json` Docker option](http
 karate.configure('driverTarget', { docker: 'ptrthomas/karate-chrome', seccomp: 'src/test/java/chrome.json' });
 ```
 
+### Custom `Target`
 If you have a custom implementation of a `Target`, you can easily [construct any custom Java class](https://github.com/intuit/karate#calling-java) and pass it to `configure driverTarget`. Here below is the equivalent of the above, done the "hard way":
 
 ```javascript
@@ -275,7 +274,7 @@ The built-in [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarge
 
 Controlling this flow from Java can take a lot of complexity out your build pipeline and keep things cross-platform. And you don't need to line-up an assortment of shell-scripts to do all these things. You can potentially include the steps of deploying (and un-deploying) the application-under-test using this approach - but probably the top-level [JUnit test-suite](https://github.com/intuit/karate#parallel-execution) would be the right place for those.
 
-#### `karate-chrome`
+### `karate-chrome`
 The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker image adds the following capabilities to [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/):
 
 * Chrome in "full" mode (non-headless)
@@ -311,7 +310,7 @@ type | default<br/>port | default<br/>executable | description
 [`android`](https://github.com/appium/appium/) | 4723 | `appium` | android automation via [Appium](https://github.com/appium/appium/)
 [`ios`](https://github.com/appium/appium/) | 4723 |`appium` | iOS automation via [Appium](https://github.com/appium/appium/)
 
-## Locators
+# Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
 
 ```cucumber
@@ -348,14 +347,14 @@ A variation where the argument is JSON instead of a URL / address-string, used o
 Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
 ```
 
-# JS API
+# Syntax
 The built-in `driver` JS object is where you script UI automation. It will be initialized only after the [`driver`](#driver) keyword has been used to navigate to a web-page (or application).
 
 Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and you can omit the `eval` keyword when calling a method (or setting a property) on it.
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
-## Short Cuts
+## JS API
 Asa convenience, *all* the methods on the `driver` have been injected into the context as special (JavaScript) variables so you can omit the "`driver.`" part and save a lot of typing. For example instead of:
 
 ```cucumber
@@ -389,6 +388,7 @@ All the methods that return a [`Driver`](src/main/java/com/intuit/karate/driver/
 * retry().click('#someId')
 ```
 
+# Syntax
 ## `driver.location`
 Get the current URL / address for matching. Example:
 
