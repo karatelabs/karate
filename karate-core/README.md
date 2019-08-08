@@ -2,7 +2,7 @@
 ## UI Test Automation Made `Simple.`
 
 ## Introduction
-> This is new, and this first version 0.9.X should be considered experimental.
+> This is new, and this first version 0.9.5 should be considered *BETA*.
 
 Especially after [the Gherkin parser and execution engine were re-written from the ground-up](https://github.com/intuit/karate/issues/444#issuecomment-406877530), Karate is arguably a mature framework that elegantly solves quite a few test-automation engineering challenges - with capabilities such as [parallel execution](https://twitter.com/KarateDSL/status/1049321708241317888), [data-driven testing](https://github.com/intuit/karate#data-driven-tests), [environment-switching](https://github.com/intuit/karate#switching-the-environment), [powerful assertions](https://github.com/intuit/karate#contains-short-cuts), and an [innovative UI for debugging](https://twitter.com/KarateDSL/status/1065602097591156736).
 
@@ -13,6 +13,122 @@ Please do note: this is work in progress and all actions needed for test-automat
 We know too well that UI automation is hard to get right and suffers from 2 big challenges, what we like to call the "*flaky test*" problem and the "*wait for UI element*" problem.
 
 With the help of the community, we would like to try valiantly - to see if we can get close to as ideal a state a possible. So wish us luck !
+
+# Index
+
+<table>
+<tr>
+  <th>Start</th>
+  <td>
+      See <a href="https://github.com/intuit/karate#index">Main Index</a>: <b>Run</b> | <b>Report</b> | <b>Types</b> | <b>Variables</b> | <b>Assert</b> | <b>Re-Use</b>
+  </td>
+</tr>
+<tr>
+  <th>Config</th>
+  <td>
+      <a href="#configure-driver"><code>configure driver</code></a>
+    | <a href="#configure-driver"><code>configure driverTarget</code></a>
+    | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
+    | <a href="#driver-types">Driver Types</a>  
+  </td>
+</tr>
+<tr>
+  <th>Concepts</th>
+  <td>    
+      <a href="#driver"><code>driver</code></a>
+    | <a href="#locators">Locators</a>
+    | <a href="#js-api">JS API</a> 
+    | <a href="#special-keys">Special Keys</a>
+    | <a href="#short-cuts">Short Cuts</a>
+    | <a href="#chaining">Chaining</a>
+    | <a href="#locator-lookup">Locator Lookup</a>
+    | <a href="#examples">Examples</a>
+  </td>
+</tr>
+<tr>
+  <th>Browser</th>
+  <td>
+      <a href="#driverlocation"><code>driver.location</code></a>
+    | <a href="#driverdimensions"><code>driver.dimensions</code></a>
+    | <a href="#refresh"><code>refresh()</code></a>
+    | <a href="#reload"><code>reload()</code></a> 
+    | <a href="#back"><code>back()</code></a>
+    | <a href="#forward"><code>forward()</code></a>
+    | <a href="#maximize"><code>maximize()</code></a>
+    | <a href="#minimize"><code>minimize()</code></a>
+    | <a href="#fullscreen"><code>fullscreen()</code></a>
+    | <a href="#quit"><code>quit()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Page</th>
+  <td>
+      <a href="#dialog"><code>dialog()</code></a>    
+    | <a href="#switchpage"><code>switchPage()</code></a>
+    | <a href="#switchFrame"><code>switchFrame()</code></a> 
+    | <a href="#close"><code>close()</code></a>
+    | <a href="#drivertitle"><code>driver.title</code></a>
+    | <a href="#screenshot"><code>screenshot()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Actions</th>
+  <td>
+      <a href="#click"><code>click()</code></a>
+    | <a href="#input"><code>input()</code></a>
+    | <a href="#submit"><code>submit()</code></a>
+    | <a href="#focus"><code>focus()</code></a>
+    | <a href="#clear"><code>clear()</code></a>
+    | <a href="#valueset"><code>value(set)</code></a>   
+    | <a href="#select"><code>select()</code></a>
+    | <a href="#scroll"><code>scroll()</code></a>
+    | <a href="#highlight"><code>highlight()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>State</th>
+  <td>
+      <a href="#html"><code>html()</code></a>
+    | <a href="#text"><code>text()</code></a>
+    | <a href="#value"><code>value()</code></a>
+    | <a href="#attribute"><code>attribute()</code></a>
+    | <a href="#enabled"><code>enabled()</code></a>
+    | <a href="#exists"><code>exists()</code></a>
+    | <a href="#position"><code>position()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Wait / JS</th>
+  <td>
+      <a href="#delay"><code>delay()</code></a>
+    | <a href="#retry"><code>retry()</code></a>
+    | <a href="#waitfor"><code>waitFor()</code></a>
+    | <a href="#waitforany"><code>waitForAny()</code></a>
+    | <a href="#waituntil"><code>waitUntil()</code></a>
+    | <a href="#waitforpage"><code>waitForPage()</code></a>
+    | <a href="#script"><code>script()</code></a>
+    | <a href="#scripts"><code>scripts()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Cookies</th>
+  <td>
+      <a href="#cookie"><code>cookie()<code></a>
+    | <a href="#drivercookie"><code>driver.cookie</code></a>
+    | <a href="#drivercookies"><code>driver.cookies</code></a>
+    | <a href="#deletecookie"><code>deleteCookie()</code></a>
+    | <a href="#clearcookies"><code>clearCookies()</code></a>
+  </td>
+</tr>
+<tr>
+  <th>Chrome Java API</th>
+  <td>
+      <a href="#chrome-java-api">Example</a>
+    | <a href="#pdf"><code>pdf()</code></a>
+    | <a href="#screenshotfull"><code>screenshotFull()</code></a>
+  </td> 
+</tr>
+</table>
 
 ## Capabilities
 
@@ -27,43 +143,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * Karate can start the executable (WebDriver / Chrome, WinAppDriver, Appium Server) automatically for you
 * Seamlessly mix API and UI tests within the same script
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
-* Simple [retry and polling](#retry) based "wait" strategy instead of you having to learn esoteric concepts such as "implicit waits"
-
-### Chrome Java API
-Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. You only need the [`karate-core`](https://search.maven.org/search?q=a:karate-core) Maven artifact. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
-
-```java
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.driver.chrome.Chrome;
-import java.io.File;
-import java.util.Collections;
-
-public class Test {
-
-    public static void main(String[] args) {
-        Chrome chrome = Chrome.startHeadless();
-        chrome.setLocation("https://github.com/login");
-        byte[] bytes = chrome.pdf(Collections.EMPTY_MAP);
-        FileUtils.writeToFile(new File("target/github.pdf"), bytes);
-        bytes = chrome.screenshot();
-        // this will attempt to capture the whole page, not just the visible part
-        // bytes = chrome.screenshotFull();
-        FileUtils.writeToFile(new File("target/github.png"), bytes);
-        chrome.quit();
-    }
-    
-}
-```
-
-Note that in addition to `driver.screenshot()` there is a `driver.screenshotFull()` API that will attempt to capture the whole "scrolled" page, not just the part visible in the viewport.
-
-The parameters that you can optionally customize via the `Map` argument to the `pdf()` method are documented here: [`Page.printToPDF
-`](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF).
-
-If Chrome is not installed in the default location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`. For more control or custom options, the `start()` method takes a `Map<String, Object>` argument where the following keys (all optional) are supported:
-* `executable` - (String) path to the Chrome executable or batch file that starts Chrome
-* `headless` - (Boolean) if headless
-* `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 4 MB), but you can override it if you deal with very large output / binary payloads
+* Simple [retry and polling](#retry) based "wait" strategy - no need to wrestle with esoteric concepts such as "implicit waits"
 
 # Syntax Guide
 
@@ -209,7 +289,7 @@ To try this or especially when you need to investigate why a test is not behavin
 * start the container:
   * `docker run -d -p 9222:9222 -p 5900:5900 --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
   * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of `--cap-add=SYS_ADMIN`
-* point your VNC client to `localhost:5900`
+* point your VNC client to `localhost:5900` (password: `karate`)
   * for example on a Mac you can use this command: `open vnc://localhost:5900`
 * run a test using the following [`driver` configuration](#configure-driver):
   * `* configure driver = { type: 'chrome', start: 'false', showDriverLog: true }`
@@ -554,7 +634,7 @@ For tests that need to wait for slow pages or un-predictable loading times for e
     * `retry(count)` - the next action will *temporarily* use the `count` provided as the limit for retry-attempts
     * `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
 
-And since you can ["chain"](#chaining) the `retry()` API, you can have tests that clearly express the "intent to wait", and as one-liners, *only* where you need to:
+And since you can ["chain"](#chaining) the `retry()` API, you can have tests that clearly express the "intent to wait", and as one-liners - *only* where you need to:
 
 ```cucumber
 * retry().click('#someButton')
@@ -707,11 +787,11 @@ To visually highlight an element in the browser, especially useful when working 
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project is of the opinion that things can be made simpler.
 
-One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or getting the value of some HTML. In Karate these are typically one-liners. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not results in maintainability and more importantly - readability issues.
+One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or getting the value of some HTML. In Karate these are typically one-liners. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not results in hard to maintain code - and severely impacts *readability*.
 
-That said, there is some benefit to re-using [locators](#locators) and Karate's JSON [reading](https://github.com/intuit/karate#reading-files) and [native support](https://github.com/intuit/karate#json) turns out to be perfectly suitable to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
+That said, there is some benefit to re-using [locators](#locators) and Karate's support for [JSON](https://github.com/intuit/karate#json) and [reading files](https://github.com/intuit/karate#reading-files) turns out to be a great way to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
 
-First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators) (identified by the leading character) into this map. Also note that this is "pure JSON" which means you have excellent IDE support for syntax-coloring and ensuring well-formed-ness.
+First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators) (identified by the "prefix") into this map. Also note that this is "pure JSON" which means you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness.
 
 ```json
 {
@@ -733,7 +813,7 @@ First, you can maintain a JSON "map" of your application locators. It can look s
 }
 ```
 
-Assuming the above JSON file is called `locators.json`, you can do this. Karate has [great options for re-usability](https://github.com/intuit/karate#calling-other-feature-files), so you can have this in a `common.feature`:
+Karate has [great options for re-usability](https://github.com/intuit/karate#calling-other-feature-files), so if the above JSON is saved as `locators.json`, you can do this in a `common.feature`:
 
 ```cucumber
 * call read 'locators.json'
@@ -741,9 +821,9 @@ Assuming the above JSON file is called `locators.json`, you can do this. Karate 
 
 > For those who are wondering how this works behind the scenes, since `read` refers to the [`read()`](https://github.com/intuit/karate#reading-files) function, the behavior of [`call`](https://github.com/intuit/karate#calling-javascript-functions) is that it will *invoke* the function *and* use what comes after it as the solitary function argument.
 
-This looks deceptively simple, but what it will do is pretty powerful. It will inject all top-level "keys" of the JSON file into the Karate "context" as global variables. In normal programming languages - global variables are a *bad thing*, but for test-automation (when you know what you are doing) this can be *really* convenient.
+This looks deceptively simple, but what it will do is pretty powerful. It will inject all top-level "keys" of the JSON file into the Karate "context" as global variables. In normal programming languages - global variables are a *bad thing*, but for test-automation (when you know what you are doing :) this can be *really* convenient.
 
-So now you have `testAccounts`, `leftNav` and `transactions` as variables, and you have a nice "name-spacing" of locators to reference in your test scripts:
+So now you have `testAccounts`, `leftNav` and `transactions` as variables, and you have a nice "name-spacing" of locators to refer to in your different feature files and test scripts:
 
 ```cucumber
 * input(testAccounts.numTransactions, '0')
@@ -754,4 +834,40 @@ So now you have `testAccounts`, `leftNav` and `transactions` as variables, and y
 * retry().input(transactions.descriptionInput, 'test')
 ```
 
-So now you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself if this leads to any appreciable benefits, because the down-side is that you need to start switching between 2 files to write and maintain tests.
+So this is how you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself (probably depending on the size of your test-automation team) if this leads to any appreciable benefits, because the down-side is that you need to start switching between 2 files - to write and maintain tests.
+
+# Chrome Java API
+Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. You only need the [`karate-core`](https://search.maven.org/search?q=a:karate-core) Maven artifact. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
+
+```java
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.driver.chrome.Chrome;
+import java.io.File;
+import java.util.Collections;
+
+public class Test {
+
+    public static void main(String[] args) {
+        Chrome chrome = Chrome.startHeadless();
+        chrome.setLocation("https://github.com/login");
+        byte[] bytes = chrome.pdf(Collections.EMPTY_MAP);
+        FileUtils.writeToFile(new File("target/github.pdf"), bytes);
+        bytes = chrome.screenshot();
+        // this will attempt to capture the whole page, not just the visible part
+        // bytes = chrome.screenshotFull();
+        FileUtils.writeToFile(new File("target/github.png"), bytes);
+        chrome.quit();
+    }
+    
+}
+```
+
+Note that in addition to `driver.screenshot()` there is a `driver.screenshotFull()` API that will attempt to capture the whole "scrolled" page, not just the part visible in the viewport.
+
+The parameters that you can optionally customize via the `Map` argument to the `pdf()` method are documented here: [`Page.printToPDF
+`](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF).
+
+If Chrome is not installed in the default location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`. For more control or custom options, the `start()` method takes a `Map<String, Object>` argument where the following keys (all optional) are supported:
+* `executable` - (String) path to the Chrome executable or batch file that starts Chrome
+* `headless` - (Boolean) if headless
+* `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 4 MB), but you can override it if you deal with very large output / binary payloads
