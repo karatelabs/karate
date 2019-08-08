@@ -98,7 +98,7 @@ public abstract class WebDriver implements Driver {
     
     private Element eval(String locator, String expression) {
         eval(expression);
-        return element(locator);
+        return element(locator, false);
     }
     
     private ScriptValue eval(String expression) {
@@ -226,7 +226,7 @@ public abstract class WebDriver implements Driver {
         return waitIfNeeded(locator, () -> {
             String id = elementId(locator);
             http.path("element", id, "clear").post("{}");
-            return element(locator);
+            return element(locator, true);
         });
     }
 
@@ -235,7 +235,7 @@ public abstract class WebDriver implements Driver {
         return waitIfNeeded(locator, () -> {
             String id = elementId(locator);
             http.path("element", id, "value").post(getJsonForInput(value));
-            return element(locator);
+            return element(locator, true);
         });
     }
 

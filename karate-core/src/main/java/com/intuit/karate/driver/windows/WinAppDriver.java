@@ -93,7 +93,7 @@ public class WinAppDriver extends WebDriver {
     public Element click(String locator) {
         String id = elementId(locator);
         http.path("element", id, "click").post("{}");
-        return element(locator);
+        return element(locator, true);
     }
 
     @Override

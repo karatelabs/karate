@@ -377,21 +377,21 @@ public abstract class DevToolsDriver implements Driver {
     public Element click(String locator) {
         waitIfNeeded(locator);
         eval(options.selector(locator) + ".click()");
-        return element(locator);
+        return element(locator, true);
     }
 
     @Override
     public Element select(String locator, String text) {
         waitIfNeeded(locator);
         eval(options.optionSelector(locator, text));
-        return element(locator);
+        return element(locator, true);
     }
 
     @Override
     public Element select(String locator, int index) {
         waitIfNeeded(locator);
         eval(options.optionSelector(locator, index));
-        return element(locator);
+        return element(locator, true);
     }
 
     @Override
@@ -404,13 +404,13 @@ public abstract class DevToolsDriver implements Driver {
     public Element focus(String locator) {
         waitIfNeeded(locator);
         eval(options.selector(locator) + ".focus()");
-        return element(locator);
+        return element(locator, true);
     }
 
     @Override
     public Element clear(String locator) {
         eval(options.selector(locator) + ".value = ''");
-        return element(locator);
+        return element(locator, true);
     }
 
     private void sendKey(char c, int modifier, String type, Integer keyCode) {
@@ -461,7 +461,7 @@ public abstract class DevToolsDriver implements Driver {
                 }
             }
         }
-        return element(locator);
+        return element(locator, true);
     }
 
     @Override
@@ -497,7 +497,7 @@ public abstract class DevToolsDriver implements Driver {
     public Element value(String locator, String value) {
         waitIfNeeded(locator);
         eval(options.selector(locator) + ".value = '" + value + "'");
-        return element(locator);
+        return element(locator, true);
     }
 
     @Override

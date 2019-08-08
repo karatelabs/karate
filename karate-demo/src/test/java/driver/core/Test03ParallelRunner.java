@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 Intuit Inc.
+ * Copyright 2018 pthomas3.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,46 +21,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.driver;
+package driver.core;
+
+import com.intuit.karate.KarateOptions;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import demo.DemoTestParallel;
+import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  *
  * @author pthomas3
  */
-public interface Element {    
-    
-    String getLocator(); // getter
-    
-    boolean isExists(); // getter
-    
-    Element focus();
-    
-    Element clear();
-    
-    Element click();
-    
-    Element input(String text);
-    
-    Element select(String text);
-    
-    Element select(int index);
-    
-    Element waitFor();
-    
-    Element waitUntil(String expression);
-    
-    Object script(String expression);
-    
-    String getHtml(); // getter
-    
-    void setHtml(String html); // setter
-    
-    String getText(); // getter
-    
-    void setText(String text); // setter    
-    
-    String getValue(); // getter
-    
-    void setValue(String value); // setter    
-    
+@KarateOptions(features = "classpath:driver/core/test-03.feature")
+public class Test03ParallelRunner {
+
+    @Test
+    public void testParallel() {
+        System.setProperty("karate.env", "mock");
+        Results results = Runner.parallel(getClass(), 5, "target/driver-demo-03");
+        DemoTestParallel.generateReport(results.getReportDir());
+        assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
+    }
+       
 }

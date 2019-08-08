@@ -104,16 +104,16 @@ public interface Driver {
     boolean waitUntil(String expression);
 
     Driver submit();
-    
+
     default Driver retry() {
         getOptions().setWaitRequested(true);
         return this;
     }
-    
+
     default Driver retry(int count) {
         return retry(count, null);
     }
-    
+
     default Driver retry(int count, Integer interval) {
         getOptions().setWaitRequested(true);
         getOptions().setRetryCount(count);
@@ -129,26 +129,26 @@ public interface Driver {
     }
 
     // element actions =========================================================
-    default Element element(String locator) {
-        return new DriverElement(this, locator);
+    default Element element(String locator, boolean exists) {
+        return new DriverElement(this, locator, exists ? true : null);
     }
 
     default Element scroll(String locator) {
         script(locator, DriverOptions.SCROLL_JS_FUNCTION);
-        return element(locator);
+        return element(locator, true);
     }
 
     default Element highlight(String locator) {
         script(getOptions().highlighter(locator));
-        return element(locator);
+        return element(locator, true);
     }
 
     Element focus(String locator);
 
-    Element clear(String locator);    
+    Element clear(String locator);
 
     Element click(String locator);
-    
+
     Element input(String locator, String value);
 
     Element select(String locator, String text);
@@ -156,12 +156,12 @@ public interface Driver {
     Element select(String locator, int index);
 
     Element value(String locator, String value);
-    
+
     default Element waitFor(String locator) {
-        return element(waitForAny(locator));
+        return waitForAny(locator);
     }
 
-    default String waitForAny(String ... locators) {
+    default Element waitForAny(String... locators) {
         long startTime = System.currentTimeMillis();
         List<String> list = Arrays.asList(locators);
         Iterator<String> iterator = list.iterator();
@@ -171,9 +171,9 @@ public interface Driver {
             String js = getOptions().selector(locator);
             sb.append("(").append(js).append(" != null)");
             if (iterator.hasNext()) {
-                sb.append(" ||");
+                sb.append(" || ");
             }
-        }        
+        }
         boolean found = waitUntil(sb.toString());
         // important: un-set the wait flag        
         getOptions().setWaitRequested(false);
@@ -182,11 +182,12 @@ public interface Driver {
             throw new RuntimeException("wait failed for: " + list + " after " + elapsedTime + " milliseconds");
         }
         if (locators.length == 1) {
-            return locators[0];
+            return element(locators[0], true);
         }
         for (String locator : locators) {
-            if (exists(locator).isExists()) {
-                return locator;
+            Element temp = exists(locator);
+            if (temp.isExists()) {
+                return temp;
             }
         }
         // this should never happen
@@ -199,12 +200,10 @@ public interface Driver {
         boolean found = waitUntil(js);
         if (!found) {
             long elapsedTime = System.currentTimeMillis() - startTime;
-            throw new RuntimeException("wait failed for: " + locator 
+            throw new RuntimeException("wait failed for: " + locator
                     + " and condition: " + expression + " after " + elapsedTime + " milliseconds");
         }
-        Element element = element(locator);
-        element.setExists(true);
-        return element;
+        return element(locator, true);
     }
 
     // element state ===========================================================
@@ -226,11 +225,9 @@ public interface Driver {
         String evalJs = js + " != null";
         Object o = script(evalJs);
         if (o instanceof Boolean && (Boolean) o) {
-            Element element = element(locator);
-            element.setExists(true);
-            return element;
+            return element(locator, true);
         } else {
-            return MissingElement.INSTANCE;
+            return new MissingElement(locator);
         }
     }
 

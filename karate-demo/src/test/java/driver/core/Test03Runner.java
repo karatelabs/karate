@@ -1,10 +1,7 @@
 package driver.core;
 
-import com.intuit.karate.FileUtils;
-import com.intuit.karate.junit4.Karate;
 import com.intuit.karate.KarateOptions;
-import com.intuit.karate.netty.FeatureServer;
-import java.io.File;
+import com.intuit.karate.junit4.Karate;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 
@@ -15,13 +12,10 @@ import org.junit.runner.RunWith;
 @RunWith(Karate.class)
 @KarateOptions(features = "classpath:driver/core/test-03.feature")
 public class Test03Runner {
-    
+
     @BeforeClass
     public static void beforeClass() {
-        File file = FileUtils.getFileRelativeTo(Test03Runner.class, "_mock.feature");
-        FeatureServer server = FeatureServer.start(file, 0, false, null);
         System.setProperty("karate.env", "mock");
-        System.setProperty("web.url.base", "http://localhost:" + server.getPort());
     }
 
 }

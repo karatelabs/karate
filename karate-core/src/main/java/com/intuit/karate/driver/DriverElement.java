@@ -29,15 +29,25 @@ package com.intuit.karate.driver;
  */
 public class DriverElement implements Element {
 
-    public final Driver driver;
-    public final String locator;
+    private final Driver driver;
+    private final String locator;
     private Boolean exists;
 
     private String id;
 
     public DriverElement(Driver driver, String locator) {
+        this(driver, locator, null);
+    }
+
+    public DriverElement(Driver driver, String locator, Boolean exists) {
         this.driver = driver;
         this.locator = locator;
+        this.exists = exists;
+    }
+
+    @Override
+    public String getLocator() {
+        return locator;
     }
 
     @Override
@@ -46,12 +56,7 @@ public class DriverElement implements Element {
             exists = driver.exists(locator).isExists();
         }
         return exists;
-    }        
-
-    @Override
-    public void setExists(boolean exists) {
-        this.exists = exists;
-    }        
+    }
 
     @Override
     public Element focus() {
@@ -66,8 +71,8 @@ public class DriverElement implements Element {
     @Override
     public Element click() {
         return driver.click(locator);
-    }    
-    
+    }
+
     @Override
     public Element input(String text) {
         return driver.input(locator, text);

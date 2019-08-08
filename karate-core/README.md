@@ -20,11 +20,14 @@ With the help of the community, we would like to try valiantly - to see if we ca
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * WebDriver support without any intermediate server
+* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609) without any intermediate server or "grid" setup
+* Parallel testing in Continuous Integration [via Docker](#configure-drivertarget) without any intermediate server or "grid"
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * Android and iOS mobile support via [Appium](http://appium.io), see [details](https://github.com/intuit/karate/issues/743)
 * Karate can start the executable (WebDriver / Chrome, WinAppDriver, Appium Server) automatically for you
 * Seamlessly mix API and UI tests within the same script
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
+* Simple [retry and polling](#retry) based "wait" strategy instead of you having to learn esoteric concepts such as "implicit waits"
 
 ### Chrome Java API
 Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. You only need the [`karate-core`](https://search.maven.org/search?q=a:karate-core) Maven artifact. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):

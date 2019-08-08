@@ -28,22 +28,22 @@ package com.intuit.karate.driver;
  * @author pthomas3
  */
 public class MissingElement implements Element {
-    
-    public final static Element INSTANCE = new MissingElement();
-    
-    private MissingElement() {
-        // singleton
+
+    private final String locator;
+
+    public MissingElement(String locator) {
+        this.locator = locator;
+    }
+
+    @Override
+    public String getLocator() {
+        return locator;
     }
 
     @Override
     public boolean isExists() {
         return false;
     }
-
-    @Override
-    public void setExists(boolean exists) {
-        
-    }        
 
     @Override
     public Element focus() {
@@ -107,7 +107,7 @@ public class MissingElement implements Element {
 
     @Override
     public void setText(String text) {
-        
+
     }
 
     @Override
@@ -119,5 +119,5 @@ public class MissingElement implements Element {
     public void setValue(String value) {
 
     }
-    
+
 }
