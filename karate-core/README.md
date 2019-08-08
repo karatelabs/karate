@@ -20,14 +20,14 @@ With the help of the community, we would like to try valiantly - to see if we ca
 <tr>
   <th>Start</th>
   <td>
-      See <a href="https://github.com/intuit/karate#index">Main Index</a>: <b>Run</b> | <b>Report</b> | <b>Types</b> | <b>Variables</b> | <b>Assert</b> | <b>Re-Use</b>
+      See <a href="https://github.com/intuit/karate#index">Main Index</a> for how to get started
   </td>
 </tr>
 <tr>
   <th>Config</th>
   <td>
       <a href="#configure-driver"><code>configure driver</code></a>
-    | <a href="#configure-driver"><code>configure driverTarget</code></a>
+    | <a href="#configure-drivertarget"><code>configure driverTarget</code></a>
     | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
     | <a href="#driver-types">Driver Types</a>  
   </td>
@@ -221,7 +221,7 @@ public interface Target {
 
 Combined with Docker, headless Chrome and Karate's parallel-execution capability - this simple `start()` and `stop()` lifecycle can effectively run web UI automation tests in parallel on a single node.
 
-### `DckerTarget`
+### `DockerTarget`
 Karate has a built-in implementation for Docker ([`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java)) that supports 2 existing Docker images out of the box:
 
 * [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) - for Chrome "native" in headless mode
@@ -314,8 +314,8 @@ type | default<br/>port | default<br/>executable | description
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
 
 ```cucumber
-And driver.input('input[name=someName]', 'test input')
-When driver.submit("//input[@name='commit']")
+And input('input[name=someName]', 'test input')
+When submit().click("//input[@name='commit']")
 ```
 
 platform | prefix | means | example
@@ -430,7 +430,7 @@ The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#num
 ## `input()`
 2 string arguments: [locator](#locators) and value to enter.
 ```cucumber
-* driver.input('input[name=someName]', 'test input')
+* input('input[name=someName]', 'test input')
 ```
 
 ### Special Keys
@@ -442,10 +442,10 @@ Special keys such as `ENTER`, `TAB` etc. can be specified like this:
 
 A special variable called `Key` will be available and you can see all the possible key codes [here](src/main/java/com/intuit/karate/driver/Key.java).
 
-Also see [`value(locator, value)`](#valueset) and [`driver.clear()`](#clear)
+Also see [`value(locator, value)`](#valueset) and [`clear()`](#clear)
 
 ## `submit()`
-Karate has an [elegant approach](#chaining) to handling any action such as [`click()`](#click) that results in a new page load. You "signal" that a submit is expected by calling the `submit()` function (which returns a `Driver` object) and then "chaining" the action that is expected to trigger a page load.
+Karate has an [elegant approach](#chaining) to handling any action such as [`click()`](#click) that results in a new page load. You "signal" that a submit is expected by calling the `submit()` function (which returns a `Driver` object) and then "[chaining](#chaining)" the action that is expected to trigger a page load.
 
 ```cucumber
 When submit().click('*Page Three')
@@ -460,7 +460,7 @@ When submit().input('#someform', Key.ENTER)
 Karate will do the best it can to detect a page change and wait for the load to complete before proceeding to *any* step that follows.
 
 ## `delay()`
-Of course, you should *never* use this in a UI test (use [`wait()`](#wait) instead) but sometimes it is needed, for example to wait for animations to render before taking a screenshot. The nice thing here is that it returns a [`Driver`](#chaining) instance, so you can chain any other method and the "intent" will be clear. For example:
+Of course, you should *never* use this in a UI test (use [`retry()`](#retry) instead) but sometimes it is needed, for example to wait for animations to render before taking a screenshot. The nice thing here is that it returns a [`Driver`](#chaining) instance, so you can [chain](#chaining) any other method and the "intent" will be clear. For example:
 
 ```cucumber
 * delay(1000).screenshot()
@@ -469,7 +469,7 @@ Of course, you should *never* use this in a UI test (use [`wait()`](#wait) inste
 ## `click()`
 Just triggers a click event on the DOM element
 ```cucumber
-* driver.click('input[name=someName]')
+* click('input[name=someName]')
 ```
 
 Also see [`submit()`](#submit)
@@ -508,7 +508,7 @@ Scrolls to the element.
 * scroll('#myInput')
 ```
 
-Since a `scroll()` + `click()` or `input()` is a common combination, you can [chain](#chaining) these:
+Since a `scroll()` + [`click()`](#click) (or [`input()`](#input)) is a common combination, you can [chain](#chaining) these:
 
 ```cucumber
 * scroll('#myBtn').click()
@@ -522,32 +522,32 @@ Close the page / tab.
 Close the browser.
 
 ## `html()`
-Get the `outerHTML`, so will include the markup of the selected element. Useful for `match contains` assertions. Example:
+Get the [`outerHTML`](https://developer.mozilla.org/en-US/docs/Web/API/Element/outerHTML), so will include the markup of the selected element. Useful for [`match contains`](https://github.com/intuit/karate#match-contains) assertions. Example:
 
 ```cucumber
 And match html('#eg01DivId') == '<div id="eg01DivId">this div is outside the iframe</div>'
 ```
 
 ## `text()`
-Get the text-content. Example:
+Get the [`textContent`](https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent). Example:
 ```cucumber
 And match text('.myClass') == 'Class Locator Test'
 ```
 
 ## `value()`
-Get the HTML form-element value. Example:
+Get the HTML form-element [`value`](https://www.w3schools.com/jsref/prop_text_value.asp). Example:
 ```cucumber
 And match value('.myClass') == 'some value'
 ```
 
 ## `value(set)`
-Set the HTML form-element value. Example:
+Set the HTML form-element [value](https://www.w3schools.com/jsref/prop_text_value.asp). Example:
 ```cucumber
 When value('#eg01InputId', 'something more')
 ```
 
 ## `attribute()`
-Get the HTML element attribute value. Example:
+Get the HTML element [attribute value by attribute name](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttribute). Example:
 ```cucumber
 And match attribute('#eg01SubmitId', 'type') == 'submit'
 ```
@@ -558,19 +558,19 @@ If the element is `enabled` and not `disabled`:
 And match enabled('#eg01DisabledId') == false
 ```
 
-Also see [`wait()`](#wait) for an example of how to *wait* until an element is enabled or until any other element property becomes the target value.
+Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an element is "enabled" or until any other element property becomes the target value.
 
 ## `waitForPage()`
-Short-cut for the commonly used `waitUntil("document.readyState == 'complete'")`
+Short-cut for the commonly used `waitUntil("document.readyState == 'complete'")` - see [`waitUntil()`](#waituntil).
 
 ## `waitFor()`
-Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`waitUntil()`](#waituntil). This will fail the test if the element does not appear after the configured number of re-tries.
+Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`waitUntil()`](#waituntil). This will fail the test if the element does not appear after the configured number of re-tries have been attempted.
 
 ```cucumber
 And waitFor('#eg01WaitId')
 ```
 
-Instead of using `waitFor()` you would typically ["chain"](#chaining) a [`retry()`](#retry) like this:
+Instead of using `waitFor()` you would typically [chain](#chaining) a [`retry()`](#retry) like this:
 
 ```cucumber
 And retry().click('#eg01WaitId')
@@ -590,13 +590,13 @@ But - since the [`exists()`](#exists) API is designed to handle the case when a 
 ## `exists()`
 This method returns an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance which means it can be [chained](#chaining) as you expect. But there is a twist. If the [locator](#locators) does *not* exist, any attempt to perform actions on it will *not* fail your test - and silently perform a "no-op".
 
-This is designed specifically for the kind of situation described in the example for [`waitForAny()`]()#waitforany. If you wanted to check if the `Element` returned exists, you can use the "getter" as follows:
+This is designed specifically for the kind of situation described in the example for [`waitForAny()`](#waitforany). If you wanted to check if the `Element` returned exists, you can use the "getter" as follows:
 
 ```cucumber
 * assert exists('#someId').exists
 ```
 
-Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and immediately check the HTML for the given locator. This is important because it is designed to answer the question "does the element exist in the HTML page *right now*".
+Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and immediately check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
 
 ## `waitUntil()`
 Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
@@ -604,9 +604,9 @@ Wait for the JS expression to evaluate to `true`. Will poll using the retry sett
 * waitUntil("document.readyState == 'complete'")
 ```
 
-A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function (or expression) that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut form that begins with an underscore (or bang), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
+A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut boolean-expression form that begins with an underscore (or "`!`"), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
 
-This is especially useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` failed even after the configured number of [re-tries](#retry).
+This is especially useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` returned `false` - *even* after the configured number of [re-tries](#retry) were attempted.
 
 > One limitation is that you cannot use double-quotes *within* these expressions, so stick to the pattern below.
 
@@ -619,7 +619,7 @@ And assert waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
 ## `retry()`
-For tests that need to wait for slow pages or un-predictable loading times for elements, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
+For tests that need to wait for slow pages or for handling un-predictable element loading times, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
 
 * the [default retry settings](https://github.com/intuit/karate#retry-until) are
   * `count`: 3, `interval`: 3000 milliseconds
@@ -634,7 +634,7 @@ For tests that need to wait for slow pages or un-predictable loading times for e
     * `retry(count)` - the next action will *temporarily* use the `count` provided as the limit for retry-attempts
     * `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
 
-And since you can ["chain"](#chaining) the `retry()` API, you can have tests that clearly express the "intent to wait", and as one-liners - *only* where you need to:
+And since you can [chain](#chaining) the `retry()` API, you can have tests that clearly express the "*intent to wait*". This results in easily understandable one-liners - *only* at the point of need:
 
 ```cucumber
 * retry().click('#someButton')
@@ -657,10 +657,10 @@ And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARE
 And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 ```
 
-Normally you would use [`text()`](#text) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`wait()`](#wait).
+Normally you would use [`text()`](#text) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`waitUntil()`](#waituntil).
 
 ## `scripts()`
-Just like the above against an element by [locator](#locators), but will perform the script `eval()` on *all* matching elements (not just the first) and return the results as a JSON array / list.
+Just like [`script()`](#script), but will perform the script `eval()` on *all* matching elements (not just the first) - and return the results as a JSON array / list. This is very useful for "bulk-scraping" data out of the HTML (such as `<table>` rows) - which you can then proceed to use in [`match`](https://github.com/intuit/karate#match) assertions:
 
 ```cucumber
 # get text for all elements that match css selector
@@ -670,10 +670,10 @@ And match each list contains '@@data'
 ```
 
 ## `refresh()`
-Normal page reload, does not clear cache.
+Normal page reload, does *not* clear cache.
 
 ## `reload()`
-Hard page reload, after clearing the cache.
+*Hard* page reload, which *will* clear the cache.
 
 ## `back()`
 
@@ -687,6 +687,7 @@ Hard page reload, after clearing the cache.
 
 ## `driver.cookie` 
 Set a cookie:
+
 ```cucumber
 Given def cookie2 = { name: 'hello', value: 'world' }
 When driver.cookie = cookie2
@@ -706,6 +707,7 @@ See above examples.
 
 ## `deleteCookie()`
 Delete a cookie by name:
+
 ```cucumber
 When deleteCookie('foo')
 Then match driver.cookies !contains '#(^cookie1)'
@@ -713,15 +715,17 @@ Then match driver.cookies !contains '#(^cookie1)'
 
 ## `clearCookies()`
 Clear all cookies.
+
 ```cucumber
 When clearCookies()
 Then match driver.cookies == '#[0]'
 ```
 
 ## `dialog()`
-Two forms. The first takes a single boolean argument, whether to "accept" or "cancel". The second form has an additional string argument which is the text to enter for cases where the dialog is expecting user input.
+There are two forms. The first takes a single boolean argument - whether to "accept" or "cancel". The second form has an additional string argument which is the text to enter for cases where the dialog is expecting user input.
 
 Also works as a "getter" to retrieve the text of the currently visible dialog:
+
 ```cucumber
 * match driver.dialog == 'Please enter your name:'
 ```
@@ -753,9 +757,9 @@ When switchFrame(null)
 ```
 
 ## `screenshot()`
-Two forms, if a [locator](#locators) is provided - only that HTML element will be captured, else the entire browser viewport will be captured. A byte array will be returned.
+There are two forms, if a [locator](#locators) is provided - only that HTML element will be captured, else the entire browser viewport will be captured. This method returns a byte array.
 
-This will also do automatically perform a [`karate.embed()`](https://github.com/intuit/karate#karate-embed) so that the image appears in the HTML report.
+This will also do automatically perform a [`karate.embed()`](https://github.com/intuit/karate#karate-embed) - so that the image appears in the HTML report.
 
 ```cucumber
 * screenshot()
@@ -763,7 +767,7 @@ This will also do automatically perform a [`karate.embed()`](https://github.com/
 * screenshot('#someDiv')
 ```
 
-If you want to disable the HTML report "auto-embedding", pass an additional boolean argument as `false`, e.g: 
+If you want to disable the "auto-embedding" into the HTML report, pass an additional boolean argument as `false`, e.g: 
 
 ```cucumber
 * screenshot(false)
@@ -787,11 +791,11 @@ To visually highlight an element in the browser, especially useful when working 
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project is of the opinion that things can be made simpler.
 
-One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or getting the value of some HTML. In Karate these are typically one-liners. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not results in hard to maintain code - and severely impacts *readability*.
+One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or getting the value of some HTML object. In Karate these are typically *one-liners*. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not - results in hard to maintain code, and severely impacts *readability*.
 
 That said, there is some benefit to re-using [locators](#locators) and Karate's support for [JSON](https://github.com/intuit/karate#json) and [reading files](https://github.com/intuit/karate#reading-files) turns out to be a great way to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
 
-First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators) (identified by the "prefix") into this map. Also note that this is "pure JSON" which means you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness.
+First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators) (identified by the "prefix") into this map. Also note that this is *pure JSON* which means that you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness.
 
 ```json
 {
@@ -813,17 +817,17 @@ First, you can maintain a JSON "map" of your application locators. It can look s
 }
 ```
 
-Karate has [great options for re-usability](https://github.com/intuit/karate#calling-other-feature-files), so if the above JSON is saved as `locators.json`, you can do this in a `common.feature`:
+Karate has [great options for re-usability](https://github.com/intuit/karate#calling-other-feature-files), so once the above JSON is saved as `locators.json`, you can do this in a `common.feature`:
 
 ```cucumber
 * call read 'locators.json'
 ```
 
-> For those who are wondering how this works behind the scenes, since `read` refers to the [`read()`](https://github.com/intuit/karate#reading-files) function, the behavior of [`call`](https://github.com/intuit/karate#calling-javascript-functions) is that it will *invoke* the function *and* use what comes after it as the solitary function argument.
+> For those who are wondering how this works behind the scenes, since `read` refers to the [`read()`](https://github.com/intuit/karate#reading-files) function, the behavior of [`call`](https://github.com/intuit/karate#calling-javascript-functions) is that it will *invoke* the function *and* use what comes after it as the solitary function argument. And here, this is [shared scope](https://github.com/intuit/karate#shared-scope).
 
-This looks deceptively simple, but what it will do is pretty powerful. It will inject all top-level "keys" of the JSON file into the Karate "context" as global variables. In normal programming languages - global variables are a *bad thing*, but for test-automation (when you know what you are doing :) this can be *really* convenient.
+This looks deceptively simple, but what happens is very interesting. It will inject all top-level "keys" of the JSON file into the Karate "context" as global [variables](https://github.com/intuit/karate#def). In normal programming languages, global variables are a *bad thing*, but for test-automation (when you know what you are doing) - this can be *really* convenient.
 
-So now you have `testAccounts`, `leftNav` and `transactions` as variables, and you have a nice "name-spacing" of locators to refer to in your different feature files and test scripts:
+So now you have `testAccounts`, `leftNav` and `transactions` as variables, and you have a nice "name-spacing" of locators to refer to - within your different feature files:
 
 ```cucumber
 * input(testAccounts.numTransactions, '0')
