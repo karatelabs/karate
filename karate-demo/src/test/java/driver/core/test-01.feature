@@ -202,6 +202,18 @@ Scenario Outline: using <config>
   When input('#eg01InputId', 'hello world')
   And click('#eg01SubmitId')
   Then match text('#eg01DivId') == 'hello world'
+  And switchFrame(null)
+
+  # mouse move and click
+  * mouse().move('#eg02LeftDivId').perform()
+  * mouse().move('#eg02RightDivId').click().perform()
+  * mouse().down().move('#eg02LeftDivId').up().perform()
+  * def temp = text('#eg02ResultDivId')
+  # works only for chrome :(
+  # * match temp contains 'LEFT_HOVERED'
+  # * match temp contains 'RIGHT_CLICKED'
+  # * match temp !contains 'LEFT_DOWN'
+  # * match temp contains 'LEFT_UP'
 
 Examples:
     | config | dimensions |

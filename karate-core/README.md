@@ -66,9 +66,10 @@ With the help of the community, we would like to try valiantly - to see if we ca
       <a href="#dialog"><code>dialog()</code></a>    
     | <a href="#switchpage"><code>switchPage()</code></a>
     | <a href="#switchFrame"><code>switchFrame()</code></a> 
-    | <a href="#close"><code>close()</code></a>
+    | <a href="#close"><code>close()</code></a>    
     | <a href="#drivertitle"><code>driver.title</code></a>
     | <a href="#screenshot"><code>screenshot()</code></a>
+    | <a href="#mouse"><code>mouse()</code></a>
   </td>
 </tr>
 <tr>
@@ -355,7 +356,7 @@ Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) -
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
 ## JS API
-Asa convenience, *all* the methods on the `driver` have been injected into the context as special (JavaScript) variables so you can omit the "`driver.`" part and save a lot of typing. For example instead of:
+As a convenience, *all* the methods on the `driver` have been injected into the context as special (JavaScript) variables so you can omit the "`driver.`" part and save a lot of typing. For example instead of:
 
 ```cucumber
 And driver.input('#eg02InputId', Key.SHIFT)
@@ -382,7 +383,11 @@ And match driver.location contains 'page-01'
 When driver.location = webUrlBase + '/page-02'
 ```
 ### Chaining
-All the methods that return a [`Driver`](src/main/java/com/intuit/karate/driver/Driver.java) or [`Element`](src/main/java/com/intuit/karate/driver/Element.java) are "chain-able" which means you can combine them to concisely express certain types of "intent" - without having to repeat the [locator](#locators).
+All the methods that return the following Java object types are "chain-able". This means that you can combine them to concisely express certain types of "intent" - without having to repeat the [locator](#locators).
+
+* [`Driver`](src/main/java/com/intuit/karate/driver/Driver.java)
+* [`Element`](src/main/java/com/intuit/karate/driver/Element.java) 
+* [`Mouse`](src/main/java/com/intuit/karate/driver/Mouse.java)
 
 For example, to [`retry()`](#retry) until an HTML element is present and then [`click()`](#click) it:
 
@@ -402,6 +407,12 @@ Or to temporarily [over-ride the retry configuration](#retry) *and* wait:
 
 ```cucumber
 * retry(5, 10000).waitUntil('#someBtn', '!_.disabled').click()
+```
+
+Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a click:
+
+```cucumber
+  * mouse().move(100, 200).click().perform()
 ```
 
 # Syntax
@@ -476,7 +487,7 @@ When submit().input('#someform', Key.ENTER)
 Karate will do the best it can to detect a page change and wait for the load to complete before proceeding to *any* step that follows.
 
 ## `delay()`
-Of course, you should *never* use this in a UI test (use [`retry()`](#retry) instead) but sometimes it is needed, for example to wait for animations to render before taking a screenshot. The nice thing here is that it returns a [`Driver`](#chaining) instance, so you can [chain](#chaining) any other method and the "intent" will be clear. For example:
+Of course, resorting to a "sleep" in a UI test is considered a very bad-practice and you should always use [`retry()`](#retry) instead. But sometimes it is un-avoidable, for example to wait for animations to render - before taking a [screenshot](#screenshot). The nice thing here is that it returns a `Driver` instance, so you can [chain](#chaining) any other method and the "intent" will be clear. For example:
 
 ```cucumber
 * delay(1000).screenshot()
@@ -520,6 +531,7 @@ If this does not work, try [`value(selector, value)`](#valueset)
 
 ## `scroll()`
 Scrolls to the element.
+
 ```cucumber
 * scroll('#myInput')
 ```
@@ -529,6 +541,17 @@ Since a `scroll()` + [`click()`](#click) (or [`input()`](#input)) is a common co
 ```cucumber
 * scroll('#myBtn').click()
 * scroll('#myTxt').input('hello')
+```
+
+## `mouse()`
+This returns an instance of `Mouse` on which you can [chain](#chaining) actions. Make sure you call `perform()` at the end.
+
+The `move()` method has two forms. You can pass 2 integers as the `x` and `y` co-ordinates or you can pass the [locator](#locators) string of the element to move to.
+
+```cucumber
+  * mouse().move(100, 200).perform()
+  * mouse().move('#eg02RightDivId').click().perform()
+  * mouse().down().move('#eg02LeftDivId').up().perform()
 ```
 
 ## `close()`
@@ -639,22 +662,22 @@ And assert waitUntil('#eg01WaitId', '!_.disabled')
 Also see the examples for [chaining](#chaining).
 
 ## `retry()`
-For tests that need to wait for slow pages or for handling un-predictable element loading times, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
+For tests that need to wait for slow pages or deal with un-predictable element load-times or state / visibility changes, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
 
 * the [default retry settings](https://github.com/intuit/karate#retry-until) are
-  * `count`: 3, `interval`: 3000 milliseconds
-  * it is recommended you stick to these, which should suffice for most applications
+  * `count`: 3, `interval`: 3000 milliseconds (try three times, and wait for 3 seconds before the next re-try attempt)
+  * it is recommended you stick to these defaults, which should suffice for most applications
   * if you really want, you can change this "globally" like this:
     * `configure('retry', { count: 10, interval: 5000 });` in [`karate-config.js`](https://github.com/intuit/karate#configuration)
-    * or *any time* within a script like this: `* configure retry = { count: 10, interval: 5000 }`
-* by default any actions such as `click()` will *not* be re-tried and this is what you need most of the time for tests that run smoothly and *quickly*
-  * but some troublesome parts of your flow will require re-tries and this is where the `retry()` API comes in
+    * or *any time* within a script (`*.feature` file) like this: `* configure retry = { count: 10, interval: 5000 }`
+* by default, all actions such as `click()` will *not* be re-tried, and this is what you would stick to most of the time - for tests that run smoothly and *quickly*
+  * but some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in
   * there are 3 forms:
     * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
-    * `retry(count)` - the next action will *temporarily* use the `count` provided as the limit for retry-attempts
+    * `retry(count)` - the next action will *temporarily* use the `count` provided, as the limit for retry-attempts
     * `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
 
-And since you can [chain](#chaining) the `retry()` API, you can have tests that clearly express the "*intent to wait*". This results in easily understandable one-liners - *only* at the point of need:
+And since you can [chain](#chaining) the `retry()` API, you can have tests that clearly express the "*intent to wait*". This results in easily understandable one-liners, *only* at the point of need:
 
 ```cucumber
 * retry().click('#someButton')
@@ -797,12 +820,6 @@ If you want to disable the "auto-embedding" into the HTML report, pass an additi
 * screenshot('#someDiv', false)
 ```
 
-## `screenshotFull()`
-Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
-
-## `pdf()`
-Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
-
 ## `highlight()`
 To visually highlight an element in the browser, especially useful when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
 
@@ -813,16 +830,16 @@ To visually highlight an element in the browser, especially useful when working 
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project is of the opinion that things can be made simpler.
 
-One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or getting the value of some HTML object. In Karate these are typically *one-liners*. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not - results in hard to maintain code, and severely impacts *readability*.
+One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or retrieving the value of some HTML object / property. In Karate - these are typically *one-liners*. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not - results in hard-to-maintain code, and severely impacts *readability*.
 
-That said, there is some benefit to re-using [locators](#locators) and Karate's support for [JSON](https://github.com/intuit/karate#json) and [reading files](https://github.com/intuit/karate#reading-files) turns out to be a great way to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
+That said, there is some benefit to re-use of just [locators](#locators) and Karate's support for [JSON](https://github.com/intuit/karate#json) and [reading files](https://github.com/intuit/karate#reading-files) turns out to be a great way to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
 
-First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators) (identified by the "prefix") into this map. Also note that this is *pure JSON* which means that you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness.
+First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators), because they are all just string-values that behave differently depending on whether the first character is a "`/`" (XPath) or not (CSS). Also note that this is *pure JSON* which means that you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness. And you can have a "nested" heirarchy, which means you can neatly "name-space" your locator reference look-ups - as you will see later.
 
 ```json
 {
   "testAccounts": {
-    "numTransactions": "input[name='numTransactions']",
+    "numTransactions": "input[name=numTransactions]",
     "submit": "#submitButton"
   },
   "leftNav": {
@@ -845,9 +862,9 @@ Karate has [great options for re-usability](https://github.com/intuit/karate#cal
 * call read 'locators.json'
 ```
 
-> For those who are wondering how this works behind the scenes, since `read` refers to the [`read()`](https://github.com/intuit/karate#reading-files) function, the behavior of [`call`](https://github.com/intuit/karate#calling-javascript-functions) is that it will *invoke* the function *and* use what comes after it as the solitary function argument. And here, this is [shared scope](https://github.com/intuit/karate#shared-scope).
-
 This looks deceptively simple, but what happens is very interesting. It will inject all top-level "keys" of the JSON file into the Karate "context" as global [variables](https://github.com/intuit/karate#def). In normal programming languages, global variables are a *bad thing*, but for test-automation (when you know what you are doing) - this can be *really* convenient.
+
+> For those who are wondering how this works behind the scenes, since `read` refers to the [`read()`](https://github.com/intuit/karate#reading-files) function, the behavior of [`call`](https://github.com/intuit/karate#calling-javascript-functions) is that it will *invoke* the function *and* use what comes after it as the solitary function argument. And this `call` is using [shared scope](https://github.com/intuit/karate#shared-scope).
 
 So now you have `testAccounts`, `leftNav` and `transactions` as variables, and you have a nice "name-spacing" of locators to refer to - within your different feature files:
 
@@ -860,10 +877,10 @@ So now you have `testAccounts`, `leftNav` and `transactions` as variables, and y
 * retry().input(transactions.descriptionInput, 'test')
 ```
 
-So this is how you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself (probably depending on the size of your test-automation team) if this leads to any appreciable benefits, because the down-side is that you need to start switching between 2 files - to write and maintain tests.
+So this is how you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself (probably depending on the size of your test-automation team) if this leads to any appreciable benefits, because the down-side is that you need to keep switching between 2 files - when writing and maintaining tests.
 
 # Chrome Java API
-Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF or taking a screenshot of a page. You only need the [`karate-core`](https://search.maven.org/search?q=a:karate-core) Maven artifact. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
+Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. You only need the [`karate-core`](https://search.maven.org/search?q=a:karate-core) Maven artifact. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 
 ```java
 import com.intuit.karate.FileUtils;
@@ -888,12 +905,26 @@ public class Test {
 }
 ```
 
-Note that in addition to `driver.screenshot()` there is a `driver.screenshotFull()` API that will attempt to capture the whole "scrolled" page, not just the part visible in the viewport.
+Note that in addition to `driver.screenshot()` there is a `driver.screenshotFull()` API that will attempt to capture the whole "scrollable" page area, not just the part currently visible in the viewport.
 
 The parameters that you can optionally customize via the `Map` argument to the `pdf()` method are documented here: [`Page.printToPDF
 `](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF).
 
-If Chrome is not installed in the default location, you can pass a String argument like this: `Chrome.startHeadless(executable)` or `Chrome.start(executable)`. For more control or custom options, the `start()` method takes a `Map<String, Object>` argument where the following keys (all optional) are supported:
+If Chrome is not installed in the default location, you can pass a String argument like this:
+
+```java
+Chrome.startHeadless(executable)
+// or
+Chrome.start(executable)
+```
+
+For more control or custom options, the `start()` method takes a `Map<String, Object>` argument where the following keys (all optional) are supported:
 * `executable` - (String) path to the Chrome executable or batch file that starts Chrome
 * `headless` - (Boolean) if headless
 * `maxPayloadSize` - (Integer) defaults to 4194304 (bytes, around 4 MB), but you can override it if you deal with very large output / binary payloads
+
+## `screenshotFull()`
+Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api). This will snapshot the entire page, not just what is visible in the viewport.
+
+## `pdf()`
+Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).

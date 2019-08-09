@@ -64,6 +64,9 @@ public abstract class DevToolsDriver implements Driver {
 
     protected String currentUrl;
     protected String currentDialogText;
+    protected int currentMouseXpos;
+    protected int currentMouseYpos;
+    
     private int nextId;
 
     public int nextId() {
@@ -462,6 +465,58 @@ public abstract class DevToolsDriver implements Driver {
             }
         }
         return element(locator, true);
+    }
+
+    @Override
+    public void actions(List<Map<String, Object>> sequence) {
+        for (Map<String, Object> map : sequence) {
+            List<Map<String, Object>> actions = (List) map.get("actions");
+            if (actions == null) {
+                logger.warn("no actions property found: {}", sequence);
+                return;
+            }
+            for (Map<String, Object> action : actions) {
+                String type = (String) action.get("type");
+                if (type == null) {
+                    logger.warn("no type property found: {}", action);
+                    continue;
+                }
+                String chromeType;                
+                switch (type) {
+                    case "pointerMove":
+                        chromeType = "mouseMoved";
+                        break;
+                    case "pointerDown":
+                        chromeType = "mousePressed";
+                        break;
+                    case "pointerUp":
+                        chromeType = "mouseReleased";
+                        break;
+                    default:
+                        chromeType = null;
+
+                }
+                if (chromeType == null) {
+                    logger.warn("unexpected action type: {}", action);
+                    continue;
+                }
+                Integer x = (Integer) action.get("x");
+                Integer y = (Integer) action.get("y");
+                if (x != null) {
+                    currentMouseXpos = x;
+                }
+                if (y != null) {
+                    currentMouseYpos = y;
+                }                
+                DevToolsMessage toSend = method("Input.dispatchMouseEvent")
+                        .param("type", chromeType)
+                        .param("x", currentMouseXpos).param("y", currentMouseYpos);
+                if ("mousePressed".equals(chromeType) || "mouseReleased".equals(chromeType)) {
+                    toSend.param("button", "left").param("clickCount", 1);                    
+                }
+                toSend.send();
+            }
+        }
     }
 
     @Override

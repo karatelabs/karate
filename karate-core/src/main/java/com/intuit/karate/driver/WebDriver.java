@@ -264,6 +264,11 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
+    public void actions(List<Map<String, Object>> actions) {
+        http.path("actions").post(Collections.singletonMap("actions", actions));
+    }        
+
+    @Override
     public void close() {
         http.path("window").delete();
         open = false;

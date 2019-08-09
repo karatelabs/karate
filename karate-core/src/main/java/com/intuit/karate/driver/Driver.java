@@ -122,20 +122,7 @@ public interface Driver {
     }
 
     // element actions =========================================================
-    default Element element(String locator, boolean exists) {
-        return new DriverElement(this, locator, exists ? true : null);
-    }
-
-    default Element scroll(String locator) {
-        script(locator, DriverOptions.SCROLL_JS_FUNCTION);
-        return element(locator, true);
-    }
-
-    default Element highlight(String locator) {
-        script(getOptions().highlighter(locator));
-        return element(locator, true);
-    }
-
+    //
     Element focus(String locator);
 
     Element clear(String locator);
@@ -161,6 +148,30 @@ public interface Driver {
     default Element waitUntil(String locator, String expression) {
         return getOptions().waitUntil(this, locator, expression);
     }
+    
+    default Element element(String locator, boolean exists) {
+        return new DriverElement(this, locator, exists ? true : null);
+    }
+
+    default Element scroll(String locator) {
+        script(locator, DriverOptions.SCROLL_JS_FUNCTION);
+        return element(locator, true);
+    }
+
+    default Element highlight(String locator) {
+        script(getOptions().highlighter(locator));
+        return element(locator, true);
+    }
+
+    default Mouse mouse() {
+        return new Mouse(this);
+    }
+    
+    default Keys keys() {
+        return new Keys(this);
+    }
+    
+    void actions(List<Map<String, Object>> actions);
 
     // element state ===========================================================
     //
