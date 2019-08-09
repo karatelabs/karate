@@ -204,8 +204,8 @@ public abstract class DevToolsDriver implements Driver {
         return dtm;
     }
 
-    protected void waitIfNeeded(String locator) {
-        if (options.isWaitRequested()) {
+    protected void retryIfEnabled(String locator) {
+        if (options.isRetryEnabled()) {
             waitFor(locator); // will throw exception if not found
         }
     }
@@ -375,21 +375,21 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Element click(String locator) {
-        waitIfNeeded(locator);
+        retryIfEnabled(locator);
         eval(options.selector(locator) + ".click()");
         return element(locator, true);
     }
 
     @Override
     public Element select(String locator, String text) {
-        waitIfNeeded(locator);
+        retryIfEnabled(locator);
         eval(options.optionSelector(locator, text));
         return element(locator, true);
     }
 
     @Override
     public Element select(String locator, int index) {
-        waitIfNeeded(locator);
+        retryIfEnabled(locator);
         eval(options.optionSelector(locator, index));
         return element(locator, true);
     }
@@ -402,7 +402,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Element focus(String locator) {
-        waitIfNeeded(locator);
+        retryIfEnabled(locator);
         eval(options.selector(locator) + ".focus()");
         return element(locator, true);
     }
@@ -436,7 +436,7 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Element input(String locator, String value) {
-        waitIfNeeded(locator);
+        retryIfEnabled(locator);
         // focus
         eval(options.selector(locator) + ".focus()");
         Input input = new Input(value);
@@ -495,28 +495,28 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Element value(String locator, String value) {
-        waitIfNeeded(locator);
+        retryIfEnabled(locator);
         eval(options.selector(locator) + ".value = '" + value + "'");
         return element(locator, true);
     }
 
     @Override
     public String attribute(String id, String name) {
-        waitIfNeeded(id);
+        retryIfEnabled(id);
         DevToolsMessage dtm = eval(options.selector(id) + ".getAttribute('" + name + "')");
         return dtm.getResult().getAsString();
     }
 
     @Override
     public String property(String id, String name) {
-        waitIfNeeded(id);
+        retryIfEnabled(id);
         DevToolsMessage dtm = eval(options.selector(id) + "['" + name + "']");
         return dtm.getResult().getAsString();
     }
 
     @Override
     public boolean enabled(String id) {
-        waitIfNeeded(id);
+        retryIfEnabled(id);
         DevToolsMessage dtm = eval(options.selector(id) + ".disabled");
         return !dtm.getResult().isBooleanTrue();
     }
@@ -728,7 +728,7 @@ public abstract class DevToolsDriver implements Driver {
             sessionId = null;
             return;
         }
-        waitIfNeeded(locator);
+        retryIfEnabled(locator);
         Integer nodeId = elementId(locator);
         if (nodeId == null) {
             return;

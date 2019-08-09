@@ -26,7 +26,8 @@ With the help of the community, we would like to try valiantly - to see if we ca
 <tr>
   <th>Config</th>
   <td>
-      <a href="#configure-driver"><code>configure driver</code></a>
+      <a href="#driver"><code>driver</code></a>
+    | <a href="#configure-driver"><code>configure driver</code></a>
     | <a href="#configure-drivertarget"><code>configure driverTarget</code></a>
     | <a href="#karate-chrome">Docker / <code>karate-chrome</code></a>
     | <a href="#driver-types">Driver Types</a>  
@@ -34,10 +35,9 @@ With the help of the community, we would like to try valiantly - to see if we ca
 </tr>
 <tr>
   <th>Concepts</th>
-  <td>    
-      <a href="#driver"><code>driver</code></a>
-    | <a href="#locators">Locators</a>
-    | <a href="#js-api">JS API</a> 
+  <td>          
+      <a href="#locators">Locators</a>
+    | <a href="#js-api">JS API</a>
     | <a href="#special-keys">Special Keys</a>
     | <a href="#short-cuts">Short Cuts</a>
     | <a href="#chaining">Chaining</a>
@@ -191,7 +191,7 @@ key | description
 `executable` | if present, Karate will attempt to invoke this, if not in the system `PATH`, you can use a full-path instead of just the name of the executable. batch files should also work
 `start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
-`headless` | only applies to `type: 'chrome'` for now
+`headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` for now, also see [`DockerTarget`](#dockertarget)
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
@@ -224,7 +224,7 @@ Combined with Docker, headless Chrome and Karate's parallel-execution capability
 ### `DockerTarget`
 Karate has a built-in implementation for Docker ([`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java)) that supports 2 existing Docker images out of the box:
 
-* [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) - for Chrome "native" in headless mode
+* [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/) - for Chrome "native" in [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome)
 * [`ptrthomas/karate-chrome`](#karate-chrome) - for Chrome "native" but with an option to connect to the container and view via VNC, and with video-recording
 
 To use either of the above, you do this in a Karate test:
@@ -382,10 +382,26 @@ And match driver.location contains 'page-01'
 When driver.location = webUrlBase + '/page-02'
 ```
 ### Chaining
-All the methods that return a [`Driver`](src/main/java/com/intuit/karate/driver/Driver.java) or [`Element`](src/main/java/com/intuit/karate/driver/Element.java) are "chain-able" which means you can combine them to signal certain types of "intent" for example to [`retry()`](#retry) until an HTML element is present:
+All the methods that return a [`Driver`](src/main/java/com/intuit/karate/driver/Driver.java) or [`Element`](src/main/java/com/intuit/karate/driver/Element.java) are "chain-able" which means you can combine them to concisely express certain types of "intent" - without having to repeat the [locator](#locators).
+
+For example, to [`retry()`](#retry) until an HTML element is present and then [`click()`](#click) it:
 
 ```cucumber
+# retry returns a "Driver" instance
 * retry().click('#someId')
+```
+
+Or to [wait until](#waituntil) a button is enabled using the default retry configuration:
+
+```cucumber
+# waitUntil returns an "Element" instance
+# waitUntil('#someBtn', '!_.disabled').click()
+```
+
+Or to temporarily [over-ride the retry configuration](#retry) *and* wait:
+
+```cucumber
+* retry(5, 10000).waitUntil('#someBtn', '!_.disabled').click()
 ```
 
 # Syntax
@@ -577,9 +593,11 @@ And retry().click('#eg01WaitId')
 ```
 
 ## `waitForAny()`
-Rarely used - but accepts var-arg / multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the locator String of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
+Rarely used - but accepts var-arg / multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the [`Element`](#chaining) representation of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
 
-But - since the [`exists()`](#exists) API is designed to handle the case when a given [locator](#locators) does *not* exist, you can write some very concise tests ! Here is a real-life example:
+But since the [`exists()`](#exists) API is designed to handle the case when a given [locator](#locators) does *not* exist, you can write some very concise tests, *without* needing to examine the returned object from `waitForAny()`.
+
+Here is a real-life example combined with the use of [`retry()`](#retry):
 
 ```cucumber
 * retry(5, 10000).waitForAny('#nextButton', '#randomButton')
@@ -618,6 +636,8 @@ And assert waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
 And assert waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
+Also see the examples for [chaining](#chaining).
+
 ## `retry()`
 For tests that need to wait for slow pages or for handling un-predictable element loading times, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
 
@@ -641,6 +661,8 @@ And since you can [chain](#chaining) the `retry()` API, you can have tests that 
 * retry(5).input('#someTxt', 'hello')
 * retry(3, 10000).waitUntil('#reallySlowButton', '!_.disabled')
 ```
+
+Also see the examples for [chaining](#chaining).
 
 ## `script()`
 Will actually attempt to evaluate the given string as JavaScript within the browser.

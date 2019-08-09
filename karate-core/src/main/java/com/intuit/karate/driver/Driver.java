@@ -24,8 +24,6 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.Logger;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -106,20 +104,15 @@ public interface Driver {
     Driver submit();
 
     default Driver retry() {
-        getOptions().setWaitRequested(true);
-        return this;
+        return retry(null, null);
     }
 
     default Driver retry(int count) {
         return retry(count, null);
     }
 
-    default Driver retry(int count, Integer interval) {
-        getOptions().setWaitRequested(true);
-        getOptions().setRetryCount(count);
-        if (interval != null) {
-            getOptions().setRetryInterval(interval);
-        }
+    default Driver retry(Integer count, Integer interval) {
+        getOptions().enableRetry(count, interval);
         return this;
     }
 
@@ -162,48 +155,11 @@ public interface Driver {
     }
 
     default Element waitForAny(String... locators) {
-        long startTime = System.currentTimeMillis();
-        List<String> list = Arrays.asList(locators);
-        Iterator<String> iterator = list.iterator();
-        StringBuilder sb = new StringBuilder();
-        while (iterator.hasNext()) {
-            String locator = iterator.next();
-            String js = getOptions().selector(locator);
-            sb.append("(").append(js).append(" != null)");
-            if (iterator.hasNext()) {
-                sb.append(" || ");
-            }
-        }
-        boolean found = waitUntil(sb.toString());
-        // important: un-set the wait flag        
-        getOptions().setWaitRequested(false);
-        if (!found) {
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            throw new RuntimeException("wait failed for: " + list + " after " + elapsedTime + " milliseconds");
-        }
-        if (locators.length == 1) {
-            return element(locators[0], true);
-        }
-        for (String locator : locators) {
-            Element temp = exists(locator);
-            if (temp.isExists()) {
-                return temp;
-            }
-        }
-        // this should never happen
-        throw new RuntimeException("unexpected wait failure for locators: " + list);
+        return getOptions().waitForAny(this, locators);
     }
 
     default Element waitUntil(String locator, String expression) {
-        long startTime = System.currentTimeMillis();
-        String js = getOptions().selectorScript(locator, expression);
-        boolean found = waitUntil(js);
-        if (!found) {
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            throw new RuntimeException("wait failed for: " + locator
-                    + " and condition: " + expression + " after " + elapsedTime + " milliseconds");
-        }
-        return element(locator, true);
+        return getOptions().waitUntil(this, locator, expression);
     }
 
     // element state ===========================================================
@@ -221,14 +177,7 @@ public interface Driver {
     boolean enabled(String locator);
 
     default Element exists(String locator) {
-        String js = getOptions().selector(locator);
-        String evalJs = js + " != null";
-        Object o = script(evalJs);
-        if (o instanceof Boolean && (Boolean) o) {
-            return element(locator, true);
-        } else {
-            return new MissingElement(locator);
-        }
+        return getOptions().exists(this, locator);
     }
 
     Map<String, Object> position(String locator);

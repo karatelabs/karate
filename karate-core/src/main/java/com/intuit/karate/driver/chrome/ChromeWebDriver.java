@@ -116,7 +116,7 @@ public class ChromeWebDriver extends WebDriver {
             http.path("frame", "parent").post("{}");
             return;
         }
-        waitIfNeeded(locator, () -> {
+        retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             http.path("frame").post(getJsonForFrame(id));
             return null;

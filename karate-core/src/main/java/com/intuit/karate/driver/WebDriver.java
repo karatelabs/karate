@@ -66,8 +66,8 @@ public abstract class WebDriver implements Driver {
         this.windowId = windowId;
     }
 
-    protected <T> T waitIfNeeded(String locator, Supplier<T> action) {
-        if (options.isWaitRequested()) {
+    protected <T> T retryIfEnabled(String locator, Supplier<T> action) {
+        if (options.isRetryEnabled()) {
             waitFor(locator); // will throw exception if not found
         }
         String before = options.getSubmitTarget();
@@ -218,12 +218,12 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element focus(String locator) {
-        return waitIfNeeded(locator, () -> eval(locator, options.selector(locator) + ".focus()"));
+        return retryIfEnabled(locator, () -> eval(locator, options.selector(locator) + ".focus()"));
     }
 
     @Override
     public Element clear(String locator) {
-        return waitIfNeeded(locator, () -> {
+        return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             http.path("element", id, "clear").post("{}");
             return element(locator, true);
@@ -232,7 +232,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element input(String locator, String value) {
-        return waitIfNeeded(locator, () -> {
+        return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             http.path("element", id, "value").post(getJsonForInput(value));
             return element(locator, true);
@@ -241,7 +241,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element click(String locator) {
-        return waitIfNeeded(locator, () -> eval(locator, options.selector(locator) + ".click()"));        
+        return retryIfEnabled(locator, () -> eval(locator, options.selector(locator) + ".click()"));        
         // the spec is un-reliable :(
         // String id = get(locator);
         // http.path("element", id, "click").post("{}");        
@@ -255,12 +255,12 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element select(String locator, String text) {
-        return waitIfNeeded(locator, () -> eval(locator, options.optionSelector(locator, text)));
+        return retryIfEnabled(locator, () -> eval(locator, options.optionSelector(locator, text)));
     }
 
     @Override
     public Element select(String locator, int index) {
-        return waitIfNeeded(locator, () -> eval(locator, options.optionSelector(locator, index)));
+        return retryIfEnabled(locator, () -> eval(locator, options.optionSelector(locator, index)));
     }
 
     @Override
@@ -297,7 +297,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String text(String locator) {
-        return waitIfNeeded(locator, () -> {
+        return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             return http.path("element", id, "text").get().jsonPath("$.value").asString();
         });
@@ -310,12 +310,12 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element value(String locator, String value) {
-        return waitIfNeeded(locator, () -> eval(locator, options.selector(locator) + ".value = '" + value + "'"));
+        return retryIfEnabled(locator, () -> eval(locator, options.selector(locator) + ".value = '" + value + "'"));
     }
 
     @Override
     public String attribute(String locator, String name) {
-        return waitIfNeeded(locator, () -> {
+        return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
         });
@@ -323,7 +323,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String property(String locator, String name) {
-        return waitIfNeeded(locator, () -> {
+        return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
         });
@@ -331,7 +331,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Map<String, Object> position(String locator) {
-        return waitIfNeeded(locator, () -> {
+        return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             return http.path("element", id, "rect").get().jsonPath("$.value").asMap();
         });
@@ -339,7 +339,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public boolean enabled(String locator) {
-        return waitIfNeeded(locator, () -> {
+        return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();
         });
@@ -432,7 +432,7 @@ public abstract class WebDriver implements Driver {
         if (locator == null) {
             temp = http.path("screenshot").get().jsonPath("$.value").asString();
         } else {
-            temp = waitIfNeeded(locator, () -> {
+            temp = retryIfEnabled(locator, () -> {
                 String id = elementId(locator);
                 return http.path("element", id, "screenshot").get().jsonPath("$.value").asString();
             });
@@ -485,7 +485,7 @@ public abstract class WebDriver implements Driver {
             http.path("frame", "parent").post("{}");
             return;
         }
-        waitIfNeeded(locator, () -> {
+        retryIfEnabled(locator, () -> {
             String frameId = elementId(locator);
             if (frameId == null) {
                 return null;

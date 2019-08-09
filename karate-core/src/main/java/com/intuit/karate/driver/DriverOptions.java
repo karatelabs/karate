@@ -45,8 +45,10 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,7 +84,6 @@ public class DriverOptions {
     public final Target target;
 
     // mutable during a test
-    private boolean waitRequested;
     private Integer retryInterval = null;
     private Integer retryCount = null;
     private String submitTarget = null;
@@ -102,20 +103,8 @@ public class DriverOptions {
         return context;
     }
 
-    public boolean isWaitRequested() {
-        return waitRequested;
-    }
-
-    public void setWaitRequested(boolean waitRequested) {
-        this.waitRequested = waitRequested;
-    }
-
-    public void setRetryInterval(Integer retryInterval) {
-        this.retryInterval = retryInterval;
-    }
-
-    public void setRetryCount(Integer retryCount) {
-        this.retryCount = retryCount;
+    public boolean isRetryEnabled() {
+        return retryCount != null;
     }
 
     public String getSubmitTarget() {
@@ -396,6 +385,72 @@ public class DriverOptions {
     static {
         for (Method m : Driver.class.getDeclaredMethods()) {
             DRIVER_METHOD_NAMES.add(m.getName());
+        }
+    }
+
+    public void disableRetry() {
+        retryCount = null;
+        retryInterval = null;
+    }
+
+    public void enableRetry(Integer count, Integer interval) {
+        retryCount = count; // can be null
+        retryInterval = interval; // can be null
+    }
+
+    public Element waitUntil(Driver driver, String locator, String expression) {
+        long startTime = System.currentTimeMillis();
+        String js = selectorScript(locator, expression);
+        boolean found = driver.waitUntil(js);
+        if (!found) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            throw new RuntimeException("wait failed for: " + locator
+                    + " and condition: " + expression + " after " + elapsedTime + " milliseconds");
+        }
+        return driver.element(locator, true);
+    }
+
+    public Element waitForAny(Driver driver, String... locators) {
+        long startTime = System.currentTimeMillis();
+        List<String> list = Arrays.asList(locators);
+        Iterator<String> iterator = list.iterator();
+        StringBuilder sb = new StringBuilder();
+        while (iterator.hasNext()) {
+            String locator = iterator.next();
+            String js = selector(locator);
+            sb.append("(").append(js).append(" != null)");
+            if (iterator.hasNext()) {
+                sb.append(" || ");
+            }
+        }
+        boolean found = driver.waitUntil(sb.toString());
+        // important: un-set the retry flag        
+        disableRetry();
+        if (!found) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            throw new RuntimeException("wait failed for: " + list + " after " + elapsedTime + " milliseconds");
+        }
+        if (locators.length == 1) {
+            return driver.element(locators[0], true);
+        }
+        for (String locator : locators) {
+            Element temp = driver.exists(locator);
+            if (temp.isExists()) {
+                return temp;
+            }
+        }
+        // this should never happen
+        throw new RuntimeException("unexpected wait failure for locators: " + list);
+    }
+
+    public Element exists(Driver driver, String locator) {
+        String js = selector(locator);
+        String evalJs = js + " != null";
+        Object o = driver.script(evalJs);
+        if (o instanceof Boolean && (Boolean) o) {
+            return driver.element(locator, true);
+        } else {
+            return new MissingElement(locator);
         }
     }
 
