@@ -127,6 +127,7 @@
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar)
 * No need to learn complicated programming concepts such as "callbacks" and "`await`"
+* Option to use [wildcard locators](#wildcard-locators) without needing to know CSS class-names or the detailed XPath structure
 * Direct-to-Chrome automation using the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
@@ -143,7 +144,7 @@
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
 * Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
 * Detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
-* Convert HTML to PDF and even capture the *entire* (scrollable) web-page as an image using [Chrome Java API](#chrome-java-api)
+* Convert HTML to PDF and capture the *entire* (scrollable) web-page as an image using the [Chrome Java API](#chrome-java-api)
 
 # Examples
 ## Web Browser
@@ -323,8 +324,8 @@ platform | prefix | means | example
 ----- | ------ | ----- | -------
 web | (none) | css selector | `input[name=someName]`
 web <br/> android <br/> ios | `/` | xpath | `//input[@name='commit']`
-web | `^` | link text | `^Click Me`
-web | `*` | partial link text | `*Click Me`
+web | `^` | [exact text content](#wildcard-locators) | `^Click Me`
+web | `*` | [partial text content](#wildcard-locators) | `*Click Me`
 win <br/> android <br/> ios| (none) | name | `Submit`
 win <br/> android <br/> ios | `@` | accessibility id | `@CalculatorResults`
 win <br/> android <br/> ios | `#` | id | `#MyButton`
@@ -340,14 +341,14 @@ This can be a lot simpler than trying to understand the internal CSS class-names
 Locator | Description
 ------- | -----------
 `click('^Click Me')` | the first HTML element (of *any* tag name) where the text-content is *exactly*: `Click Me`
-`click('*(span)Click Me')` | the first `<span>` where the text-content *contains*: `Click Me`
-`click('^(div:1)Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
-`click('^(span/a)Click Me')` | the first `<a>` immediately nested under a `<span>` where the text-content is *exactly*: `Click Me`
-`click('*(:3)Click Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Click Me`
+`click('*{span}Click Me')` | the first `<span>` where the text-content *contains*: `Click Me`
+`click('^{div:1}Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
+`click('^{span/a}Click Me')` | the first `<a>` immediately nested under a `<span>` where the text-content is *exactly*: `Click Me`
+`click('*{:3}Click Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Click Me`
 
-You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to use the "scope modifier" (in round brackets) only for "de-duping" when the same *user-facing* text appears multiple times on a page.
+You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to use the "scope modifier" (in curly braces) only for "de-duping" when the same *user-facing* text appears multiple times on a page.
 
-> In case the text you are searching for begins with a "`(`" - you can do this: `click('^()(click me)')`
+> In case the text you are searching for begins with a "`{`" - you can do this: `click('^{}{click me}')`
 
 # Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.

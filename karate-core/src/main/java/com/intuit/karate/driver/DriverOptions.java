@@ -225,11 +225,11 @@ public class DriverOptions {
         final int index;
         final String text;
 
-        TagIndex(String locator) { // "^foo", "*(:1)foo", "^(div)foo", "*(div/p:5)foo", "^()(click)"
+        TagIndex(String locator) { // "^foo", "*{:1}foo", "^{div}foo", "*{div/p:5}foo", "^{}{click me}"
             locator = locator.substring(1).trim();
             String prefix;
-            if (locator.charAt(0) == '(') {
-                int pos = locator.indexOf(')');
+            if (locator.charAt(0) == '{') {
+                int pos = locator.indexOf('}');
                 if (pos == -1) {
                     throw new RuntimeException("bad locator prefix: " + locator);
                 }
