@@ -148,7 +148,7 @@ public interface Driver {
     default Element waitUntil(String locator, String expression) {
         return getOptions().waitUntil(this, locator, expression);
     }
-    
+
     default Element element(String locator, boolean exists) {
         return new DriverElement(this, locator, exists ? true : null);
     }
@@ -166,15 +166,19 @@ public interface Driver {
     default Mouse mouse() {
         return new Mouse(this);
     }
-    
+
     default Mouse mouse(String locator) {
         return new Mouse(this).move(locator);
-    }    
-    
+    }
+
+    default Mouse mouse(int x, int y) {
+        return new Mouse(this).move(x, y);
+    }
+
     default Keys keys() {
         return new Keys(this);
     }
-    
+
     void actions(List<Map<String, Object>> actions);
 
     // element state ===========================================================

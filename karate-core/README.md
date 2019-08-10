@@ -1,18 +1,7 @@
 # Karate Driver
 ## UI Test Automation Made `Simple.`
 
-## Introduction
-> This is new, and this first version 0.9.5 should be considered *BETA*.
-
-Especially after [the Gherkin parser and execution engine were re-written from the ground-up](https://github.com/intuit/karate/issues/444#issuecomment-406877530), Karate is arguably a mature framework that elegantly solves quite a few test-automation engineering challenges - with capabilities such as [parallel execution](https://twitter.com/KarateDSL/status/1049321708241317888), [data-driven testing](https://github.com/intuit/karate#data-driven-tests), [environment-switching](https://github.com/intuit/karate#switching-the-environment), [powerful assertions](https://github.com/intuit/karate#contains-short-cuts), and an [innovative UI for debugging](https://twitter.com/KarateDSL/status/1065602097591156736).
-
-Which led us to think, what if we could add UI automation without disturbing the core HTTP API testing capabilities. So we gave it a go, and we are releasing the results so far as this experimental version.
-
-Please do note: this is work in progress and all actions needed for test-automation may not be in-place. But we hope that releasing this sooner would result in more users trying this in a variety of environments. And that they provide valuable feedback and even contribute code where possible.
-
-We know too well that UI automation is hard to get right and suffers from 2 big challenges, what we like to call the "*flaky test*" problem and the "*wait for UI element*" problem.
-
-With the help of the community, we would like to try valiantly - to see if we can get close to as ideal a state a possible. So wish us luck !
+> This is new, and this first version 0.9.X should be considered *BETA*.
 
 # Index
 
@@ -133,17 +122,27 @@ With the help of the community, we would like to try valiantly - to see if we ca
 
 ## Capabilities
 
-* Direct-to-Chrome automation using the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
-* [W3C WebDriver](https://w3c.github.io/webdriver/) support
+* Simple, clean syntax that is well suited for people new to programming or test-automation
+* All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reporting](https://github.com/intuit/karate#junit-html-report), config and [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
+* Cross-platform with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar)
+* No need to learn complicated programming concepts such as "callbacks" and "`await`"
+* Direct-to-Chrome automation using the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
+* [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
-* WebDriver support without any intermediate server
-* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI platform or [Docker](#configure-drivertarget) without any intermediate server or "grid" setup
+* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) without needing a "master node" or "grid" setup
+* Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
-* Android and iOS mobile support via [Appium](http://appium.io), see [details](https://github.com/intuit/karate/issues/743)
-* Karate can start the executable (WebDriver / Chrome, WinAppDriver, Appium Server) automatically for you
-* Seamlessly mix API and UI tests within the same script
-* Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI element assertions
-* Simple [retry and polling](#retry) based "wait" strategy - no need to wrestle with esoteric concepts such as "implicit waits"
+* [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
+* Karate can start the executable (WebDriver / Chrome, WinAppDriver) automatically for you
+* Seamlessly mix API and UI tests within the same script, for example sign-in using an API and speed-up your tests
+* Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
+* Simple [retry and polling](#retry) based "wait" strategy - no need to wade through esoteric concepts such as "implicit waits"
+* Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
+* Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action - which should wait for a new page to load
+* Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
+* Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
+* Detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
+* Convert HTML / web-pages to PDF and even capture the *entire* (scrollable) web-page as an image using the [Chrome Java API](#chrome-java-api)
 
 # Examples
 ## Web Browser
@@ -336,11 +335,20 @@ android| `-` | -android uiautomator | `-input[name=someName]`
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
 ## `driver`
-Navigate to a web-address and initializes the `driver` instance for future step operations as per what is [configured](#configure-driver). And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [`karate-config.js`](https://github.com/intuit/karate#configuration). For example:
+Navigates to a new page / address. If this is the first instance in a test, this step also initializes the [`driver`](#syntax) instance for future step operations as per what is [configured](#configure-driver).
 
 ```cucumber
-Given driver webUrlBase + '/page-01'
+Given driver 'https://github.com/login'
 ```
+
+And yes, you can use [variable expressions](https://github.com/intuit/karate#karate-expressions) from [`karate-config.js`](https://github.com/intuit/karate#configuration). For example:
+
+```cucumber
+* driver webUrlBase + '/page-01'
+```
+
+> As seen above, you don't have to force all your steps to use the `Given`, `When`, `Then` BDD convention, and you can [just use "`*`" instead](https://github.com/intuit/karate#given-when-then).
+
 ### `driver` JSON
 A variation where the argument is JSON instead of a URL / address-string, used only if you are testing a desktop (or mobile) application, and for Windows, you can provide the `app`, `appArguments` and other parameters expected by the [WinAppDriver](https://github.com/Microsoft/WinAppDriver). For example:
 
@@ -350,8 +358,6 @@ Given driver { app: 'Microsoft.WindowsCalculator_8wekyb3d8bbwe!App' }
 
 # Syntax
 The built-in `driver` JS object is where you script UI automation. It will be initialized only after the [`driver`](#driver) keyword has been used to navigate to a web-page (or application).
-
-Behind the scenes this does an [`eval`](https://github.com/intuit/karate#eval) - and you can omit the `eval` keyword when calling a method (or setting a property) on it.
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
@@ -382,6 +388,9 @@ You should prefer this form, which is more readable:
 And match driver.location contains 'page-01'
 When driver.location = webUrlBase + '/page-02'
 ```
+
+Note that to navigate to a new address you can use [`driver`](#driver) - which is more concise.
+
 ### Chaining
 All the methods that return the following Java object types are "chain-able". This means that you can combine them to concisely express certain types of "intent" - without having to repeat the [locator](#locators).
 
@@ -412,7 +421,7 @@ Or to temporarily [over-ride the retry configuration](#retry) *and* wait:
 Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a click:
 
 ```cucumber
-  * mouse().move(100, 200).click().perform()
+  * mouse(100, 200).click()
 ```
 
 # Syntax
@@ -423,7 +432,8 @@ Get the current URL / address for matching. Example:
 Then match driver.location == webUrlBase + '/page-02'
 ```
 
-This can also be used as a "setter": 
+This can also be used as a "setter" to navigate to a new URL *during* a test. But always use the [`driver`](#driver) keyword when you *start* a test and you can choose to prefer that shorter form in general.
+
 ```cucumber
 * driver.location = 'http://localhost:8080/test'
 ```
@@ -486,6 +496,8 @@ When submit().input('#someform', Key.ENTER)
 
 Karate will do the best it can to detect a page change and wait for the load to complete before proceeding to *any* step that follows.
 
+You can even mix this into [`mouse()`](#mouse) actions.
+
 ## `delay()`
 Of course, resorting to a "sleep" in a UI test is considered a very bad-practice and you should always use [`retry()`](#retry) instead. But sometimes it is un-avoidable, for example to wait for animations to render - before taking a [screenshot](#screenshot). The nice thing here is that it returns a `Driver` instance, so you can [chain](#chaining) any other method and the "intent" will be clear. For example:
 
@@ -494,12 +506,13 @@ Of course, resorting to a "sleep" in a UI test is considered a very bad-practice
 ```
 
 ## `click()`
-Just triggers a click event on the DOM element
+Just triggers a click event on the DOM element:
+
 ```cucumber
 * click('input[name=someName]')
 ```
 
-Also see [`submit()`](#submit)
+Also see [`submit()`](#submit) and [`mouse()`](#mouse).
 
 ## `select()`
 Note that most of the time, it is better to fire a [`click()`](#click) on the `<option>` element. But you can try this for normal `<select>` boxes that have not been overly "ehnanced" by JavaScript. There are four variations and use the [locator](#locators) conventions.
@@ -527,7 +540,7 @@ Given select('select[name=data1]', 2)
 ```cucumber
 * clear('#myInput')
 ```
-If this does not work, try [`value(selector, value)`](#valueset)
+If this does not work, try [`value(selector, value)`](#valueset).
 
 ## `scroll()`
 Scrolls to the element.
@@ -561,10 +574,11 @@ You can even chain a [`submit()`](#submit) to wait for a page load if needed:
 * mouse().move('#menuItem').submit().click();
 ```
 
-Since applying a mouse click on a given element is a common need, these short-cuts can be used:
+Since moving the mouse is a common task, these short-cuts can be used:
 
 ```cucumber
-* mouse('#menuItem32').click();
+* mouse('#menuItem32').click()
+* mouse(100, 200).go()
 # waitUntil('#someBtn', '!_.disabled').mouse().click()
 ```
 
@@ -619,13 +633,13 @@ Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an el
 Short-cut for the commonly used `waitUntil("document.readyState == 'complete'")` - see [`waitUntil()`](#waituntil).
 
 ## `waitFor()`
-Will wait until the element (by [locator](#locators)) is present in the page and uses the re-try settings for [`waitUntil()`](#waituntil). This will fail the test if the element does not appear after the configured number of re-tries have been attempted.
+Will wait until the element (by [locator](#locators)) is present in the page and uses the configured [`retry()`](#retry) settings. This will fail the test if the element does not appear after the configured number of re-tries have been attempted.
 
 ```cucumber
 And waitFor('#eg01WaitId')
 ```
 
-Instead of using `waitFor()` you would typically [chain](#chaining) a [`retry()`](#retry) like this:
+But most of the time, instead of using `waitFor()` - you would typically [chain](#chaining) a [`retry()`](#retry) with an action like this:
 
 ```cucumber
 And retry().click('#eg01WaitId')
@@ -656,16 +670,17 @@ This is designed specifically for the kind of situation described in the example
 Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and immediately check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
 
 ## `waitUntil()`
-Wait for the JS expression to evaluate to `true`. Will poll using the retry settings [configured](https://github.com/intuit/karate#retry-until).
+Wait for the JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
+
 ```cucumber
 * waitUntil("document.readyState == 'complete'")
 ```
 
-A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut boolean-expression form that begins with an underscore (or "`!`"), and Karate will inject the JavaScript DOM element reference into the variable named "`_`".
+A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut boolean-expression form that begins with an underscore (or "`!`"), and Karate will inject the JavaScript DOM element reference into a variable named "`_`".
 
 This is especially useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` returned `false` - *even* after the configured number of [re-tries](#retry) were attempted.
 
-> One limitation is that you cannot use double-quotes *within* these expressions, so stick to the pattern below.
+> One limitation is that you cannot use double-quotes *within* these expressions, so stick to the pattern seen below.
 
 ```cucumber
 And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
@@ -682,11 +697,11 @@ For tests that need to wait for slow pages or deal with un-predictable element l
 
 * the [default retry settings](https://github.com/intuit/karate#retry-until) are
   * `count`: 3, `interval`: 3000 milliseconds (try three times, and wait for 3 seconds before the next re-try attempt)
-  * it is recommended you stick to these defaults, which should suffice for most applications
+  * it is recommended that you stick to these defaults, which should suffice for most applications
   * if you really want, you can change this "globally" like this:
     * `configure('retry', { count: 10, interval: 5000 });` in [`karate-config.js`](https://github.com/intuit/karate#configuration)
     * or *any time* within a script (`*.feature` file) like this: `* configure retry = { count: 10, interval: 5000 }`
-* by default, all actions such as `click()` will *not* be re-tried, and this is what you would stick to most of the time - for tests that run smoothly and *quickly*
+* by default, all actions such as `click()` will *not* be re-tried - and this is what you would stick to most of the time, for tests that run smoothly and *quickly*
   * but some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in
   * there are 3 forms:
     * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
@@ -850,7 +865,7 @@ One indicator of a *good* automation framework is how much *work* a developer ne
 
 That said, there is some benefit to re-use of just [locators](#locators) and Karate's support for [JSON](https://github.com/intuit/karate#json) and [reading files](https://github.com/intuit/karate#reading-files) turns out to be a great way to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
 
-First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators), because they are all just string-values that behave differently depending on whether the first character is a "`/`" (XPath) or not (CSS). Also note that this is *pure JSON* which means that you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness. And you can have a "nested" heirarchy, which means you can neatly "name-space" your locator reference look-ups - as you will see later.
+First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators), because they are all just string-values that behave differently depending on whether the first character is a "`/`" (XPath) or not (CSS). Also note that this is *pure JSON* which means that you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness. And you can have a "nested" heirarchy, which means you can neatly "name-space" your locator reference look-ups - as you will see later below.
 
 ```json
 {
@@ -893,10 +908,10 @@ So now you have `testAccounts`, `leftNav` and `transactions` as variables, and y
 * retry().input(transactions.descriptionInput, 'test')
 ```
 
-So this is how you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself (probably depending on the size of your test-automation team) if this leads to any appreciable benefits, because the down-side is that you need to keep switching between 2 files - when writing and maintaining tests.
+And this is how you can have all your locators defined in one place and re-used across multiple tests. You can experiment for yourself (probably depending on the size of your test-automation team) if this leads to any appreciable benefits, because the down-side is that you need to keep switching between 2 files - when writing and maintaining tests.
 
 # Chrome Java API
-Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. You only need the [`karate-core`](https://search.maven.org/search?q=a:karate-core) Maven artifact. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
+Karate also has a Java API to automate the Chrome browser directly, designed for common needs such as converting HTML to PDF - or taking a screenshot of a page. Here is an [example](../karate-demo/src/test/java/driver/screenshot/ChromePdfRunner.java):
 
 ```java
 import com.intuit.karate.FileUtils;

@@ -8,7 +8,6 @@ import com.intuit.karate.StringUtils;
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;
 import java.net.HttpCookie;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
 import java.util.Collection;
