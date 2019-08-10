@@ -74,6 +74,11 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Mouse mouse() {
+        return driver.mouse(locator);
+    }        
+
+    @Override
     public Element input(String text) {
         return driver.input(locator, text);
     }

@@ -40,9 +40,10 @@ public class Mouse {
     public Mouse(Driver driver) {
         this.driver = driver;
     }
-
+    
     private Integer duration;
     private final List<Map<String, Object>> actions = new ArrayList();
+    
 
     private Map<String, Object> moveAction(int x, int y) {
         // {"type":"pointer","id":"1","actions":[{"type":"pointerMove","x":250,"y":250}]}        
@@ -89,6 +90,11 @@ public class Mouse {
         up.put("type", "pointerUp");
         up.put("button", 0);
         actions.add(up);
+        return go();
+    }
+    
+    public Mouse submit() {
+        driver.submit();
         return this;
     }
 
@@ -96,7 +102,7 @@ public class Mouse {
         return down().up();
     }
 
-    public Mouse perform() {
+    public Mouse go() {
         Map<String, Object> map = new HashMap();
         map.put("type", "pointer");
         map.put("id", "1");

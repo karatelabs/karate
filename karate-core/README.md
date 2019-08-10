@@ -68,8 +68,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
     | <a href="#switchFrame"><code>switchFrame()</code></a> 
     | <a href="#close"><code>close()</code></a>    
     | <a href="#drivertitle"><code>driver.title</code></a>
-    | <a href="#screenshot"><code>screenshot()</code></a>
-    | <a href="#mouse"><code>mouse()</code></a>
+    | <a href="#screenshot"><code>screenshot()</code></a>    
   </td>
 </tr>
 <tr>
@@ -83,6 +82,7 @@ With the help of the community, we would like to try valiantly - to see if we ca
     | <a href="#valueset"><code>value(set)</code></a>   
     | <a href="#select"><code>select()</code></a>
     | <a href="#scroll"><code>scroll()</code></a>
+    | <a href="#mouse"><code>mouse()</code></a>
     | <a href="#highlight"><code>highlight()</code></a>
   </td>
 </tr>
@@ -544,15 +544,31 @@ Since a `scroll()` + [`click()`](#click) (or [`input()`](#input)) is a common co
 ```
 
 ## `mouse()`
-This returns an instance of `Mouse` on which you can [chain](#chaining) actions. Make sure you call `perform()` at the end.
+This returns an instance of [`Mouse` on which you can chain actions](#chaining). A common need is to move (or hover) the mouse, and for this you call the `move()` method.
 
-The `move()` method has two forms. You can pass 2 integers as the `x` and `y` co-ordinates or you can pass the [locator](#locators) string of the element to move to.
+The `mouse().move()` method has two forms. You can pass 2 integers as the `x` and `y` co-ordinates or you can pass the [locator](#locators) string of the element to move to. Make sure you call `go()` at the end - if the last method in the chain is not `click()` or `up()`.
 
 ```cucumber
-  * mouse().move(100, 200).perform()
-  * mouse().move('#eg02RightDivId').click().perform()
-  * mouse().down().move('#eg02LeftDivId').up().perform()
+  * mouse().move(100, 200).go()
+  * mouse().move('#eg02RightDivId').click()
+  # this is a "click and drag" action
+  * mouse().down().move('#eg02LeftDivId').up()
 ```
+
+You can even chain a [`submit()`](#submit) to wait for a page load if needed:
+
+```cucumber
+* mouse().move('#menuItem').submit().click();
+```
+
+Since applying a mouse click on a given element is a common need, these short-cuts can be used:
+
+```cucumber
+* mouse('#menuItem32').click();
+# waitUntil('#someBtn', '!_.disabled').mouse().click()
+```
+
+These are useful in situations where the "normal" [`click()`](#click) does not work - especially when the element you are clicking is not a normal hyperlink (`<a href="">`) or `<button>`.
 
 ## `close()`
 Close the page / tab.

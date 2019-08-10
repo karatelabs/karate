@@ -61,6 +61,11 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public Mouse mouse() {
+        return null;
+    }        
+
+    @Override
     public Element input(String text) {
         return this;
     }

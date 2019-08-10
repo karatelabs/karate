@@ -39,6 +39,8 @@ public interface Element {
     
     Element click();
     
+    Mouse mouse();
+    
     Element input(String text);
     
     Element select(String text);

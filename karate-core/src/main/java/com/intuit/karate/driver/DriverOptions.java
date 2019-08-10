@@ -84,6 +84,7 @@ public class DriverOptions {
     public final Target target;
 
     // mutable during a test
+    private boolean retryEnabled;
     private Integer retryInterval = null;
     private Integer retryCount = null;
     private String submitTarget = null;
@@ -104,7 +105,7 @@ public class DriverOptions {
     }
 
     public boolean isRetryEnabled() {
-        return retryCount != null;
+        return retryEnabled;
     }
 
     public String getSubmitTarget() {
@@ -389,11 +390,13 @@ public class DriverOptions {
     }
 
     public void disableRetry() {
+        retryEnabled = false;
         retryCount = null;
         retryInterval = null;
     }
 
     public void enableRetry(Integer count, Integer interval) {
+        retryEnabled = true;
         retryCount = count; // can be null
         retryInterval = interval; // can be null
     }

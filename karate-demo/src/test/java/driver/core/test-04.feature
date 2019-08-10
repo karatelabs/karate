@@ -5,9 +5,9 @@ Scenario Outline: <type>
   * configure driver = { type: '#(type)', showDriverLog: true }
 
   * driver webUrlBase + '/page-04'
-  * mouse().move('#eg02LeftDivId').perform()
-  * mouse().move('#eg02RightDivId').click().perform()
-  * mouse().down().move('#eg02LeftDivId').up().perform()
+  * mouse('#eg02LeftDivId').go()
+  * mouse('#eg02RightDivId').click()
+  * mouse().down().move('#eg02LeftDivId').up()
   * def temp = text('#eg02ResultDivId')
   * match temp contains 'LEFT_HOVERED'
   * match temp contains 'RIGHT_CLICKED'
@@ -17,6 +17,6 @@ Scenario Outline: <type>
 Examples:
 | type         |
 | chrome       |
-#| chromedriver |
+| chromedriver |
 #| geckodriver  |
 #| safaridriver |

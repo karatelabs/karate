@@ -34,6 +34,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -469,13 +470,17 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void actions(List<Map<String, Object>> sequence) {
+        boolean submitRequested = submit;
+        submit = false; // make sure only LAST action is handled as a submit()
         for (Map<String, Object> map : sequence) {
             List<Map<String, Object>> actions = (List) map.get("actions");
             if (actions == null) {
                 logger.warn("no actions property found: {}", sequence);
                 return;
             }
-            for (Map<String, Object> action : actions) {
+            Iterator<Map<String, Object>> iterator = actions.iterator();
+            while (iterator.hasNext()) {
+                Map<String, Object> action = iterator.next();
                 String type = (String) action.get("type");
                 if (type == null) {
                     logger.warn("no type property found: {}", action);
@@ -507,14 +512,21 @@ public abstract class DevToolsDriver implements Driver {
                 }
                 if (y != null) {
                     currentMouseYpos = y;
-                }                
+                }              
+                Integer duration = (Integer) action.get("duration");
                 DevToolsMessage toSend = method("Input.dispatchMouseEvent")
                         .param("type", chromeType)
                         .param("x", currentMouseXpos).param("y", currentMouseYpos);
                 if ("mousePressed".equals(chromeType) || "mouseReleased".equals(chromeType)) {
                     toSend.param("button", "left").param("clickCount", 1);                    
                 }
+                if (!iterator.hasNext() && submitRequested) {
+                    submit = true;
+                }
                 toSend.send();
+                if (duration != null) {
+                    options.sleep(duration);
+                }
             }
         }
     }
@@ -684,8 +696,9 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public Map<String, Object> position(String id) {
-        String expression = options.selector(id) + ".getBoundingClientRect()";
+    public Map<String, Object> position(String locator) {
+        retryIfEnabled(locator);
+        String expression = options.selector(locator) + ".getBoundingClientRect()";
         //  important to not set returnByValue to true
         DevToolsMessage dtm = method("Runtime.evaluate").param("expression", expression).send();
         String objectId = dtm.getResult("objectId").getAsString();

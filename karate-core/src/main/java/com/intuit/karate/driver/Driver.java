@@ -167,6 +167,10 @@ public interface Driver {
         return new Mouse(this);
     }
     
+    default Mouse mouse(String locator) {
+        return new Mouse(this).move(locator);
+    }    
+    
     default Keys keys() {
         return new Keys(this);
     }

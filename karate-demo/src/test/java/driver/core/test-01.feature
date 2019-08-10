@@ -205,9 +205,9 @@ Scenario Outline: using <config>
   And switchFrame(null)
 
   # mouse move and click
-  * mouse().move('#eg02LeftDivId').perform()
-  * mouse().move('#eg02RightDivId').click().perform()
-  * mouse().down().move('#eg02LeftDivId').up().perform()
+  * mouse('#eg02LeftDivId').go()
+  * mouse('#eg02RightDivId').click()
+  * mouse().down().move('#eg02LeftDivId').up()
   * def temp = text('#eg02ResultDivId')
   # works only for chrome :(
   # * match temp contains 'LEFT_HOVERED'
