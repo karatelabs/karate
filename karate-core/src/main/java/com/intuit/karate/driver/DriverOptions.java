@@ -26,6 +26,7 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.android.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
@@ -59,7 +60,8 @@ import java.util.Set;
  */
 public class DriverOptions {
 
-    public static final long DEFAULT_TIMEOUT = 30 * 1000; // 30 seconds    
+    // 30 seconds, as of now this is only used by the chrome / CDP reply timeout
+    public static final long DEFAULT_TIMEOUT = 30 * 1000;
 
     public final Map<String, Object> options;
     public final long timeout;
@@ -217,22 +219,71 @@ public class DriverOptions {
         }
     }
 
-    public String selector(String locator) {
-        return selector("*", locator);
+    private static class TagIndex {
+
+        final String tag;
+        final int index;
+        final String text;
+
+        TagIndex(String locator) { // "^foo", "*(:1)foo", "^(div)foo", "*(div/p:5)foo", "^()(click)"
+            locator = locator.substring(1).trim();
+            String prefix;
+            if (locator.charAt(0) == '(') {
+                int pos = locator.indexOf(')');
+                if (pos == -1) {
+                    throw new RuntimeException("bad locator prefix: " + locator);
+                }
+                prefix = locator.substring(1, pos);
+                text = locator.substring(pos + 1);
+                pos = prefix.indexOf(':');
+                if (pos != -1) {
+                    String tagTemp = prefix.substring(0, pos);
+                    tag = tagTemp.isEmpty() ? "*" : tagTemp;
+                    String indexTemp = prefix.substring(pos + 1);
+                    if (indexTemp.isEmpty()) {
+                        index = 0;
+                    } else {
+                        try {
+                            index = Integer.valueOf(indexTemp);
+                        } catch (Exception e) {
+                            throw new RuntimeException("bad locator prefix: " + locator + ", " + e.getMessage());
+                        }
+                    }
+                } else {
+                    tag = prefix.isEmpty() ? "*" : prefix;
+                    index = 0;
+                }
+            } else {
+                tag = "*";
+                index = 0;
+                text = locator;
+            }
+        }
+        
+        String prefix() {
+            return tag.startsWith("/") ? tag : "//" + tag;
+        }
+        
+        String suffix() {
+            return index == 0 ? "" : "[" + (index + 1) + "]";
+        }
+
     }
 
-    private static String preProcessIfWildCard(String elementName, String locator) {
+    public static String preProcessIfWildCard(String locator) {
         if (locator.startsWith("^")) {
-            return "//" + elementName + "[text()='" + locator.substring(1) + "']";
+            TagIndex ti = new TagIndex(locator);
+            return ti.prefix() + "[text()='" + ti.text + "']" + ti.suffix();
         }
         if (locator.startsWith("*")) {
-            return "//" + elementName + "[contains(text(),'" + locator.substring(1) + "')]";
+            TagIndex ti = new TagIndex(locator);
+            return ti.prefix() + "[contains(text(),'" + ti.text + "')]" + ti.suffix();
         }
         return locator;
     }
 
-    public String selector(String elementName, String locator) {
-        locator = preProcessIfWildCard(elementName, locator);
+    public String selector(String locator) {
+        locator = preProcessIfWildCard(locator);
         if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
             return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
         }
@@ -310,7 +361,7 @@ public class DriverOptions {
     }
 
     public String selectorAllScript(String locator, String expression) {
-        locator = preProcessIfWildCard("*", locator);
+        locator = preProcessIfWildCard(locator);
         boolean isXpath = locator.startsWith("/");
         String selector;
         if (isXpath) {

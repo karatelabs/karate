@@ -91,6 +91,20 @@ Scenario Outline: using <config>
   Then match driver.location == webUrlBase + '/page-02'
   And match driver.title == 'Page Two'
 
+  # wildcard locators
+  * click('^Click Me')
+  * match text('#eg03Result') == 'A'
+  * click('^(span)Click Me')
+  * match text('#eg03Result') == 'SPAN'
+  * click('^(div)Click Me')
+  * match text('#eg03Result') == 'DIV'
+  * click('^(div:1)Click Me')
+  * match text('#eg03Result') == 'SECOND'
+  * click('^(span/a)Click Me')
+  * match text('#eg03Result') == 'NESTED'
+  * click('^(:3)Click Me')
+  * match text('#eg03Result') == 'BUTTON'
+
   # dialog - alert
   When click('^Show Alert')
   Then match driver.dialog == 'this is an alert'

@@ -61,13 +61,13 @@ public class DockerTarget implements Target {
         if (options != null) {
             imageId = (String) options.get("docker");
             Integer vncPort = (Integer) options.get("vncPort");
-            String seccomp = (String) options.get("seccomp");
+            String secComp = (String) options.get("secComp");
             StringBuilder sb = new StringBuilder();
             sb.append("docker run -d");
-            if (seccomp == null) {
+            if (secComp == null) {
                 sb.append(" --cap-add=SYS_ADMIN");
             } else {
-                sb.append(" --security-opt seccomp=").append(seccomp);
+                sb.append(" --security-opt seccomp=").append(secComp);
             }
             if (vncPort != null) {
                 sb.append(" -p ").append(vncPort).append(":5900");

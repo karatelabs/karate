@@ -2,7 +2,10 @@
 <html>
   <head>
     <title>Page Two</title>
-    <script src="karate.js"></script>    
+    <script src="karate.js"></script>   
+    <script>
+      function result(r){ karate.setHtml('eg03Result', r.tagName) }
+    </script>  
   </head>
   <body>
     <div id="eg01">
@@ -15,6 +18,18 @@
       <a href="page-03">Go to Page Three</a>
       <a href="page-03" target="_blank">New Tab</a>
       <div id="eg02DivId"></div>
+    </div>
+    <div id="eg03">
+      <div id="eg03Result"></div>
+      <a href="#" onclick="result(this)">Click Me</a>
+      <p onclick="result(this)">Click Me</p>
+      <span onclick="result(this)">Click Me</span>
+      <button onclick="result(this)">Click Me</button>
+      <div onclick="result(this)">Click Me</div>
+      <span>
+        <a href="#" onclick="result({ tagName: 'NESTED' })">Click Me</a>
+      </span>
+      <div onclick="result({ tagName: 'SECOND' })">Click Me</div>
     </div>    
   </body>
 </html>

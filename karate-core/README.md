@@ -26,6 +26,7 @@
   <th>Concepts</th>
   <td>          
       <a href="#locators">Locators</a>
+    | <a href="#wildcard-locators">Wildcards</a>      
     | <a href="#js-api">JS API</a>
     | <a href="#special-keys">Special Keys</a>
     | <a href="#short-cuts">Short Cuts</a>
@@ -123,7 +124,7 @@
 ## Capabilities
 
 * Simple, clean syntax that is well suited for people new to programming or test-automation
-* All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reporting](https://github.com/intuit/karate#junit-html-report), config and [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
+* All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar)
 * No need to learn complicated programming concepts such as "callbacks" and "`await`"
 * Direct-to-Chrome automation using the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
@@ -138,11 +139,11 @@
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
 * Simple [retry and polling](#retry) based "wait" strategy - no need to wade through esoteric concepts such as "implicit waits"
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
-* Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action - which should wait for a new page to load
+* Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
 * Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
 * Detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
-* Convert HTML / web-pages to PDF and even capture the *entire* (scrollable) web-page as an image using the [Chrome Java API](#chrome-java-api)
+* Convert HTML to PDF and even capture the *entire* (scrollable) web-page as an image using [Chrome Java API](#chrome-java-api)
 
 # Examples
 ## Web Browser
@@ -213,9 +214,9 @@ public interface Target {
 }
 ```
 
-* `start()`: The `Map` returned will be used as the generated [driver configuration](#driver-configuration). And the `start()` method will be invoked as soon as a `Scenario` requests for a web-browser instance via the [`driver`](#driver) keyword.
+* `start()`: The `Map` returned will be used as the generated [driver configuration](#driver-configuration). And the `start()` method will be invoked as soon as any `Scenario` requests for a web-browser instance (for the first time) via the [`driver`](#driver) keyword.
 
-* `stop()`: Karate will call this method at the end of a top-level `Scenario` (that has not been `call`-ed by another `Scenario`).
+* `stop()`: Karate will call this method at the end of every top-level `Scenario` (that has not been `call`-ed by another `Scenario`).
 
 * `setLogger()`: You can choose to ignore this method, but if you use the provided `Logger` instance in your `Target` code, any logging you perform will nicely appear in-line with test-steps in the HTML report, which is great for troubleshooting or debugging tests.
 
@@ -247,10 +248,10 @@ function fn() {
 }
 ```
 
-To use the [recommended `--security-opt seccomp=chrome.json` Docker option](https://hub.docker.com/r/justinribeiro/chrome-headless/), add a `seccomp` property to the `driverTarget` configuration.
+To use the [recommended `--security-opt seccomp=chrome.json` Docker option](https://hub.docker.com/r/justinribeiro/chrome-headless/), add a `secComp` property to the `driverTarget` configuration. And if you need to view the container display via VNC, set the `vncPort` to map the port exposed by Docker.
 
 ```javascript
-karate.configure('driverTarget', { docker: 'ptrthomas/karate-chrome', seccomp: 'src/test/java/chrome.json' });
+karate.configure('driverTarget', { docker: 'ptrthomas/karate-chrome', secComp: 'src/test/java/chrome.json', vncPort: 5900 });
 ```
 
 ### Custom `Target`
@@ -330,6 +331,23 @@ win <br/> android <br/> ios | `#` | id | `#MyButton`
 ios| `:` | -ios predicate string | `:name == 'OK' type == XCUIElementTypeButton`
 ios| `^` | -ios class chain | `^**/XCUIElementTypeTable[name == 'dataTable']`
 android| `-` | -android uiautomator | `-input[name=someName]`
+
+## Wildcard Locators
+The "`^`" and "`*`" locators are designed to make finding an HTML element by *text content* super-easy. By default, they will match *any* element. But, you can narrow down your scope in ways that allow you to write tests focused on *what the user sees on the page*.
+
+This can be a lot simpler than trying to understand the internal CSS class-names and XPath structure of the page. And these are likely to be more stable and resistant to cosmetic changes to the HTML page structure.
+
+Locator | Description
+------- | -----------
+`click('^Click Me')` | the first HTML element (of *any* tag name) where the text-content is *exactly*: `Click Me`
+`click('*(span)Click Me')` | the first `<span>` where the text-content *contains*: `Click Me`
+`click('^(div:1)Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
+`click('^(span/a)Click Me')` | the first `<a>` immediately nested under a `<span>` where the text-content is *exactly*: `Click Me`
+`click('*(:3)Click Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Click Me`
+
+You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to use the "scope modifier" (in round brackets) only for "de-duping" when the same *user-facing* text appears multiple times on a page.
+
+> In case the text you are searching for begins with a "`(`" - you can do this: `click('^()(click me)')`
 
 # Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
