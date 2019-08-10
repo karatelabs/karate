@@ -9,11 +9,11 @@ Scenario Outline: <type>
   # wildcard locators
   * click('^Click Me')
   * match text('#eg03Result') == 'A'
-  * click('^{span}Click Me')
+  * click('*{span}Me')
   * match text('#eg03Result') == 'SPAN'
   * click('^{div}Click Me')
   * match text('#eg03Result') == 'DIV'
-  * click('^{div:1}Click Me')
+  * click('*{div:1}Click')
   * match text('#eg03Result') == 'SECOND'
   * click('^{span/a}Click Me')
   * match text('#eg03Result') == 'NESTED'

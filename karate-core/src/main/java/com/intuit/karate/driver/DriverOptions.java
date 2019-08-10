@@ -273,11 +273,11 @@ public class DriverOptions {
     public static String preProcessIfWildCard(String locator) {
         if (locator.startsWith("^")) {
             TagIndex ti = new TagIndex(locator);
-            return ti.prefix() + "[text()='" + ti.text + "']" + ti.suffix();
+            return ti.prefix() + "[normalize-space(.)='" + ti.text + "']" + ti.suffix();
         }
         if (locator.startsWith("*")) {
             TagIndex ti = new TagIndex(locator);
-            return ti.prefix() + "[contains(text(),'" + ti.text + "')]" + ti.suffix();
+            return ti.prefix() + "[contains(normalize-space(.),'" + ti.text + "')]" + ti.suffix();
         }
         return locator;
     }
