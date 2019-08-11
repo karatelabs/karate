@@ -31,19 +31,22 @@ public class DriverElement implements Element {
 
     private final Driver driver;
     private final String locator;
+    
     private Boolean exists;
 
-    private String id;
-
-    public DriverElement(Driver driver, String locator) {
-        this(driver, locator, null);
-    }
-
-    public DriverElement(Driver driver, String locator, Boolean exists) {
+    private DriverElement(Driver driver, String locator, Boolean exists) {
         this.driver = driver;
         this.locator = locator;
         this.exists = exists;
     }
+    
+    public static DriverElement locatorExists(Driver driver, String locator) {
+        return new DriverElement(driver, locator, true);
+    }    
+    
+    public static DriverElement locatorUnknown(Driver driver, String locator) {
+        return new DriverElement(driver, locator, null); // exists flag set to null
+    }     
 
     @Override
     public String getLocator() {
@@ -57,6 +60,10 @@ public class DriverElement implements Element {
         }
         return exists;
     }
+
+    public void setExists(Boolean exists) {
+        this.exists = exists;
+    }        
 
     @Override
     public Element focus() {
@@ -76,7 +83,7 @@ public class DriverElement implements Element {
     @Override
     public Mouse mouse() {
         return driver.mouse(locator);
-    }        
+    }
 
     @Override
     public Element input(String text) {

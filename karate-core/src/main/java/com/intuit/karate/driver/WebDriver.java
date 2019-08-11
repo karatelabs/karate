@@ -96,9 +96,11 @@ public abstract class WebDriver implements Driver {
                 && !res.jsonPath("$.value").asString().contains("unexpected alert open");
     }
     
-    private Element eval(String locator, String expression) {
+    private Element evalInternal(String expression, String locator) {
+        // here the locator is just passed on and nothing is done with it
         eval(expression);
-        return element(locator, false);
+        // the only case where the element exists flag is set to null
+        return DriverElement.locatorUnknown(this, locator);
     }
     
     private ScriptValue eval(String expression) {
@@ -218,7 +220,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element focus(String locator) {
-        return retryIfEnabled(locator, () -> eval(locator, options.selector(locator) + ".focus()"));
+        return retryIfEnabled(locator, () -> evalInternal(options.selector(locator) + ".focus()", locator));
     }
 
     @Override
@@ -226,7 +228,7 @@ public abstract class WebDriver implements Driver {
         return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             http.path("element", id, "clear").post("{}");
-            return element(locator, true);
+            return DriverElement.locatorExists(this, locator);
         });
     }
 
@@ -235,13 +237,13 @@ public abstract class WebDriver implements Driver {
         return retryIfEnabled(locator, () -> {
             String id = elementId(locator);
             http.path("element", id, "value").post(getJsonForInput(value));
-            return element(locator, true);
+            return DriverElement.locatorExists(this, locator);
         });
     }
 
     @Override
     public Element click(String locator) {
-        return retryIfEnabled(locator, () -> eval(locator, options.selector(locator) + ".click()"));        
+        return retryIfEnabled(locator, () -> evalInternal(options.selector(locator) + ".click()", locator));        
         // the spec is un-reliable :(
         // String id = get(locator);
         // http.path("element", id, "click").post("{}");        
@@ -255,12 +257,12 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element select(String locator, String text) {
-        return retryIfEnabled(locator, () -> eval(locator, options.optionSelector(locator, text)));
+        return retryIfEnabled(locator, () -> evalInternal(options.optionSelector(locator, text), locator));
     }
 
     @Override
     public Element select(String locator, int index) {
-        return retryIfEnabled(locator, () -> eval(locator, options.optionSelector(locator, index)));
+        return retryIfEnabled(locator, () -> evalInternal(options.optionSelector(locator, index), locator));
     }
 
     @Override
@@ -315,7 +317,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element value(String locator, String value) {
-        return retryIfEnabled(locator, () -> eval(locator, options.selector(locator) + ".value = '" + value + "'"));
+        return retryIfEnabled(locator, () -> evalInternal(options.selector(locator) + ".value = '" + value + "'", locator));
     }
 
     @Override

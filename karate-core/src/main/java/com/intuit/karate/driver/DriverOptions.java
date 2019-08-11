@@ -26,7 +26,6 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.android.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
@@ -97,6 +96,10 @@ public class DriverOptions {
     public static final String SCROLL_JS_FUNCTION = "function(e){ var d = window.getComputedStyle(e).display;"
             + " while(d == 'none'){ e = e.parentElement; d = window.getComputedStyle(e).display }"
             + " e.scrollIntoView({block: 'center'}) }";
+
+    public static final String KARATE_REF_GENERATOR = "function(e){"
+            + " if (!document._karate) document._karate = { seq: (new Date()).getTime() };"
+            + " var ref = 'ref' + document._karate.seq++; document._karate[ref] = e; return ref }";
 
     public void setContext(ScenarioContext context) {
         this.context = context;
@@ -219,71 +222,59 @@ public class DriverOptions {
         }
     }
 
-    private static class TagIndex {
-
-        final String tag;
-        final int index;
-        final String text;
-
-        TagIndex(String locator) { // "^foo", "*{:1}foo", "^{div}foo", "*{div/p:5}foo", "^{}{click me}"
-            locator = locator.substring(1).trim();
-            String prefix;
-            if (locator.charAt(0) == '{') {
-                int pos = locator.indexOf('}');
-                if (pos == -1) {
-                    throw new RuntimeException("bad locator prefix: " + locator);
-                }
-                prefix = locator.substring(1, pos);
-                text = locator.substring(pos + 1);
-                pos = prefix.indexOf(':');
-                if (pos != -1) {
-                    String tagTemp = prefix.substring(0, pos);
-                    tag = tagTemp.isEmpty() ? "*" : tagTemp;
-                    String indexTemp = prefix.substring(pos + 1);
-                    if (indexTemp.isEmpty()) {
-                        index = 0;
-                    } else {
-                        try {
-                            index = Integer.valueOf(indexTemp);
-                        } catch (Exception e) {
-                            throw new RuntimeException("bad locator prefix: " + locator + ", " + e.getMessage());
-                        }
-                    }
-                } else {
-                    tag = prefix.isEmpty() ? "*" : prefix;
-                    index = 0;
-                }
-            } else {
-                tag = "*";
+    public static String preProcessWildCard(String locator) {
+        boolean contains;
+        String tag, prefix, text;
+        int index;
+        int pos = locator.indexOf('}');
+        if (pos == -1) {
+            throw new RuntimeException("bad locator prefix: " + locator);
+        }
+        if (locator.charAt(1) == '^') {
+            contains = true;
+            prefix = locator.substring(2, pos);
+        } else {
+            contains = false;
+            prefix = locator.substring(1, pos);
+        }
+        text = locator.substring(pos + 1);
+        pos = prefix.indexOf(':');
+        if (pos != -1) {
+            String tagTemp = prefix.substring(0, pos);
+            tag = tagTemp.isEmpty() ? "*" : tagTemp;
+            String indexTemp = prefix.substring(pos + 1);
+            if (indexTemp.isEmpty()) {
                 index = 0;
-                text = locator;
+            } else {
+                try {
+                    index = Integer.valueOf(indexTemp);
+                } catch (Exception e) {
+                    throw new RuntimeException("bad locator prefix: " + locator + ", " + e.getMessage());
+                }
             }
+        } else {
+            tag = prefix.isEmpty() ? "*" : prefix;
+            index = 0;
         }
-        
-        String prefix() {
-            return tag.startsWith("/") ? tag : "//" + tag;
+        if (!tag.startsWith("/")) {
+            tag = "//" + tag;
         }
-        
-        String suffix() {
-            return index == 0 ? "" : "[" + (index + 1) + "]";
+        String suffix = index == 0 ? "" : "[" + (index + 1) + "]";
+        if (contains) {
+            return tag + "[contains(normalize-space(text()),'" + text + "')]" + suffix;
+        } else {
+            return tag + "[normalize-space(text())='" + text + "']" + suffix;
         }
 
-    }
-
-    public static String preProcessIfWildCard(String locator) {
-        if (locator.startsWith("^")) {
-            TagIndex ti = new TagIndex(locator);
-            return ti.prefix() + "[normalize-space(.)='" + ti.text + "']" + ti.suffix();
-        }
-        if (locator.startsWith("*")) {
-            TagIndex ti = new TagIndex(locator);
-            return ti.prefix() + "[contains(normalize-space(.),'" + ti.text + "')]" + ti.suffix();
-        }
-        return locator;
     }
 
     public String selector(String locator) {
-        locator = preProcessIfWildCard(locator);
+        if (locator.startsWith("(")) {
+            return locator; // pure js !
+        }
+        if (locator.startsWith("{")) {
+            locator = preProcessWildCard(locator);
+        }        
         if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
             return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
         }
@@ -361,7 +352,9 @@ public class DriverOptions {
     }
 
     public String selectorAllScript(String locator, String expression) {
-        locator = preProcessIfWildCard(locator);
+        if (locator.startsWith("{")) {
+            locator = preProcessWildCard(locator);
+        }        
         boolean isXpath = locator.startsWith("/");
         String selector;
         if (isXpath) {
@@ -461,7 +454,7 @@ public class DriverOptions {
             throw new RuntimeException("wait failed for: " + locator
                     + " and condition: " + expression + " after " + elapsedTime + " milliseconds");
         }
-        return driver.element(locator, true);
+        return DriverElement.locatorExists(driver, locator);
     }
 
     public Element waitForAny(Driver driver, String... locators) {
@@ -485,7 +478,7 @@ public class DriverOptions {
             throw new RuntimeException("wait failed for: " + list + " after " + elapsedTime + " milliseconds");
         }
         if (locators.length == 1) {
-            return driver.element(locators[0], true);
+            return DriverElement.locatorExists(driver, locators[0]);
         }
         for (String locator : locators) {
             Element temp = driver.exists(locator);
@@ -502,10 +495,20 @@ public class DriverOptions {
         String evalJs = js + " != null";
         Object o = driver.script(evalJs);
         if (o instanceof Boolean && (Boolean) o) {
-            return driver.element(locator, true);
+            return DriverElement.locatorExists(driver, locator);
         } else {
             return new MissingElement(locator);
         }
+    }
+
+    public List<Element> findAll(Driver driver, String locator) {
+        List<String> list = driver.scripts(locator, DriverOptions.KARATE_REF_GENERATOR);
+        List<Element> elements = new ArrayList(list.size());
+        for (String karateRef : list) {
+            String karateLocator = "(document._karate." + karateRef + ")";
+            elements.add(DriverElement.locatorExists(driver, karateLocator));
+        }
+        return elements;
     }
 
 }

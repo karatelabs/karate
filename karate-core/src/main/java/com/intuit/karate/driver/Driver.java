@@ -149,18 +149,18 @@ public interface Driver {
         return getOptions().waitUntil(this, locator, expression);
     }
 
-    default Element element(String locator, boolean exists) {
-        return new DriverElement(this, locator, exists ? true : null);
+    default List<Element> findAll(String locator) {
+        return getOptions().findAll(this, locator);
     }
 
     default Element scroll(String locator) {
         script(locator, DriverOptions.SCROLL_JS_FUNCTION);
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     default Element highlight(String locator) {
         script(getOptions().highlighter(locator));
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     default Mouse mouse() {

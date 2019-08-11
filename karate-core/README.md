@@ -86,6 +86,7 @@
     | <a href="#enabled"><code>enabled()</code></a>
     | <a href="#exists"><code>exists()</code></a>
     | <a href="#position"><code>position()</code></a>
+    | <a href="#findall"><code>findAll()</code></a>
   </td>
 </tr>
 <tr>
@@ -127,15 +128,14 @@
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar)
 * No need to learn complicated programming concepts such as "callbacks" and "`await`"
-* Option to use [wildcard locators](#wildcard-locators) without needing to know CSS class-names or the detailed XPath structure
-* Direct-to-Chrome automation using the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
+* Option to use [wildcard locators](#wildcard-locators) without needing to inspect the CSS class-names or internal XPath structure
+* Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
-* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) without needing a "master node" or "grid" setup
+* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid" setup
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
-* Karate can start the executable (WebDriver / Chrome, WinAppDriver) automatically for you
 * Seamlessly mix API and UI tests within the same script, for example sign-in using an API and speed-up your tests
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
 * Simple [retry and polling](#retry) based "wait" strategy - no need to wade through esoteric concepts such as "implicit waits"
@@ -143,7 +143,7 @@
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
 * Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
-* Detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
+* Traceability: detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
 * Convert HTML to PDF and capture the *entire* (scrollable) web-page as an image using the [Chrome Java API](#chrome-java-api)
 
 # Examples
@@ -201,7 +201,7 @@ key | description
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
 ## `configure driverTarget`
-The above options are fine for testing on "localhost" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable "target" where you just have to implement three methods:
+The [`configure driver`](#configure-driver) options are fine for testing on "`localhost`" and when not in `headless` mode. But when the time comes for running your web-UI automation tests on a continuous integration server, things get interesting. To support all the various options such as Docker, headless Chrome, cloud-providers etc., Karate introduces the concept of a pluggable "target" where you just have to implement three methods:
 
 ```java
 public interface Target {        
@@ -221,7 +221,7 @@ public interface Target {
 
 * `setLogger()`: You can choose to ignore this method, but if you use the provided `Logger` instance in your `Target` code, any logging you perform will nicely appear in-line with test-steps in the HTML report, which is great for troubleshooting or debugging tests.
 
-Combined with Docker, headless Chrome and Karate's parallel-execution capability - this simple `start()` and `stop()` lifecycle can effectively run web UI automation tests in parallel on a single node.
+Combined with Docker, headless Chrome and Karate's [parallel-execution capabilities](https://github.com/intuit/karate#parallel-execution) - this simple `start()` and `stop()` lifecycle can effectively run web UI automation tests in parallel on a single node.
 
 ### `DockerTarget`
 Karate has a built-in implementation for Docker ([`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarget.java)) that supports 2 existing Docker images out of the box:
@@ -235,7 +235,7 @@ To use either of the above, you do this in a Karate test:
 * configure driverTarget = { docker: 'justinribeiro/chrome-headless', showDriverLog: true }
 ```
 
-Or for more flexibility, you could do this in [`karate-config.js`](https://github.com/intuit/karate#configuration) and perform conditional logic based on [`karate.env`](https://github.com/intuit/karate#switching-the-environment). One very convenient aspect of `configure driverTarget` is that if invoked, it will over-ride any `configure driver` directives that exist. This means that you can have the below snippet activate *only* for your CI build, and you can leave your feature files set to point to what you would use in "dev-local" mode.
+Or for more flexibility, you could do this in [`karate-config.js`](https://github.com/intuit/karate#configuration) and perform conditional logic based on [`karate.env`](https://github.com/intuit/karate#switching-the-environment). One very convenient aspect of `configure driverTarget` is that *if* in-scope, it will over-ride any `configure driver` directives that exist. This means that you can have the below snippet activate *only* for your CI build, and you can leave your feature files set to point to what you would use in "dev-local" mode.
 
 ```javascript
 function fn() {
@@ -324,8 +324,8 @@ platform | prefix | means | example
 ----- | ------ | ----- | -------
 web | (none) | css selector | `input[name=someName]`
 web <br/> android <br/> ios | `/` | xpath | `//input[@name='commit']`
-web | `^` | [exact text content](#wildcard-locators) | `^Click Me`
-web | `*` | [partial text content](#wildcard-locators) | `*Click Me`
+web | `{` | [exact text content](#wildcard-locators) | `{a}Click Me`
+web | `{^` | [partial text content](#wildcard-locators) | `{^a}Click Me`
 win <br/> android <br/> ios| (none) | name | `Submit`
 win <br/> android <br/> ios | `@` | accessibility id | `@CalculatorResults`
 win <br/> android <br/> ios | `#` | id | `#MyButton`
@@ -334,21 +334,19 @@ ios| `^` | -ios class chain | `^**/XCUIElementTypeTable[name == 'dataTable']`
 android| `-` | -android uiautomator | `-input[name=someName]`
 
 ## Wildcard Locators
-The "`^`" and "`*`" locators are designed to make finding an HTML element by *text content* super-easy. By default, they will match *any* element. But, you can narrow down your scope in ways that allow you to write tests focused on *what the user sees on the page*.
+The "`{`" and "`{^`" locator-prefixes are designed to make finding an HTML element by *text content* super-easy. You will typically also match against a specific HTML tag (which is faster at run-time), but even if you use "`*`" to match *any* tag, you are selecting based on what the user *sees on the page*.
 
-This can be a lot simpler than trying to understand the internal CSS class-names and XPath structure of the page. And these are likely to be more stable and resistant to cosmetic changes to the HTML page structure.
+Whe you use CSS and XPath, you need to understand the internal CSS class-names and XPath structure of the page. But when you use the visible text-content - for example the text within a `<button>` or hyperlink (`<a>`), performing a "selection" - can be far easier. And this kind of locator is likely to be more stable and resistant to cosmetic changes to the underlying HTML.
 
 Locator | Description
 ------- | -----------
-`click('^Click Me')` | the first HTML element (of *any* tag name) where the text-content is *exactly*: `Click Me`
-`click('*{span}Click Me')` | the first `<span>` where the text-content *contains*: `Click Me`
-`click('^{div:1}Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
-`click('^{span/a}Click Me')` | the first `<a>` immediately nested under a `<span>` where the text-content is *exactly*: `Click Me`
-`click('*{:3}Click Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Click Me`
+`click('{a}Click Me')` | the first `<a>` where the text-content is *exactly*: `Click Me`
+`click('{^span}Click')` | the first `<span>` where the text-content *contains*: `Click`
+`click('{div:1}Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
+`click('{span/a}Click Me')` | the first `<a>` where a `<span>` is the immediate parent, and where the text-content is *exactly*: `Click Me`
+`click('{^*:3}Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Me`
 
-You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to use the "scope modifier" (in curly braces) only for "de-duping" when the same *user-facing* text appears multiple times on a page.
-
-> In case the text you are searching for begins with a "`{`" - you can do this: `click('^{}{click me}')`
+You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to expand the "scope modifier" (the part within curly braces) only for "de-duping" when the same *user-facing* text appears multiple times on a page.
 
 # Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
@@ -763,6 +761,20 @@ When def list = scripts('div div', '_.textContent')
 Then match list == '#[3]'
 And match each list contains '@@data'
 ```
+
+## `findAll()`
+This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now apply all kinds of checks and use Karate's [core API](https://github.com/intuit/karate#the-karate-object). Here are some examples:
+
+```cucumber
+# find all elements with the text-content "Click Me"
+* def elements = findAll('{}Click Me')
+* match karate.sizeOf(elements) == 7
+* elements.get(6).click()
+* match text('#eg03Result') == 'SECOND'
+* match elements.get(3).script('_.tagName') == 'BUTTON'
+```
+
+Take a look at how to [loop and transform](https://github.com/intuit/karate#json-transforms) data for more ideas.
 
 ## `refresh()`
 Normal page reload, does *not* clear cache.

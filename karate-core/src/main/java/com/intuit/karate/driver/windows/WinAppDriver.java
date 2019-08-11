@@ -27,6 +27,7 @@ import com.intuit.karate.Http;
 import com.intuit.karate.Json;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
 import com.intuit.karate.shell.Command;
@@ -93,7 +94,7 @@ public class WinAppDriver extends WebDriver {
     public Element click(String locator) {
         String id = elementId(locator);
         http.path("element", id, "click").post("{}");
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override

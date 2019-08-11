@@ -381,21 +381,21 @@ public abstract class DevToolsDriver implements Driver {
     public Element click(String locator) {
         retryIfEnabled(locator);
         eval(options.selector(locator) + ".click()");
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
     public Element select(String locator, String text) {
         retryIfEnabled(locator);
         eval(options.optionSelector(locator, text));
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
     public Element select(String locator, int index) {
         retryIfEnabled(locator);
         eval(options.optionSelector(locator, index));
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
@@ -408,13 +408,13 @@ public abstract class DevToolsDriver implements Driver {
     public Element focus(String locator) {
         retryIfEnabled(locator);
         eval(options.selector(locator) + ".focus()");
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
     public Element clear(String locator) {
         eval(options.selector(locator) + ".value = ''");
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     private void sendKey(char c, int modifier, String type, Integer keyCode) {
@@ -465,7 +465,7 @@ public abstract class DevToolsDriver implements Driver {
                 }
             }
         }
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
@@ -564,7 +564,7 @@ public abstract class DevToolsDriver implements Driver {
     public Element value(String locator, String value) {
         retryIfEnabled(locator);
         eval(options.selector(locator) + ".value = '" + value + "'");
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
@@ -697,12 +697,15 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public Map<String, Object> position(String locator) {
+        boolean submitTemp = submit; // in case we are prepping for a submit().mouse(locator).click()
+        submit = false;
         retryIfEnabled(locator);
         String expression = options.selector(locator) + ".getBoundingClientRect()";
         //  important to not set returnByValue to true
         DevToolsMessage dtm = method("Runtime.evaluate").param("expression", expression).send();
         String objectId = dtm.getResult("objectId").getAsString();
         dtm = method("Runtime.getProperties").param("objectId", objectId).param("accessorPropertiesOnly", true).send();
+        submit = submitTemp;
         return options.newMapWithSelectedKeys(dtm.getResult().getAsMap(), "x", "y", "width", "height");
     }
 

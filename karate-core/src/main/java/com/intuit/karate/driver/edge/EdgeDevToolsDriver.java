@@ -28,6 +28,7 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
+import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Element;
 
@@ -72,7 +73,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     @Override
     public Element input(String locator, String value) {
         eval(options.selector(locator) + ".value = \"" + value + "\"");
-        return element(locator, true);
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
