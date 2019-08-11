@@ -461,7 +461,6 @@ public class DriverOptions {
     public String waitForUrl(Driver driver, String expected) {
         return waitUntil(() -> {
             String url = driver.getUrl();
-            logger.info("URL: {}", url);
             return url.contains(expected) ? url : null;
         });
     }

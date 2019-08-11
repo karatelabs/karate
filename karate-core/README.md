@@ -3,6 +3,10 @@
 
 > This is new, and this first version 0.9.X should be considered *BETA*.
 
+# Hello World
+
+<a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" height="300" /></a>
+
 # Index
 
 <table>
@@ -32,7 +36,7 @@
     | <a href="#short-cuts">Short Cuts</a>
     | <a href="#chaining">Chaining</a>
     | <a href="#locator-lookup">Locator Lookup</a>
-    | <a href="#examples">Examples</a>
+    | <a href="#function-composition">Function Composition</a>
   </td>
 </tr>
 <tr>
@@ -138,9 +142,12 @@
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example sign-in using an API and speed-up your tests
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
-* Simple [retry and polling](#retry) based "wait" strategy - no need to wade through esoteric concepts such as "implicit waits"
+* Simple [retry and polling](#retry) based "wait" strategy, no need to wade through esoteric concepts such as "implicit waits"
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
+* Elegant syntax for the typical challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element](#waitfor)
+* Execute JavaScript in the browser with [one-liners](#script) - for example to [get data out of an HTML table](#scripts)
+* [Compose re-usable functions](#function-composition) based on your specific environment or application needs
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
 * Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
 * Traceability: detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
@@ -149,7 +156,13 @@
 # Examples
 ## Web Browser
 * [Example 1](../karate-demo/src/test/java/driver/demo/demo-01.feature) - simple example that navigates to GitHub and Google Search
-* [Example 2](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
+* [Example 2](../karate-demo/src/test/java/driver/demo/demo-02.feature) - simple but *very* relevant and meaty example ([see video](https://twitter.com/ptrthomas/status/1160680240781262851)) that shows how to
+  * wait for [page-navigation](#waitforurl-instead-of-submit)
+  * use a friendly [wildcard locator](#wildcard-locators)
+  * wait for an element to [be ready](#waitfor)
+  * [compose functions](#function-composition) for elegant heavy-lifting
+  * assert on tabular [results in the HTML](#scripts])
+* [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) for an alternative approach.
 
@@ -324,8 +337,8 @@ platform | prefix | means | example
 ----- | ------ | ----- | -------
 web | (none) | css selector | `input[name=someName]`
 web <br/> android <br/> ios | `/` | xpath | `//input[@name='commit']`
-web | `{` | [exact text content](#wildcard-locators) | `{a}Click Me`
-web | `{^` | [partial text content](#wildcard-locators) | `{^a}Click Me`
+web | `{}` | [exact text content](#wildcard-locators) | `{a}Click Me`
+web | `{^}` | [partial text content](#wildcard-locators) | `{^a}Click Me`
 win <br/> android <br/> ios| (none) | name | `Submit`
 win <br/> android <br/> ios | `@` | accessibility id | `@CalculatorResults`
 win <br/> android <br/> ios | `#` | id | `#MyButton`
@@ -334,9 +347,11 @@ ios| `^` | -ios class chain | `^**/XCUIElementTypeTable[name == 'dataTable']`
 android| `-` | -android uiautomator | `-input[name=someName]`
 
 ## Wildcard Locators
-The "`{`" and "`{^`" locator-prefixes are designed to make finding an HTML element by *text content* super-easy. You will typically also match against a specific HTML tag (which is faster at run-time), but even if you use "`*`" to match *any* tag, you are selecting based on what the user *sees on the page*.
+The "`{}`" and "`{^}`" locator-prefixes are designed to make finding an HTML element by *text content* super-easy. You will typically also match against a specific HTML tag (which is preferred, and faster at run-time). But even if you use "`{*}`" (or "`{}`" which is the equivalent short-cut) to match *any* tag, you are selecting based on what the user *sees on the page*.
 
-Whe you use CSS and XPath, you need to understand the internal CSS class-names and XPath structure of the page. But when you use the visible text-content - for example the text within a `<button>` or hyperlink (`<a>`), performing a "selection" - can be far easier. And this kind of locator is likely to be more stable and resistant to cosmetic changes to the underlying HTML.
+Whe you use CSS and XPath, you need to understand the internal CSS class-names and XPath structure of the page. But when you use the visible text-content, for example the text within a `<button>` or hyperlink (`<a>`) - performing a "selection" can be far easier. And this kind of locator is likely to be more stable and resistant to cosmetic changes to the underlying HTML.
+
+You have the option to adjust the "scope" of the match, and here are examples:
 
 Locator | Description
 ------- | -----------
@@ -346,7 +361,9 @@ Locator | Description
 `click('{span/a}Click Me')` | the first `<a>` where a `<span>` is the immediate parent, and where the text-content is *exactly*: `Click Me`
 `click('{^*:3}Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Me`
 
-You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to expand the "scope modifier" (the part within curly braces) only for "de-duping" when the same *user-facing* text appears multiple times on a page.
+Note that "`{:3}`" can be used as a short-cut instead of "`{*:3}`".
+
+You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to expand the "scope modifier" (the part within curly braces) only when you need to do "de-duping" in case the same *user-facing* text appears multiple times on a page.
 
 # Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
@@ -438,7 +455,7 @@ Or to temporarily [over-ride the retry configuration](#retry) *and* wait:
 Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a click:
 
 ```cucumber
-  * mouse(100, 200).click()
+* mouse(100, 200).click()
 ```
 
 # Syntax
@@ -620,10 +637,10 @@ This returns an instance of [`Mouse` on which you can chain actions](#chaining).
 The `mouse().move()` method has two forms. You can pass 2 integers as the `x` and `y` co-ordinates or you can pass the [locator](#locators) string of the element to move to. Make sure you call `go()` at the end - if the last method in the chain is not `click()` or `up()`.
 
 ```cucumber
-  * mouse().move(100, 200).go()
-  * mouse().move('#eg02RightDivId').click()
-  # this is a "click and drag" action
-  * mouse().down().move('#eg02LeftDivId').up()
+* mouse().move(100, 200).go()
+* mouse().move('#eg02RightDivId').click()
+# this is a "click and drag" action
+* mouse().down().move('#eg02LeftDivId').up()
 ```
 
 You can even chain a [`submit()`](#submit) to wait for a page load if needed:
@@ -755,20 +772,45 @@ Also see the examples for [chaining](#chaining).
 ### `waitUntil(function)`
 A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#js-api)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
 
-This is best explained with an example:
+This is best explained with an example. Note that [`scripts()`](#scripts) will return an array as opposed to [`script()`](#script).
 
 ```cucumber
-Given search.input('karate-logo.png')
+When search.input('karate-logo.png')
 
 # note how we return null to keep looping
-And def fun = function(){ var res = scripts('.js-tree-browser-result-path', '_.innerText'); return res.size() == 2 ? res : null }
+And def searchFunction =
+  """
+  function() {
+    var results = scripts('.js-tree-browser-result-path', '_.innerText');
+    return results.size() == 2 ? results : null;
+  }
+  """
 
 # note how we returned an array from the above when the condition was met
-And def results = waitUntil(fun)
+And def searchResults = waitUntil(searchFunction)
 
 # and now we can use the results like normal
-And match results contains 'karate-core/src/main/resources/karate-logo.png'
+Then match searchResults contains 'karate-core/src/main/resources/karate-logo.png'
 ```
+
+### Function Composition
+The above example can be re-factored in a very elegant way as follows:
+
+```cucumber
+# this can be a global re-usable function !
+And def innerText = function(locator){ return scripts(locator, '_.innerText') }
+
+# we compose a function using another function (the one above)
+And def searchFunction =
+  """
+  function() {
+    var results = innerText('.js-tree-browser-result-path');
+    return results.size() == 2 ? results : null;
+  }
+  """
+```
+
+The great thing here is that the `innnerText()` function can be defined in a [common feature](https://github.com/intuit/karate#multiple-functions-in-one-file) which all your scripts can re-use. You can see how it can be re-used anywhere to scrape the contents out of *any* HTML tabular data, and all you need to do is supply the [locator](#locators) that matches the elements you are interested in.
 
 ## `retry()`
 For tests that need to wait for slow pages or deal with un-predictable element load-times or state / visibility changes, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
@@ -813,6 +855,8 @@ And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 
 Normally you would use [`text()`](#text) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`waitUntil()`](#waituntil).
 
+Also see the plural form [`scripts()`](#scripts).
+
 ## `scripts()`
 Just like [`script()`](#script), but will perform the script `eval()` on *all* matching elements (not just the first) - and return the results as a JSON array / list. This is very useful for "bulk-scraping" data out of the HTML (such as `<table>` rows) - which you can then proceed to use in [`match`](https://github.com/intuit/karate#match) assertions:
 
@@ -822,6 +866,8 @@ When def list = scripts('div div', '_.textContent')
 Then match list == '#[3]'
 And match each list contains '@@data'
 ```
+
+See [Function Composition](#function-composition) for another good example. Also see the singular form [`script()`](#script).
 
 ## `findAll()`
 This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now use Karate's [core API](https://github.com/intuit/karate#the-karate-object) and call [chained](#chaining) methods. Here are some examples:
