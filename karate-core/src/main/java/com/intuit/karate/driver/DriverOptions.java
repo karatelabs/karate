@@ -52,6 +52,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  *
@@ -88,7 +89,7 @@ public class DriverOptions {
     private boolean retryEnabled;
     private Integer retryInterval = null;
     private Integer retryCount = null;
-    private String submitTarget = null;
+    private String preSubmitHash = null;
 
     // mutable when we return from called features
     private ScenarioContext context;
@@ -113,12 +114,12 @@ public class DriverOptions {
         return retryEnabled;
     }
 
-    public String getSubmitTarget() {
-        return submitTarget;
-    }
-
-    public void setSubmitTarget(String submitTarget) {
-        this.submitTarget = submitTarget;
+    public String getPreSubmitHash() {
+        return preSubmitHash;
+    }    
+    
+    public void setPreSubmitHash(String preSubmitHash) {
+        this.preSubmitHash = preSubmitHash;
     }
 
     private <T> T get(String key, T defaultValue) {
@@ -456,6 +457,32 @@ public class DriverOptions {
         }
         return DriverElement.locatorExists(driver, locator);
     }
+    
+    public String waitForUrl(Driver driver, String expected) {
+        return waitUntil(() -> {
+            String url = driver.getUrl();
+            return url.contains(expected) ? url : null;
+        });
+    }
+    
+    public <T> T waitUntil(Supplier<T> condition) {
+        long startTime = System.currentTimeMillis();
+        int max = getRetryCount();
+        int count = 0;
+        T result;
+        do {
+            if (count > 0) {
+                logger.debug("waitUntil (function) retry #{}", count);
+                sleep();                
+            }
+            result = condition.get();
+        } while (result == null && count++ < max);
+        if (result == null) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            throw new RuntimeException("waitUntil failed after " + elapsedTime + " milliseconds");
+        }
+        return result;
+    }
 
     public Element waitForAny(Driver driver, String... locators) {
         long startTime = System.currentTimeMillis();
@@ -497,7 +524,7 @@ public class DriverOptions {
         if (o instanceof Boolean && (Boolean) o) {
             return DriverElement.locatorExists(driver, locator);
         } else {
-            return new MissingElement(locator);
+            return new MissingElement(driver, locator);
         }
     }
 

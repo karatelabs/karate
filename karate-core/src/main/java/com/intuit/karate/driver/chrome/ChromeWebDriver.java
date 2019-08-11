@@ -129,4 +129,10 @@ public class ChromeWebDriver extends WebDriver {
         return !value.isNull() && value.getAsString().contains("javascript error");
     }        
 
+    @Override
+    protected boolean isLocatorError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return value.getAsString().contains("no such element");
+    }        
+
 }

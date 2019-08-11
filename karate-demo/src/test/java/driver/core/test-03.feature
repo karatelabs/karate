@@ -14,7 +14,7 @@ Feature: parallel testing demo - single node using docker
     Given driver 'https://google.com'
     And input("input[name=q]", 'karate dsl')
     When submit().click("input[name=btnI]")
-    Then match driver.location == 'https://github.com/intuit/karate'
+    Then match driver.url == 'https://github.com/intuit/karate'
 
   Scenario: test automation tool challenge
     * driver 'https://semantic-ui.com/modules/dropdown.html'

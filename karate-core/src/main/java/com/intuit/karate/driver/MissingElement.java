@@ -29,9 +29,11 @@ package com.intuit.karate.driver;
  */
 public class MissingElement implements Element {
 
+    private final Driver driver;
     private final String locator;
 
-    public MissingElement(String locator) {
+    public MissingElement(Driver driver, String locator) {
+        this.driver = driver;
         this.locator = locator;
     }
 
@@ -79,6 +81,12 @@ public class MissingElement implements Element {
     public Element select(int index) {
         return this;
     }
+
+    @Override
+    public Element delay(int millis) {
+        driver.delay(millis);
+        return this;
+    }        
 
     @Override
     public Element waitFor() {

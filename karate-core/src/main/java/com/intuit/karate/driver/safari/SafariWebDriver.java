@@ -74,11 +74,6 @@ public class SafariWebDriver extends WebDriver {
         }
         String json = JsonUtils.toJson(map);
         http.path("window", "rect").post(json);
-    }
-
-    @Override
-    protected boolean isJavaScriptError(Http.Response res) {
-        return super.isJavaScriptError(res); //To change body of generated methods, choose Tools | Templates.
     }    
     
     @Override

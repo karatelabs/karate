@@ -147,6 +147,13 @@ public abstract class DevToolsDriver implements Driver {
                 currentUrl = frameNavUrl;
             }
         }
+        if (dtm.methodIs("Page.navigatedWithinDocument")) { // js variant of above (SPA, history nav)
+            String frameNavId = dtm.get("frameId", String.class);
+            String frameNavUrl = dtm.get("url", String.class);
+            if (rootFrameId.equals(frameNavId)) { // root page navigated
+                currentUrl = frameNavUrl;
+            }            
+        }
         if (dtm.methodIs("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.get("frameId", String.class);
             if (rootFrameId.equals(frameLoadingId)) { // root page is loading
@@ -307,7 +314,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void setLocation(String url) {
+    public void setUrl(String url) {
         method("Page.navigate").param("url", url)
                 .send(WaitState.ALL_FRAMES_LOADED);
     }
@@ -621,7 +628,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public String getLocation() {
+    public String getUrl() {
         return currentUrl;
     }
 

@@ -65,15 +65,19 @@ public abstract class WebDriver implements Driver {
         this.sessionId = sessionId;
         this.windowId = windowId;
     }
+    
+    private String getSubmitHash() {
+        return getUrl() + elementId("html");
+    }
 
     protected <T> T retryIfEnabled(String locator, Supplier<T> action) {
         if (options.isRetryEnabled()) {
             waitFor(locator); // will throw exception if not found
         }
-        String before = options.getSubmitTarget();
+        String before = options.getPreSubmitHash();
         if (before != null) {
             logger.trace("submit requested, will wait for page load after next action on : {}", locator);
-            options.setSubmitTarget(null); // clear the submit flag
+            options.setPreSubmitHash(null); // clear the submit flag
             T result = action.get();
             int count = 0, max = options.getRetryCount();
             String after;
@@ -82,7 +86,7 @@ public abstract class WebDriver implements Driver {
                     logger.trace("waiting for document to change, retry #{}", count);
                     options.sleep();
                 }
-                after = elementId("html");
+                after = getSubmitHash();
             } while (count++ < max && before.equals(after));
             waitForPage();
             return result;
@@ -95,6 +99,10 @@ public abstract class WebDriver implements Driver {
         return res.status() != 200 
                 && !res.jsonPath("$.value").asString().contains("unexpected alert open");
     }
+    
+    protected boolean isLocatorError(Http.Response res) {
+        return res.status() != 200;
+    }    
     
     private Element evalInternal(String expression, String locator) {
         // here the locator is just passed on and nothing is done with it
@@ -151,8 +159,19 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public String elementId(String locator) {
-        return http.path("element")
-                .post(selectorPayload(locator)).jsonPath("get[0] $.." + getElementKey()).asString();
+        String json = selectorPayload(locator);
+        Http.Response res = http.path("element").post(json);
+        if (isLocatorError(res)) {
+            logger.warn("locator failed, will retry once: {}", res.body().asString());
+            options.sleep();
+            res = http.path("element").post(json);
+            if (isLocatorError(res)) {
+                String message = "locator failed twice: " + res.body().asString();
+                logger.error(message);                
+                throw new RuntimeException(message);
+            }            
+        }
+        return res.jsonPath("get[0] $.." + getElementKey()).asString();     
     }
 
     @Override
@@ -167,7 +186,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void setLocation(String url) {
+    public void setUrl(String url) {
         Json json = new Json().set("url", url);
         http.path("url").post(json);
     }
@@ -251,7 +270,7 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Driver submit() {
-        options.setSubmitTarget(elementId("html"));
+        options.setPreSubmitHash(getSubmitHash());
         return this;
     }
 
@@ -293,7 +312,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public String getLocation() {
+    public String getUrl() {
         return http.path("url").get().jsonPath("$.value").asString();
     }
 
@@ -469,7 +488,7 @@ public abstract class WebDriver implements Driver {
                 return;
             }
             String temp = options.removeProtocol(titleOrUrl);
-            String url = options.removeProtocol(getLocation());
+            String url = options.removeProtocol(getUrl());
             if (temp.equals(url)) {
                 return;
             }

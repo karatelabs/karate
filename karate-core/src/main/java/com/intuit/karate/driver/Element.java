@@ -47,6 +47,8 @@ public interface Element {
     
     Element select(int index);
     
+    Element delay(int millis);
+    
     Element waitFor();
     
     Element waitUntil(String expression);

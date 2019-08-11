@@ -26,6 +26,7 @@ package com.intuit.karate.driver;
 import com.intuit.karate.Logger;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  *
@@ -63,9 +64,9 @@ public interface Driver {
 
     void switchFrame(String locator);
 
-    String getLocation(); // getter
+    String getUrl(); // getter
 
-    void setLocation(String url); // setter    
+    void setUrl(String url); // setter    
 
     Map<String, Object> getDimensions(); // getter
 
@@ -140,6 +141,10 @@ public interface Driver {
     default Element waitFor(String locator) {
         return waitForAny(locator);
     }
+    
+    default String waitForUrl(String expected) {
+        return getOptions().waitForUrl(this, expected);
+    }
 
     default Element waitForAny(String... locators) {
         return getOptions().waitForAny(this, locators);
@@ -147,6 +152,10 @@ public interface Driver {
 
     default Element waitUntil(String locator, String expression) {
         return getOptions().waitUntil(this, locator, expression);
+    }
+    
+    default Object waitUntil(Supplier<Object> condition) {
+        return getOptions().waitUntil(condition);
     }
 
     default List<Element> findAll(String locator) {

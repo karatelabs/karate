@@ -58,7 +58,7 @@ Scenario Outline: using <config>
   
   # refresh
   When refresh()
-  Then match driver.location == webUrlBase + '/page-01'
+  Then match driver.url == webUrlBase + '/page-01'
   And match text('#eg01DivId') == ''
   And match value('#eg01InputId') == ''
   And match driver.title == 'Page One'
@@ -68,7 +68,7 @@ Scenario Outline: using <config>
   Then match text('.eg01Cls') == 'Class Locator Test'
   And match html('.eg01Cls') == '<div class="eg01Cls" style="background-color: yellow"><span>Class Locator Test</span></div>'
   And match driver.title == 'Page Two'
-  And match driver.location == webUrlBase + '/page-02'
+  And match driver.url == webUrlBase + '/page-02'
 
   # set cookie
   Given def cookie2 = { name: 'hello', value: 'world' }
@@ -85,10 +85,10 @@ Scenario Outline: using <config>
 
   # back and forward
   When back()
-  Then match driver.location == webUrlBase + '/page-01'
+  Then match driver.url == webUrlBase + '/page-01'
   And match driver.title == 'Page One'
   When forward()
-  Then match driver.location == webUrlBase + '/page-02'
+  Then match driver.url == webUrlBase + '/page-02'
   And match driver.title == 'Page Two'
 
   # wildcard locators
@@ -147,12 +147,12 @@ Scenario Outline: using <config>
   # switch back to first tab
   When switchPage('Page Two')
   Then match driver.title == 'Page Two'
-  And match driver.location contains webUrlBase + '/page-02'
+  And match driver.url contains webUrlBase + '/page-02'
 
   # submit - action that waits for page navigation
   When submit().click('{^}Page Three')
   And match driver.title == 'Page Three'
-  And match driver.location == webUrlBase + '/page-03'
+  And match driver.url == webUrlBase + '/page-03'
 
   # get html for all elements that match css selector
   When def list = scripts('div div', '_.innerHTML')
@@ -206,7 +206,7 @@ Scenario Outline: using <config>
 
   # switch to iframe by index
   Given driver webUrlBase + '/page-04'
-  And match driver.location == webUrlBase + '/page-04'
+  And match driver.url == webUrlBase + '/page-04'
   And switchFrame(0)
   When input('#eg01InputId', 'hello world')
   And click('#eg01SubmitId')
@@ -218,7 +218,7 @@ Scenario Outline: using <config>
 
   # switch to iframe by locator
   Given driver webUrlBase + '/page-04'
-  And match driver.location == webUrlBase + '/page-04'
+  And match driver.url == webUrlBase + '/page-04'
   And switchFrame('#frame01')
   When input('#eg01InputId', 'hello world')
   And click('#eg01SubmitId')

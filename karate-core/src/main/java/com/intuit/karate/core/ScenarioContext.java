@@ -913,7 +913,7 @@ public class ScenarioContext {
             setDriver(DriverOptions.start(this, options, logger));
         }
         if (sv.isString()) {
-            driver.setLocation(sv.getAsString());
+            driver.setUrl(sv.getAsString());
         }
     }
 

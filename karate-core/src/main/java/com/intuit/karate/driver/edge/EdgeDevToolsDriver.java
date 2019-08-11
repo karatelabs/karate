@@ -65,7 +65,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     }
 
     @Override
-    public void setLocation(String url) {
+    public void setUrl(String url) {
         method("Page.navigate").param("url", url).send();
         currentUrl = url;
     }

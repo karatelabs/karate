@@ -101,6 +101,12 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element delay(int millis) {
+        driver.delay(millis);
+        return this;
+    }        
+
+    @Override
     public Element waitFor() {
         driver.waitFor(locator); // will throw exception if not found
         return this;

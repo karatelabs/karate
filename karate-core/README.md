@@ -38,7 +38,7 @@
 <tr>
   <th>Browser</th>
   <td>
-      <a href="#driverlocation"><code>driver.location</code></a>
+      <a href="#driverurl"><code>driver.url</code></a>
     | <a href="#driverdimensions"><code>driver.dimensions</code></a>
     | <a href="#refresh"><code>refresh()</code></a>
     | <a href="#reload"><code>reload()</code></a> 
@@ -396,14 +396,14 @@ Then match text('#eg02DivId') == '16'
 When it comes to JavaBean getters and setters, you could call them directly, but the `driver.propertyName` form is much better to read, and you save the trouble of typing out round brackets. So instead of doing this:
 
 ```cucumber
-And match getLocation() contains 'page-01'
-When setLocation(webUrlBase + '/page-02')
+And match getUrl() contains 'page-01'
+When setUrl(webUrlBase + '/page-02')
 ```
 
 You should prefer this form, which is more readable:
 ```cucumber
-And match driver.location contains 'page-01'
-When driver.location = webUrlBase + '/page-02'
+And match driver.url contains 'page-01'
+When driver.url = webUrlBase + '/page-02'
 ```
 
 Note that to navigate to a new address you can use [`driver`](#driver) - which is more concise.
@@ -442,17 +442,17 @@ Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a
 ```
 
 # Syntax
-## `driver.location`
+## `driver.url`
 Get the current URL / address for matching. Example:
 
 ```cucumber
-Then match driver.location == webUrlBase + '/page-02'
+Then match driver.url == webUrlBase + '/page-02'
 ```
 
 This can also be used as a "setter" to navigate to a new URL *during* a test. But always use the [`driver`](#driver) keyword when you *start* a test and you can choose to prefer that shorter form in general.
 
 ```cucumber
-* driver.location = 'http://localhost:8080/test'
+* driver.url = 'http://localhost:8080/test'
 ```
 
 ## `driver.title`
@@ -514,6 +514,47 @@ When submit().input('#someform', Key.ENTER)
 Karate will do the best it can to detect a page change and wait for the load to complete before proceeding to *any* step that follows.
 
 You can even mix this into [`mouse()`](#mouse) actions.
+
+For some SPAs (Single Page Applications) the detection of a "page load" may be difficult because page-navigation (and the browser history) is taken over by JavaScript. In such cases, you can always fall-back to a [`waitForUrl()`](#waitforurl) or a more generic [`waitFor()`](#waitfor).
+
+### `waitForUrl()` instead of `submit()`
+Sometimes, because of an HTTP re-direct, it can be difficult for Karate to detect a page URL change, or it will be detected too soon, causing your test to fail. In such cases, you can use `waitForUrl()`. For convenience, it will do a string *contains* match (not an exact match) so you don't need to worry about `http` vs `https` for example. Just supply a portion of the URL you are expecting. As another convenience, it will return a string which is the *actual* URL in case you need to use it for further actions in the test script.
+
+So instead of this, which uses [`submit()`](#submit):
+
+```cucumber
+Given driver 'https://google.com'
+And input('input[name=q]', 'karate dsl')
+When submit().click('input[name=btnI]')
+Then match driver.url == 'https://github.com/intuit/karate'
+```
+
+You can do this. Note that `waitForUrl()` will also act as an assertion, so you don't have to do an extra [`match`](https://github.com/intuit/karate#match).
+
+```cucumber
+Given driver 'https://google.com'
+And input('input[name=q]', 'karate dsl')
+When click('input[name=btnI]')
+And waitForUrl('https://github.com/intuit/karate')
+```
+
+And you can even [chain](#chaining) a [`retry()`](#retry) before the `waitForUrl()` if you know that it is going to take a long time:
+
+```cucumber
+And retry(5, 10000).waitForUrl('https://github.com/intuit/karate')
+```
+
+### `waitFor()` instead of `submit()`
+
+Here is an example of waiting for a search box to appear after a [`click()`](#click), and note how we re-use the [`Element`](#chaining) reference returned by `waitFor()` to proceed with the flow. We even slip in a page-URL assertion without missing a beat.
+
+```cucumber
+When click('{a}Find File')
+And def search = waitFor('input[name=query]')
+Then match driver.url == 'https://github.com/intuit/karate/find/master'
+
+Given search.input('karate-logo.png')
+```
 
 ## `delay()`
 Of course, resorting to a "sleep" in a UI test is considered a very bad-practice and you should always use [`retry()`](#retry) instead. But sometimes it is un-avoidable, for example to wait for animations to render - before taking a [screenshot](#screenshot). The nice thing here is that it returns a `Driver` instance, so you can [chain](#chaining) any other method and the "intent" will be clear. For example:
@@ -662,6 +703,8 @@ But most of the time, instead of using `waitFor()` - you would typically [chain]
 And retry().click('#eg01WaitId')
 ```
 
+Also see [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit).
+
 ## `waitForAny()`
 Rarely used - but accepts var-arg / multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the [`Element`](#chaining) representation of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
 
@@ -708,6 +751,24 @@ And assert waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
 Also see the examples for [chaining](#chaining).
+
+### `waitUntil(function)`
+A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#js-api)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
+
+This is best explained with an example:
+
+```cucumber
+Given search.input('karate-logo.png')
+
+# note how we return null to keep looping
+And def fun = function(){ var res = scripts('.js-tree-browser-result-path', '_.innerText'); return res.size() == 2 ? res : null }
+
+# note how we returned an array from the above when the condition was met
+And def results = waitUntil(fun)
+
+# and now we can use the results like normal
+And match results contains 'karate-core/src/main/resources/karate-logo.png'
+```
 
 ## `retry()`
 For tests that need to wait for slow pages or deal with un-predictable element load-times or state / visibility changes, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
@@ -763,14 +824,13 @@ And match each list contains '@@data'
 ```
 
 ## `findAll()`
-This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now apply all kinds of checks and use Karate's [core API](https://github.com/intuit/karate#the-karate-object). Here are some examples:
+This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now use Karate's [core API](https://github.com/intuit/karate#the-karate-object) and call [chained](#chaining) methods. Here are some examples:
 
 ```cucumber
 # find all elements with the text-content "Click Me"
 * def elements = findAll('{}Click Me')
 * match karate.sizeOf(elements) == 7
 * elements.get(6).click()
-* match text('#eg03Result') == 'SECOND'
 * match elements.get(3).script('_.tagName') == 'BUTTON'
 ```
 
