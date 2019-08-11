@@ -184,14 +184,14 @@ Scenario Outline: using <config>
   And match each list contains 'check'
 
   # select option with text
-  Given select('select[name=data1]', '^Option Two')
+  Given select('select[name=data1]', '{}Option Two')
   And click('input[value=check2]')
   When submit().click('#eg02SubmitId')
   And match text('#eg01Data1') == 'option2'
   And match text('#eg01Data2') == 'check2'
 
   # select option containing text
-  Given select('select[name=data1]', '*Two')
+  Given select('select[name=data1]', '{^}Two')
   And click('[value=check2]')
   And click('[value=check1]')
   When submit().click('#eg02SubmitId')

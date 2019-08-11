@@ -318,11 +318,11 @@ public class DriverOptions {
     }
 
     public String optionSelector(String id, String text) {
-        boolean textEquals = text.startsWith("^");
-        boolean textContains = text.startsWith("*");
+        boolean textEquals = text.startsWith("{}");
+        boolean textContains = text.startsWith("{^}");
         String condition;
         if (textEquals || textContains) {
-            text = text.substring(1);
+            text = text.substring(text.indexOf('}') + 1);
             condition = textContains ? "e.options[i].text.indexOf(t) !== -1" : "e.options[i].text === t";
         } else {
             condition = "e.options[i].value === t";

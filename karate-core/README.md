@@ -136,7 +136,7 @@
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
-* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid" setup
+* [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
@@ -349,7 +349,7 @@ android| `-` | -android uiautomator | `-input[name=someName]`
 ## Wildcard Locators
 The "`{}`" and "`{^}`" locator-prefixes are designed to make finding an HTML element by *text content* super-easy. You will typically also match against a specific HTML tag (which is preferred, and faster at run-time). But even if you use "`{*}`" (or "`{}`" which is the equivalent short-cut) to match *any* tag, you are selecting based on what the user *sees on the page*.
 
-Whe you use CSS and XPath, you need to understand the internal CSS class-names and XPath structure of the page. But when you use the visible text-content, for example the text within a `<button>` or hyperlink (`<a>`) - performing a "selection" can be far easier. And this kind of locator is likely to be more stable and resistant to cosmetic changes to the underlying HTML.
+When you use CSS and XPath, you need to understand the internal CSS class-names and XPath structure of the page. But when you use the visible text-content, for example the text within a `<button>` or hyperlink (`<a>`), performing a "selection" can be far easier. And this kind of locator is likely to be more stable and resistant to cosmetic changes to the underlying HTML.
 
 You have the option to adjust the "scope" of the match, and here are examples:
 
@@ -590,14 +590,16 @@ Just triggers a click event on the DOM element:
 Also see [`submit()`](#submit) and [`mouse()`](#mouse).
 
 ## `select()`
-Note that most of the time, it is better to fire a [`click()`](#click) on the `<option>` element. But you can try this for normal `<select>` boxes that have not been overly "ehnanced" by JavaScript. There are four variations and use the [locator](#locators) conventions.
+Note that most of the time, it is better to fire a [`click()`](#click) on the `<option>` element. And if you use [wildcard locators](#wildcard-locators) it is very easy to target an option by the visible text.
+
+But you can try this for normal `<select>` boxes that have not been overly "ehnanced" by JavaScript. There are four variations and use the [locator](#locators) conventions for exact and *contains* matches against the `<option>` text-content.
 
 ```cucumber
 # select by displayed text
-Given select('select[name=data1]', '^Option Two')
+Given select('select[name=data1]', '{}Option Two')
 
 # select by partial displayed text
-And select('select[name=data1]', '*Two')
+And select('select[name=data1]', '{^}Two')
 
 # select by `value`
 Given select('select[name=data1]', 'option2')
