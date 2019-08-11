@@ -140,9 +140,8 @@ Scenario Outline: using <config>
   # get element dimensions
   * match position('#eg02DivId') contains { x: '#number', y: '#number', width: '#number', height: '#number' }
 
-  # new tab opens, wait for page
+  # new tab opens
   When click('{}New Tab')
-  And waitForPage()
 
   # switch back to first tab
   When switchPage('Page Two')

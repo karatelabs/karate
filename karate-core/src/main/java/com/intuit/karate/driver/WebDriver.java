@@ -88,7 +88,7 @@ public abstract class WebDriver implements Driver {
                 }
                 after = getSubmitHash();
             } while (count++ < max && before.equals(after));
-            waitForPage();
+            waitUntil("document.readyState == 'complete'");
             return result;
         } else {
             return action.get();

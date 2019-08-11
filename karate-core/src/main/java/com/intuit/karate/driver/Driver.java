@@ -54,10 +54,6 @@ public interface Driver {
 
     void quit();
 
-    default void waitForPage() {
-        waitUntil("document.readyState == 'complete'");
-    }
-
     void switchPage(String titleOrUrl);
 
     void switchFrame(int index);

@@ -94,10 +94,10 @@
   <td>
       <a href="#delay"><code>delay()</code></a>
     | <a href="#retry"><code>retry()</code></a>
-    | <a href="#waitfor"><code>waitFor()</code></a>
+    | <a href="#waitfor"><code>waitFor()</code></a>    
     | <a href="#waitforany"><code>waitForAny()</code></a>
+    | <a href="#waitforurl"><code>waitForUrl()</code></a>    
     | <a href="#waituntil"><code>waitUntil()</code></a>
-    | <a href="#waitforpage"><code>waitForPage()</code></a>
     | <a href="#script"><code>script()</code></a>
     | <a href="#scripts"><code>scripts()</code></a>
   </td>
@@ -687,8 +687,8 @@ And match enabled('#eg01DisabledId') == false
 
 Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an element is "enabled" or until any other element property becomes the target value.
 
-## `waitForPage()`
-Short-cut for the commonly used `waitUntil("document.readyState == 'complete'")` - see [`waitUntil()`](#waituntil).
+## `waitForUrl()`
+Very handy for waiting for an expected URL change *and* asserting if it happened. See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit).
 
 ## `waitFor()`
 Will wait until the element (by [locator](#locators)) is present in the page and uses the configured [`retry()`](#retry) settings. This will fail the test if the element does not appear after the configured number of re-tries have been attempted.
