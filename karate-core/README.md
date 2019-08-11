@@ -5,7 +5,7 @@
 
 # Hello World
 
-<a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" height="300" /></a>
+<a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" width="800" /></a>
 
 # Index
 
@@ -443,7 +443,7 @@ Or to [wait until](#waituntil) a button is enabled using the default retry confi
 
 ```cucumber
 # waitUntil returns an "Element" instance
-# waitUntil('#someBtn', '!_.disabled').click()
+* waitUntil('#someBtn', '!_.disabled').click()
 ```
 
 Or to temporarily [over-ride the retry configuration](#retry) *and* wait:
@@ -654,7 +654,7 @@ Since moving the mouse is a common task, these short-cuts can be used:
 ```cucumber
 * mouse('#menuItem32').click()
 * mouse(100, 200).go()
-# waitUntil('#someBtn', '!_.disabled').mouse().click()
+* waitUntil('#someBtn', '!_.disabled').mouse().click()
 ```
 
 These are useful in situations where the "normal" [`click()`](#click) does not work - especially when the element you are clicking is not a normal hyperlink (`<a href="">`) or `<button>`.
@@ -996,7 +996,7 @@ To visually highlight an element in the browser, especially useful when working 
 ```
 
 # Locator Lookup
-Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project is of the opinion that things can be made simpler.
+Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project team is of the opinion that things can be made simpler.
 
 One indicator of a *good* automation framework is how much *work* a developer needs to do in order to perform any automation action - such as clicking a button, or retrieving the value of some HTML object / property. In Karate - these are typically *one-liners*. And especially when it comes to test-automation, we have found that attempts to apply patterns in the pursuit of code re-use, more often than not - results in hard-to-maintain code, and severely impacts *readability*.
 
