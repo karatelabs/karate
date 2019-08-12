@@ -116,8 +116,8 @@ public class DriverOptions {
 
     public String getPreSubmitHash() {
         return preSubmitHash;
-    }    
-    
+    }
+
     public void setPreSubmitHash(String preSubmitHash) {
         this.preSubmitHash = preSubmitHash;
     }
@@ -275,7 +275,7 @@ public class DriverOptions {
         }
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
-        }        
+        }
         if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
             return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
         }
@@ -355,7 +355,7 @@ public class DriverOptions {
     public String selectorAllScript(String locator, String expression) {
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
-        }        
+        }
         boolean isXpath = locator.startsWith("/");
         String selector;
         if (isXpath) {
@@ -457,14 +457,14 @@ public class DriverOptions {
         }
         return DriverElement.locatorExists(driver, locator);
     }
-    
+
     public String waitForUrl(Driver driver, String expected) {
         return waitUntil(() -> {
             String url = driver.getUrl();
             return url.contains(expected) ? url : null;
         });
     }
-    
+
     public <T> T waitUntil(Supplier<T> condition) {
         long startTime = System.currentTimeMillis();
         int max = getRetryCount();
@@ -473,7 +473,7 @@ public class DriverOptions {
         do {
             if (count > 0) {
                 logger.debug("waitUntil (function) retry #{}", count);
-                sleep();                
+                sleep();
             }
             result = condition.get();
         } while (result == null && count++ < max);

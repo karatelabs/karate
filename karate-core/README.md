@@ -37,6 +37,7 @@
     | <a href="#chaining">Chaining</a>
     | <a href="#locator-lookup">Locator Lookup</a>
     | <a href="#function-composition">Function Composition</a>
+    | <a href="#debugging">Debugging</a>
   </td>
 </tr>
 <tr>
@@ -102,6 +103,7 @@
     | <a href="#waitforany"><code>waitForAny()</code></a>
     | <a href="#waitforurl"><code>waitForUrl()</code></a>    
     | <a href="#waituntil"><code>waitUntil()</code></a>
+    | <a href="#waituntilenabled"><code>waitUntilEnabled()</code></a>
     | <a href="#script"><code>script()</code></a>
     | <a href="#scripts"><code>scripts()</code></a>
   </td>
@@ -140,12 +142,12 @@
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
-* Seamlessly mix API and UI tests within the same script, for example sign-in using an API and speed-up your tests
+* Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
 * Simple [retry and polling](#retry) based "wait" strategy, no need to wade through esoteric concepts such as "implicit waits"
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
-* Elegant syntax for the typical challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element](#waitfor)
+* Elegant syntax for typical web-automation challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element to appear](#waitfor)
 * Execute JavaScript in the browser with [one-liners](#script) - for example to [get data out of an HTML table](#scripts)
 * [Compose re-usable functions](#function-composition) based on your specific environment or application needs
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
@@ -161,7 +163,7 @@
   * use a friendly [wildcard locator](#wildcard-locators)
   * wait for an element to [be ready](#waitfor)
   * [compose functions](#function-composition) for elegant heavy-lifting
-  * assert on tabular [results in the HTML](#scripts])
+  * assert on tabular [results in the HTML](#scripts)
 * [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) for an alternative approach.
@@ -439,17 +441,17 @@ For example, to [`retry()`](#retry) until an HTML element is present and then [`
 * retry().click('#someId')
 ```
 
-Or to [wait until](#waituntil) a button is enabled using the default retry configuration:
+Or to [wait until a button is enabled](#waituntilenabled) using the default retry configuration:
 
 ```cucumber
-# waitUntil returns an "Element" instance
-* waitUntil('#someBtn', '!_.disabled').click()
+# waitUntilEnabled() returns an "Element" instance
+* waitUntilEnabled('#someBtn').click()
 ```
 
 Or to temporarily [over-ride the retry configuration](#retry) *and* wait:
 
 ```cucumber
-* retry(5, 10000).waitUntil('#someBtn', '!_.disabled').click()
+* retry(5, 10000).waitUntilEnabled('#someBtn').click()
 ```
 
 Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a click:
@@ -590,9 +592,9 @@ Just triggers a click event on the DOM element:
 Also see [`submit()`](#submit) and [`mouse()`](#mouse).
 
 ## `select()`
-Note that most of the time, it is better to fire a [`click()`](#click) on the `<option>` element. And if you use [wildcard locators](#wildcard-locators) it is very easy to target an option by the visible text.
+You can use this for plain-vanilla `<select>` boxes that have not been overly "ehnanced" by JavaScript. Nowadays, most "select" (or "multi-select") user experiences are JavaScript widgets, so you would be needing to fire a [`click()`](#click) or two to get things done. But if you are really dealing with an HTML `<select>`, then read on.
 
-But you can try this for normal `<select>` boxes that have not been overly "ehnanced" by JavaScript. There are four variations and use the [locator](#locators) conventions for exact and *contains* matches against the `<option>` text-content.
+There are four variations and use the [locator](#locators) prefix conventions for *exact* and *contains* matches against the `<option>` text-content.
 
 ```cucumber
 # select by displayed text
@@ -607,6 +609,8 @@ Given select('select[name=data1]', 'option2')
 # select by index
 Given select('select[name=data1]', 2)
 ```
+
+If you have trouble with `<select>` boxes, try using [`script()`](#script) to execute custom JavaScript within the page as a work-around.
 
 ## `focus()`
 ```cucumber
@@ -656,7 +660,7 @@ Since moving the mouse is a common task, these short-cuts can be used:
 ```cucumber
 * mouse('#menuItem32').click()
 * mouse(100, 200).go()
-* waitUntil('#someBtn', '!_.disabled').mouse().click()
+* waitUntilEnabled('#someBtn').mouse().click()
 ```
 
 These are useful in situations where the "normal" [`click()`](#click) does not work - especially when the element you are clicking is not a normal hyperlink (`<a href="">`) or `<button>`.
@@ -765,11 +769,18 @@ This is especially useful for waiting for some HTML element to stop being `disab
 And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
 
 # if the expression begins with "_" or "!", Karate will wrap the function for you !
-And assert waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
-And assert waitUntil('#eg01WaitId', '!_.disabled')
+And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+And waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
-Also see the examples for [chaining](#chaining).
+Also see [`waitUtntilEnabled`](#waituntilenabled) which is the preferred short-cut for the last example above, and also look at the examples for [chaining](#chaining).
+
+## `waitUntilEnabled()`
+This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` since it is so frequently needed:
+
+```cucumber
+And waitUntilEnabled('#someId').click()
+```
 
 ### `waitUntil(function)`
 A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#js-api)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
@@ -835,7 +846,7 @@ And since you can [chain](#chaining) the `retry()` API, you can have tests that 
 ```cucumber
 * retry().click('#someButton')
 * retry(5).input('#someTxt', 'hello')
-* retry(3, 10000).waitUntil('#reallySlowButton', '!_.disabled')
+* retry(3, 10000).waitUntilEnabled('#reallySlowButton')
 ```
 
 Also see the examples for [chaining](#chaining).
@@ -997,6 +1008,25 @@ To visually highlight an element in the browser, especially useful when working 
 * highlight('#eg01DivId')
 ```
 
+# Debugging
+You can use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1065602097591156736).
+
+But many a time, you would like to pause a test in the middle of a flow and look at the browser developer tools to see what CSS selectors you need to use. For this you can use [`karate.stop()`](../#karate-stop) - but of course, *NEVER* forget to remove this before you move on to something else !
+
+```cucumber
+* karate.stop()
+```
+
+And then you would see something like this in the console:
+
+```
+*** waiting for socket, type the command below:
+curl http://localhost:61963
+in a new terminal (or open the URL in a web-browser) to proceed ...
+```
+
+In most IDE-s, you would even see the URL above as a clickable hyperlink, so just clicking it would end the `stop()`. This is really convenient in "dev-local" mode.
+
 # Locator Lookup
 Other UI automation frameworks spend a lot of time encouraging you to follow a so-called "[Page Object Model](https://martinfowler.com/bliki/PageObject.html)" for your tests. The Karate project team is of the opinion that things can be made simpler.
 
@@ -1004,7 +1034,7 @@ One indicator of a *good* automation framework is how much *work* a developer ne
 
 That said, there is some benefit to re-use of just [locators](#locators) and Karate's support for [JSON](https://github.com/intuit/karate#json) and [reading files](https://github.com/intuit/karate#reading-files) turns out to be a great way to achieve [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)-ness in tests. Here is one suggested pattern you can adopt.
 
-First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators), because they are all just string-values that behave differently depending on whether the first character is a "`/`" (XPath) or not (CSS). Also note that this is *pure JSON* which means that you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness. And you can have a "nested" heirarchy, which means you can neatly "name-space" your locator reference look-ups - as you will see later below.
+First, you can maintain a JSON "map" of your application locators. It can look something like this. Observe how you can mix different [locator types](#locators), because they are all just string-values that behave differently depending on whether the first character is a "`/`" (XPath), "`{}`" ([wildcard](#wildcard-locators)), or not (CSS). Also note that this is *pure JSON* which means that you have excellent IDE support for syntax-coloring, formatting, indenting, and ensuring well-formed-ness. And you can have a "nested" heirarchy, which means you can neatly "name-space" your locator reference look-ups - as you will see later below.
 
 ```json
 {
@@ -1013,9 +1043,9 @@ First, you can maintain a JSON "map" of your application locators. It can look s
     "submit": "#submitButton"
   },
   "leftNav": {
-    "home": "//span[text()='Home']",
-    "invoices": "//span[text()='Invoices']",
-    "transactions": "//span[text()='Transactions']"
+    "home": "{span}Home",
+    "invoices": "{span}Invoices",
+    "transactions": "{span}Transactions"
   },
   "transactions": {
     "addFirst": ".transactions .qwl-secondary-button",

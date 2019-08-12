@@ -723,10 +723,10 @@ public class ScriptBridge implements PerfContext {
     
     public Properties getProperties() {
         return System.getProperties();
-    }
+    }    
     
-    public void setLocation(String expression) {
-        context.driver(expression);
+    public void stop() {
+        FileUtils.waitForSocket(0);
     }
     
     public void log(Object... objects) {

@@ -4,6 +4,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.exception.KarateFileNotFoundException;
+import com.intuit.karate.shell.StopListenerThread;
 import com.jayway.jsonpath.DocumentContext;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -40,7 +41,7 @@ import org.slf4j.LoggerFactory;
  */
 public class FileUtils {
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(FileUtils.class);
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
 
     public static final Charset UTF8 = StandardCharsets.UTF_8;
 
@@ -175,7 +176,7 @@ public class FileUtils {
                 Path childPath = parentPath.resolve(path);
                 return new Resource(context, childPath);
             } catch (Exception e) {
-                logger.error("feature relative path resolution failed: {}", e.getMessage());
+                LOGGER.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
             }
         }
@@ -243,7 +244,7 @@ public class FileUtils {
                 return XmlUtils.toString(XmlUtils.toXmlDoc(raw), true);
             }
         } catch (Exception e) {
-            logger.warn("parsing failed: {}", e.getMessage());
+            LOGGER.warn("parsing failed: {}", e.getMessage());
         }
         return raw;
     }
@@ -347,15 +348,15 @@ public class FileUtils {
     public static void renameFileIfZeroBytes(String fileName) {
         File file = new File(fileName);
         if (!file.exists()) {
-            logger.warn("file not found, previous write operation may have failed: {}", fileName);
+            LOGGER.warn("file not found, previous write operation may have failed: {}", fileName);
         } else if (file.length() == 0) {
-            logger.warn("file size is zero bytes, previous write operation may have failed: {}", fileName);
+            LOGGER.warn("file size is zero bytes, previous write operation may have failed: {}", fileName);
             try {
                 File dest = new File(fileName + ".fail");
                 file.renameTo(dest);
-                logger.warn("renamed zero length file to: {}", dest.getName());
+                LOGGER.warn("renamed zero length file to: {}", dest.getName());
             } catch (Exception e) {
-                logger.warn("failed to rename zero length file: {}", e.getMessage());
+                LOGGER.warn("failed to rename zero length file: {}", e.getMessage());
             }
         }
     }
@@ -489,7 +490,7 @@ public class FileUtils {
                 return Paths.get(uri);
             }
         } catch (Exception e) {
-            logger.trace("invalid path: {}", e.getMessage());
+            LOGGER.trace("invalid path: {}", e.getMessage());
             return null;
         }
     }
@@ -544,10 +545,10 @@ public class FileUtils {
                 fs = FileSystems.getFileSystem(uri);
             } catch (Exception e) {
                 try {
-                    logger.trace("creating file system for URI: {} - {}", uri, e.getMessage());
+                    LOGGER.trace("creating file system for URI: {} - {}", uri, e.getMessage());
                     fs = FileSystems.newFileSystem(uri, Collections.emptyMap());
                 } catch (IOException ioe) {
-                    logger.error("file system creation failed for URI: {} - {}", uri, ioe.getMessage());
+                    LOGGER.error("file system creation failed for URI: {} - {}", uri, ioe.getMessage());
                     throw new RuntimeException(ioe);
                 }
             }
@@ -600,7 +601,7 @@ public class FileUtils {
         } catch (IOException e) { // NoSuchFileException            
             return;
         }
-        for (Iterator<Path> paths = stream.iterator(); paths.hasNext(); ) {
+        for (Iterator<Path> paths = stream.iterator(); paths.hasNext();) {
             Path path = paths.next();
             Path fileName = path.getFileName();
             if (fileName != null && fileName.toString().endsWith(".feature")) {
@@ -619,6 +620,23 @@ public class FileUtils {
         }
         String command = System.getProperty("sun.java.command", "");
         return command.contains("org.gradle.") ? "build" : "target";
+    }
+
+    public static boolean waitForSocket(int port) {
+        StopListenerThread waiter = new StopListenerThread(port, () -> {
+            LOGGER.info("*** exited socket wait succesfully");
+        });
+        waiter.start();
+        port = waiter.getPort();
+        System.out.println("*** waiting for socket, type the command below:\ncurl http://localhost:" 
+                + port + "\nin a new terminal (or open the URL in a web-browser) to proceed ...");   
+        try {
+            waiter.join();
+            return true;
+        } catch (Exception e) {
+            LOGGER.warn("*** wait thread failed: {}", e.getMessage());
+            return false;
+        }
     }
 
     public static enum OsType {
@@ -660,5 +678,5 @@ public class FileUtils {
             return OsType.UNKNOWN;
         }
     }
-    
+
 }

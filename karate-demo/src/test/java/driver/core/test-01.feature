@@ -17,6 +17,7 @@ Scenario Outline: using <config>
   And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
   And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
   And waitUntil('#eg01WaitId', '!_.disabled')
+  And waitUntilEnabled('#eg01WaitId')
   And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
   And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
   And match script('#eg01WaitId', '!_.disabled') == true

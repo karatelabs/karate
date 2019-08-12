@@ -137,7 +137,7 @@ public interface Driver {
     default Element waitFor(String locator) {
         return waitForAny(locator);
     }
-    
+
     default String waitForUrl(String expected) {
         return getOptions().waitForUrl(this, expected);
     }
@@ -150,6 +150,10 @@ public interface Driver {
         return getOptions().waitUntil(this, locator, expression);
     }
     
+    default Element waitUntilEnabled(String locator) {
+        return waitUntil(locator, "!_.disabled");
+    }    
+
     default Object waitUntil(Supplier<Object> condition) {
         return getOptions().waitUntil(condition);
     }
@@ -230,6 +234,6 @@ public interface Driver {
 
     Object elementId(String locator);
 
-    List elementIds(String locator);
+    List elementIds(String locator);    
 
 }
