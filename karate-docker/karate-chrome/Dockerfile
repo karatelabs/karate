@@ -11,7 +11,7 @@ LABEL url="https://github.com/intuit/karate/tree/master/karate-docker/karate-chr
 USER root
 
 RUN apt-get update && \
-    apt-get install -y x11vnc xvfb socat supervisor libav-tools dbus-x11
+    apt-get install -y x11vnc xvfb socat supervisor libav-tools
 
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd karate ~/.vnc/passwd
