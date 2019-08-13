@@ -128,6 +128,14 @@ public interface Driver {
 
     Element input(String locator, String value);
 
+    default Element input(String locator, String[] values) {
+        Element element = DriverElement.locatorUnknown(this, locator);
+        for (String value : values) {
+            element = input(locator, value);
+        }
+        return element;
+    }
+
     Element select(String locator, String text);
 
     Element select(String locator, int index);
@@ -135,24 +143,28 @@ public interface Driver {
     Element value(String locator, String value);
 
     default Element waitFor(String locator) {
-        return waitForAny(locator);
+        return getOptions().waitForAny(this, locator);
     }
 
     default String waitForUrl(String expected) {
         return getOptions().waitForUrl(this, expected);
     }
 
-    default Element waitForAny(String... locators) {
+    default Element waitForAny(String locator1, String locator2) {
+        return getOptions().waitForAny(this, new String[]{locator1, locator2});
+    }
+    
+    default Element waitForAny(String[] locators) {
         return getOptions().waitForAny(this, locators);
     }
 
     default Element waitUntil(String locator, String expression) {
         return getOptions().waitUntil(this, locator, expression);
     }
-    
+
     default Element waitUntilEnabled(String locator) {
         return waitUntil(locator, "!_.disabled");
-    }    
+    }
 
     default Object waitUntil(Supplier<Object> condition) {
         return getOptions().waitUntil(condition);
@@ -234,6 +246,6 @@ public interface Driver {
 
     Object elementId(String locator);
 
-    List elementIds(String locator);    
+    List elementIds(String locator);
 
 }

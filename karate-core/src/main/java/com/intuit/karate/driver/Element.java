@@ -47,6 +47,8 @@ public interface Element {
     
     Element select(int index);
     
+    Element switchFrame();
+    
     Element delay(int millis);
     
     Element waitFor();

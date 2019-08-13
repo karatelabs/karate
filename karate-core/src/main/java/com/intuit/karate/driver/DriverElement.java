@@ -101,6 +101,12 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element switchFrame() {
+        driver.switchFrame(locator);
+        return this;
+    }        
+
+    @Override
     public Element delay(int millis) {
         driver.delay(millis);
         return this;

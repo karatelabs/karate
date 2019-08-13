@@ -5,7 +5,7 @@
 
 # Hello World
 
-<a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" width="800" /></a>
+<a href="https://twitter.com/ptrthomas/status/1160680107784036353"><img src="src/test/resources/driver-hello-world.jpg" height="230"/></a>
 
 # Index
 
@@ -38,6 +38,7 @@
     | <a href="#locator-lookup">Locator Lookup</a>
     | <a href="#function-composition">Function Composition</a>
     | <a href="#debugging">Debugging</a>
+    | <a href="#retry">Wait & Retry</a>
   </td>
 </tr>
 <tr>
@@ -144,7 +145,7 @@
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
-* Simple [retry and polling](#retry) based "wait" strategy, no need to wade through esoteric concepts such as "implicit waits"
+* Simple [retry and polling](#retry) strategy, no need to graduate from any test-automation university to understand the difference between "implicit waits", "explicit waits" and "fluent waits" :)
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
 * Elegant syntax for typical web-automation challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element to appear](#waitfor)
@@ -502,8 +503,15 @@ The result JSON will be in the form: `{ x: '#number', y: '#number', width: '#num
 
 ## `input()`
 2 string arguments: [locator](#locators) and value to enter.
+
 ```cucumber
 * input('input[name=someName]', 'test input')
+```
+
+As a convenience, there is a second form where you can pass an array as the second argument:
+
+```cucumber
+* input('input[name=someName]', ['test', ' input', Key.ENTER])
 ```
 
 ### Special Keys
@@ -564,6 +572,7 @@ And retry(5, 10000).waitForUrl('https://github.com/intuit/karate')
 ```
 
 ### `waitFor()` instead of `submit()`
+This is very convenient to use for the *first* element you need to interact with on a freshly-loaded page. It can be used instead of `waitForUrl()` and you can still perform a page URL assertion as seen below.
 
 Here is an example of waiting for a search box to appear after a [`click()`](#click), and note how we re-use the [`Element`](#chaining) reference returned by `waitFor()` to proceed with the flow. We even slip in a page-URL assertion without missing a beat.
 
@@ -571,8 +580,13 @@ Here is an example of waiting for a search box to appear after a [`click()`](#cl
 When click('{a}Find File')
 And def search = waitFor('input[name=query]')
 Then match driver.url == 'https://github.com/intuit/karate/find/master'
-
 Given search.input('karate-logo.png')
+```
+
+Of course if you did not care about the page URL assertion (you can still do it later), you could do this
+
+```cucumber
+waitFor('input[name=query]').input('karate-logo.png')
 ```
 
 ## `delay()`
@@ -581,6 +595,8 @@ Of course, resorting to a "sleep" in a UI test is considered a very bad-practice
 ```cucumber
 * delay(1000).screenshot()
 ```
+
+The other situation where we have found a `delay()` un-avoidable is for some super-secure sign-in forms - where a few milliseconds delay *before* hitting the submit button is needed.
 
 ## `click()`
 Just triggers a click event on the DOM element:
@@ -714,22 +730,18 @@ Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an el
 Very handy for waiting for an expected URL change *and* asserting if it happened. See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit).
 
 ## `waitFor()`
-Will wait until the element (by [locator](#locators)) is present in the page and uses the configured [`retry()`](#retry) settings. This will fail the test if the element does not appear after the configured number of re-tries have been attempted.
+This is typically used for the *first* element you need to interact with on a freshly loaded page. Use this in case a [`submit()`](#submit) for the previous action is un-reliable, see the section on [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit)
+
+This will wait until the element (by [locator](#locators)) is present in the page and uses the configured [`retry()`](#retry) settings. This will fail the test if the element does not appear after the configured number of re-tries have been attempted.
+
+Since `waitFor()` returns an [`Element`](#chaining) instance on which you can call "chained" methods, this can be the pattern you use, which is very convenient and readable:
 
 ```cucumber
-And waitFor('#eg01WaitId')
+And waitFor('#eg01WaitId').click()
 ```
-
-But most of the time, instead of using `waitFor()` - you would typically [chain](#chaining) a [`retry()`](#retry) with an action like this:
-
-```cucumber
-And retry().click('#eg01WaitId')
-```
-
-Also see [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit).
 
 ## `waitForAny()`
-Rarely used - but accepts var-arg / multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the [`Element`](#chaining) representation of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
+Rarely used - but accepts multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the [`Element`](#chaining) representation of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
 
 But since the [`exists()`](#exists) API is designed to handle the case when a given [locator](#locators) does *not* exist, you can write some very concise tests, *without* needing to examine the returned object from `waitForAny()`.
 
@@ -741,6 +753,12 @@ Here is a real-life example combined with the use of [`retry()`](#retry):
 * exists('#randomButton').click()
 ```
 
+If you have more than two locators you need to wait for, use the single array argument form, like this:
+
+```cucumber
+.waitForAny(['#nextButton', '#randomButton', '#blueMoonButton'])
+```
+
 ## `exists()`
 This method returns an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance which means it can be [chained](#chaining) as you expect. But there is a twist. If the [locator](#locators) does *not* exist, any attempt to perform actions on it will *not* fail your test - and silently perform a "no-op".
 
@@ -749,6 +767,16 @@ This is designed specifically for the kind of situation described in the example
 ```cucumber
 * assert exists('#someId').exists
 ```
+
+But what is most useful is how you can now *click only if element exists*. As you can imagine this can handle un-predictable dialogs, advertisements and the like.
+
+```cucumber
+* exists('#elusiveButton').click()
+# or if you need to click something else
+* if (exists('#elusivePopup').exists) click('#elusiveButton')
+```
+
+Yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
 
 Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and immediately check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
 
@@ -785,7 +813,7 @@ And waitUntilEnabled('#someId').click()
 ### `waitUntil(function)`
 A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#js-api)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
 
-This is best explained with an example. Note that [`scripts()`](#scripts) will return an array as opposed to [`script()`](#script).
+This is best explained with an example. Note that [`scripts()`](#scripts) will return an array, as opposed to [`script()`](#script).
 
 ```cucumber
 When search.input('karate-logo.png')
@@ -828,26 +856,32 @@ The great thing here is that the `innnerText()` function can be defined in a [co
 ## `retry()`
 For tests that need to wait for slow pages or deal with un-predictable element load-times or state / visibility changes, Karate allows you to *temporarily* tweak the internal retry settings. Here are the few things you need to know.
 
-* the [default retry settings](https://github.com/intuit/karate#retry-until) are
-  * `count`: 3, `interval`: 3000 milliseconds (try three times, and wait for 3 seconds before the next re-try attempt)
-  * it is recommended that you stick to these defaults, which should suffice for most applications
-  * if you really want, you can change this "globally" like this:
-    * `configure('retry', { count: 10, interval: 5000 });` in [`karate-config.js`](https://github.com/intuit/karate#configuration)
-    * or *any time* within a script (`*.feature` file) like this: `* configure retry = { count: 10, interval: 5000 }`
-* by default, all actions such as `click()` will *not* be re-tried - and this is what you would stick to most of the time, for tests that run smoothly and *quickly*
-  * but some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in
-  * there are 3 forms:
-    * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
-    * `retry(count)` - the next action will *temporarily* use the `count` provided, as the limit for retry-attempts
-    * `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
+### Retry Defaults
+The [default retry settings](https://github.com/intuit/karate#retry-until) are:
+* `count`: 3, `interval`: 3000 milliseconds (try three times, and wait for 3 seconds before the next re-try attempt)
+* it is recommended that you stick to these defaults, which should suffice for most applications
+* if you really want, you can change this "globally" in [`karate-config.js`](https://github.com/intuit/karate#configuration) like this:
+  * `configure('retry', { count: 10, interval: 5000 });`
+* or *any time* within a script (`*.feature` file) like this:
+  * `* configure retry = { count: 10, interval: 5000 }`
 
-And since you can [chain](#chaining) the `retry()` API, you can have tests that clearly express the "*intent to wait*". This results in easily understandable one-liners, *only* at the point of need:
+### Retry and Element Actions
+By default, all actions such as `click()` will *not* be re-tried - and this is what you would stick to most of the time, for tests that run smoothly and *quickly*. But some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in. There are 3 forms:
+* `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
+* `retry(count)` - the next action will *temporarily* use the `count` provided, as the limit for retry-attempts
+* `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
 
-```cucumber
-* retry().click('#someButton')
-* retry(5).input('#someTxt', 'hello')
-* retry(3, 10000).waitUntilEnabled('#reallySlowButton')
-```
+And since you can [chain](#chaining) the `retry()` API, you can have tests that clearly express the "*intent to wait*". This results in easily understandable one-liners, *only* at the point of need, and anyone reading the test will be clear as to *where* extra "waits" have been applied.
+
+Here are the various combinations for you to compare using [`click()`](#click) as an example.
+
+ Script | Description
+-------- | -----------
+`click('#myId')` | Try to stick to this *default* form for 95% of your test. If the element is not found, the test will fail immediately. But your tests will run smoothly and super-fast.
+`waitFor('#myId').click()` | Use this for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). Prefer this instead of any of the options below, or in other words - stick to the defaults.
+`retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. This form happens to be valid because of the API [chaining](#chaining) design, which the next few rows may make clear.
+`retry(5).click('#myId')` | Temporarily use `5` as the max retry attempts to use *and* apply a "wait". Since `retry()` expresses an intent to "wait", (only for the [chained](#chaining) action) the `waitFor()` can be omitted.
+`retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied.
 
 Also see the examples for [chaining](#chaining).
 

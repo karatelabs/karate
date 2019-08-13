@@ -83,6 +83,11 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public Element switchFrame() {
+        return this;
+    }        
+
+    @Override
     public Element delay(int millis) {
         driver.delay(millis);
         return this;
