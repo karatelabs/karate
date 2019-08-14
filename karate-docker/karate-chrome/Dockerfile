@@ -1,27 +1,54 @@
-FROM justinribeiro/chrome-headless
+FROM ubuntu:18.04
 
 LABEL maintainer="Peter Thomas"
 LABEL url="https://github.com/intuit/karate/tree/master/karate-docker/karate-chrome"
 
-# refer https://hub.docker.com/r/justinribeiro/chrome-headless/ for how to get "chrome.json" or skip it
-# docker run -d -p 9222:9222 -p 5900:5900 --security-opt seccomp=~/chrome.json ptrthomas/karate-chrome
-# open vnc://localhost:5900
-# docker cp <containerId>:/tmp target
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends \
+	xvfb \
+	x11vnc \
+	supervisor \
+	gdebi \
+	gnupg2 \
+	fonts-takao \
+	pulseaudio \
+	fluxbox \
+	eterm \
+	socat \
+	ffmpeg
 
-USER root
+ADD https://dl.google.com/linux/linux_signing_key.pub \
+	https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+	/tmp/
 
-RUN apt-get update && \
-    apt-get install -y x11vnc xvfb socat supervisor libav-tools
+RUN apt-key add /tmp/linux_signing_key.pub \
+	&& gdebi --non-interactive /tmp/google-chrome-stable_current_amd64.deb
+
+RUN apt-get clean \
+	&& rm -rf /var/cache/* /var/log/apt/* /var/lib/apt/lists/* /tmp/* \
+	&& useradd -m -G pulse-access chrome \
+	&& usermod -s /bin/bash chrome \
+	&& ln -s /crdonly /usr/local/sbin/crdonly \
+	&& ln -s /update /usr/local/sbin/update \
+	&& mkdir -p /home/chrome/.fluxbox \
+	&& echo ' \n\
+		session.screen0.toolbar.visible:        false\n\
+		session.screen0.fullMaximization:       true\n\
+		session.screen0.maxDisableResize:       true\n\
+		session.screen0.maxDisableMove: true\n\
+		session.screen0.defaultDeco:    NONE\n\
+	' >> /home/chrome/.fluxbox/init \
+	&& chown -R chrome:chrome /home/chrome/.fluxbox	
 
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd karate ~/.vnc/passwd
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY karate-chrome.sh /
-RUN chmod +x /karate-chrome.sh
+COPY entrypoint.sh /
+RUN chmod +x /entrypoint.sh
+
+VOLUME ["/home/chrome"]
 
 EXPOSE 5900 9222
 
-ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/dev/null
-
-ENTRYPOINT ["/karate-chrome.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
