@@ -24,16 +24,7 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.core.FeatureContext;
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureExecutionUnit;
-import com.intuit.karate.core.PerfEvent;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScenarioExecutionUnit;
-import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.*;
 import com.intuit.karate.http.HttpRequestBuilder;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -111,6 +102,16 @@ public class FeatureInfo implements ExecutionHook {
 
     @Override
     public void reportPerfEvent(PerfEvent event) {
+
+    }
+
+    @Override
+    public void beforeFeature(Feature feature, FeatureContext context) {
+
+    }
+
+    @Override
+    public void afterFeature(FeatureResult result, FeatureContext context) {
 
     }
 
