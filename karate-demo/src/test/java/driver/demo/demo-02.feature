@@ -1,7 +1,8 @@
 Feature: browser automation 2
 
   Background:
-  * configure driver = { type: 'chromedriver' }
+    * configure driver = { type: 'chrome' }
+    # * configure driverTarget = { docker: 'ptrthomas/karate-chrome', showDriverLog: true }
 
   Scenario: google search, land on the karate github page, and search for a file
 

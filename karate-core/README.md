@@ -866,21 +866,21 @@ The [default retry settings](https://github.com/intuit/karate#retry-until) are:
   * `* configure retry = { count: 10, interval: 5000 }`
 
 ### Retry and Element Actions
-By default, all actions such as `click()` will *not* be re-tried - and this is what you would stick to most of the time, for tests that run smoothly and *quickly*. But some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in. There are 3 forms:
+By default, all actions such as [`click()`](#click) will *not* be re-tried - and this is what you would stick to most of the time, for tests that run smoothly and *quickly*. But some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in. There are 3 forms:
 * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
 * `retry(count)` - the next action will *temporarily* use the `count` provided, as the limit for retry-attempts
 * `retry(count, interval)` - *temporarily* change the retry `count` *and* retry `interval` (in milliseconds) for the next action
 
-And since you can [chain](#chaining) the `retry()` API, you can have tests that clearly express the "*intent to wait*". This results in easily understandable one-liners, *only* at the point of need, and anyone reading the test will be clear as to *where* extra "waits" have been applied.
+And since you can [chain](#chaining) the `retry()` API, you can have tests that clearly express the "*intent to wait*". This results in easily understandable one-liners, *only* at the point of need, and to anyone reading the test - it will be clear as to *where* extra "waits" have been applied.
 
 Here are the various combinations for you to compare using [`click()`](#click) as an example.
 
  Script | Description
 -------- | -----------
 `click('#myId')` | Try to stick to this *default* form for 95% of your test. If the element is not found, the test will fail immediately. But your tests will run smoothly and super-fast.
-`waitFor('#myId').click()` | Use this for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). Prefer this instead of any of the options below, or in other words - stick to the defaults.
-`retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. This form happens to be valid because of the API [chaining](#chaining) design, which the next few rows may make clear.
-`retry(5).click('#myId')` | Temporarily use `5` as the max retry attempts to use *and* apply a "wait". Since `retry()` expresses an intent to "wait", (only for the [chained](#chaining) action) the `waitFor()` can be omitted.
+`waitFor('#myId').click()` | Use this for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). Prefer this instead of any of the options below, or in other words - stick to the defaults as far as possible.
+`retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. This form happens to be valid because of the API [chaining](#chaining) design, which the next rows may make clear.
+`retry(5).click('#myId')` | Temporarily use `5` as the max retry attempts to use *and* apply a "wait". Since `retry()` expresses an intent to "wait", the `waitFor()` can be omitted for the [chained](#chained) action.
 `retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied.
 
 Also see the examples for [chaining](#chaining).

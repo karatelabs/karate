@@ -305,7 +305,8 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public void quit() {
-        method("Target.closeTarget").param("targetId", rootFrameId).send(WaitState.INSPECTOR_DETACHED);
+        // don't wait, may fail and hang
+        method("Target.closeTarget").param("targetId", rootFrameId).send(m -> true);
         // method("Browser.close").send();
         client.close();
         if (command != null) {
