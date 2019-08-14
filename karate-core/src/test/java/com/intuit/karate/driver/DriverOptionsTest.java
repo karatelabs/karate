@@ -1,5 +1,11 @@
 package com.intuit.karate.driver;
 
+import com.intuit.karate.CallContext;
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.ScenarioContext;
+import java.nio.file.Path;
+import java.util.Collections;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
@@ -26,6 +32,19 @@ public class DriverOptionsTest {
         test("{^a:}hi", "//a[contains(normalize-space(text()),'hi')]");
         test("{^a/p}hi", "//a/p[contains(normalize-space(text()),'hi')]");
         test("{^a:1}hi", "//a[contains(normalize-space(text()),'hi')][2]");
+    }
+    
+    private ScenarioContext getContext() {
+        Path featureDir = FileUtils.getPathContaining(getClass());
+        FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
+        CallContext callContext = new CallContext(null, true);
+        return new ScenarioContext(featureContext, callContext, null, null);
+    }    
+    
+    @Test
+    public void testRetry() {
+        DriverOptions options = new DriverOptions(getContext(), Collections.EMPTY_MAP, null, 0, null);
+        options.retry(() -> 1, x -> x < 5, "not 5");        
     }
 
 }

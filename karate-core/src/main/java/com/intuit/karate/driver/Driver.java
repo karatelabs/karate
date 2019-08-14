@@ -167,7 +167,7 @@ public interface Driver {
     }
 
     default Object waitUntil(Supplier<Object> condition) {
-        return getOptions().waitUntil(condition);
+        return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");
     }
 
     default List<Element> findAll(String locator) {

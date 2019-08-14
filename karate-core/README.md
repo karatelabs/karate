@@ -163,7 +163,7 @@
   * wait for [page-navigation](#waitforurl-instead-of-submit)
   * use a friendly [wildcard locator](#wildcard-locators)
   * wait for an element to [be ready](#waitfor)
-  * [compose functions](#function-composition) for elegant heavy-lifting
+  * [compose functions](#function-composition) for elegant *custom* "wait" logic
   * assert on tabular [results in the HTML](#scripts)
 * [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
 ## Windows
@@ -293,7 +293,7 @@ The built-in [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarge
 Controlling this flow from Java can take a lot of complexity out your build pipeline and keep things cross-platform. And you don't need to line-up an assortment of shell-scripts to do all these things. You can potentially include the steps of deploying (and un-deploying) the application-under-test using this approach - but probably the top-level [JUnit test-suite](https://github.com/intuit/karate#parallel-execution) would be the right place for those.
 
 ### `karate-chrome`
-The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker image adds the following capabilities to [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/):
+The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker is an image created from scratch, using just Ubuntu as a base and with the following features:
 
 * Chrome in "full" mode (non-headless)
 * [Chrome DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) exposed on port 9222
@@ -878,10 +878,10 @@ Here are the various combinations for you to compare using [`click()`](#click) a
  Script | Description
 -------- | -----------
 `click('#myId')` | Try to stick to this *default* form for 95% of your test. If the element is not found, the test will fail immediately. But your tests will run smoothly and super-fast.
-`waitFor('#myId').click()` | Use this for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). Prefer this instead of any of the options below, or in other words - stick to the defaults as far as possible.
+`waitFor('#myId').click()` | Use this for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). With the [defaults](#retry-defaults), the test will fail after waiting for 3 x 3000 ms which is 9 seconds. Prefer this instead of any of the options below, or in other words - stick to the defaults as far as possible.
 `retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. This form happens to be valid because of the API [chaining](#chaining) design, which the next rows may make clear.
 `retry(5).click('#myId')` | Temporarily use `5` as the max retry attempts to use *and* apply a "wait". Since `retry()` expresses an intent to "wait", the `waitFor()` can be omitted for the [chained](#chained) action.
-`retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied.
+`retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied. The test will fail if the element does not load within 50 seconds.
 
 Also see the examples for [chaining](#chaining).
 

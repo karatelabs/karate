@@ -52,6 +52,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -303,6 +304,26 @@ public class DriverOptions {
             return context.getConfig().getRetryCount();
         }
     }
+    
+    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription) {
+        long startTime = System.currentTimeMillis();
+        int count = 0, max = getRetryCount();
+        T result;
+        boolean success;
+        do {
+            if (count > 0) {
+                logger.debug("{} - retry #{}", logDescription, count);
+                sleep();
+            }
+            result = action.get();
+            success = condition.test(result);
+        } while (!success && count++ < max);
+        if (!success) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            logger.warn("failed after {} retries and {} milliseconds", (count - 1), elapsedTime);
+        }
+        return result;        
+    }   
 
     public String wrapInFunctionInvoke(String text) {
         return "(function(){ " + text + " })()";
@@ -381,7 +402,7 @@ public class DriverOptions {
             return;
         }
         try {
-            processLogger.debug("sleeping for millis: {}", millis);
+            processLogger.trace("sleeping for millis: {}", millis);
             Thread.sleep(millis);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -459,29 +480,7 @@ public class DriverOptions {
     }
 
     public String waitForUrl(Driver driver, String expected) {
-        return waitUntil(() -> {
-            String url = driver.getUrl();
-            return url.contains(expected) ? url : null;
-        });
-    }
-
-    public <T> T waitUntil(Supplier<T> condition) {
-        long startTime = System.currentTimeMillis();
-        int max = getRetryCount();
-        int count = 0;
-        T result;
-        do {
-            if (count > 0) {
-                logger.debug("waitUntil (function) retry #{}", count);
-                sleep();
-            }
-            result = condition.get();
-        } while (result == null && count++ < max);
-        if (result == null) {
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            throw new RuntimeException("waitUntil failed after " + elapsedTime + " milliseconds");
-        }
-        return result;
+        return retry(() -> driver.getUrl(), url -> url.contains(expected), "waitForUrl");
     }
 
     public Element waitForAny(Driver driver, String... locators) {

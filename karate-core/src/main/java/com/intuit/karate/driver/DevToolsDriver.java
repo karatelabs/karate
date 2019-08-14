@@ -67,7 +67,7 @@ public abstract class DevToolsDriver implements Driver {
     protected String currentDialogText;
     protected int currentMouseXpos;
     protected int currentMouseYpos;
-    
+
     private int nextId;
 
     public int nextId() {
@@ -152,7 +152,7 @@ public abstract class DevToolsDriver implements Driver {
             String frameNavUrl = dtm.get("url", String.class);
             if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
-            }            
+            }
         }
         if (dtm.methodIs("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.get("frameId", String.class);
@@ -494,7 +494,7 @@ public abstract class DevToolsDriver implements Driver {
                     logger.warn("no type property found: {}", action);
                     continue;
                 }
-                String chromeType;                
+                String chromeType;
                 switch (type) {
                     case "pointerMove":
                         chromeType = "mouseMoved";
@@ -520,13 +520,13 @@ public abstract class DevToolsDriver implements Driver {
                 }
                 if (y != null) {
                     currentMouseYpos = y;
-                }              
+                }
                 Integer duration = (Integer) action.get("duration");
                 DevToolsMessage toSend = method("Input.dispatchMouseEvent")
                         .param("type", chromeType)
                         .param("x", currentMouseXpos).param("y", currentMouseYpos);
                 if ("mousePressed".equals(chromeType) || "mouseReleased".equals(chromeType)) {
-                    toSend.param("button", "left").param("clickCount", 1);                    
+                    toSend.param("button", "left").param("clickCount", 1);
                 }
                 if (!iterator.hasNext() && submitRequested) {
                     submit = true;
@@ -598,23 +598,14 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public boolean waitUntil(String expression) {
-        int max = options.getRetryCount();
-        int count = 0;
-        ScriptValue sv;
-        do {
-            if (count > 0) {
-                logger.debug("waitUntil retry #{}", count);
-                options.sleep();
-            }
+        return options.retry(() -> {
             try {
-                DevToolsMessage dtm = eval(expression, true);
-                sv = dtm.getResult();
+                return eval(expression, true).getResult().isBooleanTrue();
             } catch (Exception e) {
-                sv = ScriptValue.FALSE;
                 logger.warn("waitUntil evaluate failed: {}", e.getMessage());
+                return false;
             }
-        } while (!sv.isBooleanTrue() && count++ < max);
-        return sv.isBooleanTrue();
+        }, b -> b, "waitUntil (js)");
     }
 
     @Override
