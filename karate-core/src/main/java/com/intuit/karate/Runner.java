@@ -67,7 +67,7 @@ public class Runner {
         String scenarioName;
         List<String> tags = new ArrayList();
         List<String> paths = new ArrayList();
-        List<Resource> resources;
+        List<Resource> resources= new ArrayList<>();
         Collection<ExecutionHook> hooks;
         ExecutionHookFactory hookFactory;
         JobConfig jobConfig;
