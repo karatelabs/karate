@@ -98,15 +98,15 @@
 <tr>
   <th>Wait / JS</th>
   <td>
-      <a href="#delay"><code>delay()</code></a>
-    | <a href="#retry"><code>retry()</code></a>
+      <a href="#retry"><code>retry()</code></a>
     | <a href="#waitfor"><code>waitFor()</code></a>    
     | <a href="#waitforany"><code>waitForAny()</code></a>
     | <a href="#waitforurl"><code>waitForUrl()</code></a>    
     | <a href="#waituntil"><code>waitUntil()</code></a>
     | <a href="#waituntilenabled"><code>waitUntilEnabled()</code></a>
+    | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
-    | <a href="#scripts"><code>scripts()</code></a>
+    | <a href="#scripts"><code>scripts()</code></a>    
   </td>
 </tr>
 <tr>
@@ -882,6 +882,18 @@ Here are the various combinations for you to compare using [`click()`](#click) a
 `retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. This form happens to be valid because of the API [chaining](#chaining) design, which the next rows may make clear.
 `retry(5).click('#myId')` | Temporarily use `5` as the max retry attempts to use *and* apply a "wait". Since `retry()` expresses an intent to "wait", the `waitFor()` can be omitted for the [chained](#chained) action.
 `retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied. The test will fail if the element does not load within 50 seconds.
+
+### Wait API
+The set of built-in functions that start with "`wait`" handle all the cases you would need to typically worry about.
+
+Script | Description
+------ | -----------
+[`waitFor('#myId')`](#waitfor) | waits for an element as described above
+[`waitForUrl('google.com')`](#waitforurl) | for convenience, this uses a string *contains* match - so for example you can omit the `http` or `https` prefix
+[`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does - handle it, for example to get rid of an ad popup
+[`waitUntil(expression)`](#waituntil) | wait until *any* user defined JavaScript statement to evaluate to `true` in the browser 
+[`waitUntil(function)`](#waituntilfunction) | use custom logic to handle *any* kind of situation where you need to wait, *and* use other API calls if needed
+[`waitUntilEnabled`](#waituntilenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
 
 Also see the examples for [chaining](#chaining).
 
