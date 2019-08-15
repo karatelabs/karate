@@ -13,7 +13,8 @@ RUN apt-get update \
 	fonts-takao \
 	pulseaudio \
 	socat \
-	ffmpeg
+	ffmpeg \
+	gettext-base
 
 ADD https://dl.google.com/linux/linux_signing_key.pub \
 	https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
@@ -30,12 +31,15 @@ RUN apt-get clean \
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd karate ~/.vnc/passwd
 
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY supervisord.conf /
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
 VOLUME ["/home/chrome"]
 
 EXPOSE 5900 9222
+
+ENV WIDTH 1366
+ENV HEIGHT 768
 
 ENTRYPOINT ["/entrypoint.sh"]

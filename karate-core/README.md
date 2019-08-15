@@ -38,7 +38,8 @@
     | <a href="#locator-lookup">Locator Lookup</a>
     | <a href="#function-composition">Function Composition</a>
     | <a href="#debugging">Debugging</a>
-    | <a href="#retry">Wait & Retry</a>
+    | <a href="#retry">Retries</a>
+    | <a href="#wait-api">Waits</a>
   </td>
 </tr>
 <tr>
@@ -145,7 +146,7 @@
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
-* Simple [retry and polling](#retry) strategy, no need to graduate from any test-automation university to understand the difference between "implicit waits", "explicit waits" and "fluent waits" :)
+* Simple [retry](#retry) and [wait](#wait-api) strategy, no need to graduate from any test-automation university to understand the difference between "implicit waits", "explicit waits" and "fluent waits" :)
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
 * Elegant syntax for typical web-automation challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element to appear](#waitfor)
@@ -308,8 +309,8 @@ To try this or especially when you need to investigate why a test is not behavin
   * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of `--cap-add=SYS_ADMIN`
 * point your VNC client to `localhost:5900` (password: `karate`)
   * for example on a Mac you can use this command: `open vnc://localhost:5900`
-* run a test using the following [`driver` configuration](#configure-driver):
-  * `* configure driver = { type: 'chrome', start: 'false', showDriverLog: true }`
+* run a test using the following [`driver` configuration](#configure-driver), and this is one of the few times you would ever need to set the [`start` flag](#configure-driver) to `false`
+  * `* configure driver = { type: 'chrome', start: false, showDriverLog: true }`
 * you can even use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) to step-through a test
 * after stopping the container, you can dump the logs and video recording using this command:
   * `docker cp <container-id>:/tmp .`
@@ -460,6 +461,8 @@ Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a
 ```cucumber
 * mouse(100, 200).click()
 ```
+
+Also see [waits](#wait-api).
 
 # Syntax
 ## `driver.url`
@@ -729,6 +732,8 @@ Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an el
 ## `waitForUrl()`
 Very handy for waiting for an expected URL change *and* asserting if it happened. See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit).
 
+Also see [waits](#wait-api).
+
 ## `waitFor()`
 This is typically used for the *first* element you need to interact with on a freshly loaded page. Use this in case a [`submit()`](#submit) for the previous action is un-reliable, see the section on [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit)
 
@@ -739,6 +744,8 @@ Since `waitFor()` returns an [`Element`](#chaining) instance on which you can ca
 ```cucumber
 And waitFor('#eg01WaitId').click()
 ```
+
+Also see [waits](#wait-api).
 
 ## `waitForAny()`
 Rarely used - but accepts multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the [`Element`](#chaining) representation of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
@@ -756,8 +763,10 @@ Here is a real-life example combined with the use of [`retry()`](#retry):
 If you have more than two locators you need to wait for, use the single array argument form, like this:
 
 ```cucumber
-.waitForAny(['#nextButton', '#randomButton', '#blueMoonButton'])
+* waitForAny(['#nextButton', '#randomButton', '#blueMoonButton'])
 ```
+
+Also see [waits](#wait-api).
 
 ## `exists()`
 This method returns an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance which means it can be [chained](#chaining) as you expect. But there is a twist. If the [locator](#locators) does *not* exist, any attempt to perform actions on it will *not* fail your test - and silently perform a "no-op".
@@ -776,9 +785,9 @@ But what is most useful is how you can now *click only if element exists*. As yo
 * if (exists('#elusivePopup').exists) click('#elusiveButton')
 ```
 
-Yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
+And yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
 
-Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and immediately check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
+Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and *immediately* check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
 
 ## `waitUntil()`
 Wait for the JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
@@ -801,7 +810,7 @@ And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
 And waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
-Also see [`waitUtntilEnabled`](#waituntilenabled) which is the preferred short-cut for the last example above, and also look at the examples for [chaining](#chaining).
+Also see [`waitUtntilEnabled`](#waituntilenabled) which is the preferred short-cut for the last example above, also look at the examples for [chaining](#chaining) and then the section on [waits](#wait-api).
 
 ## `waitUntilEnabled()`
 This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` since it is so frequently needed:
@@ -809,6 +818,8 @@ This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` sin
 ```cucumber
 And waitUntilEnabled('#someId').click()
 ```
+
+Also see [waits](#wait-api).
 
 ### `waitUntil(function)`
 A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#js-api)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
@@ -833,6 +844,8 @@ And def searchResults = waitUntil(searchFunction)
 # and now we can use the results like normal
 Then match searchResults contains 'karate-core/src/main/resources/karate-logo.png'
 ```
+
+Also see [waits](#wait-api).
 
 ### Function Composition
 The above example can be re-factored in a very elegant way as follows:
@@ -865,7 +878,7 @@ The [default retry settings](https://github.com/intuit/karate#retry-until) are:
 * or *any time* within a script (`*.feature` file) like this:
   * `* configure retry = { count: 10, interval: 5000 }`
 
-### Retry and Element Actions
+### Retry Actions
 By default, all actions such as [`click()`](#click) will *not* be re-tried - and this is what you would stick to most of the time, for tests that run smoothly and *quickly*. But some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in. There are 3 forms:
 * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
 * `retry(count)` - the next action will *temporarily* use the `count` provided, as the limit for retry-attempts
@@ -878,19 +891,22 @@ Here are the various combinations for you to compare using [`click()`](#click) a
  Script | Description
 -------- | -----------
 `click('#myId')` | Try to stick to this *default* form for 95% of your test. If the element is not found, the test will fail immediately. But your tests will run smoothly and super-fast.
-`waitFor('#myId').click()` | Use this for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). With the [defaults](#retry-defaults), the test will fail after waiting for 3 x 3000 ms which is 9 seconds. Prefer this instead of any of the options below, or in other words - stick to the defaults as far as possible.
+`waitFor('#myId').click()` | Use [`waitFor()`](#waitfor) for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). With the [defaults](#retry-defaults), the test will fail after waiting for 3 x 3000 ms which is 9 seconds. Prefer this instead of any of the options below, or in other words - stick to the defaults as far as possible.
 `retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. This form happens to be valid because of the API [chaining](#chaining) design, which the next rows may make clear.
 `retry(5).click('#myId')` | Temporarily use `5` as the max retry attempts to use *and* apply a "wait". Since `retry()` expresses an intent to "wait", the `waitFor()` can be omitted for the [chained](#chained) action.
 `retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied. The test will fail if the element does not load within 50 seconds.
 
 ### Wait API
-The set of built-in functions that start with "`wait`" handle all the cases you would need to typically worry about.
+The set of built-in functions that start with "`wait`" handle all the cases you would need to typically worry about. Keep in mind that:
+* all of these examples *will* [`retry()`](#retry) internally by default
+* you can prefix a [`retry()`](#retry-actions) *only* if you need to over-ride the settings for *this* "wait" - as shown in the second row
 
 Script | Description
 ------ | -----------
 [`waitFor('#myId')`](#waitfor) | waits for an element as described above
+`retry(10).waitFor('#myId')` | like the above, but temporarily over-rides the settings to wait for a [longer time](#retry-actions), and this can be done for *all* the below examples as well
 [`waitForUrl('google.com')`](#waitforurl) | for convenience, this uses a string *contains* match - so for example you can omit the `http` or `https` prefix
-[`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does - handle it, for example to get rid of an ad popup
+[`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does, handle it - for e.g. to get rid of an ad popup or dialog
 [`waitUntil(expression)`](#waituntil) | wait until *any* user defined JavaScript statement to evaluate to `true` in the browser 
 [`waitUntil(function)`](#waituntilfunction) | use custom logic to handle *any* kind of situation where you need to wait, *and* use other API calls if needed
 [`waitUntilEnabled`](#waituntilenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`

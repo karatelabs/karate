@@ -81,6 +81,12 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element submit() {
+        driver.submit();
+        return this;
+    }        
+
+    @Override
     public Mouse mouse() {
         return driver.mouse(locator);
     }
