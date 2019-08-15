@@ -941,7 +941,7 @@ public class ScenarioContext {
                 String video = (String) map.get("video");
                 if (video != null && lastStepResult != null) {
                     logger.info("video file present, attaching to last step result: {}", video);
-                    String html = "<video controls=\"true\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
+                    String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
                     Embed embed = new Embed();                    
                     embed.setBytes(html.getBytes());
                     embed.setMimeType("text/html");

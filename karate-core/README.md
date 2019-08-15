@@ -31,12 +31,13 @@
   <td>          
       <a href="#locators">Locators</a>
     | <a href="#wildcard-locators">Wildcards</a>      
-    | <a href="#js-api">JS API</a>
+    | <a href="#syntax">Syntax</a>
     | <a href="#special-keys">Special Keys</a>
     | <a href="#short-cuts">Short Cuts</a>
     | <a href="#chaining">Chaining</a>
     | <a href="#locator-lookup">Locator Lookup</a>
     | <a href="#function-composition">Function Composition</a>
+    | <a href="#script">Browser JavaScript</a>
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
@@ -370,7 +371,7 @@ Note that "`{:3}`" can be used as a short-cut instead of "`{*:3}`".
 You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to expand the "scope modifier" (the part within curly braces) only when you need to do "de-duping" in case the same *user-facing* text appears multiple times on a page.
 
 # Keywords
-Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
+Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#syntax) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
 ## `driver`
 Navigates to a new page / address. If this is the first instance in a test, this step also initializes the [`driver`](#syntax) instance for future step operations as per what is [configured](#configure-driver).
@@ -399,7 +400,7 @@ The built-in `driver` JS object is where you script UI automation. It will be in
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
-## JS API
+## Methods
 As a convenience, *all* the methods on the `driver` have been injected into the context as special (JavaScript) variables so you can omit the "`driver.`" part and save a lot of typing. For example instead of:
 
 ```cucumber
@@ -822,7 +823,7 @@ And waitUntilEnabled('#someId').click()
 Also see [waits](#wait-api).
 
 ### `waitUntil(function)`
-A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#js-api)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
+A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
 
 This is best explained with an example. Note that [`scripts()`](#scripts) will return an array, as opposed to [`script()`](#script).
 

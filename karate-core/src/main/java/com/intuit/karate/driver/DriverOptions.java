@@ -61,8 +61,8 @@ import java.util.function.Supplier;
  */
 public class DriverOptions {
 
-    // 30 seconds, as of now this is only used by the chrome / CDP reply timeout
-    public static final long DEFAULT_TIMEOUT = 30 * 1000;
+    // 15 seconds, as of now this is only used by the chrome / CDP reply timeout
+    public static final long DEFAULT_TIMEOUT = 15 * 1000;
 
     public final Map<String, Object> options;
     public final long timeout;
