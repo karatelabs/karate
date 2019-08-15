@@ -444,6 +444,9 @@ public class FileUtils {
     }
 
     public static List<Resource> scanForFeatureFiles(List<String> paths, ClassLoader cl) {
+        if (paths == null) {
+            return Collections.EMPTY_LIST;
+        }
         List<Resource> list = new ArrayList();
         for (String path : paths) {
             boolean classpath = isClassPath(path);

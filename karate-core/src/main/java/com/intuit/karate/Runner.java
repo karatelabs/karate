@@ -34,6 +34,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.Tags;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -52,6 +53,75 @@ public class Runner {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(Runner.class);
 
+    public static class Builder {
+
+        Class optionsClass;
+        int threadCount;
+        String reportDir;
+        String scenarioName;
+        List<String> tags = new ArrayList();
+        List<String> paths = new ArrayList();
+        List<Resource> resources;
+        Collection<ExecutionHook> hooks;
+
+        public Builder path(String... paths) {
+            this.paths.addAll(Arrays.asList(paths));
+            return this;
+        }
+
+        public Builder tags(String... tags) {
+            this.tags.addAll(Arrays.asList(tags));
+            return this;
+        }
+
+        public Builder forClass(Class clazz) {
+            this.optionsClass = clazz;
+            return this;
+        }
+
+        public Builder reportDir(String dir) {
+            this.reportDir = dir;
+            return this;
+        }
+
+        public Builder scenarioName(String name) {
+            this.scenarioName = name;
+            return this;
+        }
+
+        public Builder hook(ExecutionHook hook) {
+            if (hooks == null) {
+                hooks = new ArrayList();
+            }
+            hooks.add(hook);
+            return this;
+        }
+
+        String tagSelector() {
+            return Tags.fromKarateOptionsTags(tags);
+        }
+
+        List<Resource> resources() {
+            if (resources == null) {
+                return FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
+            }
+            return resources;
+        }
+
+        Results parallel(int threadCount) {
+            this.threadCount = threadCount;
+            return Runner.parallel(this);
+        }
+
+    }
+
+    public static Builder path(String... paths) {
+        Builder builder = new Builder();
+        return builder.path(paths);
+    }
+
+    //==========================================================================
+    //
     public static Results parallel(Class<?> clazz, int threadCount) {
         return parallel(clazz, threadCount, null);
     }
@@ -64,12 +134,12 @@ public class Runner {
     public static Results parallel(List<String> tags, List<String> paths, int threadCount, String reportDir) {
         return parallel(tags, paths, null, null, threadCount, reportDir);
     }
-    
-    public static Results parallel(int threadCount, String ... tagsOrPaths) {
+
+    public static Results parallel(int threadCount, String... tagsOrPaths) {
         return parallel(null, threadCount, tagsOrPaths);
     }
-    
-    public static Results parallel(String reportDir, int threadCount, String ... tagsOrPaths) {
+
+    public static Results parallel(String reportDir, int threadCount, String... tagsOrPaths) {
         List<String> tags = new ArrayList();
         List<String> paths = new ArrayList();
         for (String s : tagsOrPaths) {
@@ -81,24 +151,32 @@ public class Runner {
             }
         }
         return parallel(tags, paths, threadCount, reportDir);
-    }    
+    }
 
     public static Results parallel(List<String> tags, List<String> paths, String scenarioName,
-                                   Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
-        String tagSelector = tags == null ? null : Tags.fromKarateOptionsTags(tags);
-        List<Resource> files = FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
-        return parallel(tagSelector, files, scenarioName, hooks, threadCount, reportDir);
+            List<ExecutionHook> hooks, int threadCount, String reportDir) {
+        Builder options = new Builder();
+        options.tags = tags;
+        options.paths = paths;
+        options.scenarioName = scenarioName;
+        options.hooks = hooks;
+        options.reportDir = reportDir;
+        return options.parallel(threadCount);
     }
 
-    public static Results parallel(String tagSelector, List<Resource> resources, int threadCount, String reportDir) {
-        return parallel(tagSelector, resources, null, null, threadCount, reportDir);
+    public static Results parallel(List<Resource> resources, int threadCount, String reportDir) {
+        Builder options = new Builder();
+        options.resources = resources;
+        options.reportDir = reportDir;
+        return options.parallel(threadCount);
     }
 
-    public static Results parallel(String tagSelector, List<Resource> resources, String scenarioName,
-                                   Collection<ExecutionHook> hooks, int threadCount, String reportDir) {
+    public static Results parallel(Builder options) {
+        int threadCount = options.threadCount;
         if (threadCount < 1) {
             threadCount = 1;
         }
+        String reportDir = options.reportDir;
         if (reportDir == null) {
             reportDir = FileUtils.getBuildDir() + File.separator + ScriptBindings.SUREFIRE_REPORTS;
             new File(reportDir).mkdirs();
@@ -109,6 +187,7 @@ public class Runner {
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount, Executors.privilegedThreadFactory());
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
         int executedFeatureCount = 0;
+        List<Resource> resources = options.resources();
         try {
             int count = resources.size();
             CountDownLatch latch = new CountDownLatch(count);
@@ -117,10 +196,10 @@ public class Runner {
                 Resource resource = resources.get(i);
                 int index = i + 1;
                 Feature feature = FeatureParser.parse(resource);
-                feature.setCallName(scenarioName);
+                feature.setCallName(options.scenarioName);
                 feature.setCallLine(resource.getLine());
-                FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
-                CallContext callContext = CallContext.forAsync(feature, hooks, null, false);
+                FeatureContext featureContext = new FeatureContext(null, feature, options.tagSelector());
+                CallContext callContext = CallContext.forAsync(feature, options.hooks, null, false);
                 ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir,
                         r -> featureExecutor.submit(r), scenarioExecutor, Thread.currentThread().getContextClassLoader());
                 featureResults.add(execContext.result);
