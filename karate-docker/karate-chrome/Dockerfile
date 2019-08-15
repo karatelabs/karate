@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:bionic-20190612
 
 LABEL maintainer="Peter Thomas"
 LABEL url="https://github.com/intuit/karate/tree/master/karate-docker/karate-chrome"
@@ -13,8 +13,7 @@ RUN apt-get update \
 	fonts-takao \
 	pulseaudio \
 	socat \
-	ffmpeg \
-	gettext-base
+	ffmpeg
 
 ADD https://dl.google.com/linux/linux_signing_key.pub \
 	https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
@@ -31,7 +30,7 @@ RUN apt-get clean \
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd karate ~/.vnc/passwd
 
-COPY supervisord.conf /
+COPY supervisord.conf /etc/supervisor/conf.d/
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
@@ -42,4 +41,4 @@ EXPOSE 5900 9222
 ENV WIDTH 1366
 ENV HEIGHT 768
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]

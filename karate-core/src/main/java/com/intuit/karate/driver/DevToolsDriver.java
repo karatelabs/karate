@@ -127,7 +127,11 @@ public abstract class DevToolsDriver implements Driver {
             submit = false;
             condition = WaitState.ALL_FRAMES_LOADED;
         }
-        return waitState.waitAfterSend(dtm, condition);
+        DevToolsMessage result = waitState.waitAfterSend(dtm, condition);
+        if (result == null) {
+            throw new RuntimeException("failed to get reply for: " + dtm);
+        }
+        return result;
     }
 
     public void receive(DevToolsMessage dtm) {

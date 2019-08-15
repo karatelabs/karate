@@ -133,8 +133,7 @@ public class DriverOptions {
         this.options = options;
         this.logger = logger == null ? new Logger(getClass()) : logger;
         timeout = get("timeout", DEFAULT_TIMEOUT);
-        type = get("type", null);
-        port = get("port", defaultPort);
+        type = get("type", null);        
         start = get("start", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
@@ -157,6 +156,20 @@ public class DriverOptions {
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
+        // do this last to ensure things like logger, start-flag and all are set
+        port = resolvePort(defaultPort);
+    }
+    
+    private int resolvePort(int defaultPort) {
+        int preferredPort = get("port", defaultPort);
+        if (start) {
+            int freePort = Command.getFreePort(preferredPort);
+            if (freePort != preferredPort) {
+                this.logger.warn("preferred port {} not available, will use: {}", preferredPort, freePort);
+            }
+            return freePort;
+        }
+        return preferredPort;
     }
 
     public void arg(String arg) {

@@ -48,6 +48,11 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public boolean isEnabled() {
+        return true; // hmm
+    }        
+
+    @Override
     public Element focus() {
         return this;
     }
@@ -77,6 +82,11 @@ public class MissingElement implements Element {
         return this;
     }
 
+    @Override
+    public Element input(String[] values) {
+        return this;
+    }
+    
     @Override
     public Element select(String text) {
         return this;

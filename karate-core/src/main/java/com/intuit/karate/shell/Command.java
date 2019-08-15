@@ -34,8 +34,11 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Command extends Thread {
 
@@ -71,15 +74,27 @@ public class Command extends Thread {
     public static String getBuildDir() {
         return FileUtils.getBuildDir();
     }
+    
+    private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();
 
-    public static int getFreePort() {
+    public static int getFreePort(int preferred) {
+        if (PORTS_IN_USE.contains(preferred)) {
+            LOGGER.trace("preferred port {} in use (karate), will attempt to find free port ...", preferred);
+            preferred = 0;
+        }
         try {
-            ServerSocket s = new ServerSocket(0);
+            ServerSocket s = new ServerSocket(preferred);
             int port = s.getLocalPort();
-            LOGGER.debug("identified free local port: {}", port);
+            LOGGER.debug("found / verified free local port: {}", port);
             s.close();
+            PORTS_IN_USE.add(port);
             return port;
         } catch (Exception e) {
+            if (preferred > 0) {
+                LOGGER.trace("preferred port {} in use (system), re-trying ...", preferred);
+                PORTS_IN_USE.add(preferred);
+                return getFreePort(0);
+            }
             LOGGER.error("failed to find free port: {}", e.getMessage());
             throw new RuntimeException(e);
         }

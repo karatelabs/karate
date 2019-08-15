@@ -31,7 +31,7 @@ public class DriverElement implements Element {
 
     private final Driver driver;
     private final String locator;
-    
+
     private Boolean exists;
 
     private DriverElement(Driver driver, String locator, Boolean exists) {
@@ -39,14 +39,14 @@ public class DriverElement implements Element {
         this.locator = locator;
         this.exists = exists;
     }
-    
+
     public static DriverElement locatorExists(Driver driver, String locator) {
         return new DriverElement(driver, locator, true);
-    }    
-    
+    }
+
     public static DriverElement locatorUnknown(Driver driver, String locator) {
         return new DriverElement(driver, locator, null); // exists flag set to null
-    }     
+    }
 
     @Override
     public String getLocator() {
@@ -63,7 +63,12 @@ public class DriverElement implements Element {
 
     public void setExists(Boolean exists) {
         this.exists = exists;
-    }        
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return driver.enabled(locator);
+    }
 
     @Override
     public Element focus() {
@@ -84,7 +89,7 @@ public class DriverElement implements Element {
     public Element submit() {
         driver.submit();
         return this;
-    }        
+    }
 
     @Override
     public Mouse mouse() {
@@ -92,9 +97,14 @@ public class DriverElement implements Element {
     }
 
     @Override
-    public Element input(String text) {
-        return driver.input(locator, text);
+    public Element input(String value) {
+        return driver.input(locator, value);
     }
+
+    @Override
+    public Element input(String[] values) {
+        return driver.input(locator, values);
+    }        
 
     @Override
     public Element select(String text) {
@@ -110,13 +120,13 @@ public class DriverElement implements Element {
     public Element switchFrame() {
         driver.switchFrame(locator);
         return this;
-    }        
+    }
 
     @Override
     public Element delay(int millis) {
         driver.delay(millis);
         return this;
-    }        
+    }
 
     @Override
     public Element waitFor() {

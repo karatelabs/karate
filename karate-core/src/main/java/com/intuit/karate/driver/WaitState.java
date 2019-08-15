@@ -105,7 +105,8 @@ public class WaitState {
         if (lastReceived != null) {
             logger.trace("<< notified: {}", dtm);
         } else {
-            logger.warn("<< timed out after milliseconds: {} - {}", timeout, dtm);
+            logger.error("<< timed out after milliseconds: {} - {}", timeout, dtm);
+            return null;
         }
         return lastReceived;
     }

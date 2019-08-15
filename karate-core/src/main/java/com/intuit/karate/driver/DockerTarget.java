@@ -105,7 +105,7 @@ public class DockerTarget implements Target {
             logger.debug("attempting to pull docker image: {}", imageId);
             Command.execLine(null, "docker pull " + imageId);
         }
-        int port = Command.getFreePort();
+        int port = Command.getFreePort(0);
         containerId = Command.execLine(null, command.apply(port));
         Map<String, Object> map = new HashMap();        
         if (options != null) {
