@@ -44,7 +44,7 @@ public class GreetingController {
     public String reset() {
         int value = 0;
         counter.set(value);
-        return "{ counter: 0 }";
+        return "{ \"counter\": 0 }";
     }
 
     @GetMapping

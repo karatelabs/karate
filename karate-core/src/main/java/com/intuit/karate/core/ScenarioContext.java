@@ -441,16 +441,22 @@ public class ScenarioContext {
         responseString = StringUtils.trimToEmpty(responseString);
         if (Script.isJson(responseString)) {
             try {
-                responseBody = JsonUtils.toJsonDoc(responseString);
+                responseBody = JsonUtils.toJsonDocStrict(responseString);
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "json");
             } catch (Exception e) {
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
                 logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
             }
         } else if (Script.isXml(responseString)) {
             try {
                 responseBody = XmlUtils.toXmlDoc(responseString);
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "xml");
             } catch (Exception e) {
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
                 logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
             }
+        } else {
+            vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
         }
         vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
     }
