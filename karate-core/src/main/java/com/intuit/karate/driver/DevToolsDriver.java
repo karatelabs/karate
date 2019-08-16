@@ -25,7 +25,6 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
@@ -74,15 +73,7 @@ public abstract class DevToolsDriver implements Driver {
         return ++nextId;
     }
 
-    // mutable
-    protected Logger logger;
-
-    @Override
-    public void setLogger(Logger logger) {
-        this.logger = logger;
-        client.setLogger(logger);
-        waitState.setLogger(logger);
-    }
+    protected final Logger logger;
 
     protected DevToolsDriver(DriverOptions options, Command command, String webSocketUrl) {
         logger = options.driverLogger;

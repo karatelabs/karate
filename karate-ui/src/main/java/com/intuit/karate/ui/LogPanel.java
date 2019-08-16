@@ -37,11 +37,12 @@ import javafx.scene.layout.BorderPane;
 public class LogPanel extends BorderPane {
 
     private final TextArea textArea;
+    public final TextAreaLogAppender appender;
 
-    public LogPanel(Logger logger) {
+    public LogPanel() {
         setPadding(App.PADDING_ALL);
         textArea = new TextArea();
-        TextAreaLogAppender.init(logger, textArea);
+        appender = new TextAreaLogAppender(textArea);
         textArea.setFont(App.getDefaultFont());
         Button clearButton = new Button("Clear Log");
         clearButton.setOnAction(e -> textArea.clear());

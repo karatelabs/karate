@@ -28,7 +28,6 @@ import com.intuit.karate.Script;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Logger;
 import com.intuit.karate.Match;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.ScriptValueMap;
@@ -78,7 +77,7 @@ public class FeatureBackend {
         featureName = feature.getPath().toFile().getName();
         CallContext callContext = new CallContext(null, false);
         FeatureContext featureContext = new FeatureContext(null, feature, null);
-        actions = new StepActions(featureContext, callContext, null, new Logger());
+        actions = new StepActions(featureContext, callContext, null, null);
         context = actions.context;
         putBinding(ScriptBindings.PATH_MATCHES, context);
         putBinding(ScriptBindings.METHOD_IS, context);

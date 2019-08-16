@@ -65,7 +65,7 @@ public class Feature {
     }
 
     // the logger arg is important and can be coming from the UI
-    public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec, Logger logger) {
+    public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
         List<ScenarioExecutionUnit> units = new ArrayList();
         for (FeatureSection section : sections) {
             if (section.isOutline()) {
@@ -74,7 +74,7 @@ public class Feature {
                         if (!FeatureExecutionUnit.isSelected(exec.featureContext, scenario, new Logger())) { // throwaway logger
                             continue;
                         }
-                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec, logger);
+                        ScenarioExecutionUnit bgUnit = new ScenarioExecutionUnit(scenario, null, exec);
                         bgUnit.run();
                         ScenarioContext bgContext = bgUnit.getContext();
                         if (bgContext == null || bgUnit.isStopped()) { // karate-config.js || background failed
@@ -105,7 +105,7 @@ public class Feature {
                                         ScriptValue sv = new ScriptValue(v);
                                         dynamic.replace("<" + k + ">", sv.getAsString());
                                     });
-                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext, logger);
+                                    ScenarioExecutionUnit unit = new ScenarioExecutionUnit(dynamic, bgUnit.result.getStepResults(), exec, bgContext);
                                     units.add(unit);
                                 } else {
                                     bgContext.logger.warn("ignoring dynamic expression list item {}, not map-like: {}", i, rowValue);
@@ -115,11 +115,11 @@ public class Feature {
                             bgContext.logger.warn("ignoring dynamic expression, did not evaluate to list: {} - {}", expression, listValue);
                         }
                     } else {
-                        units.add(new ScenarioExecutionUnit(scenario, null, exec, logger));
+                        units.add(new ScenarioExecutionUnit(scenario, null, exec));
                     }
                 }
             } else {
-                units.add(new ScenarioExecutionUnit(section.getScenario(), null, exec, logger));
+                units.add(new ScenarioExecutionUnit(section.getScenario(), null, exec));
             }
         }
         return units;

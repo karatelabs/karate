@@ -25,9 +25,6 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.shell.FileLogAppender;
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -36,7 +33,7 @@ import java.util.function.Consumer;
  *
  * @author pthomas3
  */
-public class ExecutionContext {
+public class ExecutionContext {      
 
     public final long startTime;
     public final FeatureContext featureContext;
@@ -77,14 +74,6 @@ public class ExecutionContext {
         } else {
             this.system = system;
         }
-    }
-
-    public LogAppender getLogAppender(String suffix, Logger logger) {
-        if (reportDir == null) {
-            return LogAppender.NO_OP;
-        }
-        String basePath = featureContext.packageQualifiedName;
-        return new FileLogAppender(reportDir + File.separator + basePath + suffix + ".log", logger);
     }
 
 }

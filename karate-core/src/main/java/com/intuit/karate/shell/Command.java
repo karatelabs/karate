@@ -34,7 +34,6 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -74,7 +73,7 @@ public class Command extends Thread {
     public static String getBuildDir() {
         return FileUtils.getBuildDir();
     }
-    
+
     private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();
 
     public static int getFreePort(int preferred) {
@@ -103,7 +102,7 @@ public class Command extends Thread {
     public static boolean waitForHttp(String url) {
         int attempts = 0;
         long startTime = System.currentTimeMillis();
-        Http http = Http.forUrl(null, url);
+        Http http = Http.forUrl(LogAppender.NO_OP, url);
         do {
             if (attempts > 0) {
                 LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);
@@ -154,7 +153,12 @@ public class Command extends Thread {
         } else { // don't create new file if re-using an existing appender
             LogAppender temp = this.logger.getLogAppender();
             sharedAppender = temp != null;
-            appender = sharedAppender ? temp : new FileLogAppender(logFile, this.logger);
+            if (sharedAppender) {
+                appender = temp;
+            } else {
+                appender = new FileLogAppender(new File(logFile));
+                this.logger.setLogAppender(appender);
+            }
         }
     }
 

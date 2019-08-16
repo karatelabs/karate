@@ -2,7 +2,7 @@ package com.intuit.karate.driver.android;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.AppiumDriver;
 import com.intuit.karate.driver.DriverOptions;
@@ -20,8 +20,8 @@ public class AndroidDriver extends AppiumDriver {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static AndroidDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 4723, FileUtils.isOsWindows() ? "cmd.exe" : "appium");
+    public static AndroidDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 4723, FileUtils.isOsWindows() ? "cmd.exe" : "appium");
         // additional commands needed to start appium on windows
         if (FileUtils.isOsWindows()){
             options.arg("/C");
@@ -32,7 +32,7 @@ public class AndroidDriver extends AppiumDriver {
         options.arg("--port=" + options.port);
         Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port + "/wd/hub";
-        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         http.config("readTimeout","120000");
         String sessionId = http.path("session")
                 .post(Collections.singletonMap("desiredCapabilities", map))

@@ -51,8 +51,8 @@ public class FeatureExecutionUnit implements Runnable {
         return units;
     }
 
-    public void init(Logger logger) { // logger applies only if called from ui
-        units = exec.featureContext.feature.getScenarioExecutionUnits(exec, logger);
+    public void init() { // logger applies only if called from ui
+        units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
         int count = units.size();
         results = new ArrayList(count);
         latch = new CountDownLatch(count);
@@ -67,7 +67,7 @@ public class FeatureExecutionUnit implements Runnable {
     @Override
     public void run() {
         if (units == null) {
-            init(null);
+            init();
         }
         for (ScenarioExecutionUnit unit : units) {
             if (isSelected(unit) && run(unit)) {
@@ -101,7 +101,7 @@ public class FeatureExecutionUnit implements Runnable {
     }
     
     public boolean isSelected(ScenarioExecutionUnit unit) {
-        return isSelected(exec.featureContext, unit.scenario, unit.logger);
+        return isSelected(exec.featureContext, unit.scenario, new Logger());
     }
 
     public static boolean isSelected(FeatureContext fc, Scenario scenario, Logger logger) {

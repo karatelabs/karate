@@ -49,12 +49,12 @@ public class StepActions implements Actions {
 
     public final ScenarioContext context;
 
-    public StepActions(FeatureContext featureContext, CallContext callContext, Scenario scenario, Logger logger) {
-        this(featureContext, callContext, null, scenario, logger);
+    public StepActions(FeatureContext featureContext, CallContext callContext, Scenario scenario, LogAppender appender) {
+        this(featureContext, callContext, null, scenario, appender);
     }
 
-    public StepActions(FeatureContext featureContext, CallContext callContext, ClassLoader classLoader, Scenario scenario, Logger logger) {
-        context = new ScenarioContext(featureContext, callContext, classLoader, scenario, logger);
+    public StepActions(FeatureContext featureContext, CallContext callContext, ClassLoader classLoader, Scenario scenario, LogAppender appender) {
+        context = new ScenarioContext(featureContext, callContext, classLoader, scenario, appender);
     }
 
     public StepActions(ScenarioContext context) {

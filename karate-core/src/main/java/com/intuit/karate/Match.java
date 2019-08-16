@@ -41,11 +41,8 @@ public class Match {
     protected final ScenarioContext context;
     private ScriptValue prevValue = ScriptValue.NULL;
 
-    public static Match withHttp(Logger logger) {
-        if (logger == null) {
-            logger = new Logger();
-        }
-        return new Match(logger, null);
+    public static Match forHttp(LogAppender appender) {
+        return new Match(appender, null);
     }
 
     public Match(String exp) {
@@ -66,12 +63,12 @@ public class Match {
         return match;
     }
 
-    private Match(Logger logger, String exp) {
+    private Match(LogAppender appender, String exp) {
         FeatureContext featureContext = FeatureContext.forEnv();
-        String httpClass = logger == null ? DummyHttpClient.class.getName() : null;
+        String httpClass = appender == null ? DummyHttpClient.class.getName() : null;
         CallContext callContext = new CallContext(null, null, 0, null, -1, null, false, false,
                 httpClass, null, false);
-        context = new ScenarioContext(featureContext, callContext, null, logger);
+        context = new ScenarioContext(featureContext, callContext, null, appender);
         if (exp != null) {
             prevValue = Script.evalKarateExpression(exp, context);
             if (prevValue.isMapLike()) {

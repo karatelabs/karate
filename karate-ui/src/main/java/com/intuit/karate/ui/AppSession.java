@@ -24,7 +24,7 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.CallContext;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureContext;
@@ -47,7 +47,7 @@ import javafx.scene.layout.BorderPane;
  */
 public class AppSession {
 
-    private final Logger logger = new Logger();
+    private final LogAppender appender;
     private final ExecutionContext exec;
     private final FeatureExecutionUnit featureUnit;
 
@@ -75,11 +75,12 @@ public class AppSession {
     public AppSession(BorderPane rootPane, File workingDir, Feature feature, String env, CallContext callContext) {
         this.rootPane = rootPane;
         this.workingDir = workingDir;
-        logPanel = new LogPanel(logger);
+        logPanel = new LogPanel();
+        appender = logPanel.appender;
         FeatureContext featureContext = FeatureContext.forFeatureAndWorkingDir(env, feature, workingDir);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);       
-        featureUnit.init(logger);
+        featureUnit.init();
         featureOutlinePanel = new FeatureOutlinePanel(this);
         DragResizer.makeResizable(featureOutlinePanel, false, false, false, true);
         List<ScenarioExecutionUnit> units = featureUnit.getScenarioExecutionUnits();
@@ -150,6 +151,10 @@ public class AppSession {
 
     public File getWorkingDir() {
         return workingDir;
+    }        
+
+    public LogAppender getAppender() {
+        return appender;
     }        
 
 }

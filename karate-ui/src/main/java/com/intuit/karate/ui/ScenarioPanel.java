@@ -67,6 +67,7 @@ public class ScenarioPanel extends BorderPane {
     public ScenarioPanel(AppSession session, ScenarioExecutionUnit unit) {
         this.session = session;
         this.unit = unit;
+        unit.setAppender(session.getAppender());
         unit.init();
         initialContext = unit.getActions().context.copy();
         content = new VBox(App.PADDING);

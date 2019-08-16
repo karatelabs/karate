@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Logger;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -241,8 +240,6 @@ public interface Driver {
     // for internal use ========================================================
     //
     DriverOptions getOptions();
-
-    void setLogger(Logger logger);
 
     Object elementId(String locator);
 

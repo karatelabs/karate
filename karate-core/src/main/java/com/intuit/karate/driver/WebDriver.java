@@ -48,14 +48,7 @@ public abstract class WebDriver implements Driver {
 
     protected boolean open = true;
 
-    // mutable
-    protected Logger logger;
-
-    @Override
-    public void setLogger(Logger logger) {
-        this.logger = logger;
-        http.setLogger(logger);
-    }
+    protected final Logger logger;
 
     protected WebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         this.options = options;

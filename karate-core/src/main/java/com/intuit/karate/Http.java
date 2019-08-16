@@ -55,10 +55,6 @@ public class Http {
         this.match = match;
     }
 
-    public void setLogger(Logger logger) {
-        match.context.logger = logger;
-    }
-
     public Http url(String url) {
         match.context.url(Match.quote(url));
         return this;
@@ -111,8 +107,8 @@ public class Http {
         return handleError();
     }
 
-    public static Http forUrl(Logger logger, String url) {
-        Http http = new Http(Match.withHttp(logger));
+    public static Http forUrl(LogAppender appender, String url) {
+        Http http = new Http(Match.forHttp(appender));
         return http.url(url);
     }
 

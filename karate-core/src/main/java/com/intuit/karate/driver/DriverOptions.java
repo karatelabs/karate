@@ -25,6 +25,7 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.android.AndroidDriver;
@@ -75,6 +76,7 @@ public class DriverOptions {
     public final boolean showProcessLog;
     public final boolean showDriverLog;
     public final Logger logger;
+    public final LogAppender appender;
     public final Logger processLogger;
     public final Logger driverLogger;
     public final String uniqueName;
@@ -128,10 +130,12 @@ public class DriverOptions {
         return temp == null ? defaultValue : temp;
     }
 
-    public DriverOptions(ScenarioContext context, Map<String, Object> options, Logger logger, int defaultPort, String defaultExecutable) {
+    public DriverOptions(ScenarioContext context, Map<String, Object> options, LogAppender appender, int defaultPort, String defaultExecutable) {
         this.context = context;
         this.options = options;
-        this.logger = logger == null ? new Logger(getClass()) : logger;
+        this.appender = appender;
+        logger = new Logger(getClass());
+        logger.setLogAppender(appender);
         timeout = get("timeout", DEFAULT_TIMEOUT);
         type = get("type", null);        
         start = get("start", true);
@@ -141,9 +145,9 @@ public class DriverOptions {
         addOptions = get("addOptions", null);
         uniqueName = type + "_" + System.currentTimeMillis();
         String packageName = getClass().getPackage().getName();
-        processLogger = showProcessLog ? this.logger : new Logger(packageName + "." + uniqueName);
+        processLogger = showProcessLog ? logger : new Logger(packageName + "." + uniqueName);
         showDriverLog = get("showDriverLog", false);
-        driverLogger = showDriverLog ? this.logger : new Logger(packageName + "." + uniqueName);
+        driverLogger = showDriverLog ? logger : new Logger(packageName + "." + uniqueName);
         if (executable != null) {
             if (executable.startsWith(".")) { // honor path even when we set working dir
                 args.add(new File(executable).getAbsolutePath());
@@ -165,7 +169,7 @@ public class DriverOptions {
         if (start) {
             int freePort = Command.getFreePort(preferredPort);
             if (freePort != preferredPort) {
-                this.logger.warn("preferred port {} not available, will use: {}", preferredPort, freePort);
+                logger.warn("preferred port {} not available, will use: {}", preferredPort, freePort);
             }
             return freePort;
         }
@@ -189,8 +193,10 @@ public class DriverOptions {
         return command;
     }
 
-    public static Driver start(ScenarioContext context, Map<String, Object> options, Logger logger) {
+    public static Driver start(ScenarioContext context, Map<String, Object> options, LogAppender appender) {
         Target target = (Target) options.get("target");
+        Logger logger = new Logger();
+        logger.setLogAppender(appender);
         if (target != null) {
             target.setLogger(logger);
             logger.debug("custom target configured, calling start()");
@@ -206,26 +212,26 @@ public class DriverOptions {
         try { // to make troubleshooting errors easier
             switch (type) {
                 case "chrome":
-                    return Chrome.start(context, options, logger);
+                    return Chrome.start(context, options, appender);
                 case "msedge":
-                    return EdgeDevToolsDriver.start(context, options, logger);
+                    return EdgeDevToolsDriver.start(context, options, appender);
                 case "chromedriver":
-                    return ChromeWebDriver.start(context, options, logger);
+                    return ChromeWebDriver.start(context, options, appender);
                 case "geckodriver":
-                    return GeckoWebDriver.start(context, options, logger);
+                    return GeckoWebDriver.start(context, options, appender);
                 case "safaridriver":
-                    return SafariWebDriver.start(context, options, logger);
+                    return SafariWebDriver.start(context, options, appender);
                 case "mswebdriver":
-                    return MicrosoftWebDriver.start(context, options, logger);
+                    return MicrosoftWebDriver.start(context, options, appender);
                 case "winappdriver":
-                    return WinAppDriver.start(context, options, logger);
+                    return WinAppDriver.start(context, options, appender);
                 case "android":
-                    return AndroidDriver.start(context, options, logger);
+                    return AndroidDriver.start(context, options, appender);
                 case "ios":
-                    return IosDriver.start(context, options, logger);
+                    return IosDriver.start(context, options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-                    return Chrome.start(context, options, logger);
+                    return Chrome.start(context, options, appender);
             }
         } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
