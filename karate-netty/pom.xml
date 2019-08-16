@@ -51,7 +51,7 @@
                 <configuration>
                     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
-            </plugin>            
+            </plugin>                       
         </plugins>           
     </build> 
     
@@ -85,7 +85,24 @@
                                 </configuration>
                             </execution>
                         </executions>
-                    </plugin>            
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <version>2.5.3</version>
+                        <configuration>
+                            <descriptor>src/assembly/bin.xml</descriptor>
+                            <finalName>karate-${project.version}</finalName>
+                            <appendAssemblyId>false</appendAssemblyId>                    
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>                                
                 </plugins>                 
             </build>
         </profile>
