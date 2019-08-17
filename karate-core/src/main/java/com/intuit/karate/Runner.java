@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Runner {
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(Runner.class);
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
 
     public static class Builder {
 
@@ -213,12 +213,12 @@ public class Runner {
                             Engine.saveResultXml(finalReportDir, result, null);
                         }
                         String status = result.isFailed() ? "fail" : "pass";
-                        logger.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
+                        LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
                         result.printStats(file.getPath());
                     } else {
                         results.addToSkipCount(1);
-                        if (logger.isTraceEnabled()) {
-                            logger.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
+                        if (LOGGER.isTraceEnabled()) {
+                            LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
                         }
                     }
                     latch.countDown();
@@ -241,7 +241,7 @@ public class Runner {
                 results.addScenarioResults(result.getScenarioResults());
             }
         } catch (Exception e) {
-            logger.error("karate parallel runner failed: ", e.getMessage());
+            LOGGER.error("karate parallel runner failed: ", e.getMessage());
             results.setFailureReason(e);
         } finally {
             featureExecutor.shutdownNow();

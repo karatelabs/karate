@@ -54,7 +54,17 @@ public class MandatoryTagHook implements ExecutionHook {
     public void afterScenario(ScenarioResult result, ScenarioContext context) {
 
     }    
-    
+
+    @Override
+    public boolean beforeFeature(Feature feature) {
+        return true;
+    }
+
+    @Override
+    public void afterFeature(FeatureResult result) {
+        
+    }    
+        
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;

@@ -24,15 +24,20 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Logger;
+import com.intuit.karate.Runner;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class FeatureExecutionUnit implements Runnable {
+
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
 
     public final ExecutionContext exec;
     private final boolean parallelScenarios;
@@ -51,8 +56,25 @@ public class FeatureExecutionUnit implements Runnable {
         return units;
     }
 
-    public void init() { // logger applies only if called from ui
-        units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
+    public void init() {
+        if (exec.callContext.executionHooks != null) {
+            for (ExecutionHook hook : exec.callContext.executionHooks) {
+                boolean hookResult;
+                Feature feature = exec.featureContext.feature;
+                try {
+                    hookResult = hook.beforeFeature(feature);
+                } catch (Exception e) {
+                    LOGGER.warn("execution hook beforeFeature failed, will skip: {} - {}", feature.getRelativePath(), e.getMessage());
+                    hookResult = false;
+                }
+                if (hookResult == false) {
+                    units = Collections.EMPTY_LIST;
+                }
+            }
+        }
+        if (units == null) { // no hook failed
+            units = exec.featureContext.feature.getScenarioExecutionUnits(exec);
+        }
         int count = units.size();
         results = new ArrayList(count);
         latch = new CountDownLatch(count);
@@ -98,8 +120,18 @@ public class FeatureExecutionUnit implements Runnable {
             exec.result.setResultVars(lastContextExecuted.vars);
             lastContextExecuted.invokeAfterHookIfConfigured(true);
         }
+        if (exec.callContext.executionHooks != null) {
+            for (ExecutionHook hook : exec.callContext.executionHooks) {
+                try {
+                    hook.afterFeature(exec.result);
+                } catch (Exception e) {
+                    LOGGER.warn("execution hook afterFeature failed: {} - {}",
+                            exec.featureContext.feature.getRelativePath(), e.getMessage());
+                }
+            }
+        }
     }
-    
+
     public boolean isSelected(ScenarioExecutionUnit unit) {
         return isSelected(exec.featureContext, unit.scenario, new Logger());
     }
