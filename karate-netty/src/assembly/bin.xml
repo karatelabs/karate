@@ -8,7 +8,7 @@
     <files>
         <file>
             <source>target/karate-${project.version}.jar</source>
-            <outputDirectory>bin</outputDirectory>
+            <outputDirectory></outputDirectory>
             <destName>karate.jar</destName>
         </file>
     </files>
