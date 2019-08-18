@@ -410,7 +410,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public Element focus(String locator) {
         retryIfEnabled(locator);
-        eval(options.selector(locator) + ".focus()");
+        eval(options.focusJs(locator));
         return DriverElement.locatorExists(this, locator);
     }
 
@@ -445,7 +445,7 @@ public abstract class DevToolsDriver implements Driver {
     public Element input(String locator, String value) {
         retryIfEnabled(locator);
         // focus
-        eval(options.selector(locator) + ".focus()");
+        eval(options.focusJs(locator));
         Input input = new Input(value);
         while (input.hasNext()) {
             char c = input.next();

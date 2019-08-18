@@ -84,16 +84,6 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    public String html(String locator) {
-        return attribute(locator, "outerHTML");
-    }
-
-    @Override
-    public String value(String locator) {
-        return attribute(locator, "value");
-    }
-
-    @Override
     public void activate() {
         if (!options.headless) {
             try {

@@ -24,7 +24,6 @@
 package com.intuit.karate.core;
 
 import com.intuit.karate.Logger;
-import com.intuit.karate.Runner;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class FeatureExecutionUnit implements Runnable {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(FeatureExecutionUnit.class);
 
     public final ExecutionContext exec;
     private final boolean parallelScenarios;

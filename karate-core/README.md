@@ -13,7 +13,10 @@
 <tr>
   <th>Start</th>
   <td>
-      See <a href="https://github.com/intuit/karate#index">Main Index</a> for how to get started
+      <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
+    | <a href="https://github.com/intuit/karate#maven">Java</a>
+    | <a href="https://github.com/intuit/karate#quickstart">Maven Quickstart</a>
+    | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
   </td>
 </tr>
 <tr>
@@ -28,19 +31,30 @@
 </tr>
 <tr>
   <th>Concepts</th>
-  <td>          
-      <a href="#locators">Locators</a>
-    | <a href="#wildcard-locators">Wildcards</a>      
-    | <a href="#syntax">Syntax</a>
+  <td>
+      <a href="#syntax">Syntax</a>
     | <a href="#special-keys">Special Keys</a>
     | <a href="#short-cuts">Short Cuts</a>
-    | <a href="#chaining">Chaining</a>
-    | <a href="#locator-lookup">Locator Lookup</a>
+    | <a href="#chaining">Chaining</a>  
     | <a href="#function-composition">Function Composition</a>
     | <a href="#script">Browser JavaScript</a>
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
+  </td>
+</tr>
+<tr>
+  <th>Locators</th>
+  <td>
+      <a href="#locators">Locator Types</a>
+    | <a href="#wildcard-locators">Wildcards</a> 
+    | <a href="#friendly-locators">Friendly Locators</a> 
+    | <a href="#rightof"><code>rightOf()</code></a>
+    | <a href="#leftOf"><code>leftOf()</code></a>
+    | <a href="#above"><code>above()</code></a>
+    | <a href="#below"><code>below()</code></a>
+    | <a href="#near"><code>near()</code></a>
+    | <a href="#locator-lookup">Locator Lookup</a>
   </td>
 </tr>
 <tr>
@@ -135,9 +149,9 @@
 
 * Simple, clean syntax that is well suited for people new to programming or test-automation
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
-* Cross-platform with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar)
+* Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
 * No need to learn complicated programming concepts such as "callbacks" and "`await`"
-* Option to use [wildcard locators](#wildcard-locators) without needing to inspect the CSS class-names or internal XPath structure
+* Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
@@ -168,6 +182,7 @@
   * [compose functions](#function-composition) for elegant *custom* "wait" logic
   * assert on tabular [results in the HTML](#scripts)
 * [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
+
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) for an alternative approach.
 
@@ -370,6 +385,61 @@ Note that "`{:3}`" can be used as a short-cut instead of "`{*:3}`".
 
 You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to expand the "scope modifier" (the part within curly braces) only when you need to do "de-duping" in case the same *user-facing* text appears multiple times on a page.
 
+## Friendly Locators
+The ["wildcard" locators](#wildcard-locators) are great when the human-facing visible text is *within* the HTML element that you want to interact with. But this approach doesn't work when you have to deal with data-entry and `<input>` fields. This is where the "friendly locators" come in. You can ask for an element by its *relative position* to another element which is visible - such as a `<span>`, `<div>` or `<label>` and for which the [locator](#locators) is easy to obtain.
+
+Method | Finds Element
+------ | -----------
+[`rightOf()`](#rightof) | to *right* of given locator
+[`leftOf()`](#leftof) | to *left* of given locator
+[`above()`](#above) | *above* given locator
+[`below()`](#below) | *below* given locator
+[`near()`](#near) | *near* given locator in any direction
+
+The above methods return a [chainable](#chaining) [`Finder`](src/main/java/com/intuit/karate/driver/Finder.java) instance. For example if you have HTML like this:
+
+```html
+<input type="checkbox"><span>Check Three</span>
+```
+
+To click on the checkbox, you just need to do this:
+
+```cucumber
+* leftOf('{}Check Three').click()
+```
+
+By default, the HTML tag that will be searched for will be `input`. While rarely needed, you can over-ride this by calling the `find(tagName)` method like this:
+
+```cucumber
+* rightOf('{}Some Text').find('span').click()
+```
+
+### `rightOf()`
+```cucumber
+* rightOf('{}Input On Right').input('input right')
+```
+
+### `leftOf()`
+```cucumber
+* leftOf('{}Input On Left').clear().input('input left')
+```
+### `above()`
+```cucumber
+* above('{}Input On Right').click()
+```
+
+### `below()`
+```cucumber
+* below('{}Input On Right').input('input below')
+```
+
+### `near()`
+The typical reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be used if the element you are seeking is diagonally offset from the [locator](#locators) you have.
+
+```cucumber
+ * near('{}Go to Page One').click()
+```
+
 # Keywords
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#syntax) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
@@ -436,6 +506,7 @@ All the methods that return the following Java object types are "chain-able". Th
 * [`Driver`](src/main/java/com/intuit/karate/driver/Driver.java)
 * [`Element`](src/main/java/com/intuit/karate/driver/Element.java) 
 * [`Mouse`](src/main/java/com/intuit/karate/driver/Mouse.java)
+* [`Finder`](src/main/java/com/intuit/karate/driver/Finder.java)
 
 For example, to [`retry()`](#retry) until an HTML element is present and then [`click()`](#click) it:
 

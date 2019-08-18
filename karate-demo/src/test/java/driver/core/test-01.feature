@@ -155,8 +155,8 @@ Scenario Outline: using <config>
   And match driver.url == webUrlBase + '/page-03'
 
   # get html for all elements that match css selector
-  When def list = scripts('div div', '_.innerHTML')
-  Then match list == '#[3]'
+  When def list = scripts('div#eg01 div', '_.innerHTML')
+  Then match list == '#[4]'
   And match each list contains '@@data'
 
   # get html for all elements that match xpath selector
@@ -165,8 +165,8 @@ Scenario Outline: using <config>
   And match each list contains 'Option'
 
   # get text for all elements that match css selector
-  When def list = scripts('div div', '_.textContent')
-  Then match list == '#[3]'
+  When def list = scripts('div#eg01 div', '_.textContent')
+  Then match list == '#[4]'
   And match each list contains '@@data'
 
   # get text for all elements that match xpath selector
@@ -203,6 +203,24 @@ Scenario Outline: using <config>
   Given select('select[name=data1]', 'option2')
   When submit().click('#eg02SubmitId')
   And match text('#eg01Data1') == 'option2'
+
+  # friendly locators: leftOf / rightOf
+  * leftOf('{}Check Three').click()
+  * rightOf('{}Input On Right').input('input right')  
+  * leftOf('{}Input On Left').clear().input('input left')
+  * submit().click('#eg02SubmitId')
+  * match text('#eg01Data2') == 'check3'
+  * match text('#eg01Data3') == 'Some Textinput right'
+  * match text('#eg01Data4') == 'input left'
+
+  # friendly locators: above / below / near
+  * near('{}Go to Page One').click()
+  * below('{}Input On Right').input('input below')  
+  * above('{}Input On Left').clear().input('input above')
+  * submit().click('#eg02SubmitId')
+  * match text('#eg01Data2') == 'check1'
+  * match text('#eg01Data3') == 'input above'
+  * match text('#eg01Data4') == 'Some Textinput below'
 
   # switch to iframe by index
   Given driver webUrlBase + '/page-04'
@@ -241,7 +259,7 @@ Examples:
     | { type: 'chrome' } | { x: 0, y: 0, width: 300, height: 800 } |
     | { type: 'chromedriver' } | { x: 50, y: 0, width: 250, height: 800 } |
     | { type: 'geckodriver' } | { x: 600, y: 0, width: 300, height: 800 } |
-    | { type: 'safaridriver' } | { x: 1000, y: 0, width: 300, height: 800 } |
+    | { type: 'safaridriver' } | { x: 1000, y: 0, width: 400, height: 800 } |
     # | { type: 'mswebdriver' } |
     # | { type: 'msedge' } |
     

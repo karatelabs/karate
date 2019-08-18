@@ -4,40 +4,29 @@ Scenario Outline: <type>
   * def webUrlBase = karate.properties['web.url.base']
   * configure driver = { type: '#(type)', showDriverLog: true }
 
-  * driver webUrlBase + '/page-02'
+  * driver webUrlBase + '/page-03'
 
-  # find all
-  * def elements = findAll('{}Click Me')
-  * match karate.sizeOf(elements) == 7
-  * elements.get(6).click()
-  * match text('#eg03Result') == 'SECOND'
-  * match elements.get(3).script('_.tagName') == 'BUTTON'
+  # friendly locators: leftOf / rightOf
+  * leftOf('{}Check Three').click()
+  * rightOf('{}Input On Right').input('input right') 
+  * leftOf('{}Input On Left').clear().input('input left')
+  * submit().click('#eg02SubmitId')
+  * match text('#eg01Data2') == 'check3'
+  * match text('#eg01Data3') == 'Some Textinput right'
+  * match text('#eg01Data4') == 'input left'
 
-  # dialog - alert
-  When click('{}Show Alert')
-  Then match driver.dialog == 'this is an alert'
-  And dialog(true)
-
-  # dialog - confirm true
-  When click('{}Show Confirm')
-  Then match driver.dialog == 'this is a confirm'
-  And dialog(false)
-  And match text('#eg02DivId') == 'Cancel'
-
-  # dialog - confirm false
-  When click('{}Show Confirm')
-  And dialog(true)
-  And match text('#eg02DivId') == 'OK'
-
-  # dialog - prompt
-  When click('{}Show Prompt')
-  Then match driver.dialog == 'this is a prompt'
-  And dialog(true, 'hello world')
-  And match text('#eg02DivId') == 'hello world'
+  # friendly locators: above / below / near
+  * near('{}Go to Page One').click()
+  * below('{}Input On Right').input('input below')  
+  * above('{}Input On Left').clear().input('input above')
+  * submit().click('#eg02SubmitId')
+  * match text('#eg01Data2') == 'check1'
+  * match text('#eg01Data3') == 'input above'
+  * match text('#eg01Data4') == 'Some Textinput below'
 
 Examples:
 | type         |
-| chrome       |
-| chromedriver |
-| geckodriver  |
+#| chrome       |
+#| chromedriver |
+#| geckodriver  |
 | safaridriver |

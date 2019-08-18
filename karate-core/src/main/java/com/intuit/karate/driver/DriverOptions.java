@@ -137,7 +137,7 @@ public class DriverOptions {
         logger = new Logger(getClass());
         logger.setLogAppender(appender);
         timeout = get("timeout", DEFAULT_TIMEOUT);
-        type = get("type", null);        
+        type = get("type", null);
         start = get("start", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
@@ -163,7 +163,7 @@ public class DriverOptions {
         // do this last to ensure things like logger, start-flag and all are set
         port = resolvePort(defaultPort);
     }
-    
+
     private int resolvePort(int defaultPort) {
         int preferredPort = get("port", defaultPort);
         if (start) {
@@ -302,6 +302,10 @@ public class DriverOptions {
         return "document.querySelector(\"" + locator + "\")";
     }
 
+    public void setRetryInterval(Integer retryInterval) {
+        this.retryInterval = retryInterval;
+    }        
+
     public int getRetryInterval() {
         if (retryInterval != null) {
             return retryInterval;
@@ -323,7 +327,7 @@ public class DriverOptions {
             return context.getConfig().getRetryCount();
         }
     }
-    
+
     public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription) {
         long startTime = System.currentTimeMillis();
         int count = 0, max = getRetryCount();
@@ -341,10 +345,10 @@ public class DriverOptions {
             long elapsedTime = System.currentTimeMillis() - startTime;
             logger.warn("failed after {} retries and {} milliseconds", (count - 1), elapsedTime);
         }
-        return result;        
-    }   
+        return result;
+    }
 
-    public String wrapInFunctionInvoke(String text) {
+    public static String wrapInFunctionInvoke(String text) {
         return "(function(){ " + text + " })()";
     }
 
@@ -546,11 +550,19 @@ public class DriverOptions {
         }
     }
 
+    public static String karateLocator(String karateRef) {
+        return "(document._karate." + karateRef + ")";
+    }
+
+    public String focusJs(String locator) {
+        return "var e = " + selector(locator) + "; e.focus(); e.selectionStart = e.selectionEnd = e.value.length";
+    }
+
     public List<Element> findAll(Driver driver, String locator) {
         List<String> list = driver.scripts(locator, DriverOptions.KARATE_REF_GENERATOR);
         List<Element> elements = new ArrayList(list.size());
         for (String karateRef : list) {
-            String karateLocator = "(document._karate." + karateRef + ")";
+            String karateLocator = karateLocator(karateRef);
             elements.add(DriverElement.locatorExists(driver, karateLocator));
         }
         return elements;

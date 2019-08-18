@@ -152,7 +152,7 @@ public interface Driver {
     default Element waitForAny(String locator1, String locator2) {
         return getOptions().waitForAny(this, new String[]{locator1, locator2});
     }
-    
+
     default Element waitForAny(String[] locators) {
         return getOptions().waitForAny(this, locators);
     }
@@ -183,6 +183,30 @@ public interface Driver {
         return DriverElement.locatorExists(this, locator);
     }
 
+    // friendly locators =======================================================
+    //
+    default Finder rightOf(String locator) {
+        return new Finder(this, locator, Finder.Type.RIGHT);
+    }
+
+    default Finder leftOf(String locator) {
+        return new Finder(this, locator, Finder.Type.LEFT);
+    }
+
+    default Finder above(String locator) {
+        return new Finder(this, locator, Finder.Type.ABOVE);
+    }
+
+    default Finder below(String locator) {
+        return new Finder(this, locator, Finder.Type.BELOW);
+    }
+
+    default Finder near(String locator) {
+        return new Finder(this, locator, Finder.Type.NEAR);
+    }
+
+    // mouse and keys ==========================================================
+    //
     default Mouse mouse() {
         return new Mouse(this);
     }
