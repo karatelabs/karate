@@ -122,7 +122,8 @@
     | <a href="#waituntilenabled"><code>waitUntilEnabled()</code></a>
     | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
-    | <a href="#scripts"><code>scripts()</code></a>    
+    | <a href="#scripts"><code>scripts()</code></a>
+    | <a href="#karate-vs-the-browser">Karate vs the Browser</a>
   </td>
 </tr>
 <tr>
@@ -874,11 +875,25 @@ Wait for the JS expression to evaluate to `true`. Will poll using the [retry()](
 * waitUntil("document.readyState == 'complete'")
 ```
 
+## `waitUntil(locator,js)`
 A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut boolean-expression form that begins with an underscore (or "`!`"), and Karate will inject the JavaScript DOM element reference into a variable named "`_`".
 
-This is especially useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` returned `false` - *even* after the configured number of [re-tries](#retry) were attempted.
+Here is a real-life example:
 
 > One limitation is that you cannot use double-quotes *within* these expressions, so stick to the pattern seen below.
+
+```cucumber
+And waitUntil('.alert-message', "_.innerHTML.includes('Some Text')")
+```
+
+## Karate vs the Browser
+One thing you need to get used to is the "separation" between the code that is evaluated by Karate and the JavaScript that is sent to the *browser* (as a raw string) and evaluated. Pay attention to the fact that the [`includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) function you see in the above example - is pure JavaScript.
+
+The use of `includes()` is needed in this real-life example, because [`innerHTML()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML) can return leading and trailing white-space (such as line-feeds and tabs) - which would cause an exact "`==`" comparison in JavaScript to fail.
+
+For an example of how JavaScript looks like on the "Karate side" see [Function Composition](#function-composition).
+
+This form of `waitUntil()` is very useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` returned `false` - *even* after the configured number of [re-tries](#retry) were attempted.
 
 ```cucumber
 And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
@@ -926,7 +941,7 @@ Then match searchResults contains 'karate-core/src/main/resources/karate-logo.pn
 Also see [waits](#wait-api).
 
 ### Function Composition
-The above example can be re-factored in a very elegant way as follows:
+The above example can be re-factored in a very elegant way as follows, using Karate's [native support for JavaScript](https://github.com/intuit/karate#javascript-functions):
 
 ```cucumber
 # this can be a global re-usable function !
