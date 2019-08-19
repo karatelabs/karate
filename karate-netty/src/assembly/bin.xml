@@ -11,6 +11,11 @@
             <outputDirectory></outputDirectory>
             <destName>karate.jar</destName>
         </file>
+        <file>
+            <source>src/test/resources/gitignore.txt</source>
+            <outputDirectory></outputDirectory>
+            <destName>.gitignore</destName>            
+        </file>
     </files>
     <fileSets>
         <fileSet>

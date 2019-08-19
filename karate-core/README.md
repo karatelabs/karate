@@ -534,6 +534,12 @@ Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a
 * mouse(100, 200).click()
 ```
 
+Or to use [Friendly Locators](#friendly-locators):
+
+```cucumber
+* rightOf('{}Input On Right').input('input right')
+```
+
 Also see [waits](#wait-api).
 
 # Syntax
@@ -990,6 +996,12 @@ Will actually attempt to evaluate the given string as JavaScript within the brow
 
 ```cucumber
 * assert 3 == script("1 + 2")
+```
+
+To avoid problems, stick to the pattern of using double-quotes to "wrap" the JavaScript snippet, and you can use single-quotes within.
+
+```cucumber
+* script("console.log('hello world')")
 ```
 
 A more useful variation is to perform a JavaScript `eval` on a reference to the HTML DOM element retrieved by a [locator](#locators). For example:
