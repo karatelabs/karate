@@ -56,13 +56,6 @@ public class FeatureExecutionUnit implements Runnable {
         int count = units.size();
         results = new ArrayList(count);
         latch = new CountDownLatch(count);
-        if (exec.callContext.executionHooks != null) {
-            try {
-                exec.callContext.executionHooks.forEach(executionHook -> executionHook.beforeFeature(exec.featureContext.feature, exec.featureContext));
-            } catch (Exception e) {
-                // Need a not null logger
-            }
-        }
     }
 
     public void setNext(Runnable next) {
@@ -104,13 +97,6 @@ public class FeatureExecutionUnit implements Runnable {
             // set result map that caller will see
             exec.result.setResultVars(lastContextExecuted.vars);
             lastContextExecuted.invokeAfterHookIfConfigured(true);
-        }
-        if (exec.callContext.executionHooks != null) {
-            try {
-                exec.callContext.executionHooks.forEach(executionHook -> executionHook.afterFeature(exec.result, exec.featureContext));
-            } catch (Exception e) {
-                // Need a logger
-            }
         }
     }
     

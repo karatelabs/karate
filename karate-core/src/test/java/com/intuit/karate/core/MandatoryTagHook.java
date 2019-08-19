@@ -65,14 +65,4 @@ public class MandatoryTagHook implements ExecutionHook {
         
     }
 
-    @Override
-    public void beforeFeature(Feature feature, FeatureContext context) {
-
-    }
-
-    @Override
-    public void afterFeature(FeatureResult result, FeatureContext context) {
-
-    }
-
 }

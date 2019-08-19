@@ -30,23 +30,20 @@ import com.intuit.karate.http.HttpRequestBuilder;
  * @author pthomas3
  */
 public interface ExecutionHook {
-
+    
     /**
-     *
+     * 
      * @param scenario
-     * @param context
+     * @param context 
      * @return false if the scenario should be excluded from the test-run
      * @throws RuntimeException (any) to abort the scenario
      */
     boolean beforeScenario(Scenario scenario, ScenarioContext context);
-
+    
     void afterScenario(ScenarioResult result, ScenarioContext context);
-
+    
     String getPerfEventName(HttpRequestBuilder req, ScenarioContext context);
-
+    
     void reportPerfEvent(PerfEvent event);
-
-    void beforeFeature(Feature feature, FeatureContext context);
-
-    void afterFeature(FeatureResult result, FeatureContext context);
+    
 }
