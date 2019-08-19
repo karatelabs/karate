@@ -40,9 +40,7 @@ public class BootJarLoadingTest {
         SpringBootResourceLoader springBootResourceLoader = new SpringBootResourceLoader(classLoader, "com/karate/jartest");
         List<Resource> resources = springBootResourceLoader.asKarateResources();
         assertEquals(6, resources.size());
-
-        Results results = Runner.parallel(null, resources, 1, "target/surefire-reports");
-
+        Results results = Runner.parallel(resources, 1, "target/surefire-reports");
         assertEquals(6, results.getFeatureCount());
         assertEquals(6, results.getPassCount());
     }
@@ -116,4 +114,5 @@ public class BootJarLoadingTest {
             return path.substring(path.indexOf(BOOT_INF_CLASS_DIRECTORY) + BOOT_INF_CLASS_DIRECTORY.length());
         }
     }
+    
 }

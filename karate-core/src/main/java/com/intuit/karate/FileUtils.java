@@ -444,6 +444,9 @@ public class FileUtils {
     }
 
     public static List<Resource> scanForFeatureFiles(List<String> paths, ClassLoader cl) {
+        if (paths == null) {
+            return Collections.EMPTY_LIST;
+        }
         List<Resource> list = new ArrayList();
         for (String path : paths) {
             boolean classpath = isClassPath(path);
@@ -586,6 +589,13 @@ public class FileUtils {
         Path rootPath;
         Path search;
         if (classpath) {
+            File test = new File(searchPath);
+            if (test.exists() && test.isAbsolute()) {
+                // although the classpath: prefix was used this is an absolute path ! fix
+                classpath = false;
+            }
+        }
+        if (classpath) {
             rootPath = getPathFor(url, null);
             if (rootPath == null) { // windows edge case
                 return;
@@ -605,6 +615,15 @@ public class FileUtils {
             Path path = paths.next();
             Path fileName = path.getFileName();
             if (fileName != null && fileName.toString().endsWith(".feature")) {
+                if (!files.isEmpty()) {
+                    // since the classpath search paths are in pairs or groups
+                    // skip if we found this already
+                    // else duplication happens if we use absolute paths as search paths
+                    Path prev = files.get(files.size() - 1).getPath();
+                    if (path.equals(prev)) {
+                        continue;
+                    }
+                }
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
                 relativePath = relativePath.replaceAll("[.]{2,}", "");
                 String prefix = classpath ? CLASSPATH_COLON : "";
@@ -628,8 +647,8 @@ public class FileUtils {
         });
         waiter.start();
         port = waiter.getPort();
-        System.out.println("*** waiting for socket, type the command below:\ncurl http://localhost:" 
-                + port + "\nin a new terminal (or open the URL in a web-browser) to proceed ...");   
+        System.out.println("*** waiting for socket, type the command below:\ncurl http://localhost:"
+                + port + "\nin a new terminal (or open the URL in a web-browser) to proceed ...");
         try {
             waiter.join();
             return true;

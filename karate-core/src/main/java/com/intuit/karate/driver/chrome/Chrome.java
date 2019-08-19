@@ -25,7 +25,7 @@ package com.intuit.karate.driver.chrome;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
@@ -50,8 +50,8 @@ public class Chrome extends DevToolsDriver {
         super(options, command, webSocketUrl);
     }    
 
-    public static Chrome start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 9222, 
+    public static Chrome start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 9222, 
                 FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
@@ -62,7 +62,7 @@ public class Chrome extends DevToolsDriver {
         }
         Command command = options.startProcess();
         String url = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, url);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), url);
         Http.Response res = http.path("json").get();
         if (res.body().asList().isEmpty()) {
             if (command != null) {

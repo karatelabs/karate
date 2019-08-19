@@ -55,7 +55,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         CallContext callContext = new CallContext(null, true);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
-        featureUnit.init(null);
+        featureUnit.init();
         List<ScenarioExecutionUnit> selected = new ArrayList();
         for(ScenarioExecutionUnit unit : featureUnit.getScenarioExecutionUnits()) {
             if (featureUnit.isSelected(unit)) { // tag filtering

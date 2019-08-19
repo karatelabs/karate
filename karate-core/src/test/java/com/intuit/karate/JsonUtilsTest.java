@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import net.minidev.json.parser.ParseException;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
@@ -142,7 +143,7 @@ public class JsonUtilsTest {
                 + "}\n";
         assertEquals(temp, expected);
     }
-    
+
     @Test
     public void testPojoConversion() {
         ComplexPojo pojo = new ComplexPojo();
@@ -161,18 +162,18 @@ public class JsonUtilsTest {
         assertEquals(2, temp.getBan().size());
         temp = JsonUtils.fromJson(s, ComplexPojo.class);
         assertEquals(temp.getFoo(), "testFoo");
-        assertEquals(2, temp.getBan().size());        
+        assertEquals(2, temp.getBan().size());
         s = XmlUtils.toXml(pojo);
         assertEquals(s, "<root><bar>1</bar><foo>testFoo</foo><baz/><ban><bar>0</bar><foo>p1</foo><baz/><ban/></ban><ban><bar>0</bar><foo>p2</foo><baz/><ban/></ban></root>");
     }
-    
+
     @Test
     public void testEmptyJsonObject() {
         DocumentContext doc = JsonUtils.emptyJsonObject();
         String json = doc.jsonString();
         assertEquals("{}", json);
     }
-    
+
     @Test
     public void testEmptyJsonArray() {
         DocumentContext doc = JsonUtils.emptyJsonArray(0);
@@ -183,9 +184,9 @@ public class JsonUtilsTest {
         assertEquals("[{}]", json);
         doc = JsonUtils.emptyJsonArray(2);
         json = doc.jsonString();
-        assertEquals("[{},{}]", json);         
-    }     
-    
+        assertEquals("[{},{}]", json);
+    }
+
     @Test
     public void testWriteJsonWithByteArrayValueWillFail() {
         Map<String, Object> map = new HashMap();
@@ -198,12 +199,23 @@ public class JsonUtilsTest {
             assertTrue(e instanceof ClassCastException);
         }
     }
-    
+
     @Test
     public void testCsv() {
         String raw = FileUtils.toString(getClass().getResourceAsStream("test.csv"));
         DocumentContext doc = JsonUtils.fromCsv(raw);
         Match.equals(doc, "[{ foo: 'goodbye', bar: '10', baz: 'true' }, { foo: 'cruel', bar: '20', baz: 'false' }, { foo: 'world', bar: '30', baz: 'true' }]");
+    }
+
+    @Test
+    public void testMalformed() {
+        String text = FileUtils.toString(getClass().getResourceAsStream("malformed.txt"));
+        try {
+            Object o = JsonUtils.toJsonDocStrict(text);
+            fail("we should not have reached here");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof ParseException);
+        }
     }
 
 }

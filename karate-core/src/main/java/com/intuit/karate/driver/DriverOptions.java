@@ -25,6 +25,7 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.android.AndroidDriver;
@@ -52,6 +53,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -60,8 +62,8 @@ import java.util.function.Supplier;
  */
 public class DriverOptions {
 
-    // 30 seconds, as of now this is only used by the chrome / CDP reply timeout
-    public static final long DEFAULT_TIMEOUT = 30 * 1000;
+    // 15 seconds, as of now this is only used by the chrome / CDP reply timeout
+    public static final long DEFAULT_TIMEOUT = 15 * 1000;
 
     public final Map<String, Object> options;
     public final long timeout;
@@ -74,6 +76,7 @@ public class DriverOptions {
     public final boolean showProcessLog;
     public final boolean showDriverLog;
     public final Logger logger;
+    public final LogAppender appender;
     public final Logger processLogger;
     public final Logger driverLogger;
     public final String uniqueName;
@@ -127,13 +130,14 @@ public class DriverOptions {
         return temp == null ? defaultValue : temp;
     }
 
-    public DriverOptions(ScenarioContext context, Map<String, Object> options, Logger logger, int defaultPort, String defaultExecutable) {
+    public DriverOptions(ScenarioContext context, Map<String, Object> options, LogAppender appender, int defaultPort, String defaultExecutable) {
         this.context = context;
         this.options = options;
-        this.logger = logger == null ? new Logger(getClass()) : logger;
+        this.appender = appender;
+        logger = new Logger(getClass());
+        logger.setLogAppender(appender);
         timeout = get("timeout", DEFAULT_TIMEOUT);
         type = get("type", null);
-        port = get("port", defaultPort);
         start = get("start", true);
         executable = get("executable", defaultExecutable);
         headless = get("headless", false);
@@ -141,9 +145,9 @@ public class DriverOptions {
         addOptions = get("addOptions", null);
         uniqueName = type + "_" + System.currentTimeMillis();
         String packageName = getClass().getPackage().getName();
-        processLogger = showProcessLog ? this.logger : new Logger(packageName + "." + uniqueName);
+        processLogger = showProcessLog ? logger : new Logger(packageName + "." + uniqueName);
         showDriverLog = get("showDriverLog", false);
-        driverLogger = showDriverLog ? this.logger : new Logger(packageName + "." + uniqueName);
+        driverLogger = showDriverLog ? logger : new Logger(packageName + "." + uniqueName);
         if (executable != null) {
             if (executable.startsWith(".")) { // honor path even when we set working dir
                 args.add(new File(executable).getAbsolutePath());
@@ -156,6 +160,20 @@ public class DriverOptions {
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
+        // do this last to ensure things like logger, start-flag and all are set
+        port = resolvePort(defaultPort);
+    }
+
+    private int resolvePort(int defaultPort) {
+        int preferredPort = get("port", defaultPort);
+        if (start) {
+            int freePort = Command.getFreePort(preferredPort);
+            if (freePort != preferredPort) {
+                logger.warn("preferred port {} not available, will use: {}", preferredPort, freePort);
+            }
+            return freePort;
+        }
+        return preferredPort;
     }
 
     public void arg(String arg) {
@@ -175,8 +193,10 @@ public class DriverOptions {
         return command;
     }
 
-    public static Driver start(ScenarioContext context, Map<String, Object> options, Logger logger) {
+    public static Driver start(ScenarioContext context, Map<String, Object> options, LogAppender appender) {
         Target target = (Target) options.get("target");
+        Logger logger = new Logger();
+        logger.setLogAppender(appender);
         if (target != null) {
             target.setLogger(logger);
             logger.debug("custom target configured, calling start()");
@@ -192,26 +212,26 @@ public class DriverOptions {
         try { // to make troubleshooting errors easier
             switch (type) {
                 case "chrome":
-                    return Chrome.start(context, options, logger);
+                    return Chrome.start(context, options, appender);
                 case "msedge":
-                    return EdgeDevToolsDriver.start(context, options, logger);
+                    return EdgeDevToolsDriver.start(context, options, appender);
                 case "chromedriver":
-                    return ChromeWebDriver.start(context, options, logger);
+                    return ChromeWebDriver.start(context, options, appender);
                 case "geckodriver":
-                    return GeckoWebDriver.start(context, options, logger);
+                    return GeckoWebDriver.start(context, options, appender);
                 case "safaridriver":
-                    return SafariWebDriver.start(context, options, logger);
+                    return SafariWebDriver.start(context, options, appender);
                 case "mswebdriver":
-                    return MicrosoftWebDriver.start(context, options, logger);
+                    return MicrosoftWebDriver.start(context, options, appender);
                 case "winappdriver":
-                    return WinAppDriver.start(context, options, logger);
+                    return WinAppDriver.start(context, options, appender);
                 case "android":
-                    return AndroidDriver.start(context, options, logger);
+                    return AndroidDriver.start(context, options, appender);
                 case "ios":
-                    return IosDriver.start(context, options, logger);
+                    return IosDriver.start(context, options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
-                    return Chrome.start(context, options, logger);
+                    return Chrome.start(context, options, appender);
             }
         } catch (Exception e) {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
@@ -282,6 +302,10 @@ public class DriverOptions {
         return "document.querySelector(\"" + locator + "\")";
     }
 
+    public void setRetryInterval(Integer retryInterval) {
+        this.retryInterval = retryInterval;
+    }        
+
     public int getRetryInterval() {
         if (retryInterval != null) {
             return retryInterval;
@@ -304,7 +328,27 @@ public class DriverOptions {
         }
     }
 
-    public String wrapInFunctionInvoke(String text) {
+    public <T> T retry(Supplier<T> action, Predicate<T> condition, String logDescription) {
+        long startTime = System.currentTimeMillis();
+        int count = 0, max = getRetryCount();
+        T result;
+        boolean success;
+        do {
+            if (count > 0) {
+                logger.debug("{} - retry #{}", logDescription, count);
+                sleep();
+            }
+            result = action.get();
+            success = condition.test(result);
+        } while (!success && count++ < max);
+        if (!success) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            logger.warn("failed after {} retries and {} milliseconds", (count - 1), elapsedTime);
+        }
+        return result;
+    }
+
+    public static String wrapInFunctionInvoke(String text) {
         return "(function(){ " + text + " })()";
     }
 
@@ -381,7 +425,7 @@ public class DriverOptions {
             return;
         }
         try {
-            processLogger.debug("sleeping for millis: {}", millis);
+            processLogger.trace("sleeping for millis: {}", millis);
             Thread.sleep(millis);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -459,29 +503,7 @@ public class DriverOptions {
     }
 
     public String waitForUrl(Driver driver, String expected) {
-        return waitUntil(() -> {
-            String url = driver.getUrl();
-            return url.contains(expected) ? url : null;
-        });
-    }
-
-    public <T> T waitUntil(Supplier<T> condition) {
-        long startTime = System.currentTimeMillis();
-        int max = getRetryCount();
-        int count = 0;
-        T result;
-        do {
-            if (count > 0) {
-                logger.debug("waitUntil (function) retry #{}", count);
-                sleep();
-            }
-            result = condition.get();
-        } while (result == null && count++ < max);
-        if (result == null) {
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            throw new RuntimeException("waitUntil failed after " + elapsedTime + " milliseconds");
-        }
-        return result;
+        return retry(() -> driver.getUrl(), url -> url.contains(expected), "waitForUrl");
     }
 
     public Element waitForAny(Driver driver, String... locators) {
@@ -528,11 +550,19 @@ public class DriverOptions {
         }
     }
 
+    public static String karateLocator(String karateRef) {
+        return "(document._karate." + karateRef + ")";
+    }
+
+    public String focusJs(String locator) {
+        return "var e = " + selector(locator) + "; e.focus(); e.selectionStart = e.selectionEnd = e.value.length";
+    }
+
     public List<Element> findAll(Driver driver, String locator) {
         List<String> list = driver.scripts(locator, DriverOptions.KARATE_REF_GENERATOR);
         List<Element> elements = new ArrayList(list.size());
         for (String karateRef : list) {
-            String karateLocator = "(document._karate." + karateRef + ")";
+            String karateLocator = karateLocator(karateRef);
             elements.add(DriverElement.locatorExists(driver, karateLocator));
         }
         return elements;

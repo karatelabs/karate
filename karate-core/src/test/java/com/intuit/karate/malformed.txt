@@ -1,0 +1,12 @@
+{
+   "errors":[
+      {
+         "errCode":"TestCode1",
+         "errMsg":"TestCode1 Message"
+      }x
+      {
+         "errCode":"TestCode2",
+         "errMsg":"TestCode2 Message"
+      }
+   ]
+}

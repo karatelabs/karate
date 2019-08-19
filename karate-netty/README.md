@@ -445,6 +445,12 @@ JSON example:
 Scenario: pathMatches('/v1/body/json') && bodyPath('$.name') == 'Scooby'
 ```
 
+It is worth mentioning that because of Karate's "native" support for JSON, you don't need it most of the time as the below is equivalent to the above. You just use the [`request`](#request) object directly:
+
+```cucumber
+Scenario: pathMatches('/v1/body/json') && request.name == 'Scooby'
+```
+
 XML example:
 ```cucumber
 Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'

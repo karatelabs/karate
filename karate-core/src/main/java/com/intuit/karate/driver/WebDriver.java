@@ -48,14 +48,7 @@ public abstract class WebDriver implements Driver {
 
     protected boolean open = true;
 
-    // mutable
-    protected Logger logger;
-
-    @Override
-    public void setLogger(Logger logger) {
-        this.logger = logger;
-        http.setLogger(logger);
-    }
+    protected final Logger logger;
 
     protected WebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         this.options = options;
@@ -65,7 +58,7 @@ public abstract class WebDriver implements Driver {
         this.sessionId = sessionId;
         this.windowId = windowId;
     }
-    
+
     private String getSubmitHash() {
         return getUrl() + elementId("html");
     }
@@ -77,18 +70,14 @@ public abstract class WebDriver implements Driver {
         String before = options.getPreSubmitHash();
         if (before != null) {
             logger.trace("submit requested, will wait for page load after next action on : {}", locator);
-            options.setPreSubmitHash(null); // clear the submit flag
+            options.setPreSubmitHash(null); // clear the submit flag            
             T result = action.get();
-            int count = 0, max = options.getRetryCount();
-            String after;
-            do {
-                if (count > 0) {
-                    logger.trace("waiting for document to change, retry #{}", count);
-                    options.sleep();
-                }
-                after = getSubmitHash();
-            } while (count++ < max && before.equals(after));
-            waitUntil("document.readyState == 'complete'");
+            Integer retryInterval = options.getRetryInterval();
+            options.setRetryInterval(500); // reduce retry interval for this special case
+            options.retry(() -> getSubmitHash(), hash -> !before.equals(hash), "waiting for document to change");
+            // extra precaution TODO is this needed
+            // waitUntil("document.readyState == 'complete'");
+            options.setRetryInterval(retryInterval); // restore
             return result;
         } else {
             return action.get();
@@ -96,21 +85,26 @@ public abstract class WebDriver implements Driver {
     }
 
     protected boolean isJavaScriptError(Http.Response res) {
-        return res.status() != 200 
+        return res.status() != 200
                 && !res.jsonPath("$.value").asString().contains("unexpected alert open");
     }
-    
+
     protected boolean isLocatorError(Http.Response res) {
         return res.status() != 200;
-    }    
-    
-    private Element evalInternal(String expression, String locator) {
-        // here the locator is just passed on and nothing is done with it
-        eval(expression);
-        // the only case where the element exists flag is set to null
-        return DriverElement.locatorUnknown(this, locator);
+    }
+
+    private Element evalLocator(String locator, String dotExpression) {
+        eval(prefixReturn(options.selector(locator) + "." + dotExpression));
+        // if the js above did not throw an exception, the element exists
+        return DriverElement.locatorExists(this, locator);
     }
     
+    private Element evalFocus(String locator) {
+        eval(options.focusJs(locator));
+        // if the js above did not throw an exception, the element exists
+        return DriverElement.locatorExists(this, locator);       
+    }
+
     private ScriptValue eval(String expression) {
         Json json = new Json().set("script", expression).set("args", "[]");
         Http.Response res = http.path("execute", "sync").post(json);
@@ -120,9 +114,9 @@ public abstract class WebDriver implements Driver {
             res = http.path("execute", "sync").post(json);
             if (isJavaScriptError(res)) {
                 String message = "javascript failed twice: " + res.body().asString();
-                logger.error(message);                
+                logger.error(message);
                 throw new RuntimeException(message);
-            }            
+            }
         }
         return res.jsonPath("$.value").value();
     }
@@ -143,16 +137,15 @@ public abstract class WebDriver implements Driver {
         return new Json().set("id", text).toString();
     }
 
-    protected String selectorPayload(String id) {
+    protected String selectorPayload(String locator) {
+        if (locator.startsWith("{")) {
+            locator = DriverOptions.preProcessWildCard(locator);
+        }
         Json json = new Json();
-        if (id.startsWith("^")) {
-            json.set("using", "link text").set("value", id.substring(1));
-        } else if (id.startsWith("*")) {
-            json.set("using", "partial link text").set("value", id.substring(1));
-        } else if (id.startsWith("/")) {
-            json.set("using", "xpath").set("value", id);
+        if (locator.startsWith("/")) {
+            json.set("using", "xpath").set("value", locator);
         } else {
-            json.set("using", "css selector").set("value", id);
+            json.set("using", "css selector").set("value", locator);
         }
         return json.toString();
     }
@@ -167,11 +160,11 @@ public abstract class WebDriver implements Driver {
             res = http.path("element").post(json);
             if (isLocatorError(res)) {
                 String message = "locator failed twice: " + res.body().asString();
-                logger.error(message);                
+                logger.error(message);
                 throw new RuntimeException(message);
-            }            
+            }
         }
-        return res.jsonPath("get[0] $.." + getElementKey()).asString();     
+        return res.jsonPath("get[0] $.." + getElementKey()).asString();
     }
 
     @Override
@@ -239,33 +232,33 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element focus(String locator) {
-        return retryIfEnabled(locator, () -> evalInternal(options.selector(locator) + ".focus()", locator));
+        return retryIfEnabled(locator, () -> evalFocus(locator));
     }
 
     @Override
     public Element clear(String locator) {
-        return retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            http.path("element", id, "clear").post("{}");
-            return DriverElement.locatorExists(this, locator);
-        });
+        return retryIfEnabled(locator, () -> evalLocator(locator, "value = ''"));
     }
 
     @Override
     public Element input(String locator, String value) {
         return retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            http.path("element", id, "value").post(getJsonForInput(value));
+            String elementId;
+            if (locator.startsWith("(")) {
+                evalFocus(locator);
+                elementId = http.path("element", "active").get()
+                        .jsonPath("get[0] $.." + getElementKey()).asString();
+            } else {
+                elementId = elementId(locator);
+            }
+            http.path("element", elementId, "value").post(getJsonForInput(value));
             return DriverElement.locatorExists(this, locator);
         });
     }
 
     @Override
     public Element click(String locator) {
-        return retryIfEnabled(locator, () -> evalInternal(options.selector(locator) + ".click()", locator));        
-        // the spec is un-reliable :(
-        // String id = get(locator);
-        // http.path("element", id, "click").post("{}");        
+        return retryIfEnabled(locator, () -> evalLocator(locator, "click()"));
     }
 
     @Override
@@ -276,18 +269,26 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public Element select(String locator, String text) {
-        return retryIfEnabled(locator, () -> evalInternal(options.optionSelector(locator, text), locator));
+        return retryIfEnabled(locator, () -> {
+            eval(options.optionSelector(locator, text));
+            // if the js above did not throw an exception, the element exists
+            return DriverElement.locatorExists(this, locator);
+        });
     }
 
     @Override
     public Element select(String locator, int index) {
-        return retryIfEnabled(locator, () -> evalInternal(options.optionSelector(locator, index), locator));
+        return retryIfEnabled(locator, () -> {
+            eval(options.optionSelector(locator, index));
+            // if the js above did not throw an exception, the element exists
+            return DriverElement.locatorExists(this, locator);            
+        });
     }
 
     @Override
     public void actions(List<Map<String, Object>> actions) {
         http.path("actions").post(Collections.singletonMap("actions", actions));
-    }        
+    }
 
     @Override
     public void close() {
@@ -316,59 +317,50 @@ public abstract class WebDriver implements Driver {
         return http.path("url").get().jsonPath("$.value").asString();
     }
 
+    private String evalReturn(String locator, String dotExpression) {
+        return eval("return " + options.selector(locator) + "." + dotExpression).getAsString();
+    }
+
     @Override
     public String html(String locator) {
-        return property(locator, "outerHTML");
+        return retryIfEnabled(locator, () -> evalReturn(locator, "outerHTML"));
     }
 
     @Override
     public String text(String locator) {
-        return retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            return http.path("element", id, "text").get().jsonPath("$.value").asString();
-        });
+        return retryIfEnabled(locator, () -> evalReturn(locator, "textContent"));
     }
 
     @Override
     public String value(String locator) {
-        return property(locator, "value");
+        return retryIfEnabled(locator, () -> evalReturn(locator, "value"));
     }
 
     @Override
     public Element value(String locator, String value) {
-        return retryIfEnabled(locator, () -> evalInternal(options.selector(locator) + ".value = '" + value + "'", locator));
+        return retryIfEnabled(locator, () -> evalLocator(locator, "value = '" + value + "'"));
     }
 
     @Override
     public String attribute(String locator, String name) {
-        return retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
-        });
+        return retryIfEnabled(locator, () -> evalReturn(locator, "getAttribute('" + name + "')"));
     }
 
     @Override
     public String property(String locator, String name) {
-        return retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            return http.path("element", id, "property", name).get().jsonPath("$.value").asString();
-        });
+        return retryIfEnabled(locator, () -> evalReturn(locator, name));
     }
 
     @Override
     public Map<String, Object> position(String locator) {
-        return retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            return http.path("element", id, "rect").get().jsonPath("$.value").asMap();
-        });
+        return retryIfEnabled(locator, ()
+                -> eval("return " + options.selector(locator) + ".getBoundingClientRect()").getAsMap());
     }
 
     @Override
     public boolean enabled(String locator) {
-        return retryIfEnabled(locator, () -> {
-            String id = elementId(locator);
-            return http.path("element", id, "enabled").get().jsonPath("$.value").isBooleanTrue();
-        });
+        return retryIfEnabled(locator, ()
+                -> eval("return !" + options.selector(locator) + ".disabled").isBooleanTrue());
     }
 
     private String prefixReturn(String expression) {
@@ -377,18 +369,14 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public boolean waitUntil(String expression) {
-        expression = prefixReturn(expression);
-        int max = options.getRetryCount();
-        int count = 0;
-        ScriptValue sv;
-        do {
-            if (count > 0) {
-                logger.debug("waitUntil retry #{}", count);
-                options.sleep();
+        return options.retry(() -> {
+            try {
+                return eval(prefixReturn(expression)).isBooleanTrue();
+            } catch (Exception e) {
+                logger.warn("waitUntil evaluate failed: {}", e.getMessage());
+                return false;
             }
-            sv = eval(expression);
-        } while (!sv.isBooleanTrue() && count++ < max);
-        return sv.isBooleanTrue();
+        }, b -> b, "waitUntil (js)");
     }
 
     @Override

@@ -53,9 +53,13 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
     val executionHook = new ExecutionHook {
 
-      override def beforeScenario(scenario: Scenario, ctx: ScenarioContext): Boolean = true
+      override def beforeScenario(scenario: Scenario, ctx: ScenarioContext) = true
 
       override def afterScenario(scenarioResult: ScenarioResult, scenarioContext: ScenarioContext) = {}
+
+      override def beforeFeature(feature: Feature) = true
+
+      override def afterFeature(featureResult: FeatureResult) = {}
 
       override def getPerfEventName(req: HttpRequestBuilder, ctx: ScenarioContext): String = {
         val customName = protocol.nameResolver.apply(req, ctx)

@@ -35,7 +35,9 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Command extends Thread {
 
@@ -72,14 +74,26 @@ public class Command extends Thread {
         return FileUtils.getBuildDir();
     }
 
-    public static int getFreePort() {
+    private static final Set<Integer> PORTS_IN_USE = ConcurrentHashMap.newKeySet();
+
+    public static int getFreePort(int preferred) {
+        if (preferred != 0 && PORTS_IN_USE.contains(preferred)) {
+            LOGGER.trace("preferred port {} in use (karate), will attempt to find free port ...", preferred);
+            preferred = 0;
+        }
         try {
-            ServerSocket s = new ServerSocket(0);
+            ServerSocket s = new ServerSocket(preferred);
             int port = s.getLocalPort();
-            LOGGER.debug("identified free local port: {}", port);
+            LOGGER.debug("found / verified free local port: {}", port);
             s.close();
+            PORTS_IN_USE.add(port);
             return port;
         } catch (Exception e) {
+            if (preferred > 0) {
+                LOGGER.trace("preferred port {} in use (system), re-trying ...", preferred);
+                PORTS_IN_USE.add(preferred);
+                return getFreePort(0);
+            }
             LOGGER.error("failed to find free port: {}", e.getMessage());
             throw new RuntimeException(e);
         }
@@ -88,7 +102,7 @@ public class Command extends Thread {
     public static boolean waitForHttp(String url) {
         int attempts = 0;
         long startTime = System.currentTimeMillis();
-        Http http = Http.forUrl(null, url);
+        Http http = Http.forUrl(LogAppender.NO_OP, url);
         do {
             if (attempts > 0) {
                 LOGGER.debug("attempt #{} waiting for http to be ready at: {}", attempts, url);
@@ -139,7 +153,12 @@ public class Command extends Thread {
         } else { // don't create new file if re-using an existing appender
             LogAppender temp = this.logger.getLogAppender();
             sharedAppender = temp != null;
-            appender = sharedAppender ? temp : new FileLogAppender(logFile, this.logger);
+            if (sharedAppender) {
+                appender = temp;
+            } else {
+                appender = new FileLogAppender(new File(logFile));
+                this.logger.setLogAppender(appender);
+            }
         }
     }
 

@@ -13,7 +13,10 @@
 <tr>
   <th>Start</th>
   <td>
-      See <a href="https://github.com/intuit/karate#index">Main Index</a> for how to get started
+      <a href="https://github.com/intuit/karate/wiki/ZIP-Release">ZIP Release</a>
+    | <a href="https://github.com/intuit/karate#maven">Java</a>
+    | <a href="https://github.com/intuit/karate#quickstart">Maven Quickstart</a>
+    | <a href="https://github.com/intuit/karate#index">Karate - Main Index</a>
   </td>
 </tr>
 <tr>
@@ -28,17 +31,30 @@
 </tr>
 <tr>
   <th>Concepts</th>
-  <td>          
-      <a href="#locators">Locators</a>
-    | <a href="#wildcard-locators">Wildcards</a>      
-    | <a href="#js-api">JS API</a>
+  <td>
+      <a href="#syntax">Syntax</a>
     | <a href="#special-keys">Special Keys</a>
     | <a href="#short-cuts">Short Cuts</a>
-    | <a href="#chaining">Chaining</a>
-    | <a href="#locator-lookup">Locator Lookup</a>
+    | <a href="#chaining">Chaining</a>  
     | <a href="#function-composition">Function Composition</a>
+    | <a href="#script">Browser JavaScript</a>
     | <a href="#debugging">Debugging</a>
-    | <a href="#retry">Wait & Retry</a>
+    | <a href="#retry">Retries</a>
+    | <a href="#wait-api">Waits</a>
+  </td>
+</tr>
+<tr>
+  <th>Locators</th>
+  <td>
+      <a href="#locators">Locator Types</a>
+    | <a href="#wildcard-locators">Wildcards</a> 
+    | <a href="#friendly-locators">Friendly Locators</a> 
+    | <a href="#rightof"><code>rightOf()</code></a>
+    | <a href="#leftOf"><code>leftOf()</code></a>
+    | <a href="#above"><code>above()</code></a>
+    | <a href="#below"><code>below()</code></a>
+    | <a href="#near"><code>near()</code></a>
+    | <a href="#locator-lookup">Locator Lookup</a>
   </td>
 </tr>
 <tr>
@@ -98,15 +114,15 @@
 <tr>
   <th>Wait / JS</th>
   <td>
-      <a href="#delay"><code>delay()</code></a>
-    | <a href="#retry"><code>retry()</code></a>
+      <a href="#retry"><code>retry()</code></a>
     | <a href="#waitfor"><code>waitFor()</code></a>    
     | <a href="#waitforany"><code>waitForAny()</code></a>
     | <a href="#waitforurl"><code>waitForUrl()</code></a>    
     | <a href="#waituntil"><code>waitUntil()</code></a>
     | <a href="#waituntilenabled"><code>waitUntilEnabled()</code></a>
+    | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
-    | <a href="#scripts"><code>scripts()</code></a>
+    | <a href="#scripts"><code>scripts()</code></a>    
   </td>
 </tr>
 <tr>
@@ -133,9 +149,9 @@
 
 * Simple, clean syntax that is well suited for people new to programming or test-automation
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
-* Cross-platform with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/tree/master/karate-netty#standalone-jar)
+* Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
 * No need to learn complicated programming concepts such as "callbacks" and "`await`"
-* Option to use [wildcard locators](#wildcard-locators) without needing to inspect the CSS class-names or internal XPath structure
+* Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
@@ -145,7 +161,7 @@
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
 * Seamlessly mix API and UI tests within the same script, for example [sign-in using an API](https://github.com/intuit/karate#http-basic-authentication-example) and speed-up your tests
 * Use the power of Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) assertions and [core capabilities](https://github.com/intuit/karate#features) for UI assertions
-* Simple [retry and polling](#retry) strategy, no need to graduate from any test-automation university to understand the difference between "implicit waits", "explicit waits" and "fluent waits" :)
+* Simple [retry](#retry) and [wait](#wait-api) strategy, no need to graduate from any test-automation university to understand the difference between "implicit waits", "explicit waits" and "fluent waits" :)
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
 * Elegant syntax for typical web-automation challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element to appear](#waitfor)
@@ -163,9 +179,10 @@
   * wait for [page-navigation](#waitforurl-instead-of-submit)
   * use a friendly [wildcard locator](#wildcard-locators)
   * wait for an element to [be ready](#waitfor)
-  * [compose functions](#function-composition) for elegant heavy-lifting
+  * [compose functions](#function-composition) for elegant *custom* "wait" logic
   * assert on tabular [results in the HTML](#scripts)
 * [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
+
 ## Windows
 * [Example](../karate-demo/src/test/java/driver/windows/calc.feature) - but also see the [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) for an alternative approach.
 
@@ -293,7 +310,7 @@ The built-in [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarge
 Controlling this flow from Java can take a lot of complexity out your build pipeline and keep things cross-platform. And you don't need to line-up an assortment of shell-scripts to do all these things. You can potentially include the steps of deploying (and un-deploying) the application-under-test using this approach - but probably the top-level [JUnit test-suite](https://github.com/intuit/karate#parallel-execution) would be the right place for those.
 
 ### `karate-chrome`
-The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker image adds the following capabilities to [`justinribeiro/chrome-headless`](https://hub.docker.com/r/justinribeiro/chrome-headless/):
+The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker is an image created from scratch, using just Ubuntu as a base and with the following features:
 
 * Chrome in "full" mode (non-headless)
 * [Chrome DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) exposed on port 9222
@@ -308,8 +325,8 @@ To try this or especially when you need to investigate why a test is not behavin
   * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of `--cap-add=SYS_ADMIN`
 * point your VNC client to `localhost:5900` (password: `karate`)
   * for example on a Mac you can use this command: `open vnc://localhost:5900`
-* run a test using the following [`driver` configuration](#configure-driver):
-  * `* configure driver = { type: 'chrome', start: 'false', showDriverLog: true }`
+* run a test using the following [`driver` configuration](#configure-driver), and this is one of the few times you would ever need to set the [`start` flag](#configure-driver) to `false`
+  * `* configure driver = { type: 'chrome', start: false, showDriverLog: true }`
 * you can even use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) to step-through a test
 * after stopping the container, you can dump the logs and video recording using this command:
   * `docker cp <container-id>:/tmp .`
@@ -368,8 +385,63 @@ Note that "`{:3}`" can be used as a short-cut instead of "`{*:3}`".
 
 You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to expand the "scope modifier" (the part within curly braces) only when you need to do "de-duping" in case the same *user-facing* text appears multiple times on a page.
 
+## Friendly Locators
+The ["wildcard" locators](#wildcard-locators) are great when the human-facing visible text is *within* the HTML element that you want to interact with. But this approach doesn't work when you have to deal with data-entry and `<input>` fields. This is where the "friendly locators" come in. You can ask for an element by its *relative position* to another element which is visible - such as a `<span>`, `<div>` or `<label>` and for which the [locator](#locators) is easy to obtain.
+
+Method | Finds Element
+------ | -----------
+[`rightOf()`](#rightof) | to *right* of given locator
+[`leftOf()`](#leftof) | to *left* of given locator
+[`above()`](#above) | *above* given locator
+[`below()`](#below) | *below* given locator
+[`near()`](#near) | *near* given locator in any direction
+
+The above methods return a [chainable](#chaining) [`Finder`](src/main/java/com/intuit/karate/driver/Finder.java) instance. For example if you have HTML like this:
+
+```html
+<input type="checkbox"><span>Check Three</span>
+```
+
+To click on the checkbox, you just need to do this:
+
+```cucumber
+* leftOf('{}Check Three').click()
+```
+
+By default, the HTML tag that will be searched for will be `input`. While rarely needed, you can over-ride this by calling the `find(tagName)` method like this:
+
+```cucumber
+* rightOf('{}Some Text').find('span').click()
+```
+
+### `rightOf()`
+```cucumber
+* rightOf('{}Input On Right').input('input right')
+```
+
+### `leftOf()`
+```cucumber
+* leftOf('{}Input On Left').clear().input('input left')
+```
+### `above()`
+```cucumber
+* above('{}Input On Right').click()
+```
+
+### `below()`
+```cucumber
+* below('{}Input On Right').input('input below')
+```
+
+### `near()`
+The typical reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be used if the element you are seeking is diagonally offset from the [locator](#locators) you have.
+
+```cucumber
+ * near('{}Go to Page One').click()
+```
+
 # Keywords
-Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#js-api) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
+Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#syntax) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
 ## `driver`
 Navigates to a new page / address. If this is the first instance in a test, this step also initializes the [`driver`](#syntax) instance for future step operations as per what is [configured](#configure-driver).
@@ -398,7 +470,7 @@ The built-in `driver` JS object is where you script UI automation. It will be in
 
 You can refer to the [Java interface definition](src/main/java/com/intuit/karate/driver/Driver.java) of the `driver` object to better understand what the various operations are. Note that `Map<String, Object>` [translates to JSON](https://github.com/intuit/karate#type-conversion), and JavaBean getters and setters translate to JS properties - e.g. `driver.getTitle()` becomes `driver.title`.
 
-## JS API
+## Methods
 As a convenience, *all* the methods on the `driver` have been injected into the context as special (JavaScript) variables so you can omit the "`driver.`" part and save a lot of typing. For example instead of:
 
 ```cucumber
@@ -434,6 +506,7 @@ All the methods that return the following Java object types are "chain-able". Th
 * [`Driver`](src/main/java/com/intuit/karate/driver/Driver.java)
 * [`Element`](src/main/java/com/intuit/karate/driver/Element.java) 
 * [`Mouse`](src/main/java/com/intuit/karate/driver/Mouse.java)
+* [`Finder`](src/main/java/com/intuit/karate/driver/Finder.java)
 
 For example, to [`retry()`](#retry) until an HTML element is present and then [`click()`](#click) it:
 
@@ -460,6 +533,8 @@ Or to move the [mouse()](#mouse) to a given `[x, y]` co-ordinate *and* perform a
 ```cucumber
 * mouse(100, 200).click()
 ```
+
+Also see [waits](#wait-api).
 
 # Syntax
 ## `driver.url`
@@ -729,6 +804,8 @@ Also see [`waitUntil()`](#waituntil) for an example of how to wait *until* an el
 ## `waitForUrl()`
 Very handy for waiting for an expected URL change *and* asserting if it happened. See [`waitForUrl()` instead of `submit()`](#waitforurl-instead-of-submit).
 
+Also see [waits](#wait-api).
+
 ## `waitFor()`
 This is typically used for the *first* element you need to interact with on a freshly loaded page. Use this in case a [`submit()`](#submit) for the previous action is un-reliable, see the section on [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit)
 
@@ -739,6 +816,8 @@ Since `waitFor()` returns an [`Element`](#chaining) instance on which you can ca
 ```cucumber
 And waitFor('#eg01WaitId').click()
 ```
+
+Also see [waits](#wait-api).
 
 ## `waitForAny()`
 Rarely used - but accepts multiple arguments for those tricky situations where a particular element may or may *not* be present in the page. It returns the [`Element`](#chaining) representation of whichever element was found *first*, so that you can perform conditional logic to handle accordingly.
@@ -756,8 +835,10 @@ Here is a real-life example combined with the use of [`retry()`](#retry):
 If you have more than two locators you need to wait for, use the single array argument form, like this:
 
 ```cucumber
-.waitForAny(['#nextButton', '#randomButton', '#blueMoonButton'])
+* waitForAny(['#nextButton', '#randomButton', '#blueMoonButton'])
 ```
+
+Also see [waits](#wait-api).
 
 ## `exists()`
 This method returns an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance which means it can be [chained](#chaining) as you expect. But there is a twist. If the [locator](#locators) does *not* exist, any attempt to perform actions on it will *not* fail your test - and silently perform a "no-op".
@@ -776,9 +857,9 @@ But what is most useful is how you can now *click only if element exists*. As yo
 * if (exists('#elusivePopup').exists) click('#elusiveButton')
 ```
 
-Yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
+And yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
 
-Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and immediately check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
+Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and *immediately* check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
 
 ## `waitUntil()`
 Wait for the JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
@@ -801,7 +882,7 @@ And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
 And waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
-Also see [`waitUtntilEnabled`](#waituntilenabled) which is the preferred short-cut for the last example above, and also look at the examples for [chaining](#chaining).
+Also see [`waitUtntilEnabled`](#waituntilenabled) which is the preferred short-cut for the last example above, also look at the examples for [chaining](#chaining) and then the section on [waits](#wait-api).
 
 ## `waitUntilEnabled()`
 This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` since it is so frequently needed:
@@ -810,8 +891,10 @@ This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` sin
 And waitUntilEnabled('#someId').click()
 ```
 
+Also see [waits](#wait-api).
+
 ### `waitUntil(function)`
-A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#js-api)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
+A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
 
 This is best explained with an example. Note that [`scripts()`](#scripts) will return an array, as opposed to [`script()`](#script).
 
@@ -833,6 +916,8 @@ And def searchResults = waitUntil(searchFunction)
 # and now we can use the results like normal
 Then match searchResults contains 'karate-core/src/main/resources/karate-logo.png'
 ```
+
+Also see [waits](#wait-api).
 
 ### Function Composition
 The above example can be re-factored in a very elegant way as follows:
@@ -865,7 +950,7 @@ The [default retry settings](https://github.com/intuit/karate#retry-until) are:
 * or *any time* within a script (`*.feature` file) like this:
   * `* configure retry = { count: 10, interval: 5000 }`
 
-### Retry and Element Actions
+### Retry Actions
 By default, all actions such as [`click()`](#click) will *not* be re-tried - and this is what you would stick to most of the time, for tests that run smoothly and *quickly*. But some troublesome parts of your flow *will* require re-tries, and this is where the `retry()` API comes in. There are 3 forms:
 * `retry()` - just signals that the *next* action will be re-tried if it fails, using the [currently configured retry settings](https://github.com/intuit/karate#retry-until)
 * `retry(count)` - the next action will *temporarily* use the `count` provided, as the limit for retry-attempts
@@ -878,10 +963,25 @@ Here are the various combinations for you to compare using [`click()`](#click) a
  Script | Description
 -------- | -----------
 `click('#myId')` | Try to stick to this *default* form for 95% of your test. If the element is not found, the test will fail immediately. But your tests will run smoothly and super-fast.
-`waitFor('#myId').click()` | Use this for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). Prefer this instead of any of the options below, or in other words - stick to the defaults as far as possible.
-`retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. This form happens to be valid because of the API [chaining](#chaining) design, which the next rows may make clear.
+`waitFor('#myId').click()` | Use [`waitFor()`](#waitfor) for the *first* element on a newly loaded page or any element that takes time to load after the previous action. For the best performance, use this *only if* using [`submit()`](#submit) for the (previous) action (that triggered the page-load) [is not reliable](#waitfor-instead-of-submit). It uses the currently configured [retry settings](#retry-defaults). With the [defaults](#retry-defaults), the test will fail after waiting for 3 x 3000 ms which is 9 seconds. Prefer this instead of any of the options below, or in other words - stick to the defaults as far as possible.
+`retry().click('#myId')` | This happens to be exactly equivalent to the above ! When you request a `retry()`, internally it is just a `waitFor()`. Prefer the above form as it is more readable. The advantage of this form is that it is easy to quickly add (and remove) when working on a test in development mode.
 `retry(5).click('#myId')` | Temporarily use `5` as the max retry attempts to use *and* apply a "wait". Since `retry()` expresses an intent to "wait", the `waitFor()` can be omitted for the [chained](#chained) action.
-`retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied.
+`retry(5, 10000).click('#myId')` | Temporarily use `5` as the max retry attempts *and* 10 seconds as the time to wait before the next retry attempt. Again like the above, the `waitFor()` is implied. The test will fail if the element does not load within 50 seconds.
+
+### Wait API
+The set of built-in functions that start with "`wait`" handle all the cases you would need to typically worry about. Keep in mind that:
+* all of these examples *will* [`retry()`](#retry) internally by default
+* you can prefix a [`retry()`](#retry-actions) *only* if you need to over-ride the settings for *this* "wait" - as shown in the second row
+
+Script | Description
+------ | -----------
+[`waitFor('#myId')`](#waitfor) | waits for an element as described above
+`retry(10).waitFor('#myId')` | like the above, but temporarily over-rides the settings to wait for a [longer time](#retry-actions), and this can be done for *all* the below examples as well
+[`waitForUrl('google.com')`](#waitforurl) | for convenience, this uses a string *contains* match - so for example you can omit the `http` or `https` prefix
+[`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does, handle it - for e.g. to get rid of an ad popup or dialog
+[`waitUntil(expression)`](#waituntil) | wait until *any* user defined JavaScript statement to evaluate to `true` in the browser 
+[`waitUntil(function)`](#waituntilfunction) | use custom logic to handle *any* kind of situation where you need to wait, *and* use other API calls if needed
+[`waitUntilEnabled`](#waituntilenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
 
 Also see the examples for [chaining](#chaining).
 

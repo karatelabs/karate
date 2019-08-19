@@ -26,7 +26,6 @@
     
     <profiles>
         <profile>
-            <id>fatjar</id>
             <activation>
                 <!-- only if jdk 11 or greater, has to be oracle jdk -->
                 <jdk>[11,)</jdk>
@@ -35,19 +34,8 @@
                 <dependency>
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-controls</artifactId>
-                    <version>13-ea+10</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.intuit.karate</groupId>
-                    <artifactId>karate-core</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>junit</groupId>
-                    <artifactId>junit</artifactId>
-                    <version>${junit.version}</version>
-                    <scope>test</scope>
-                </dependency>                                  
+                    <version>${javafx.controls.version}</version>
+                </dependency>                                 
             </dependencies>
         </profile>
     </profiles>    

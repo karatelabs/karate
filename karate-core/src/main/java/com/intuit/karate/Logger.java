@@ -44,7 +44,7 @@ public class Logger {
     // not static, has to be per thread
     private final DateFormat dateFormatter = new SimpleDateFormat("HH:mm:ss.SSS");
 
-    private LogAppender logAppender;
+    private LogAppender logAppender = LogAppender.NO_OP;
 
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;

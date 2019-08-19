@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.driver;
 
-import com.intuit.karate.Logger;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -153,7 +152,7 @@ public interface Driver {
     default Element waitForAny(String locator1, String locator2) {
         return getOptions().waitForAny(this, new String[]{locator1, locator2});
     }
-    
+
     default Element waitForAny(String[] locators) {
         return getOptions().waitForAny(this, locators);
     }
@@ -167,7 +166,7 @@ public interface Driver {
     }
 
     default Object waitUntil(Supplier<Object> condition) {
-        return getOptions().waitUntil(condition);
+        return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");
     }
 
     default List<Element> findAll(String locator) {
@@ -184,16 +183,40 @@ public interface Driver {
         return DriverElement.locatorExists(this, locator);
     }
 
+    // friendly locators =======================================================
+    //
+    default Finder rightOf(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.RIGHT);
+    }
+
+    default Finder leftOf(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.LEFT);
+    }
+
+    default Finder above(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.ABOVE);
+    }
+
+    default Finder below(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.BELOW);
+    }
+
+    default Finder near(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.NEAR);
+    }
+
+    // mouse and keys ==========================================================
+    //
     default Mouse mouse() {
-        return new Mouse(this);
+        return new DriverMouse(this);
     }
 
     default Mouse mouse(String locator) {
-        return new Mouse(this).move(locator);
+        return new DriverMouse(this).move(locator);
     }
 
     default Mouse mouse(int x, int y) {
-        return new Mouse(this).move(x, y);
+        return new DriverMouse(this).move(x, y);
     }
 
     default Keys keys() {
@@ -241,8 +264,6 @@ public interface Driver {
     // for internal use ========================================================
     //
     DriverOptions getOptions();
-
-    void setLogger(Logger logger);
 
     Object elementId(String locator);
 

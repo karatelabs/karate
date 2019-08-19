@@ -25,7 +25,6 @@ package com.intuit.karate.driver;
 
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
-import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
@@ -67,22 +66,14 @@ public abstract class DevToolsDriver implements Driver {
     protected String currentDialogText;
     protected int currentMouseXpos;
     protected int currentMouseYpos;
-    
+
     private int nextId;
 
     public int nextId() {
         return ++nextId;
     }
 
-    // mutable
-    protected Logger logger;
-
-    @Override
-    public void setLogger(Logger logger) {
-        this.logger = logger;
-        client.setLogger(logger);
-        waitState.setLogger(logger);
-    }
+    protected final Logger logger;
 
     protected DevToolsDriver(DriverOptions options, Command command, String webSocketUrl) {
         logger = options.driverLogger;
@@ -127,7 +118,11 @@ public abstract class DevToolsDriver implements Driver {
             submit = false;
             condition = WaitState.ALL_FRAMES_LOADED;
         }
-        return waitState.waitAfterSend(dtm, condition);
+        DevToolsMessage result = waitState.waitAfterSend(dtm, condition);
+        if (result == null) {
+            throw new RuntimeException("failed to get reply for: " + dtm);
+        }
+        return result;
     }
 
     public void receive(DevToolsMessage dtm) {
@@ -152,7 +147,7 @@ public abstract class DevToolsDriver implements Driver {
             String frameNavUrl = dtm.get("url", String.class);
             if (rootFrameId.equals(frameNavId)) { // root page navigated
                 currentUrl = frameNavUrl;
-            }            
+            }
         }
         if (dtm.methodIs("Page.frameStartedLoading")) {
             String frameLoadingId = dtm.get("frameId", String.class);
@@ -415,7 +410,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public Element focus(String locator) {
         retryIfEnabled(locator);
-        eval(options.selector(locator) + ".focus()");
+        eval(options.focusJs(locator));
         return DriverElement.locatorExists(this, locator);
     }
 
@@ -450,7 +445,7 @@ public abstract class DevToolsDriver implements Driver {
     public Element input(String locator, String value) {
         retryIfEnabled(locator);
         // focus
-        eval(options.selector(locator) + ".focus()");
+        eval(options.focusJs(locator));
         Input input = new Input(value);
         while (input.hasNext()) {
             char c = input.next();
@@ -494,7 +489,7 @@ public abstract class DevToolsDriver implements Driver {
                     logger.warn("no type property found: {}", action);
                     continue;
                 }
-                String chromeType;                
+                String chromeType;
                 switch (type) {
                     case "pointerMove":
                         chromeType = "mouseMoved";
@@ -520,13 +515,13 @@ public abstract class DevToolsDriver implements Driver {
                 }
                 if (y != null) {
                     currentMouseYpos = y;
-                }              
+                }
                 Integer duration = (Integer) action.get("duration");
                 DevToolsMessage toSend = method("Input.dispatchMouseEvent")
                         .param("type", chromeType)
                         .param("x", currentMouseXpos).param("y", currentMouseYpos);
                 if ("mousePressed".equals(chromeType) || "mouseReleased".equals(chromeType)) {
-                    toSend.param("button", "left").param("clickCount", 1);                    
+                    toSend.param("button", "left").param("clickCount", 1);
                 }
                 if (!iterator.hasNext() && submitRequested) {
                     submit = true;
@@ -598,23 +593,14 @@ public abstract class DevToolsDriver implements Driver {
 
     @Override
     public boolean waitUntil(String expression) {
-        int max = options.getRetryCount();
-        int count = 0;
-        ScriptValue sv;
-        do {
-            if (count > 0) {
-                logger.debug("waitUntil retry #{}", count);
-                options.sleep();
-            }
+        return options.retry(() -> {
             try {
-                DevToolsMessage dtm = eval(expression, true);
-                sv = dtm.getResult();
+                return eval(expression, true).getResult().isBooleanTrue();
             } catch (Exception e) {
-                sv = ScriptValue.FALSE;
                 logger.warn("waitUntil evaluate failed: {}", e.getMessage());
+                return false;
             }
-        } while (!sv.isBooleanTrue() && count++ < max);
-        return sv.isBooleanTrue();
+        }, b -> b, "waitUntil (js)");
     }
 
     @Override

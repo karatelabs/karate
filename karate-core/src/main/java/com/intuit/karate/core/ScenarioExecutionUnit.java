@@ -23,12 +23,13 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.shell.FileLogAppender;
+import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,8 +42,6 @@ public class ScenarioExecutionUnit implements Runnable {
     public final Scenario scenario;
     private final ExecutionContext exec;
     public final ScenarioResult result;
-    private final LogAppender appender;
-    public final Logger logger;
     private boolean executed = false;
 
     private List<Step> steps;
@@ -52,51 +51,37 @@ public class ScenarioExecutionUnit implements Runnable {
     private StepResult lastStepResult;
     private Runnable next;
     private boolean last;
+    
+    private LogAppender appender;
 
-    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec, Logger logger) {
-        this(scenario, results, exec, null, logger);
+    public void setAppender(LogAppender appender) {
+        this.appender = appender;
+    }        
+
+    private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
+        @Override
+        protected LogAppender initialValue() {
+            String fileName = FileUtils.getBuildDir() + File.separator + Thread.currentThread().getName() + ".log";
+            return new FileLogAppender(new File(fileName));
+        }
+    };
+
+    public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results, ExecutionContext exec) {
+        this(scenario, results, exec, null);
     }
 
-    private static final Map<String, Integer> FILE_HANDLE_COUNT = new HashMap();
-
     public ScenarioExecutionUnit(Scenario scenario, List<StepResult> results,
-            ExecutionContext exec, ScenarioContext backgroundContext, Logger logger) {
+            ExecutionContext exec, ScenarioContext backgroundContext) {
         this.scenario = scenario;
         this.exec = exec;
         result = new ScenarioResult(scenario, results);
-        if (logger == null) {
-            logger = new Logger();
-            if (scenario.getIndex() < 500) {
-                if (exec.callContext.isCalled()) {
-                    String featureName = exec.featureContext.packageQualifiedName;
-                    Integer count = FILE_HANDLE_COUNT.get(featureName);
-                    if (count == null) {
-                        count = 0;
-                    }
-                    count = count + 1;
-                    FILE_HANDLE_COUNT.put(featureName, count);
-                    if (count < 500) {
-                        // ensure no collisions for called features that are re-used across scenarios executing in parallel
-                        appender = exec.getLogAppender(scenario.getUniqueId() + "_" + Thread.currentThread().getName(), logger);
-                    } else { // this is a super-re-used feature, don't open any more files, same trade-off see below                        
-                        appender = LogAppender.NO_OP;
-                    }
-                } else {
-                    appender = exec.getLogAppender(scenario.getUniqueId(), logger);
-                }
-            } else {
-                // avoid creating log-files for scenario outlines beyond a limit
-                // trade-off is we won't see inline logs in the html report                 
-                appender = LogAppender.NO_OP;
-            }
-        } else {
-            appender = LogAppender.NO_OP;
-        }
-        this.logger = logger;
         if (backgroundContext != null) { // re-build for dynamic scenario
             ScenarioInfo info = scenario.toInfo(exec.featureContext.feature.getPath());
-            ScenarioContext context = backgroundContext.copy(info, logger);
+            ScenarioContext context = backgroundContext.copy(info);
             actions = new StepActions(context);
+        }
+        if (exec.callContext.perfMode) {
+            appender = LogAppender.NO_OP;
         }
     }
 
@@ -131,7 +116,7 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public boolean isLast() {
         return last;
-    }
+    }        
 
     public void init() {
         boolean initFailed = false;
@@ -139,7 +124,7 @@ public class ScenarioExecutionUnit implements Runnable {
             // karate-config.js will be processed here 
             // when the script-context constructor is called
             try {
-                actions = new StepActions(exec.featureContext, exec.callContext, exec.classLoader, scenario, logger);
+                actions = new StepActions(exec.featureContext, exec.callContext, exec.classLoader, scenario, appender);
             } catch (Exception e) {
                 initFailed = true;
                 result.addError("scenario init failed", e);
@@ -228,11 +213,13 @@ public class ScenarioExecutionUnit implements Runnable {
             String stepLog = StringUtils.trimToNull(appender.collect());
             lastStepResult.appendToStepLog(stepLog);
         }
-        appender.close();
     }
 
     @Override
     public void run() {
+        if (appender == null) { // not perf, not ui
+            appender = APPENDER.get();
+        }
         if (steps == null) {
             init();
         }

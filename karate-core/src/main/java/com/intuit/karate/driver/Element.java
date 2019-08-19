@@ -33,15 +33,21 @@ public interface Element {
     
     boolean isExists(); // getter
     
+    boolean isEnabled(); // getter
+    
     Element focus();
     
     Element clear();
     
     Element click();
     
+    Element submit();
+    
     Mouse mouse();
     
-    Element input(String text);
+    Element input(String value);
+    
+    Element input(String[] values);
     
     Element select(String text);
     

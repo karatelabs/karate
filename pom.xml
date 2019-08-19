@@ -36,8 +36,9 @@
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
         <maven.surefire.version>2.22.2</maven.surefire.version>
-        <maven.shade.version>3.1.1</maven.shade.version>
+        <maven.shade.version>3.2.1</maven.shade.version>
         <junit.version>4.12</junit.version>
+        <javafx.controls.version>13-ea+12</javafx.controls.version>
         <nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
         <spring.version>4.3.8.RELEASE</spring.version>
         <spring.boot.version>1.5.16.RELEASE</spring.boot.version>

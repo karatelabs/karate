@@ -210,6 +210,15 @@ public class FileUtilsTest {
             logger.debug("url: {}", url);
         }
     }
+    
+    @Test
+    public void testGetClasspathAbsolute() {
+        File file = new File("src/test/java/com/intuit/karate/multi-scenario.feature").getAbsoluteFile();
+        String scan = "classpath:" + file.getPath();
+        List<Resource> resources = FileUtils.scanForFeatureFiles(Collections.singletonList(scan), ClassLoader.getSystemClassLoader());
+        assertEquals(1, resources.size());
+        assertEquals(file, resources.get(0).getPath().toFile());
+    }    
 
     private static ClassLoader getJarClassLoader() throws Exception {
         File jar = new File("src/test/resources/karate-test.jar");

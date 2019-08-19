@@ -24,6 +24,7 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioExecutionUnit;

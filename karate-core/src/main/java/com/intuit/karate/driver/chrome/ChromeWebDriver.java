@@ -26,7 +26,7 @@ package com.intuit.karate.driver.chrome;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
@@ -44,13 +44,13 @@ public class ChromeWebDriver extends WebDriver {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 9515, "chromedriver");
+    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 9515, "chromedriver");
         options.arg("--port=" + options.port);
         options.arg("--user-data-dir=" + options.workingDirPath);
         Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
                 .jsonPath("get[0] response..sessionId").asString();
@@ -81,16 +81,6 @@ public class ChromeWebDriver extends WebDriver {
     @Override
     protected String getJsonForFrame(String text) {
         return new Json().set("id.ELEMENT", text).toString();
-    }
-
-    @Override
-    public String html(String locator) {
-        return attribute(locator, "outerHTML");
-    }
-
-    @Override
-    public String value(String locator) {
-        return attribute(locator, "value");
     }
 
     @Override

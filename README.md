@@ -141,6 +141,7 @@ And you don't need to create additional Java classes for any of the payloads tha
     | <a href="#responseheaders"><code>responseHeaders</code></a>
     | <a href="#responsecookies"><code>responseCookies</code></a>
     | <a href="#responsetime"><code>responseTime</code></a>
+    | <a href="#responsetype"><code>responseType</code></a>
     | <a href="#requesttimestamp"><code>requestTimeStamp</code></a>
   </td>
 </tr>
@@ -3056,6 +3057,17 @@ The response time (in milliseconds) for the current [`response`](#response) woul
 When method post
 Then status 201
 And assert responseTime < 1000
+```
+
+## `responseType`
+Karate will attempt to parse the raw HTTP response body as JSON or XML and make it available as the [`response`](#response) value. If parsing fails, Karate will log a warning and the value of `response` will then be a plain string. You can still perform string comparisons such as a [`match contains`](#match-text-or-binary) and look for error messages etc. In rare cases, you may want to check what the "type" of the `response` is and it can be one of 3 different values: `json`, `xml` and `string`.
+
+So if you really wanted to assert that the HTTP response body is well-formed JSON or XML you can do this:
+
+```cucumber
+When method post
+Then status 201
+And match responseType == 'json'
 ```
 
 ## `requestTimeStamp`

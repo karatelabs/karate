@@ -81,3 +81,15 @@ Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == '
 
 Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == 'bar'
     * def response = { val: 'bar' }
+
+Scenario: pathMatches('/v1/malformed')
+    * def response = read('malformed.txt')
+
+Scenario: pathMatches('/v1/jsonformed')
+    * def response = { hello: 'world' }
+
+Scenario: pathMatches('/v1/xmlformed')
+    * def response = <hello>world</hello>
+
+Scenario: pathMatches('/v1/stringformed')
+    * def response = 'hello world'

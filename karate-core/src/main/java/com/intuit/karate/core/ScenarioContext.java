@@ -40,6 +40,7 @@ import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.Config;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
@@ -68,9 +69,8 @@ import java.util.function.Function;
  */
 public class ScenarioContext {
 
-    // this is public - but just makes swapping logger simple TODO cleanup
-    public Logger logger;
-
+    public final Logger logger;
+    public final LogAppender appender;
     public final ScriptBindings bindings;
     public final int callDepth;
     public final boolean reuseParentContext;
@@ -222,17 +222,19 @@ public class ScenarioContext {
         return config.isPrintEnabled();
     }
 
-    public ScenarioContext(FeatureContext featureContext, CallContext call, Scenario scenario, Logger logger) {
-        this(featureContext, call, null, scenario, logger);
+    public ScenarioContext(FeatureContext featureContext, CallContext call, Scenario scenario, LogAppender appender) {
+        this(featureContext, call, null, scenario, appender);
     }
 
-    public ScenarioContext(FeatureContext featureContext, CallContext call, ClassLoader classLoader, Scenario scenario, Logger logger) {
+    public ScenarioContext(FeatureContext featureContext, CallContext call, ClassLoader classLoader, Scenario scenario, LogAppender appender) {
         this.featureContext = featureContext;
         this.classLoader = classLoader == null ? resolveClassLoader(call) : classLoader;
-        if (logger == null) { // ensure this.logger is set properly
-            logger = new Logger();
+        logger = new Logger();
+        if (appender == null) {
+            appender = LogAppender.NO_OP;
         }
-        this.logger = logger;
+        logger.setLogAppender(appender);
+        this.appender = appender;        
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;
         executionHooks = call.executionHooks;
@@ -327,18 +329,19 @@ public class ScenarioContext {
         return call.context.classLoader;
     }
 
-    public ScenarioContext copy(ScenarioInfo info, Logger logger) {
-        return new ScenarioContext(this, info, logger);
+    public ScenarioContext copy(ScenarioInfo info) {
+        return new ScenarioContext(this, info);
     }
 
     public ScenarioContext copy() {
-        return new ScenarioContext(this, scenarioInfo, logger);
+        return new ScenarioContext(this, scenarioInfo);
     }
 
-    private ScenarioContext(ScenarioContext sc, ScenarioInfo info, Logger logger) {
+    private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
         featureContext = sc.featureContext;
         classLoader = sc.classLoader;
-        this.logger = logger;
+        logger = sc.logger;
+        appender = sc.appender;
         callDepth = sc.callDepth;
         reuseParentContext = sc.reuseParentContext;
         parentContext = sc.parentContext;
@@ -438,16 +441,22 @@ public class ScenarioContext {
         responseString = StringUtils.trimToEmpty(responseString);
         if (Script.isJson(responseString)) {
             try {
-                responseBody = JsonUtils.toJsonDoc(responseString);
+                responseBody = JsonUtils.toJsonDocStrict(responseString);
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "json");
             } catch (Exception e) {
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
                 logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
             }
         } else if (Script.isXml(responseString)) {
             try {
                 responseBody = XmlUtils.toXmlDoc(responseString);
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "xml");
             } catch (Exception e) {
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
                 logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
             }
+        } else {
+            vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
         }
         vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
     }
@@ -910,7 +919,7 @@ public class ScenarioContext {
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }
-            setDriver(DriverOptions.start(this, options, logger));
+            setDriver(DriverOptions.start(this, options, appender));
         }
         if (sv.isString()) {
             driver.setUrl(sv.getAsString());
@@ -921,10 +930,6 @@ public class ScenarioContext {
         if (reuseParentContext) {
             if (driver != null) { // a called feature inited the driver
                 parentContext.setDriver(driver);
-                // switch driver log to ensure continuity
-                if (driver.getOptions().showDriverLog) {
-                    driver.setLogger(parentContext.logger);
-                }
             }
             parentContext.webSocketClients = webSocketClients;
             return; // don't kill driver yet
@@ -941,7 +946,7 @@ public class ScenarioContext {
                 String video = (String) map.get("video");
                 if (video != null && lastStepResult != null) {
                     logger.info("video file present, attaching to last step result: {}", video);
-                    String html = "<video controls=\"true\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
+                    String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
                     Embed embed = new Embed();                    
                     embed.setBytes(html.getBytes());
                     embed.setMimeType("text/html");

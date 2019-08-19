@@ -29,6 +29,7 @@ import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureExecutionUnit;
+import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
@@ -72,7 +73,7 @@ public class FeatureInfo implements ExecutionHook {
         CallContext callContext = new CallContext(null, true, this);
         exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
         unit = new FeatureExecutionUnit(exec);
-        unit.init(null);
+        unit.init();
         for (ScenarioExecutionUnit u : unit.getScenarioExecutionUnits()) {
             Description scenarioDescription = getScenarioDescription(u.scenario);
             description.addChild(scenarioDescription);
@@ -104,6 +105,16 @@ public class FeatureInfo implements ExecutionHook {
         notifier.fireTestFinished(scenarioDescription);
      }
 
+    @Override
+    public boolean beforeFeature(Feature feature) {
+        return true;
+    }
+
+    @Override
+    public void afterFeature(FeatureResult result) {
+        
+    }    
+    
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;

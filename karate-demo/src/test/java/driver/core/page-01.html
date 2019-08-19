@@ -2,6 +2,9 @@
 <html>
   <head>
     <title>Page One</title>
+    <style>
+      .col { display: inline-block }
+    </style>
     <script src="karate.js"></script>
     <script>
       setTimeout(function(){ karate.setHtml('eg01WaitParentId', '<div id="eg01WaitId">APPEARED!</div>') }, 5000);
@@ -10,7 +13,10 @@
   </head>
   <body>
     <div id="eg01">
-      <input name="eg01InputName" id="eg01InputId" type="text" />
+      <div>
+        <span class="col">Input Right</span>
+        <input name="eg01InputName" id="eg01InputId" type="text" class="col"/>
+      </div>      
       <input id="eg01DisabledId" type="text" disabled="true" />
       <input name="eg01SubmitName" id="eg01SubmitId" type="submit" onclick="karate.setHtml('eg01DivId', karate.get('eg01InputId').value)" />
       <div id="eg01DivId"></div>
