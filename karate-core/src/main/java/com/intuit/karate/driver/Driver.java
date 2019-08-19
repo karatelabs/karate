@@ -186,37 +186,37 @@ public interface Driver {
     // friendly locators =======================================================
     //
     default Finder rightOf(String locator) {
-        return new Finder(this, locator, Finder.Type.RIGHT);
+        return new ElementFinder(this, locator, ElementFinder.Type.RIGHT);
     }
 
     default Finder leftOf(String locator) {
-        return new Finder(this, locator, Finder.Type.LEFT);
+        return new ElementFinder(this, locator, ElementFinder.Type.LEFT);
     }
 
     default Finder above(String locator) {
-        return new Finder(this, locator, Finder.Type.ABOVE);
+        return new ElementFinder(this, locator, ElementFinder.Type.ABOVE);
     }
 
     default Finder below(String locator) {
-        return new Finder(this, locator, Finder.Type.BELOW);
+        return new ElementFinder(this, locator, ElementFinder.Type.BELOW);
     }
 
     default Finder near(String locator) {
-        return new Finder(this, locator, Finder.Type.NEAR);
+        return new ElementFinder(this, locator, ElementFinder.Type.NEAR);
     }
 
     // mouse and keys ==========================================================
     //
     default Mouse mouse() {
-        return new Mouse(this);
+        return new DriverMouse(this);
     }
 
     default Mouse mouse(String locator) {
-        return new Mouse(this).move(locator);
+        return new DriverMouse(this).move(locator);
     }
 
     default Mouse mouse(int x, int y) {
-        return new Mouse(this).move(x, y);
+        return new DriverMouse(this).move(x, y);
     }
 
     default Keys keys() {

@@ -23,93 +23,26 @@
  */
 package com.intuit.karate.driver;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  *
  * @author pthomas3
  */
-public class Mouse {
-
-    private final Driver driver;
-
-    public Mouse(Driver driver) {
-        this.driver = driver;
-    }
+public interface Mouse {        
     
-    private Integer duration;
-    private final List<Map<String, Object>> actions = new ArrayList();
+    Mouse move(String locator);
     
-
-    private Map<String, Object> moveAction(int x, int y) {
-        // {"type":"pointer","id":"1","actions":[{"type":"pointerMove","x":250,"y":250}]}        
-        Map<String, Object> map = new HashMap();
-        map.put("type", "pointerMove");
-        map.put("x", x);
-        map.put("y", y);
-        if (duration != null) {
-            map.put("duration", duration);
-        }
-        return map;
-    }
-
-    public Mouse duration(Integer duration) {
-        this.duration = duration;
-        return this;
-    }
-
-    public Mouse move(String locator) {
-        Map<String, Object> map = driver.position(locator);
-        Number x = (Number) map.get("x");
-        Number y = (Number) map.get("y");
-        return move(x, y);
-    }
-
-    public Mouse move(Number x, Number y) {
-        x = x == null ? 0 : x;
-        y = y == null ? 0 : y;
-        Map<String, Object> action = moveAction(x.intValue(), y.intValue());
-        actions.add(action);
-        return this;
-    }
-
-    public Mouse down() {
-        Map<String, Object> map = new HashMap();
-        map.put("type", "pointerDown");
-        map.put("button", 0);
-        actions.add(map);
-        return this;
-    }
-
-    public Mouse up() {
-        Map<String, Object> up = new HashMap();
-        up.put("type", "pointerUp");
-        up.put("button", 0);
-        actions.add(up);
-        return go();
-    }
+    Mouse move(Number x, Number y);
     
-    public Mouse submit() {
-        driver.submit();
-        return this;
-    }
-
-    public Mouse click() {
-        return down().up();
-    }
-
-    public Mouse go() {
-        Map<String, Object> map = new HashMap();
-        map.put("type", "pointer");
-        map.put("id", "1");
-        map.put("actions", actions);
-        driver.actions(Collections.singletonList(map));
-        actions.clear();
-        return this;
-    }
-
+    Mouse down();
+    
+    Mouse up();
+    
+    Mouse submit();
+    
+    Mouse click();
+    
+    Mouse go();
+    
+    Mouse duration(Integer duration);
+    
 }

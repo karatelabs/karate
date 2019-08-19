@@ -40,11 +40,11 @@ public class DriverElement implements Element {
         this.exists = exists;
     }
 
-    public static DriverElement locatorExists(Driver driver, String locator) {
+    public static Element locatorExists(Driver driver, String locator) {
         return new DriverElement(driver, locator, true);
     }
 
-    public static DriverElement locatorUnknown(Driver driver, String locator) {
+    public static Element locatorUnknown(Driver driver, String locator) {
         return new DriverElement(driver, locator, null); // exists flag set to null
     }
 

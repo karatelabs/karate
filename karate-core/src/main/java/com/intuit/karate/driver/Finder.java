@@ -23,107 +23,20 @@
  */
 package com.intuit.karate.driver;
 
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *
  * @author pthomas3
  */
-public class Finder {
+public interface Finder {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Finder.class);
+    Element input(String value);
 
-    public static enum Type {
-        RIGHT,
-        LEFT,
-        ABOVE,
-        BELOW,
-        NEAR
-    }
+    Element click();
 
-    private final Driver driver;
-    private final String fromLocator;
-    private final Type type;
+    Element clear();
 
-    private String tag = "INPUT";
+    Element find();
 
-    public Finder(Driver driver, String fromLocator, Type type) {
-        this.driver = driver;
-        this.fromLocator = fromLocator;
-        this.type = type;
-    }
-
-    private static String forLoopChunk(Finder.Type type) {
-        switch (type) {
-            case RIGHT:
-                return "x += s;";
-            case BELOW:
-                return "y += s;";
-            case LEFT:
-                return "x -= s;";
-            case ABOVE:
-                return "y -= s;";
-            default: // NEAR
-                return " var a = 0.381966 * i; var x = (s + a) * Math.cos(a); var y = (s + a) * Math.sin(a);";
-        }
-    }
-
-    private static String findScript(Driver driver, String locator, Finder.Type type, String findTag) {
-        Map<String, Object> pos = driver.position(locator);
-        Number xNum = (Number) pos.get("x");
-        Number yNum = (Number) pos.get("y");
-        Number width = (Number) pos.get("width");
-        Number height = (Number) pos.get("height");
-        // get center point
-        int x = xNum.intValue() + width.intValue() / 2;
-        int y = yNum.intValue() + height.intValue() / 2;
-        // o: origin, a: angle, s: step
-        String fun = "var gen = " + DriverOptions.KARATE_REF_GENERATOR + ";"
-                + " var o = { x: " + x + ", y: " + y + "}; var s = 10; var x = 0; var y = 0;"
-                + " for (var i = 0; i < 300; i++) {"
-                + forLoopChunk(type)
-                + " var e = document.elementFromPoint(o.x + x, o.y + y);"
-                + " console.log(o.x +':' + o.y, x + ':' + y, e);"
-                + " if (e && e.tagName == '" + findTag.toUpperCase() + "') return gen(e); "
-                + " } return null";
-        return DriverOptions.wrapInFunctionInvoke(fun);
-    }
-
-    private String getDebugString() {
-        return fromLocator + ", " + type + ", " + tag;
-    }
-
-    public Element find() {
-        String js = findScript(driver, fromLocator, type, tag);
-        String karateRef = (String) driver.script(js);
-        if (karateRef == null) {
-            LOGGER.warn("friendly locator failed will try once more after 500ms: {}", getDebugString());
-            driver.getOptions().sleep(); // special case
-            karateRef = (String) driver.script(js);
-            if (karateRef == null) {
-                throw new RuntimeException("unable to find: " + getDebugString());
-            }
-        }
-        return DriverElement.locatorExists(driver, DriverOptions.karateLocator(karateRef));
-    }
-
-    public Element find(String tag) {
-        this.tag = tag;
-        return find();
-    }
-
-    public Element clear() {
-        return find().clear();
-    }
-
-    public Element input(String value) {
-        return find().input(value);
-    }
-
-    public Element click() {
-        return find().click();
-    }
+    Element find(String tag);
 
 }

@@ -73,7 +73,7 @@ public class MissingElement implements Element {
     }        
 
     @Override
-    public Mouse mouse() {
+    public DriverMouse mouse() {
         return null;
     }        
 
