@@ -23,24 +23,10 @@
  */
 package com.intuit.karate.junit4;
 
-import com.intuit.karate.Resource;
-import com.intuit.karate.FileUtils;
+import com.intuit.karate.Runner.Builder;
 import com.intuit.karate.RunnerOptions;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.ScenarioResult;
-import com.intuit.karate.core.Tags;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.Description;
-import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 import org.junit.runners.model.FrameworkMethod;
@@ -49,39 +35,42 @@ import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- *
  * @author pthomas3
  */
-public class Karate extends ParentRunner<Feature> {
+public class Karate extends ParentRunner<JunitHook> {
 
     private static final Logger logger = LoggerFactory.getLogger(Karate.class);
 
-    private final List<Feature> children;
-    private final Map<String, FeatureInfo> featureMap;
-    private final String tagSelector;
+    private final List<JunitHook> children;
 
-    public Karate(Class<?> clazz) throws InitializationError, IOException {
+    private Builder builder;
+
+    private int threads;
+
+    public Karate(Class<?> clazz) throws InitializationError {
         super(clazz);
         List<FrameworkMethod> testMethods = getTestClass().getAnnotatedMethods(Test.class);
         if (!testMethods.isEmpty()) {
             logger.warn("WARNING: there are methods annotated with '@Test', they will NOT be run when using '@RunWith(Karate.class)'");
         }
+
+        JunitHook junitHook = new JunitHook(clazz);
         RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(clazz);
-        List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz.getClassLoader());
-        children = new ArrayList(resources.size());
-        featureMap = new HashMap(resources.size());
-        for (Resource resource : resources) {
-            Feature feature = FeatureParser.parse(resource);
-            feature.setCallName(options.getName());
-            feature.setCallLine(resource.getLine());
-            children.add(feature);
-        }
-        tagSelector = Tags.fromKarateOptionsTags(options.getTags());
+        builder = new Builder().hook(junitHook).path(options.getFeatures());
+        if (options.getTags() != null)
+            builder = builder.tags(options.getTags());
+        threads = options.getThreads();
+        children = new ArrayList<>();
+        children.add(junitHook);
     }
 
     @Override
-    public List<Feature> getChildren() {
+    public List<JunitHook> getChildren() {
         return children;
     }
 
@@ -103,7 +92,7 @@ public class Karate extends ParentRunner<Feature> {
     }
 
     @Override
-    protected Description describeChild(Feature feature) {
+    protected Description describeChild(JunitHook junitHook) {
         if (!beforeClassDone) {
             try {
                 Statement statement = withBeforeClasses(NO_OP);
@@ -113,19 +102,13 @@ public class Karate extends ParentRunner<Feature> {
                 throw new RuntimeException(e);
             }
         }
-        FeatureInfo info = new FeatureInfo(feature, tagSelector);
-        featureMap.put(feature.getRelativePath(), info);
-        return info.description;
+        return junitHook.getDescription();
     }
 
     @Override
-    protected void runChild(Feature feature, RunNotifier notifier) {
-        FeatureInfo info = featureMap.get(feature.getRelativePath());
-        info.setNotifier(notifier);
-        info.unit.run();
-        FeatureResult result = info.exec.result;
-        result.printStats(null);
-        Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", result, null);
+    protected void runChild(JunitHook feature, RunNotifier notifier) {
+        feature.setNotifier(notifier);
+        builder.parallel(threads);
     }
 
     @Override
