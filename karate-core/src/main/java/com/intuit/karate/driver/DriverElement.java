@@ -140,6 +140,11 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element waitUntilText(String text) {
+        return driver.waitUntilText(locator, text);
+    }       
+
+    @Override
     public Object script(String expression) {
         return driver.script(locator, expression);
     }

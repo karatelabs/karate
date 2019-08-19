@@ -119,6 +119,7 @@
     | <a href="#waitforany"><code>waitForAny()</code></a>
     | <a href="#waitforurl"><code>waitForUrl()</code></a>    
     | <a href="#waituntil"><code>waitUntil()</code></a>
+    | <a href="#waituntiltext"><code>waitUntilText()</code></a>
     | <a href="#waituntilenabled"><code>waitUntilEnabled()</code></a>
     | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
@@ -891,6 +892,8 @@ One thing you need to get used to is the "separation" between the code that is e
 
 The use of `includes()` is needed in this real-life example, because [`innerHTML()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML) can return leading and trailing white-space (such as line-feeds and tabs) - which would cause an exact "`==`" comparison in JavaScript to fail.
 
+But guess what - this example is baked into a Karate API, see [`waitUntilText()`](#waituntiltext).
+
 For an example of how JavaScript looks like on the "Karate side" see [Function Composition](#function-composition).
 
 This form of `waitUntil()` is very useful for waiting for some HTML element to stop being `disabled`. Note that Karate will fail the test if the `waitUntil()` returned `false` - *even* after the configured number of [re-tries](#retry) were attempted.
@@ -904,6 +907,21 @@ And waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
 Also see [`waitUtntilEnabled`](#waituntilenabled) which is the preferred short-cut for the last example above, also look at the examples for [chaining](#chaining) and then the section on [waits](#wait-api).
+
+## `waitUntilText()`
+This is just a convenience short-cut for `waitUntil(locator, "_.textContent.includes('" + expected + "')")` since it is so frequently needed. Note the use of [`includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) for a "string contains" match for convenience. Because the need to "wait until some text appears" is so common, and you don't need to worry about dealing with white-space such as line-feeds and invisible tab characters.
+
+Of course, try not to use single-quotes within the string to be matched, or escape them using a back-slash (`\`) character.
+
+```cucumber
+* waitUntilText('#eg01WaitId', 'APPEARED')
+```
+
+And if you really need to scan the whole page for some text, you can use this:
+
+```cucumber
+* waitUntilText('body', 'APPEARED')
+```
 
 ## `waitUntilEnabled()`
 This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` since it is so frequently needed:
@@ -1002,7 +1020,8 @@ Script | Description
 [`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does, handle it - for e.g. to get rid of an ad popup or dialog
 [`waitUntil(expression)`](#waituntil) | wait until *any* user defined JavaScript statement to evaluate to `true` in the browser 
 [`waitUntil(function)`](#waituntilfunction) | use custom logic to handle *any* kind of situation where you need to wait, *and* use other API calls if needed
-[`waitUntilEnabled`](#waituntilenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
+[`waitUntilText()`](#waituntiltext) | frequently needed short-cut for waiting until a string appears - and this uses a "string contains" match for convenience
+[`waitUntilEnabled()`](#waituntilenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
 
 Also see the examples for [chaining](#chaining).
 

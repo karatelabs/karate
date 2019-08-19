@@ -164,6 +164,14 @@ public interface Driver {
     default Element waitUntilEnabled(String locator) {
         return waitUntil(locator, "!_.disabled");
     }
+    
+    default Element waitUntilText(String locator, String expected) {
+        return waitUntil(locator, "_.textContent.includes('" + expected + "')");
+    }
+    
+    default Element waitUntilText(String expected) {
+        return waitUntil("document", "_.textContent.includes('" + expected + "')");
+    }    
 
     default Object waitUntil(Supplier<Object> condition) {
         return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");

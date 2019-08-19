@@ -61,6 +61,8 @@ public interface Element {
     
     Element waitUntil(String expression);
     
+    Element waitUntilText(String text);
+    
     Object script(String expression);
     
     String getHtml(); // getter

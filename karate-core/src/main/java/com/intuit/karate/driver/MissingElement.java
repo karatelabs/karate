@@ -119,6 +119,11 @@ public class MissingElement implements Element {
     }
 
     @Override
+    public Element waitUntilText(String text) {
+        return this;
+    }        
+
+    @Override
     public Object script(String expression) {
         return null;
     }
