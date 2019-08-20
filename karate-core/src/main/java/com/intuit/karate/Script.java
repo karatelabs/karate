@@ -1339,6 +1339,14 @@ public class Script {
                     if (matchType == MatchType.CONTAINS_ANY) {
                         return AssertionResult.PASS; // exit early
                     }
+                    if (matchType == MatchType.NOT_CONTAINS) {
+                        // did we just bubble-up from a map
+                        ScriptValue childExpValue = new ScriptValue(childExp);
+                        if (childExpValue.isMapLike()) {
+                            // a nested map already fulfilled the NOT_CONTAINS
+                            return AssertionResult.PASS; // exit early
+                        }
+                    }
                     unMatchedKeysExp.remove(key);
                     unMatchedKeysAct.remove(key);
                 } else { // values for this key don't match

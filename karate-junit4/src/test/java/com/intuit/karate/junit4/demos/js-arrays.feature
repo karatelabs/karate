@@ -316,6 +316,11 @@ Scenario: contains will recurse
     * def expected = { a: 1, c: 3, d: { b: 2 } }
     * match original contains expected
 
+Scenario: contains will recurse in reverse !
+    * def original = { "a": { "b": { "c": { "d":1, "e":2 } } } }
+    * def compared = { "a": { "b": { "c": { "d":1, "e":2, "f":3 } } } }
+    * match original !contains compared
+
 Scenario: js eval
     * def temperature = { celsius: 100, fahrenheit: 212 }
     * string expression = 'temperature.celsius'
