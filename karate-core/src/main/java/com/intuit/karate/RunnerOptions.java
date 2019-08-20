@@ -62,9 +62,6 @@ public class RunnerOptions {
     @CommandLine.Option(names = {"-n", "--name"}, description = "name of scenario to run")
     String name;
 
-    @CommandLine.Option(names = {"-T", "--threads"}, description = "number of threads when running tests")
-    int threads = 1;
-
     @CommandLine.Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> features;
 
@@ -82,10 +79,6 @@ public class RunnerOptions {
 
     public List<String> getFeatures() {
         return features;
-    }
-
-    public int getThreads(){
-        return threads;
     }
 
     public static RunnerOptions parseStringArgs(String[] args) {
@@ -121,7 +114,6 @@ public class RunnerOptions {
     public static RunnerOptions fromAnnotationAndSystemProperties(Class<?> clazz) {
         List<String> tags = null;
         List<String> features = null;
-        int threads = 1;
         KarateOptions ko = clazz.getAnnotation(KarateOptions.class);
         if (ko == null) {
             CucumberOptions co = clazz.getAnnotation(CucumberOptions.class);
@@ -130,14 +122,13 @@ public class RunnerOptions {
                 features = Arrays.asList(co.features());
             }
         } else {
-            threads = ko.threads();
             tags = Arrays.asList(ko.tags());
             features = Arrays.asList(ko.features());
         }
-        return fromAnnotationAndSystemProperties(features, tags, threads, clazz);
+        return fromAnnotationAndSystemProperties(features, tags, clazz);
     }
 
-    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, int threads, Class clazz) {
+    public static RunnerOptions fromAnnotationAndSystemProperties(List<String> features, List<String> tags, Class clazz) {
         if (clazz != null && (features == null || features.isEmpty())) {
             String relative = FileUtils.toRelativeClassPath(clazz);
             features = Collections.singletonList(relative);
@@ -153,7 +144,6 @@ public class RunnerOptions {
             options = new RunnerOptions();
             options.tags = tags;
             options.features = features;
-            options.threads = threads;
         } else {
             logger.info("found system property 'karate.options': {}", line);
             options = parseCommandLine(line);
@@ -162,9 +152,6 @@ public class RunnerOptions {
             }
             if (options.features == null) {
                 options.features = features;
-            }
-            if (options.threads == 0){
-                options.threads = threads;
             }
         }
         return options;        

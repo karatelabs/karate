@@ -39,6 +39,5 @@ public @interface KarateOptions {
     String[] features() default {};
 
     String[] tags() default {};
-
-    int threads() default 1;
+    
 }

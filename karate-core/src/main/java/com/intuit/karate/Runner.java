@@ -69,16 +69,8 @@ public class Runner {
             return this;
         }
 
-        public Builder path(List<String> paths) {
-            this.paths.addAll(paths);
-            return this;
-        }
         public Builder tags(String... tags) {
             this.tags.addAll(Arrays.asList(tags));
-            return this;
-        }
-        public Builder tags(List<String> tags) {
-            this.tags.addAll(tags);
             return this;
         }
 
@@ -116,7 +108,7 @@ public class Runner {
             return resources;
         }
 
-        public Results parallel(int threadCount) {
+        Results parallel(int threadCount) {
             this.threadCount = threadCount;
             return Runner.parallel(this);
         }

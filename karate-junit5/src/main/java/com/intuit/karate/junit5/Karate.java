@@ -71,7 +71,7 @@ public class Karate implements Iterable<DynamicNode> {
 
     @Override
     public Iterator<DynamicNode> iterator() {
-        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, 1, clazz);
+        RunnerOptions options = RunnerOptions.fromAnnotationAndSystemProperties(paths, tags, clazz);
         List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), clazz);
         List<Feature> features = new ArrayList(resources.size());
         for (Resource resource : resources) {

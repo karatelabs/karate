@@ -23,42 +23,61 @@
  */
 package com.intuit.karate.junit4;
 
-import com.intuit.karate.core.*;
+import com.intuit.karate.CallContext;
+import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.core.ExecutionHook;
+import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureExecutionUnit;
+import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.PerfEvent;
+import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.ScenarioExecutionUnit;
+import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.http.HttpRequestBuilder;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 
-import static org.junit.runner.Description.createTestDescription;
-
 /**
+ *
  * @author pthomas3
  */
-public class JunitHook implements ExecutionHook {
+public class FeatureInfo implements ExecutionHook {
 
+    public final Feature feature;
+    public final ExecutionContext exec;
     public final Description description;
+    public final FeatureExecutionUnit unit;
 
     private RunNotifier notifier;
-
-    public JunitHook(Class clazz) {
-        description = Description.createSuiteDescription(clazz);
-    }
 
     public void setNotifier(RunNotifier notifier) {
         this.notifier = notifier;
     }
 
     private static String getFeatureName(Feature feature) {
-        return feature.getResource().getFileNameWithoutExtension();
+        return "[" + feature.getResource().getFileNameWithoutExtension() + "]";
     }
 
     public static Description getScenarioDescription(Scenario scenario) {
         String featureName = getFeatureName(scenario.getFeature());
-        return createTestDescription("Feature: " + featureName, "Scenario: " + scenario.getDisplayMeta() + ' ' + scenario.getName());
+        return Description.createTestDescription(featureName, scenario.getDisplayMeta() + ' ' + scenario.getName());
     }
 
-    public Description getDescription() {
-        return description;
+    public FeatureInfo(Feature feature, String tagSelector) {
+        this.feature = feature;
+        description = Description.createSuiteDescription(getFeatureName(feature), feature.getResource().getPackageQualifiedName());
+        FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
+        CallContext callContext = new CallContext(null, true, this);
+        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        unit = new FeatureExecutionUnit(exec);
+        unit.init();
+        for (ScenarioExecutionUnit u : unit.getScenarioExecutionUnits()) {
+            Description scenarioDescription = getScenarioDescription(u.scenario);
+            description.addChild(scenarioDescription);
+        }
     }
 
     @Override
@@ -74,7 +93,7 @@ public class JunitHook implements ExecutionHook {
     @Override
     public void afterScenario(ScenarioResult result, ScenarioContext context) {
         // if dynamic scenario outline background or a call
-        if (notifier == null || context.callDepth > 0) {
+        if (notifier == null || context.callDepth > 0) { 
             return;
         }
         Description scenarioDescription = getScenarioDescription(result.getScenario());
@@ -84,7 +103,7 @@ public class JunitHook implements ExecutionHook {
         // apparently this method should be always called
         // even if fireTestFailure was called
         notifier.fireTestFinished(scenarioDescription);
-    }
+     }
 
     @Override
     public boolean beforeFeature(Feature feature) {
@@ -93,9 +112,9 @@ public class JunitHook implements ExecutionHook {
 
     @Override
     public void afterFeature(FeatureResult result) {
-
-    }
-
+        
+    }    
+    
     @Override
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;
