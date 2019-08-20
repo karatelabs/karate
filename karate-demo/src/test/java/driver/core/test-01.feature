@@ -13,13 +13,16 @@ Scenario Outline: using <config>
   # wait for very slow loading element
   And waitFor('#eg01WaitId')
 
+  # wait for text (is a string "contains" match for convenience)
+  And waitForText('#eg01WaitId', 'APPEARED')
+  And waitForText('body', 'APPEARED')
+  And waitForEnabled('#eg01WaitId')
+
   # powerful variants of the above, call any js on the element
   And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
   And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
   And waitUntil('#eg01WaitId', '!_.disabled')
-  And waitUntilText('#eg01WaitId', 'APPEARED')
-  And waitUntilText('body', 'APPEARED')
-  And waitUntilEnabled('#eg01WaitId')
+  
   And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
   And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
   And match script('#eg01WaitId', '!_.disabled') == true

@@ -50,7 +50,7 @@ public class MissingElement implements Element {
     @Override
     public boolean isEnabled() {
         return true; // hmm
-    }        
+    }
 
     @Override
     public Element focus() {
@@ -70,12 +70,12 @@ public class MissingElement implements Element {
     @Override
     public Element submit() {
         return this;
-    }        
+    }
 
     @Override
     public Mouse mouse() {
         return null;
-    }        
+    }
 
     @Override
     public Element input(String text) {
@@ -86,7 +86,7 @@ public class MissingElement implements Element {
     public Element input(String[] values) {
         return this;
     }
-    
+
     @Override
     public Element select(String text) {
         return this;
@@ -100,13 +100,13 @@ public class MissingElement implements Element {
     @Override
     public Element switchFrame() {
         return this;
-    }        
+    }
 
     @Override
     public Element delay(int millis) {
         driver.delay(millis);
         return this;
-    }        
+    }
 
     @Override
     public Element waitFor() {
@@ -114,14 +114,14 @@ public class MissingElement implements Element {
     }
 
     @Override
-    public Element waitUntil(String expression) {
+    public Element waitForText(String text) {
         return this;
     }
 
     @Override
-    public Element waitUntilText(String text) {
+    public Element waitUntil(String expression) {
         return this;
-    }        
+    }
 
     @Override
     public Object script(String expression) {

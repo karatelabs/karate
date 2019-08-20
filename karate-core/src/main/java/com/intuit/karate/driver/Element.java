@@ -61,7 +61,7 @@ public interface Element {
     
     Element waitUntil(String expression);
     
-    Element waitUntilText(String text);
+    Element waitForText(String text);
     
     Object script(String expression);
     

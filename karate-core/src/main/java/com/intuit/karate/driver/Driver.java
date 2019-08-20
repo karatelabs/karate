@@ -149,6 +149,14 @@ public interface Driver {
         return getOptions().waitForUrl(this, expected);
     }
 
+    default Element waitForText(String locator, String expected) {
+        return waitUntil(locator, "_.textContent.includes('" + expected + "')");
+    }
+    
+    default Element waitForEnabled(String locator) {
+        return waitUntil(locator, "!_.disabled");
+    }    
+
     default Element waitForAny(String locator1, String locator2) {
         return getOptions().waitForAny(this, new String[]{locator1, locator2});
     }
@@ -160,18 +168,6 @@ public interface Driver {
     default Element waitUntil(String locator, String expression) {
         return getOptions().waitUntil(this, locator, expression);
     }
-
-    default Element waitUntilEnabled(String locator) {
-        return waitUntil(locator, "!_.disabled");
-    }
-    
-    default Element waitUntilText(String locator, String expected) {
-        return waitUntil(locator, "_.textContent.includes('" + expected + "')");
-    }
-    
-    default Element waitUntilText(String expected) {
-        return waitUntil("document", "_.textContent.includes('" + expected + "')");
-    }    
 
     default Object waitUntil(Supplier<Object> condition) {
         return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");

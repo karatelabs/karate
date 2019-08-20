@@ -117,10 +117,10 @@
       <a href="#retry"><code>retry()</code></a>
     | <a href="#waitfor"><code>waitFor()</code></a>    
     | <a href="#waitforany"><code>waitForAny()</code></a>
-    | <a href="#waitforurl"><code>waitForUrl()</code></a>    
-    | <a href="#waituntil"><code>waitUntil()</code></a>
-    | <a href="#waituntiltext"><code>waitUntilText()</code></a>
-    | <a href="#waituntilenabled"><code>waitUntilEnabled()</code></a>
+    | <a href="#waitforurl"><code>waitForUrl()</code></a>
+    | <a href="#waitfortext"><code>waitForText()</code></a>
+    | <a href="#waitforenabled"><code>waitForEnabled()</code></a>  
+    | <a href="#waituntil"><code>waitUntil()</code></a>    
     | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
     | <a href="#scripts"><code>scripts()</code></a>
@@ -814,6 +814,30 @@ Very handy for waiting for an expected URL change *and* asserting if it happened
 
 Also see [waits](#wait-api).
 
+## `waitForText()`
+This is just a convenience short-cut for `waitUntil(locator, "_.textContent.includes('" + expected + "')")` since it is so frequently needed. Note the use of the JavaScript [`String.includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) function to do a *text contains* match for convenience. The need to "wait until some text appears" is so common, and with this - you don't need to worry about dealing with white-space such as line-feeds and invisible tab characters.
+
+Of course, try not to use single-quotes within the string to be matched, or escape them using a back-slash (`\`) character.
+
+```cucumber
+* waitForText('#eg01WaitId', 'APPEARED')
+```
+
+And if you really need to scan the whole page for some text, you can use this, but it is better to be more specific for better performance:
+
+```cucumber
+* waitForText('body', 'APPEARED')
+```
+
+## `waitForEnabled()`
+This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` since it is so frequently needed:
+
+```cucumber
+And waitForEnabled('#someId').click()
+```
+
+Also see [waits](#wait-api).
+
 ## `waitFor()`
 This is typically used for the *first* element you need to interact with on a freshly loaded page. Use this in case a [`submit()`](#submit) for the previous action is un-reliable, see the section on [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit)
 
@@ -876,7 +900,7 @@ Wait for the JS expression to evaluate to `true`. Will poll using the [retry()](
 * waitUntil("document.readyState == 'complete'")
 ```
 
-## `waitUntil(locator,js)`
+### `waitUntil(locator,js)`
 A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut boolean-expression form that begins with an underscore (or "`!`"), and Karate will inject the JavaScript DOM element reference into a variable named "`_`".
 
 Here is a real-life example:
@@ -887,12 +911,12 @@ Here is a real-life example:
 And waitUntil('.alert-message', "_.innerHTML.includes('Some Text')")
 ```
 
-## Karate vs the Browser
+### Karate vs the Browser
 One thing you need to get used to is the "separation" between the code that is evaluated by Karate and the JavaScript that is sent to the *browser* (as a raw string) and evaluated. Pay attention to the fact that the [`includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) function you see in the above example - is pure JavaScript.
 
 The use of `includes()` is needed in this real-life example, because [`innerHTML()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML) can return leading and trailing white-space (such as line-feeds and tabs) - which would cause an exact "`==`" comparison in JavaScript to fail.
 
-But guess what - this example is baked into a Karate API, see [`waitUntilText()`](#waituntiltext).
+But guess what - this example is baked into a Karate API, see [`waitForText()`](#waitfortext).
 
 For an example of how JavaScript looks like on the "Karate side" see [Function Composition](#function-composition).
 
@@ -906,31 +930,7 @@ And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
 And waitUntil('#eg01WaitId', '!_.disabled')
 ```
 
-Also see [`waitUtntilEnabled`](#waituntilenabled) which is the preferred short-cut for the last example above, also look at the examples for [chaining](#chaining) and then the section on [waits](#wait-api).
-
-## `waitUntilText()`
-This is just a convenience short-cut for `waitUntil(locator, "_.textContent.includes('" + expected + "')")` since it is so frequently needed. Note the use of [`includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) for a "string contains" match for convenience. Because the need to "wait until some text appears" is so common, and you don't need to worry about dealing with white-space such as line-feeds and invisible tab characters.
-
-Of course, try not to use single-quotes within the string to be matched, or escape them using a back-slash (`\`) character.
-
-```cucumber
-* waitUntilText('#eg01WaitId', 'APPEARED')
-```
-
-And if you really need to scan the whole page for some text, you can use this:
-
-```cucumber
-* waitUntilText('body', 'APPEARED')
-```
-
-## `waitUntilEnabled()`
-This is just a convenience short-cut for `waitUntil(locator, '!_.disabled')` since it is so frequently needed:
-
-```cucumber
-And waitUntilEnabled('#someId').click()
-```
-
-Also see [waits](#wait-api).
+Also see [`waitForEnabled()`](#waitforenabled) which is the preferred short-cut for the last example above, also look at the examples for [chaining](#chaining) and then the section on [waits](#wait-api).
 
 ### `waitUntil(function)`
 A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
@@ -958,7 +958,7 @@ Then match searchResults contains 'karate-core/src/main/resources/karate-logo.pn
 
 Also see [waits](#wait-api).
 
-### Function Composition
+## Function Composition
 The above example can be re-factored in a very elegant way as follows, using Karate's [native support for JavaScript](https://github.com/intuit/karate#javascript-functions):
 
 ```cucumber
@@ -1017,11 +1017,11 @@ Script | Description
 [`waitFor('#myId')`](#waitfor) | waits for an element as described above
 `retry(10).waitFor('#myId')` | like the above, but temporarily over-rides the settings to wait for a [longer time](#retry-actions), and this can be done for *all* the below examples as well
 [`waitForUrl('google.com')`](#waitforurl) | for convenience, this uses a string *contains* match - so for example you can omit the `http` or `https` prefix
+[`waitForText('#myId', 'appeared')`](#waitfortext) | frequently needed short-cut for waiting until a string appears - and this uses a "string contains" match for convenience
+[`waitForEnabled('#mySubmit')`](#waitforenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
 [`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does, handle it - for e.g. to get rid of an ad popup or dialog
 [`waitUntil(expression)`](#waituntil) | wait until *any* user defined JavaScript statement to evaluate to `true` in the browser 
 [`waitUntil(function)`](#waituntilfunction) | use custom logic to handle *any* kind of situation where you need to wait, *and* use other API calls if needed
-[`waitUntilText()`](#waituntiltext) | frequently needed short-cut for waiting until a string appears - and this uses a "string contains" match for convenience
-[`waitUntilEnabled()`](#waituntilenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
 
 Also see the examples for [chaining](#chaining).
 

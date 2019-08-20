@@ -104,7 +104,7 @@ public class DriverElement implements Element {
     @Override
     public Element input(String[] values) {
         return driver.input(locator, values);
-    }        
+    }
 
     @Override
     public Element select(String text) {
@@ -135,14 +135,14 @@ public class DriverElement implements Element {
     }
 
     @Override
-    public Element waitUntil(String expression) {
-        return driver.waitUntil(locator, expression); // will throw exception if not found
+    public Element waitForText(String text) {
+        return driver.waitForText(locator, text);
     }
 
     @Override
-    public Element waitUntilText(String text) {
-        return driver.waitUntilText(locator, text);
-    }       
+    public Element waitUntil(String expression) {
+        return driver.waitUntil(locator, expression); // will throw exception if not found
+    }
 
     @Override
     public Object script(String expression) {
