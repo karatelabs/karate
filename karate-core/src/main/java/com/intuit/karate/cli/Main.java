@@ -64,11 +64,8 @@ public class Main {
         boolean isIntellij = command.contains("org.jetbrains");
         RunnerOptions options = RunnerOptions.parseCommandLine(command);
         String targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
-        if (options.getThreads() == 1) {
-            runNormal(options, targetDir, isIntellij);
-        } else {
-            runParallel(options, targetDir, isIntellij);
-        }
+        runParallel(options, targetDir, isIntellij);
+        // runNormal(options, targetDir, isIntellij);
     }
 
     private static void runNormal(RunnerOptions options, String targetDir, boolean isIntellij) {
