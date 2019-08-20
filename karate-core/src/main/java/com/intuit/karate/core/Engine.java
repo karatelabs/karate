@@ -458,6 +458,10 @@ public class Engine {
             item.put("content", content);
             item.put("start", sr.getStartTime());
             item.put("end", sr.getEndTime());
+            String scenarioTitle = StringUtils.trimToEmpty(s.getName());
+            if (!scenarioTitle.isEmpty()) {
+                content = content + " " + scenarioTitle;
+            }
             item.put("title", content + " " + sr.getStartTime() + "-" + sr.getEndTime());
         }
         List<Map> groups = new ArrayList(groupsMap.size());
