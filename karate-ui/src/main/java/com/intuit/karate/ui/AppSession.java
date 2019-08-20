@@ -78,7 +78,7 @@ public class AppSession {
         logPanel = new LogPanel();
         appender = logPanel.appender;
         FeatureContext featureContext = FeatureContext.forFeatureAndWorkingDir(env, feature, workingDir);
-        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);       
         featureUnit.init();
         featureOutlinePanel = new FeatureOutlinePanel(this);

@@ -401,7 +401,7 @@ public abstract class WebDriver implements Driver {
     }
 
     @Override
-    public void setCookie(Map<String, Object> cookie) {
+    public void cookie(Map<String, Object> cookie) {
         http.path("cookie").post(Collections.singletonMap("cookie", cookie));
     }
 

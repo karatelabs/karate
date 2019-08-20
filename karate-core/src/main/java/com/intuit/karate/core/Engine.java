@@ -104,7 +104,7 @@ public class Engine {
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
-        ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        ExecutionContext exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
         unit.run();
         return exec.result;

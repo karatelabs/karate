@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cli.Main;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
@@ -42,14 +43,14 @@ public class IdeUtilsTest {
     public void testExtractingFeaturePathFromCommandLine() {
         String expected = "classpath:com/intuit/karate/junit4/demos/users.feature";
         String cwd = "/Users/pthomas3/dev/zcode/karate/karate-junit4";
-        StringUtils.Pair path = IdeUtils.parseCommandLine(INTELLIJ1, cwd);
+        StringUtils.Pair path = Main.parseCommandLine(INTELLIJ1, cwd);
         assertEquals(expected, path.left);
         assertEquals("^get users and then get first by id$", path.right);
-        path = IdeUtils.parseCommandLine(ECLIPSE1, cwd);
+        path = Main.parseCommandLine(ECLIPSE1, cwd);
         assertEquals(expected, path.left);
-        path = IdeUtils.parseCommandLine(INTELLIJ2, cwd);
+        path = Main.parseCommandLine(INTELLIJ2, cwd);
         assertEquals("classpath:com/intuit/karate/junit4/demos", path.left);
-        path = IdeUtils.parseCommandLine(INTELLIJ3, cwd);
+        path = Main.parseCommandLine(INTELLIJ3, cwd);
         assertEquals("classpath:com/intuit/karate/junit4/demos/users.feature", path.left);
         assertEquals("^create and retrieve a cat$", path.right);
     }

@@ -131,7 +131,7 @@
   <th>Cookies</th>
   <td>
       <a href="#cookie"><code>cookie()</code></a>
-    | <a href="#drivercookie"><code>driver.cookie</code></a>
+      <a href="#cookieset"><code>cookie(set)</code></a>
     | <a href="#drivercookies"><code>driver.cookies</code></a>
     | <a href="#deletecookie"><code>deleteCookie()</code></a>
     | <a href="#clearcookies"><code>clearCookies()</code></a>
@@ -1091,17 +1091,20 @@ Normal page reload, does *not* clear cache.
 
 ## `fullscreen()`
 
-## `driver.cookie` 
-Set a cookie:
+## `cookie(set)`
+Set a cookie. The method argument is JSON, so that you can pass more data in addition to the `value` such as `domain` and `url`. Most servers expect the `domain` to be set correctly like this:
 
 ```cucumber
-Given def cookie2 = { name: 'hello', value: 'world' }
-When driver.cookie = cookie2
-Then match driver.cookies contains '#(^cookie2)'
+Given def myCookie = { name: 'hello', value: 'world', domain: '.mycompany.com' }
+When cookie(myCookie)
+Then match driver.cookies contains '#(^myCookie)'
 ```
 
+> Note that you can do the above as a one-liner like this: `* cookie({ name: 'hello', value: 'world' })`, just keep in mind here that then it would follow the rules of [Enclosed JavaScript](https://github.com/intuit/karate#enclosed-javascript) (not [Embedded Expressions](https://github.com/intuit/karate#embedded-expressions))
+
 ## `cookie()`
-Get a cookie by name:
+Get a cookie by name. Note how Karate's [`match`](https://github.com/intuit/karate#match) syntax comes in handy.
+
 ```cucumber
 * def cookie1 = { name: 'foo', value: 'bar' }
 And match driver.cookies contains '#(^cookie1)'

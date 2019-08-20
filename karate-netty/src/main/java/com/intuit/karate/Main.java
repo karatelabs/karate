@@ -25,7 +25,6 @@ package com.intuit.karate;
 
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.netty.FeatureServer;
-import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.ui.App;
 import java.io.File;
 import java.util.ArrayList;
@@ -88,15 +87,18 @@ public class Main implements Callable<Void> {
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> tests;
-    
+
     @Option(names = {"-n", "--name"}, description = "scenario name")
-    String name;    
+    String name;
 
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
 
     @Option(names = {"-u", "--ui"}, description = "show user interface")
-    boolean ui;   
+    boolean ui;
+    
+    @Option(names = {"-C", "--clean"}, description = "clean output directory")
+    boolean clean;       
 
     public static void main(String[] args) {
         boolean isOutputArg = false;
@@ -141,6 +143,9 @@ public class Main implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {
+        if (clean) {
+            org.apache.commons.io.FileUtils.deleteDirectory(new File(output));
+        }
         if (tests != null) {
             if (ui) {
                 App.main(new String[]{new File(tests.get(0)).getAbsolutePath(), env});

@@ -21,8 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate;
+package com.intuit.karate.cli;
 
+import com.intuit.karate.FileUtils;
+import com.intuit.karate.Resource;
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+import com.intuit.karate.RunnerOptions;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
@@ -43,30 +49,49 @@ import java.util.regex.Pattern;
  *
  * @author pthomas3
  */
-public class IdeUtils {
+public class Main {
 
     private static final Pattern COMMAND_NAME = Pattern.compile("--name (.+?\\$)");
 
-    public static void exec(String[] args) {
-        String command = System.getProperty("sun.java.command");
+    public static void main(String[] args) {
+        String command;
+        if (args.length > 0) {
+            command = StringUtils.join(args, ' ');
+        } else {
+            command = System.getProperty("sun.java.command");
+        }
         System.out.println("command: " + command);
         boolean isIntellij = command.contains("org.jetbrains");
         RunnerOptions options = RunnerOptions.parseCommandLine(command);
-        String name = options.getName();
-        List<String> features = options.getFeatures();
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        List<Resource> resources = FileUtils.scanForFeatureFiles(features, cl);
+        String targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
+        if (options.getThreads() == 1) {
+            runNormal(options, targetDir, isIntellij);
+        } else {
+            runParallel(options, targetDir, isIntellij);
+        }
+    }
+
+    private static void runNormal(RunnerOptions options, String targetDir, boolean isIntellij) {
         String tagSelector = Tags.fromKarateOptionsTags(options.getTags());
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), cl);
         for (Resource resource : resources) {
             Feature feature = FeatureParser.parse(resource);
-            feature.setCallName(name);
+            feature.setCallName(options.getName());
             feature.setCallLine(resource.getLine());
             FeatureResult result = Engine.executeFeatureSync(null, feature, tagSelector, null);
             if (isIntellij) {
                 log(result);
             }
-            Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", result, null);
-        }        
+            Engine.saveResultHtml(targetDir, result, null);
+        }
+    }
+
+    private static void runParallel(RunnerOptions ro, String targetDir, boolean isIntellij) {
+        CliExecutionHook hook = new CliExecutionHook(targetDir, isIntellij);
+        Runner.path(ro.getFeatures())
+                .tags(ro.getTags()).scenarioName(ro.getName())
+                .hook(hook).parallel(ro.getThreads());
     }
 
     public static StringUtils.Pair parseCommandLine(String commandLine, String cwd) {
@@ -149,7 +174,7 @@ public class IdeUtils {
         }
     }
 
-    private static void log(FeatureResult fr) {
+    public static void log(FeatureResult fr) {
         Feature f = fr.getFeature();
         String uri = fr.getDisplayUri();
         String featureName = Feature.KEYWORD + ": " + escape(f.getName());

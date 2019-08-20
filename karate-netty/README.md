@@ -218,6 +218,13 @@ The output directory where the `karate.log` file, JUnit XML and Cucumber report 
 java -jar karate.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
 ```
 
+#### Clean
+The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` option.
+
+```
+java -jar karate.jar -T 5 -t ~@ignore -C src/features
+```
+
 #### UI
 The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
 ```

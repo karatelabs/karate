@@ -51,5 +51,6 @@ Scenario Outline:
     | foo + 2 |
 
 Scenario: 'after' hooks do not apply to called features
-    # 'afterScenario' and 'afterFeature' are NOT supported in 'called' features
+    # 'afterScenario' and 'afterFeature' only work in the "top-level" feature
+    #  and are NOT supported in 'called' features
     * def result = call read('called.feature')

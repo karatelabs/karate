@@ -55,6 +55,9 @@ public class RunnerOptions {
 
     @CommandLine.Option(names = {"-t", "--tags"}, description = "tags")
     List<String> tags;
+    
+    @CommandLine.Option(names = {"-T", "--threads"}, description = "threads")
+    int threads = 1;    
 
     @CommandLine.Option(names = {"-", "--plugin"}, description = "plugin (not supported)")
     List<String> plugins;
@@ -80,6 +83,10 @@ public class RunnerOptions {
     public List<String> getFeatures() {
         return features;
     }
+
+    public int getThreads() {
+        return threads;
+    }        
 
     public static RunnerOptions parseStringArgs(String[] args) {
         RunnerOptions options = CommandLine.populateCommand(new RunnerOptions(), args);

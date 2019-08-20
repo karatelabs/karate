@@ -53,7 +53,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         this.feature = feature;
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true);
-        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
         featureUnit.init();
         List<ScenarioExecutionUnit> selected = new ArrayList();

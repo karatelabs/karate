@@ -23,8 +23,6 @@
  */
 package cucumber.api.cli;
 
-import com.intuit.karate.IdeUtils;
-
 /**
  * replaces cucumber-jvm code
  *
@@ -33,7 +31,7 @@ import com.intuit.karate.IdeUtils;
 public class Main {
 
     public static void main(String[] args) {
-        IdeUtils.exec(args);
+        com.intuit.karate.cli.Main.main(args);
         System.exit(0);
     }
 

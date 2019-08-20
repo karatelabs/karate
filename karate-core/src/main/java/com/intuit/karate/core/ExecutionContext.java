@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.CallContext;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.Results;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -35,6 +36,7 @@ import java.util.function.Consumer;
  */
 public class ExecutionContext {      
 
+    public final Results results;
     public final long startTime;
     public final FeatureContext featureContext;
     public final CallContext callContext;
@@ -45,16 +47,17 @@ public class ExecutionContext {
 
     private final File reportDir;
 
-    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
+    public ExecutionContext(Results results, long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
                             Consumer<Runnable> system, ExecutorService scenarioExecutor) {
-        this(startTime, featureContext, callContext, reportDirString, system, scenarioExecutor, null);
+        this(results, startTime, featureContext, callContext, reportDirString, system, scenarioExecutor, null);
     }
 
-    public ExecutionContext(long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
+    public ExecutionContext(Results results, long startTime, FeatureContext featureContext, CallContext callContext, String reportDirString,
                             Consumer<Runnable> system, ExecutorService scenarioExecutor, ClassLoader classLoader) {
+        this.results = results;
         this.scenarioExecutor = scenarioExecutor;
         this.startTime = startTime;
-        result = new FeatureResult(featureContext.feature);
+        result = new FeatureResult(results, featureContext.feature);
         this.featureContext = featureContext;
         this.callContext = callContext;
         this.classLoader = classLoader;

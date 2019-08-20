@@ -80,14 +80,14 @@ public interface Driver {
     }
 
     Map<String, Object> cookie(String name);
+    
+    void cookie(Map<String, Object> cookie);
 
     void deleteCookie(String name);
 
     void clearCookies();
 
-    List<Map> getCookies(); // getter
-
-    void setCookie(Map<String, Object> cookie); // setter
+    List<Map> getCookies(); // getter    
 
     void dialog(boolean accept);
 

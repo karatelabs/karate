@@ -68,6 +68,16 @@ public class Runner {
             this.paths.addAll(Arrays.asList(paths));
             return this;
         }
+        
+        public Builder path(List<String> paths) {
+            this.paths.addAll(paths);
+            return this;
+        }   
+        
+        public Builder tags(List<String> tags) {
+            this.tags.addAll(tags);
+            return this;
+        }        
 
         public Builder tags(String... tags) {
             this.tags.addAll(Arrays.asList(tags));
@@ -108,7 +118,7 @@ public class Runner {
             return resources;
         }
 
-        Results parallel(int threadCount) {
+        public Results parallel(int threadCount) {
             this.threadCount = threadCount;
             return Runner.parallel(this);
         }
@@ -118,7 +128,12 @@ public class Runner {
     public static Builder path(String... paths) {
         Builder builder = new Builder();
         return builder.path(paths);
-    }
+    }   
+    
+    public static Builder path(List<String> paths) {
+        Builder builder = new Builder();
+        return builder.path(paths);
+    }     
 
     //==========================================================================
     //
@@ -200,7 +215,7 @@ public class Runner {
                 feature.setCallLine(resource.getLine());
                 FeatureContext featureContext = new FeatureContext(null, feature, options.tagSelector());
                 CallContext callContext = CallContext.forAsync(feature, options.hooks, null, false);
-                ExecutionContext execContext = new ExecutionContext(results.getStartTime(), featureContext, callContext, reportDir,
+                ExecutionContext execContext = new ExecutionContext(results, results.getStartTime(), featureContext, callContext, reportDir,
                         r -> featureExecutor.submit(r), scenarioExecutor, Thread.currentThread().getContextClassLoader());
                 featureResults.add(execContext.result);
                 FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
@@ -284,7 +299,7 @@ public class Runner {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(null, feature, null);
         CallContext callContext = CallContext.forAsync(feature, Collections.singletonList(hook), arg, true);
-        ExecutionContext executionContext = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, system, null);
+        ExecutionContext executionContext = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, system, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.setNext(next);
         system.accept(exec);

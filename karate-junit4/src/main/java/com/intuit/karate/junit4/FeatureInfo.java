@@ -71,7 +71,7 @@ public class FeatureInfo implements ExecutionHook {
         description = Description.createSuiteDescription(getFeatureName(feature), feature.getResource().getPackageQualifiedName());
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true, this);
-        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         unit = new FeatureExecutionUnit(exec);
         unit.init();
         for (ScenarioExecutionUnit u : unit.getScenarioExecutionUnits()) {

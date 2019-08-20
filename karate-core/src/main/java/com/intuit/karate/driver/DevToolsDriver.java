@@ -640,7 +640,7 @@ public abstract class DevToolsDriver implements Driver {
     }
 
     @Override
-    public void setCookie(Map<String, Object> cookie) {
+    public void cookie(Map<String, Object> cookie) {
         if (cookie.get("url") == null && cookie.get("domain") == null) {
             cookie = new HashMap(cookie); // don't mutate test
             cookie.put("url", currentUrl);
