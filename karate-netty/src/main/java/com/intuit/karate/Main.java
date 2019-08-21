@@ -23,6 +23,7 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cli.CliExecutionHook;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.ui.App;
@@ -161,7 +162,10 @@ public class Main implements Callable<Void> {
                 List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
                 // this avoids mixing json created by other means which will break the cucumber report
                 String jsonOutputDir = output + File.separator + ScriptBindings.SUREFIRE_REPORTS;
-                Results results = Runner.parallel(tags, fixed, name, null, threads, jsonOutputDir);
+                CliExecutionHook hook = new CliExecutionHook(false, jsonOutputDir, false);
+                Results results = Runner
+                        .path(fixed).tags(tags).scenarioName(name)
+                        .reportDir(jsonOutputDir).hook(hook).parallel(threads);
                 Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
@@ -173,7 +177,11 @@ public class Main implements Callable<Void> {
                 }
             }
             return null;
-        } else if (ui || mock == null) {
+        }
+        if (clean) {
+            return null;
+        }
+        if (ui || mock == null) {
             App.main(new String[]{});
             return null;
         }

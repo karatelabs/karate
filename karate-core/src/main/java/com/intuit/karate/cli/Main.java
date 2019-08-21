@@ -85,7 +85,7 @@ public class Main {
     }
 
     private static void runParallel(RunnerOptions ro, String targetDir, boolean isIntellij) {
-        CliExecutionHook hook = new CliExecutionHook(targetDir, isIntellij);
+        CliExecutionHook hook = new CliExecutionHook(true, targetDir, isIntellij);
         Runner.path(ro.getFeatures())
                 .tags(ro.getTags()).scenarioName(ro.getName())
                 .hook(hook).parallel(ro.getThreads());

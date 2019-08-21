@@ -40,11 +40,13 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class CliExecutionHook implements ExecutionHook {
 
+    private final boolean htmlReport;
     private final String targetDir;
     private final boolean intellij;
     private final ReentrantLock LOCK = new ReentrantLock();
 
-    public CliExecutionHook(String targetDir, boolean intellij) {
+    public CliExecutionHook(boolean htmlReport, String targetDir, boolean intellij) {
+        this.htmlReport = htmlReport;
         this.targetDir = targetDir;
         this.intellij = intellij;
     }
@@ -69,7 +71,9 @@ public class CliExecutionHook implements ExecutionHook {
         if (intellij) {
             Main.log(result);
         }
-        Engine.saveResultHtml(targetDir, result, null);
+        if (htmlReport) {
+            Engine.saveResultHtml(targetDir, result, null);
+        }
         if (LOCK.tryLock()) {
             Engine.saveStatsJson(targetDir, result.getResults(), null);
             LOCK.unlock();

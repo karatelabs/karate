@@ -70,12 +70,16 @@ public class Runner {
         }
         
         public Builder path(List<String> paths) {
-            this.paths.addAll(paths);
+            if (paths != null) {
+                this.paths.addAll(paths);
+            }
             return this;
         }   
         
         public Builder tags(List<String> tags) {
-            this.tags.addAll(tags);
+            if (tags != null) {
+                this.tags.addAll(tags);
+            }
             return this;
         }        
 
