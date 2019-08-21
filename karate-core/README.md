@@ -379,11 +379,11 @@ Locator | Description
 ------- | -----------
 `click('{a}Click Me')` | the first `<a>` where the text-content is *exactly*: `Click Me`
 `click('{^span}Click')` | the first `<span>` where the text-content *contains*: `Click`
-`click('{div:1}Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
+`click('{div:2}Click Me')` | the second `<div>` where the text-content is *exactly*: `Click Me`
 `click('{span/a}Click Me')` | the first `<a>` where a `<span>` is the immediate parent, and where the text-content is *exactly*: `Click Me`
-`click('{^*:3}Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Me`
+`click('{^*:4}Me')` | the fourth HTML element (of *any* tag name) where the text-content *contains*: `Me`
 
-Note that "`{:3}`" can be used as a short-cut instead of "`{*:3}`".
+Note that "`{:4}`" can be used as a short-cut instead of "`{*:4}`".
 
 You can experiment by using XPath snippets like the "`span/a`" seen above for even more "narrowing down", but try to expand the "scope modifier" (the part within curly braces) only when you need to do "de-duping" in case the same *user-facing* text appears multiple times on a page.
 

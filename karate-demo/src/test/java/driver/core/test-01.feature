@@ -104,11 +104,11 @@ Scenario Outline: using <config>
   * match text('#eg03Result') == 'SPAN'
   * click('{div}Click Me')
   * match text('#eg03Result') == 'DIV'
-  * click('{^div:1}Click')
+  * click('{^div:2}Click')
   * match text('#eg03Result') == 'SECOND'
   * click('{span/a}Click Me')
   * match text('#eg03Result') == 'NESTED'
-  * click('{:3}Click Me')
+  * click('{:4}Click Me')
   * match text('#eg03Result') == 'BUTTON'
 
   # find all

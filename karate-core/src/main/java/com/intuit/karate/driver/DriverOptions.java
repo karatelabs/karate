@@ -280,7 +280,7 @@ public class DriverOptions {
         if (!tag.startsWith("/")) {
             tag = "//" + tag;
         }
-        String suffix = index == 0 ? "" : "[" + (index + 1) + "]";
+        String suffix = index == 0 ? "" : "[" + index + "]";
         if (contains) {
             return tag + "[contains(normalize-space(text()),'" + text + "')]" + suffix;
         } else {
