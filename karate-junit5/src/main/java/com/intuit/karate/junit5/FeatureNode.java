@@ -76,8 +76,7 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public DynamicTest next() {
         ScenarioExecutionUnit unit = iterator.next();
-        String displayName = unit.scenario.getDisplayMeta() + " " + unit.scenario.getName();
-        return DynamicTest.dynamicTest(displayName, () -> {
+        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), () -> {
             featureUnit.run(unit);
             boolean failed = unit.result.isFailed();
             if (unit.isLast() || failed) {

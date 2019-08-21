@@ -24,22 +24,11 @@
 package com.intuit.karate.cli;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.Resource;
-import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.Feature;
-import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.Scenario;
-import com.intuit.karate.core.ScenarioResult;
-import com.intuit.karate.core.Tags;
 import java.io.File;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -65,23 +54,6 @@ public class Main {
         RunnerOptions options = RunnerOptions.parseCommandLine(command);
         String targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
         runParallel(options, targetDir, isIntellij);
-        // runNormal(options, targetDir, isIntellij);
-    }
-
-    private static void runNormal(RunnerOptions options, String targetDir, boolean isIntellij) {
-        String tagSelector = Tags.fromKarateOptionsTags(options.getTags());
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        List<Resource> resources = FileUtils.scanForFeatureFiles(options.getFeatures(), cl);
-        for (Resource resource : resources) {
-            Feature feature = FeatureParser.parse(resource);
-            feature.setCallName(options.getName());
-            feature.setCallLine(resource.getLine());
-            FeatureResult result = Engine.executeFeatureSync(null, feature, tagSelector, null);
-            if (isIntellij) {
-                log(result);
-            }
-            Engine.saveResultHtml(targetDir, result, null);
-        }
     }
 
     private static void runParallel(RunnerOptions ro, String targetDir, boolean isIntellij) {
@@ -89,6 +61,7 @@ public class Main {
         Runner.path(ro.getFeatures())
                 .tags(ro.getTags()).scenarioName(ro.getName())
                 .hook(hook).parallel(ro.getThreads());
+        hook.close();
     }
 
     public static StringUtils.Pair parseCommandLine(String commandLine, String cwd) {
@@ -128,69 +101,6 @@ public class Main {
             path = FileUtils.CLASSPATH_COLON + path.substring(FileUtils.SRC_TEST_RESOURCES.length() + 1);
         }
         return StringUtils.pair(path, name);
-    }
-
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSSZ");
-
-    private static final String TEAMCITY_PREFIX = "##teamcity";
-    private static final String TEMPLATE_TEST_STARTED = TEAMCITY_PREFIX + "[testStarted timestamp = '%s' locationHint = '%s' captureStandardOutput = 'true' name = '%s']";
-    private static final String TEMPLATE_TEST_FAILED = TEAMCITY_PREFIX + "[testFailed timestamp = '%s' details = '%s' message = '%s' name = '%s' %s]";
-    private static final String TEMPLATE_SCENARIO_FAILED = TEAMCITY_PREFIX + "[customProgressStatus timestamp='%s' type='testFailed']";
-    private static final String TEMPLATE_TEST_PENDING = TEAMCITY_PREFIX + "[testIgnored name = '%s' message = 'Skipped step' timestamp = '%s']";
-    private static final String TEMPLATE_TEST_FINISHED = TEAMCITY_PREFIX + "[testFinished timestamp = '%s' duration = '%s' name = '%s']";
-    private static final String TEMPLATE_ENTER_THE_MATRIX = TEAMCITY_PREFIX + "[enteredTheMatrix timestamp = '%s']";
-    private static final String TEMPLATE_TEST_SUITE_STARTED = TEAMCITY_PREFIX + "[testSuiteStarted timestamp = '%s' locationHint = 'file://%s' name = '%s']";
-    private static final String TEMPLATE_TEST_SUITE_FINISHED = TEAMCITY_PREFIX + "[testSuiteFinished timestamp = '%s' name = '%s']";
-    private static final String TEMPLATE_SCENARIO_COUNTING_STARTED = TEAMCITY_PREFIX + "[customProgressStatus testsCategory = 'Scenarios' count = '%s' timestamp = '%s']";
-    private static final String TEMPLATE_SCENARIO_COUNTING_FINISHED = TEAMCITY_PREFIX + "[customProgressStatus testsCategory = '' count = '0' timestamp = '%s']";
-    private static final String TEMPLATE_SCENARIO_STARTED = TEAMCITY_PREFIX + "[customProgressStatus type = 'testStarted' timestamp = '%s']";
-    private static final String TEMPLATE_SCENARIO_FINISHED = TEAMCITY_PREFIX + "[customProgressStatus type = 'testFinished' timestamp = '%s']";
-
-    private static String escape(String source) {
-        if (source == null) {
-            return "";
-        }
-        return source.replace("|", "||").replace("\n", "|n").replace("\r", "|r").replace("'", "|'").replace("[", "|[").replace("]", "|]");
-    }
-
-    private static String getCurrentTime() {
-        return DATE_FORMAT.format(new Date());
-    }
-
-    private static void log(String s) {
-        System.out.println(s);
-    }
-
-    private static StringUtils.Pair details(Throwable error) {
-        String fullMessage = error.getMessage().replace("\r", "").replace("\t", "  ");
-        String[] messageInfo = fullMessage.split("\n", 2);
-        if (messageInfo.length == 2) {
-            return StringUtils.pair(messageInfo[0].trim(), messageInfo[1].trim());
-        } else {
-            return StringUtils.pair(fullMessage, "");
-        }
-    }
-
-    public static void log(FeatureResult fr) {
-        Feature f = fr.getFeature();
-        String uri = fr.getDisplayUri();
-        String featureName = Feature.KEYWORD + ": " + escape(f.getName());
-        log(String.format(TEMPLATE_ENTER_THE_MATRIX, getCurrentTime()));
-        log(String.format(TEMPLATE_SCENARIO_COUNTING_STARTED, 0, getCurrentTime()));
-        log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), uri + ":" + f.getLine(), featureName));
-        for (ScenarioResult sr : fr.getScenarioResults()) {
-            Scenario s = sr.getScenario();
-            String scenarioName = s.getKeyword() + ": " + escape(s.getName());
-            log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
-            log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), uri + ":" + s.getLine(), scenarioName));
-            if (sr.isFailed()) {
-                StringUtils.Pair error = details(sr.getError());
-                log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), scenarioName, ""));
-            }
-            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), sr.getDurationNanos() / 1000000, scenarioName));
-        }
-        log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), featureName));
-        log(String.format(TEMPLATE_SCENARIO_COUNTING_FINISHED, getCurrentTime()));
     }
 
 }

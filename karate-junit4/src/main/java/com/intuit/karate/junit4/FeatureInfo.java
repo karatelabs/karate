@@ -57,18 +57,13 @@ public class FeatureInfo implements ExecutionHook {
         this.notifier = notifier;
     }
 
-    private static String getFeatureName(Feature feature) {
-        return "[" + feature.getResource().getFileNameWithoutExtension() + "]";
-    }
-
     public static Description getScenarioDescription(Scenario scenario) {
-        String featureName = getFeatureName(scenario.getFeature());
-        return Description.createTestDescription(featureName, scenario.getDisplayMeta() + ' ' + scenario.getName());
+        return Description.createTestDescription(scenario.getFeature().getNameForReport(), scenario.getNameForReport());
     }
 
     public FeatureInfo(Feature feature, String tagSelector) {
         this.feature = feature;
-        description = Description.createSuiteDescription(getFeatureName(feature), feature.getResource().getPackageQualifiedName());
+        description = Description.createSuiteDescription(feature.getNameForReport(), feature.getResource().getPackageQualifiedName());
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true, this);
         exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);

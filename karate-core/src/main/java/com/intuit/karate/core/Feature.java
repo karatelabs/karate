@@ -64,6 +64,14 @@ public class Feature {
         return background != null && background.getSteps() != null;
     }
 
+    public String getNameForReport() {
+        if (name == null) {
+            return "[" + resource.getFileNameWithoutExtension() + "]";
+        } else {
+            return "[" + resource.getFileNameWithoutExtension() + "] " + name;
+        }
+    }
+
     // the logger arg is important and can be coming from the UI
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
         List<ScenarioExecutionUnit> units = new ArrayList();
@@ -226,8 +234,8 @@ public class Feature {
 
     public void setCallLine(int callLine) {
         this.callLine = callLine;
-    }    
-    
+    }
+
     public List<String> getLines() {
         return lines;
     }

@@ -77,7 +77,7 @@ public class ScenarioPanel extends BorderPane {
         VBox header = new VBox(App.PADDING);
         header.setPadding(App.PADDING_VER);
         setTop(header);
-        String headerText = "Scenario: " + unit.scenario.getDisplayMeta() + " " + unit.scenario.getName();
+        String headerText = "Scenario: " + unit.scenario.getNameForReport();
         Label headerLabel = new Label(headerText);
         header.getChildren().add(headerLabel);
         HBox hbox = new HBox(App.PADDING);

@@ -166,6 +166,7 @@ public class Main implements Callable<Void> {
                 Results results = Runner
                         .path(fixed).tags(tags).scenarioName(name)
                         .reportDir(jsonOutputDir).hook(hook).parallel(threads);
+                hook.close();
                 Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
