@@ -29,6 +29,7 @@ import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public final Scenario scenario;
     private final ExecutionContext exec;
+    private final Collection<ExecutionHook> hooks;
     public final ScenarioResult result;
     private boolean executed = false;
 
@@ -51,12 +53,12 @@ public class ScenarioExecutionUnit implements Runnable {
     private StepResult lastStepResult;
     private Runnable next;
     private boolean last;
-    
+
     private LogAppender appender;
 
     public void setAppender(LogAppender appender) {
         this.appender = appender;
-    }        
+    }
 
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
         @Override
@@ -83,6 +85,7 @@ public class ScenarioExecutionUnit implements Runnable {
         if (exec.callContext.perfMode) {
             appender = LogAppender.NO_OP;
         }
+        hooks = exec.callContext.executionHooks;
     }
 
     public ScenarioContext getContext() {
@@ -116,7 +119,7 @@ public class ScenarioExecutionUnit implements Runnable {
 
     public boolean isLast() {
         return last;
-    }        
+    }
 
     public void init() {
         boolean initFailed = false;
@@ -131,11 +134,9 @@ public class ScenarioExecutionUnit implements Runnable {
             }
         }
         // before-scenario hook, important: actions.context will be null if initFailed
-        if (!initFailed && actions.context.executionHooks != null) {
+        if (!initFailed && hooks != null) {
             try {
-                for (ExecutionHook h : actions.context.executionHooks) {
-                    h.beforeScenario(scenario, actions.context);
-                }
+                hooks.forEach(h -> h.beforeScenario(scenario, actions.context));
             } catch (Exception e) {
                 initFailed = true;
                 result.addError("beforeScenario hook failed", e);
@@ -173,11 +174,21 @@ public class ScenarioExecutionUnit implements Runnable {
         actions = new StepActions(context);
     }
 
+    private StepResult afterStep(StepResult result) {
+        if (hooks != null) {
+            hooks.forEach(h -> h.afterStep(result, actions.context));
+        }
+        return result;
+    }
+
     // extracted for karate UI
     public StepResult execute(Step step) {
+        if (hooks != null) {
+            hooks.forEach(h -> h.beforeStep(step, actions.context));
+        }
         boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
         if (stopped) {
-            return new StepResult(hidden, step, aborted ? Result.passed(0) : Result.skipped(), null, null, null);
+            return afterStep(new StepResult(hidden, step, aborted ? Result.passed(0) : Result.skipped(), null, null, null));
         } else {
             Result execResult = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
@@ -192,7 +203,7 @@ public class ScenarioExecutionUnit implements Runnable {
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(appender.collect());
             boolean showLog = actions.context.getConfig().isShowLog();
-            return new StepResult(hidden, step, execResult, showLog ? stepLog : null, embeds, callResults);
+            return afterStep(new StepResult(hidden, step, execResult, showLog ? stepLog : null, embeds, callResults));
         }
     }
 
@@ -203,8 +214,8 @@ public class ScenarioExecutionUnit implements Runnable {
             actions.context.logLastPerfEvent(result.getFailureMessageForDisplay());
             // after-scenario hook
             actions.context.invokeAfterHookIfConfigured(false);
-            if (actions.context.executionHooks != null) {
-                actions.context.executionHooks.forEach(h -> h.afterScenario(result, actions.context));
+            if (hooks != null) {
+                hooks.forEach(h -> h.afterScenario(result, actions.context));
             }
             // stop browser automation if running
             actions.context.stop(lastStepResult);

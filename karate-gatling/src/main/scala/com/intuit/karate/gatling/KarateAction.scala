@@ -6,7 +6,7 @@ import java.util.function.Consumer
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.intuit.karate.Runner
+import com.intuit.karate.{Results, Runner}
 import com.intuit.karate.core._
 import com.intuit.karate.http.HttpRequestBuilder
 import io.gatling.commons.stats.{KO, OK}
@@ -55,11 +55,19 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
       override def beforeScenario(scenario: Scenario, ctx: ScenarioContext) = true
 
-      override def afterScenario(scenarioResult: ScenarioResult, scenarioContext: ScenarioContext) = {}
+      override def afterScenario(result: ScenarioResult, scenarioContext: ScenarioContext) = {}
 
-      override def beforeFeature(feature: Feature) = true
+      override def beforeFeature(feature: Feature, ctx: ExecutionContext) = true
 
-      override def afterFeature(featureResult: FeatureResult) = {}
+      override def afterFeature(result: FeatureResult, ctx: ExecutionContext) = {}
+
+      override def beforeAll(results: Results) = {}
+
+      override def afterAll(results: Results) = {}
+
+      override def beforeStep(step: Step, ctx: ScenarioContext) = {}
+
+      override def afterStep(result: StepResult, ctx: ScenarioContext) = {}
 
       override def getPerfEventName(req: HttpRequestBuilder, ctx: ScenarioContext): String = {
         val customName = protocol.nameResolver.apply(req, ctx)

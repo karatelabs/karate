@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.cli;
 
+import com.intuit.karate.Results;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Engine;
+import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
@@ -32,6 +34,8 @@ import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.Step;
+import com.intuit.karate.core.StepResult;
 import com.intuit.karate.http.HttpRequestBuilder;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
@@ -55,43 +59,54 @@ public class CliExecutionHook implements ExecutionHook {
         this.intellij = intellij;
         if (intellij) {
             log(String.format(TEMPLATE_ENTER_THE_MATRIX, getCurrentTime()));
-            log(String.format(TEMPLATE_SCENARIO_COUNTING_STARTED, 0, getCurrentTime()));
-        }
-    }
-
-    public void close() {
-        if (intellij) {
-            log(String.format(TEMPLATE_SCENARIO_COUNTING_FINISHED, getCurrentTime()));
         }
     }
 
     @Override
+    public void beforeAll(Results results) {
+
+    }   
+
+    @Override
+    public void afterAll(Results results) {
+
+    }      
+
+    @Override
+    public void beforeStep(Step step, ScenarioContext context) {
+
+    }
+
+    @Override
+    public void afterStep(StepResult result, ScenarioContext context) {
+
+    }        
+
+    @Override
     public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
-        if (intellij) {
-            log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
+        if (intellij && context.callDepth == 0) {
             Path absolutePath = scenario.getFeature().getResource().getPath().toAbsolutePath();
             log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), absolutePath + ":" + scenario.getLine(), scenario.getNameForReport()));
+            // log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
         }
         return true;
     }
 
     @Override
     public void afterScenario(ScenarioResult result, ScenarioContext context) {
-        if (intellij) {
+        if (intellij && context.callDepth == 0) {
             Scenario scenario = result.getScenario();
             if (result.isFailed()) {
                 StringUtils.Pair error = details(result.getError());
-                log(String.format(TEMPLATE_SCENARIO_FAILED, getCurrentTime()));
                 log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), scenario.getNameForReport(), ""));
             }
-            log(String.format(TEMPLATE_SCENARIO_FINISHED, getCurrentTime()));
             log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), result.getDurationNanos() / 1000000, scenario.getNameForReport()));
         }
     }
 
     @Override
-    public boolean beforeFeature(Feature feature) {
-        if (intellij) {
+    public boolean beforeFeature(Feature feature, ExecutionContext context) {
+        if (intellij && context.callContext.callDepth == 0) {
             Path absolutePath = feature.getResource().getPath().toAbsolutePath();
             log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), absolutePath + ":" + feature.getLine(), feature.getNameForReport()));
         }
@@ -99,7 +114,10 @@ public class CliExecutionHook implements ExecutionHook {
     }
 
     @Override
-    public void afterFeature(FeatureResult result) {
+    public void afterFeature(FeatureResult result, ExecutionContext context) {
+        if (context.callContext.callDepth > 0) {
+            return;
+        }
         if (intellij) {
             log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), result.getFeature().getNameForReport()));
         }
@@ -107,7 +125,7 @@ public class CliExecutionHook implements ExecutionHook {
             Engine.saveResultHtml(targetDir, result, null);
         }
         if (LOCK.tryLock()) {
-            Engine.saveStatsJson(targetDir, result.getResults(), null);
+            Engine.saveStatsJson(targetDir, context.results, null);
             LOCK.unlock();
         }
     }
@@ -152,15 +170,9 @@ public class CliExecutionHook implements ExecutionHook {
     private static final String TEAMCITY_PREFIX = "##teamcity";
     private static final String TEMPLATE_TEST_STARTED = TEAMCITY_PREFIX + "[testStarted timestamp = '%s' locationHint = '%s' captureStandardOutput = 'true' name = '%s']";
     private static final String TEMPLATE_TEST_FAILED = TEAMCITY_PREFIX + "[testFailed timestamp = '%s' details = '%s' message = '%s' name = '%s' %s]";
-    private static final String TEMPLATE_SCENARIO_FAILED = TEAMCITY_PREFIX + "[customProgressStatus timestamp='%s' type='testFailed']";
-    // private static final String TEMPLATE_TEST_PENDING = TEAMCITY_PREFIX + "[testIgnored name = '%s' message = 'Skipped step' timestamp = '%s']";
     private static final String TEMPLATE_TEST_FINISHED = TEAMCITY_PREFIX + "[testFinished timestamp = '%s' duration = '%s' name = '%s']";
     private static final String TEMPLATE_ENTER_THE_MATRIX = TEAMCITY_PREFIX + "[enteredTheMatrix timestamp = '%s']";
     private static final String TEMPLATE_TEST_SUITE_STARTED = TEAMCITY_PREFIX + "[testSuiteStarted timestamp = '%s' locationHint = 'file://%s' name = '%s']";
     private static final String TEMPLATE_TEST_SUITE_FINISHED = TEAMCITY_PREFIX + "[testSuiteFinished timestamp = '%s' name = '%s']";
-    private static final String TEMPLATE_SCENARIO_COUNTING_STARTED = TEAMCITY_PREFIX + "[customProgressStatus testsCategory = 'Scenarios' count = '%s' timestamp = '%s']";
-    private static final String TEMPLATE_SCENARIO_COUNTING_FINISHED = TEAMCITY_PREFIX + "[customProgressStatus testsCategory = '' count = '0' timestamp = '%s']";
-    private static final String TEMPLATE_SCENARIO_STARTED = TEAMCITY_PREFIX + "[customProgressStatus type = 'testStarted' timestamp = '%s']";
-    private static final String TEMPLATE_SCENARIO_FINISHED = TEAMCITY_PREFIX + "[customProgressStatus type = 'testFinished' timestamp = '%s']";
 
 }

@@ -24,6 +24,7 @@
 package com.intuit.karate.junit4;
 
 import com.intuit.karate.CallContext;
+import com.intuit.karate.Results;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.ExecutionHook;
@@ -35,6 +36,8 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.ScenarioResult;
+import com.intuit.karate.core.Step;
+import com.intuit.karate.core.StepResult;
 import com.intuit.karate.http.HttpRequestBuilder;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -88,7 +91,7 @@ public class FeatureInfo implements ExecutionHook {
     @Override
     public void afterScenario(ScenarioResult result, ScenarioContext context) {
         // if dynamic scenario outline background or a call
-        if (notifier == null || context.callDepth > 0) { 
+        if (notifier == null || context.callDepth > 0) {
             return;
         }
         Description scenarioDescription = getScenarioDescription(result.getScenario());
@@ -98,19 +101,40 @@ public class FeatureInfo implements ExecutionHook {
         // apparently this method should be always called
         // even if fireTestFailure was called
         notifier.fireTestFinished(scenarioDescription);
-     }
+    }
 
     @Override
-    public boolean beforeFeature(Feature feature) {
+    public boolean beforeFeature(Feature feature, ExecutionContext context) {
         return true;
     }
 
     @Override
-    public void afterFeature(FeatureResult result) {
-        
+    public void afterFeature(FeatureResult result, ExecutionContext context) {
+
+    }
+
+    @Override
+    public void beforeAll(Results results) {
+
+    }
+
+    @Override
+    public void afterAll(Results results) {
+
+    }
+
+    @Override
+    public void beforeStep(Step step, ScenarioContext context) {
+
+    }
+
+    @Override
+    public void afterStep(StepResult result, ScenarioContext context) {
+
     }    
     
     @Override
+
     public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
         return null;
     }

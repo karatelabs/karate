@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.Results;
 import com.intuit.karate.http.HttpRequestBuilder;
 
 /**
@@ -42,9 +43,17 @@ public interface ExecutionHook {
     
     void afterScenario(ScenarioResult result, ScenarioContext context);
     
-    boolean beforeFeature(Feature feature);
+    boolean beforeFeature(Feature feature, ExecutionContext context);
     
-    void afterFeature(FeatureResult result);
+    void afterFeature(FeatureResult result, ExecutionContext context);
+    
+    void beforeAll(Results results);
+    
+    void afterAll(Results results);
+    
+    void beforeStep(Step step, ScenarioContext context);
+    
+    void afterStep(StepResult result, ScenarioContext context);
     
     String getPerfEventName(HttpRequestBuilder req, ScenarioContext context);
     

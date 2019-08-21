@@ -201,11 +201,13 @@ public class Runner {
             new File(reportDir).mkdirs();
         }
         final String finalReportDir = reportDir;
-        // logger.info("Karate version: {}", FileUtils.getKarateVersion());
         Results results = Results.startTimer(threadCount);
+        results.setReportDir(reportDir);
+        if (options.hooks != null) {
+            options.hooks.forEach(h -> h.beforeAll(results));
+        }
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount, Executors.privilegedThreadFactory());
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
-        int executedFeatureCount = 0;
         List<Resource> resources = options.resources();
         try {
             int count = resources.size();
@@ -250,7 +252,7 @@ public class Runner {
                 int scenarioCount = result.getScenarioCount();
                 results.addToScenarioCount(scenarioCount);
                 if (scenarioCount != 0) {
-                    executedFeatureCount++;
+                    results.incrementFeatureCount();
                 }
                 results.addToFailCount(result.getFailedCount());
                 results.addToTimeTaken(result.getDurationMillis());
@@ -266,11 +268,12 @@ public class Runner {
             featureExecutor.shutdownNow();
             scenarioExecutor.shutdownNow();
         }
-        results.setFeatureCount(executedFeatureCount);
         results.printStats(threadCount);
         Engine.saveStatsJson(reportDir, results, null);
-        Engine.saveTimelineHtml(reportDir, results, null);
-        results.setReportDir(reportDir);
+        Engine.saveTimelineHtml(reportDir, results, null);        
+        if (options.hooks != null) {
+            options.hooks.forEach(h -> h.afterAll(results));
+        }        
         return results;
     }
 

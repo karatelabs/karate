@@ -61,7 +61,7 @@ public class FeatureExecutionUnit implements Runnable {
                 boolean hookResult;
                 Feature feature = exec.featureContext.feature;
                 try {
-                    hookResult = hook.beforeFeature(feature);
+                    hookResult = hook.beforeFeature(feature, exec);
                 } catch (Exception e) {
                     LOGGER.warn("execution hook beforeFeature failed, will skip: {} - {}", feature.getRelativePath(), e.getMessage());
                     hookResult = false;
@@ -122,7 +122,7 @@ public class FeatureExecutionUnit implements Runnable {
         if (exec.callContext.executionHooks != null) {
             for (ExecutionHook hook : exec.callContext.executionHooks) {
                 try {
-                    hook.afterFeature(exec.result);
+                    hook.afterFeature(exec.result, exec);
                 } catch (Exception e) {
                     LOGGER.warn("execution hook afterFeature failed: {} - {}",
                             exec.featureContext.feature.getRelativePath(), e.getMessage());

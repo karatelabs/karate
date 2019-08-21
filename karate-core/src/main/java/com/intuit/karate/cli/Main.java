@@ -51,17 +51,12 @@ public class Main {
         }
         System.out.println("command: " + command);
         boolean isIntellij = command.contains("org.jetbrains");
-        RunnerOptions options = RunnerOptions.parseCommandLine(command);
+        RunnerOptions ro = RunnerOptions.parseCommandLine(command);
         String targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
-        runParallel(options, targetDir, isIntellij);
-    }
-
-    private static void runParallel(RunnerOptions ro, String targetDir, boolean isIntellij) {
         CliExecutionHook hook = new CliExecutionHook(true, targetDir, isIntellij);
         Runner.path(ro.getFeatures())
                 .tags(ro.getTags()).scenarioName(ro.getName())
                 .hook(hook).parallel(ro.getThreads());
-        hook.close();
     }
 
     public static StringUtils.Pair parseCommandLine(String commandLine, String cwd) {
