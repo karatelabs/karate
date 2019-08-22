@@ -13,6 +13,16 @@ Scenario: multi-line text
     """
     * match query == read('query.txt').replaceAll("\r", "")
 
+Scenario: multi-line text with the starting line indented
+    * text query =
+    """
+      {
+abcd
+efgh   
+      }
+    """
+    * match query == read('query2.txt').replaceAll("\r", "")
+
 Scenario Outline: multi-line text in a scenario outline
     * text query =
     """
@@ -116,6 +126,10 @@ Scenario: json to java map - useful in some situations
     here we want to get the "first key" out of a given json
     * def response = { "key1": { "a" : 1 }, "key2" : { "b": 1 } }
     * def map = karate.toBean(response, 'java.util.LinkedHashMap')
+    * def first = map.keySet().iterator().next()
+    * match first == 'key1'
+    # short cut for the above
+    * def map = karate.toMap(response)
     * def first = map.keySet().iterator().next()
     * match first == 'key1'
 

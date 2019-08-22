@@ -8,8 +8,8 @@ Background:
 Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request
     * def id = uuid()
-    * set cat.id = id
-    * eval cats[id] = cat
+    * cat.id = id
+    * cats[id] = cat
     * def response = cat
 
 Scenario: pathMatches('/cats')

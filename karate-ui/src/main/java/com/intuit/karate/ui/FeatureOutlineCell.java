@@ -44,7 +44,7 @@ public class FeatureOutlineCell extends ListCell<ScenarioExecutionUnit> {
         if (empty) {
             return;
         }
-        setText(item.scenario.getDisplayMeta() + " " + item.scenario.getName());
+        setText(item.scenario.getNameForReport());
         tooltip.setText(item.scenario.getName());
         setTooltip(tooltip);
         if (item.result.isFailed()) {

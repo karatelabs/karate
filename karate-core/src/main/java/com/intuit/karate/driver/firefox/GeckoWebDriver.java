@@ -25,10 +25,11 @@ package com.intuit.karate.driver.firefox;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
-import com.intuit.karate.Logger;
+import com.intuit.karate.Json;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -38,16 +39,16 @@ import java.util.Map;
  */
 public class GeckoWebDriver extends WebDriver {
 
-    public GeckoWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    public GeckoWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static GeckoWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 4444, "geckodriver");
+    public static GeckoWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 4444, "geckodriver");
         options.arg("--port=" + options.port);
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Firefox' } }")
                 .jsonPath("get[0] response..sessionId").asString();
@@ -59,13 +60,18 @@ public class GeckoWebDriver extends WebDriver {
         driver.activate();
         return driver;
     }
+    
+    @Override
+    protected String getJsonForFrame(String text) {
+        return new Json().set("frameId", text).toString();
+    }    
 
     @Override
     public void activate() {
         if (!options.headless) {
             try {
-                switch (FileUtils.getPlatform()) {
-                    case MAC:
+                switch (FileUtils.getOsType()) {
+                    case MACOSX:
                         Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Firefox\" to activate"});
                         break;
                     default:
@@ -75,6 +81,6 @@ public class GeckoWebDriver extends WebDriver {
                 logger.warn("native window switch failed: {}", e.getMessage());
             }
         }
-    }
+    }        
 
 }

@@ -104,7 +104,7 @@ public class Engine {
         if (callContext == null) {
             callContext = new CallContext(null, true);
         }
-        ExecutionContext exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        ExecutionContext exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         FeatureExecutionUnit unit = new FeatureExecutionUnit(exec);
         unit.run();
         return exec.result;
@@ -344,28 +344,30 @@ public class Engine {
         if (sb.length() > 0) {
             parent.appendChild(node(doc, "div", "preformatted", sb.toString()));
         }
-        Embed embed = stepResult.getEmbed();
-        if (embed != null) {
-            Node embedNode;
-            String mimeType = embed.getMimeType().toLowerCase();
-            if (mimeType.contains("image")) {
-                embedNode = node(doc, "img", null);
-                String src = "data:" + embed.getMimeType() + ";base64," + embed.getBase64();
-                XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
-            } else if (mimeType.contains("html")) {
-                Node html;
-                try {
-                    html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
-                } catch (Exception e) {
-                    html = div(doc, null, e.getMessage());
+        List<Embed> embeds = stepResult.getEmbeds();
+        if (embeds != null) {
+            for (Embed embed : embeds) {
+                Node embedNode;
+                String mimeType = embed.getMimeType().toLowerCase();
+                if (mimeType.contains("image")) {
+                    embedNode = node(doc, "img", null);
+                    String src = "data:" + embed.getMimeType() + ";base64," + embed.getBase64();
+                    XmlUtils.addAttributes((Element) embedNode, Collections.singletonMap("src", src));
+                } else if (mimeType.contains("html")) {
+                    Node html;
+                    try {
+                        html = XmlUtils.toXmlDoc(embed.getAsString()).getDocumentElement();
+                    } catch (Exception e) {
+                        html = div(doc, null, e.getMessage());
+                    }
+                    html = doc.importNode(html, true);
+                    embedNode = div(doc, null, html);
+                } else {
+                    embedNode = div(doc, null);
+                    embedNode.setTextContent(embed.getAsString());
                 }
-                html = doc.importNode(html, true);
-                embedNode = div(doc, null, html);
-            } else {
-                embedNode = div(doc, null);
-                embedNode.setTextContent(embed.getAsString());
+                parent.appendChild(div(doc, "embed", embedNode));
             }
-            parent.appendChild(div(doc, "embed", embedNode));
         }
         List<FeatureResult> callResults = stepResult.getCallResults();
         if (callResults != null) { // this is a 'call'
@@ -410,7 +412,7 @@ public class Engine {
         String xml = "<!DOCTYPE html>\n" + XmlUtils.toString(doc, false);
         try {
             FileUtils.writeToFile(file, xml);
-            System.out.println("HTML report: (paste into browser to view) | Karate version: "
+            System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
                     + FileUtils.getKarateVersion() + "\n"
                     + file.toURI()
                     + "\n---------------------------------------------------------\n");
@@ -456,6 +458,10 @@ public class Engine {
             item.put("content", content);
             item.put("start", sr.getStartTime());
             item.put("end", sr.getEndTime());
+            String scenarioTitle = StringUtils.trimToEmpty(s.getName());
+            if (!scenarioTitle.isEmpty()) {
+                content = content + " " + scenarioTitle;
+            }
             item.put("title", content + " " + sr.getStartTime() + "-" + sr.getEndTime());
         }
         List<Map> groups = new ArrayList(groupsMap.size());

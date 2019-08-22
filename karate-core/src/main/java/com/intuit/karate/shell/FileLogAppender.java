@@ -25,30 +25,27 @@ package com.intuit.karate.shell;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class FileLogAppender implements LogAppender {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(FileLogAppender.class);
 
     private final RandomAccessFile file;
     private final FileChannel channel;
-    private final Logger logger;
     private int prevPos;
     private boolean closed;
 
-    public FileLogAppender(String in, Logger logger) {
-        this(in == null ? null : new File(in), logger);
-    }
-
-    public FileLogAppender(File in, Logger logger) {
-        this.logger = logger;
+    public FileLogAppender(File in) {
         try {
             if (in == null) {
                 in = File.createTempFile("karate", "tmp");
@@ -63,7 +60,6 @@ public class FileLogAppender implements LogAppender {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        logger.setLogAppender(this);
     }
 
     @Override
@@ -98,7 +94,7 @@ public class FileLogAppender implements LogAppender {
             file.close();
             closed = true;
         } catch (Exception e) {
-            logger.warn("log appender close failed: {}", e.getMessage());
+            LOGGER.warn("log appender close failed: {}", e.getMessage());
         }
     }
 

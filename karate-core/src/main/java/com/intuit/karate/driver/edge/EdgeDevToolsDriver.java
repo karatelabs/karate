@@ -24,13 +24,14 @@
 package com.intuit.karate.driver.edge;
 
 import com.intuit.karate.Http;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.DevToolsDriver;
+import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.driver.Element;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,17 +40,17 @@ import java.util.Map;
  */
 public class EdgeDevToolsDriver extends DevToolsDriver {
 
-    public EdgeDevToolsDriver(DriverOptions options, CommandThread command, String webSocketUrl) {
+    public EdgeDevToolsDriver(DriverOptions options, Command command, String webSocketUrl) {
         super(options, command, webSocketUrl);
     }
 
-    public static EdgeDevToolsDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 9222, "MicrosoftEdge");
+    public static EdgeDevToolsDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 9222, "MicrosoftEdge");
         options.arg("--devtools-server-port");
         options.arg(options.port + "");
         options.arg("about:blank");
-        CommandThread command = options.startProcess();
-        Http http = Http.forUrl(options.driverLogger, "http://" + options.host + ":" + options.port);
+        Command command = options.startProcess();
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), "http://" + options.host + ":" + options.port);
         String webSocketUrl = http.path("json", "list").get()
                 .jsonPath("get[0] $[?(@.type=='Page')].webSocketDebuggerUrl").asString();
         EdgeDevToolsDriver edge = new EdgeDevToolsDriver(options, command, webSocketUrl);
@@ -64,25 +65,20 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
     }
 
     @Override
-    public void setLocation(String url) {
+    public void setUrl(String url) {
         method("Page.navigate").param("url", url).send();
-        waitUntil("document.readyState == 'complete'");
         currentUrl = url;
     }
 
     @Override
-    public void input(String id, String value) {
-        evaluate(options.elementSelector(id) + ".value = \"" + value + "\"", null);
+    public Element input(String locator, String value) {
+        eval(options.selector(locator) + ".value = \"" + value + "\"");
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
     public void close() {
         // eval("window.close()", null); // this brings up an alert
-    }
-
-    @Override
-    public List<String> getWindowHandles() {
-        return null;
     }
 
     @Override

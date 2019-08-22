@@ -13,7 +13,7 @@ public class ChromePdfRunner {
 
     public static void main(String[] args) {
         Chrome chrome = Chrome.startHeadless();
-        chrome.setLocation("https://github.com/login");
+        chrome.setUrl("https://github.com/login");
         byte[] bytes = chrome.pdf(Collections.EMPTY_MAP);
         FileUtils.writeToFile(new File("target/github.pdf"), bytes);
         bytes = chrome.screenshot();

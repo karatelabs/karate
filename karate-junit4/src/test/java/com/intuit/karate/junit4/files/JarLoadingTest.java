@@ -55,6 +55,7 @@ public class JarLoadingTest {
         String relativePath = FileUtils.toRelativeClassPath(path, cl);
         assertEquals("classpath:demo/jar1/caller.feature", relativePath);
         Feature feature = FeatureParser.parse(resource);
+        Thread.currentThread().setContextClassLoader(cl);
         Map<String, Object> map = Runner.runFeature(feature, null, false);
         assertEquals(true, map.get("success"));
     }

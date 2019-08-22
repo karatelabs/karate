@@ -11,7 +11,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <junit5.version>5.4.0</junit5.version>
+        <junit5.version>5.5.0</junit5.version>
     </properties>
 
     <dependencies>        
@@ -29,7 +29,7 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>${junit5.version}</version>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.intuit.karate</groupId>

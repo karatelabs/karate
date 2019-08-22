@@ -50,6 +50,8 @@ import java.util.Set;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
+import net.minidev.json.parser.JSONParser;
+import net.minidev.json.parser.ParseException;
 import net.minidev.json.reader.JsonWriter;
 import net.minidev.json.reader.JsonWriterI;
 import org.yaml.snakeyaml.Yaml;
@@ -116,6 +118,16 @@ public class JsonUtils {
             }
         });
     }
+    
+    public static DocumentContext toJsonDocStrict(String raw) {
+        try {
+            JSONParser parser = new JSONParser(JSONParser.MODE_RFC4627);
+            Object o = parser.parse(raw.trim());
+            return JsonPath.parse(o);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+    }    
 
     public static DocumentContext toJsonDoc(String raw) {
         return JsonPath.parse(raw);

@@ -138,7 +138,7 @@ Then match session == <session><locale>en</locale><sessionUser><user><name>john<
 * match response == expected
 
 * def temp = 'before'
-* eval if (zone == 'zone1') karate.set('temp', 'after')
+* if (zone == 'zone1') karate.set('temp', 'after')
 * match temp == 'after'
 
 * eval
@@ -156,11 +156,11 @@ karate.set('temp', squares);
 * def json = { a: 1 }
 * def key = 'b'
 # use dynamic path expressions to mutate json
-* eval json[key] = 2
+* json[key] = 2
 * match json == { a: 1, b: 2 }
-* eval karate.remove('json', '$.' + key)
+* karate.remove('json', '$.' + key)
 * match json == { a: 1 }
-* eval karate.set('json', '$.c[]', { d: 'e' })
+* karate.set('json', '$.c[]', { d: 'e' })
 * match json == { a: 1, c: [{ d: 'e' }] }
 
 # #null and #notpresent

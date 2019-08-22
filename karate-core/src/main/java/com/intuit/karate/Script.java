@@ -589,6 +589,9 @@ public class Script {
         name = StringUtils.trimToEmpty(name);
         if (validateName) {
             validateVariableName(name);
+            if (context.bindings.adds.containsKey(name)) {
+                context.logger.warn("over-writing built-in variable named: {} - with new value: {}", name, exp);
+            }
         }
         ScriptValue sv;
         switch (assignType) {
@@ -637,17 +640,17 @@ public class Script {
     }
 
     public static DocumentContext toJsonDoc(ScriptValue sv, ScenarioContext context) {
-        if (sv.getType() == JSON) { // optimize
+        if (sv.isJson()) { // optimize
             return (DocumentContext) sv.getValue();
         } else if (sv.isListLike()) {
             return JsonPath.parse(sv.getAsList());
         } else if (sv.isMapLike()) {
             return JsonPath.parse(sv.getAsMap());
-        } else if (sv.isUnknownType()) { // POJO
+        } else if (sv.isUnknown()) { // POJO
             return JsonUtils.toJsonDoc(sv.getValue());
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
-            if (temp.getType() != JSON) {
+            if (!temp.isJson()) {
                 throw new RuntimeException("cannot convert, not a json string: " + sv);
             }
             return temp.getValue(DocumentContext.class);
@@ -661,11 +664,11 @@ public class Script {
             return sv.getValue(Node.class);
         } else if (sv.isMapLike()) {
             return XmlUtils.fromMap(sv.getAsMap());
-        } else if (sv.isUnknownType()) {
+        } else if (sv.isUnknown()) { // POJO
             return XmlUtils.toXmlDoc(sv.getValue());
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
-            if (temp.getType() != XML) {
+            if (!temp.isXml()) {
                 throw new RuntimeException("cannot convert, not an xml string: " + sv);
             }
             return temp.getValue(Document.class);
@@ -683,11 +686,12 @@ public class Script {
         if (name.startsWith("$")) { // in case someone used the dollar prefix by mistake on the LHS
             name = name.substring(1);
         }
-        path = StringUtils.trimToNull(path);        
-        if (path == null) {            
+        path = StringUtils.trimToNull(path);
+        if (path == null) {
             int pos = name.lastIndexOf(')');
+            // unfortunate edge-case to support "driver.location" and the like
             // if the LHS ends with a right-paren (function invoke) or involves a function-invoke + property accessor
-            if (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.')) {
+            if (name.startsWith("driver.") || (pos != -1 && (pos == name.length() - 1 || name.charAt(pos + 1) == '.'))) {
                 ScriptValue actual = evalKarateExpression(expression, context); // attempt to evaluate LHS as-is
                 return matchScriptValue(matchType, actual, VAR_ROOT, expected, context);
             }
@@ -714,6 +718,10 @@ public class Script {
         switch (actual.getType()) {
             case STRING:
             case INPUT_STREAM:
+                // this is the entry point so if the "root" is a string, path should be "$"
+                if (path.length() > 1) { // so if the path is expecting JSON e.g. $.foo (not a string), fail right here
+                    return matchFailed(matchType, path, actual.getValue(), expected, "actual value is not JSON-like");
+                }
                 return matchString(matchType, actual, expected, path, context);
             case XML:
                 if ("$".equals(path)) {
@@ -1116,18 +1124,20 @@ public class Script {
         try {
             actObject = actualDoc.read(path); // note that the path for actObject is 'reset' to '$' here
         } catch (PathNotFoundException e) {
-            if (expected.isString() && "#notpresent".equals(expected.getValue())) {
-                return AssertionResult.PASS;
-            } else {
-                return matchFailed(matchType, path, null, expected.getValue(), "actual json-path does not exist");
+            if (expected.isString()) {
+                String expString = expected.getAsString();
+                if (isOptionalMacro(expString) || "#notpresent".equals(expString) || "#ignore".equals(expString)) {
+                    return AssertionResult.PASS;
+                }
             }
+            return matchFailed(matchType, path, null, expected.getValue(), "actual json-path does not exist");
         }
         Object expObject;
         switch (expected.getType()) {
             case JSON: // convert to map or list
                 expObject = expected.getValue(DocumentContext.class).read("$");
                 break;
-            default: 
+            default:
                 expObject = expected.getValue();
         }
         switch (matchType) {
@@ -1322,10 +1332,20 @@ public class Script {
                     continue; // end edge case for key not present
                 }
                 Object childAct = actMap.get(key);
-                AssertionResult ar = matchNestedObject(delimiter, childPath, MatchType.EQUALS, actRoot, actMap, childAct, childExp, context);
+                ScriptValue childActValue = new ScriptValue(childAct);
+                MatchType childMatchType = childActValue.isJsonLike() ? matchType : MatchType.EQUALS;
+                AssertionResult ar = matchNestedObject(delimiter, childPath, childMatchType, actRoot, actMap, childAct, childExp, context);
                 if (ar.pass) { // values for this key match                    
                     if (matchType == MatchType.CONTAINS_ANY) {
                         return AssertionResult.PASS; // exit early
+                    }
+                    if (matchType == MatchType.NOT_CONTAINS) {
+                        // did we just bubble-up from a map
+                        ScriptValue childExpValue = new ScriptValue(childExp);
+                        if (childExpValue.isMapLike()) {
+                            // a nested map already fulfilled the NOT_CONTAINS
+                            return AssertionResult.PASS; // exit early
+                        }
                     }
                     unMatchedKeysExp.remove(key);
                     unMatchedKeysAct.remove(key);
@@ -1636,23 +1656,12 @@ public class Script {
         ScriptValue argValue = evalKarateExpression(argString, context);
         ScriptValue sv = evalKarateExpression(name, context);
         switch (sv.getType()) {
+            case JAVA_FUNCTION:
+                Function function = sv.getValue(Function.class);
+                return evalJavaFunctionCall(function, argValue.getValue(), context);
             case JS_FUNCTION:
-                switch (argValue.getType()) {
-                    case JSON:
-                        // force to java map (or list)
-                        argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
-                    case MAP:
-                    case LIST:
-                    case STRING:
-                    case INPUT_STREAM:
-                    case PRIMITIVE:
-                    case NULL:
-                        break;
-                    default:
-                        throw new RuntimeException("only json or primitives allowed as (single) function call argument");
-                }
                 ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return evalFunctionCall(som, argValue.getValue(), context);
+                return evalJsFunctionCall(som, argValue.getAfterConvertingFromJsonOrXmlIfNeeded(), context);
             case FEATURE:
                 Object callArg = null;
                 switch (argValue.getType()) {
@@ -1668,17 +1677,28 @@ public class Script {
                     case NULL:
                         break;
                     default:
-                        throw new RuntimeException("only json, list/array or map allowed as feature call argument");
+                        throw new RuntimeException("only json/map or list/array allowed as feature call argument");
                 }
                 Feature feature = sv.getValue(Feature.class);
-                return evalFeatureCall(feature, callArg, context, reuseParentConfig);
+                return evalFeatureCall(feature, callArg, context, reuseParentConfig, null);
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
         }
     }
 
-    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScenarioContext context) {
+    public static ScriptValue evalJavaFunctionCall(Function function, Object callArg, ScenarioContext context) {
+        try {
+            Object result = function.apply(callArg);
+            return new ScriptValue(result);
+        } catch (Exception e) {
+            String message = "java function call failed: " + e.getMessage();
+            context.logger.error(message);
+            throw new KarateException(message);
+        }
+    }
+
+    public static ScriptValue evalJsFunctionCall(ScriptObjectMirror som, Object callArg, ScenarioContext context) {
         Object result;
         try {
             if (callArg != null) {
@@ -1695,7 +1715,8 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context, boolean reuseParentConfig) {
+    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context,
+            boolean reuseParentConfig, ScenarioContext reportContext) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1706,12 +1727,13 @@ public class Script {
                 if (rowArg instanceof Map) {
                     Map rowArgMap = (Map) rowArg;
                     try {
-                        CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig);
+                        CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig, reportContext);
                         ScriptValue rowResult = evalFeatureCall(callContext);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
+                        String argString = new ScriptValue(rowArg).getAsString(); // convert if JS object from [object: Object]
                         String message = "feature call (loop) failed at index: " + i + "\ncaller: "
-                                + feature.getRelativePath() + "\narg: " + rowArg + "\n" + ke.getMessage();
+                                + feature.getRelativePath() + "\narg: " + argString + "\n" + ke.getMessage();
                         errors.add(message);
                         // log but don't stop (yet)
                         context.logger.error("{}", message);
@@ -1733,11 +1755,12 @@ public class Script {
         } else if (callArg == null || callArg instanceof Map) {
             Map<String, Object> argAsMap = (Map) callArg;
             try {
-                CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig);
+                CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig, reportContext);
                 return evalFeatureCall(callContext);
             } catch (KarateException ke) {
+                String argString = new ScriptValue(callArg).getAsString(); // convert if JS object from [object: Object] 
                 String message = "feature call failed: " + feature.getRelativePath()
-                        + "\narg: " + callArg + "\n" + ke.getMessage();
+                        + "\narg: " + argString + "\n" + ke.getMessage();
                 context.logger.error("{}", message);
                 throw new KarateException(message, ke);
             }
@@ -1760,7 +1783,7 @@ public class Script {
             result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
         }
         // hack to pass call result back to caller step
-        callContext.context.addCallResult(result);
+        callContext.reportContext.addCallResult(result);
         result.setCallArg(callContext.callArg);
         result.setLoopIndex(callContext.loopIndex);
         if (result.isFailed()) {

@@ -26,10 +26,10 @@ package com.intuit.karate.driver.safari;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -39,16 +39,16 @@ import java.util.Map;
  */
 public class SafariWebDriver extends WebDriver {
 
-    public SafariWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    public SafariWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static SafariWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 5555, "safaridriver");
+    public static SafariWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 5555, "safaridriver");
         options.arg("--port=" + options.port);
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         String sessionId = http.path("session")
                 .post("{ capabilities: { browserName: 'Safari' } }")
                 .jsonPath("get[0] response..sessionId").asString();
@@ -59,12 +59,12 @@ public class SafariWebDriver extends WebDriver {
         SafariWebDriver driver = new SafariWebDriver(options, command, http, sessionId, windowId);
         driver.activate();
         return driver;
-    }    
-    
+    }
+
     @Override
     public void setDimensions(Map<String, Object> map) {
         Integer x = (Integer) map.remove("left");
-        Integer y = (Integer) map.remove("top");  
+        Integer y = (Integer) map.remove("top");
         // webdriver bug where 0 or 1 is mis-interpreted as boolean !
         if (x != null) {
             map.put("x", x < 2 ? 2 : x);
@@ -75,13 +75,13 @@ public class SafariWebDriver extends WebDriver {
         String json = JsonUtils.toJson(map);
         http.path("window", "rect").post(json);
     }    
-
+    
     @Override
     public void activate() {
         if (!options.headless) {
             try {
-                switch (FileUtils.getPlatform()) {
-                    case MAC:
+                switch (FileUtils.getOsType()) {
+                    case MACOSX:
                         Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Safari\" to activate"});
                         break;
                     default:
@@ -91,6 +91,6 @@ public class SafariWebDriver extends WebDriver {
                 logger.warn("native window switch failed: {}", e.getMessage());
             }
         }
-    }    
+    }
 
 }

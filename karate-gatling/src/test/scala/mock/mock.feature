@@ -8,19 +8,19 @@ Feature: cats stateful crud
   Scenario: pathMatches('/cats') && methodIs('post')
     * def cat = request
     * def id = uuid()
-    * set cat.id = id
-    * eval cats[id] = cat
+    * cat.id = id
+    * cats[id] = cat
     * def response = cat
 
   Scenario: pathMatches('/cats')
     * def response = $cats.*
 
   Scenario: pathMatches('/cats/{id}') && methodIs('put')
-    * eval cats[pathParams.id] = request
+    * cats[pathParams.id] = request
     * def response = request
 
   Scenario: pathMatches('/cats/{id}') && methodIs('delete')
-    * eval karate.remove('cats', '$.' + pathParams.id)
+    * karate.remove('cats', '$.' + pathParams.id)
     * def response = ''
     * def afterScenario = delay
 

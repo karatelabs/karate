@@ -4,11 +4,11 @@ Background:
 Given def a = 1
 
 Scenario: skip-pass
-* eval karate.abort()
+* karate.abort()
 * assert a == 1
 
 Scenario: skip-fail
-* eval karate.abort()
+* karate.abort()
 * assert a == 2
 
 Scenario: noskip

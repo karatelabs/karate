@@ -33,7 +33,7 @@ import java.util.Map;
  * 
  * @author pthomas3
  */
-// @Deprecated
+@Deprecated
 public class KarateStats {
     
     private int featureCount;

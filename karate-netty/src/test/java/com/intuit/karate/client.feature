@@ -70,5 +70,5 @@ Scenario: karate.abort() test
     Given url mockServerUrl + 'abort'
     When method get
     Then match response == { success: true }
-    * eval karate.abort()
+    * karate.abort()
     * match 1 == 2

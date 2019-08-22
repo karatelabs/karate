@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Page Four</title>
+    <style>      
+      .eg02Cls { width: 100% }
+      .eg02Cls div { border: 1px solid black; height: 70px; display: inline-block; width: 45% }
+      .hovered { background-color: blue }
+      .clicked { background-color: red }
+    </style>
+    <script src="karate.js"></script>
+    <script>
+      function leftDown(e){ karate.addHtml('eg02ResultDivId', 'LEFT_DOWN:') }
+      function leftUp(e){ karate.addHtml('eg02ResultDivId', 'LEFT_UP:') }
+      function leftHover(e){ e.classList.add('hovered'); karate.addHtml('eg02ResultDivId', 'LEFT_HOVERED:') }
+      function rightClick(e){ e.classList.add('clicked'); karate.addHtml('eg02ResultDivId', 'RIGHT_CLICKED:') }
+      function rightHover(e){ karate.addHtml('eg02ResultDivId', 'RIGHT_HOVERED:') }
+      function mouseLogger(e){ var str = e.clientX + ':' + e.clientY ; karate.setHtml('eg02MouseDivId', str) }
+    </script>
+  </head>
+  <body onmousemove="mouseLogger(event)">
+    <div id="eg01">
+      <div id="eg01DivId">this div is outside the iframe</div>
+      <iframe src="page-01" id="frame01"></iframe>      
+    </div>
+    <div id="eg02MouseDivId"></div>
+    <div id="eg02ResultDivId"></div>
+    <div id="eg02" class="eg02Cls">      
+      <div id="eg02LeftDivId" onmouseover="leftHover(this)" onmousedown="leftDown(this)" onmouseup="leftUp(this)"></div>
+      <div id="eg02RightDivId" onclick="rightClick(this)" onmouseover="rightHover(this)"></div>
+    </div>
+    </body>
+</html>

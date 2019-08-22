@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -32,18 +33,18 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public class StepResult  {
+public class StepResult {
 
     private static final Map<String, Object> DUMMY_MATCH;
-    
+
     private final Step step;
     private final Result result;    
-    private final Embed embed;
     private final List<FeatureResult> callResults;
     private final boolean hidden;
     
+    private List<Embed> embeds;
     private String stepLog;
-    
+
     public void appendToStepLog(String log) {
         if (log == null || stepLog == null) {
             return;
@@ -64,7 +65,7 @@ public class StepResult  {
         map.put("value", text);
         return map;
     }
-    
+
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap(6);
         map.put("line", step.getLine());
@@ -85,36 +86,40 @@ public class StepResult  {
         if (sb.length() > 0) {
             map.put("doc_string", docStringToMap(step.getLine(), sb.toString()));
         }
-        if (embed != null) {
-            Map embedMap = new HashMap(2);
-            embedMap.put("data", embed.getBase64());
-            embedMap.put("mime_type", embed.getMimeType());
-            map.put("embeddings", Collections.singletonList(embedMap));
+        if (embeds != null) {
+            List<Map> embedList = new ArrayList(embeds.size());
+            for (Embed embed : embeds) {
+                Map embedMap = new HashMap(2);
+                embedMap.put("data", embed.getBase64());
+                embedMap.put("mime_type", embed.getMimeType());
+                embedList.add(embedMap);
+            }
+            map.put("embeddings", embedList);
         }
         return map;
     }
 
     public boolean isHidden() {
         return hidden;
-    }        
-        
+    }
+
     public boolean isStopped() {
         return result.isFailed() || result.isAborted();
-    }    
+    }
 
-    public StepResult(boolean hidden, Step step, Result result, String stepLog, Embed embed, List<FeatureResult> callResults) {
+    public StepResult(boolean hidden, Step step, Result result, String stepLog, List<Embed> embeds, List<FeatureResult> callResults) {
         this.hidden = hidden;
         this.step = step;
         this.result = result;
         this.stepLog = stepLog;
-        this.embed = embed;
+        this.embeds = embeds;
         this.callResults = callResults;
-    }   
+    }
 
     public Step getStep() {
         return step;
-    }        
-    
+    }
+
     public Result getResult() {
         return result;
     }
@@ -123,12 +128,19 @@ public class StepResult  {
         return stepLog;
     }
 
-    public Embed getEmbed() {
-        return embed;
-    }        
+    public List<Embed> getEmbeds() {
+        return embeds;
+    }
+    
+    public void addEmbed(Embed embed) {
+        if (embeds == null) {
+            embeds = new ArrayList();
+        }
+        embeds.add(embed);
+    }
 
     public List<FeatureResult> getCallResults() {
         return callResults;
-    }        
-    
+    }
+
 }

@@ -191,11 +191,16 @@ public abstract class MockHttpClient extends HttpClient<HttpBody> {
         try {
             getServlet(request).service(req, res);
         } catch (Exception e) {
+            String message = e.getMessage();
+            if (message == null && e.getCause() != null) {
+                message = e.getCause().getMessage();
+            }
+            logger.error("mock servlet request failed: {}", message);
             throw new RuntimeException(e);
         }
         HttpResponse response = new HttpResponse(startTime, System.currentTimeMillis());
         bytes = res.getContentAsByteArray();
-        logResponse(res, bytes);        
+        logResponse(res, bytes);
         response.setUri(getRequestUri());
         response.setBody(bytes);
         response.setStatus(res.getStatus());

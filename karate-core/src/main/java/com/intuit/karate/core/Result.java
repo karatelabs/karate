@@ -96,7 +96,7 @@ public class Result {
     }
 
     public static Result aborted(long nanos) {
-        return new Result(SKIPPED, nanos, null, true);
+        return new Result(PASSED, nanos, null, true);
     }
 
     public String getStatus() {

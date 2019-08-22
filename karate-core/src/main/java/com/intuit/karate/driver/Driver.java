@@ -25,6 +25,7 @@ package com.intuit.karate.driver;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  *
@@ -32,8 +33,6 @@ import java.util.Map;
  */
 public interface Driver {
 
-    // constructor takes a Map<String, Object> always
-    //
     void activate();
 
     void refresh();
@@ -50,88 +49,228 @@ public interface Driver {
 
     void fullscreen();
 
-    void focus(String id);
-    
-    void clear(String id);
-
-    void input(String name, String value);
-    
-    void input(String name, String value, boolean clear);
-
-    void click(String expression);
-    
-    void click(String expression, boolean waitForDialog);
-    
-    void select(String expression, String text);
-    
-    void select(String expression, int index);
-
-    void submit(String expression);
-
     void close();
 
     void quit();
 
-    String html(String id);
+    void switchPage(String titleOrUrl);
 
-    String text(String id);
+    void switchFrame(int index);
 
-    String value(String id);
-    
-    void value(String id, String value);
-    
-    String attribute(String id, String name);
-    
-    String property(String id, String name);
-    
-    String css(String id, String name);
-    
-    String name(String id);
-    
-    Map<String, Object> rect(String id);
-    
-    boolean enabled(String id);
+    void switchFrame(String locator);
 
-    void waitUntil(String expression);
-    
-    Object eval(String expression);
+    String getUrl(); // getter
+
+    void setUrl(String url); // setter    
+
+    Map<String, Object> getDimensions(); // getter
+
+    void setDimensions(Map<String, Object> map); // setter
+
+    String getTitle(); // getter
+
+    List<String> getPages(); // getter
+
+    String getDialog(); // getter
+
+    byte[] screenshot(boolean embed);
+
+    default byte[] screenshot() {
+        return screenshot(true);
+    }
 
     Map<String, Object> cookie(String name);
+    
+    void cookie(Map<String, Object> cookie);
 
     void deleteCookie(String name);
-    
+
     void clearCookies();
-    
+
+    List<Map> getCookies(); // getter    
+
     void dialog(boolean accept);
-    
-    void dialog(boolean accept, String text);
-    
-    byte[] screenshot();
-    
-    byte[] screenshot(String id);   
-    
-    void highlight(String id);
-    
-    void switchTo(String titleOrUrl);
 
-    // javabean naming convention is intentional ===============================
+    void dialog(boolean accept, String input);
+
+    Object script(String expression);
+
+    boolean waitUntil(String expression);
+
+    Driver submit();
+
+    default Driver retry() {
+        return retry(null, null);
+    }
+
+    default Driver retry(int count) {
+        return retry(count, null);
+    }
+
+    default Driver retry(Integer count, Integer interval) {
+        getOptions().enableRetry(count, interval);
+        return this;
+    }
+
+    default Driver delay(int millis) {
+        getOptions().sleep(millis);
+        return this;
+    }
+
+    // element actions =========================================================
     //
-    void setLocation(String expression);    
+    Element focus(String locator);
 
-    void setDimensions(Map<String, Object> map);
+    Element clear(String locator);
 
-    Map<String, Object> getDimensions();
+    Element click(String locator);
 
-    String getLocation();
+    Element input(String locator, String value);
 
-    String getTitle();
+    default Element input(String locator, String[] values) {
+        Element element = DriverElement.locatorUnknown(this, locator);
+        for (String value : values) {
+            element = input(locator, value);
+        }
+        return element;
+    }
 
-    void setCookie(Map<String, Object> cookie);
+    Element select(String locator, String text);
 
-    List<Map> getCookies();
+    Element select(String locator, int index);
 
-    List<String> getWindowHandles();
+    Element value(String locator, String value);
+
+    default Element waitFor(String locator) {
+        return getOptions().waitForAny(this, locator);
+    }
+
+    default String waitForUrl(String expected) {
+        return getOptions().waitForUrl(this, expected);
+    }
+
+    default Element waitForText(String locator, String expected) {
+        return waitUntil(locator, "_.textContent.includes('" + expected + "')");
+    }
     
-    String getDialog();
+    default Element waitForEnabled(String locator) {
+        return waitUntil(locator, "!_.disabled");
+    }    
+
+    default Element waitForAny(String locator1, String locator2) {
+        return getOptions().waitForAny(this, new String[]{locator1, locator2});
+    }
+
+    default Element waitForAny(String[] locators) {
+        return getOptions().waitForAny(this, locators);
+    }
+
+    default Element waitUntil(String locator, String expression) {
+        return getOptions().waitUntil(this, locator, expression);
+    }
+
+    default Object waitUntil(Supplier<Object> condition) {
+        return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");
+    }
+
+    default List<Element> findAll(String locator) {
+        return getOptions().findAll(this, locator);
+    }
+
+    default Element scroll(String locator) {
+        script(locator, DriverOptions.SCROLL_JS_FUNCTION);
+        return DriverElement.locatorExists(this, locator);
+    }
+
+    default Element highlight(String locator) {
+        script(getOptions().highlighter(locator));
+        return DriverElement.locatorExists(this, locator);
+    }
+
+    // friendly locators =======================================================
+    //
+    default Finder rightOf(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.RIGHT);
+    }
+
+    default Finder leftOf(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.LEFT);
+    }
+
+    default Finder above(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.ABOVE);
+    }
+
+    default Finder below(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.BELOW);
+    }
+
+    default Finder near(String locator) {
+        return new ElementFinder(this, locator, ElementFinder.Type.NEAR);
+    }
+
+    // mouse and keys ==========================================================
+    //
+    default Mouse mouse() {
+        return new DriverMouse(this);
+    }
+
+    default Mouse mouse(String locator) {
+        return new DriverMouse(this).move(locator);
+    }
+
+    default Mouse mouse(int x, int y) {
+        return new DriverMouse(this).move(x, y);
+    }
+
+    default Keys keys() {
+        return new Keys(this);
+    }
+
+    void actions(List<Map<String, Object>> actions);
+
+    // element state ===========================================================
+    //
+    String html(String locator);
+
+    String text(String locator);
+
+    String value(String locator);
+
+    String attribute(String locator, String name);
+
+    String property(String locator, String name);
+
+    boolean enabled(String locator);
+
+    default Element exists(String locator) {
+        return getOptions().exists(this, locator);
+    }
+
+    Map<String, Object> position(String locator);
+
+    byte[] screenshot(String locator, boolean embed);
+
+    default byte[] screenshot(String locator) {
+        return screenshot(locator, true);
+    }
+
+    default Object script(String locator, String expression) {
+        String js = getOptions().selectorScript(locator, expression);
+        return script(js);
+    }
+
+    default List scripts(String locator, String expression) {
+        String js = getOptions().selectorAllScript(locator, expression);
+        return (List) script(js);
+    }
+
+    // for internal use ========================================================
+    //
+    DriverOptions getOptions();
+
+    Object elementId(String locator);
+
+    List elementIds(String locator);
 
 }

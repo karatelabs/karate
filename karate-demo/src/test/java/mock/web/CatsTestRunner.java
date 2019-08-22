@@ -1,21 +1,17 @@
 package mock.web;
 
-import com.intuit.karate.junit4.Karate;
-import com.intuit.karate.KarateOptions;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
+import com.intuit.karate.Runner;
+import org.junit.Test;
 
 /**
  *
  * @author pthomas3
  */
-@RunWith(Karate.class)
-@KarateOptions(features = "classpath:mock/web/cats-test.feature")
 public class CatsTestRunner {
     
-    @BeforeClass
-    public static void beforeClass() {
-        System.setProperty("karate.env", "mock");
+    @Test
+    public void testMockOnPort8080() {
+        Runner.runFeature(getClass(), "cats-test.feature", null, false);
     }
 
 }

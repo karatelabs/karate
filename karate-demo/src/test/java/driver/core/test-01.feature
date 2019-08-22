@@ -9,114 +9,262 @@ Scenario Outline: using <config>
   * configure driver = config
 
   Given driver webUrlBase + '/page-01'
+  
+  # wait for very slow loading element
+  And waitFor('#eg01WaitId')
+
+  # wait for text (is a string "contains" match for convenience)
+  And waitForText('#eg01WaitId', 'APPEARED')
+  And waitForText('body', 'APPEARED')
+  And waitForEnabled('#eg01WaitId')
+
+  # powerful variants of the above, call any js on the element
+  And waitUntil('#eg01WaitId', "function(e){ return e.innerHTML == 'APPEARED!' }")
+  And waitUntil('#eg01WaitId', "_.innerHTML == 'APPEARED!'")
+  And waitUntil('#eg01WaitId', '!_.disabled')
+  
+  And match script('#eg01WaitId', "function(e){ return e.innerHTML }") == 'APPEARED!'
+  And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
+  And match script('#eg01WaitId', '!_.disabled') == true
+
+  # key events and key combinations
+  And input('#eg02InputId', Key.CONTROL + 'a')
+  And def temp = text('#eg02DivId')
+  And match temp contains '17d'
+  And match temp contains '65u'
+  And script('#eg02DivId', "_.innerHTML = ''")
+  When input('#eg02InputId', 'aa')
+  Then def temp = text('#eg02DivId')
+  And match temp contains '65u' 
     
+  # cookies
   * def cookie1 = { name: 'foo', value: 'bar' }
   And match driver.cookies contains '#(^cookie1)'
-  And match driver.cookie('foo') contains cookie1
+  And match cookie('foo') contains cookie1
 
+  # set window size
   And driver.dimensions = <dimensions>
 
-  And driver.input('#eg01InputId', 'hello world')
-  When driver.click('input[name=eg01SubmitName]')
-  Then match driver.text('#eg01DivId') == 'hello world'
-  And match driver.value('#eg01InputId') == 'hello world'  
-  And match driver.attribute('#eg01SubmitId', 'type') == 'submit'
-  And match driver.name('#eg01SubmitId') == 'INPUT'
-  And match driver.enabled('#eg01InputId') == true
-  And match driver.enabled('#eg01DisabledId') == false
+  # navigation and dom checks
+  And input('#eg01InputId', 'hello world')
+  When click('input[name=eg01SubmitName]')
+  And match value('#eg01InputId') == 'hello world'
+  Then match text('#eg01DivId') == 'hello world'
+  And match attribute('#eg01SubmitId', 'type') == 'submit'
+  And match script('#eg01SubmitId', '_.tagName') == 'INPUT'
+  And match enabled('#eg01InputId') == true
+  And match enabled('#eg01DisabledId') == false
 
-  When driver.input('#eg01InputId', 'something else', true)
-  And match driver.value('#eg01InputId') == 'something else'  
-  When driver.value('#eg01InputId', 'something more')
-  And match driver.value('#eg01InputId') == 'something more'
+  # clear before input
+  When clear('#eg01InputId')
+  And input('#eg01InputId', 'something else')
+  And match value('#eg01InputId') == 'something else'  
+  When value('#eg01InputId', 'something more')
+  And match value('#eg01InputId') == 'something more'
   
-  When driver.refresh()
-  Then match driver.location == webUrlBase + '/page-01'
-  And match driver.text('#eg01DivId') == ''
-  And match driver.value('#eg01InputId') == ''
+  # refresh
+  When refresh()
+  Then match driver.url == webUrlBase + '/page-01'
+  And match text('#eg01DivId') == ''
+  And match value('#eg01InputId') == ''
   And match driver.title == 'Page One'
 
+  # navigate to page and css checks
   When driver webUrlBase + '/page-02'
-  Then match driver.text('.eg01Cls') == 'Class Locator Test'
-  And match driver.html('.eg01Cls') == '<span>Class Locator Test</span>'
+  Then match text('.eg01Cls') == 'Class Locator Test'
+  And match html('.eg01Cls') == '<div class="eg01Cls" style="background-color: yellow"><span>Class Locator Test</span></div>'
   And match driver.title == 'Page Two'
-  And match driver.location == webUrlBase + '/page-02'
-  And match driver.css('.eg01Cls', 'background-color') contains '(255, 255, 0'
+  And match driver.url == webUrlBase + '/page-02'
 
+  # set cookie
   Given def cookie2 = { name: 'hello', value: 'world' }
-  When driver.cookie = cookie2
+  When driver.cookie(cookie2)
   Then match driver.cookies contains '#(^cookie2)'
 
-  When driver.deleteCookie('foo')
+  # delete cookie
+  When deleteCookie('foo')
   Then match driver.cookies !contains '#(^cookie1)'
 
-  When driver.clearCookies()
+  # clear cookies
+  When clearCookies()
   Then match driver.cookies == '#[0]'
 
-  When driver.back()
-  Then match driver.location == webUrlBase + '/page-01'
+  # back and forward
+  When back()
+  Then match driver.url == webUrlBase + '/page-01'
   And match driver.title == 'Page One'
-
-  When driver.forward()
-  Then match driver.location == webUrlBase + '/page-02'
+  When forward()
+  Then match driver.url == webUrlBase + '/page-02'
   And match driver.title == 'Page Two'
 
-  When driver.click('^Show Alert', true)
+  # wildcard locators
+  * click('{a}Click Me')
+  * match text('#eg03Result') == 'A'
+  * click('{^span}Me')
+  * match text('#eg03Result') == 'SPAN'
+  * click('{div}Click Me')
+  * match text('#eg03Result') == 'DIV'
+  * click('{^div:2}Click')
+  * match text('#eg03Result') == 'SECOND'
+  * click('{span/a}Click Me')
+  * match text('#eg03Result') == 'NESTED'
+  * click('{:4}Click Me')
+  * match text('#eg03Result') == 'BUTTON'
+
+  # find all
+  * def elements = findAll('{}Click Me')
+  * match karate.sizeOf(elements) == 7
+  * elements.get(6).click()
+  * match text('#eg03Result') == 'SECOND'
+  * match elements.get(3).script('_.tagName') == 'BUTTON'
+
+  # dialog - alert
+  When click('{}Show Alert')
   Then match driver.dialog == 'this is an alert'
-  And driver.dialog(true)
+  And dialog(true)
 
-  When driver.click('^Show Confirm', true)
+  # dialog - confirm true
+  When click('{}Show Confirm')
   Then match driver.dialog == 'this is a confirm'
-  And driver.dialog(false)
-  And match driver.text('#eg02DivId') == 'Cancel'
+  And dialog(false)
+  And match text('#eg02DivId') == 'Cancel'
 
-  When driver.click('^Show Confirm', true)
-  And driver.dialog(true)
-  And match driver.text('#eg02DivId') == 'OK'
+  # dialog - confirm false
+  When click('{}Show Confirm')
+  And dialog(true)
+  And match text('#eg02DivId') == 'OK'
 
-  When driver.click('^Show Prompt', true)
+  # dialog - prompt
+  When click('{}Show Prompt')
   Then match driver.dialog == 'this is a prompt'
-  And driver.dialog(true, 'hello world')
-  And match driver.text('#eg02DivId') == 'hello world'
+  And dialog(true, 'hello world')
+  And match text('#eg02DivId') == 'hello world'
 
-  * def bytes = driver.screenshot('#eg02DivId')
-  * eval karate.write(bytes, 'partial-' + config.type + '.png')
-  * match driver.rect('#eg02DivId') == { x: '#number', y: '#number', height: '#number', width: '#number' }
+  # screenshot of selected element
+  * screenshot('#eg02DivId')
 
-  When driver.click('^New Tab')
-  And eval driver.waitUntil("document.readyState == 'complete'")
+  # get element dimensions
+  * match position('#eg02DivId') contains { x: '#number', y: '#number', width: '#number', height: '#number' }
 
-  When driver.switchTo('Page Two')
+  # new tab opens
+  When click('{}New Tab')
+
+  # switch back to first tab
+  When switchPage('Page Two')
   Then match driver.title == 'Page Two'
-  And match driver.location contains webUrlBase + '/page-02'
+  And match driver.url contains webUrlBase + '/page-02'
 
-  When driver.submit('*Page Three')
+  # submit - action that waits for page navigation
+  When submit().click('{^}Page Three')
   And match driver.title == 'Page Three'
-  And match driver.location == webUrlBase + '/page-03'
+  And match driver.url == webUrlBase + '/page-03'
 
-  Given driver.select('select[name=data1]', '^Option Two')
-  And driver.click('input[value=check2]')
-  When driver.submit('#eg02SubmitId')
-  And match driver.text('#eg01Data1') == 'option2'
-  And match driver.text('#eg01Data2') == 'check2'
+  # get html for all elements that match css selector
+  When def list = scripts('div#eg01 div', '_.innerHTML')
+  Then match list == '#[4]'
+  And match each list contains '@@data'
 
-  Given driver.select('select[name=data1]', '*Two')
-  And driver.click('[value=check2]')
-  And driver.click('[value=check1]')
-  When driver.submit('#eg02SubmitId')
-  And match driver.text('#eg01Data1') == 'option2'
-  And match driver.text('#eg01Data2') == '["check1","check2"]'
+  # get html for all elements that match xpath selector
+  When def list = scripts('//option', '_.innerHTML')
+  Then match list == '#[3]'
+  And match each list contains 'Option'
 
-  Given driver.select('select[name=data1]', 'option2')
-  When driver.submit('#eg02SubmitId')
-  And match driver.text('#eg01Data1') == 'option2'
+  # get text for all elements that match css selector
+  When def list = scripts('div#eg01 div', '_.textContent')
+  Then match list == '#[4]'
+  And match each list contains '@@data'
+
+  # get text for all elements that match xpath selector
+  When def list = scripts('//option', '_.textContent')
+  Then match list == '#[3]'
+  And match each list contains 'Option'
+
+  # get value for all elements that match css selector
+  When def list = scripts("input[name='data2']", '_.value')
+  Then match list == '#[3]'
+  And match each list contains 'check'
+
+  # get value for all elements that match xpath selector
+  When def list = scripts("//input[@name='data2']", '_.value')
+  Then match list == '#[3]'
+  And match each list contains 'check'
+
+  # select option with text
+  Given select('select[name=data1]', '{}Option Two')
+  And click('input[value=check2]')
+  When submit().click('#eg02SubmitId')
+  And match text('#eg01Data1') == 'option2'
+  And match text('#eg01Data2') == 'check2'
+
+  # select option containing text
+  Given select('select[name=data1]', '{^}Two')
+  And click('[value=check2]')
+  And click('[value=check1]')
+  When submit().click('#eg02SubmitId')
+  And match text('#eg01Data1') == 'option2'
+  And match text('#eg01Data2') == '["check1","check2"]'
+
+  # select option by value
+  Given select('select[name=data1]', 'option2')
+  When submit().click('#eg02SubmitId')
+  And match text('#eg01Data1') == 'option2'
+
+  # friendly locators: leftOf / rightOf
+  * leftOf('{}Check Three').click()
+  * rightOf('{}Input On Right').input('input right')  
+  * leftOf('{}Input On Left').clear().input('input left')
+  * submit().click('#eg02SubmitId')
+  * match text('#eg01Data2') == 'check3'
+  * match text('#eg01Data3') == 'Some Textinput right'
+  * match text('#eg01Data4') == 'input left'
+
+  # friendly locators: above / below / near
+  * near('{}Go to Page One').click()
+  * below('{}Input On Right').input('input below')  
+  * above('{}Input On Left').clear().input('input above')
+  * submit().click('#eg02SubmitId')
+  * match text('#eg01Data2') == 'check1'
+  * match text('#eg01Data3') == 'input above'
+  * match text('#eg01Data4') == 'Some Textinput below'
+
+  # switch to iframe by index
+  Given driver webUrlBase + '/page-04'
+  And match driver.url == webUrlBase + '/page-04'
+  And switchFrame(0)
+  When input('#eg01InputId', 'hello world')
+  And click('#eg01SubmitId')
+  Then match text('#eg01DivId') == 'hello world'
+
+  # switch back to parent frame
+  When switchFrame(null)
+  Then match text('#eg01DivId') == 'this div is outside the iframe'
+
+  # switch to iframe by locator
+  Given driver webUrlBase + '/page-04'
+  And match driver.url == webUrlBase + '/page-04'
+  And switchFrame('#frame01')
+  When input('#eg01InputId', 'hello world')
+  And click('#eg01SubmitId')
+  Then match text('#eg01DivId') == 'hello world'
+  And switchFrame(null)
+
+  # mouse move and click
+  * mouse('#eg02LeftDivId').go()
+  * mouse('#eg02RightDivId').click()
+  * mouse().down().move('#eg02LeftDivId').up()
+  * def temp = text('#eg02ResultDivId')
+  # works only for chrome :(
+  # * match temp contains 'LEFT_HOVERED'
+  # * match temp contains 'RIGHT_CLICKED'
+  # * match temp !contains 'LEFT_DOWN'
+  # * match temp contains 'LEFT_UP'
 
 Examples:
     | config | dimensions |
-    # | { type: 'chrome' } | { left: 0, top: 0, width: 300, height: 800 } |
-    | { type: 'chromedriver' } | { left: 100, top: 0, width: 300, height: 800 } |
-    | { type: 'geckodriver' } | { left: 600, top: 0, width: 300, height: 800 } |
-    | { type: 'safaridriver' } | { left: 1000, top: 0, width: 300, height: 800 } |
+    | { type: 'chrome' } | { x: 0, y: 0, width: 300, height: 800 } |
+    | { type: 'chromedriver' } | { x: 50, y: 0, width: 250, height: 800 } |
+    | { type: 'geckodriver' } | { x: 600, y: 0, width: 300, height: 800 } |
+    | { type: 'safaridriver' } | { x: 1000, y: 0, width: 400, height: 800 } |
     # | { type: 'mswebdriver' } |
     # | { type: 'msedge' } |
     

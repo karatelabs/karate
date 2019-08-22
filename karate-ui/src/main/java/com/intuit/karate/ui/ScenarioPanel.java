@@ -52,7 +52,7 @@ public class ScenarioPanel extends BorderPane {
     private final ScenarioExecutionUnit unit;
     private final VBox content;
     private final VarsPanel varsPanel;
-    private final ConsolePanel consolePanel;
+    protected final ConsolePanel consolePanel;
 
     private final List<StepPanel> stepPanels;
     private StepPanel lastStep;
@@ -67,6 +67,7 @@ public class ScenarioPanel extends BorderPane {
     public ScenarioPanel(AppSession session, ScenarioExecutionUnit unit) {
         this.session = session;
         this.unit = unit;
+        unit.setAppender(session.getAppender());
         unit.init();
         initialContext = unit.getActions().context.copy();
         content = new VBox(App.PADDING);
@@ -76,7 +77,7 @@ public class ScenarioPanel extends BorderPane {
         VBox header = new VBox(App.PADDING);
         header.setPadding(App.PADDING_VER);
         setTop(header);
-        String headerText = "Scenario: " + unit.scenario.getDisplayMeta() + " " + unit.scenario.getName();
+        String headerText = "Scenario: " + unit.scenario.getNameForReport();
         Label headerLabel = new Label(headerText);
         header.getChildren().add(headerLabel);
         HBox hbox = new HBox(App.PADDING);
@@ -89,7 +90,9 @@ public class ScenarioPanel extends BorderPane {
         hbox.getChildren().add(runAllButton);
         stepPanels = new ArrayList();
         unit.getSteps().forEach(step -> addStepPanel(step));
-        lastStep.setLast(true);
+        if (lastStep != null) {
+            lastStep.setLast(true);
+        }
         VBox vbox = new VBox(App.PADDING);
         varsPanel = new VarsPanel(session, this);
         vbox.getChildren().add(varsPanel);
@@ -110,10 +113,6 @@ public class ScenarioPanel extends BorderPane {
     public void refreshVars() {
         varsPanel.refresh();
     }
-    
-    public void refreshConsole() {
-		consolePanel.refresh();
-	}
 
     public void runAll() {
         reset();
@@ -195,7 +194,6 @@ public class ScenarioPanel extends BorderPane {
     public void reset() {
         unit.reset(initialContext.copy());
         refreshVars();
-        refreshConsole();
         for (StepPanel stepPanel : stepPanels) {
             stepPanel.initStyles();
         }

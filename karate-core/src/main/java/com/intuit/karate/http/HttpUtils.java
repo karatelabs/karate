@@ -8,21 +8,17 @@ import com.intuit.karate.StringUtils;
 import static com.intuit.karate.http.HttpClient.*;
 import java.io.InputStream;
 import java.net.HttpCookie;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.KeyStore;
-import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import javax.net.ssl.TrustManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.net.ssl.SSLContext;
 
 /**
  *
@@ -33,8 +29,6 @@ public class HttpUtils {
     public static final String HEADER_CONTENT_TYPE = "Content-Type";
     public static final String HEADER_CONTENT_LENGTH = "Content-Length";
     public static final String HEADER_ACCEPT = "Accept";
-    public static final String HEADER_COOKIE = "Cookie";
-    public static final String HEADER_HOST = "Host";
     public static final String HEADER_ALLOW = "Allow";
     public static final String HEADER_AC_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
     public static final String HEADER_AC_ALLOW_METHODS = "Access-Control-Allow-Methods";
@@ -53,21 +47,6 @@ public class HttpUtils {
         // only static methods
     }
 
-    public static SSLContext getSslContext(String algorithm) {
-        TrustManager[] certs = new TrustManager[]{new LenientTrustManager()};
-        SSLContext ctx = null;
-        if (algorithm == null) {
-            algorithm = "TLS";
-        }
-        try {
-            ctx = SSLContext.getInstance(algorithm);
-            ctx.init(null, certs, new SecureRandom());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return ctx;
-    }
-
     public static KeyStore getKeyStore(ScenarioContext context, String trustStoreFile, String password, String type) {
         if (trustStoreFile == null) {
             return null;
@@ -78,7 +57,7 @@ public class HttpUtils {
         }
         try {
             KeyStore keyStore = KeyStore.getInstance(type);
-            InputStream is = FileUtils.getFileStream(trustStoreFile, context);
+            InputStream is = FileUtils.readFileAsStream(trustStoreFile, context);
             keyStore.load(is, passwordChars);
             context.logger.debug("key store key count for {}: {}", trustStoreFile, keyStore.size());
             return keyStore;
@@ -143,26 +122,6 @@ public class HttpUtils {
         } else {
             return TEXT_PLAIN;
         }
-    }
-
-    public static StringUtils.Pair parseUriIntoUrlBaseAndPath(String rawUri) {
-        int pos = rawUri.indexOf('/');
-        if (pos == -1) {
-            return StringUtils.pair(null, "");
-        }
-        URI uri;
-        try {
-            uri = new URI(rawUri);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        if (uri.getHost() == null) {
-            return StringUtils.pair(null, rawUri);
-        }
-        String path = uri.getRawPath();
-        pos = rawUri.indexOf(path);
-        String urlBase = rawUri.substring(0, pos);
-        return StringUtils.pair(urlBase, rawUri.substring(pos));
     }
 
     public static Map<String, Cookie> parseCookieHeaderString(String header) {

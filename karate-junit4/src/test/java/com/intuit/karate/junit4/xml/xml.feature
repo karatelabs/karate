@@ -33,7 +33,7 @@ Scenario: test removing and adding elements / attributes
 
 Scenario: test removing elements from xml from js
     * def base = <query><name>foo</name></query>
-    * eval karate.remove('base', '/query/name')
+    * karate.remove('base', '/query/name')
     * match base == <query/>
 
 Scenario: dynamic xpath that uses variables
@@ -270,7 +270,7 @@ Scenario: creating xml with repeating elements in a loop
       karate.set('xml', base + 'type', u.subsType);
     }
     """
-    * eval karate.forEach(users, fun)
+    * karate.forEach(users, fun)
     * match xml ==
     """
     <users>

@@ -232,7 +232,8 @@ public abstract class HttpClient<T> {
             }
             return response;
         } catch (Exception e) {
-            long startTime = context.getPrevRequest().getStartTime();
+            // edge case when request building failed maybe because of malformed url
+            long startTime = context.getPrevRequest() == null ? System.currentTimeMillis() : context.getPrevRequest().getStartTime();
             long endTime = System.currentTimeMillis();
             long responseTime = endTime - startTime;
             String message = "http call failed after " + responseTime + " milliseconds for URL: " + getRequestUri();
@@ -240,7 +241,7 @@ public abstract class HttpClient<T> {
                 PerfEvent pe = new PerfEvent(startTime, endTime, perfEventName, 0);
                 context.capturePerfEvent(pe);
                 // failure flag and message should be set by ScenarioContext.logLastPerfEvent()
-            }
+            }      
             context.logger.error(e.getMessage() + ", " + message);
             throw new KarateException(message, e);
         }
@@ -264,7 +265,7 @@ public abstract class HttpClient<T> {
             if (config.getClientClass() != null) {
                 className = config.getClientClass();
             } else {
-                InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(KARATE_HTTP_PROPERTIES);
+                InputStream is = context.getResourceAsStream(KARATE_HTTP_PROPERTIES);
                 if (is == null) {
                     String msg = KARATE_HTTP_PROPERTIES + " not found";
                     throw new RuntimeException(msg);

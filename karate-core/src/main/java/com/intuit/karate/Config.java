@@ -23,11 +23,12 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.driver.DockerTarget;
+import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpClient;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
 /**
  *
@@ -67,6 +68,7 @@ public class Config {
     private String clientClass;
     private HttpClient clientInstance;
     private Map<String, Object> userDefined;
+    private Target driverTarget;
     private Map<String, Object> driverOptions;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
@@ -137,6 +139,18 @@ public class Config {
             case "driver":
                 driverOptions = value.getAsMap();
                 return false;
+            case "driverTarget":
+                if (value.isMapLike()) {
+                    Map<String, Object> map = value.getAsMap();
+                    if (map.containsKey("docker")) {
+                        driverTarget = new DockerTarget(map);
+                    } else {
+                        throw new RuntimeException("bad driverTarget config, expected key 'docker': " + map);
+                    }
+                } else {
+                    driverTarget = value.getValue(Target.class);
+                }
+                return false;
             case "retry":
                 if (value.isMapLike()) {
                     Map<String, Object> map = value.getAsMap();
@@ -198,10 +212,7 @@ public class Config {
                     proxyUri = (String) map.get("uri");
                     proxyUsername = (String) map.get("username");
                     proxyPassword = (String) map.get("password");
-                    ScriptObjectMirror temp = (ScriptObjectMirror) map.get("nonProxyHosts");
-                    if (temp != null) {
-                        nonProxyHosts = (List) temp.values();
-                    }
+                    nonProxyHosts = (List) map.get("nonProxyHosts");
                 }
                 return true;
             case "userDefined":
@@ -242,6 +253,7 @@ public class Config {
         clientInstance = parent.clientInstance;
         userDefined = parent.userDefined;
         driverOptions = parent.driverOptions;
+        driverTarget = parent.driverTarget;
         afterScenario = parent.afterScenario;
         afterFeature = parent.afterFeature;
         showLog = parent.showLog;
@@ -431,6 +443,14 @@ public class Config {
 
     public boolean isOutlineVariablesAuto() {
         return outlineVariablesAuto;
+    } 
+
+    public Target getDriverTarget() {
+        return driverTarget;
+    }
+
+    public void setDriverTarget(Target driverTarget) {
+        this.driverTarget = driverTarget;
     }        
 
 }

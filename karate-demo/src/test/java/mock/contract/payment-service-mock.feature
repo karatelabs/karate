@@ -10,20 +10,20 @@ Scenario: pathMatches('/payments') && methodIs('post')
     * def payment = request
     * def id = nextId()
     * set payment.id = id
-    * eval payments[id + ''] = payment
+    * payments[id + ''] = payment
     * def response = payment
     * string json  = { paymentId: '#(id)', status: 'shipped' }
-    * eval QueueUtils.send(queueName, json, 25)    
+    * QueueUtils.send(queueName, json, 25)    
 
 Scenario: pathMatches('/payments')
     * def response = $payments.*
 
 Scenario: pathMatches('/payments/{id}') && methodIs('put')
-    * eval payments[pathParams.id] = request
+    * payments[pathParams.id] = request
     * def response = request
 
 Scenario: pathMatches('/payments/{id}') && methodIs('delete')
-    * eval karate.remove('payments', '$.' + pathParams.id)
+    * karate.remove('payments', '$.' + pathParams.id)
     * def response = ''
 
 Scenario: pathMatches('/payments/{id}')

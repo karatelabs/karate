@@ -40,6 +40,7 @@ import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.Config;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
@@ -47,10 +48,13 @@ import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
+import com.intuit.karate.driver.Key;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,6 +70,7 @@ import java.util.function.Function;
 public class ScenarioContext {
 
     public final Logger logger;
+    public final LogAppender appender;
     public final ScriptBindings bindings;
     public final int callDepth;
     public final boolean reuseParentContext;
@@ -78,6 +83,16 @@ public class ScenarioContext {
     public final Collection<ExecutionHook> executionHooks;
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
+    private final ClassLoader classLoader;
+
+    public final Function<String, Object> read = s -> {
+        ScriptValue sv = FileUtils.readFile(s, this);
+        if (sv.isXml()) {
+            return sv.getValue();
+        } else { // json should behave like json within js / function
+            return sv.getAfterConvertingFromJsonOrXmlIfNeeded();
+        }
+    };
 
     // these can get re-built or swapped, so cannot be final
     private Config config;
@@ -97,7 +112,7 @@ public class ScenarioContext {
     private PerfEvent prevPerfEvent;
 
     // report embed
-    protected Embed prevEmbed;
+    private List<Embed> prevEmbeds;
 
     // ui support
     private Function<CallContext, FeatureResult> callable;
@@ -105,9 +120,9 @@ public class ScenarioContext {
     // async
     private final Object LOCK = new Object();
     private Object signalResult;
-    
+
     // websocket    
-    private List<WebSocketClient> webSocketClients;    
+    private List<WebSocketClient> webSocketClients;
 
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHooks != null) {
@@ -182,6 +197,14 @@ public class ScenarioContext {
         return callable;
     }
 
+    public URL getResource(String name) {
+        return classLoader.getResource(name);
+    }
+
+    public InputStream getResourceAsStream(String name) {
+        return classLoader.getResourceAsStream(name);
+    }
+
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
             return;
@@ -199,12 +222,19 @@ public class ScenarioContext {
         return config.isPrintEnabled();
     }
 
-    public ScenarioContext(FeatureContext featureContext, CallContext call, Scenario scenario, Logger logger) {
+    public ScenarioContext(FeatureContext featureContext, CallContext call, Scenario scenario, LogAppender appender) {
+        this(featureContext, call, null, scenario, appender);
+    }
+
+    public ScenarioContext(FeatureContext featureContext, CallContext call, ClassLoader classLoader, Scenario scenario, LogAppender appender) {
         this.featureContext = featureContext;
-        if (logger == null) { // ensure this.logger is set properly
-            logger = new Logger();
+        this.classLoader = classLoader == null ? resolveClassLoader(call) : classLoader;
+        logger = new Logger();
+        if (appender == null) {
+            appender = LogAppender.NO_OP;
         }
-        this.logger = logger;
+        logger.setLogAppender(appender);
+        this.appender = appender;        
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;
         executionHooks = call.executionHooks;
@@ -225,6 +255,9 @@ public class ScenarioContext {
             config = call.context.config;
             rootFeatureContext = call.context.rootFeatureContext;
             driver = call.context.driver;
+            if (driver != null) { // logger re-pointing
+                driver.getOptions().setContext(this);
+            }
             webSocketClients = call.context.webSocketClients;
         } else if (call.context != null) {
             parentContext = call.context;
@@ -289,17 +322,26 @@ public class ScenarioContext {
         logger.trace("karate context init - initial properties: {}", vars);
     }
 
-    public ScenarioContext copy(ScenarioInfo info, Logger logger) {
-        return new ScenarioContext(this, info, logger);
+    private static ClassLoader resolveClassLoader(CallContext call) {
+        if (call.context == null) {
+            return Thread.currentThread().getContextClassLoader();
+        }
+        return call.context.classLoader;
+    }
+
+    public ScenarioContext copy(ScenarioInfo info) {
+        return new ScenarioContext(this, info);
     }
 
     public ScenarioContext copy() {
-        return new ScenarioContext(this, scenarioInfo, logger);
+        return new ScenarioContext(this, scenarioInfo);
     }
 
-    private ScenarioContext(ScenarioContext sc, ScenarioInfo info, Logger logger) {
+    private ScenarioContext(ScenarioContext sc, ScenarioInfo info) {
         featureContext = sc.featureContext;
-        this.logger = logger;
+        classLoader = sc.classLoader;
+        logger = sc.logger;
+        appender = sc.appender;
         callDepth = sc.callDepth;
         reuseParentContext = sc.reuseParentContext;
         parentContext = sc.parentContext;
@@ -399,16 +441,22 @@ public class ScenarioContext {
         responseString = StringUtils.trimToEmpty(responseString);
         if (Script.isJson(responseString)) {
             try {
-                responseBody = JsonUtils.toJsonDoc(responseString);
+                responseBody = JsonUtils.toJsonDocStrict(responseString);
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "json");
             } catch (Exception e) {
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
                 logger.warn("json parsing failed, response data type set to string: {}", e.getMessage());
             }
         } else if (Script.isXml(responseString)) {
             try {
                 responseBody = XmlUtils.toXmlDoc(responseString);
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "xml");
             } catch (Exception e) {
+                vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
                 logger.warn("xml parsing failed, response data type set to string: {}", e.getMessage());
             }
+        } else {
+            vars.put(ScriptValueMap.VAR_RESPONSE_TYPE, "string");
         }
         vars.put(ScriptValueMap.VAR_RESPONSE, responseBody);
     }
@@ -785,9 +833,9 @@ public class ScenarioContext {
         Script.evalJsExpression(exp, this);
     }
 
-    public Embed getAndClearEmbed() {
-        Embed temp = prevEmbed;
-        prevEmbed = null;
+    public List<Embed> getAndClearEmbeds() {
+        List<Embed> temp = prevEmbeds;
+        prevEmbeds = null;
         return temp;
     }
 
@@ -795,11 +843,14 @@ public class ScenarioContext {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
-        prevEmbed = embed;
+        if (prevEmbeds == null) {
+            prevEmbeds = new ArrayList();
+        }
+        prevEmbeds.add(embed);
     }
 
     public WebSocketClient webSocket(WebSocketOptions options) {
-        WebSocketClient webSocketClient = new WebSocketClient(options);
+        WebSocketClient webSocketClient = new WebSocketClient(options, logger);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
         }
@@ -844,43 +895,64 @@ public class ScenarioContext {
     //
     private void setDriver(Driver driver) {
         this.driver = driver;
+        driver.getOptions().setContext(this);
         bindings.putAdditionalVariable(ScriptBindings.DRIVER, driver);
+        // the most interesting hack in the world
+        for (String methodName : DriverOptions.DRIVER_METHOD_NAMES) {
+            String js = "function(){ if (arguments.length == 0) return driver." + methodName + "();"
+                    + " if (arguments.length == 1) return driver." + methodName + "(arguments[0]);"
+                    + " return driver." + methodName + "(arguments[0], arguments[1]) }";
+            ScriptValue sv = ScriptBindings.eval(js, bindings);
+            bindings.putAdditionalVariable(methodName, sv.getValue());
+        }
+        bindings.putAdditionalVariable("Key", Key.INSTANCE);
     }
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        if (driver == null) {
+        if (driver == null) {                        
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
-                options = new HashMap();
+                options = new HashMap();                
             }
+            options.put("target", config.getDriverTarget());
             if (sv.isMapLike()) {
                 options.putAll(sv.getAsMap());
             }
-            setDriver(DriverOptions.start(this, options, logger));
+            setDriver(DriverOptions.start(this, options, appender));
         }
         if (sv.isString()) {
-            driver.setLocation(sv.getAsString());
+            driver.setUrl(sv.getAsString());
         }
     }
 
-    public void driverDot(String expression) {
-        eval(ScriptBindings.DRIVER_DOT + expression);
-    }
-
-    public void stop() {
+    public void stop(StepResult lastStepResult) {
         if (reuseParentContext) {
-            if (driver != null) {
+            if (driver != null) { // a called feature inited the driver
                 parentContext.setDriver(driver);
             }
             parentContext.webSocketClients = webSocketClients;
-            return;
+            return; // don't kill driver yet
         }
         if (webSocketClients != null) {
             webSocketClients.forEach(WebSocketClient::close);
         }
         if (driver != null) {
             driver.quit();
+            DriverOptions options  = driver.getOptions();
+            if (options.target != null) {
+                logger.debug("custom target configured, attempting stop()");
+                Map<String, Object> map = options.target.stop(logger);
+                String video = (String) map.get("video");
+                if (video != null && lastStepResult != null) {
+                    logger.info("video file present, attaching to last step result: {}", video);
+                    String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
+                    Embed embed = new Embed();                    
+                    embed.setBytes(html.getBytes());
+                    embed.setMimeType("text/html");
+                    lastStepResult.addEmbed(embed);
+                }
+            }
             driver = null;
         }
     }

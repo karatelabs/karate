@@ -59,6 +59,14 @@ public class Scenario {
         this.index = index;
     }
 
+    public String getNameForReport() {
+        if (name == null) {
+            return getDisplayMeta();
+        } else {
+            return getDisplayMeta() + " " + name;
+        }
+    }
+
     public ScenarioInfo toInfo(Path featurePath) {
         ScenarioInfo info = new ScenarioInfo();
         if (featurePath != null) {
@@ -119,7 +127,7 @@ public class Scenario {
         }
         return meta + ":" + line + "]";
     }
-    
+
     public String getUniqueId() {
         int num = section.getIndex() + 1;
         String meta = "-" + num;
@@ -127,7 +135,7 @@ public class Scenario {
             meta = meta + "_" + (index + 1);
         }
         return meta;
-    }    
+    }
 
     public List<Step> getBackgroundSteps() {
         return feature.isBackgroundPresent() ? feature.getBackground().getSteps() : Collections.EMPTY_LIST;
@@ -251,6 +259,6 @@ public class Scenario {
 
     public void setExampleIndex(int exampleIndex) {
         this.exampleIndex = exampleIndex;
-    }        
+    }
 
 }

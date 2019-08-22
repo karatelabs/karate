@@ -57,6 +57,7 @@ public class WebSocketOptions {
             if (temp != null) {
                 maxPayloadSize = temp;
             }
+            headers = (Map) options.get("headers");
         }
     }
 

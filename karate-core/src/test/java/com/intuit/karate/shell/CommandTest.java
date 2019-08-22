@@ -1,10 +1,12 @@
 package com.intuit.karate.shell;
 
 import java.io.File;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 import org.junit.Test;
 
 import com.intuit.karate.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -12,13 +14,22 @@ import com.intuit.karate.FileUtils;
  */
 public class CommandTest {
     
+    private static final Logger logger = LoggerFactory.getLogger(CommandTest.class);
+    
     @Test
     public void testCommand() {
-    	String cmd = FileUtils.isWindows() ? "print \"hello\"" : "ls";
-		CommandThread command = new CommandThread(null, null, "target/command.log", new File("src"), cmd, "-al");
+    	String cmd = FileUtils.isOsWindows() ? "print \"hello\"" : "ls";
+		Command command = new Command(null, null, "target/command.log", new File("src"), cmd, "-al");
 		command.start();
         int exitCode = command.waitSync();
 		assertEquals(exitCode, 0);        
     }
+    
+    @Test
+    public void testCommandReturn() {
+    	String cmd = FileUtils.isOsWindows() ? "print \"karate\"" : "ls";
+        String result = Command.exec(new File("target"), cmd);
+        assertTrue(result.contains("karate"));
+    }    
     
 }

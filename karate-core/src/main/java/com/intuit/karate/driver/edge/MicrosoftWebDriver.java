@@ -25,10 +25,10 @@ package com.intuit.karate.driver.edge;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -38,16 +38,16 @@ import java.util.Map;
  */
 public class MicrosoftWebDriver extends WebDriver {
 
-    public MicrosoftWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    public MicrosoftWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static MicrosoftWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 17556, "MicrosoftWebDriver");
+    public static MicrosoftWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 17556, "MicrosoftWebDriver");
         options.arg("--port=" + options.port);
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Edge' } }")
                 .jsonPath("get[0] response..sessionId").asString();

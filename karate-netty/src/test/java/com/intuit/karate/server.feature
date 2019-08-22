@@ -9,8 +9,8 @@ Background:
 Scenario: pathMatches('/v1/cats') && methodIs('post')
     * def cat = request
     * def id = ~~(id + 1)
-    * set cat.id = id
-    * eval cats[id + ''] = cat
+    * cat.id = id
+    * cats[id + ''] = cat
     * def response = cat
 
 Scenario: pathMatches('/v1/cats') && methodIs('get')
@@ -28,6 +28,11 @@ Scenario: pathMatches('/v1/body/xml') && bodyPath('/dog/name') == 'Scooby'
 
 Scenario: pathMatches('/v1/abort')
     * def response = { success: true }
-    * eval if (response.success) karate.abort()
+    * if (response.success) karate.abort()
     # the next line will not be executed
     * def response = { success: false }
+
+Scenario:
+    * def responseStatus = 404
+    * def responseHeaders = { 'Content-Type': 'text/html; charset=utf-8' }
+    * def response = <html><body>Not Found</body></html>

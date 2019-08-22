@@ -27,7 +27,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.FeatureBackend;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpResponse;
-import com.intuit.karate.http.HttpUtils;
 import com.intuit.karate.http.MultiValuedMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -38,11 +37,18 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
+
+import java.util.function.Supplier;
 
 /**
  *
@@ -51,12 +57,14 @@ import io.netty.util.CharsetUtil;
 public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final FeatureBackend backend;
-    private final Runnable stopFunction;
+    private final Runnable stopFunction;    
     private final boolean ssl;
+    private final Supplier<SslContext> contextSupplier;
 
-    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Runnable stopFunction) {
+    public FeatureServerHandler(FeatureBackend backend, boolean ssl, Supplier<SslContext> contextSupplier, Runnable stopFunction) {
         this.backend = backend;
         this.ssl = ssl;
+        this.contextSupplier = contextSupplier;
         this.stopFunction = stopFunction;
     }
 
@@ -65,7 +73,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         ctx.flush();
     }
 
-    private static final String STOP_URI = "/__admin/stop";    
+    private static final String STOP_URI = "/__admin/stop";
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest msg) {
@@ -77,12 +85,20 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
             ByteBuf responseBuf = Unpooled.copiedBuffer("stopped", CharsetUtil.UTF_8);
             nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
             stopFunction.run();
+        } else if (HttpMethod.CONNECT.equals(msg.method())) { // HTTPS proxy         
+            SslContext sslContext = contextSupplier.get();
+            SslHandler sslHandler = sslContext.newHandler(ctx.alloc());
+            FullHttpResponse response = NettyUtils.connectionEstablished();
+            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
+            ctx.writeAndFlush(response).addListener(l -> ctx.channel().pipeline().addFirst(sslHandler));
+            // do NOT close channel
+            return;
         } else {
-            StringUtils.Pair url = HttpUtils.parseUriIntoUrlBaseAndPath(msg.uri());
+            StringUtils.Pair url = NettyUtils.parseUriIntoUrlBaseAndPath(msg.uri());
             HttpRequest request = new HttpRequest();
             if (url.left == null) {
                 String requestScheme = ssl ? "https" : "http";
-                String host = msg.headers().get(HttpUtils.HEADER_HOST);
+                String host = msg.headers().get(HttpHeaderNames.HOST);
                 request.setUrlBase(requestScheme + "://" + host);
             } else {
                 request.setUrlBase(url.left);
@@ -107,13 +123,13 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
                 nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus, responseBuf);
             } else {
                 nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpResponseStatus);
-            }            
+            }
             MultiValuedMap karateHeaders = response.getHeaders();
             if (karateHeaders != null) {
                 HttpHeaders nettyHeaders = nettyResponse.headers();
                 karateHeaders.forEach((k, v) -> nettyHeaders.add(k, v));
-            }            
-        }        
+            }
+        }
         ctx.write(nettyResponse);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
@@ -123,7 +139,7 @@ public class FeatureServerHandler extends SimpleChannelInboundHandler<FullHttpRe
         if (cause.getMessage() == null) {
             cause.printStackTrace();
         } else {
-            backend.getContext().logger.error("error, closing connection: {}", cause.getMessage());
+            backend.getContext().logger.error("closing connection: {}", cause.getMessage());
         }
         ctx.close();
     }

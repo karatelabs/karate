@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Results;
 import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.exception.KarateException;
@@ -41,6 +42,7 @@ import java.util.Map;
  */
 public class FeatureResult {
 
+    private final Results results;
     private final Feature feature;
     private final String displayName;
     private final List<ScenarioResult> scenarioResults = new ArrayList();
@@ -101,7 +103,12 @@ public class FeatureResult {
         return list;
     }
 
-    public FeatureResult(Feature feature) {
+    public Results getResults() {
+        return results;
+    }        
+
+    public FeatureResult(Results results, Feature feature) {
+        this.results = results;
         this.feature = feature;
         displayName = FileUtils.removePrefix(feature.getRelativePath());
     }

@@ -53,9 +53,9 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
         this.feature = feature;
         FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = new CallContext(null, true);
-        exec = new ExecutionContext(System.currentTimeMillis(), featureContext, callContext, null, null, null);
+        exec = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, null, null);
         featureUnit = new FeatureExecutionUnit(exec);
-        featureUnit.init(null);
+        featureUnit.init();
         List<ScenarioExecutionUnit> selected = new ArrayList();
         for(ScenarioExecutionUnit unit : featureUnit.getScenarioExecutionUnits()) {
             if (featureUnit.isSelected(unit)) { // tag filtering
@@ -76,16 +76,16 @@ public class FeatureNode implements Iterator<DynamicTest>, Iterable<DynamicTest>
     @Override
     public DynamicTest next() {
         ScenarioExecutionUnit unit = iterator.next();
-        String displayName = unit.scenario.getDisplayMeta() + " " + unit.scenario.getName();
-        return DynamicTest.dynamicTest(displayName, () -> {
+        return DynamicTest.dynamicTest(unit.scenario.getNameForReport(), () -> {
             featureUnit.run(unit);
-            if (unit.result.isFailed()) {
-                Assertions.fail(unit.result.getError().getMessage());
-            }
-            if (unit.isLast()) {
+            boolean failed = unit.result.isFailed();
+            if (unit.isLast() || failed) {
                 featureUnit.stop();
                 exec.result.printStats(null);
                 Engine.saveResultHtml(FileUtils.getBuildDir() + File.separator + "surefire-reports", exec.result, null);
+            }
+            if (failed) {
+                Assertions.fail(unit.result.getError().getMessage());
             }
         });
     }

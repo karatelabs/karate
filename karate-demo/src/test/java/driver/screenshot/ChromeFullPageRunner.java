@@ -19,7 +19,7 @@ public class ChromeFullPageRunner {
     @Test
     public void testChrome() throws Exception {
         Chrome chrome = Chrome.startHeadless();
-        chrome.setLocation("https://github.com/intuit/karate/graphs/contributors");
+        chrome.setUrl("https://github.com/intuit/karate/graphs/contributors");
         byte[] bytes = chrome.pdf(Collections.EMPTY_MAP);
         FileUtils.writeToFile(new File("target/fullscreen.pdf"), bytes);
         bytes = chrome.screenshot(true);

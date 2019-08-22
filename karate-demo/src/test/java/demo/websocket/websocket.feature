@@ -21,6 +21,6 @@ Scenario: only listening to websocket messages
 Scenario: using the websocket instance to send as well as receive messages
     * def handler = function(msg){ return msg.startsWith('hello') }
     * def socket = karate.webSocket(demoBaseUrl + '/websocket', handler)
-    * eval socket.send('Billie')
+    * socket.send('Billie')
     * def result = socket.listen(5000)
     * match result == 'hello Billie !'

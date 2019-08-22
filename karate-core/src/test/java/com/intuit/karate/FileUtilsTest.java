@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2019 Intuit Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
@@ -23,6 +46,101 @@ import org.slf4j.LoggerFactory;
 public class FileUtilsTest {
 
     private static final Logger logger = LoggerFactory.getLogger(FileUtilsTest.class);
+
+    @Test
+    public void testIsClassPath() {
+        assertFalse(FileUtils.isClassPath("foo/bar/baz"));
+        assertTrue(FileUtils.isClassPath("classpath:foo/bar/baz"));
+    }
+
+    @Test
+    public void testIsFilePath() {
+        assertFalse(FileUtils.isFilePath("foo/bar/baz"));
+        assertTrue(FileUtils.isFilePath("file:/foo/bar/baz"));
+    }
+
+    @Test
+    public void testIsThisPath() {
+        assertFalse(FileUtils.isThisPath("foo/bar/baz"));
+        assertTrue(FileUtils.isThisPath("this:/foo/bar/baz"));
+    }
+
+    @Test
+    public void testIsJsonFile() {
+        assertFalse(FileUtils.isJsonFile("foo.txt"));
+        assertTrue(FileUtils.isJsonFile("foo.json"));
+    }
+
+    @Test
+    public void testIsJavaScriptFile() {
+        assertFalse(FileUtils.isJavaScriptFile("foo.txt"));
+        assertTrue(FileUtils.isJavaScriptFile("foo.js"));
+    }
+
+    @Test
+    public void testIsYamlFile() {
+        assertFalse(FileUtils.isYamlFile("foo.txt"));
+        assertTrue(FileUtils.isYamlFile("foo.yaml"));
+        assertTrue(FileUtils.isYamlFile("foo.yml"));
+    }
+
+    @Test
+    public void testIsXmlFile() {
+        assertFalse(FileUtils.isXmlFile("foo.txt"));
+        assertTrue(FileUtils.isXmlFile("foo.xml"));
+    }
+
+    @Test
+    public void testIsTextFile() {
+        assertFalse(FileUtils.isTextFile("foo.xml"));
+        assertTrue(FileUtils.isTextFile("foo.txt"));
+    }
+
+    @Test
+    public void testIsCsvFile() {
+        assertFalse(FileUtils.isCsvFile("foo.txt"));
+        assertTrue(FileUtils.isCsvFile("foo.csv"));
+    }
+
+    @Test
+    public void testIsGraphQlFile() {
+        assertFalse(FileUtils.isGraphQlFile("foo.txt"));
+        assertTrue(FileUtils.isGraphQlFile("foo.graphql"));
+        assertTrue(FileUtils.isGraphQlFile("foo.gql"));
+    }
+
+    @Test
+    public void testIsFeatureFile() {
+        assertFalse(FileUtils.isFeatureFile("foo.txt"));
+        assertTrue(FileUtils.isFeatureFile("foo.feature"));
+    }
+
+    @Test
+    public void testRemovePrefix() {
+        assertEquals("baz", FileUtils.removePrefix("foobar:baz"));
+        assertEquals("foobarbaz", FileUtils.removePrefix("foobarbaz"));
+        assertNull(FileUtils.removePrefix(null));
+    }
+
+    @Test
+    public void testToStringBytes() {
+        final byte[] bytes = {102, 111, 111, 98, 97, 114};
+        assertEquals("foobar", FileUtils.toString(bytes));
+        assertNull(FileUtils.toString((byte[]) null));
+    }
+
+    @Test
+    public void testToBytesString() {
+        final byte[] bytes = {102, 111, 111, 98, 97, 114};
+        assertArrayEquals(bytes, FileUtils.toBytes("foobar"));
+        assertNull(FileUtils.toBytes((String) null));
+    }
+
+    @Test
+    public void testReplaceFileExtension() {
+        assertEquals("foo.bar", FileUtils.replaceFileExtension("foo.txt", "bar"));
+        assertEquals("foo.baz", FileUtils.replaceFileExtension("foo", "baz"));
+    }
 
     @Test
     public void testWindowsFileNames() {
@@ -64,21 +182,21 @@ public class FileUtilsTest {
         }
         assertTrue(found);
     }
-    
+
     @Test
     public void testScanFileWithLineNumber() {
         String relativePath = "classpath:com/intuit/karate/test/test.feature:3";
         List<Resource> files = FileUtils.scanForFeatureFiles(Collections.singletonList(relativePath), getClass().getClassLoader());
         assertEquals(1, files.size());
         assertEquals(3, files.get(0).getLine());
-    }    
+    }
 
     @Test
     public void testScanFilePath() {
         String relativePath = "classpath:com/intuit/karate/test";
         List<Resource> files = FileUtils.scanForFeatureFiles(true, relativePath, getClass().getClassLoader());
         assertEquals(1, files.size());
-    }    
+    }
 
     @Test
     public void testRelativePathForClass() {
@@ -92,6 +210,15 @@ public class FileUtilsTest {
             logger.debug("url: {}", url);
         }
     }
+    
+    @Test
+    public void testGetClasspathAbsolute() {
+        File file = new File("src/test/java/com/intuit/karate/multi-scenario.feature").getAbsoluteFile();
+        String scan = "classpath:" + file.getPath();
+        List<Resource> resources = FileUtils.scanForFeatureFiles(Collections.singletonList(scan), ClassLoader.getSystemClassLoader());
+        assertEquals(1, resources.size());
+        assertEquals(file, resources.get(0).getPath().toFile());
+    }    
 
     private static ClassLoader getJarClassLoader() throws Exception {
         File jar = new File("src/test/resources/karate-test.jar");

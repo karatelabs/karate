@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorSystem
 import com.intuit.karate.core.ScenarioContext
 import com.intuit.karate.http.{HttpRequestBuilder, HttpUtils}
+import com.intuit.karate.netty.NettyUtils
 import io.gatling.core.CoreComponents
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
@@ -20,7 +21,7 @@ class KarateProtocol(val uriPatterns: Map[String, Seq[MethodPause]]) extends Pro
   }
   val actorCount = new AtomicInteger()
   val defaultNameResolver = (req: HttpRequestBuilder, ctx: ScenarioContext) => {
-    val pathPair = HttpUtils.parseUriIntoUrlBaseAndPath(req.getUrlAndPath)
+    val pathPair = NettyUtils.parseUriIntoUrlBaseAndPath(req.getUrlAndPath)
     val matchedUri = pathMatches(pathPair.right)
     if (matchedUri.isDefined) matchedUri.get else pathPair.right
   }

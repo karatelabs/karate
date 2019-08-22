@@ -1,41 +1,44 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2019 Intuit Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.intuit.karate.driver;
 
-
 import com.intuit.karate.*;
-import com.intuit.karate.shell.CommandThread;
-
-import java.io.File;
-import java.io.IOException;
+import com.intuit.karate.shell.Command;
 
 /**
  * @author babusekaran
  */
 public abstract class AppiumDriver extends WebDriver {
 
-    protected final DriverOptions options;
-    protected final Logger logger;
-    protected final CommandThread command;
-    protected final Http http;
-    private final String sessionId;
-
-    protected AppiumDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    protected AppiumDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
-        this.options = options;
-        this.logger = options.driverLogger;
-        this.command = command;
-        this.http = http;
-        this.sessionId = sessionId;
     }
 
     @Override
     public String attribute(String locator, String name) {
-        String id = getElementId(locator);
+        String id = elementId(locator);
         return http.path("element", id, "attribute", name).get().jsonPath("$.value").asString();
-    }
-
-    private ScriptValue evalInternal(String expression) {
-        Json json = new Json().set("script", expression).set("args", "[]");
-        return http.path("execute", "sync").post(json).jsonPath("$.value").value();
     }
 
     private String getElementSelector(String id) {
@@ -59,21 +62,16 @@ public abstract class AppiumDriver extends WebDriver {
     }
 
     @Override
-    protected String getElementId(String id) {
+    public String elementId(String id) {
         String body = getElementSelector(id);
         return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
     }
 
     @Override
-    public void clear(String selector) {
-        String id = getElementId(selector);
-        http.path("element", id, "clear").post("{}");
-    }
-
-    @Override
-    public void click(String selector) {
-        String id = getElementId(selector);
+    public Element click(String locator) {
+        String id = elementId(locator);
         http.path("element", id, "click").post("{}");
+        return DriverElement.locatorExists(this, locator);
     }
 
     public void setContext(String context) {
@@ -88,7 +86,7 @@ public abstract class AppiumDriver extends WebDriver {
 
     @Override
     public String text(String locator) {
-        String id = getElementId(locator);
+        String id = elementId(locator);
         return http.path("element", id, "text").get().jsonPath("$.value").asString();
     }
 

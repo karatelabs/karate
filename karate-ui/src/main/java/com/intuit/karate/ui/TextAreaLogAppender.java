@@ -24,7 +24,6 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.LogAppender;
-import com.intuit.karate.Logger;
 import javafx.scene.control.TextArea;
 
 /**
@@ -34,31 +33,32 @@ import javafx.scene.control.TextArea;
 public class TextAreaLogAppender implements LogAppender {
 
     private final TextArea textArea;
+    private final StringBuilder sb = new StringBuilder();
 
-    public static TextAreaLogAppender init(Logger logger, TextArea textArea) {
-        return new TextAreaLogAppender(logger, textArea);
-    }
-    
-    private TextAreaLogAppender(Logger logger, TextArea textArea) {
+    public TextAreaLogAppender(TextArea textArea) {
         this.textArea = textArea;
-        logger.setLogAppender(this);
     }
 
     @Override
     public String collect() {
-        String text = textArea.getText();
-        textArea.clear();
+        String text = sb.toString();
+        sb.setLength(0);
         return text;
     }
 
     @Override
     public void append(String text) {
-        textArea.appendText(text);
+        try {
+            textArea.appendText(text);
+            sb.append(text);
+        } catch (Exception e) {
+            System.err.println("*** javafx text area error: " + e);
+        }
     }
 
     @Override
     public void close() {
 
-    }    
+    }
 
 }

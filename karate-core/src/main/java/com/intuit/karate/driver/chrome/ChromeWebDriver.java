@@ -26,10 +26,11 @@ package com.intuit.karate.driver.chrome;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
+import com.intuit.karate.ScriptValue;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Map;
 
@@ -39,17 +40,17 @@ import java.util.Map;
  */
 public class ChromeWebDriver extends WebDriver {
 
-    public ChromeWebDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    public ChromeWebDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 9515, "chromedriver");
+    public static ChromeWebDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 9515, "chromedriver");
         options.arg("--port=" + options.port);
         options.arg("--user-data-dir=" + options.workingDirPath);
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         String sessionId = http.path("session")
                 .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
                 .jsonPath("get[0] response..sessionId").asString();
@@ -63,8 +64,8 @@ public class ChromeWebDriver extends WebDriver {
     }
 
     @Override
-    protected String getJsonPathForElementId() {
-        return "$.value.ELEMENT";
+    protected String getElementKey() {
+        return "ELEMENT";
     }
 
     @Override
@@ -75,29 +76,19 @@ public class ChromeWebDriver extends WebDriver {
     @Override
     protected String getJsonForHandle(String text) {
         return new Json().set("name", text).toString();
-    }    
-    
-    @Override
-    public String html(String locator) {
-        return attribute(locator, "innerHTML");
     }
 
     @Override
-    public String value(String locator) {
-        return attribute(locator, "value");
+    protected String getJsonForFrame(String text) {
+        return new Json().set("id.ELEMENT", text).toString();
     }
-    
-    @Override
-    public String name(String locator) {
-        return attribute(locator, "tagName");
-    }    
 
     @Override
     public void activate() {
         if (!options.headless) {
             try {
-                switch (FileUtils.getPlatform()) {
-                    case MAC:
+                switch (FileUtils.getOsType()) {
+                    case MACOSX:
                         Runtime.getRuntime().exec(new String[]{"osascript", "-e", "tell app \"Chrome\" to activate"});
                         break;
                     default:
@@ -108,5 +99,30 @@ public class ChromeWebDriver extends WebDriver {
             }
         }
     }
+
+    @Override
+    public void switchFrame(String locator) {
+        if (locator == null) { // reset to parent frame
+            http.path("frame", "parent").post("{}");
+            return;
+        }
+        retryIfEnabled(locator, () -> {
+            String id = elementId(locator);
+            http.path("frame").post(getJsonForFrame(id));
+            return null;
+        });
+    }
+
+    @Override
+    protected boolean isJavaScriptError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return !value.isNull() && value.getAsString().contains("javascript error");
+    }        
+
+    @Override
+    protected boolean isLocatorError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return value.getAsString().contains("no such element");
+    }        
 
 }

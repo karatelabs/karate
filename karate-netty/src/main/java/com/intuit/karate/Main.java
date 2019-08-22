@@ -23,9 +23,9 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.cli.CliExecutionHook;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.netty.FeatureServer;
-import com.intuit.karate.netty.NettyUtils;
 import com.intuit.karate.ui.App;
 import java.io.File;
 import java.util.ArrayList;
@@ -54,8 +54,6 @@ public class Main implements Callable<Void> {
 
     private static final String DEFAULT_OUTPUT_DIR = "target";
     private static final String LOGBACK_CONFIG = "logback.configurationFile";
-    private static final String CERT_FILE = "cert.pem";
-    private static final String KEY_FILE = "key.pem";
 
     private static Logger logger;
 
@@ -69,13 +67,14 @@ public class Main implements Callable<Void> {
     Integer port;
 
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
-            + CERT_FILE + "' and '" + KEY_FILE + "' if they exist in the working directory, or generate them")
+            + FeatureServer.DEFAULT_CERT_NAME + "' and '" + FeatureServer.DEFAULT_KEY_NAME
+            + "' if they exist in the working directory, or generate them")
     boolean ssl;
 
-    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + CERT_FILE + ")")
+    @Option(names = {"-c", "--cert"}, description = "ssl certificate (default: " + FeatureServer.DEFAULT_CERT_NAME + ")")
     File cert;
 
-    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + KEY_FILE + ")")
+    @Option(names = {"-k", "--key"}, description = "ssl private key (default: " + FeatureServer.DEFAULT_KEY_NAME + ")")
     File key;
 
     @Option(names = {"-t", "--tags"}, description = "cucumber tags - e.g. '@smoke,~@ignore'")
@@ -89,9 +88,9 @@ public class Main implements Callable<Void> {
 
     @Parameters(description = "one or more tests (features) or search-paths to run")
     List<String> tests;
-    
+
     @Option(names = {"-n", "--name"}, description = "scenario name")
-    String name;    
+    String name;
 
     @Option(names = {"-e", "--env"}, description = "value of 'karate.env'")
     String env;
@@ -99,8 +98,8 @@ public class Main implements Callable<Void> {
     @Option(names = {"-u", "--ui"}, description = "show user interface")
     boolean ui;
     
-    @Option(names = {"-cp", "--classpath"}, description = "additional classpath entries")
-    File[] classpath;    
+    @Option(names = {"-C", "--clean"}, description = "clean output directory")
+    boolean clean;       
 
     public static void main(String[] args) {
         boolean isOutputArg = false;
@@ -145,15 +144,8 @@ public class Main implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {
-        // attempt classpath modification first
-        if (classpath != null) {
-            try {
-                for (File file : classpath) {
-                    FileUtils.addToClasspath(file);
-                }
-            } catch (Exception e) {
-                logger.warn("unable to modify classpath: {}", e.getMessage());
-            }
+        if (clean) {
+            org.apache.commons.io.FileUtils.deleteDirectory(new File(output));
         }
         if (tests != null) {
             if (ui) {
@@ -168,8 +160,13 @@ public class Main implements Callable<Void> {
                     System.setProperty(ScriptBindings.KARATE_CONFIG_DIR, new File("").getAbsolutePath());
                 }
                 List<String> fixed = tests.stream().map(f -> new File(f).getAbsolutePath()).collect(Collectors.toList());
-                Results results = Runner.parallel(tags, fixed, name, null, threads, output);
-                Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(output), new String[]{"json"}, true);
+                // this avoids mixing json created by other means which will break the cucumber report
+                String jsonOutputDir = output + File.separator + ScriptBindings.SUREFIRE_REPORTS;
+                CliExecutionHook hook = new CliExecutionHook(false, jsonOutputDir, false);
+                Results results = Runner
+                        .path(fixed).tags(tags).scenarioName(name)
+                        .reportDir(jsonOutputDir).hook(hook).parallel(threads);
+                Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
                 List<String> jsonPaths = new ArrayList(jsonFiles.size());
                 jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
                 Configuration config = new Configuration(new File(output), new Date() + "");
@@ -180,7 +177,11 @@ public class Main implements Callable<Void> {
                 }
             }
             return null;
-        } else if (ui || mock == null) {
+        }
+        if (clean) {
+            return null;
+        }
+        if (ui || mock == null) {
             App.main(new String[]{});
             return null;
         }
@@ -191,29 +192,13 @@ public class Main implements Callable<Void> {
                 return null;
             }
         }
-        FeatureServer server;
-        if (cert != null) {
-            ssl = true;
+        // these files will not be created, unless ssl or ssl proxying happens
+        // and then they will be lazy-initialized
+        if (cert == null || key == null) {
+            cert = new File(FeatureServer.DEFAULT_CERT_NAME);
+            key = new File(FeatureServer.DEFAULT_KEY_NAME);
         }
-        if (ssl) {
-            if (cert == null) {
-                cert = new File(CERT_FILE);
-                key = new File(KEY_FILE);
-            }
-            if (!cert.exists() || !key.exists()) {
-                logger.warn("ssl requested, but " + CERT_FILE + " and/or " + KEY_FILE + " not found in working directory, will create");
-                try {
-                    NettyUtils.createSelfSignedCertificate(cert, key);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
-                logger.info("ssl on, using existing files: {} and {}", CERT_FILE, KEY_FILE);
-            }
-            server = FeatureServer.start(mock, port, cert, key, null);
-        } else {
-            server = FeatureServer.start(mock, port, false, null);
-        }
+        FeatureServer server = FeatureServer.start(mock, port, ssl, cert, key, null);
         server.waitSync();
         return null;
     }

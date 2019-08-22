@@ -50,11 +50,11 @@ public class ScriptBindings implements Bindings {
 
     // all threads will share this ! thread isolation is via Bindings (this class)
     private static final ScriptEngine NASHORN = new ScriptEngineManager(null).getEngineByName("nashorn");
-    
-    protected final ScriptBridge bridge;
+
+    public final ScriptBridge bridge;
 
     private final ScriptValueMap vars;
-    private final Map<String, Object> adds;
+    public final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
     public static final String KARATE_ENV = "karate.env";
@@ -66,8 +66,8 @@ public class ScriptBindings implements Bindings {
     private static final String KARATE_BASE_JS = KARATE_DASH_BASE + DOT_JS;
     public static final String READ = "read";
     public static final String DRIVER = "driver";
-    public static final String DRIVER_DOT = DRIVER + ".";
-    
+    public static final String SUREFIRE_REPORTS = "surefire-reports";
+
     // netty / test-doubles
     public static final String PATH_MATCHES = "pathMatches";
     public static final String METHOD_IS = "methodIs";
@@ -78,18 +78,12 @@ public class ScriptBindings implements Bindings {
     public static final String BODY_PATH = "bodyPath";
     public static final String SERVER_PORT = "serverPort";
 
-    private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
-
     public ScriptBindings(ScenarioContext context) {
         this.vars = context.vars;
         this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
         bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
-        // the next line calls an eval with 'incomplete' bindings
-        // i.e. only the 'karate' bridge has been bound so far
-        ScriptValue readFunction = eval(READ_FUNCTION, this);
-        // and only now are the bindings complete - with the 'read' function
-        adds.put(READ, readFunction.getValue());
+        adds.put(READ, context.read);
     }
 
     private static final String READ_INVOKE = "%s('%s%s')";
@@ -111,7 +105,7 @@ public class ScriptBindings implements Bindings {
             }
         } else {
             if (configDir == null) { // look for classpath:karate-config-<env>.js
-                return String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_DASH_CONFIG + "-" + env + DOT_JS); 
+                return String.format(READ_INVOKE, READ, FileUtils.CLASSPATH_COLON, KARATE_DASH_CONFIG + "-" + env + DOT_JS);
             } else { // look for file:<karate.config.dir>/karate-config-<env>.js
                 File configFile = new File(configDir + "/" + KARATE_DASH_CONFIG + "-" + env + DOT_JS);
                 return String.format(READ_INVOKE, READ, FileUtils.FILE_COLON, configFile.getPath().replace('\\', '/'));
@@ -151,15 +145,15 @@ public class ScriptBindings implements Bindings {
             throw new RuntimeException("javascript evaluation failed: " + exp + ", " + e.getMessage(), e);
         }
     }
-    
+
     public static Bindings createBindings() {
         return NASHORN.createBindings();
     }
-    
+
     public void putAdditionalVariable(String name, Object value) {
         adds.put(name, value);
-    }   
-    
+    }
+
     @Override
     public Object get(Object key) {
         ScriptValue sv = vars.get(key);

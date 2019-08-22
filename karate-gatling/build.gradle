@@ -1,0 +1,65 @@
+buildscript {
+    ext {
+        karateVersion = '0.9.4'
+    }
+}
+
+plugins {
+    id 'scala'
+}
+
+repositories {
+    mavenLocal()
+    jcenter()
+}
+
+dependencies {
+    implementation 'org.scala-lang:scala-library:2.12.8'
+
+    // remove these dependencies when you use this "build.gradle" file for your own gatling project
+    compile "com.intuit.karate:karate-apache:${karateVersion}"
+    compile 'io.gatling.highcharts:gatling-charts-highcharts:3.0.2'
+
+    // add these dependencies when you use this "build.gradle" file for your own gatling project.
+    // testCompile "com.intuit.karate:karate-apache:${karateVersion}"
+    // testCompile("com.intuit.karate:karate-gatling:${karateVersion}")
+    // testCompile 'io.gatling.highcharts:gatling-charts-highcharts:3.0.2'
+
+    testCompile "io.gatling:gatling-app:3.0.2"
+}
+
+test {
+    // pull karate options into the runtime
+    systemProperty "karate.options", System.properties.getProperty("karate.options")
+
+    // pull karate env into the runtime
+    systemProperty "karate.env", System.properties.getProperty("karate.env")
+
+    // ensure tests are always run
+    outputs.upToDateWhen { false }
+}
+
+sourceSets {
+    test {
+        resources {
+            // "*.feature" files in "src/test/scala" should be treated as resource files
+            srcDirs = ['src/test/resources', 'src/test/scala']
+        }
+    }
+}
+
+task gatlingRun(type: JavaExec) {
+    group = 'Web Tests'
+    description = 'Run Gatling Tests'
+
+    new File("${buildDir}/reports/gatling").mkdirs()
+
+    classpath = sourceSets.test.runtimeClasspath
+
+    main = "io.gatling.app.Gatling"
+    args = [
+            '-s', 'mock.CatsSimulation',
+            '-rf', "${buildDir}/reports/gatling"
+    ]
+    systemProperties System.properties
+}

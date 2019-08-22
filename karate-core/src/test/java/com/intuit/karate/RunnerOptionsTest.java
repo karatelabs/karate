@@ -1,5 +1,6 @@
 package com.intuit.karate;
 
+import com.intuit.karate.cli.MainTest;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -31,12 +32,12 @@ public class RunnerOptionsTest {
 
     @Test
     public void testParsingCommandLine() {
-        RunnerOptions options = RunnerOptions.parseCommandLine(IdeUtilsTest.INTELLIJ1);
+        RunnerOptions options = RunnerOptions.parseCommandLine(MainTest.INTELLIJ1);
         assertEquals("^get users and then get first by id$", options.getName());
         assertNull(options.getTags());
         assertEquals(1, options.getFeatures().size());
         assertEquals("/Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/java/com/intuit/karate/junit4/demos/users.feature", options.getFeatures().get(0));
-        options = RunnerOptions.parseCommandLine(IdeUtilsTest.ECLIPSE1);
+        options = RunnerOptions.parseCommandLine(MainTest.ECLIPSE1);
         assertEquals(1, options.getFeatures().size());
         assertEquals("/Users/pthomas3/dev/zcode/karate/karate-junit4/src/test/resources/com/intuit/karate/junit4/demos/users.feature", options.getFeatures().get(0));
     }

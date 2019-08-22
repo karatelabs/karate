@@ -88,9 +88,9 @@ public class FeatureResultTest {
         // skip-pass and skip-fail both should have all steps as skipped
         // TODO: generate the expected content string, below code puts a hard dependency
         // with KarateJunitFormatter$TestCase.addStepAndResultListing()
-        assertTrue(contents.contains("* eval karate.abort() ..................................................... skipped"));
-        assertTrue(contents.contains("* assert a == 1 ........................................................... skipped"));
-        assertTrue(contents.contains("* assert a == 2 ........................................................... skipped"));
+        assertTrue(contents.contains("* karate.abort() .......................................................... passed"));
+        assertTrue(contents.contains("* assert a == 1 ........................................................... passed"));
+        assertTrue(contents.contains("* assert a == 2 ........................................................... passed"));
 
         // noskip should have both steps as passed
         assertTrue(contents.contains("Then assert a != 3 ........................................................ passed"));

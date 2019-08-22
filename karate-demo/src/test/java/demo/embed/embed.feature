@@ -1,11 +1,15 @@
 Feature: report embed
 
 Scenario: embed html
-    * eval karate.embed('<h1>Hello World</h1>', 'text/html')
+    * karate.embed('<h1>Hello World</h1>', 'text/html')
 
-Scenario: embed image
-    * def bytes = read('../upload/karate-logo.jpg')
-    * eval karate.embed(bytes, 'image/jpeg')
+@apache
+@mock-servlet-todo
+Scenario: embed images
+    * def bytes1 = read('../upload/karate-logo.jpg')
+    * karate.embed(bytes1, 'image/jpeg')
+    * def bytes2 = read('file:src/test/resources/karate-hello-world.jpg')
+    * karate.embed(bytes2, 'image/jpeg')
 
 Scenario: embed pdf
     # since the cucumber html reporting plugin does not support rendering PDF-s inline
@@ -13,4 +17,4 @@ Scenario: embed pdf
     # it does involve an extra click but there are limitations on loading PDF-s into IFRAME-s
     * def bytes = read('../upload/test.pdf')
     * def embedder = read('embed-pdf.js')
-    * eval embedder(bytes)
+    * embedder(bytes)

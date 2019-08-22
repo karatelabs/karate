@@ -68,6 +68,16 @@ public class StringUtils {
         return new Pair(left, right);
     }
 
+    public static String truncate(String s, int length, boolean addDots) {
+        if (s == null) {
+            return EMPTY;
+        }
+        if (s.length() > length) {
+            return addDots ? s.substring(0, length) + " ..." : s.substring(0, length);
+        }
+        return s;
+    }    
+    
     public static String trimToEmpty(String s) {
         if (s == null) {
             return EMPTY;

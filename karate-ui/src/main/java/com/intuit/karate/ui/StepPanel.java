@@ -24,6 +24,7 @@
 package com.intuit.karate.ui;
 
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.ScenarioExecutionUnit;
@@ -166,6 +167,9 @@ public class StepPanel extends AnchorPane {
             });
         } else {
             unit.getContext().setCallable(null);
+        }
+        if (!nonStop) {
+            scenarioPanel.consolePanel.runIfPreStepEnabled();
         }
         StepResult stepResult = unit.execute(step);
         unit.result.setStepResult(index, stepResult);

@@ -25,10 +25,12 @@ package com.intuit.karate.driver.windows;
 
 import com.intuit.karate.Http;
 import com.intuit.karate.Json;
-import com.intuit.karate.Logger;
+import com.intuit.karate.LogAppender;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.driver.DriverElement;
 import com.intuit.karate.driver.DriverOptions;
-import com.intuit.karate.shell.CommandThread;
+import com.intuit.karate.driver.Element;
+import com.intuit.karate.shell.Command;
 import com.intuit.karate.driver.WebDriver;
 import java.util.Collections;
 import java.util.Map;
@@ -39,17 +41,17 @@ import java.util.Map;
  */
 public class WinAppDriver extends WebDriver {
 
-    public WinAppDriver(DriverOptions options, CommandThread command, Http http, String sessionId, String windowId) {
+    public WinAppDriver(DriverOptions options, Command command, Http http, String sessionId, String windowId) {
         super(options, command, http, sessionId, windowId);
     }
 
-    public static WinAppDriver start(ScenarioContext context, Map<String, Object> map, Logger logger) {
-        DriverOptions options = new DriverOptions(context, map, logger, 4727, 
+    public static WinAppDriver start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
+        DriverOptions options = new DriverOptions(context, map, appender, 4727, 
                 "C:/Program Files (x86)/Windows Application Driver/WinAppDriver");
         options.arg(options.port + "");
-        CommandThread command = options.startProcess();
+        Command command = options.startProcess();
         String urlBase = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger, urlBase);
+        Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         Map<String, Object> capabilities = options.newMapWithSelectedKeys(map, "app", "appArguments", "appTopLevelWindow", "appWorkingDir");
         String sessionId = http.path("session")
                 .post(Collections.singletonMap("desiredCapabilities", capabilities))
@@ -83,15 +85,16 @@ public class WinAppDriver extends WebDriver {
     }
 
     @Override
-    protected String getElementId(String id) {
+    public String elementId(String id) {
         String body = getElementSelector(id);
         return http.path("element").post(body).jsonPath("get[0] $..ELEMENT").asString();
     }
 
     @Override
-    public void click(String selector) {
-        String id = getElementId(selector);
+    public Element click(String locator) {
+        String id = elementId(locator);
         http.path("element", id, "click").post("{}");
+        return DriverElement.locatorExists(this, locator);
     }
 
     @Override
