@@ -78,7 +78,7 @@ Scenario Outline: using <config>
 
   # set cookie
   Given def cookie2 = { name: 'hello', value: 'world' }
-  When driver.cookie(cookie2)
+  When cookie(cookie2)
   Then match driver.cookies contains '#(^cookie2)'
 
   # delete cookie

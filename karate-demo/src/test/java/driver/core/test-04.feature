@@ -8,7 +8,7 @@ Scenario Outline: <type>
 
   # friendly locators: leftOf / rightOf
   * leftOf('{}Check Three').click()
-  * rightOf('{}Input On Right').input('input right') 
+  * rightOf('{}Input On Right').input('input right')  
   * leftOf('{}Input On Left').clear().input('input left')
   * submit().click('#eg02SubmitId')
   * match text('#eg01Data2') == 'check3'
@@ -26,7 +26,7 @@ Scenario Outline: <type>
 
 Examples:
 | type         |
-#| chrome       |
-#| chromedriver |
-#| geckodriver  |
+| chrome       |
+| chromedriver |
+| geckodriver  |
 | safaridriver |

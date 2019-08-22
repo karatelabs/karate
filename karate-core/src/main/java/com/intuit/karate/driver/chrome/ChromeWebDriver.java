@@ -128,7 +128,7 @@ public class ChromeWebDriver extends WebDriver {
     @Override
     protected boolean isCookieError(Http.Response res) {
         ScriptValue value = res.jsonPath("$.value").value();
-        return value.getAsString().contains("unable to set cookie");
+        return !value.isNull() && value.getAsString().contains("unable to set cookie");
     }        
 
 }

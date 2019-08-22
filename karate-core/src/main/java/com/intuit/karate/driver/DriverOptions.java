@@ -553,7 +553,7 @@ public class DriverOptions {
     }
 
     public String focusJs(String locator) {
-        return "var e = " + selector(locator) + "; e.focus(); if (e.selectionEnd) e.selectionStart = e.selectionEnd = e.value.length";
+        return "var e = " + selector(locator) + "; e.focus(); if (e.setSelectionRange) e.selectionStart = e.selectionEnd = e.value.length";
     }
 
     public List<Element> findAll(Driver driver, String locator) {
