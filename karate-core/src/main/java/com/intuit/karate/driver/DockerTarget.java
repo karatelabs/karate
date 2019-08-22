@@ -38,8 +38,6 @@ import java.util.function.Function;
  */
 public class DockerTarget implements Target {
 
-    private Logger logger;
-
     private final String imageId;
     private String containerId;
     private Function<Integer, String> command;
@@ -49,12 +47,7 @@ public class DockerTarget implements Target {
 
     public DockerTarget(String dockerImage) {
         this(Collections.singletonMap("docker", dockerImage));
-    }
-
-    @Override
-    public void setLogger(Logger logger) {
-        this.logger = logger;
-    }        
+    }    
 
     public DockerTarget(Map<String, Object> options) {
         this.options = options;
@@ -94,10 +87,7 @@ public class DockerTarget implements Target {
     }
 
     @Override
-    public Map<String, Object> start() {
-        if (logger == null) {
-            logger = new Logger(getClass());
-        }
+    public Map<String, Object> start(Logger logger) {
         if (command == null) {
             throw new RuntimeException("docker target command (function) not set");
         }
@@ -119,7 +109,7 @@ public class DockerTarget implements Target {
     }
 
     @Override
-    public Map<String, Object> stop() {
+    public Map<String, Object> stop(Logger logger) {
         Command.execLine(null, "docker stop " + containerId);
         if (!karateChrome) { // no video
             return Collections.EMPTY_MAP;

@@ -195,12 +195,10 @@ public class DriverOptions {
 
     public static Driver start(ScenarioContext context, Map<String, Object> options, LogAppender appender) {
         Target target = (Target) options.get("target");
-        Logger logger = new Logger();
-        logger.setLogAppender(appender);
+        Logger logger = context.logger;
         if (target != null) {
-            target.setLogger(logger);
             logger.debug("custom target configured, calling start()");
-            Map<String, Object> map = target.start();
+            Map<String, Object> map = target.start(logger);
             logger.debug("custom target returned options: {}", map);
             options.putAll(map);
         }
@@ -237,7 +235,7 @@ public class DriverOptions {
             String message = "driver config / start failed: " + e.getMessage() + ", options: " + options;
             logger.error(message);
             if (target != null) {
-                target.stop();
+                target.stop(logger);
             }
             throw new RuntimeException(message, e);
         }

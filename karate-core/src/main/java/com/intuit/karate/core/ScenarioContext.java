@@ -942,7 +942,7 @@ public class ScenarioContext {
             DriverOptions options  = driver.getOptions();
             if (options.target != null) {
                 logger.debug("custom target configured, attempting stop()");
-                Map<String, Object> map = options.target.stop();
+                Map<String, Object> map = options.target.stop(logger);
                 String video = (String) map.get("video");
                 if (video != null && lastStepResult != null) {
                     logger.info("video file present, attaching to last step result: {}", video);

@@ -32,10 +32,8 @@ import java.util.Map;
  */
 public interface Target {        
     
-    Map<String, Object> start();
+    Map<String, Object> start(Logger logger);
     
-    Map<String, Object> stop();
-    
-    void setLogger(Logger logger);
+    Map<String, Object> stop(Logger logger);
     
 }
