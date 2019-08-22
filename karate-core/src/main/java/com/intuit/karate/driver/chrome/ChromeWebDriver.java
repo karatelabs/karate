@@ -123,6 +123,12 @@ public class ChromeWebDriver extends WebDriver {
     protected boolean isLocatorError(Http.Response res) {
         ScriptValue value = res.jsonPath("$.value").value();
         return value.getAsString().contains("no such element");
+    }  
+
+    @Override
+    protected boolean isCookieError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return value.getAsString().contains("unable to set cookie");
     }        
 
 }
