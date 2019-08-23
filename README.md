@@ -3380,16 +3380,16 @@ Since this is a frequently asked question, the different ways of being able to r
 
 Code | Description
 ---- | -----------
-`* def login = read('login.feature')`<br/>`* call login` | [Shared Scope](#shared-scope), and the `login` variable can be re-used
-`* call read('login.feature')` | short-cut for the above without needing a variable
-`* def credentials = read('credentials.json')`<br/>`* def login = read('login.feature')`<br/>`* call login credentials` | Note how using [`read()`](#reading-files) for a JSON file returns *data* - not "callable" code, and here it is used as the [`call`](#call) argument
-`* call read('login.feature') read('credentials.json')` | You *can* do this in theory, but it is not as readable as the above
-`* karate.call('login.feature')` | The [JS API](#karate-call) allows you to do this, but this will *not* be [Shared Scope](#shared-scope)
-`* def result = call read('login.feature')` | [`call`](#call) result assigned to a variable and *not* [Shared Scope](#shared-scope)
+`* def login = read('login.feature')`<br/>`* call login` | [Shared Scope](#shared-scope), and the <br/>`login` variable can be re-used
+`* call read('login.feature')` | short-cut for the above <br/>without needing a variable
+`* def credentials = read('credentials.json')`<br/>`* def login = read('login.feature')`<br/>`* call login credentials` | Note how using [`read()`](#reading-files) <br/>for a JSON file returns *data* - <br/>not "callable" code, and here it is <br/>used as the [`call`](#call) argument
+`* call read('login.feature') read('credentials.json')` | You *can* do this in theory, <br/>but it is not as readable as the above
+`* karate.call('login.feature')` | The [JS API](#karate-call) allows you to do this, <br/>but this will *not* be [Shared Scope](#shared-scope)
+`* def result = call read('login.feature')` | [`call`](#call) result assigned to a variable <br/>and *not* [Shared Scope](#shared-scope)
 `* def result = karate.call('login.feature')` | exactly equivalent to the above !
-`* def credentials = read('credentials.json')`<br/>`* def result = call read('login.feature') credentials` | like the above, but with a [`call`](#call) argument
-`* def credentials = read('credentials.json')`<br/>`* def result = karate.call('login.feature', credentials)` | like the above, but in [JS API](#karate-call) form, the advantage of the above form is that using an in-line argument is less "cluttered" (see next row)
-`* def login = read('login.feature')`<br/>`* def result = call login { user: 'john', password: 'secret' }` | using the `call` keyword makes passing an in-line JSON argument more "readable"
+`* def credentials = read('credentials.json')`<br/>`* def result = call read('login.feature') credentials` | like the above, <br/>but with a [`call`](#call) argument
+`* def credentials = read('credentials.json')`<br/>`* def result = karate.call('login.feature', credentials)` | like the above, but in [JS API](#karate-call) form, <br/>the advantage of the above form is <br/>that using an in-line argument is less <br/>"cluttered" (see next row)
+`* def login = read('login.feature')`<br/>`* def result = call login { user: 'john', password: 'secret' }` | using the `call` keyword makes <br/>passing an in-line JSON argument <br/>more "readable"
 
 ### Calling Java
 There are examples of calling JVM classes in the section on [Java Interop](#java-interop) and in the [file-upload demo](karate-demo). Also look at the section on [commonly needed utilities](#commonly-needed-utilities) for more ideas.
