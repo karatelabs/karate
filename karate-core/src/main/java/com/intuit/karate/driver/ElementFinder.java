@@ -78,7 +78,7 @@ public class ElementFinder implements Finder {
         // o: origin, a: angle, s: step
         String fun = "var gen = " + DriverOptions.KARATE_REF_GENERATOR + ";"
                 + " var o = { x: " + x + ", y: " + y + "}; var s = 10; var x = 0; var y = 0;"
-                + " for (var i = 0; i < 300; i++) {"
+                + " for (var i = 0; i < 200; i++) {"
                 + forLoopChunk(type)
                 + " var e = document.elementFromPoint(o.x + x, o.y + y);"
                 + " console.log(o.x +':' + o.y, x + ':' + y, e);"
