@@ -426,6 +426,9 @@ public class FileUtils {
     public static Path fromRelativeClassPath(String relativePath, ClassLoader cl) {
         relativePath = removePrefix(relativePath);
         URL url = cl.getResource(relativePath);
+        if (url == null) {
+            throw new RuntimeException("file does not exist: " + relativePath);
+        }
         return getPathFor(url, relativePath);
     }
 
