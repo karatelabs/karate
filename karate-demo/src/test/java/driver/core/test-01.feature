@@ -164,6 +164,14 @@ Scenario Outline: using <config>
   Then match list == '#[4]'
   And match each list contains '@@data'
 
+  # powerful wait designed for tabular results that take time to load
+  When def list = waitForResultCount('div#eg01 div', 4)  
+  Then match list == '#[4]'
+
+  When def list = waitForResultCount('div#eg01 div', 4, '_.innerHTML')
+  Then match list == '#[4]'
+  And match each list contains '@@data'
+
   # get html for all elements that match xpath selector
   When def list = scripts('//option', '_.innerHTML')
   Then match list == '#[3]'

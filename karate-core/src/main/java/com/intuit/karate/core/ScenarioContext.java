@@ -901,7 +901,8 @@ public class ScenarioContext {
         for (String methodName : DriverOptions.DRIVER_METHOD_NAMES) {
             String js = "function(){ if (arguments.length == 0) return driver." + methodName + "();"
                     + " if (arguments.length == 1) return driver." + methodName + "(arguments[0]);"
-                    + " return driver." + methodName + "(arguments[0], arguments[1]) }";
+                    + " if (arguments.length == 2) return driver." + methodName + "(arguments[0], arguments[1]);"
+                    + " return driver." + methodName + "(arguments[0], arguments[1], arguments[2]) }";
             ScriptValue sv = ScriptBindings.eval(js, bindings);
             bindings.putAdditionalVariable(methodName, sv.getValue());
         }

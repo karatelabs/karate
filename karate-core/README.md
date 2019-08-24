@@ -119,7 +119,8 @@
     | <a href="#waitforany"><code>waitForAny()</code></a>
     | <a href="#waitforurl"><code>waitForUrl()</code></a>
     | <a href="#waitfortext"><code>waitForText()</code></a>
-    | <a href="#waitforenabled"><code>waitForEnabled()</code></a>  
+    | <a href="#waitforenabled"><code>waitForEnabled()</code></a>
+    | <a href="#waitforresultcount"><code>waitForResultCount()</code></a>  
     | <a href="#waituntil"><code>waitUntil()</code></a>    
     | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
@@ -836,6 +837,25 @@ And waitForEnabled('#someId').click()
 
 Also see [waits](#wait-api).
 
+## `waitForResultCount()`
+A very powerful and useful way to wait until the *number* of elements that match a given locator is equal to a given number. This is super-useful when you need to wait for say a table of slow-loading results, and where the table may contain fewer elements at first. There are two variations. The first will simply return a `List` of [`Element`](#chaining) instances.
+
+```cucumber
+  * waitForResultCount('div#eg01 div', 4)  
+```
+
+Most of the time, you just want to wait until a certain number of matching elements, and then move on with your flow, and in that case, the above is sufficient. If you need to actually do something with each returned `Element`, see [`findAll()`](#findall) or the option below.
+
+The second variant takes a third argument, which is going to do the same thing as the [`scripts()`](#scripts) method:
+
+```cucumber
+  When def list = waitForResultCount('div#eg01 div', 4, '_.innerHTML')
+  Then match list == '#[4]'
+  And match each list contains '@@data'
+```
+
+So in a *single step* we can wait for the number of elements to match *and* extract data as an array.
+
 ## `waitFor()`
 This is typically used for the *first* element you need to interact with on a freshly loaded page. Use this in case a [`submit()`](#submit) for the previous action is un-reliable, see the section on [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit)
 
@@ -954,7 +974,7 @@ And def searchResults = waitUntil(searchFunction)
 Then match searchResults contains 'karate-core/src/main/resources/karate-logo.png'
 ```
 
-Also see [waits](#wait-api).
+The above has a built-in short-cut in the form of [`waitForResultCount()`](#waitforresultcount) Also see [waits](#wait-api).
 
 ## Function Composition
 The above example can be re-factored in a very elegant way as follows, using Karate's [native support for JavaScript](https://github.com/intuit/karate#javascript-functions):
@@ -1017,6 +1037,7 @@ Script | Description
 [`waitForUrl('google.com')`](#waitforurl) | for convenience, this uses a string *contains* match - so for example you can omit the `http` or `https` prefix
 [`waitForText('#myId', 'appeared')`](#waitfortext) | frequently needed short-cut for waiting until a string appears - and this uses a "string contains" match for convenience
 [`waitForEnabled('#mySubmit')`](#waitforenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
+[`waitForResultCount('.myClass', 4)`](#waitforresultcount) | wait until a certain number of rows of tabular data is present
 [`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does, handle it - for e.g. to get rid of an ad popup or dialog
 [`waitUntil(expression)`](#waituntil) | wait until *any* user defined JavaScript statement to evaluate to `true` in the browser 
 [`waitUntil(function)`](#waituntilfunction) | use custom logic to handle *any* kind of situation where you need to wait, *and* use other API calls if needed

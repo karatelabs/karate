@@ -6,23 +6,13 @@ Scenario Outline: <type>
 
   * driver webUrlBase + '/page-03'
 
-  # friendly locators: leftOf / rightOf
-  * leftOf('{}Check Three').click()
-  * rightOf('{}Input On Right').input('input right')  
-  * leftOf('{}Input On Left').clear().input('input left')
-  * submit().click('#eg02SubmitId')
-  * match text('#eg01Data2') == 'check3'
-  * match text('#eg01Data3') == 'Some Textinput right'
-  * match text('#eg01Data4') == 'input left'
+  # powerful wait designed for tabular results that take time to load
+  When def list = waitForResultCount('div#eg01 div', 4)  
+  Then match list == '#[4]'
 
-  # friendly locators: above / below / near
-  * near('{}Go to Page One').click()
-  * below('{}Input On Right').input('input below')  
-  * above('{}Input On Left').clear().input('input above')
-  * submit().click('#eg02SubmitId')
-  * match text('#eg01Data2') == 'check1'
-  * match text('#eg01Data3') == 'input above'
-  * match text('#eg01Data4') == 'Some Textinput below'
+  When def list = waitForResultCount('div#eg01 div', 4, '_.innerHTML')
+  Then match list == '#[4]'
+  And match each list contains '@@data'
 
 Examples:
 | type         |

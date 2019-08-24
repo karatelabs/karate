@@ -80,7 +80,7 @@ public interface Driver {
     }
 
     Map<String, Object> cookie(String name);
-    
+
     void cookie(Map<String, Object> cookie);
 
     void deleteCookie(String name);
@@ -152,10 +152,24 @@ public interface Driver {
     default Element waitForText(String locator, String expected) {
         return waitUntil(locator, "_.textContent.includes('" + expected + "')");
     }
-    
+
     default Element waitForEnabled(String locator) {
         return waitUntil(locator, "!_.disabled");
-    }    
+    }
+    
+    default List<Element> waitForResultCount(String locator, int count) {
+        return (List) waitUntil(() -> {
+            List<Element> list = findAll(locator);
+            return list.size() == count ? list : null;
+        });        
+    }
+
+    default List waitForResultCount(String locator, int count, String expression) {
+        return (List) waitUntil(() -> {
+            List list = scripts(locator, expression);
+            return list.size() == count ? list : null;
+        });
+    }
 
     default Element waitForAny(String locator1, String locator2) {
         return getOptions().waitForAny(this, new String[]{locator1, locator2});
