@@ -73,8 +73,8 @@ public class CliExecutionHook implements ExecutionHook {
     }      
 
     @Override
-    public void beforeStep(Step step, ScenarioContext context) {
-
+    public boolean beforeStep(Step step, ScenarioContext context) {
+        return true;
     }
 
     @Override

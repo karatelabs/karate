@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2019 Intuit Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,42 +21,36 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package com.intuit.karate.debug;
 
-import com.intuit.karate.Results;
-import com.intuit.karate.http.HttpRequestBuilder;
+import com.intuit.karate.FileUtils;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.MessageToMessageEncoder;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
-public interface ExecutionHook {
+public class DapEncoder extends MessageToMessageEncoder<DapMessage> {
     
-    /**
-     * 
-     * @param scenario
-     * @param context 
-     * @return false if the scenario / feature should be excluded from the test-run
-     * @throws RuntimeException (any) to abort the scenario
-     */
-    boolean beforeScenario(Scenario scenario, ScenarioContext context);
+    private static final Logger logger = LoggerFactory.getLogger(DapEncoder.class);
     
-    void afterScenario(ScenarioResult result, ScenarioContext context);
-    
-    boolean beforeFeature(Feature feature, ExecutionContext context);
-    
-    void afterFeature(FeatureResult result, ExecutionContext context);
-    
-    void beforeAll(Results results);
-    
-    void afterAll(Results results);
-    
-    boolean beforeStep(Step step, ScenarioContext context);
-    
-    void afterStep(StepResult result, ScenarioContext context);
-    
-    String getPerfEventName(HttpRequestBuilder req, ScenarioContext context);
-    
-    void reportPerfEvent(PerfEvent event);
+    private static final String CONTENT_LENGTH_COLON = "Content-Length: ";
+
+    @Override
+    protected void encode(ChannelHandlerContext ctx, DapMessage dm, List<Object> out) throws Exception {
+        String msg = dm.toJson();
+        logger.debug("<< {}", msg);
+        byte[] bytes = msg.getBytes(FileUtils.UTF8);
+        String header = CONTENT_LENGTH_COLON + bytes.length + DapDecoder.CRLFCRLF;
+        ByteBuf buf = ctx.alloc().buffer();
+        buf.writeCharSequence(header, FileUtils.UTF8);
+        buf.writeBytes(bytes);        
+        out.add(buf);
+    }
     
 }

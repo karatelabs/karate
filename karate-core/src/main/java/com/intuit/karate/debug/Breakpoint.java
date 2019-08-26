@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 Intuit Inc.
+ * Copyright 2019 pthomas3.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,42 +21,57 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.core;
+package com.intuit.karate.debug;
 
-import com.intuit.karate.Results;
-import com.intuit.karate.http.HttpRequestBuilder;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public interface ExecutionHook {
+public class Breakpoint {        
     
-    /**
-     * 
-     * @param scenario
-     * @param context 
-     * @return false if the scenario / feature should be excluded from the test-run
-     * @throws RuntimeException (any) to abort the scenario
-     */
-    boolean beforeScenario(Scenario scenario, ScenarioContext context);
+    private static int nextId;
     
-    void afterScenario(ScenarioResult result, ScenarioContext context);
+    public final int id;
+    public final int line;
+    public final boolean verified;
     
-    boolean beforeFeature(Feature feature, ExecutionContext context);
-    
-    void afterFeature(FeatureResult result, ExecutionContext context);
-    
-    void beforeAll(Results results);
-    
-    void afterAll(Results results);
-    
-    boolean beforeStep(Step step, ScenarioContext context);
-    
-    void afterStep(StepResult result, ScenarioContext context);
-    
-    String getPerfEventName(HttpRequestBuilder req, ScenarioContext context);
-    
-    void reportPerfEvent(PerfEvent event);
+    public Breakpoint(Map<String, Object> map) {
+        id = ++nextId;
+        line = (Integer) map.get("line");        
+        verified = true;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public int getLine() {
+        return line;
+    }
+
+    public static int getNextId() {
+        return nextId;
+    }        
+
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap();
+        map.put("id", id);
+        map.put("line", line);
+        map.put("verified", verified);
+        return map;
+    }
+        
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[id: ").append(id);
+        sb.append(", line: ").append(line);
+        sb.append(", verified: ").append(verified);
+        sb.append("]");
+        return sb.toString();
+    }    
     
 }

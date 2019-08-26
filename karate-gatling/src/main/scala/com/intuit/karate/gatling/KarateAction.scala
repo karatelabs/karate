@@ -65,7 +65,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
 
       override def afterAll(results: Results) = {}
 
-      override def beforeStep(step: Step, ctx: ScenarioContext) = {}
+      override def beforeStep(step: Step, ctx: ScenarioContext) = true
 
       override def afterStep(result: StepResult, ctx: ScenarioContext) = {}
 

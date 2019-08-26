@@ -56,6 +56,7 @@ public class ScenarioExecutionUnit implements Runnable {
 
     private LogAppender appender;
 
+    // for UI
     public void setAppender(LogAppender appender) {
         this.appender = appender;
     }
