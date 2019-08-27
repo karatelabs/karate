@@ -88,6 +88,18 @@ public class Runner {
             return this;
         }
 
+        public Builder resources(Collection<Resource> resources) {
+            if (resources != null) {
+                this.resources.addAll(resources);
+            }
+            return this;
+        }
+
+        public Builder resources(Resource... resources) {
+            this.resources.addAll(Arrays.asList(resources));
+            return this;
+        }
+
         public Builder forClass(Class clazz) {
             this.optionsClass = clazz;
             return this;
