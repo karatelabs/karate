@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import com.intuit.karate.cli.CliExecutionHook;
+import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.ui.App;
@@ -97,9 +98,13 @@ public class Main implements Callable<Void> {
 
     @Option(names = {"-u", "--ui"}, description = "show user interface")
     boolean ui;
-    
+
     @Option(names = {"-C", "--clean"}, description = "clean output directory")
-    boolean clean;       
+    boolean clean;
+
+    @Option(names = {"-d", "--debug"}, arity = "0..1", defaultValue = "-1", fallbackValue = "0",
+            description = "debug mode (optional port else dynamically chosen)")
+    int debugPort;
 
     public static void main(String[] args) {
         boolean isOutputArg = false;
@@ -146,6 +151,11 @@ public class Main implements Callable<Void> {
     public Void call() throws Exception {
         if (clean) {
             org.apache.commons.io.FileUtils.deleteDirectory(new File(output));
+        }
+        if (debugPort != -1) {
+            DapServer server = new DapServer(debugPort);
+            server.waitSync();
+            return null;
         }
         if (tests != null) {
             if (ui) {

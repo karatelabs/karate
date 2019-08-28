@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.debug.DapServer;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -53,6 +54,12 @@ public class Main {
         boolean isIntellij = command.contains("org.jetbrains");
         RunnerOptions ro = RunnerOptions.parseCommandLine(command);
         String targetDir = FileUtils.getBuildDir() + File.separator + "surefire-reports";
+        int debugPort = ro.getDebugPort();
+        if (debugPort != -1) {
+            DapServer server = new DapServer(debugPort);
+            server.waitSync();
+            return;
+        }
         CliExecutionHook hook = new CliExecutionHook(true, targetDir, isIntellij);
         Runner.path(ro.getFeatures())
                 .tags(ro.getTags()).scenarioName(ro.getName())

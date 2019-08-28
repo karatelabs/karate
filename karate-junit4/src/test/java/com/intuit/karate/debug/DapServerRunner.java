@@ -3,7 +3,7 @@ package com.intuit.karate.debug;
 import org.junit.Test;
 
 /**
- *
+ * mvn exec:java -Dexec.mainClass="com.intuit.karate.cli.Main" -Dexec.args="-d 4711" exec.classpathScope=test
  * @author pthomas3
  */
 public class DapServerRunner {

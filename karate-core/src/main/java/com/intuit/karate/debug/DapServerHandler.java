@@ -66,7 +66,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     private final Map<String, SourceBreakpoints> sourceBreakpointsMap = new HashMap();
     private boolean stepMode;
 
-    private String sourcePath;
+    private String feature;
     private Step step;
     private ScenarioContext stepContext;
     private Thread runnerThread;
@@ -151,7 +151,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("breakpoints", sb.breakpoints));
                 break;
             case "launch":
-                sourcePath = req.getArgument("program", String.class);
+                feature = req.getArgument("feature", String.class);
                 start();
                 ctx.write(response(req));
                 break;
@@ -167,7 +167,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req));
                 break;
             case "scopes":
-                Json scopesJson = new Json("[{ name: 'var', variablesReference: 1, presentationHint: 'locals', expensive: false }]");
+                Json scopesJson = new Json("[{ name: 'In Scope', variablesReference: 1, presentationHint: 'locals', expensive: false }]");
                 ctx.write(response(req)
                         .body("scopes", scopesJson.asList()));
                 break;
@@ -204,7 +204,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
-        runnerThread = new Thread(() -> Runner.path(sourcePath).hook(this).parallel(1));
+        runnerThread = new Thread(() -> Runner.path(feature).hook(this).parallel(1));
         runnerThread.start();
     }
 
