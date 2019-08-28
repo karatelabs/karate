@@ -142,6 +142,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 //.body("supportTerminateDebuggee", true)
                 //.body("supportsTerminateRequest", true));
                 ctx.write(event("initialized"));
+                ctx.write(event("output").body("output", "debug server listening on port: " + server.getPort() + "\n"));
                 break;
             case "setBreakpoints":
                 SourceBreakpoints sb = new SourceBreakpoints(req.getArguments());
@@ -262,15 +263,15 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     @Override
     public void afterAll(Results results) {
-       if (!interrupted) {
-           exit();
-       }
+        if (!interrupted) {
+            exit();
+        }
     }
-    
+
     @Override
     public void beforeAll(Results results) {
         interrupted = false;
-    }    
+    }
 
     @Override
     public void afterStep(StepResult result, ScenarioContext context) {
@@ -312,6 +313,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     public void reportPerfEvent(PerfEvent event) {
 
     }
+
     @Override
     public String collect() {
         return appender.collect();
@@ -321,7 +323,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     public void append(String text) {
         channel.eventLoop().execute(()
                 -> channel.writeAndFlush(event("output")
-                        .body("output", text)));        
+                        .body("output", text)));
         appender.append(text);
     }
 

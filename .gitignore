@@ -4,8 +4,10 @@ target/
 .project
 .settings
 .classpath
+.vscode
 *.iml
 build/
+bin/
 .gradle
 gradle
 gradlew
