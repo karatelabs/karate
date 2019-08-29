@@ -116,6 +116,9 @@ public class ScenarioContext {
 
     // ui support
     private Function<CallContext, FeatureResult> callable;
+    
+    // debug support
+    private Step currentStep;
 
     // async
     private final Object LOCK = new Object();
@@ -144,7 +147,7 @@ public class ScenarioContext {
         List<FeatureResult> temp = callResults;
         callResults = null;
         return temp;
-    }
+    }        
 
     public void addCallResult(FeatureResult callResult) {
         if (callResults == null) {
@@ -152,6 +155,14 @@ public class ScenarioContext {
         }
         callResults.add(callResult);
     }
+
+    public void setCurrentStep(Step currentStep) {
+        this.currentStep = currentStep;
+    }
+
+    public Step getCurrentStep() {
+        return currentStep;
+    }        
 
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());

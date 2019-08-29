@@ -44,6 +44,14 @@ public class StepResult {
     
     private List<Embed> embeds;
     private String stepLog;
+    
+    public String getErrorMessage() {
+        if (result == null) {
+            return null;
+        }
+        Throwable error = result.getError();
+        return error == null ? null : error.getMessage();
+    }
 
     public void appendToStepLog(String log) {
         if (log == null || stepLog == null) {

@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.debug;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,13 +39,14 @@ public class StackFrame {
     private String name;
     private final Map<String, Object> source = new HashMap();
     
-    public static StackFrame forSource(String sourceName, String sourcePath, int line) {
+    public static StackFrame forSource(int id, Path path, int line) {
         StackFrame sf = new StackFrame();
+        sf.id = id;
         sf.line = line;
         sf.name = "main";
-        sf.setSourceName(sourceName);
-        sf.setSourcePath(sourcePath);
-        sf.setSourceReference(0);
+        sf.setSourceName(path.getFileName().toString());
+        sf.setSourcePath(path.toString());
+        sf.setSourceReference(0); //if not zero, source can be requested by client via a message
         return sf;
     }    
 
