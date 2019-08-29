@@ -169,12 +169,12 @@ public class FileUtils {
             String temp = removePrefix(path);
             Path parentPath = context.featureContext.parentPath;
             Path childPath = parentPath.resolve(temp);
-            return new Resource(context, childPath);
+            return new Resource(childPath);
         } else {
             try {
                 Path parentPath = context.rootFeatureContext.parentPath;
                 Path childPath = parentPath.resolve(path);
-                return new Resource(context, childPath);
+                return new Resource(childPath);
             } catch (Exception e) {
                 LOGGER.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
@@ -374,7 +374,7 @@ public class FileUtils {
             return CLASSPATH_COLON + toStandardPath(path.toString());
         }
         for (URL url : getAllClassPathUrls(cl)) {
-            Path rootPath = getPathFor(url, null);
+            Path rootPath = urlToPath(url, null);
             if (path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
                 return CLASSPATH_COLON + toStandardPath(relativePath.toString());
@@ -391,11 +391,10 @@ public class FileUtils {
     public static Path getPathContaining(Class clazz) {
         String relative = packageAsPath(clazz);
         URL url = clazz.getClassLoader().getResource(relative);
-        return getPathFor(url, null);
+        return urlToPath(url, null);
     }
 
     private static String packageAsPath(Class clazz) {
-
         Package p = clazz.getPackage();
         String relative = "";
         if (p != null) {
@@ -429,7 +428,7 @@ public class FileUtils {
         if (url == null) {
             throw new RuntimeException("file does not exist: " + relativePath);
         }
-        return getPathFor(url, relativePath);
+        return urlToPath(url, relativePath);
     }
 
     public static Path fromRelativeClassPath(String relativePath, Path parentPath) {
@@ -481,7 +480,7 @@ public class FileUtils {
         return uri.toString().contains("!/");
     }
 
-    private static Path getPathFor(URL url, String relativePath) {
+    public static Path urlToPath(URL url, String relativePath) {
         try {
             URI uri = url.toURI();
             if (isJarPath(uri)) {
@@ -599,7 +598,7 @@ public class FileUtils {
             }
         }
         if (classpath) {
-            rootPath = getPathFor(url, null);
+            rootPath = urlToPath(url, null);
             if (rootPath == null) { // windows edge case
                 return;
             }

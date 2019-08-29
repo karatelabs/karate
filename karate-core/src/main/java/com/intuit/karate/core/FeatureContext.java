@@ -58,7 +58,7 @@ public class FeatureContext {
         this.tagSelector = tagSelector;
         this.feature = feature;
         this.callCache = new HashMap(1);
-        this.parentPath = workingDir == null ? Paths.get(feature.getRelativePath()).getParent() : workingDir.toPath();
+        this.parentPath = workingDir == null ? feature.getPath().getParent() : workingDir.toPath();
         this.packageQualifiedName = workingDir == null ? feature.getResource().getPackageQualifiedName() : "";
     }
     

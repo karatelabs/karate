@@ -61,7 +61,9 @@ public class FeatureParser extends KarateParserBaseListener {
     static final List<String> prefix = Arrays.asList("*","Given","When","Then","And","But");
 
     public static Feature parse(File file) {
-        Resource resource = new Resource(file, file.getPath());
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        String relativePath = FileUtils.toRelativeClassPath(file.toPath(), cl);
+        Resource resource = new Resource(file, relativePath);
         return new FeatureParser(resource).feature;
     }
 

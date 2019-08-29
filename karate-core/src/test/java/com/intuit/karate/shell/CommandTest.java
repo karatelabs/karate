@@ -29,7 +29,8 @@ public class CommandTest {
     public void testCommandReturn() {
     	String cmd = FileUtils.isOsWindows() ? "print \"karate\"" : "ls";
         String result = Command.exec(new File("target"), cmd);
-        assertTrue(result.contains("karate"));
+        // will be "No file to print" on windows
+        assertTrue(FileUtils.isOsWindows() ? result.contains("print") : result.contains("karate"));
     }    
     
 }

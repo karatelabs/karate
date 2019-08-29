@@ -28,6 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,7 +47,6 @@ public class Resource {
     private final int line;
     private final String relativePath;
     private final String packageQualifiedName;
-    private URL url;
 
     public static final Resource EMPTY = new Resource(Paths.get(""), "", -1);
 
@@ -54,29 +54,31 @@ public class Resource {
         this(file.toPath(), relativePath, -1);
     }
 
-    public Resource(URL url, String relativePath, int line) {
-        this(Paths.get(url.getPath()), relativePath, line);
-        this.url = url;
-    }
-
     public Resource(Path path, String relativePath, int line) {
         this.path = path;
         this.line = line;
         file = !path.toUri().getScheme().equals("jar");
-        this.relativePath = relativePath;
-        packageQualifiedName = FileUtils.toPackageQualifiedName(relativePath);
+        if (relativePath == null) {
+            this.relativePath = FileUtils.toRelativeClassPath(path, Thread.currentThread().getContextClassLoader());
+        } else {
+            this.relativePath = relativePath;
+        }
+        packageQualifiedName = FileUtils.toPackageQualifiedName(this.relativePath);
     }
 
-    public Resource(ScenarioContext sc, Path path) {
-        this(sc, path.normalize().toString());
+    public Resource(URL url) {
+        this(FileUtils.urlToPath(url, null));
+    }
+
+    public Resource(Path path) {
+        this(path, null, -1);
     }
 
     public Resource(ScenarioContext sc, String relativePath) {
         String strippedPath = FileUtils.removePrefix(relativePath);
-        URL resource = sc.getResource(strippedPath);
-        if (resource != null) {
-            this.url = resource;
-            this.path = Paths.get(resource.getPath());
+        URL url = sc.getResource(strippedPath);
+        if (url != null) {
+            this.path = FileUtils.urlToPath(url, null);
         } else {
             this.path = new File(strippedPath).toPath();
         }
@@ -110,9 +112,7 @@ public class Resource {
 
     public InputStream getStream() {
         try {
-            if (url != null) {
-                return url.openStream();
-            } else if (file) {
+            if (file) {
                 return new FileInputStream(path.toFile());
             } else {
                 byte[] bytes = STREAM_CACHE.get(relativePath);
