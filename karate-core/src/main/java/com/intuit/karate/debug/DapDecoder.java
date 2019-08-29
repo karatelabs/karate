@@ -38,16 +38,25 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class DapDecoder extends ByteToMessageDecoder {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(DapDecoder.class);
 
     public static final String CRLFCRLF = "\r\n\r\n";
+
     private final StringBuilder buffer = new StringBuilder();
+    private int remaining;
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         int readable = in.readableBytes();
         buffer.append(in.readCharSequence(readable, FileUtils.UTF8));
+        if (remaining > 0 && buffer.length() >= remaining) {
+            out.add(encode(buffer.substring(0, remaining)));
+            String rhs = buffer.substring(remaining);
+            buffer.setLength(0);
+            buffer.append(rhs);
+            remaining = 0;
+        }
         int pos;
         while ((pos = buffer.indexOf(CRLFCRLF)) != -1) {
             String rhs = buffer.substring(pos + 4);
@@ -57,12 +66,20 @@ public class DapDecoder extends ByteToMessageDecoder {
             buffer.setLength(0);
             if (rhs.length() >= length) {
                 String msg = rhs.substring(0, length);
-                logger.debug(">> {}", msg);
-                Map<String, Object> map = JsonUtils.toJsonDoc(msg).read("$");
-                out.add(new DapMessage(map));
+                out.add(encode(msg));
                 buffer.append(rhs.substring(length));
-            }                        
+                remaining = 0;
+            } else {
+                remaining = length;
+                buffer.append(rhs);
+            }
         }
+    }
+
+    private static DapMessage encode(String raw) {
+        logger.debug(">> {}", raw);
+        Map<String, Object> map = JsonUtils.toJsonDoc(raw).read("$");
+        return new DapMessage(map);
     }
 
 }
