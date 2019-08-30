@@ -380,7 +380,8 @@ public class FileUtils {
                 return CLASSPATH_COLON + toStandardPath(relativePath.toString());
             }
         }
-        return null;
+        // we didn't find this on the classpath, fall back to absolute
+        return path.toString().replace('\\', '/');
     }
 
     public static File getDirContaining(Class clazz) {
