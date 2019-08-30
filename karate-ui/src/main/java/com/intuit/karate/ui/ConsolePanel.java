@@ -68,7 +68,12 @@ public class ConsolePanel extends BorderPane {
                 String temp = textArea.getText();
                 if (!text.equals(temp) && !temp.trim().equals("")) {
                     text = temp;
-                    stepParseSuccess = FeatureParser.updateStepFromText(step, text);
+                    try {
+                        FeatureParser.updateStepFromText(step, text);
+                        stepParseSuccess = true;
+                    } catch (Exception e) {
+                        stepParseSuccess = false;
+                    }
                     if (!stepParseSuccess) {
                         resultLabel.setText(syntaxError);
                         resultLabel.setTextFill(Color.web("#D52B1E"));
@@ -107,7 +112,7 @@ public class ConsolePanel extends BorderPane {
         setBottom(hbox);
         setMargin(hbox, App.PADDING_TOP);
     }
-    
+
     public void runIfPreStepEnabled() {
         if (preStepEnabled.isSelected()) {
             run();

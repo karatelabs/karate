@@ -23,15 +23,20 @@
  */
 package com.intuit.karate.debug;
 
+import com.intuit.karate.Actions;
 import com.intuit.karate.Json;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
+import com.intuit.karate.StepActions;
+import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.PerfEvent;
+import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScenarioResult;
@@ -69,6 +74,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     private final Stack<ScenarioContext> stack = new Stack();
     private final Map<Integer, Boolean> stepModes = new HashMap();
     private boolean stepIn;
+    private boolean stepBack;
 
     private String feature;
     private Thread runnerThread;
@@ -81,7 +87,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     private void setStepMode(boolean stepMode) {
         stepModes.put(stack.peek().callDepth, stepMode);
-    }    
+    }
 
     private boolean getStepMode() {
         Boolean stepMode = stepModes.get(stack.peek().callDepth);
@@ -92,7 +98,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         ScenarioContext context = stack.peek();
         List<Map<String, Object>> list = new ArrayList(context.callDepth + 1);
         while (context != null) {
-            Step step = context.getCurrentStep();
+            Step step = context.getExecutionUnit().getCurrentStep();
             Path path = step.getFeature().getPath();
             int frameId = context.callDepth + 1;
             StackFrame sf = StackFrame.forSource(frameId, path, step.getLine());
@@ -102,12 +108,20 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return list;
     }
 
-    private List<Map<String, Object>> variables(int frameId) {
+    private ScenarioContext getContextForFrameId(Integer frameId) {
         ScenarioContext context = stack.peek();
+        if (frameId == null || frameId == 0) {
+            return context;
+        }
         int callDepth = frameId - 1;
         while (context.callDepth != callDepth) {
             context = context.parentContext;
         }
+        return context;
+    }
+
+    private List<Map<String, Object>> variables(int frameId) {
+        ScenarioContext context = getContextForFrameId(frameId);
         List<Map<String, Object>> list = new ArrayList();
         context.vars.forEach((k, v) -> {
             if (v != null) {
@@ -123,7 +137,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return list;
     }
 
-    private boolean isBreakpoint(String path, int line) {
+    private boolean isBreakpoint(Step step, int line) {
+        String path = step.getFeature().getPath().toString();
         SourceBreakpoints sb = sourceBreakpointsMap.get(path);
         if (sb == null) {
             return false;
@@ -159,14 +174,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         switch (req.command) {
             case "initialize":
                 ctx.write(response(req)
-                        .body("supportsConfigurationDoneRequest", true));
-                //.body("supportsStepBack", true)
-                //.body("supportsGotoTargetsRequest", true)
-                //.body("supportsEvaluateForHovers", true)
-                //.body("supportsSetVariable", true)
-                //.body("supportsRestartRequest", true)
-                //.body("supportTerminateDebuggee", true)
-                //.body("supportsTerminateRequest", true));
+                        .body("supportsConfigurationDoneRequest", true)
+                        .body("supportsStepBack", true));
                 ctx.write(event("initialized"));
                 ctx.write(event("output").body("output", "debug server listening on port: " + server.getPort() + "\n"));
                 break;
@@ -208,6 +217,12 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 setStepMode(true);
                 resume();
                 ctx.write(response(req));
+                break;                
+            case "stepBack":
+            case "reverseContinue": // since we can't disable this button
+                stepBack = true;                
+                resume();
+                ctx.write(response(req));
                 break;
             case "stepIn":
                 stepIn = true;
@@ -223,6 +238,29 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 stepModes.clear();
                 resume();
                 ctx.write(response(req));
+                break;
+            case "evaluate":
+                String expression = req.getArgument("expression", String.class);
+                Integer evalFrameId = req.getArgument("frameId", Integer.class);
+                ScenarioContext evalContext = getContextForFrameId(evalFrameId);
+                Scenario evalScenario = evalContext.getExecutionUnit().scenario;
+                Step evalStep = new Step(evalScenario.getFeature(), evalScenario, evalScenario.getIndex() + 1);
+                String result;
+                try {
+                    FeatureParser.updateStepFromText(evalStep, expression);
+                    Actions evalActions = new StepActions(evalContext);
+                    Result evalResult = Engine.executeStep(evalStep, evalActions);
+                    if (evalResult.isFailed()) {
+                        result = "[error] " + evalResult.getError().getMessage();
+                    } else {
+                        result = "[done]";
+                    }
+                } catch (Exception e) {
+                    result = "[error] " + e.getMessage();
+                }
+                ctx.write(response(req)
+                        .body("result", result)
+                        .body("variablesReference", 0)); // non-zero means can be requested by client                 
                 break;
             case "disconnect":
                 boolean restart = req.getArgument("restart", Boolean.class);
@@ -273,7 +311,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             if (description != null) {
                 message.body("description", description);
             }
-            channel.writeAndFlush(message);           
+            channel.writeAndFlush(message);
         });
     }
 
@@ -296,18 +334,26 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         stack.push(context);
         this.appender = context.appender;
         context.logger.setLogAppender(this); // wrap !
-        String path = step.getFeature().getPath().toString();
         int line = step.getLine();
-        if (stepIn) {
+        if (stepBack) {
+            stepBack = false;
+            stop("step");
+            pause();
+        } else if (stepIn) {
             stepIn = false;
             stop("step");
             pause();
         } else if (getStepMode()) {
             stop("step");
             pause();
-        } else if (isBreakpoint(path, line)) {
+        } else if (isBreakpoint(step, line)) {
             stop("breakpoint");
             pause();
+        }
+        if (stepBack) { // don't clear flag yet !
+            context.getExecutionUnit().stepBack();
+            stack.pop(); // afterStep will not be fired, undo
+            return false; // do not execute step !
         }
         return true;
     }
@@ -332,7 +378,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             stop("exception", result.getErrorMessage());
             output("*** step failed: " + result.getErrorMessage() + "\n");
             pause();
-        }        
+        }
         stack.pop();
     }
 

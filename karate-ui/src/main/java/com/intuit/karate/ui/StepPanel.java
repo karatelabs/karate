@@ -108,7 +108,11 @@ public class StepPanel extends AnchorPane {
                 String temp = textArea.getText();
                 if (!text.equals(temp)) {
                     text = temp;
-                    FeatureParser.updateStepFromText(step, text);
+                    try {
+                        FeatureParser.updateStepFromText(step, text);
+                    } catch (Exception e) {
+
+                    }
                 }
             }
         });
@@ -123,9 +127,10 @@ public class StepPanel extends AnchorPane {
         });
         runButton.setText(getRunButtonText());
         runButton.setOnAction(e -> {
-            if (FeatureParser.updateStepFromText(step, text)) {
+            try {
+                FeatureParser.updateStepFromText(step, text);
                 Platform.runLater(() -> run(false));
-            } else {
+            } catch (Exception ex) {
                 runButton.setStyle(STYLE_FAIL);
             }
         });
@@ -179,12 +184,12 @@ public class StepPanel extends AnchorPane {
         return stepResult.isStopped();
     }
 
-	public void disableRun() {
-    	this.runButton.setDisable(true);
-	}
-    
+    public void disableRun() {
+        this.runButton.setDisable(true);
+    }
+
     public void enableRun() {
-    	this.runButton.setDisable(false);
-	}
+        this.runButton.setDisable(false);
+    }
 
 }

@@ -118,7 +118,7 @@ public class ScenarioContext {
     private Function<CallContext, FeatureResult> callable;
     
     // debug support
-    private Step currentStep;
+    private ScenarioExecutionUnit executionUnit;
 
     // async
     private final Object LOCK = new Object();
@@ -156,13 +156,14 @@ public class ScenarioContext {
         callResults.add(callResult);
     }
 
-    public void setCurrentStep(Step currentStep) {
-        this.currentStep = currentStep;
+    public ScenarioExecutionUnit getExecutionUnit() {
+        return executionUnit;
     }
 
-    public Step getCurrentStep() {
-        return currentStep;
+    public void setExecutionUnit(ScenarioExecutionUnit executionUnit) {
+        this.executionUnit = executionUnit;
     }        
+    
 
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());
@@ -840,8 +841,8 @@ public class ScenarioContext {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(callonce, name, arg, this);
     }
 
-    public void eval(String exp) {
-        Script.evalJsExpression(exp, this);
+    public ScriptValue eval(String exp) {
+        return Script.evalJsExpression(exp, this);
     }
 
     public List<Embed> getAndClearEmbeds() {

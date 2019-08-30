@@ -53,12 +53,18 @@ public class ScenarioExecutionUnit implements Runnable {
     private StepResult lastStepResult;
     private Runnable next;
     private boolean last;
+    private Step currentStep;
 
     private LogAppender appender;
 
     // for UI
     public void setAppender(LogAppender appender) {
         this.appender = appender;
+    }
+
+    // for debug
+    public Step getCurrentStep() {
+        return currentStep;
     }
 
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
@@ -184,10 +190,19 @@ public class ScenarioExecutionUnit implements Runnable {
 
     // extracted for karate UI
     public StepResult execute(Step step) {
-        actions.context.setCurrentStep(step); // just for deriving call stack
+        currentStep = step;
+        actions.context.setExecutionUnit(this);// just for deriving call stack        
         if (hooks != null) {
-            hooks.forEach(h -> h.beforeStep(step, actions.context));
-        }        
+            boolean shouldExecute = true;
+            for (ExecutionHook hook : hooks) {
+                if (!hook.beforeStep(step, actions.context)) {
+                    shouldExecute = false;
+                }
+            }
+            if (!shouldExecute) {
+                return null;
+            }
+        }
         boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
         if (stopped) {
             return afterStep(new StepResult(hidden, step, aborted ? Result.passed(0) : Result.skipped(), null, null, null));
@@ -228,6 +243,20 @@ public class ScenarioExecutionUnit implements Runnable {
         }
     }
 
+    private int stepIndex;
+
+    public void stepBack() {
+        if (stepIndex < 2) {
+            stepIndex = 0;
+        } else {
+            stepIndex -= 2;
+        }
+    }
+
+    private int nextStepIndex() {
+        return stepIndex++;
+    }
+
     @Override
     public void run() {
         if (appender == null) { // not perf, not ui
@@ -236,8 +265,14 @@ public class ScenarioExecutionUnit implements Runnable {
         if (steps == null) {
             init();
         }
-        for (Step step : steps) {
+        int count = steps.size();
+        int index = 0;
+        while ((index = nextStepIndex()) < count) {
+            Step step = steps.get(index);
             lastStepResult = execute(step);
+            if (lastStepResult == null) { // debug step-back !
+                continue;
+            }
             result.addStepResult(lastStepResult);
             if (lastStepResult.isStopped()) {
                 stopped = true;

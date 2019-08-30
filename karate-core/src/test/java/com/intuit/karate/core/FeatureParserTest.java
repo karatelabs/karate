@@ -171,7 +171,7 @@ public class FeatureParserTest {
     }
 
     @Test
-    public void testStepEditing() {
+    public void testStepEditing() throws Exception {
         Feature feature = FeatureParser.parse("classpath:com/intuit/karate/core/test-simple.feature");
         Step step = feature.getStep(0, -1, 0);
         assertEquals("def a = 1", step.getText());
