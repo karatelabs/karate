@@ -116,7 +116,7 @@ public class ScenarioContext {
 
     // ui support
     private Function<CallContext, FeatureResult> callable;
-    
+
     // debug support
     private ScenarioExecutionUnit executionUnit;
 
@@ -147,7 +147,7 @@ public class ScenarioContext {
         List<FeatureResult> temp = callResults;
         callResults = null;
         return temp;
-    }        
+    }
 
     public void addCallResult(FeatureResult callResult) {
         if (callResults == null) {
@@ -162,8 +162,7 @@ public class ScenarioContext {
 
     public void setExecutionUnit(ScenarioExecutionUnit executionUnit) {
         this.executionUnit = executionUnit;
-    }        
-    
+    }
 
     public void setScenarioError(Throwable error) {
         scenarioInfo.setErrorMessage(error.getMessage());
@@ -217,6 +216,27 @@ public class ScenarioContext {
         return classLoader.getResourceAsStream(name);
     }
 
+    public void hotReload() {
+        Scenario scenario = executionUnit.scenario;
+        Feature feature = scenario.getFeature();
+        feature = FeatureParser.parse(feature.getResource());
+        for (Step oldStep : executionUnit.getSteps()) {
+            Step newStep = feature.findStepByLine(oldStep.getLine());
+            if (newStep == null) {
+                continue;
+            }
+            String oldText = oldStep.getText();
+            String newText = newStep.getText();
+            if (!oldText.equals(newText)) {
+                try {
+                    FeatureParser.updateStepFromText(oldStep, newStep.getText());
+                } catch (Exception e) {
+                    logger.warn("failed to hot reload step: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
     public void updateConfigCookies(Map<String, Cookie> cookies) {
         if (cookies == null) {
             return;
@@ -246,7 +266,7 @@ public class ScenarioContext {
             appender = LogAppender.NO_OP;
         }
         logger.setLogAppender(appender);
-        this.appender = appender;        
+        this.appender = appender;
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;
         executionHooks = call.executionHooks;
@@ -923,10 +943,10 @@ public class ScenarioContext {
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        if (driver == null) {                        
+        if (driver == null) {
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
-                options = new HashMap();                
+                options = new HashMap();
             }
             options.put("target", config.getDriverTarget());
             if (sv.isMapLike()) {
@@ -952,7 +972,7 @@ public class ScenarioContext {
         }
         if (driver != null) {
             driver.quit();
-            DriverOptions options  = driver.getOptions();
+            DriverOptions options = driver.getOptions();
             if (options.target != null) {
                 logger.debug("custom target configured, attempting stop()");
                 Map<String, Object> map = options.target.stop(logger);
@@ -960,7 +980,7 @@ public class ScenarioContext {
                 if (video != null && lastStepResult != null) {
                     logger.info("video file present, attaching to last step result: {}", video);
                     String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
-                    Embed embed = new Embed();                    
+                    Embed embed = new Embed();
                     embed.setBytes(html.getBytes());
                     embed.setMimeType("text/html");
                     lastStepResult.addEmbed(embed);

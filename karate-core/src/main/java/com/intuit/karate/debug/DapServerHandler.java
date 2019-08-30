@@ -175,6 +175,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "initialize":
                 ctx.write(response(req)
                         .body("supportsConfigurationDoneRequest", true)
+                        .body("supportsRestartRequest", true)
                         .body("supportsStepBack", true));
                 ctx.write(event("initialized"));
                 ctx.write(event("output").body("output", "debug server listening on port: " + server.getPort() + "\n"));
@@ -262,6 +263,10 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("result", result)
                         .body("variablesReference", 0)); // non-zero means can be requested by client                 
                 break;
+            case "restart":
+                stack.peek().hotReload();
+                ctx.write(response(req));
+                break;                
             case "disconnect":
                 boolean restart = req.getArgument("restart", Boolean.class);
                 if (restart) {
