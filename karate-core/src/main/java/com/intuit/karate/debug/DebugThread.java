@@ -111,7 +111,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
 
     protected void resume() {
         stopped = false;
-        for (DebugThread dt : handler.debugThreads.values()) {
+        for (DebugThread dt : handler.THREADS.values()) {
             synchronized (dt) {
                 dt.notify();
             }
@@ -122,9 +122,9 @@ public class DebugThread implements ExecutionHook, LogAppender {
     public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
         long frameId = handler.nextFrameId();
         stack.push(frameId);
-        handler.stackFrames.put(frameId, context);
+        handler.FRAMES.put(frameId, context);
         if (context.callDepth == 0) {
-            handler.debugThreads.put(id, this);
+            handler.THREADS.put(id, this);
         }
         appender = context.appender;
         context.logger.setLogAppender(this); // wrap       
@@ -135,8 +135,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
     public void afterScenario(ScenarioResult result, ScenarioContext context) {
         stack.pop();
         if (context.callDepth == 0) {
-            // handler.threadEvent(id, "exited");
-            handler.debugThreads.remove(id);
+            handler.THREADS.remove(id);
         }
         context.logger.setLogAppender(appender); // unwrap        
     }
@@ -176,7 +175,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
     }
 
     protected ScenarioContext getContext() {
-        return handler.stackFrames.get(stack.peek());
+        return handler.FRAMES.get(stack.peek());
     }
 
     protected DebugThread clearStepModes() {

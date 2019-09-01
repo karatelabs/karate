@@ -64,9 +64,9 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     private long focusedFrameId;
     private Thread runnerThread;
 
-    protected final Map<Long, DebugThread> debugThreads = new ConcurrentHashMap();
-    private final Map<String, SourceBreakpoints> sourceBreakpointsMap = new ConcurrentHashMap();
-    protected final Map<Long, ScenarioContext> stackFrames = new ConcurrentHashMap();
+    private final Map<String, SourceBreakpoints> BREAKPOINTS = new ConcurrentHashMap();
+    protected final Map<Long, DebugThread> THREADS = new ConcurrentHashMap();    
+    protected final Map<Long, ScenarioContext> FRAMES = new ConcurrentHashMap();
 
     private String launchCommand;
 
@@ -76,33 +76,25 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     protected boolean isBreakpoint(Step step, int line) {
         String path = step.getFeature().getPath().toString();
-        SourceBreakpoints sb = sourceBreakpointsMap.get(path);
+        SourceBreakpoints sb = BREAKPOINTS.get(path);
         if (sb == null) {
             return false;
         }
         return sb.isBreakpoint(line);
     }
 
-    private DapMessage event(String name) {
-        return DapMessage.event(++nextSeq, name);
-    }
-
-    private DapMessage response(DapMessage req) {
-        return DapMessage.response(++nextSeq, req);
-    }
-
     private DebugThread thread(Number threadId) {
         if (threadId == null) {
             return null;
         }
-        return debugThreads.get(threadId.longValue());
+        return THREADS.get(threadId.longValue());
     }
 
-    private List<Map<String, Object>> stackFrames(Number threadId) {
+    private List<Map<String, Object>> frames(Number threadId) {
         if (threadId == null) {
             return Collections.EMPTY_LIST;
         }
-        DebugThread thread = debugThreads.get(threadId.longValue());
+        DebugThread thread = THREADS.get(threadId.longValue());
         if (thread == null) {
             return Collections.EMPTY_LIST;
         }
@@ -110,8 +102,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         Collections.reverse(frameIds);
         List<Map<String, Object>> list = new ArrayList(frameIds.size());
         for (Long frameId : frameIds) {
-            ScenarioContext context = stackFrames.get(frameId);
-            list.add(new StackFrame(thread.id, frameId, context).toMap());
+            ScenarioContext context = FRAMES.get(frameId);
+            list.add(new StackFrame(frameId, context).toMap());
         }
         return list;
     }
@@ -121,7 +113,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             return Collections.EMPTY_LIST;
         }
         focusedFrameId = frameId.longValue();
-        ScenarioContext context = stackFrames.get(frameId.longValue());
+        ScenarioContext context = FRAMES.get(frameId.longValue());
         if (context == null) {
             return Collections.EMPTY_LIST;
         }
@@ -139,6 +131,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         });
         return list;
     }
+    
+    private DapMessage event(String name) {
+        return DapMessage.event(++nextSeq, name);
+    }
+
+    private DapMessage response(DapMessage req) {
+        return DapMessage.response(++nextSeq, req);
+    }    
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, DapMessage dm) throws Exception {
@@ -163,7 +163,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 break;
             case "setBreakpoints":
                 SourceBreakpoints sb = new SourceBreakpoints(req.getArguments());
-                sourceBreakpointsMap.put(sb.path, sb);
+                BREAKPOINTS.put(sb.path, sb);
                 logger.debug("source breakpoints: {}", sb);
                 ctx.write(response(req).body("breakpoints", sb.breakpoints));
                 break;
@@ -175,8 +175,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req));
                 break;
             case "threads":
-                List<Map<String, Object>> list = new ArrayList(debugThreads.size());
-                debugThreads.values().forEach(v -> {
+                List<Map<String, Object>> list = new ArrayList(THREADS.size());
+                THREADS.values().forEach(v -> {
                     Map<String, Object> map = new HashMap();
                     map.put("id", v.id);
                     map.put("name", v.name);
@@ -185,7 +185,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req).body("threads", list));
                 break;
             case "stackTrace":
-                ctx.write(response(req).body("stackFrames", stackFrames(req.getThreadId())));
+                ctx.write(response(req).body("stackFrames", frames(req.getThreadId())));
                 break;
             case "configurationDone":
                 ctx.write(response(req));
@@ -231,7 +231,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "evaluate":
                 String expression = req.getArgument("expression", String.class);
                 Number evalFrameId = req.getArgument("frameId", Number.class);
-                ScenarioContext evalContext = stackFrames.get(evalFrameId.longValue());
+                ScenarioContext evalContext = FRAMES.get(evalFrameId.longValue());
                 Scenario evalScenario = evalContext.getExecutionUnit().scenario;
                 Step evalStep = new Step(evalScenario.getFeature(), evalScenario, evalScenario.getIndex() + 1);
                 String result;
@@ -252,7 +252,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("variablesReference", 0)); // non-zero means can be requested by client                 
                 break;
             case "restart":
-                ScenarioContext context = stackFrames.get(focusedFrameId);
+                ScenarioContext context = FRAMES.get(focusedFrameId);
                 if (context != null) {
                     context.hotReload();
                 }

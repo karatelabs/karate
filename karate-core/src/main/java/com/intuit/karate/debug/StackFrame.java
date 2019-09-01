@@ -41,11 +41,11 @@ public class StackFrame {
     private final String name;
     private final Map<String, Object> source = new HashMap();
 
-    public StackFrame(long threadId, long frameId, ScenarioContext context) {
+    public StackFrame(long frameId, ScenarioContext context) {
         this.id = frameId;
         Step step = context.getExecutionUnit().getCurrentStep();
         line = step.getLine();
-        name = step.getScenario().getDisplayMeta() + threadId + "-" + frameId;
+        name = step.getScenario().getDisplayMeta();
         Path path = step.getFeature().getPath();
         source.put("name", path.getFileName().toString());
         source.put("path", path.toString());
