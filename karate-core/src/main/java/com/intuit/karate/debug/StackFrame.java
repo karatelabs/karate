@@ -23,6 +23,8 @@
  */
 package com.intuit.karate.debug;
 
+import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.core.Step;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,69 +35,21 @@ import java.util.Map;
  */
 public class StackFrame {
 
-    private int id;
-    private int line;
-    private int column;
-    private String name;
+    private final long id;
+    private final int line;
+    private final int column = 0;
+    private final String name;
     private final Map<String, Object> source = new HashMap();
-    
-    public static StackFrame forSource(int id, Path path, int line) {
-        StackFrame sf = new StackFrame();
-        sf.id = id;
-        sf.line = line;
-        sf.name = "main";
-        sf.setSourceName(path.getFileName().toString());
-        sf.setSourcePath(path.toString());
-        sf.setSourceReference(0); //if not zero, source can be requested by client via a message
-        return sf;
-    }    
 
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public int getColumn() {
-        return column;
-    }
-
-    public void setColumn(int column) {
-        this.column = column;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getSourceName() {
-        return (String) source.get("name");
-    }
-
-    public void setSourceName(String name) {
-        source.put("name", name);
-    }
-
-    public String getSourcePath() {
-        return (String) source.get("path");
-    }
-
-    public void setSourcePath(String name) {
-        source.put("path", name);
-    }
-
-    public int getSourceReference() {
-        return (Integer) source.get("sourceReference");
-    }
-
-    public void setSourceReference(int reference) {
-        source.put("sourceReference", reference);
+    public StackFrame(long threadId, long frameId, ScenarioContext context) {
+        this.id = frameId;
+        Step step = context.getExecutionUnit().getCurrentStep();
+        line = step.getLine();
+        name = step.getScenario().getDisplayMeta() + threadId + "-" + frameId;
+        Path path = step.getFeature().getPath();
+        source.put("name", path.getFileName().toString());
+        source.put("path", path.toString());
+        source.put("sourceReference", 0); //if not zero, source can be requested by client via a message
     }
 
     public Map<String, Object> toMap() {
@@ -107,5 +61,5 @@ public class StackFrame {
         map.put("source", source);
         return map;
     }
-    
+
 }

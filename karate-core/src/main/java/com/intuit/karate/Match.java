@@ -67,7 +67,7 @@ public class Match {
         FeatureContext featureContext = FeatureContext.forEnv();
         String httpClass = appender == null ? DummyHttpClient.class.getName() : null;
         CallContext callContext = new CallContext(null, null, 0, null, -1, null, false, false,
-                httpClass, null, false);
+                httpClass, null, null, false);
         context = new ScenarioContext(featureContext, callContext, null, appender);
         if (exp != null) {
             prevValue = Script.evalKarateExpression(exp, context);

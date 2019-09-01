@@ -24,36 +24,27 @@
 package com.intuit.karate.debug;
 
 import com.intuit.karate.Actions;
-import com.intuit.karate.Json;
-import com.intuit.karate.LogAppender;
-import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
+import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.core.Engine;
-import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.ExecutionHook;
-import com.intuit.karate.core.Feature;
+import com.intuit.karate.core.ExecutionHookFactory;
 import com.intuit.karate.core.FeatureParser;
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.PerfEvent;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
-import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.Step;
-import com.intuit.karate.core.StepResult;
-import com.intuit.karate.http.HttpRequestBuilder;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> implements ExecutionHook, LogAppender {
+public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> implements ExecutionHookFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DapServerHandler.class);
 
@@ -69,75 +60,21 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     private Channel channel;
     private int nextSeq;
-
-    private final Map<String, SourceBreakpoints> sourceBreakpointsMap = new HashMap();
-    private final Stack<ScenarioContext> stack = new Stack();
-    private final Map<Integer, Boolean> stepModes = new HashMap();
-    private boolean stepIn;
-    private boolean stepBack;
-
-    private String feature;
+    private long nextFrameId;
+    private long focusedFrameId;
     private Thread runnerThread;
-    private boolean interrupted;
-    private LogAppender appender = LogAppender.NO_OP;
+
+    protected final Map<Long, DebugThread> debugThreads = new ConcurrentHashMap();
+    private final Map<String, SourceBreakpoints> sourceBreakpointsMap = new ConcurrentHashMap();
+    protected final Map<Long, ScenarioContext> stackFrames = new ConcurrentHashMap();
+
+    private String launchCommand;
 
     public DapServerHandler(DapServer server) {
         this.server = server;
     }
 
-    private void setStepMode(boolean stepMode) {
-        stepModes.put(stack.peek().callDepth, stepMode);
-    }
-
-    private boolean getStepMode() {
-        Boolean stepMode = stepModes.get(stack.peek().callDepth);
-        return stepMode == null ? false : stepMode;
-    }
-
-    private List<Map<String, Object>> stackFrames() {
-        ScenarioContext context = stack.peek();
-        List<Map<String, Object>> list = new ArrayList(context.callDepth + 1);
-        while (context != null) {
-            Step step = context.getExecutionUnit().getCurrentStep();
-            Path path = step.getFeature().getPath();
-            int frameId = context.callDepth + 1;
-            StackFrame sf = StackFrame.forSource(frameId, path, step.getLine());
-            list.add(sf.toMap());
-            context = context.parentContext;
-        }
-        return list;
-    }
-
-    private ScenarioContext getContextForFrameId(Integer frameId) {
-        ScenarioContext context = stack.peek();
-        if (frameId == null || frameId == 0) {
-            return context;
-        }
-        int callDepth = frameId - 1;
-        while (context.callDepth != callDepth) {
-            context = context.parentContext;
-        }
-        return context;
-    }
-
-    private List<Map<String, Object>> variables(int frameId) {
-        ScenarioContext context = getContextForFrameId(frameId);
-        List<Map<String, Object>> list = new ArrayList();
-        context.vars.forEach((k, v) -> {
-            if (v != null) {
-                Map<String, Object> map = new HashMap();
-                map.put("name", k);
-                map.put("value", v.getAsString());
-                map.put("type", v.getTypeAsShortString());
-                // if > 0 , this can be used  by client to request more info
-                map.put("variablesReference", 0);
-                list.add(map);
-            }
-        });
-        return list;
-    }
-
-    private boolean isBreakpoint(Step step, int line) {
+    protected boolean isBreakpoint(Step step, int line) {
         String path = step.getFeature().getPath().toString();
         SourceBreakpoints sb = sourceBreakpointsMap.get(path);
         if (sb == null) {
@@ -154,9 +91,53 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return DapMessage.response(++nextSeq, req);
     }
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) {
-        channel = ctx.channel();
+    private DebugThread thread(Number threadId) {
+        if (threadId == null) {
+            return null;
+        }
+        return debugThreads.get(threadId.longValue());
+    }
+
+    private List<Map<String, Object>> stackFrames(Number threadId) {
+        if (threadId == null) {
+            return Collections.EMPTY_LIST;
+        }
+        DebugThread thread = debugThreads.get(threadId.longValue());
+        if (thread == null) {
+            return Collections.EMPTY_LIST;
+        }
+        List<Long> frameIds = new ArrayList(thread.stack);
+        Collections.reverse(frameIds);
+        List<Map<String, Object>> list = new ArrayList(frameIds.size());
+        for (Long frameId : frameIds) {
+            ScenarioContext context = stackFrames.get(frameId);
+            list.add(new StackFrame(thread.id, frameId, context).toMap());
+        }
+        return list;
+    }
+
+    private List<Map<String, Object>> variables(Number frameId) {
+        if (frameId == null) {
+            return Collections.EMPTY_LIST;
+        }
+        focusedFrameId = frameId.longValue();
+        ScenarioContext context = stackFrames.get(frameId.longValue());
+        if (context == null) {
+            return Collections.EMPTY_LIST;
+        }
+        List<Map<String, Object>> list = new ArrayList();
+        context.vars.forEach((k, v) -> {
+            if (v != null) {
+                Map<String, Object> map = new HashMap();
+                map.put("name", k);
+                map.put("value", v.getAsString());
+                map.put("type", v.getTypeAsShortString());
+                // if > 0 , this can be used  by client to request more info
+                map.put("variablesReference", 0);
+                list.add(map);
+            }
+        });
+        return list;
     }
 
     @Override
@@ -187,22 +168,30 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req).body("breakpoints", sb.breakpoints));
                 break;
             case "launch":
-                feature = req.getArgument("feature", String.class);
-                start();
+                // normally a single feature full path, but can be set with any valid karate.options
+                // for e.g. "-t ~@ignore -T 5 classpath:demo.feature"
+                launchCommand = req.getArgument("feature", String.class);
+                start(launchCommand);
                 ctx.write(response(req));
                 break;
             case "threads":
-                Json threadsJson = new Json("[{ id: 1, name: 'main' }]");
-                ctx.write(response(req).body("threads", threadsJson.asList()));
+                List<Map<String, Object>> list = new ArrayList(debugThreads.size());
+                debugThreads.values().forEach(v -> {
+                    Map<String, Object> map = new HashMap();
+                    map.put("id", v.id);
+                    map.put("name", v.name);
+                    list.add(map);
+                });
+                ctx.write(response(req).body("threads", list));
                 break;
             case "stackTrace":
-                ctx.write(response(req).body("stackFrames", stackFrames()));
+                ctx.write(response(req).body("stackFrames", stackFrames(req.getThreadId())));
                 break;
             case "configurationDone":
                 ctx.write(response(req));
                 break;
             case "scopes":
-                int frameId = req.getArgument("frameId", Integer.class);
+                Number frameId = req.getArgument("frameId", Number.class);
                 Map<String, Object> scope = new HashMap();
                 scope.put("name", "In Scope");
                 scope.put("variablesReference", frameId);
@@ -211,39 +200,38 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req).body("scopes", Collections.singletonList(scope)));
                 break;
             case "variables":
-                int varRefId = req.getArgument("variablesReference", Integer.class);
-                ctx.write(response(req).body("variables", variables(varRefId)));
+                Number variablesReference = req.getArgument("variablesReference", Number.class);
+                ctx.write(response(req).body("variables", variables(variablesReference)));
                 break;
             case "next":
-                setStepMode(true);
-                resume();
+                thread(req.getThreadId()).step(true).resume();
                 ctx.write(response(req));
-                break;                
+                break;
             case "stepBack":
             case "reverseContinue": // since we can't disable this button
-                stepBack = true;                
-                resume();
+                thread(req.getThreadId()).stepBack(true).resume();
                 ctx.write(response(req));
                 break;
             case "stepIn":
-                stepIn = true;
-                resume();
+                thread(req.getThreadId()).stepIn(true).resume();
                 ctx.write(response(req));
                 break;
             case "stepOut":
-                setStepMode(false);
-                resume();
+                thread(req.getThreadId()).step(false).resume();
                 ctx.write(response(req));
                 break;
             case "continue":
-                stepModes.clear();
-                resume();
+                thread(req.getThreadId()).clearStepModes().resume();
                 ctx.write(response(req));
+                break;
+            case "pause":
+                ctx.write(response(req));
+                thread(req.getThreadId()).pause();
                 break;
             case "evaluate":
                 String expression = req.getArgument("expression", String.class);
-                Integer evalFrameId = req.getArgument("frameId", Integer.class);
-                ScenarioContext evalContext = getContextForFrameId(evalFrameId);
+                Number evalFrameId = req.getArgument("frameId", Number.class);
+                ScenarioContext evalContext = stackFrames.get(evalFrameId.longValue());
                 Scenario evalScenario = evalContext.getExecutionUnit().scenario;
                 Step evalStep = new Step(evalScenario.getFeature(), evalScenario, evalScenario.getIndex() + 1);
                 String result;
@@ -264,13 +252,16 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                         .body("variablesReference", 0)); // non-zero means can be requested by client                 
                 break;
             case "restart":
-                stack.peek().hotReload();
+                ScenarioContext context = stackFrames.get(focusedFrameId);
+                if (context != null) {
+                    context.hotReload();
+                }
                 ctx.write(response(req));
-                break;                
+                break;
             case "disconnect":
                 boolean restart = req.getArgument("restart", Boolean.class);
                 if (restart) {
-                    start();
+                    start(launchCommand);
                 } else {
                     exit();
                 }
@@ -283,46 +274,48 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
 
-    private void start() {
+    @Override
+    public ExecutionHook create() {
+        return new DebugThread(Thread.currentThread(), this);
+    }
+
+    private void start(String commandLine) {
+        logger.debug("command line: {}", commandLine);
+        RunnerOptions options = RunnerOptions.parseCommandLine(commandLine);
         if (runnerThread != null) {
             runnerThread.interrupt();
         }
-        runnerThread = new Thread(() -> Runner.path(feature).hook(this).parallel(1));
+        runnerThread = new Thread(() -> {
+            Runner.path(options.getFeatures())
+                    .hookFactory(this)
+                    .tags(options.getTags())
+                    .scenarioName(options.getName())
+                    .parallel(options.getThreads());
+            // if we reached here, run was successful
+            exit();
+        });
         runnerThread.start();
     }
 
-    private void pause() {
-        synchronized (this) {
-            try {
-                wait();
-            } catch (Exception e) {
-                logger.warn("wait interrupted: {}", e.getMessage());
-                interrupted = true;
-            }
-        }
-    }
-
-    private void resume() {
-        synchronized (this) {
-            notify();
-        }
-    }
-
-    private void stop(String reason, String description) {
+    protected void stopEvent(long threadId, String reason, String description) {
         channel.eventLoop().execute(() -> {
             DapMessage message = event("stopped")
                     .body("reason", reason)
-                    .body("threadId", 1);
+                    .body("threadId", threadId);
             if (description != null) {
                 message.body("description", description);
             }
             channel.writeAndFlush(message);
         });
     }
-
-    private void stop(String reason) {
-        stop(reason, null);
-    }
+    
+    protected void continueEvent(long threadId) {
+        channel.eventLoop().execute(() -> {
+            DapMessage message = event("continued")
+                    .body("threadId", threadId);
+            channel.writeAndFlush(message);
+        });
+    }   
 
     private void exit() {
         channel.eventLoop().execute(()
@@ -331,63 +324,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         server.stop();
     }
 
-    @Override
-    public boolean beforeStep(Step step, ScenarioContext context) {
-        if (interrupted) {
-            return false;
-        }
-        stack.push(context);
-        this.appender = context.appender;
-        context.logger.setLogAppender(this); // wrap !
-        int line = step.getLine();
-        if (stepBack) {
-            stepBack = false;
-            stop("step");
-            pause();
-        } else if (stepIn) {
-            stepIn = false;
-            stop("step");
-            pause();
-        } else if (getStepMode()) {
-            stop("step");
-            pause();
-        } else if (isBreakpoint(step, line)) {
-            stop("breakpoint");
-            pause();
-        }
-        if (stepBack) { // don't clear flag yet !
-            context.getExecutionUnit().stepBack();
-            stack.pop(); // afterStep will not be fired, undo
-            return false; // do not execute step !
-        }
-        return true;
+    protected long nextFrameId() {
+        return ++nextFrameId;
     }
 
-    @Override
-    public void afterAll(Results results) {
-        if (!interrupted) {
-            exit();
-        }
-    }
-
-    @Override
-    public void beforeAll(Results results) {
-        interrupted = false;
-    }
-
-    @Override
-    public void afterStep(StepResult result, ScenarioContext context) {
-        context.logger.setLogAppender(appender);
-        // do this before we pop the stack !
-        if (result.getResult().isFailed()) {
-            stop("exception", result.getErrorMessage());
-            output("*** step failed: " + result.getErrorMessage() + "\n");
-            pause();
-        }
-        stack.pop();
-    }
-
-    private void output(String text) {
+    protected void output(String text) {
         channel.eventLoop().execute(()
                 -> channel.writeAndFlush(event("output")
                         .body("output", text)));
@@ -400,49 +341,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     @Override
-    public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
-        return !interrupted;
-    }
-
-    @Override
-    public void afterScenario(ScenarioResult result, ScenarioContext context) {
-
-    }
-
-    @Override
-    public boolean beforeFeature(Feature feature, ExecutionContext context) {
-        return !interrupted;
-    }
-
-    @Override
-    public void afterFeature(FeatureResult result, ExecutionContext context) {
-
-    }
-
-    @Override
-    public String getPerfEventName(HttpRequestBuilder req, ScenarioContext context) {
-        return null;
-    }
-
-    @Override
-    public void reportPerfEvent(PerfEvent event) {
-
-    }
-
-    @Override
-    public String collect() {
-        return appender.collect();
-    }
-
-    @Override
-    public void append(String text) {
-        output(text);
-        appender.append(text);
-    }
-
-    @Override
-    public void close() {
-
+    public void channelActive(ChannelHandlerContext ctx) {
+        channel = ctx.channel();
     }
 
 }

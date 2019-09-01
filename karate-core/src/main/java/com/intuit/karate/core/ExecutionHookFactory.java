@@ -21,38 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.debug;
-
-import com.intuit.karate.FileUtils;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.MessageToMessageEncoder;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package com.intuit.karate.core;
 
 /**
  *
  * @author pthomas3
  */
-public class DapEncoder extends MessageToMessageEncoder<DapMessage> {
+public interface ExecutionHookFactory {
     
-    private static final Logger logger = LoggerFactory.getLogger(DapEncoder.class);
-    
-    private static final String CONTENT_LENGTH_COLON = "Content-Length: ";
-
-    @Override
-    protected void encode(ChannelHandlerContext ctx, DapMessage dm, List<Object> out) throws Exception {
-        String msg = dm.toJson();
-        if (logger.isTraceEnabled()) {
-            logger.trace("<< {}", msg);
-        }        
-        byte[] bytes = msg.getBytes(FileUtils.UTF8);
-        String header = CONTENT_LENGTH_COLON + bytes.length + DapDecoder.CRLFCRLF;
-        ByteBuf buf = ctx.alloc().buffer();
-        buf.writeCharSequence(header, FileUtils.UTF8);
-        buf.writeBytes(bytes);        
-        out.add(buf);
-    }
+    ExecutionHook create();
     
 }

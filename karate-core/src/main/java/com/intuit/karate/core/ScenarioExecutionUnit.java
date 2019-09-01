@@ -41,11 +41,11 @@ import java.util.Map;
 public class ScenarioExecutionUnit implements Runnable {
 
     public final Scenario scenario;
-    private final ExecutionContext exec;
-    private final Collection<ExecutionHook> hooks;
+    private final ExecutionContext exec;    
     public final ScenarioResult result;
     private boolean executed = false;
 
+    private Collection<ExecutionHook> hooks;
     private List<Step> steps;
     private StepActions actions;
     private boolean stopped = false;
@@ -91,8 +91,7 @@ public class ScenarioExecutionUnit implements Runnable {
         }
         if (exec.callContext.perfMode) {
             appender = LogAppender.NO_OP;
-        }
-        hooks = exec.callContext.executionHooks;
+        }        
     }
 
     public ScenarioContext getContext() {
@@ -140,6 +139,8 @@ public class ScenarioExecutionUnit implements Runnable {
                 result.addError("scenario init failed", e);
             }
         }
+        // this is not done in the constructor as we need to be on the "executor" thread
+        hooks = exec.callContext.resolveHooks();
         // before-scenario hook, important: actions.context will be null if initFailed
         if (!initFailed && hooks != null) {
             try {
@@ -246,12 +247,18 @@ public class ScenarioExecutionUnit implements Runnable {
     private int stepIndex;
 
     public void stepBack() {
-        if (stepIndex < 2) {
+        stepIndex -= 2;
+        if (stepIndex < 0) {
             stepIndex = 0;
-        } else {
-            stepIndex -= 2;
         }
     }
+    
+    public void stepReset() {
+        stepIndex--;
+        if (stepIndex < 0) {
+            stepIndex = 0;
+        }        
+    }    
 
     private int nextStepIndex() {
         return stepIndex++;

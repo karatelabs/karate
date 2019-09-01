@@ -77,7 +77,9 @@ public class DapDecoder extends ByteToMessageDecoder {
     }
 
     private static DapMessage encode(String raw) {
-        logger.debug(">> {}", raw);
+        if (logger.isTraceEnabled()) {
+            logger.trace(">> {}", raw);
+        }
         Map<String, Object> map = JsonUtils.toJsonDoc(raw).read("$");
         return new DapMessage(map);
     }

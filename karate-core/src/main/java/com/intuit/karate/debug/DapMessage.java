@@ -64,6 +64,10 @@ public class DapMessage {
     public Map<String, Object> getArguments() {
         return arguments;
     }        
+    
+    public Number getThreadId() {
+        return getArgument("threadId", Number.class);
+    }
 
     public <T> T getArgument(String key, Class<T> clazz) {
         if (arguments == null) {

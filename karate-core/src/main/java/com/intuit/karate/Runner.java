@@ -27,6 +27,7 @@ import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.core.ExecutionHookFactory;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureParser;
@@ -64,6 +65,7 @@ public class Runner {
         List<String> paths = new ArrayList();
         List<Resource> resources;
         Collection<ExecutionHook> hooks;
+        ExecutionHookFactory hookFactory;
 
         public Builder path(String... paths) {
             this.paths.addAll(Arrays.asList(paths));
@@ -121,6 +123,11 @@ public class Runner {
                 hooks = new ArrayList();
             }
             hooks.add(hook);
+            return this;
+        }
+        
+        public Builder hookFactory(ExecutionHookFactory hookFactory) {
+            this.hookFactory = hookFactory;
             return this;
         }
         
@@ -233,7 +240,7 @@ public class Runner {
                 feature.setCallName(options.scenarioName);
                 feature.setCallLine(resource.getLine());
                 FeatureContext featureContext = new FeatureContext(null, feature, options.tagSelector());
-                CallContext callContext = CallContext.forAsync(feature, options.hooks, null, false);
+                CallContext callContext = CallContext.forAsync(feature, options.hooks, options.hookFactory, null, false);
                 ExecutionContext execContext = new ExecutionContext(results, results.getStartTime(), featureContext, callContext, reportDir,
                         r -> featureExecutor.submit(r), scenarioExecutor, Thread.currentThread().getContextClassLoader());
                 featureResults.add(execContext.result);
@@ -318,7 +325,7 @@ public class Runner {
     public static void callAsync(String path, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
         FeatureContext featureContext = new FeatureContext(null, feature, null);
-        CallContext callContext = CallContext.forAsync(feature, Collections.singletonList(hook), arg, true);
+        CallContext callContext = CallContext.forAsync(feature, Collections.singletonList(hook), null, arg, true);
         ExecutionContext executionContext = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, system, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.setNext(next);

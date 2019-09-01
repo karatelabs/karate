@@ -375,7 +375,7 @@ public class FileUtils {
         }
         for (URL url : getAllClassPathUrls(cl)) {
             Path rootPath = urlToPath(url, null);
-            if (path.startsWith(rootPath)) {
+            if (rootPath != null && path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
                 return CLASSPATH_COLON + toStandardPath(relativePath.toString());
             }
