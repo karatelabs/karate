@@ -78,7 +78,7 @@ public class DapServer {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
-                    .handler(new LoggingHandler(getClass().getName(), LogLevel.TRACE))
+                    // .handler(new LoggingHandler(getClass().getName(), LogLevel.TRACE))
                     .childHandler(new ChannelInitializer() {
                         @Override
                         protected void initChannel(Channel c) {

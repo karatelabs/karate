@@ -302,6 +302,8 @@ Alternatively for [Gradle](https://gradle.org) you need these two entries:
     testCompile 'com.intuit.karate:karate-apache:0.9.4'
 ```
 
+Also refer to the wiki for using [Karate with Gradle](https://github.com/intuit/karate/wiki/Gradle).
+
 ### Quickstart
 It may be easier for you to use the Karate Maven archetype to create a skeleton project with one command. You can then skip the next few sections, as the `pom.xml`, recommended directory structure, sample test and [JUnit 5](#junit-5) runners - will be created for you.
 

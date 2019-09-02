@@ -225,6 +225,9 @@ The [output directory](#output-directory) will be deleted before the test runs i
 java -jar karate.jar -T 5 -t ~@ignore -C src/features
 ```
 
+#### Debug Server
+The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/intuit/karate/wiki/Debug-Server#standalone-jar) for more details.
+
 #### UI
 The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
 ```
@@ -286,6 +289,13 @@ The static `start()` method returns a `FeatureServer` object on which you can ca
 And a `FeatureServer` instance has a `stop()` method that will [stop](#stopping) the server.
 
 You can look at this demo example for reference: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) - note how the dynamic port number can be retrieved and passed to other elements in your test set-up.
+
+## Continuous Integration
+To include mocks into a test-suite that consists mostly of Karate tests, the easiest way is to use JUnit with the above approach, and ensure that the JUnit class is "included" in your test run. One way is to ensure that the JUnit "runner" follows the naming convention (`*Test.java`) or you can explicity include the mock "runners" in your Maven setup.
+
+You will also need to ensure that your mock feature is *not* picked up by the regular test-runners, and an `@ignore` [tag](https://github.com/intuit/karate#tags) typically does the job.
+
+For more details, refer to this [answer on Stack Overflow](https://stackoverflow.com/a/57746457/143475).
 
 ## Within a Karate Test
 Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using the `karate.start()` API. The argument can be a string or JSON. If a string, it is processed as the path to the mock feature file, and behaves like the [`read()`](https://github.com/intuit/karate#reading-files) function.

@@ -40,12 +40,8 @@ import net.masterthought.cucumber.ReportBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
-import picocli.CommandLine.DefaultExceptionHandler;
-import picocli.CommandLine.ExecutionException;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-import picocli.CommandLine.ParseResult;
-import picocli.CommandLine.RunLast;
 
 /**
  *
@@ -133,18 +129,8 @@ public class Main implements Callable<Void> {
         logger = LoggerFactory.getLogger(Main.class);
         logger.info("Karate version: {}", FileUtils.getKarateVersion());
         CommandLine cmd = new CommandLine(new Main());
-        DefaultExceptionHandler<List<Object>> exceptionHandler = new DefaultExceptionHandler() {
-            @Override
-            public Object handleExecutionException(ExecutionException ex, ParseResult parseResult) {
-                if (ex.getCause() instanceof KarateException) {
-                    throw new ExecutionException(cmd, ex.getCause().getMessage()); // minimum possible stack trace but exit code 1
-                } else {
-                    throw ex;
-                }
-            }
-        };
-        cmd.parseWithHandlers(new RunLast(), exceptionHandler, args);
-        System.exit(0);
+        int returnCode = cmd.execute(args);
+        System.exit(returnCode);
     }
 
     @Override
@@ -183,7 +169,12 @@ public class Main implements Callable<Void> {
                 ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
                 reportBuilder.generateReports();
                 if (results.getFailCount() > 0) {
-                    throw new KarateException("there are test failures");
+                    Exception ke = new KarateException("there are test failures !");
+                    StackTraceElement[] newTrace = new StackTraceElement[]{
+                        new StackTraceElement(".", ".", ".", -1)
+                    };
+                    ke.setStackTrace(newTrace);
+                    throw ke;
                 }
             }
             return null;
