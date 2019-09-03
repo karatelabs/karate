@@ -163,8 +163,8 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 break;
             case "setBreakpoints":
                 SourceBreakpoints sb = new SourceBreakpoints(req.getArguments());
-                BREAKPOINTS.put(sb.path, sb);
-                logger.debug("source breakpoints: {}", sb);
+                BREAKPOINTS.put(sb.path, sb);                
+                logger.trace("source breakpoints: {}", sb);
                 ctx.write(response(req).body("breakpoints", sb.breakpoints));
                 break;
             case "launch":

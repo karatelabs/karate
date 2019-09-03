@@ -137,6 +137,7 @@ public class Main implements Callable<Void> {
     public Void call() throws Exception {
         if (clean) {
             org.apache.commons.io.FileUtils.deleteDirectory(new File(output));
+            logger.info("deleted directory: {}", output);
         }
         if (debugPort != -1) {
             DapServer server = new DapServer(debugPort);

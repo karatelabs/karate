@@ -36,23 +36,25 @@ import org.slf4j.LoggerFactory;
  * @author pthomas3
  */
 public class DapEncoder extends MessageToMessageEncoder<DapMessage> {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(DapEncoder.class);
-    
-    private static final String CONTENT_LENGTH_COLON = "Content-Length: ";
+
+    private static final byte[] CONTENT_LENGTH_COLON = "Content-Length: ".getBytes(FileUtils.UTF8);
+    private static final byte[] CRLFCRLF = "\r\n\r\n".getBytes(FileUtils.UTF8);
 
     @Override
     protected void encode(ChannelHandlerContext ctx, DapMessage dm, List<Object> out) throws Exception {
         String msg = dm.toJson();
         if (logger.isTraceEnabled()) {
             logger.trace("<< {}", msg);
-        }        
-        byte[] bytes = msg.getBytes(FileUtils.UTF8);
-        String header = CONTENT_LENGTH_COLON + bytes.length + DapDecoder.CRLFCRLF;
+        }
         ByteBuf buf = ctx.alloc().buffer();
-        buf.writeCharSequence(header, FileUtils.UTF8);
-        buf.writeBytes(bytes);        
+        byte[] bytes = msg.getBytes(FileUtils.UTF8);
+        buf.writeBytes(CONTENT_LENGTH_COLON);
+        buf.writeCharSequence(bytes.length + "", FileUtils.UTF8);
+        buf.writeBytes(CRLFCRLF);
+        buf.writeBytes(bytes);
         out.add(buf);
     }
-    
+
 }

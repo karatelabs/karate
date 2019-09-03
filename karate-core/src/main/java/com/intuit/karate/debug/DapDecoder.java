@@ -28,6 +28,7 @@ import com.intuit.karate.JsonUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.util.ByteProcessor;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -40,47 +41,54 @@ import org.slf4j.LoggerFactory;
 public class DapDecoder extends ByteToMessageDecoder {
 
     private static final Logger logger = LoggerFactory.getLogger(DapDecoder.class);
-
-    public static final String CRLFCRLF = "\r\n\r\n";
-
-    private final StringBuilder buffer = new StringBuilder();
+    
     private int remaining;
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
-        int readable = in.readableBytes();
-        buffer.append(in.readCharSequence(readable, FileUtils.UTF8));
-        if (remaining > 0 && buffer.length() >= remaining) {
-            out.add(encode(buffer.substring(0, remaining)));
-            String rhs = buffer.substring(remaining);
-            buffer.setLength(0);
-            buffer.append(rhs);
+    protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception {
+        if (remaining > 0 && buffer.readableBytes() >= remaining) {
+            CharSequence msg = buffer.readCharSequence(remaining, FileUtils.UTF8);
+            out.add(encode(msg));
             remaining = 0;
         }
         int pos;
-        while ((pos = buffer.indexOf(CRLFCRLF)) != -1) {
-            String rhs = buffer.substring(pos + 4);
-            int colonPos = buffer.lastIndexOf(":", pos);
-            String lengthString = buffer.substring(colonPos + 1, pos);
-            int length = Integer.valueOf(lengthString.trim());
-            buffer.setLength(0);
-            if (rhs.length() >= length) {
-                String msg = rhs.substring(0, length);
+        while ((pos = findCrLfCrLf(buffer)) != -1) {
+            int delimiterPos = pos;
+            while (buffer.getByte(--pos) != ':') {
+                // skip backwards
+            }
+            buffer.readerIndex(++pos);
+            CharSequence lengthString = buffer.readCharSequence(delimiterPos - pos, FileUtils.UTF8);
+            int length = Integer.valueOf(lengthString.toString().trim());
+            buffer.readerIndex(delimiterPos + 4);
+            if (buffer.readableBytes() >= length) {
+                CharSequence msg = buffer.readCharSequence(length, FileUtils.UTF8);
                 out.add(encode(msg));
-                buffer.append(rhs.substring(length));
                 remaining = 0;
             } else {
                 remaining = length;
-                buffer.append(rhs);
             }
         }
     }
+    
+    private static int findCrLfCrLf(ByteBuf buffer) {
+        int totalLength = buffer.readableBytes();
+        int readerIndex = buffer.readerIndex();
+        int i = buffer.forEachByte(readerIndex, totalLength, ByteProcessor.FIND_LF);
+        if (i > 0 && buffer.getByte(i - 1) == '\r') {
+            int more = readerIndex + totalLength - i;
+            if (more > 1 && buffer.getByte(i + 1) == '\r' && buffer.getByte(i + 2) == '\n') {
+                return i - 1;
+            }
+        }
+        return -1;
+    }    
 
-    private static DapMessage encode(String raw) {
+    private static DapMessage encode(CharSequence raw) {
         if (logger.isTraceEnabled()) {
             logger.trace(">> {}", raw);
         }
-        Map<String, Object> map = JsonUtils.toJsonDoc(raw).read("$");
+        Map<String, Object> map = JsonUtils.toJsonDoc(raw.toString()).read("$");
         return new DapMessage(map);
     }
 
