@@ -45,25 +45,23 @@ public class DapDecoder extends ByteToMessageDecoder {
     private int remaining;
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception {
-        if (remaining > 0 && buffer.readableBytes() >= remaining) {
-            CharSequence msg = buffer.readCharSequence(remaining, FileUtils.UTF8);
-            out.add(encode(msg));
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+        if (remaining > 0 && in.readableBytes() >= remaining) {
+            out.add(encode(in, remaining));
             remaining = 0;
         }
         int pos;
-        while ((pos = findCrLfCrLf(buffer)) != -1) {
+        while ((pos = findCrLfCrLf(in)) != -1) {
             int delimiterPos = pos;
-            while (buffer.getByte(--pos) != ':') {
+            while (in.getByte(--pos) != ':') {
                 // skip backwards
             }
-            buffer.readerIndex(++pos);
-            CharSequence lengthString = buffer.readCharSequence(delimiterPos - pos, FileUtils.UTF8);
+            in.readerIndex(++pos);
+            CharSequence lengthString = in.readCharSequence(delimiterPos - pos, FileUtils.UTF8);
             int length = Integer.valueOf(lengthString.toString().trim());
-            buffer.readerIndex(delimiterPos + 4);
-            if (buffer.readableBytes() >= length) {
-                CharSequence msg = buffer.readCharSequence(length, FileUtils.UTF8);
-                out.add(encode(msg));
+            in.readerIndex(delimiterPos + 4);
+            if (in.readableBytes() >= length) {
+                out.add(encode(in, length));
                 remaining = 0;
             } else {
                 remaining = length;
@@ -84,11 +82,12 @@ public class DapDecoder extends ByteToMessageDecoder {
         return -1;
     }    
 
-    private static DapMessage encode(CharSequence raw) {
+    private static DapMessage encode(ByteBuf in, int length) {
+        String msg = in.readCharSequence(length, FileUtils.UTF8).toString();
         if (logger.isTraceEnabled()) {
-            logger.trace(">> {}", raw);
+            logger.trace(">> {}", msg);
         }
-        Map<String, Object> map = JsonUtils.toJsonDoc(raw.toString()).read("$");
+        Map<String, Object> map = JsonUtils.toJsonDoc(msg).read("$");
         return new DapMessage(map);
     }
 
