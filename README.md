@@ -828,7 +828,7 @@ And there is no more worrying about Maven profiles and whether the 'right' `*.pr
 Non-JSON values such as Java object references or JS functions are supported only if they are at the "root" of the JSON returned from [`karate-config.js`](#karate-configjs). So this below will *not* work:
 
 ```javascript
-function() {
+function fn() {
   var config = {};
   config.utils = {};
   config.utils.uuid = function(){ return java.util.UUID.randomUUID() + '' };
@@ -840,7 +840,7 @@ function() {
 The recommended best-practice is to move the `uuid` function into a common feature file following the pattern described [here](#multiple-functions-in-one-file):
 
 ```javascript
-function() {
+function fn() {
   var config = {};
   config.utils = karate.call('utils.feature')
   return config;
@@ -850,7 +850,7 @@ function() {
 But you can opt for using [`karate.toMap()`](#karate-tomap) which will "wrap" things so that the nested objects are not "lost":
 
 ```javascript
-function() {
+function fn() {
   var config = {};
   var utils = {};
   utils.uuid = function(){ return java.util.UUID.randomUUID() + '' };
@@ -1337,7 +1337,7 @@ For those who may prefer [YAML](http://yaml.org) as a simpler way to represent d
 ```
 
 ### `yaml`
-A very rare need is to be able to convert a string which happens to be in YAML form into JSON, and this can be done via the `yaml` type cast keyword. For example - if a response data element or downloaded file is YAML and you need to use the data in subsequent steps.
+A very rare need is to be able to convert a string which happens to be in YAML form into JSON, and this can be done via the `yaml` type cast keyword. For example - if a response data element or downloaded file is YAML and you need to use the data in subsequent steps. Also see [type conversion](#type-conversion).
 
 ```cucumber
 * text foo =
@@ -1369,7 +1369,7 @@ Karate can read `*.csv` files and will auto-convert them to JSON. A header row i
 In rare cases you may want to use a csv-file as-is and *not* auto-convert it to JSON. A good example is when you want to use a CSV file as the [request-body](#request) for a file-upload. You could get by by renaming the file-extension to say `*.txt` but an alternative is to use the [`karate.readAsString()`](#read-file-as-string) API.
 
 ### `csv`
-Just like [`yaml`](#yaml), you may occasionally need to convert a string which happens to be in CSV form into JSON, and this can be done via the `csv` keyword.
+Just like [`yaml`](#yaml), you may occasionally need to [convert a string](#type-conversion) which happens to be in CSV form into JSON, and this can be done via the `csv` keyword.
 
 ```cucumber
 * text foo =

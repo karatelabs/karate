@@ -651,9 +651,9 @@ public class FileUtils {
                     }
                 }
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
-                relativePath = relativePath.replaceAll("[.]{2,}", "");
+                relativePath = toStandardPath(relativePath).replaceAll("[.]+/", "");
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + toStandardPath(relativePath), line));
+                files.add(new Resource(path, prefix + relativePath, line));
             }
         }
     }
