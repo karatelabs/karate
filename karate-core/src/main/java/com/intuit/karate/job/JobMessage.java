@@ -37,12 +37,14 @@ import java.util.Map;
 public class JobMessage {
 
     public static final String KARATE_METHOD = "karate-method";
-    public static final String KARATE_CHUNK_ID = "karate-chunk-id";
+    public static final String KARATE_JOB_ID = "karate-job-id";    
     public static final String KARATE_EXECUTOR_ID = "karate-executor-id";
+    public static final String KARATE_CHUNK_ID = "karate-chunk-id";
 
     public final String method;
     public final Map<String, Object> body;
 
+    private String jobId;
     private String executorId;
     private String chunkId;
     private byte[] bytes;
@@ -58,6 +60,14 @@ public class JobMessage {
     public byte[] getBytes() {
         return bytes;
     }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }        
 
     public String getChunkId() {
         return chunkId;
@@ -131,24 +141,32 @@ public class JobMessage {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[method: ").append(method);
+        if (jobId != null) {
+            sb.append(", jobId: ").append(jobId);
+        }
+        if (executorId != null) {
+            sb.append(", executorId: ").append(executorId);
+        }        
         if (chunkId != null) {
             sb.append(", chunkId: ").append(chunkId);
         }
-        sb.append(", body: ");
-        body.forEach((k, v) -> {
-            sb.append("[").append(k).append(": ");
-            if (v instanceof String) {
-                String s = (String) v;
-                if (s.length() > 1024) {
-                    sb.append("...");
+        if (body != null && !body.isEmpty()) {
+            sb.append(", body: ");
+            body.forEach((k, v) -> {
+                sb.append("[").append(k).append(": ");
+                if (v instanceof String) {
+                    String s = (String) v;
+                    if (s.length() > 1024) {
+                        sb.append("...");
+                    } else {
+                        sb.append(s);
+                    }
                 } else {
-                    sb.append(s);
+                    sb.append(v);
                 }
-            } else {
-                sb.append(v);
-            }
-            sb.append("]");
-        });
+                sb.append("]");
+            });
+        }
         sb.append("]");
         return sb.toString();
     }

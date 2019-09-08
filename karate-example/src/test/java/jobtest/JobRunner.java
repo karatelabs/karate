@@ -28,9 +28,8 @@ public class JobRunner {
                 ExecutorService executor = Executors.newFixedThreadPool(count);
                 List<Callable<Boolean>> list = new ArrayList();
                 for (int i = 0; i < count; i++) {
-                    final String id = (i + 1) + "";
                     list.add(() -> {
-                        JobExecutor.run(serverUrl, id);
+                        JobExecutor.run(serverUrl);
                         return true;
                     });
                 }

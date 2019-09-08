@@ -144,7 +144,7 @@ public class Main implements Callable<Void> {
             logger.info("deleted directory: {}", output);
         }
         if (jobServerUrl != null) {
-            JobExecutor.run(jobServerUrl, null);
+            JobExecutor.run(jobServerUrl);
             return null;
         }
         if (debugPort != -1) {

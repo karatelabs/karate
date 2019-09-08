@@ -33,30 +33,34 @@ import java.util.Map;
  * @author pthomas3
  */
 public interface JobConfig {
-    
+
     String getHost();
-    
+
     int getPort();
-    
+
     default String getSourcePath() {
         return "";
     }
-        
+
     default String getReportPath() {
         return null;
     }
 
-    void startExecutors(String serverId, String serverUrl);    
+    void startExecutors(String jobId, String jobUrl);
 
     Map<String, String> getEnvironment();
 
-    List<JobCommand> getInitCommands();
-    
+    List<JobCommand> getStartupCommands();
+
+    default List<JobCommand> getShutdownCommands() {
+        return Collections.EMPTY_LIST;
+    }
+
     List<JobCommand> getMainCommands(Scenario scenario);
-    
+
     default List<JobCommand> getPreCommands(Scenario scenario) {
         return Collections.EMPTY_LIST;
-    }    
+    }
 
     default List<JobCommand> getPostCommands(Scenario scenario) {
         return Collections.EMPTY_LIST;

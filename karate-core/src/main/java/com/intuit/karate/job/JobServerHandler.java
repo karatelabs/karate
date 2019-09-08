@@ -26,7 +26,6 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -38,18 +37,11 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,7 +116,10 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
                     ByteBuf responseBuf = Unpooled.copiedBuffer(bytes);
                     response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, responseBuf);
                     response.headers().add(JobMessage.KARATE_METHOD, res.method);
-                    response.headers().add(JobMessage.KARATE_EXECUTOR_ID, executorId);
+                    response.headers().add(JobMessage.KARATE_JOB_ID, server.jobId);
+                    if (res.getExecutorId() != null) {
+                        response.headers().add(JobMessage.KARATE_EXECUTOR_ID, res.getExecutorId());
+                    }
                     if (res.getChunkId() != null) {
                         response.headers().add(JobMessage.KARATE_CHUNK_ID, res.getChunkId());
                     }
@@ -147,10 +142,13 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
             case "download":
                 JobMessage download = new JobMessage("download");
                 download.setBytes(server.getZipBytes());
+                int executorId = server.executorCount.getAndIncrement();
+                download.setExecutorId(executorId + "");
                 return download;
             case "init":
                 JobMessage init = new JobMessage("init");
-                init.put("initCommands", server.config.getInitCommands());
+                init.put("startupCommands", server.config.getStartupCommands());
+                init.put("shutdownCommands", server.config.getShutdownCommands());
                 init.put("environment", server.config.getEnvironment());
                 init.put("reportPath", server.resolveReportPath());
                 return init;

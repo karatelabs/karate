@@ -30,9 +30,12 @@ RUN apt-get clean \
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd karate ~/.vnc/passwd
 
-COPY supervisord.conf /etc/supervisor/conf.d/
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
+
+ADD target/karate.jar /opt/karate/karate.jar
+ADD target/repository /root/.m2/repository
 
 VOLUME ["/home/chrome"]
 

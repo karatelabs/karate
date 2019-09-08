@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,17 +59,18 @@ public class JobServer {
     protected final Map<String, ScenarioExecutionUnit> CHUNKS = new HashMap();
     protected final String basePath;
     protected final File ZIP_FILE;
-    protected final String uniqueId;
+    protected final String jobId;
     protected final String jobUrl;
     protected final String reportDir;
+    protected final AtomicInteger executorCount = new AtomicInteger(1);
 
     private final Channel channel;
     private final int port;
     private final EventLoopGroup bossGroup;
-    private final EventLoopGroup workerGroup;
+    private final EventLoopGroup workerGroup;    
 
     public void startExecutors() {
-        config.startExecutors(uniqueId, jobUrl);
+        config.startExecutors(jobId, jobUrl);
     }
 
     protected String resolveReportPath() {
@@ -147,8 +149,8 @@ public class JobServer {
     public JobServer(JobConfig config, String reportDir) {
         this.config = config;
         this.reportDir = reportDir;
-        uniqueId = System.currentTimeMillis() + "";
-        basePath = FileUtils.getBuildDir() + File.separator + uniqueId;        
+        jobId = System.currentTimeMillis() + "";
+        basePath = FileUtils.getBuildDir() + File.separator + jobId;        
         ZIP_FILE = new File(basePath + ".zip");
         JobUtils.zip(new File(config.getSourcePath()), ZIP_FILE);
         logger.info("created zip archive: {}", ZIP_FILE);
@@ -172,7 +174,7 @@ public class JobServer {
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             port = isa.getPort();
             jobUrl = "http://" + config.getHost() + ":" + port;
-            logger.info("job server started - {} - {}", jobUrl, uniqueId);
+            logger.info("job server started - {} - {}", jobUrl, jobId);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

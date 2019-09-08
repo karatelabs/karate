@@ -82,7 +82,7 @@ public abstract class MavenJobConfig implements JobConfig {
     }
 
     @Override
-    public List<JobCommand> getInitCommands() {
+    public List<JobCommand> getStartupCommands() {
         return Collections.singletonList(new JobCommand("mvn test-compile"));
     }
 
