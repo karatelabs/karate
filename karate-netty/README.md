@@ -4,7 +4,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 
 ### Capabilities
 * Everything on `localhost` or within your network, no need to worry about your data leaking into the cloud
-* Super-easy 'hard-coded' mocks ([example](src/test/java/com/intuit/karate/mock/_mock.feature))
+* Super-easy 'hard-coded' mocks ([example](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Not only JSON but first-class support for XML, plain-text, binary, etc.
 * Easy HTTP request matching by path, method, headers, body etc.
@@ -85,20 +85,7 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least version 1.8.0_112 or greater is required, and there's a good chance you already have Java installed. Check by typing `java -version` on the command line.
 
 ## Quick Start
-It will take you only 2 minutes to see Karate's mock-server capabilities in action ! And you can run tests as well.
-
-> Tip: Rename the file to `karate.jar` to make the commands below easier to type !
-
-* Download the latest version of the JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-<version>.jar`
-* Download this file: [`cats-mock.feature`](../karate-demo/src/test/java/mock/web/cats-mock.feature) (or copy the text) to a local file next to the above JAR file
-* In the same directory, start the mock server with the command:
-  * `java -jar karate.jar -m cats-mock.feature -p 8080`
-* To see how this is capable of backing an HTML front-end, download this file: [`cats.html`](../karate-demo/src/test/java/mock/web/cats.html). Open it in a browser and you will be able to `POST` data. Browse to [`http://localhost:8080/cats`](http://localhost:8080/cats) - to see the saved data (state).
-* You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal):
-  * `java -jar karate.jar cats-test.feature`
-* You will see HTML reports in the `target/cucumber-html-reports` directory
-
-Another (possibly simpler) version of the above example is included in this demo project: [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) - and you can skip the step of downloading the "sikulix" JAR. This project is quite handy if you need to demo Karate (tests, mocks and UI) to others !
+Just use the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release) and follow the insructions under the heading: [API Mocks](https://github.com/intuit/karate/wiki/ZIP-Release#api-mocks).
 
 Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 

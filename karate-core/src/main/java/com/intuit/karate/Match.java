@@ -119,7 +119,7 @@ public class Match {
     public Match jsonPath(String exp) {
         prevValue = Script.evalKarateExpression(exp, context);
         return this;
-    }
+    }  
 
     public ScriptValue value() {
         return prevValue;

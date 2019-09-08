@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -45,8 +46,21 @@ public class Http {
             return match.get("response");
         }
         
+        public Match bodyBytes() {
+            return match.eval("responseBytes");
+        }        
+        
         public Match jsonPath(String exp) {
             return body().jsonPath(exp);
+        }
+        
+        public String header(String name) {
+            Map<String, Object> map = match.get("responseHeaders").asMap();
+            List<String> headers = (List) map.get(name);
+            if (headers != null && !headers.isEmpty()) {
+                return headers.get(0);
+            }
+            return null;
         }
 
     }
@@ -68,6 +82,11 @@ public class Http {
         match.context.path(list);
         return this;
     }
+    
+    public Http header(String name, String value) {
+        match.context.header(name, Collections.singletonList(Match.quote(value)));
+        return this;
+    }
 
     private Response handleError() {
         Response res = new Response();
@@ -86,6 +105,10 @@ public class Http {
 
     public Response post(String body) {
         return post(new Json(body));
+    }
+    
+    public Response post(byte[] bytes) {
+        return post(new ScriptValue(bytes));
     }
 
     public Response post(Map<String, Object> body) {

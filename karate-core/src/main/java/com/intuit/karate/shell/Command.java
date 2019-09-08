@@ -35,6 +35,7 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,8 +52,13 @@ public class Command extends Thread {
     private final boolean sharedAppender;
     private final LogAppender appender;
 
+    private Map<String, String> environment;
     private Process process;
     private int exitCode = -1;
+
+    public void setEnvironment(Map<String, String> environment) {
+        this.environment = environment;
+    }        
 
     public static String exec(File workingDir, String... args) {
         Command command = new Command(workingDir, args);
@@ -60,14 +66,18 @@ public class Command extends Thread {
         command.waitSync();
         return command.appender.collect();
     }
-
-    public static String execLine(File workingDir, String command) {
+    
+    public static String[] tokenize(String command) {
         StringTokenizer st = new StringTokenizer(command);
         String[] args = new String[st.countTokens()];
         for (int i = 0; st.hasMoreTokens(); i++) {
             args[i] = st.nextToken();
-        }
-        return exec(workingDir, args);
+        } 
+        return args;
+    }
+
+    public static String execLine(File workingDir, String command) {
+        return exec(workingDir, tokenize(command));
     }
 
     public static String getBuildDir() {
@@ -192,14 +202,18 @@ public class Command extends Thread {
         process.destroyForcibly();
     }
 
+    @Override
     public void run() {
         try {
             logger.debug("command: {}", argList);
             ProcessBuilder pb = new ProcessBuilder(args);
-            logger.debug("env PATH: {}", pb.environment().get("PATH"));
+            if (environment != null) {
+                pb.environment().putAll(environment);
+            }
+            logger.trace("env PATH: {}", pb.environment().get("PATH"));
             if (workingDir != null) {
                 pb.directory(workingDir);
-            }
+            }            
             pb.redirectErrorStream(true);
             process = pb.start();
             BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));

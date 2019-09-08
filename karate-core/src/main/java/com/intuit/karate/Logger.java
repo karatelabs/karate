@@ -46,6 +46,8 @@ public class Logger {
 
     private LogAppender logAppender = LogAppender.NO_OP;
 
+    private boolean appendOnly;
+
     public void setLogAppender(LogAppender logAppender) {
         this.logAppender = logAppender;
     }
@@ -57,7 +59,15 @@ public class Logger {
     public boolean isTraceEnabled() {
         return LOGGER.isTraceEnabled();
     }
-    
+
+    public void setAppendOnly(boolean appendOnly) {
+        this.appendOnly = appendOnly;
+    }
+
+    public boolean isAppendOnly() {
+        return appendOnly;
+    }
+
     public Logger(Class clazz) {
         LOGGER = LoggerFactory.getLogger(clazz);
     }
@@ -72,35 +82,45 @@ public class Logger {
 
     public void trace(String format, Object... arguments) {
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace(format, arguments);
+            if (!appendOnly) {
+                LOGGER.trace(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void debug(String format, Object... arguments) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(format, arguments);
+            if (!appendOnly) {
+                LOGGER.debug(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void info(String format, Object... arguments) {
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info(format, arguments);
+            if (!appendOnly) {
+                LOGGER.info(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void warn(String format, Object... arguments) {
         if (LOGGER.isWarnEnabled()) {
-            LOGGER.warn(format, arguments);
+            if (!appendOnly) {
+                LOGGER.warn(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }
 
     public void error(String format, Object... arguments) {
         if (LOGGER.isErrorEnabled()) {
-            LOGGER.error(format, arguments);
+            if (!appendOnly) {
+                LOGGER.error(format, arguments);
+            }
             formatAndAppend(format, arguments);
         }
     }

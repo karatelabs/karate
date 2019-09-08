@@ -21,33 +21,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.shell;
+package com.intuit.karate.job;
 
-import com.intuit.karate.LogAppender;
+import com.intuit.karate.core.Scenario;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  *
  * @author pthomas3
  */
-public class StringLogAppender implements LogAppender {
+public interface JobConfig {
     
-    private final StringBuilder sb = new StringBuilder();
-
-    @Override
-    public String collect() {
-        String temp = sb.toString();
-        sb.setLength(0);
-        return temp;
+    String getHost();
+    
+    int getPort();
+    
+    default String getSourcePath() {
+        return "";
     }
-
-    @Override
-    public void append(String text) {
-        sb.append(text).append('\n');
-    }
-
-    @Override
-    public void close() {
         
-    }        
+    default String getReportPath() {
+        return null;
+    }
+
+    void startExecutors(String serverId, String serverUrl);    
+
+    Map<String, String> getEnvironment();
+
+    List<JobCommand> getInitCommands();
     
+    List<JobCommand> getMainCommands(Scenario scenario);
+    
+    default List<JobCommand> getPreCommands(Scenario scenario) {
+        return Collections.EMPTY_LIST;
+    }    
+
+    default List<JobCommand> getPostCommands(Scenario scenario) {
+        return Collections.EMPTY_LIST;
+    }
+
 }

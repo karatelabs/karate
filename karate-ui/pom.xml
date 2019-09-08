@@ -21,24 +21,39 @@
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
-        </dependency>                                                                                                                                                                                                      		
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.controls.version}</version>
+        </dependency>
     </dependencies>   
     
-    <profiles>
-        <profile>
-            <activation>
-                <!-- only if jdk 11 or greater, has to be oracle jdk -->
-                <jdk>[11,)</jdk>
-            </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>org.openjfx</groupId>
-                    <artifactId>javafx-controls</artifactId>
-                    <version>${javafx.controls.version}</version>
-                </dependency>                                 
-            </dependencies>
-        </profile>
-    </profiles>    
+    <!--<profiles>-->
+        <!--<profile>-->
+            <!--<id>jdk9</id>-->
+            <!--<activation>-->
+                <!--<jdk>[9,10]</jdk>-->
+            <!--</activation>-->
+            <!--<dependencies>-->
+                <!--<dependency>-->
+                    <!--<groupId>org.openjfx</groupId>-->
+                    <!--<artifactId>javafx-controls</artifactId>-->
+                    <!--<version>11.0.2</version>-->
+                <!--</dependency>-->
+            <!--</dependencies>-->
+        <!--</profile>-->
+        <!--<profile>-->
+            <!--<id>jdk11</id>-->
+            <!--<activation>-->
+                <!--&lt;!&ndash; only if jdk 11 or greater&ndash;&gt;-->
+                <!--<jdk>[11,)</jdk>-->
+            <!--</activation>-->
+            <!--<dependencies>-->
+
+            <!--</dependencies>-->
+        <!--</profile>-->
+    <!--</profiles>    -->
     
     <build>
         <testResources>

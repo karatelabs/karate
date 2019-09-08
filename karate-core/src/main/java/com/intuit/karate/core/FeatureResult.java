@@ -57,9 +57,13 @@ public class FeatureResult {
     private int loopIndex;
 
     public void printStats(String reportPath) {
+        String featureName = feature.getRelativePath();
+        if (feature.getCallLine() != -1) {
+            featureName = featureName + ":" + feature.getCallLine();
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("---------------------------------------------------------\n");
-        sb.append("feature: ").append(feature.getRelativePath()).append('\n');
+        sb.append("feature: ").append(featureName).append('\n');
         if (reportPath != null) {
             sb.append("report: ").append(reportPath).append('\n');
         }

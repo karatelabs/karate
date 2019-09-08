@@ -1,4 +1,4 @@
-FROM ubuntu:bionic-20190612
+FROM maven:3-jdk-8
 
 LABEL maintainer="Peter Thomas"
 LABEL url="https://github.com/intuit/karate/tree/master/karate-docker/karate-chrome"
@@ -38,7 +38,9 @@ VOLUME ["/home/chrome"]
 
 EXPOSE 5900 9222
 
-ENV WIDTH 1366
-ENV HEIGHT 768
+ENV KARATE_WIDTH 1366
+ENV KARATE_HEIGHT 768
+
+# ffmpeg -f x11grab -r 16 -s "$KARATE_WIDTH"x"$KARATE_HEIGHT" -i :1 -vcodec libx264 -pix_fmt yuv420p -preset fast /tmp/karate.mp4
 
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]

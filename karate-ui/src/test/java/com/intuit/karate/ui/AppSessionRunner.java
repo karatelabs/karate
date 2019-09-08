@@ -24,7 +24,6 @@
 package com.intuit.karate.ui;
 
 import java.io.File;
-import javafx.embed.swing.JFXPanel;
 import javafx.scene.layout.BorderPane;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -41,7 +40,7 @@ public class AppSessionRunner {
     @Test
     public void testRunning() {
         File tempFile = new File("src/test/java/com/intuit/karate/ui/test.feature");
-        JFXPanel fxPanel = new JFXPanel();
+        // javafx.embed.swing.JFXPanel fxPanel = new javafx.embed.swing.JFXPanel();
         AppSession session = new AppSession(new BorderPane(), new File("."), tempFile, null);
         
     }

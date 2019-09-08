@@ -21,33 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.intuit.karate.shell;
+package com.intuit.karate.job;
 
-import com.intuit.karate.LogAppender;
+import com.intuit.karate.core.ScenarioExecutionUnit;
+import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public class StringLogAppender implements LogAppender {
+public class FeatureUnits {
     
-    private final StringBuilder sb = new StringBuilder();
-
-    @Override
-    public String collect() {
-        String temp = sb.toString();
-        sb.setLength(0);
-        return temp;
+    public final List<ScenarioExecutionUnit> units;
+    public final Runnable onDone;
+    
+    public FeatureUnits(List<ScenarioExecutionUnit> units, Runnable onDone) {
+        this.units = units;
+        this.onDone = onDone;
     }
-
-    @Override
-    public void append(String text) {
-        sb.append(text).append('\n');
-    }
-
-    @Override
-    public void close() {
-        
-    }        
     
 }
