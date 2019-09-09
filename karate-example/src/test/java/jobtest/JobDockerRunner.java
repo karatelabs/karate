@@ -49,7 +49,7 @@ public class JobDockerRunner {
             }
             
         };
-        Results results = Runner.path("classpath:jobtest").jobConfig(config).parallel(2);
+        Results results = Runner.path("classpath:jobtest").startServer(config);
     }
 
 }

@@ -170,6 +170,23 @@ public class ScenarioResult {
             this.stepResults.addAll(stepResults);
         }
     }
+    
+    public ScenarioResult(Scenario scenario, Map<String, Object> map) {
+        this.scenario = scenario;
+        List<Map<String, Object>> list = (List) map.get("steps");
+        for (Map<String, Object> stepMap : list) {
+            Integer line = (Integer) stepMap.get("line");
+            if (line == null) {
+                continue;
+            }
+            Step step = scenario.getStepByLine(line);
+            if (step == null) {
+                continue;
+            }
+            // this method does calculations
+            addStepResult(new StepResult(step, stepMap));
+        }
+    }
 
     public Scenario getScenario() {
         return scenario;

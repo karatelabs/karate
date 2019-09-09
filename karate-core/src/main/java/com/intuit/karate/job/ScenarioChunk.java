@@ -24,46 +24,54 @@
 package com.intuit.karate.job;
 
 import com.intuit.karate.core.Scenario;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import com.intuit.karate.core.ScenarioResult;
 
 /**
  *
  * @author pthomas3
  */
-public interface JobConfig {
+public class ScenarioChunk {
 
-    String getHost();
+    private final FeatureChunks parent;
+    public final Scenario scenario;
+    private String chunkId;
+    private ScenarioResult result;
+    private long startTime;
 
-    int getPort();
-
-    default String getSourcePath() {
-        return "";
+    public void completeFeatureIfLast() {
+        parent.incrementCompleted();
+        if (parent.isComplete()) {
+            parent.onComplete();
+        }
     }
 
-    default String getReportPath() {
-        return null;
+    public ScenarioChunk(FeatureChunks parent, Scenario scenario) {
+        this.parent = parent;
+        this.scenario = scenario;
     }
 
-    void startExecutors(String jobId, String jobUrl);
-
-    Map<String, String> getEnvironment();
-
-    List<JobCommand> getStartupCommands();
-
-    default List<JobCommand> getShutdownCommands() {
-        return Collections.EMPTY_LIST;
+    public String getChunkId() {
+        return chunkId;
     }
 
-    List<JobCommand> getMainCommands(Scenario scenario, JobContext ctx);
-
-    default List<JobCommand> getPreCommands(Scenario scenario, JobContext ctx) {
-        return Collections.EMPTY_LIST;
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
     }
 
-    default List<JobCommand> getPostCommands(Scenario scenario, JobContext ctx) {
-        return Collections.EMPTY_LIST;
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setChunkId(String chunkId) {
+        this.chunkId = chunkId;
+    }
+
+    public ScenarioResult getResult() {
+        return result;
+    }
+
+    public void setResult(ScenarioResult result) {
+        this.result = result;
     }
 
 }

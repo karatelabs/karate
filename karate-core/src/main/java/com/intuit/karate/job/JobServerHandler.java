@@ -26,7 +26,6 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.core.ScenarioExecutionUnit;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -153,20 +152,16 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
                 init.put("reportPath", server.resolveReportPath());
                 return init;
             case "next":
-                String prevChunkId = jm.getChunkId();
-                if (prevChunkId != null) {
-
-                }
-                ScenarioExecutionUnit unit = server.getNextChunk();
-                if (unit == null) {
+                ScenarioChunk chunk = server.getNextChunk();
+                if (chunk == null) {
                     return new JobMessage("stop");
                 }
-                String nextChunkId = server.addChunk(unit);
+                JobContext jc = new JobContext(server.jobId, jm.getExecutorId(), chunk.getChunkId());
                 JobMessage next = new JobMessage("next")
-                        .put("preCommands", server.config.getPreCommands(unit.scenario))
-                        .put("mainCommands", server.config.getMainCommands(unit.scenario))
-                        .put("postCommands", server.config.getPostCommands(unit.scenario));
-                next.setChunkId(nextChunkId);
+                        .put("preCommands", server.config.getPreCommands(chunk.scenario, jc))
+                        .put("mainCommands", server.config.getMainCommands(chunk.scenario, jc))
+                        .put("postCommands", server.config.getPostCommands(chunk.scenario, jc));
+                next.setChunkId(chunk.getChunkId());
                 return next;
             case "upload":
                 server.saveChunkOutput(jm.getBytes(), jm.getExecutorId(), jm.getChunkId());

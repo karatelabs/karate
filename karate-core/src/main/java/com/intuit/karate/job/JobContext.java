@@ -23,47 +23,32 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.core.Scenario;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 /**
  *
  * @author pthomas3
  */
-public interface JobConfig {
-
-    String getHost();
-
-    int getPort();
-
-    default String getSourcePath() {
-        return "";
+public class JobContext {
+    
+    private final String jobId;
+    private final String executorId;
+    private final String chunkId;
+    
+    public JobContext(String jobId, String executorId, String chunkId) {
+        this.jobId = jobId;
+        this.executorId = executorId;
+        this.chunkId = chunkId;
     }
 
-    default String getReportPath() {
-        return null;
+    public String getJobId() {
+        return jobId;
     }
 
-    void startExecutors(String jobId, String jobUrl);
-
-    Map<String, String> getEnvironment();
-
-    List<JobCommand> getStartupCommands();
-
-    default List<JobCommand> getShutdownCommands() {
-        return Collections.EMPTY_LIST;
+    public String getExecutorId() {
+        return executorId;
     }
 
-    List<JobCommand> getMainCommands(Scenario scenario, JobContext ctx);
-
-    default List<JobCommand> getPreCommands(Scenario scenario, JobContext ctx) {
-        return Collections.EMPTY_LIST;
+    public String getChunkId() {
+        return chunkId;
     }
-
-    default List<JobCommand> getPostCommands(Scenario scenario, JobContext ctx) {
-        return Collections.EMPTY_LIST;
-    }
-
+    
 }

@@ -23,21 +23,47 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.core.ScenarioExecutionUnit;
+import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.core.Scenario;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureUnits {
+public class FeatureChunks {
+
+    public final List<Scenario> scenarios;
     
-    public final List<ScenarioExecutionUnit> units;
-    public final Runnable onDone;
+    private final ExecutionContext exec;    
+    public final List<ScenarioChunk> chunks;
+    private final Runnable onComplete;
+    private final int count;
     
-    public FeatureUnits(List<ScenarioExecutionUnit> units, Runnable onDone) {
-        this.units = units;
-        this.onDone = onDone;
+    private int completed;
+
+    public FeatureChunks(ExecutionContext exec, List<Scenario> scenarios, Runnable onComplete) {
+        this.exec = exec;
+        this.scenarios = scenarios;
+        count = scenarios.size();
+        chunks = new ArrayList(count);
+        this.onComplete = onComplete;
     }
     
+    protected int incrementCompleted() {
+        return ++completed;
+    }
+
+    protected boolean isComplete() {
+        return completed == count;
+    }
+    
+    public void onComplete() {
+        for (ScenarioChunk chunk : chunks) {
+            exec.result.addResult(chunk.getResult());
+        }
+        onComplete.run();
+    }
+
 }

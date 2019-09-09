@@ -118,6 +118,18 @@ public class Scenario {
             }
         }
     }
+    
+    public Step getStepByLine(int line) {
+        if (steps == null) {
+            return null;
+        }
+        for (Step step : steps) {
+            if (step.getLine() == line) {
+                return step;
+            }
+        }
+        return null;
+    }
 
     public String getDisplayMeta() {
         int num = section.getIndex() + 1;

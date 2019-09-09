@@ -92,7 +92,7 @@ public class Runner {
         JobServer jobServer() {
             return jobConfig == null ? null : new JobServer(jobConfig, reportDir);
         }
-        
+
         int resolveThreadCount() {
             if (threadCount < 1) {
                 threadCount = 1;
@@ -166,15 +166,16 @@ public class Runner {
             return this;
         }
 
-        public Builder jobConfig(JobConfig jobConfig) {
-            this.jobConfig = jobConfig;
-            return this;
-        }
-
         public Results parallel(int threadCount) {
             this.threadCount = threadCount;
             return Runner.parallel(this);
         }
+        
+        public Results startServer(JobConfig config) {
+            this.jobConfig = config;
+            this.threadCount = 1;
+            return Runner.parallel(this);
+        }        
 
     }
 
@@ -239,6 +240,26 @@ public class Runner {
         return options.parallel(threadCount);
     }
 
+    private static void onFeatureDone(Results results, ExecutionContext execContext, String reportDir, int index, int count) {
+        FeatureResult result = execContext.result;
+        Feature feature = execContext.featureContext.feature;
+        if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
+            File file = Engine.saveResultJson(reportDir, result, null);
+            if (result.getScenarioCount() < 500) {
+                // TODO this routine simply cannot handle that size
+                Engine.saveResultXml(reportDir, result, null);
+            }
+            String status = result.isFailed() ? "fail" : "pass";
+            LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
+            result.printStats(file.getPath());
+        } else {
+            results.addToSkipCount(1);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
+            }
+        }
+    }
+
     public static Results parallel(Builder options) {
         String reportDir = options.resolveReportDir();
         // order matters, server depends on reportDir resolution
@@ -269,26 +290,14 @@ public class Runner {
                 featureResults.add(execContext.result);
                 if (jobServer != null) {
                     List<ScenarioExecutionUnit> units = feature.getScenarioExecutionUnits(execContext);
-                    jobServer.addFeatureUnits(units, () -> latch.countDown());
+                    jobServer.addFeatureChunks(execContext, units, () -> {                        
+                        onFeatureDone(results, execContext, reportDir, index, count);
+                        latch.countDown();                        
+                    });
                 } else {
                     FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
                     unit.setNext(() -> {
-                        FeatureResult result = execContext.result;
-                        if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
-                            File file = Engine.saveResultJson(reportDir, result, null);
-                            if (result.getScenarioCount() < 500) {
-                                // TODO this routine simply cannot handle that size
-                                Engine.saveResultXml(reportDir, result, null);
-                            }
-                            String status = result.isFailed() ? "fail" : "pass";
-                            LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
-                            result.printStats(file.getPath());
-                        } else {
-                            results.addToSkipCount(1);
-                            if (LOGGER.isTraceEnabled()) {
-                                LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
-                            }
-                        }
+                        onFeatureDone(results, execContext, reportDir, index, count);
                         latch.countDown();
                     });
                     featureExecutor.submit(unit);

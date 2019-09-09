@@ -42,7 +42,7 @@ public class JobRunner {
             }
         };
         config.addEnvPropKey("KARATE_TEST");
-        Results results = Runner.path("classpath:jobtest").jobConfig(config).parallel(2);
+        Results results = Runner.path("classpath:jobtest").startServer(config);
     }
 
 }

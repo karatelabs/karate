@@ -24,7 +24,13 @@
 package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsonUtils;
+import com.intuit.karate.Logger;
+import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.core.FeatureExecutionUnit;
+import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioExecutionUnit;
+import com.intuit.karate.core.ScenarioResult;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -43,7 +49,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -52,11 +57,11 @@ import org.slf4j.LoggerFactory;
  */
 public class JobServer {
 
-    private static final Logger logger = LoggerFactory.getLogger(JobServer.class);
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(JobServer.class);
 
     protected final JobConfig config;
-    protected final List<FeatureUnits> FEATURE_UNITS = new ArrayList();
-    protected final Map<String, ScenarioExecutionUnit> CHUNKS = new HashMap();
+    protected final List<FeatureChunks> FEATURE_CHUNKS = new ArrayList();
+    protected final Map<String, ScenarioChunk> CHUNKS = new HashMap();
     protected final String basePath;
     protected final File ZIP_FILE;
     protected final String jobId;
@@ -67,7 +72,7 @@ public class JobServer {
     private final Channel channel;
     private final int port;
     private final EventLoopGroup bossGroup;
-    private final EventLoopGroup workerGroup;    
+    private final EventLoopGroup workerGroup;
 
     public void startExecutors() {
         config.startExecutors(jobId, jobUrl);
@@ -81,33 +86,40 @@ public class JobServer {
         return reportDir;
     }
 
-    public void addFeatureUnits(List<ScenarioExecutionUnit> units, Runnable onDone) {
-        synchronized (FEATURE_UNITS) {
-            FEATURE_UNITS.add(new FeatureUnits(units, onDone));
-        }
-    }
-
-    public ScenarioExecutionUnit getNextChunk() {
-        synchronized (FEATURE_UNITS) {
-            if (FEATURE_UNITS.isEmpty()) {
-                return null;
-            } else {
-                FeatureUnits job = FEATURE_UNITS.get(0);
-                ScenarioExecutionUnit unit = job.units.remove(0);
-                if (job.units.isEmpty()) {
-                    job.onDone.run();
-                    FEATURE_UNITS.remove(0);
-                }
-                return unit;
+    public void addFeatureChunks(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable next) {
+        Logger logger = new Logger();
+        List<Scenario> selected = new ArrayList(units.size());
+        for (ScenarioExecutionUnit unit : units) {
+            if (FeatureExecutionUnit.isSelected(exec.featureContext, unit.scenario, logger)) {
+                selected.add(unit.scenario);
             }
         }
+        if (selected.isEmpty()) {
+            LOGGER.trace("skipping feature: {}", exec.featureContext.feature.getRelativePath());
+            next.run();
+        } else {
+            FEATURE_CHUNKS.add(new FeatureChunks(exec, selected, next));
+        }
     }
 
-    public String addChunk(ScenarioExecutionUnit unit) {
-        synchronized (CHUNKS) {
-            String chunkId = (CHUNKS.size() + 1) + "";
-            CHUNKS.put(chunkId, unit);
-            return chunkId;
+    public ScenarioChunk getNextChunk() {
+        synchronized (FEATURE_CHUNKS) {
+            if (FEATURE_CHUNKS.isEmpty()) {
+                return null;
+            } else {
+                FeatureChunks featureChunks = FEATURE_CHUNKS.get(0);
+                Scenario scenario = featureChunks.scenarios.remove(0);
+                if (featureChunks.scenarios.isEmpty()) {
+                    FEATURE_CHUNKS.remove(0);
+                }
+                ScenarioChunk chunk = new ScenarioChunk(featureChunks, scenario);
+                String chunkId = (CHUNKS.size() + 1) + "";
+                chunk.setChunkId(chunkId);
+                chunk.setStartTime(System.currentTimeMillis());
+                featureChunks.chunks.add(chunk);
+                CHUNKS.put(chunkId, chunk);
+                return chunk;
+            }
         }
     }
 
@@ -119,12 +131,28 @@ public class JobServer {
             throw new RuntimeException(e);
         }
     }
-    
+
     public void saveChunkOutput(byte[] bytes, String executorId, String chunkId) {
         String chunkBasePath = basePath + File.separator + executorId + File.separator + chunkId;
         File zipFile = new File(chunkBasePath + ".zip");
         FileUtils.writeToFile(zipFile, bytes);
-        JobUtils.unzip(zipFile, new File(chunkBasePath));
+        File outFile = new File(chunkBasePath);
+        JobUtils.unzip(zipFile, outFile);
+        File[] files = outFile.listFiles((f, n) -> n.endsWith(".json"));
+        if (files.length == 0) {
+            return;
+        }
+        String json = FileUtils.toString(files[0]);
+        Map<String, Object> map = JsonUtils.toJsonDoc(json).read("$[0].elements[0]");
+        synchronized (FEATURE_CHUNKS) {
+            ScenarioChunk chunk = CHUNKS.get(chunkId);
+            ScenarioResult sr = new ScenarioResult(chunk.scenario, map);
+            sr.setStartTime(chunk.getStartTime());
+            sr.setEndTime(System.currentTimeMillis());
+            sr.setThreadName(executorId);
+            chunk.setResult(sr);
+            chunk.completeFeatureIfLast();
+        }
     }
 
     public int getPort() {
@@ -140,20 +168,20 @@ public class JobServer {
     }
 
     public void stop() {
-        logger.info("stop: shutting down");
+        LOGGER.info("stop: shutting down");
         bossGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
-        logger.info("stop: shutdown complete");
+        LOGGER.info("stop: shutdown complete");
     }
 
     public JobServer(JobConfig config, String reportDir) {
         this.config = config;
         this.reportDir = reportDir;
         jobId = System.currentTimeMillis() + "";
-        basePath = FileUtils.getBuildDir() + File.separator + jobId;        
+        basePath = FileUtils.getBuildDir() + File.separator + jobId;
         ZIP_FILE = new File(basePath + ".zip");
         JobUtils.zip(new File(config.getSourcePath()), ZIP_FILE);
-        logger.info("created zip archive: {}", ZIP_FILE);
+        LOGGER.info("created zip archive: {}", ZIP_FILE);
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup();
         try {
@@ -174,7 +202,7 @@ public class JobServer {
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             port = isa.getPort();
             jobUrl = "http://" + config.getHost() + ":" + port;
-            logger.info("job server started - {} - {}", jobUrl, jobId);
+            LOGGER.info("job server started - {} - {}", jobUrl, jobId);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
