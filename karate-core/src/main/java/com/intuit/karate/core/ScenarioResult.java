@@ -39,17 +39,17 @@ public class ScenarioResult {
     private final Scenario scenario;
 
     private StepResult failedStep;
-    
+
     private String threadName;
     private long startTime;
     private long endTime;
-    private long durationNanos;     
-    
+    private long durationNanos;
+
     public void reset() {
         stepResults = new ArrayList();
         failedStep = null;
     }
-    
+
     public StepResult getStepResult(int index) {
         if (stepResults.size() > index) {
             return stepResults.get(index);
@@ -57,7 +57,7 @@ public class ScenarioResult {
             return null;
         }
     }
-    
+
     public void setStepResult(int index, StepResult sr) {
         if (sr.getResult().isFailed()) {
             failedStep = sr;
@@ -81,7 +81,7 @@ public class ScenarioResult {
         String featureName = scenario.getFeature().getResource().getRelativePath();
         return featureName + ":" + step.getLine() + " " + step.getText();
     }
-    
+
     public void addError(String message, Throwable error) {
         Step step = new Step(scenario.getFeature(), scenario, -1);
         step.setLine(scenario.getLine());
@@ -100,14 +100,14 @@ public class ScenarioResult {
         }
     }
 
-    private static void recurse(List<Map> list, StepResult stepResult, int depth) {        
-        if (stepResult.getCallResults() != null) {            
+    private static void recurse(List<Map> list, StepResult stepResult, int depth) {
+        if (stepResult.getCallResults() != null) {
             for (FeatureResult fr : stepResult.getCallResults()) {
                 Step call = new Step(stepResult.getStep().getFeature(), stepResult.getStep().getScenario(), -1);
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallName());
-                call.setDocString(fr.getCallArgPretty());                     
+                call.setDocString(fr.getCallArgPretty());
                 StepResult callResult = new StepResult(stepResult.isHidden(), call, Result.passed(0), null, null, null);
                 list.add(callResult.toMap());
                 for (StepResult sr : fr.getStepResults()) { // flattened
@@ -170,10 +170,35 @@ public class ScenarioResult {
             this.stepResults.addAll(stepResults);
         }
     }
-    
-    public ScenarioResult(Scenario scenario, Map<String, Object> map) {
+
+    // for converting cucumber-json to result server-executor mode
+    public ScenarioResult(Scenario scenario, List<Map<String, Object>> list, boolean dummy) {
         this.scenario = scenario;
-        List<Map<String, Object>> list = (List) map.get("steps");
+        Map<String, Object> backgroundMap;
+        Map<String, Object> scenarioMap;
+        if (list.size() > 1) {
+            backgroundMap = list.get(0);
+            scenarioMap = list.get(1);
+        } else {
+            backgroundMap = null;
+            scenarioMap = list.get(0);
+        }
+        if (backgroundMap != null) {
+            list = (List) backgroundMap.get("steps");
+            for (Map<String, Object> stepMap : list) {
+                Integer line = (Integer) backgroundMap.get("line");
+                if (line == null) {
+                    continue;
+                }
+                Step step = scenario.getStepByLine(line);
+                if (step == null) {
+                    continue;
+                }
+                // this method does calculations
+                addStepResult(new StepResult(step, stepMap));
+            }
+        }
+        list = (List) scenarioMap.get("steps");
         for (Map<String, Object> stepMap : list) {
             Integer line = (Integer) stepMap.get("line");
             if (line == null) {
@@ -202,7 +227,7 @@ public class ScenarioResult {
 
     public StepResult getFailedStep() {
         return failedStep;
-    }        
+    }
 
     public Throwable getError() {
         return failedStep == null ? null : failedStep.getResult().getError();

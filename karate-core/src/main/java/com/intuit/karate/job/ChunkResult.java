@@ -30,7 +30,7 @@ import com.intuit.karate.core.ScenarioResult;
  *
  * @author pthomas3
  */
-public class ScenarioChunk {
+public class ChunkResult {
 
     private final FeatureChunks parent;
     public final Scenario scenario;
@@ -45,7 +45,7 @@ public class ScenarioChunk {
         }
     }
 
-    public ScenarioChunk(FeatureChunks parent, Scenario scenario) {
+    public ChunkResult(FeatureChunks parent, Scenario scenario) {
         this.parent = parent;
         this.scenario = scenario;
     }

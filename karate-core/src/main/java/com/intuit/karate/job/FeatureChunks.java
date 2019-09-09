@@ -37,7 +37,7 @@ public class FeatureChunks {
     public final List<Scenario> scenarios;
     
     private final ExecutionContext exec;    
-    public final List<ScenarioChunk> chunks;
+    public final List<ChunkResult> chunks;
     private final Runnable onComplete;
     private final int count;
     
@@ -60,7 +60,7 @@ public class FeatureChunks {
     }
     
     public void onComplete() {
-        for (ScenarioChunk chunk : chunks) {
+        for (ChunkResult chunk : chunks) {
             exec.result.addResult(chunk.getResult());
         }
         onComplete.run();

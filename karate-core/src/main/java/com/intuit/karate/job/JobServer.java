@@ -61,7 +61,7 @@ public class JobServer {
 
     protected final JobConfig config;
     protected final List<FeatureChunks> FEATURE_CHUNKS = new ArrayList();
-    protected final Map<String, ScenarioChunk> CHUNKS = new HashMap();
+    protected final Map<String, ChunkResult> CHUNKS = new HashMap();
     protected final String basePath;
     protected final File ZIP_FILE;
     protected final String jobId;
@@ -102,7 +102,7 @@ public class JobServer {
         }
     }
 
-    public ScenarioChunk getNextChunk() {
+    public ChunkResult getNextChunk() {
         synchronized (FEATURE_CHUNKS) {
             if (FEATURE_CHUNKS.isEmpty()) {
                 return null;
@@ -112,7 +112,7 @@ public class JobServer {
                 if (featureChunks.scenarios.isEmpty()) {
                     FEATURE_CHUNKS.remove(0);
                 }
-                ScenarioChunk chunk = new ScenarioChunk(featureChunks, scenario);
+                ChunkResult chunk = new ChunkResult(featureChunks, scenario);
                 String chunkId = (CHUNKS.size() + 1) + "";
                 chunk.setChunkId(chunkId);
                 chunk.setStartTime(System.currentTimeMillis());
@@ -143,10 +143,10 @@ public class JobServer {
             return;
         }
         String json = FileUtils.toString(files[0]);
-        Map<String, Object> map = JsonUtils.toJsonDoc(json).read("$[0].elements[0]");
+        List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
         synchronized (FEATURE_CHUNKS) {
-            ScenarioChunk chunk = CHUNKS.get(chunkId);
-            ScenarioResult sr = new ScenarioResult(chunk.scenario, map);
+            ChunkResult chunk = CHUNKS.get(chunkId);
+            ScenarioResult sr = new ScenarioResult(chunk.scenario, list, true);
             sr.setStartTime(chunk.getStartTime());
             sr.setEndTime(System.currentTimeMillis());
             sr.setThreadName(executorId);

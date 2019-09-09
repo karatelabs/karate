@@ -172,6 +172,14 @@ public class Command extends Thread {
         }
     }
 
+    public File getWorkingDir() {
+        return workingDir;
+    }       
+
+    public List getArgList() {
+        return argList;
+    }       
+
     public Logger getLogger() {
         return logger;
     }
@@ -197,9 +205,13 @@ public class Command extends Thread {
         }
     }
 
-    public void close() {
+    public void close(boolean force) {
         LOGGER.debug("closing command: {}", uniqueName);
-        process.destroyForcibly();
+        if (force) {
+            process.destroyForcibly();
+        } else {
+            process.destroy();
+        }        
     }
 
     @Override

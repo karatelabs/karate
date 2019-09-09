@@ -120,10 +120,7 @@ public class Scenario {
     }
     
     public Step getStepByLine(int line) {
-        if (steps == null) {
-            return null;
-        }
-        for (Step step : steps) {
+        for (Step step : getStepsIncludingBackground()) {
             if (step.getLine() == line) {
                 return step;
             }

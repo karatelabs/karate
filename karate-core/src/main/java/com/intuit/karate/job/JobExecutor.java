@@ -96,7 +96,9 @@ public class JobExecutor {
     private void stopBackgroundCommands() {
         while (!backgroundCommands.isEmpty()) {
             Command command = backgroundCommands.remove(0);
-            command.close();
+            logger.info("attempting to kill background job: {} - {}", command.getArgList(), command.getWorkingDir());
+            command.close(false);
+            logger.debug("log dump: \n{}\n", command.getAppender().collect());
         }
     }
 

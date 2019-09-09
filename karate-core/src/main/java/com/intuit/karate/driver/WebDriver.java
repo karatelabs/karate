@@ -312,7 +312,7 @@ public abstract class WebDriver implements Driver {
             logger.warn("session delete failed: {}", e.getMessage());
         }
         if (command != null) {
-            command.close();
+            command.close(true);
         }
     }
 

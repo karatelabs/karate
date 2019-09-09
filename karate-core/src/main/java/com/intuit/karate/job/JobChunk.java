@@ -23,21 +23,31 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.core.Scenario;
+
 /**
  *
  * @author pthomas3
  */
-public class JobContext {
-    
+public class JobChunk {
+
+    private final Scenario scenario;
     private final String jobId;
     private final String executorId;
     private final String chunkId;
-    
-    public JobContext(String jobId, String executorId, String chunkId) {
+    private final String reportPath;
+
+    public JobChunk(Scenario scenario, String jobId, String executorId, String chunkId, String reportPath) {
+        this.scenario = scenario;
         this.jobId = jobId;
         this.executorId = executorId;
         this.chunkId = chunkId;
+        this.reportPath = reportPath;
     }
+    
+    public Scenario getScenario() {
+        return scenario;
+    }    
 
     public String getJobId() {
         return jobId;
@@ -50,5 +60,9 @@ public class JobContext {
     public String getChunkId() {
         return chunkId;
     }
-    
+
+    public String getReportPath() {
+        return reportPath;
+    }        
+
 }

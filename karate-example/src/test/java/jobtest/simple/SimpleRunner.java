@@ -1,12 +1,11 @@
-package jobtest;
+package jobtest.simple;
 
+import common.ReportUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.job.JobCommand;
+import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.job.MavenJobConfig;
-import com.intuit.karate.shell.Command;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -18,20 +17,20 @@ import org.junit.jupiter.api.Test;
  *
  * @author pthomas3
  */
-public class JobDockerRunner {
+public class SimpleRunner {
 
     @Test
     public void testJobManager() {
         
-        MavenJobConfig config = new MavenJobConfig("host.docker.internal", 0) {           
+        MavenJobConfig config = new MavenJobConfig("127.0.0.1", 0) {           
             @Override
-            public void startExecutors(String jobId, String jobUrl) {
+            public void startExecutors(String uniqueId, String serverUrl) {
                 int count = 2;
                 ExecutorService executor = Executors.newFixedThreadPool(count);
                 List<Callable<Boolean>> list = new ArrayList();
                 for (int i = 0; i < count; i++) {
                     list.add(() -> {
-                        Command.execLine(null, "docker run --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + " karate-chrome");
+                        JobExecutor.run(serverUrl);
                         return true;
                     });
                 }
@@ -42,14 +41,10 @@ public class JobDockerRunner {
                 }
                 executor.shutdownNow();
             }
-
-            @Override
-            public List<JobCommand> getShutdownCommands() {
-                return Collections.singletonList(new JobCommand("supervisorctl shutdown"));
-            }
-            
         };
-        Results results = Runner.path("classpath:jobtest").startServer(config);
+        config.addEnvPropKey("KARATE_TEST");
+        Results results = Runner.path("classpath:jobtest/simple").startServerAndWait(config);
+        ReportUtils.generateReport(results.getReportDir());
     }
 
 }

@@ -1,4 +1,4 @@
-Feature:
+Feature: simple 2
 
 Scenario: 2-one
 * print '2-one'

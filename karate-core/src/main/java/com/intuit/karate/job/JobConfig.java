@@ -23,7 +23,6 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.core.Scenario;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -56,13 +55,13 @@ public interface JobConfig {
         return Collections.EMPTY_LIST;
     }
 
-    List<JobCommand> getMainCommands(Scenario scenario, JobContext ctx);
+    List<JobCommand> getMainCommands(JobChunk chunk);
 
-    default List<JobCommand> getPreCommands(Scenario scenario, JobContext ctx) {
+    default List<JobCommand> getPreCommands(JobChunk chunk) {
         return Collections.EMPTY_LIST;
     }
 
-    default List<JobCommand> getPostCommands(Scenario scenario, JobContext ctx) {
+    default List<JobCommand> getPostCommands(JobChunk chunk) {
         return Collections.EMPTY_LIST;
     }
 

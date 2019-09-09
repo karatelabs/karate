@@ -171,7 +171,7 @@ public class Runner {
             return Runner.parallel(this);
         }
         
-        public Results startServer(JobConfig config) {
+        public Results startServerAndWait(JobConfig config) {
             this.jobConfig = config;
             this.threadCount = 1;
             return Runner.parallel(this);

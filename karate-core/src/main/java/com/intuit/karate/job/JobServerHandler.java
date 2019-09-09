@@ -152,15 +152,16 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
                 init.put("reportPath", server.resolveReportPath());
                 return init;
             case "next":
-                ScenarioChunk chunk = server.getNextChunk();
+                ChunkResult chunk = server.getNextChunk();
                 if (chunk == null) {
                     return new JobMessage("stop");
                 }
-                JobContext jc = new JobContext(server.jobId, jm.getExecutorId(), chunk.getChunkId());
+                JobChunk jc = new JobChunk(chunk.scenario, server.jobId, 
+                        jm.getExecutorId(), chunk.getChunkId(), server.resolveReportPath());
                 JobMessage next = new JobMessage("next")
-                        .put("preCommands", server.config.getPreCommands(chunk.scenario, jc))
-                        .put("mainCommands", server.config.getMainCommands(chunk.scenario, jc))
-                        .put("postCommands", server.config.getPostCommands(chunk.scenario, jc));
+                        .put("preCommands", server.config.getPreCommands(jc))
+                        .put("mainCommands", server.config.getMainCommands(jc))
+                        .put("postCommands", server.config.getPostCommands(jc));
                 next.setChunkId(chunk.getChunkId());
                 return next;
             case "upload":

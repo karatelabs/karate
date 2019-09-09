@@ -66,7 +66,7 @@ public class Chrome extends DevToolsDriver {
         Http.Response res = http.path("json").get();
         if (res.body().asList().isEmpty()) {
             if (command != null) {
-                command.close();    
+                command.close(true);    
             }            
             throw new RuntimeException("chrome server returned empty list from " + url);
         }

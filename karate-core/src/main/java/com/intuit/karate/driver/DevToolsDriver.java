@@ -305,7 +305,7 @@ public abstract class DevToolsDriver implements Driver {
         // method("Browser.close").send();
         client.close();
         if (command != null) {
-            command.close();
+            command.close(true);
         }
     }
 
