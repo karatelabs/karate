@@ -186,7 +186,7 @@ public class ScenarioResult {
         if (backgroundMap != null) {
             list = (List) backgroundMap.get("steps");
             for (Map<String, Object> stepMap : list) {
-                Integer line = (Integer) backgroundMap.get("line");
+                Integer line = (Integer) stepMap.get("line");
                 if (line == null) {
                     continue;
                 }

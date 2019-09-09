@@ -1,3 +1,4 @@
+@ignore
 Feature: simple 1
 
 Background:

@@ -1807,7 +1807,11 @@ Note that any cookies returned in the HTTP response would be automatically set f
 Also refer to the built-in variable [`responseCookies`](#responsecookies) for how you can access and perform assertions on cookie data values.
 
 ## `form field` 
-HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response). For example:
+HTML form fields would be URL-encoded when the HTTP request is submitted (by the [`method`](#method) step). You would typically use these to simulate a user sign-in and then grab a security token from the [`response`](#response).
+
+Note that the `Content-Type` header will be automatically set to: `application/x-www-form-urlencoded`. You just need to do a normal `POST` (or `GET`).
+
+For example:
 
 ```cucumber
 Given path 'login'

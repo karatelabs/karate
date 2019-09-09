@@ -270,4 +270,9 @@ public class Scenario {
         this.exampleIndex = exampleIndex;
     }
 
+    @Override
+    public String toString() {
+        return feature.toString() + getDisplayMeta();
+    }        
+
 }

@@ -171,6 +171,10 @@ public class Command extends Thread {
             }
         }
     }
+    
+    public Map<String, String> getEnvironment() {
+        return environment;
+    }
 
     public File getWorkingDir() {
         return workingDir;
@@ -221,6 +225,7 @@ public class Command extends Thread {
             ProcessBuilder pb = new ProcessBuilder(args);
             if (environment != null) {
                 pb.environment().putAll(environment);
+                environment = pb.environment();
             }
             logger.trace("env PATH: {}", pb.environment().get("PATH"));
             if (workingDir != null) {

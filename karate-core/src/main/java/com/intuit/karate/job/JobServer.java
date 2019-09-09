@@ -75,15 +75,20 @@ public class JobServer {
     private final EventLoopGroup workerGroup;
 
     public void startExecutors() {
-        config.startExecutors(jobId, jobUrl);
+        try {
+            config.startExecutors(jobId, jobUrl);
+        } catch (Exception e) {
+            LOGGER.error("failed to start executors: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 
-    protected String resolveReportPath() {
-        String reportPath = config.getReportPath();
-        if (reportPath != null) {
-            return reportPath;
+    protected String resolveUploadDir() {
+        String temp = config.getUploadDir();
+        if (temp != null) {
+            return temp;
         }
-        return reportDir;
+        return this.reportDir;
     }
 
     public void addFeatureChunks(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable next) {

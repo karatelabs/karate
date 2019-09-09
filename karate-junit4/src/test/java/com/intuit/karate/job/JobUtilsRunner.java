@@ -15,7 +15,7 @@ public class JobUtilsRunner {
     
     @Test
     public void testZip() {
-        File src = new File("");
+        File src = new File("target/foo");
         File dest = new File("target/test.zip");
         JobUtils.zip(src, dest);
         JobUtils.unzip(dest, new File("target/unzip"));

@@ -45,13 +45,13 @@ public class JobExecutor {
 
     private final Http http;
     private final Logger logger;
-    private final String basePath;
+    private final String workingDir;
     private final String jobId;
     private final String executorId;
-    private final String reportPath;
+    private final String uploadDir;
     private final Map<String, String> environment;
     private final List<JobCommand> shutdownCommands;
-    
+
     private JobExecutor(String serverUrl) {
         http = Http.forUrl(LogAppender.NO_OP, serverUrl);
         http.config("lowerCaseResponseHeaders", "true");
@@ -61,22 +61,22 @@ public class JobExecutor {
         logger.info("download response: {}", download);
         jobId = download.getJobId();
         executorId = download.getExecutorId();
-        basePath = FileUtils.getBuildDir() + File.separator + jobId + "_" + executorId;
+        workingDir = FileUtils.getBuildDir() + File.separator + jobId + "_" + executorId;
         byte[] bytes = download.getBytes();
-        File file = new File(basePath + ".zip");
+        File file = new File(workingDir + ".zip");
         FileUtils.writeToFile(file, bytes);
-        JobUtils.unzip(file, new File(basePath));
-        logger.info("download done: {}", basePath);
+        JobUtils.unzip(file, new File(workingDir));
+        logger.info("download done: {}", workingDir);
         // init ================================================================
         JobMessage init = invokeServer(new JobMessage("init"));
         logger.info("init response: {}", init);
-        reportPath = init.get("reportPath", String.class);
+        uploadDir = workingDir + File.separator + init.get(JobContext.UPLOAD_DIR, String.class);
         List<JobCommand> startupCommands = init.getCommands("startupCommands");
         environment = init.get("environment", Map.class);
         executeCommands(startupCommands, environment);
         shutdownCommands = init.getCommands("shutdownCommands");
         logger.info("init done");
-    }    
+    }
 
     public static void run(String serverUrl) {
         JobExecutor je = new JobExecutor(serverUrl);
@@ -84,11 +84,11 @@ public class JobExecutor {
         je.shutdown();
     }
 
-    private File getWorkingDir(String workingPath) {
-        if (workingPath == null) {
-            return new File(basePath);
+    private File getWorkingDir(String relativePath) {
+        if (relativePath == null) {
+            return new File(workingDir);
         }
-        return new File(basePath + File.separator + workingPath);
+        return new File(relativePath + File.separator + workingDir);
     }
 
     private final List<Command> backgroundCommands = new ArrayList(1);
@@ -96,9 +96,9 @@ public class JobExecutor {
     private void stopBackgroundCommands() {
         while (!backgroundCommands.isEmpty()) {
             Command command = backgroundCommands.remove(0);
-            logger.info("attempting to kill background job: {} - {}", command.getArgList(), command.getWorkingDir());
             command.close(false);
-            logger.debug("log dump: \n{}\n", command.getAppender().collect());
+            command.waitSync();
+            // logger.debug("killed background job: \n{}\n", command.getAppender().collect());
         }
     }
 
@@ -110,23 +110,28 @@ public class JobExecutor {
             throw new RuntimeException(e);
         }
     }
-    
+
+    String chunkId = null;
+
     private void loopNext() {
-        JobMessage req = new JobMessage("next"); // first
         do {
+            File uploadDirFile = new File(uploadDir);
+            uploadDirFile.mkdirs();
+            JobMessage req = new JobMessage("next")
+                    .put(JobContext.UPLOAD_DIR, uploadDirFile.getAbsolutePath());
+            req.setChunkId(chunkId);
             JobMessage res = invokeServer(req);
             if (res.is("stop")) {
                 break;
             }
-            String chunkId = res.getChunkId();
+            chunkId = res.getChunkId();
             executeCommands(res.getCommands("preCommands"), environment);
             executeCommands(res.getCommands("mainCommands"), environment);
             stopBackgroundCommands();
             executeCommands(res.getCommands("postCommands"), environment);
-            File toRename = new File(basePath + File.separator + reportPath);
-            String zipBase = basePath + File.separator + jobId + "_" + executorId + "_" + chunkId;
+            String zipBase = uploadDir + "_" + chunkId;
             File toZip = new File(zipBase);
-            toRename.renameTo(toZip);
+            uploadDirFile.renameTo(toZip);
             File toUpload = new File(zipBase + ".zip");
             JobUtils.zip(toZip, toUpload);
             byte[] upload = toBytes(toUpload);
@@ -134,11 +139,9 @@ public class JobExecutor {
             req.setChunkId(chunkId);
             req.setBytes(upload);
             invokeServer(req);
-            req = new JobMessage("next");
-            req.setChunkId(chunkId);
-        } while (true);        
+        } while (true);
     }
-    
+
     private void shutdown() {
         executeCommands(shutdownCommands, environment);
     }
@@ -149,26 +152,26 @@ public class JobExecutor {
         }
         for (JobCommand jc : commands) {
             String commandLine = jc.getCommand();
-            File workingDir = getWorkingDir(jc.getWorkingPath());
+            File commandWorkingDir = getWorkingDir(jc.getWorkingPath());
             String[] args = Command.tokenize(commandLine);
             if (jc.isBackground()) {
                 Logger silentLogger = new Logger(executorId);
                 silentLogger.setAppendOnly(true);
-                Command command = new Command(silentLogger, executorId, null, workingDir, args);
+                Command command = new Command(silentLogger, executorId, null, commandWorkingDir, args);
                 command.setEnvironment(environment);
                 command.start();
                 backgroundCommands.add(command);
             } else {
-                Command command = new Command(logger, executorId, null, workingDir, args);
+                Command command = new Command(logger, executorId, null, commandWorkingDir, args);
                 command.setEnvironment(environment);
                 command.start();
                 command.waitSync();
             }
         }
     }
-    
+
     private JobMessage invokeServer(JobMessage req) {
-        byte[] bytes = req.getBytes();       
+        byte[] bytes = req.getBytes();
         ScriptValue body;
         String contentType;
         if (bytes != null) {
@@ -179,10 +182,10 @@ public class JobExecutor {
             body = new ScriptValue(req.body);
         }
         Http.Response res = http.header(JobMessage.KARATE_METHOD, req.method)
-                    .header(JobMessage.KARATE_JOB_ID, jobId)
-                    .header(JobMessage.KARATE_EXECUTOR_ID, executorId)
-                    .header(JobMessage.KARATE_CHUNK_ID, req.getChunkId())
-                    .header("content-type", contentType).post(body);
+                .header(JobMessage.KARATE_JOB_ID, jobId)
+                .header(JobMessage.KARATE_EXECUTOR_ID, executorId)
+                .header(JobMessage.KARATE_CHUNK_ID, req.getChunkId())
+                .header("content-type", contentType).post(body);
         String method = StringUtils.trimToNull(res.header(JobMessage.KARATE_METHOD));
         contentType = StringUtils.trimToNull(res.header("content-type"));
         JobMessage jm;
@@ -196,6 +199,6 @@ public class JobExecutor {
         jm.setExecutorId(StringUtils.trimToNull(res.header(JobMessage.KARATE_EXECUTOR_ID)));
         jm.setChunkId(StringUtils.trimToNull(res.header(JobMessage.KARATE_CHUNK_ID)));
         return jm;
-    }    
+    }
 
 }

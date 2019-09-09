@@ -67,7 +67,7 @@ public abstract class MavenJobConfig implements JobConfig {
     }
 
     @Override
-    public List<JobCommand> getMainCommands(JobChunk chunk) {
+    public List<JobCommand> getMainCommands(JobContext chunk) {
         Scenario scenario = chunk.getScenario();
         String path = scenario.getFeature().getRelativePath();
         int line = scenario.getLine();

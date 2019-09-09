@@ -316,4 +316,9 @@ public class Feature {
         this.sections = sections;
     }
 
+    @Override
+    public String toString() {
+        return resource.toString();
+    }        
+
 }

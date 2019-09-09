@@ -29,25 +29,27 @@ import com.intuit.karate.core.Scenario;
  *
  * @author pthomas3
  */
-public class JobChunk {
+public class JobContext {
+
+    public static final String UPLOAD_DIR = "uploadDir";
 
     private final Scenario scenario;
     private final String jobId;
     private final String executorId;
     private final String chunkId;
-    private final String reportPath;
+    private final String uploadDir;
 
-    public JobChunk(Scenario scenario, String jobId, String executorId, String chunkId, String reportPath) {
+    public JobContext(Scenario scenario, String jobId, String executorId, String chunkId, String uploadDir) {
         this.scenario = scenario;
         this.jobId = jobId;
         this.executorId = executorId;
         this.chunkId = chunkId;
-        this.reportPath = reportPath;
+        this.uploadDir = uploadDir;
     }
-    
+
     public Scenario getScenario() {
         return scenario;
-    }    
+    }
 
     public String getJobId() {
         return jobId;
@@ -61,8 +63,8 @@ public class JobChunk {
         return chunkId;
     }
 
-    public String getReportPath() {
-        return reportPath;
-    }        
+    public String getUploadDir() {
+        return uploadDir;
+    }
 
 }

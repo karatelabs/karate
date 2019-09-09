@@ -41,11 +41,11 @@ public interface JobConfig {
         return "";
     }
 
-    default String getReportPath() {
+    default String getUploadDir() {
         return null;
     }
 
-    void startExecutors(String jobId, String jobUrl);
+    void startExecutors(String jobId, String jobUrl) throws Exception;
 
     Map<String, String> getEnvironment();
 
@@ -55,13 +55,13 @@ public interface JobConfig {
         return Collections.EMPTY_LIST;
     }
 
-    List<JobCommand> getMainCommands(JobChunk chunk);
+    List<JobCommand> getMainCommands(JobContext jc);
 
-    default List<JobCommand> getPreCommands(JobChunk chunk) {
+    default List<JobCommand> getPreCommands(JobContext jc) {
         return Collections.EMPTY_LIST;
     }
 
-    default List<JobCommand> getPostCommands(JobChunk chunk) {
+    default List<JobCommand> getPostCommands(JobContext jc) {
         return Collections.EMPTY_LIST;
     }
 
