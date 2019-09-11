@@ -229,6 +229,7 @@ key | description
 `executable` | if present, Karate will attempt to invoke this, if not in the system `PATH`, you can use a full-path instead of just the name of the executable. batch files should also work
 `start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
+`host` | optional, will default to `localhost` and you normally never need to change this
 `headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` for now, also see [`DockerTarget`](#dockertarget)
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report

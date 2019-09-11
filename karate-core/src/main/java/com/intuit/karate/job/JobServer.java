@@ -26,6 +26,7 @@ package com.intuit.karate.job;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.Scenario;
@@ -137,26 +138,40 @@ public class JobServer {
         }
     }
 
+    private static File getFirstFileWithExtension(File parent, String extension) {
+        File[] files = parent.listFiles((f, n) -> n.endsWith("." + extension));
+        return files.length == 0 ? null : files[0];
+    }
+
     public void saveChunkOutput(byte[] bytes, String executorId, String chunkId) {
         String chunkBasePath = basePath + File.separator + executorId + File.separator + chunkId;
         File zipFile = new File(chunkBasePath + ".zip");
         FileUtils.writeToFile(zipFile, bytes);
         File outFile = new File(chunkBasePath);
         JobUtils.unzip(zipFile, outFile);
-        File[] files = outFile.listFiles((f, n) -> n.endsWith(".json"));
-        if (files.length == 0) {
+        File jsonFile = getFirstFileWithExtension(outFile, "json");
+        if (jsonFile == null) {
             return;
         }
-        String json = FileUtils.toString(files[0]);
+        String json = FileUtils.toString(jsonFile);
+        File videoFile = getFirstFileWithExtension(outFile, "mp4");
         List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
+        ChunkResult cr;
+        ScenarioResult sr;
         synchronized (FEATURE_CHUNKS) {
-            ChunkResult chunk = CHUNKS.get(chunkId);
-            ScenarioResult sr = new ScenarioResult(chunk.scenario, list, true);
-            sr.setStartTime(chunk.getStartTime());
-            sr.setEndTime(System.currentTimeMillis());
-            sr.setThreadName(executorId);
-            chunk.setResult(sr);
-            chunk.completeFeatureIfLast();
+            cr = CHUNKS.get(chunkId);
+            cr.completeFeatureIfLast();
+        }
+        sr = new ScenarioResult(cr.scenario, list, true);
+        sr.setStartTime(cr.getStartTime());
+        sr.setEndTime(System.currentTimeMillis());
+        sr.setThreadName(executorId);
+        cr.setResult(sr);
+        if (videoFile != null) {
+            File dest = new File(FileUtils.getBuildDir()
+                    + File.separator + "cucumber-html-reports" + File.separator + chunkId + ".mp4");
+            FileUtils.copy(videoFile, dest);
+            sr.getLastStepResult().addEmbed(Embed.forVideoFile(dest.getName()));
         }
     }
 

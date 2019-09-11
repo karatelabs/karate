@@ -71,7 +71,7 @@ public class DriverOptions {
     public final String executable;
     public final String type;
     public final int port;
-    public final String host = "localhost";
+    public final String host;
     public final boolean headless;
     public final boolean showProcessLog;
     public final boolean showDriverLog;
@@ -160,6 +160,7 @@ public class DriverOptions {
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
+        host = get("host", "localhost");
         // do this last to ensure things like logger, start-flag and all are set
         port = resolvePort(defaultPort);
     }

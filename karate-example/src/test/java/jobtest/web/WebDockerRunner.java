@@ -19,13 +19,13 @@ import org.junit.jupiter.api.Test;
  */
 public class WebDockerRunner {
 
-    private final int width = 1366;
-    private final int height = 768;
-    private final int executorCount = 2;
-
     @Test
     public void testJobManager() {
-
+        
+        int width = 1366;
+        int height = 768;
+        int executorCount = 2;
+        
         MavenJobConfig config = new MavenJobConfig("host.docker.internal", 0) {
             @Override
             public void startExecutors(String jobId, String jobUrl) {

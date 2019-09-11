@@ -44,6 +44,4 @@ EXPOSE 5900 9222
 ENV KARATE_WIDTH 1366
 ENV KARATE_HEIGHT 768
 
-# ffmpeg -f x11grab -r 16 -s "$KARATE_WIDTH"x"$KARATE_HEIGHT" -i :1 -vcodec libx264 -pix_fmt yuv420p -preset fast /tmp/karate.mp4
-
-ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
+CMD ["/bin/bash", "/entrypoint.sh"]

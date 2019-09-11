@@ -49,6 +49,13 @@ public class ScenarioResult {
         stepResults = new ArrayList();
         failedStep = null;
     }
+    
+    public StepResult getLastStepResult() {
+        if (stepResults.isEmpty()) {
+            return null;
+        }
+        return stepResults.get(stepResults.size() - 1);
+    }
 
     public StepResult getStepResult(int index) {
         if (stepResults.size() > index) {
