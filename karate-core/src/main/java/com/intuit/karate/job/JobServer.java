@@ -156,22 +156,20 @@ public class JobServer {
         String json = FileUtils.toString(jsonFile);
         File videoFile = getFirstFileWithExtension(outFile, "mp4");
         List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
-        ChunkResult cr;
-        ScenarioResult sr;
         synchronized (FEATURE_CHUNKS) {
-            cr = CHUNKS.get(chunkId);
+            ChunkResult cr = CHUNKS.get(chunkId);           
+            ScenarioResult sr = new ScenarioResult(cr.scenario, list, true);
+            sr.setStartTime(cr.getStartTime());
+            sr.setEndTime(System.currentTimeMillis());
+            sr.setThreadName(executorId);
+            cr.setResult(sr);
+            if (videoFile != null) {
+                File dest = new File(FileUtils.getBuildDir()
+                        + File.separator + "cucumber-html-reports" + File.separator + chunkId + ".mp4");
+                FileUtils.copy(videoFile, dest);
+                sr.getLastStepResult().addEmbed(Embed.forVideoFile(dest.getName()));
+            }
             cr.completeFeatureIfLast();
-        }
-        sr = new ScenarioResult(cr.scenario, list, true);
-        sr.setStartTime(cr.getStartTime());
-        sr.setEndTime(System.currentTimeMillis());
-        sr.setThreadName(executorId);
-        cr.setResult(sr);
-        if (videoFile != null) {
-            File dest = new File(FileUtils.getBuildDir()
-                    + File.separator + "cucumber-html-reports" + File.separator + chunkId + ".mp4");
-            FileUtils.copy(videoFile, dest);
-            sr.getLastStepResult().addEmbed(Embed.forVideoFile(dest.getName()));
         }
     }
 

@@ -53,6 +53,7 @@ public class JobExecutor {
     private final List<JobCommand> shutdownCommands;
 
     private JobExecutor(String serverUrl) {
+        Command.waitForHttp(serverUrl);
         http = Http.forUrl(LogAppender.NO_OP, serverUrl);
         http.config("lowerCaseResponseHeaders", "true");
         logger = new Logger();
@@ -143,6 +144,7 @@ public class JobExecutor {
     }
 
     private void shutdown() {
+        stopBackgroundCommands();
         executeCommands(shutdownCommands, environment);
     }
 
