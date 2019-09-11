@@ -52,6 +52,7 @@ public class Command extends Thread {
     private final boolean sharedAppender;
     private final LogAppender appender;
 
+    private boolean useLineFeed;
     private Map<String, String> environment;
     private Process process;
     private int exitCode = -1;
@@ -60,8 +61,13 @@ public class Command extends Thread {
         this.environment = environment;
     }        
 
-    public static String exec(File workingDir, String... args) {
+    public void setUseLineFeed(boolean useLineFeed) {
+        this.useLineFeed = useLineFeed;
+    }        
+
+    public static String exec(boolean useLineFeed, File workingDir, String... args) {
         Command command = new Command(workingDir, args);
+        command.setUseLineFeed(useLineFeed);
         command.start();
         command.waitSync();
         return command.appender.collect();
@@ -77,7 +83,7 @@ public class Command extends Thread {
     }
 
     public static String execLine(File workingDir, String command) {
-        return exec(workingDir, tokenize(command));
+        return exec(false, workingDir, tokenize(command));
     }
 
     public static String getBuildDir() {
@@ -158,7 +164,7 @@ public class Command extends Thread {
         }
         argList = Arrays.asList(args);
         if (logFile == null) {
-            appender = new StringLogAppender();
+            appender = new StringLogAppender(useLineFeed);
             sharedAppender = false;
         } else { // don't create new file if re-using an existing appender
             LogAppender temp = this.logger.getLogAppender();

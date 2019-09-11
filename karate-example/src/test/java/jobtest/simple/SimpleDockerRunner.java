@@ -29,7 +29,8 @@ public class SimpleDockerRunner {
                 ExecutorService executor = Executors.newFixedThreadPool(executorCount);
                 for (int i = 0; i < executorCount; i++) {
                     executor.submit(() -> {
-                        Command.execLine(null, "docker run --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + " karate-chrome");
+                        Command.execLine(null, "docker run --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl 
+                                + " docker.intuit.com/sandbox/sandbox/pthomas3-test2/service/karate-chrome:latest");
                         return true;
                     });
                 }
