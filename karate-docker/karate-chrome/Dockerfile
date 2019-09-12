@@ -30,7 +30,7 @@ RUN apt-get clean \
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd karate ~/.vnc/passwd
 
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY supervisord.conf /etc
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 

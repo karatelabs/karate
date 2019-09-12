@@ -10,5 +10,4 @@ if [ -z "$KARATE_JOBURL" ]
     export KARATE_START="true"
     export KARATE_OPTIONS="-j $KARATE_JOBURL"
 fi
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
-
+exec /usr/bin/supervisord

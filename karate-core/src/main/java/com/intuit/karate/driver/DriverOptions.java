@@ -87,6 +87,9 @@ public class DriverOptions {
     public final List<String> addOptions;
     public final List<String> args = new ArrayList();
     public final Target target;
+    public final String beforeStart;
+    public final String afterStop;
+    public final String videoFile;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -161,6 +164,9 @@ public class DriverOptions {
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
         host = get("host", "localhost");
+        beforeStart = get("beforeStart", null);
+        afterStop = get("afterStop", null);
+        videoFile = get("videoFile", null);
         // do this last to ensure things like logger, start-flag and all are set
         port = resolvePort(defaultPort);
     }
@@ -182,6 +188,9 @@ public class DriverOptions {
     }
 
     public Command startProcess() {
+        if (beforeStart != null) {
+            Command.execLine(null, beforeStart);
+        }        
         if (target != null || !start) {
             return null;
         }

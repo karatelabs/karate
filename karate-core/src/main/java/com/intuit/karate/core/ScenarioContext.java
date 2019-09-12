@@ -51,8 +51,10 @@ import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
+import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
@@ -981,6 +983,21 @@ public class ScenarioContext {
                 if (video != null && lastStepResult != null) {
                     Embed embed = Embed.forVideoFile(video);
                     lastStepResult.addEmbed(embed);
+                }
+            } else {
+                if (options.afterStop != null) {
+                    Command.execLine(null, options.afterStop);
+                }
+                if (options.videoFile != null) {
+                    File src = new File(options.videoFile);
+                    if (src.exists()) {
+                        String path = FileUtils.getBuildDir() + File.separator
+                                + "cucumber-html-reports" + File.separator + System.currentTimeMillis() + ".mp4";
+                        File dest = new File(path);
+                        FileUtils.copy(src, dest);
+                        Embed embed = Embed.forVideoFile(dest.getName());
+                        lastStepResult.addEmbed(embed);
+                    }
                 }
             }
             driver = null;
