@@ -286,10 +286,6 @@ public class ScenarioContext {
             vars = call.context.vars; // shared context !
             config = call.context.config;
             rootFeatureContext = call.context.rootFeatureContext;
-            driver = call.context.driver;
-            if (driver != null) { // logger re-pointing
-                driver.getOptions().setContext(this);
-            }
             webSocketClients = call.context.webSocketClients;
         } else if (call.context != null) {
             parentContext = call.context;
@@ -306,6 +302,11 @@ public class ScenarioContext {
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
+        // TODO improve bindings re-use
+        // for call + ui tests, extra step has to be done after bindings set
+        if (reuseParentContext && call.context.driver != null) {
+            setDriver(call.context.driver);
+        }
         if (call.context == null && call.evalKarateConfig) {
             // base config is only looked for in the classpath
             try {
