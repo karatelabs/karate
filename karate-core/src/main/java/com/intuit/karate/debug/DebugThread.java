@@ -182,19 +182,28 @@ public class DebugThread implements ExecutionHook, LogAppender {
         stepModes.clear();
         return this;
     }
+    
+    protected DebugThread step() {
+        stepModes.put(stack.size(), true);
+        return this;
+    }    
 
-    protected DebugThread step(boolean stepMode) {
-        stepModes.put(stack.size(), stepMode);
+    protected DebugThread stepOut() {
+        int stackSize = stack.size();
+        stepModes.put(stackSize, false);
+        if (stackSize > 1) {
+            stepModes.put(stackSize - 1, true);
+        }
         return this;
     }
 
     protected boolean isStepMode() {
         Boolean stepMode = stepModes.get(stack.size());
         return stepMode == null ? false : stepMode;
-    }
+    }        
     
-    protected DebugThread stepIn(boolean stepIn) {
-        this.stepIn = stepIn;
+    protected DebugThread stepIn() {
+        this.stepIn = true;
         return this;
     }
 

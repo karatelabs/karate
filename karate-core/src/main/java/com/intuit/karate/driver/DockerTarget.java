@@ -57,7 +57,7 @@ public class DockerTarget implements Target {
             Integer vncPort = (Integer) options.get("vncPort");
             String secComp = (String) options.get("secComp");
             StringBuilder sb = new StringBuilder();
-            sb.append("docker run -d");
+            sb.append("docker run -d -e KARATE_SOCAT_START=true");
             if (secComp == null) {
                 sb.append(" --cap-add=SYS_ADMIN");
             } else {

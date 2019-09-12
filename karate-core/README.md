@@ -234,6 +234,9 @@ key | description
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
+`beforeStart` | default `null`, an OS command that will be executed before commencing a `Scenario` (and before the `executable` is invoked if applicable) typically used to start video-recording
+`afterStart` | default `null`, an OS command that will be executed after a `Scenario` completes, typically used to stop video-recording and save the video file to an output folder
+`videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
@@ -323,15 +326,15 @@ The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker i
 To try this or especially when you need to investigate why a test is not behaving properly when running within Docker, these are the steps:
 
 * start the container:
-  * `docker run -d -p 9222:9222 -p 5900:5900 --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
+  * `docker run --name karate --rm -p 9222:9222 -p 5900:5900 -e KARATE_SOCAT_START=true --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
   * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of `--cap-add=SYS_ADMIN`
 * point your VNC client to `localhost:5900` (password: `karate`)
   * for example on a Mac you can use this command: `open vnc://localhost:5900`
 * run a test using the following [`driver` configuration](#configure-driver), and this is one of the few times you would ever need to set the [`start` flag](#configure-driver) to `false`
   * `* configure driver = { type: 'chrome', start: false, showDriverLog: true }`
-* you can even use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) to step-through a test
-* after stopping the container, you can dump the logs and video recording using this command:
-  * `docker cp <container-id>:/tmp .`
+* you can even use the [Karate VS Code extension](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) to debug and step-through a test
+* if you omit the `--rm` part in the start command, after stopping the container, you can dump the logs and video recording using this command (here `.` stands for the current working folder, change it if needed):
+  * `docker cp karate:/tmp .`
   * this would include the `stderr` and `stdout` logs from Chrome, which can be helpful for troubleshooting
 
 ## Driver Types

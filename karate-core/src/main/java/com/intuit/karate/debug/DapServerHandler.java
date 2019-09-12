@@ -204,7 +204,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req).body("variables", variables(variablesReference)));
                 break;
             case "next":
-                thread(req.getThreadId()).step(true).resume();
+                thread(req.getThreadId()).step().resume();
                 ctx.write(response(req));
                 break;
             case "stepBack":
@@ -213,11 +213,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 ctx.write(response(req));
                 break;
             case "stepIn":
-                thread(req.getThreadId()).stepIn(true).resume();
+                thread(req.getThreadId()).stepIn().resume();
                 ctx.write(response(req));
                 break;
             case "stepOut":
-                thread(req.getThreadId()).step(false).resume();
+                thread(req.getThreadId()).stepOut().resume();
                 ctx.write(response(req));
                 break;
             case "continue":
