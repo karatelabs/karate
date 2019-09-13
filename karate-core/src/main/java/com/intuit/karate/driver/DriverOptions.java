@@ -190,15 +190,18 @@ public class DriverOptions {
     public Command startProcess() {
         if (beforeStart != null) {
             Command.execLine(null, beforeStart);
-        }        
+        }
+        Command command;
         if (target != null || !start) {
-            return null;
+            command = null;
+        } else {
+            if (addOptions != null) {
+                args.addAll(addOptions);
+            }
+            command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+            command.start();
         }
-        if (addOptions != null) {
-            args.addAll(addOptions);
-        }
-        Command command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
-        command.start();
+        // try to wait for a slow booting browser / driver process
         waitForPort(host, port);
         return command;
     }
@@ -312,7 +315,7 @@ public class DriverOptions {
 
     public void setRetryInterval(Integer retryInterval) {
         this.retryInterval = retryInterval;
-    }        
+    }
 
     public int getRetryInterval() {
         if (retryInterval != null) {
