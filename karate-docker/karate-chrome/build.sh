@@ -1,13 +1,8 @@
 #!/bin/bash
 set -x -e
-
-BASE_DIR=$PWD
-REPO_DIR=$BASE_DIR/target/repository
-
-cd ../..
-mvn clean install -DskipTests -P pre-release -Dmaven.repo.local=$REPO_DIR
-cd karate-netty
-mvn install -DskipTests -P fatjar -Dmaven.repo.local=$REPO_DIR
-cp target/karate-1.0.0.jar $BASE_DIR/target/karate.jar
-cd $BASE_DIR
+REPO_DIR=$PWD/target/repository
+mvn -f ../../pom.xml clean install -DskipTests -P pre-release -Dmaven.repo.local=$REPO_DIR
+mvn -f ../../karate-netty/pom.xml install -DskipTests -P fatjar -Dmaven.repo.local=$REPO_DIR
+mvn -f ../../karate-example/pom.xml dependency:resolve -Dmaven.repo.local=$REPO_DIR
+cp ../../karate-netty/target/karate-1.0.0.jar target/karate.jar
 docker build -t karate-chrome .
