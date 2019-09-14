@@ -121,6 +121,9 @@ public class CliExecutionHook implements ExecutionHook {
         if (intellij) {
             log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), result.getFeature().getNameForReport()));
         }
+        if (result.getScenarioCount() == 0) {
+            return;
+        }
         if (htmlReport) {
             Engine.saveResultHtml(targetDir, result, null);
         }
