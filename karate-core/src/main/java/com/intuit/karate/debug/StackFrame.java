@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.debug;
 
+import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.Step;
 import java.nio.file.Path;
@@ -45,7 +46,8 @@ public class StackFrame {
         this.id = frameId;
         Step step = context.getExecutionUnit().getCurrentStep();
         line = step.getLine();
-        name = step.getScenario().getDisplayMeta();
+        Scenario scenario = context.getExecutionUnit().scenario;
+        name = scenario.getDisplayMeta();
         Path path = step.getFeature().getPath();
         source.put("name", path.getFileName().toString());
         source.put("path", path.toString());
