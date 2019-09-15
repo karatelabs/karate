@@ -884,6 +884,13 @@ public class ScenarioContext {
         prevEmbeds.add(embed);
     }
 
+    public void embed(Embed embed) {
+        if (prevEmbeds == null) {
+            prevEmbeds = new ArrayList();
+        }
+        prevEmbeds.add(embed);
+    }
+
     public WebSocketClient webSocket(WebSocketOptions options) {
         WebSocketClient webSocketClient = new WebSocketClient(options, logger);
         if (webSocketClients == null) {

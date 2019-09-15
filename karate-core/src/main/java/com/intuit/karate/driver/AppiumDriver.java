@@ -24,7 +24,14 @@
 package com.intuit.karate.driver;
 
 import com.intuit.karate.*;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.shell.Command;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author babusekaran
@@ -82,6 +89,51 @@ public abstract class AppiumDriver extends WebDriver {
 
     public void hideKeyboard() {
         http.path("appium", "device", "hide_keyboard").post("{}");
+    }
+
+    public String startRecordingScreen() {
+        return http.path("appium", "start_recording_screen").post("{}").jsonPath("$.value").asString();
+    }
+
+    public String startRecordingScreen(Map<String, Object> payload) {
+        Map<String, Object> options = new HashMap<>();
+        options.put("options",payload);
+        return http.path("appium", "start_recording_screen").post(options).jsonPath("$.value").asString();
+    }
+
+    public String stopRecordingScreen() {
+        return http.path("appium", "stop_recording_screen").post("{}").jsonPath("$.value").asString();
+    }
+
+    public String stopRecordingScreen(Map<String, Object> payload) {
+        Map<String, Object> options = new HashMap<>();
+        options.put("options",payload);
+        return http.path("appium", "stop_recording_screen").post(options).jsonPath("$.value").asString();
+    }
+
+    public void saveRecordingScreen(String fileName, boolean embed) {
+        String videoTemp = stopRecordingScreen();
+        byte[] bytes = Base64.getDecoder().decode(videoTemp);
+        File src = new File(fileName);
+        try (FileOutputStream fileOutputStream = new FileOutputStream(src.getAbsolutePath())){
+            fileOutputStream.write(bytes);
+        }
+        catch (Exception e){
+            logger.error("error while saveRecordingScreen {}", e.getMessage());
+        }
+        if (embed){
+            if (src.exists()) {
+                String path = FileUtils.getBuildDir() + File.separator
+                        + "cucumber-html-reports" + File.separator + System.currentTimeMillis() + ".mp4";
+                File dest = new File(path);
+                FileUtils.copy(src, dest);
+                options.embedMp4Video(Embed.forVideoFile(dest.getName()));
+            }
+        }
+    }
+
+    public void saveRecordingScreen(String fileName) {
+        saveRecordingScreen(fileName,false);
     }
 
     @Override
