@@ -61,7 +61,7 @@ public class DevToolsMessage {
 
     public void setTimeout(Integer timeout) {
         this.timeout = timeout;
-    }        
+    }
 
     public String getSessionId() {
         return sessionId;
@@ -211,6 +211,10 @@ public class DevToolsMessage {
         return map;
     }
 
+    public void sendWithoutWaiting() {
+        driver.send(this);
+    }
+
     public DevToolsMessage send() {
         return send(null);
     }
@@ -237,7 +241,7 @@ public class DevToolsMessage {
         }
         if (error != null) {
             sb.append(", error: ").append(error);
-        }        
+        }
         sb.append("]");
         return sb.toString();
     }

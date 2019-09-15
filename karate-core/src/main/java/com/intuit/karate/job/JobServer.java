@@ -61,14 +61,15 @@ public class JobServer {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(JobServer.class);
 
     protected final JobConfig config;
-    protected final List<FeatureChunks> FEATURE_CHUNKS = new ArrayList();
-    protected final Map<String, ChunkResult> CHUNKS = new HashMap();
+    protected final List<FeatureScenarios> FEATURE_QUEUE = new ArrayList();
+    protected final Map<String, ChunkResult> CHUNK_RESULTS = new HashMap();
     protected final String basePath;
     protected final File ZIP_FILE;
     protected final String jobId;
     protected final String jobUrl;
     protected final String reportDir;
     protected final AtomicInteger executorCount = new AtomicInteger(1);
+    private final AtomicInteger chunkCount = new AtomicInteger();
 
     private final Channel channel;
     private final int port;
@@ -92,7 +93,7 @@ public class JobServer {
         return this.reportDir;
     }
 
-    public void addFeatureChunks(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable next) {
+    public void addFeature(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable onComplete) {
         Logger logger = new Logger();
         List<Scenario> selected = new ArrayList(units.size());
         for (ScenarioExecutionUnit unit : units) {
@@ -101,29 +102,30 @@ public class JobServer {
             }
         }
         if (selected.isEmpty()) {
-            LOGGER.trace("skipping feature: {}", exec.featureContext.feature.getRelativePath());
-            next.run();
+            onComplete.run();
         } else {
-            FEATURE_CHUNKS.add(new FeatureChunks(exec, selected, next));
+            FeatureScenarios fs = new FeatureScenarios(exec, selected, onComplete);
+            FEATURE_QUEUE.add(fs);
         }
     }
 
     public ChunkResult getNextChunk() {
-        synchronized (FEATURE_CHUNKS) {
-            if (FEATURE_CHUNKS.isEmpty()) {
+        synchronized (FEATURE_QUEUE) {
+            if (FEATURE_QUEUE.isEmpty()) {
                 return null;
             } else {
-                FeatureChunks featureChunks = FEATURE_CHUNKS.get(0);
-                Scenario scenario = featureChunks.scenarios.remove(0);
-                if (featureChunks.scenarios.isEmpty()) {
-                    FEATURE_CHUNKS.remove(0);
+                FeatureScenarios feature = FEATURE_QUEUE.get(0);
+                Scenario scenario = feature.scenarios.remove(0);
+                if (feature.scenarios.isEmpty()) {
+                    FEATURE_QUEUE.remove(0);
                 }
-                ChunkResult chunk = new ChunkResult(featureChunks, scenario);
-                String chunkId = (CHUNKS.size() + 1) + "";
+                LOGGER.info("features queued: {}", FEATURE_QUEUE);
+                ChunkResult chunk = new ChunkResult(feature, scenario);
+                String chunkId = chunkCount.incrementAndGet() + "";
                 chunk.setChunkId(chunkId);
                 chunk.setStartTime(System.currentTimeMillis());
-                featureChunks.chunks.add(chunk);
-                CHUNKS.put(chunkId, chunk);
+                feature.chunks.add(chunk);
+                CHUNK_RESULTS.put(chunkId, chunk);
                 return chunk;
             }
         }
@@ -156,8 +158,13 @@ public class JobServer {
         String json = FileUtils.toString(jsonFile);
         File videoFile = getFirstFileWithExtension(outFile, "mp4");
         List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
-        synchronized (FEATURE_CHUNKS) {
-            ChunkResult cr = CHUNKS.get(chunkId);           
+        synchronized (CHUNK_RESULTS) {
+            ChunkResult cr = CHUNK_RESULTS.remove(chunkId);
+            LOGGER.info("chunk complete: {}, remaining: {}", chunkId, CHUNK_RESULTS.keySet());
+            if (cr == null) {
+                LOGGER.error("could not find chunk: {}", chunkId);
+                return;
+            }
             ScenarioResult sr = new ScenarioResult(cr.scenario, list, true);
             sr.setStartTime(cr.getStartTime());
             sr.setEndTime(System.currentTimeMillis());
@@ -167,9 +174,11 @@ public class JobServer {
                 File dest = new File(FileUtils.getBuildDir()
                         + File.separator + "cucumber-html-reports" + File.separator + chunkId + ".mp4");
                 FileUtils.copy(videoFile, dest);
-                sr.getLastStepResult().addEmbed(Embed.forVideoFile(dest.getName()));
+                sr.appendEmbed(Embed.forVideoFile(dest.getName()));
             }
-            cr.completeFeatureIfLast();
+            if (cr.parent.scenarios.isEmpty()) {
+                cr.parent.onComplete();
+            }
         }
     }
 

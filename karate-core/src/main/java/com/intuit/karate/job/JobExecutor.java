@@ -30,9 +30,12 @@ import com.intuit.karate.Logger;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.Command;
+import com.intuit.karate.shell.FileLogAppender;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +48,7 @@ public class JobExecutor {
 
     private final Http http;
     private final Logger logger;
+    private final LogAppender appender;
     private final String workingDir;
     private final String jobId;
     private final String executorId;
@@ -53,10 +57,16 @@ public class JobExecutor {
     private final List<JobCommand> shutdownCommands;
 
     private JobExecutor(String serverUrl) {
-        Command.waitForHttp(serverUrl);
-        http = Http.forUrl(LogAppender.NO_OP, serverUrl);
-        http.config("lowerCaseResponseHeaders", "true");
+        String targetDir = FileUtils.getBuildDir();
+        appender = new FileLogAppender(new File(targetDir + File.separator + "karate-executor.log"));
         logger = new Logger();
+        logger.setLogAppender(appender);
+        if (!Command.waitForHttp(serverUrl)) {
+            logger.error("unable to connect to server, aborting");
+            System.exit(1);
+        }
+        http = Http.forUrl(appender, serverUrl);
+        http.config("lowerCaseResponseHeaders", "true");
         // download ============================================================
         JobMessage download = invokeServer(new JobMessage("download"));
         logger.info("download response: {}", download);
@@ -69,7 +79,7 @@ public class JobExecutor {
         JobUtils.unzip(file, new File(workingDir));
         logger.info("download done: {}", workingDir);
         // init ================================================================
-        JobMessage init = invokeServer(new JobMessage("init"));
+        JobMessage init = invokeServer(new JobMessage("init").put("log", appender.collect()));
         logger.info("init response: {}", init);
         uploadDir = workingDir + File.separator + init.get(JobContext.UPLOAD_DIR, String.class);
         List<JobCommand> startupCommands = init.getCommands("startupCommands");
@@ -81,8 +91,17 @@ public class JobExecutor {
 
     public static void run(String serverUrl) {
         JobExecutor je = new JobExecutor(serverUrl);
-        je.loopNext();
-        je.shutdown();
+        try {
+            je.loopNext();
+            je.shutdown();
+        } catch (Exception e) {
+            je.logger.error("{}", e.getMessage());
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            je.invokeServer(new JobMessage("error").put("log", sw.toString()));
+            System.exit(1);
+        }
     }
 
     private File getWorkingDir(String relativePath) {
@@ -130,6 +149,9 @@ public class JobExecutor {
             executeCommands(res.getCommands("mainCommands"), environment);
             stopBackgroundCommands();
             executeCommands(res.getCommands("postCommands"), environment);
+            String log = appender.collect();
+            File logFile = new File(uploadDir + File.separator + "karate.log");
+            FileUtils.writeToFile(logFile, log);
             String zipBase = uploadDir + "_" + chunkId;
             File toZip = new File(zipBase);
             uploadDirFile.renameTo(toZip);

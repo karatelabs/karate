@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +62,7 @@ public class Runner {
 
         Class optionsClass;
         int threadCount;
+        int timeoutMinutes;
         String reportDir;
         String scenarioName;
         List<String> tags = new ArrayList();
@@ -153,6 +155,11 @@ public class Runner {
             return this;
         }
 
+        public Builder timeoutMinutes(int timeoutMinutes) {
+            this.timeoutMinutes = timeoutMinutes;
+            return this;
+        }
+
         public Builder hook(ExecutionHook hook) {
             if (hooks == null) {
                 hooks = new ArrayList();
@@ -170,12 +177,12 @@ public class Runner {
             this.threadCount = threadCount;
             return Runner.parallel(this);
         }
-        
+
         public Results startServerAndWait(JobConfig config) {
             this.jobConfig = config;
             this.threadCount = 1;
             return Runner.parallel(this);
-        }        
+        }
 
     }
 
@@ -290,9 +297,9 @@ public class Runner {
                 featureResults.add(execContext.result);
                 if (jobServer != null) {
                     List<ScenarioExecutionUnit> units = feature.getScenarioExecutionUnits(execContext);
-                    jobServer.addFeatureChunks(execContext, units, () -> {                        
+                    jobServer.addFeature(execContext, units, () -> {
                         onFeatureDone(results, execContext, reportDir, index, count);
-                        latch.countDown();                        
+                        latch.countDown();
                     });
                 } else {
                     FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
@@ -307,7 +314,15 @@ public class Runner {
                 jobServer.startExecutors();
             }
             LOGGER.info("waiting for parallel features to complete ...");
-            latch.await();
+            if (options.timeoutMinutes > 0) {
+                latch.await(options.timeoutMinutes, TimeUnit.MINUTES);
+                if (latch.getCount() > 0) {
+                    LOGGER.warn("parallel execution timed out after {} minutes, features remaining: {}",
+                            options.timeoutMinutes, latch.getCount());
+                }
+            } else {
+                latch.await();
+            }
             results.stopTimer();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();

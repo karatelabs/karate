@@ -18,7 +18,7 @@ public class SimpleRunner {
     private final int executorCount = 2;
 
     @Test
-    public void testJobManager() {
+    void testJobManager() {
 
         MavenJobConfig config = new MavenJobConfig("127.0.0.1", 0) {
             @Override

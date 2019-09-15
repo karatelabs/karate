@@ -110,10 +110,14 @@ public abstract class DevToolsDriver implements Driver {
         return new DevToolsMessage(this, method);
     }
 
-    public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
+    public void send(DevToolsMessage dtm) {
         String json = JsonUtils.toJson(dtm.toMap());
         logger.debug(">> {}", json);
         client.send(json);
+    }
+
+    public DevToolsMessage sendAndWait(DevToolsMessage dtm, Predicate<DevToolsMessage> condition) {
+        send(dtm);
         if (condition == null && submit) {
             submit = false;
             condition = WaitState.ALL_FRAMES_LOADED;
@@ -301,7 +305,7 @@ public abstract class DevToolsDriver implements Driver {
     @Override
     public void quit() {
         // don't wait, may fail and hang
-        method("Target.closeTarget").param("targetId", rootFrameId).send(m -> true);
+        method("Target.closeTarget").param("targetId", rootFrameId).sendWithoutWaiting();
         // method("Browser.close").send();
         client.close();
         if (command != null) {

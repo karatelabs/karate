@@ -52,6 +52,10 @@ public class Scenario {
     private int exampleIndex = -1;
     private String dynamicExpression;
     private boolean backgroundDone;
+    
+    protected Scenario() {
+        this(null, null, -1);
+    }
 
     public Scenario(Feature feature, FeatureSection section, int index) {
         this.feature = feature;

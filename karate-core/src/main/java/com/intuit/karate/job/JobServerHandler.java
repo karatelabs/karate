@@ -99,7 +99,9 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
                 }
                 req.setExecutorId(executorId);
                 req.setChunkId(chunkId);
+                logger.debug("<< {}", req);
                 JobMessage res = handle(req);
+                logger.debug(">> {}", res);
                 if (res == null) {
                     response = response("unable to create response for: " + req + "\n");
                 } else {
@@ -133,11 +135,19 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
         ctx.write(response);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
+    
+    private void dumpLog(JobMessage jm) {
+        logger.debug("\n>>>>>>>>>>>>>>>>>>>>> {}\n{}<<<<<<<<<<<<<<<<<<<< {}", jm, jm.get("log", String.class), jm);
+    }
 
-    private JobMessage handle(JobMessage jm) {
-        logger.debug("handling: {}", jm);
+    private JobMessage handle(JobMessage jm) {        
         String method = jm.method;
         switch (method) {
+            case "error":           
+                dumpLog(jm);
+                return new JobMessage("error");            
+            case "heartbeat":                
+                return new JobMessage("heartbeat");
             case "download":
                 JobMessage download = new JobMessage("download");
                 download.setBytes(server.getZipBytes());
@@ -145,6 +155,7 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
                 download.setExecutorId(executorId + "");
                 return download;
             case "init":
+                // dumpLog(jm);
                 JobMessage init = new JobMessage("init");
                 init.put("startupCommands", server.config.getStartupCommands());
                 init.put("shutdownCommands", server.config.getShutdownCommands());
@@ -152,8 +163,10 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
                 init.put(JobContext.UPLOAD_DIR, server.resolveUploadDir());
                 return init;
             case "next":
+                // dumpLog(jm);
                 ChunkResult chunk = server.getNextChunk();
                 if (chunk == null) {
+                    logger.info("no more chunks, server responding with 'stop' message");
                     return new JobMessage("stop");
                 }
                 String uploadDir = jm.get(JobContext.UPLOAD_DIR, String.class);

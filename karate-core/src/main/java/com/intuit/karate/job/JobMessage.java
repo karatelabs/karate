@@ -154,7 +154,9 @@ public class JobMessage {
             sb.append(", body: ");
             body.forEach((k, v) -> {
                 sb.append("[").append(k).append(": ");
-                if (v instanceof String) {
+                if ("log".equals(k)) {
+                    sb.append("...");
+                } else if (v instanceof String) {
                     String s = (String) v;
                     if (s.length() > 1024) {
                         sb.append("...");

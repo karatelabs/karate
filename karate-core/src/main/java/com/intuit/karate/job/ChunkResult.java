@@ -25,27 +25,24 @@ package com.intuit.karate.job;
 
 import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author pthomas3
  */
 public class ChunkResult {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ChunkResult.class);
 
-    private final FeatureChunks parent;
+    public final FeatureScenarios parent;
     public final Scenario scenario;
     private String chunkId;
     private ScenarioResult result;
     private long startTime;
 
-    public void completeFeatureIfLast() {
-        parent.incrementCompleted();
-        if (parent.isComplete()) {
-            parent.onComplete();
-        }
-    }
-
-    public ChunkResult(FeatureChunks parent, Scenario scenario) {
+    public ChunkResult(FeatureScenarios parent, Scenario scenario) {
         this.parent = parent;
         this.scenario = scenario;
     }

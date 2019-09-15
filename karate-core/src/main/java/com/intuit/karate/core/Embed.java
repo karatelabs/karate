@@ -25,6 +25,8 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -65,6 +67,13 @@ public class Embed {
 
     public String getAsString() {
         return FileUtils.toString(bytes);
+    }
+
+    public Map toMap() {
+        Map map = new HashMap(2);
+        map.put("data", getBase64());
+        map.put("mime_type", mimeType);
+        return map;
     }
 
 }

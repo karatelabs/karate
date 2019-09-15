@@ -32,38 +32,31 @@ import java.util.List;
  *
  * @author pthomas3
  */
-public class FeatureChunks {
+public class FeatureScenarios {
 
-    public final List<Scenario> scenarios;
-    
-    private final ExecutionContext exec;    
-    public final List<ChunkResult> chunks;
+    private final ExecutionContext exec;
+    public final List<Scenario> scenarios;   
+    public final List<ChunkResult> chunks;    
     private final Runnable onComplete;
-    private final int count;
-    
-    private int completed;
 
-    public FeatureChunks(ExecutionContext exec, List<Scenario> scenarios, Runnable onComplete) {
+    public FeatureScenarios(ExecutionContext exec, List<Scenario> scenarios, Runnable onComplete) {
         this.exec = exec;
         this.scenarios = scenarios;
-        count = scenarios.size();
-        chunks = new ArrayList(count);
+        chunks = new ArrayList(scenarios.size());
         this.onComplete = onComplete;
     }
-    
-    protected int incrementCompleted() {
-        return ++completed;
-    }
 
-    protected boolean isComplete() {
-        return completed == count;
-    }
-    
     public void onComplete() {
         for (ChunkResult chunk : chunks) {
             exec.result.addResult(chunk.getResult());
         }
         onComplete.run();
+    }
+
+    @Override
+    public String toString() {
+        return exec.featureContext.feature.toString()
+                + " (" + chunks.size() + "/" + (scenarios.size() + chunks.size()) + ")";
     }
 
 }

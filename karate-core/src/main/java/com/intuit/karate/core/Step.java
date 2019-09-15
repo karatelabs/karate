@@ -59,6 +59,10 @@ public class Step {
         return "*".equals(prefix);
     }
     
+    protected Step() {
+        this(null, null, -1);
+    }
+    
     public Step(Feature feature, Scenario scenario, int index) {
         this.feature = feature;
         this.scenario = scenario;

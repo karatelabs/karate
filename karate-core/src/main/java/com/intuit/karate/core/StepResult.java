@@ -46,8 +46,7 @@ public class StepResult {
     private String stepLog;
 
     // short cut to re-use when converting from json
-    private Map<String, Object> docStringJson;
-    private List<Map> embedsJson;
+    private Map<String, Object> json;
 
     public String getErrorMessage() {
         if (result == null) {
@@ -78,48 +77,44 @@ public class StepResult {
         return map;
     }
 
-    public StepResult(Step step, Map<String, Object> map) {
-        this.step = step;
+    public StepResult(Map<String, Object> map) {
+        json = map;
+        step = new Step();
+        step.setLine((Integer) map.get("line"));
+        step.setPrefix((String) map.get("prefix"));
+        step.setText((String) map.get("name"));
         result = new Result((Map) map.get("result"));
         callResults = null;
         hidden = false;
-        docStringJson = (Map) map.get("doc_string");
-        embedsJson = (List) map.get("embeddings");
     }
 
     public Map<String, Object> toMap() {
+        if (json != null) {
+            return json;
+        }
         Map<String, Object> map = new HashMap(7);
         map.put("line", step.getLine());
         map.put("keyword", step.getPrefix());
         map.put("name", step.getText());
         map.put("result", result.toMap());
         map.put("match", DUMMY_MATCH);
-        if (docStringJson != null) {
-            map.put("doc_string", docStringJson);
-        } else {
-            StringBuilder sb = new StringBuilder();
-            if (step.getDocString() != null) {
-                sb.append(step.getDocString());
-            }
-            if (stepLog != null) {
-                if (sb.length() > 0) {
-                    sb.append('\n');
-                }
-                sb.append(stepLog);
-            }
-            if (sb.length() > 0) {
-                map.put("doc_string", docStringToMap(step.getLine(), sb.toString()));
-            }
+        StringBuilder sb = new StringBuilder();
+        if (step.getDocString() != null) {
+            sb.append(step.getDocString());
         }
-        if (embedsJson != null) {
-            map.put("embeddings", embedsJson);
-        } else if (embeds != null) {
+        if (stepLog != null) {
+            if (sb.length() > 0) {
+                sb.append('\n');
+            }
+            sb.append(stepLog);
+        }
+        if (sb.length() > 0) {
+            map.put("doc_string", docStringToMap(step.getLine(), sb.toString()));
+        }
+        if (embeds != null) {
             List<Map> embedList = new ArrayList(embeds.size());
             for (Embed embed : embeds) {
-                Map embedMap = new HashMap(2);
-                embedMap.put("data", embed.getBase64());
-                embedMap.put("mime_type", embed.getMimeType());
-                embedList.add(embedMap);
+                embedList.add(embed.toMap());
             }
             map.put("embeddings", embedList);
         }

@@ -45,9 +45,30 @@ public class ScenarioResult {
     private long endTime;
     private long durationNanos;
 
+    private Map<String, Object> backgroundJson;
+    private Map<String, Object> json;
+
     public void reset() {
         stepResults = new ArrayList();
         failedStep = null;
+    }
+
+    public void appendEmbed(Embed embed) {
+        if (json != null) {
+            List<Map<String, Object>> steps = (List) json.get("steps");
+            if (steps == null || steps.isEmpty()) {
+                return;
+            }
+            Map<String, Object> map = steps.get(steps.size() - 1);           
+            List<Map<String, Object>> embedList = (List) map.get("embeddings");
+            if (embedList == null) {
+                embedList = new ArrayList();
+                map.put("embeddings", embedList);
+            }
+            embedList.add(embed.toMap());
+        } else {
+            getLastStepResult().addEmbed(embed);
+        }
     }
     
     public StepResult getLastStepResult() {
@@ -146,6 +167,9 @@ public class ScenarioResult {
     }
 
     public Map<String, Object> backgroundToMap() {
+        if (backgroundJson != null) {
+            return backgroundJson;
+        }
         Map<String, Object> map = new HashMap();
         map.put("name", "");
         map.put("steps", getStepResults(true));
@@ -157,6 +181,9 @@ public class ScenarioResult {
     }
 
     public Map<String, Object> toMap() {
+        if (json != null) {
+            return json;
+        }
         Map<String, Object> map = new HashMap();
         map.put("name", scenario.getName());
         map.put("steps", getStepResults(false));
@@ -178,45 +205,31 @@ public class ScenarioResult {
         }
     }
 
-    // for converting cucumber-json to result server-executor mode
-    public ScenarioResult(Scenario scenario, List<Map<String, Object>> list, boolean dummy) {
-        this.scenario = scenario;
-        Map<String, Object> backgroundMap;
-        Map<String, Object> scenarioMap;
-        if (list.size() > 1) {
-            backgroundMap = list.get(0);
-            scenarioMap = list.get(1);
-        } else {
-            backgroundMap = null;
-            scenarioMap = list.get(0);
+    private void addStepsFromJson(Map<String, Object> parentJson) {
+        if (parentJson == null) {
+            return;
         }
-        if (backgroundMap != null) {
-            list = (List) backgroundMap.get("steps");
-            for (Map<String, Object> stepMap : list) {
-                Integer line = (Integer) stepMap.get("line");
-                if (line == null) {
-                    continue;
-                }
-                Step step = scenario.getStepByLine(line);
-                if (step == null) {
-                    continue;
-                }
-                // this method does calculations
-                addStepResult(new StepResult(step, stepMap));
-            }
+        List<Map<String, Object>> list = (List) parentJson.get("steps");
+        if (list == null) {
+            return;
         }
-        list = (List) scenarioMap.get("steps");
         for (Map<String, Object> stepMap : list) {
-            Integer line = (Integer) stepMap.get("line");
-            if (line == null) {
-                continue;
+            addStepResult(new StepResult(stepMap));
+        }
+    }
+
+    // for converting cucumber-json to result server-executor mode
+    public ScenarioResult(Scenario scenario, List<Map<String, Object>> jsonList, boolean dummy) {
+        this.scenario = scenario;
+        if (jsonList != null && !jsonList.isEmpty()) {
+            if (jsonList.size() > 1) {
+                backgroundJson = jsonList.get(0);
+                json = jsonList.get(1);
+            } else {
+                json = jsonList.get(0);
             }
-            Step step = scenario.getStepByLine(line);
-            if (step == null) {
-                continue;
-            }
-            // this method does calculations
-            addStepResult(new StepResult(step, stepMap));
+            addStepsFromJson(backgroundJson);
+            addStepsFromJson(json);
         }
     }
 

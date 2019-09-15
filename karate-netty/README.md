@@ -179,7 +179,7 @@ If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists i
 java -Dkarate.config.dir=parentdir/somedir -jar karate.jar my-test.feature
 ```
 
-If you want to pass any custom or environment variables, make sure they are *before* the `-jar` part else they are will not be passed to the JVM. For example:
+If you want to pass any custom or environment variables, make sure they are *before* the `-jar` part else they will not be passed to the JVM. For example:
 
 ```cucumber
 java -Dfoo=bar -Dbaz=ban -jar karate.jar my-test.feature
@@ -206,7 +206,7 @@ java -jar karate.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
 ```
 
 #### Clean
-The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` option.
+The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` or `--clean` option.
 
 ```
 java -jar karate.jar -T 5 -t ~@ignore -C src/features

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 public class WebDockerRunner {
 
     @Test
-    public void testJobManager() {
+    void testJobManager() {
         
         int width = 1366;
         int height = 768;

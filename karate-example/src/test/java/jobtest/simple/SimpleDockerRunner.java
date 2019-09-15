@@ -18,11 +18,9 @@ import org.junit.jupiter.api.Test;
  */
 public class SimpleDockerRunner {
 
-    private final int executorCount = 2;
-
     @Test
-    public void testJobManager() {
-
+    void testJobManager() {
+        int executorCount = 2;
         MavenJobConfig config = new MavenJobConfig("host.docker.internal", 0) {
             @Override
             public void startExecutors(String jobId, String jobUrl) {
