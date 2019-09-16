@@ -27,6 +27,7 @@ import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.android.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
@@ -478,6 +479,12 @@ public class DriverOptions {
     public void embedPngImage(byte[] bytes) {
         if (context != null) { // can be null if chrome java api
             context.embed(bytes, "image/png");
+        }
+    }
+
+    public void embedContent(Embed embed) {
+        if (context != null) {
+            context.embed(embed);
         }
     }
 
