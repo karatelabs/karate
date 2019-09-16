@@ -149,7 +149,7 @@
 <tr>
   <th>Appium</th>
   <td>
-      <a href="#screen-recording">screen recording</a>
+      <a href="#screen-recording">Screen Recording</a>
     | <a href="#hideKeyboard"><code>hideKeyboard()</code></a>
   </td> 
 </tr>
@@ -1344,7 +1344,7 @@ Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](
 
 # Appium
 
-## `screen recording`
+## `Screen Recording`
 Only supported for driver type [`android | ios`](#driver-types).
 ```cucumber
 * driver.startRecordingScreen()

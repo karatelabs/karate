@@ -878,10 +878,7 @@ public class ScenarioContext {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
-        if (prevEmbeds == null) {
-            prevEmbeds = new ArrayList();
-        }
-        prevEmbeds.add(embed);
+        embed(embed);
     }
 
     public void embed(Embed embed) {
