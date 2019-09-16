@@ -253,8 +253,10 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 break;
             case "restart":
                 ScenarioContext context = FRAMES.get(focusedFrameId);
-                if (context != null) {
-                    context.hotReload();
+                if (context != null && context.hotReload()) {
+                    output("[debug] hot reload successful");
+                } else {
+                    output("[debug] hot reload requested, but no steps edited");
                 }
                 ctx.write(response(req));
                 break;

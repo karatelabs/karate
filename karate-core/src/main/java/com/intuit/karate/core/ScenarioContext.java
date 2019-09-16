@@ -218,7 +218,8 @@ public class ScenarioContext {
         return classLoader.getResourceAsStream(name);
     }
 
-    public void hotReload() {
+    public boolean hotReload() {
+        boolean success  = false;
         Scenario scenario = executionUnit.scenario;
         Feature feature = scenario.getFeature();
         feature = FeatureParser.parse(feature.getResource());
@@ -233,11 +234,13 @@ public class ScenarioContext {
                 try {
                     FeatureParser.updateStepFromText(oldStep, newStep.getText());
                     logger.info("hot reload success for line: {} - {}", newStep.getLine(), newStep.getText());
+                    success = true;
                 } catch (Exception e) {
                     logger.warn("failed to hot reload step: {}", e.getMessage());
                 }
             }
         }
+        return success;
     }
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
