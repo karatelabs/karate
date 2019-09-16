@@ -233,7 +233,7 @@ public class ScenarioContext {
             if (!oldText.equals(newText)) {
                 try {
                     FeatureParser.updateStepFromText(oldStep, newStep.getText());
-                    logger.info("hot reload success for line: {} - {}", newStep.getLine(), newStep.getText());
+                    logger.info("hot reloaded line: {} - {}", newStep.getLine(), newStep.getText());
                     success = true;
                 } catch (Exception e) {
                     logger.warn("failed to hot reload step: {}", e.getMessage());
