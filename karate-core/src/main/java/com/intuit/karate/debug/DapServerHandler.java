@@ -324,6 +324,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 -> channel.writeAndFlush(event("exited")
                         .body("exitCode", 0)));
         server.stop();
+        System.exit(0);
     }
 
     protected long nextFrameId() {
