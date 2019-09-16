@@ -67,7 +67,7 @@ public class DockerTarget implements Target {
                 sb.append(" -p ").append(vncPort).append(":5900");
             }
             if (imageId != null) {
-                if (imageId.startsWith("justinribeiro/chrome-headless")) {
+                if (imageId.contains("/chrome-headless")) {
                     command = p -> sb.toString() + " -p " + p + ":9222 " + imageId;
                 } else if (imageId.contains("/karate-chrome")) {
                     karateChrome = true;
