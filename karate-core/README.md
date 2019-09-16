@@ -146,6 +146,13 @@
     | <a href="#screenshotfull"><code>screenshotFull()</code></a>
   </td> 
 </tr>
+<tr>
+  <th>Appium</th>
+  <td>
+      <a href="#screen-recording">screen recording</a>
+    | <a href="#hideKeyboard"><code>hideKeyboard()</code></a>
+  </td> 
+</tr>
 </table>
 
 ## Capabilities
@@ -1334,3 +1341,19 @@ Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](
 
 ## `pdf()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
+
+# Appium
+
+## `screen recording`
+Only supported for driver type [`android | ios`](#driver-types).
+```cucumber
+* driver.startRecordingScreen()
+# test
+* driver.saveRecordingScreen("invoice.mp4",true)
+```
+above example would save the file and perform "auto-embedding" to HTML report.
+
+you can also use `startRecordingScreen()` and `stopRecordingScreen()`, both takes recording options as JSON input.
+
+## `hideKeyboard()`
+Only supported for driver type [`android | ios`](#driver-types), for hide soft keyboard.

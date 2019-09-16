@@ -127,7 +127,7 @@ public abstract class AppiumDriver extends WebDriver {
                         + "cucumber-html-reports" + File.separator + System.currentTimeMillis() + ".mp4";
                 File dest = new File(path);
                 FileUtils.copy(src, dest);
-                options.embedMp4Video(Embed.forVideoFile(dest.getName()));
+                options.embedContent(Embed.forVideoFile(dest.getName()));
             }
         }
     }

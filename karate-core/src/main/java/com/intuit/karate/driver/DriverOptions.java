@@ -482,7 +482,7 @@ public class DriverOptions {
         }
     }
 
-    public void embedMp4Video(Embed embed) {
+    public void embedContent(Embed embed) {
         if (context != null) {
             context.embed(embed);
         }
