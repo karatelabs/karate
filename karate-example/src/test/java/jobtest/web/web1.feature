@@ -1,8 +1,5 @@
 Feature: web 1
 
-  Background:
-    * configure driver = { type: 'chrome', showDriverLog: true, start: false }
-
   Scenario: try to login to github
   and then do a google search
 

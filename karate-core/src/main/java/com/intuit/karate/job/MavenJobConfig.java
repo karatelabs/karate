@@ -35,17 +35,30 @@ import java.util.Map;
  *
  * @author pthomas3
  */
-public abstract class MavenJobConfig implements JobConfig {
+public class MavenJobConfig implements JobConfig {
 
+    private final int executorCount;
     private final String host;
     private final int port;
     private final List<String> sysPropKeys = new ArrayList(1);
     private final List<String> envPropKeys = new ArrayList(1);
 
-    public MavenJobConfig(String host, int port) {
+    protected String dockerImage = "ptrthomas/karate-chrome";
+
+    public MavenJobConfig(int executorCount, String host, int port) {
+        this.executorCount = executorCount;
         this.host = host;
         this.port = port;
         sysPropKeys.add("karate.env");
+    }
+
+    @Override
+    public String getExecutorCommand(String jobId, String jobUrl, int index) {
+        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl + " " + dockerImage;
+    }
+
+    public void setDockerImage(String dockerImage) {
+        this.dockerImage = dockerImage;
     }
 
     public void addSysPropKey(String key) {
@@ -54,6 +67,11 @@ public abstract class MavenJobConfig implements JobConfig {
 
     public void addEnvPropKey(String key) {
         envPropKeys.add(key);
+    }
+
+    @Override
+    public int getExecutorCount() {
+        return executorCount;
     }
 
     @Override
@@ -85,6 +103,11 @@ public abstract class MavenJobConfig implements JobConfig {
     @Override
     public List<JobCommand> getStartupCommands() {
         return Collections.singletonList(new JobCommand("mvn test-compile"));
+    }
+
+    @Override
+    public List<JobCommand> getShutdownCommands() {
+        return Collections.singletonList(new JobCommand("supervisorctl shutdown"));
     }
 
     @Override

@@ -130,14 +130,16 @@ public class Runner {
 
         public Builder resources(Collection<Resource> resources) {
             if (resources != null) {
+                if (this.resources == null) {
+                    this.resources = new ArrayList();
+                }
                 this.resources.addAll(resources);
             }
             return this;
         }
 
         public Builder resources(Resource... resources) {
-            this.resources.addAll(Arrays.asList(resources));
-            return this;
+            return resources(Arrays.asList(resources));
         }
 
         public Builder forClass(Class clazz) {

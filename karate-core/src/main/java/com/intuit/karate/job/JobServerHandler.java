@@ -151,7 +151,7 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
             case "download":
                 JobMessage download = new JobMessage("download");
                 download.setBytes(server.getZipBytes());
-                int executorId = server.executorCount.getAndIncrement();
+                int executorId = server.executorCounter.getAndIncrement();
                 download.setExecutorId(executorId + "");
                 return download;
             case "init":

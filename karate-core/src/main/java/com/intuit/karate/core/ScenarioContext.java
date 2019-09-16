@@ -1005,6 +1005,7 @@ public class ScenarioContext {
                         FileUtils.copy(src, dest);
                         Embed embed = Embed.forVideoFile(dest.getName());
                         lastStepResult.addEmbed(embed);
+                        logger.debug("appended video to report: {}", dest.getPath());
                     }
                 }
             }

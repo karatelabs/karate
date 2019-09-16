@@ -68,8 +68,8 @@ public class JobServer {
     protected final String jobId;
     protected final String jobUrl;
     protected final String reportDir;
-    protected final AtomicInteger executorCount = new AtomicInteger(1);
-    private final AtomicInteger chunkCount = new AtomicInteger();
+    protected final AtomicInteger executorCounter = new AtomicInteger(1);
+    private final AtomicInteger chunkCounter = new AtomicInteger();
 
     private final Channel channel;
     private final int port;
@@ -121,7 +121,7 @@ public class JobServer {
                 }
                 LOGGER.info("features queued: {}", FEATURE_QUEUE);
                 ChunkResult chunk = new ChunkResult(feature, scenario);
-                String chunkId = chunkCount.incrementAndGet() + "";
+                String chunkId = chunkCounter.incrementAndGet() + "";
                 chunk.setChunkId(chunkId);
                 chunk.setStartTime(System.currentTimeMillis());
                 feature.chunks.add(chunk);
@@ -176,7 +176,8 @@ public class JobServer {
                 FileUtils.copy(videoFile, dest);
                 sr.appendEmbed(Embed.forVideoFile(dest.getName()));
             }
-            if (cr.parent.scenarios.isEmpty()) {
+            if (cr.parent.isComplete()) {
+                LOGGER.info("feature complete, calling onComplete(): {}", cr.parent);
                 cr.parent.onComplete();
             }
         }
@@ -201,7 +202,7 @@ public class JobServer {
         LOGGER.info("stop: shutdown complete");
     }
 
-    public JobServer(JobConfig config, String reportDir) {
+    public JobServer(JobConfig config, String reportDir) {        
         this.config = config;
         this.reportDir = reportDir;
         jobId = System.currentTimeMillis() + "";
@@ -220,7 +221,8 @@ public class JobServer {
                         @Override
                         protected void initChannel(Channel c) {
                             ChannelPipeline p = c.pipeline();
-                            p.addLast(new HttpServerCodec());
+                            // just to make header size more than the default
+                            p.addLast(new HttpServerCodec(4096, 12288, 8192));
                             p.addLast(new HttpObjectAggregator(1048576));
                             p.addLast(new JobServerHandler(JobServer.this));
                         }

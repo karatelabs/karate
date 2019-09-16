@@ -23,9 +23,13 @@
  */
 package com.intuit.karate.job;
 
+import com.intuit.karate.shell.Command;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -36,6 +40,12 @@ public interface JobConfig {
     String getHost();
 
     int getPort();
+    
+    int getExecutorCount();
+    
+    default int getTimeoutMinutes() {
+        return -1;
+    }
 
     default String getSourcePath() {
         return "";
@@ -45,7 +55,24 @@ public interface JobConfig {
         return null;
     }
 
-    void startExecutors(String jobId, String jobUrl) throws Exception;
+    String getExecutorCommand(String jobId, String jobUrl, int index);
+
+    default void startExecutors(String jobId, String jobUrl) throws Exception {
+        int count = getExecutorCount();
+        if (count <= 0) {
+            return;
+        }
+        ExecutorService executor = Executors.newFixedThreadPool(count);
+        for (int i = 0; i < count; i++) {
+            int index = i;
+            executor.submit(() -> Command.execLine(null, getExecutorCommand(jobId, jobUrl, index)));
+        }
+        executor.shutdown();
+        int timeout = getTimeoutMinutes();
+        if (timeout > 0) {
+            executor.awaitTermination(timeout, TimeUnit.MINUTES);
+        }
+    }
 
     Map<String, String> getEnvironment();
 

@@ -34,14 +34,11 @@ COPY supervisord.conf /etc
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
-ADD target/karate.jar /opt/karate/karate.jar
+ADD target/karate.jar /
 ADD target/repository /root/.m2/repository
 
 VOLUME ["/home/chrome"]
 
 EXPOSE 5900 9222
-
-ENV KARATE_WIDTH 1366
-ENV KARATE_HEIGHT 768
 
 CMD ["/bin/bash", "/entrypoint.sh"]

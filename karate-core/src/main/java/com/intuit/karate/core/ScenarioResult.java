@@ -166,9 +166,12 @@ public class ScenarioResult {
         return list;
     }
 
-    public Map<String, Object> backgroundToMap() {
+    public Map<String, Object> backgroundToMap() {        
         if (backgroundJson != null) {
             return backgroundJson;
+        }
+        if (!scenario.getFeature().isBackgroundPresent()) {
+            return null;
         }
         Map<String, Object> map = new HashMap();
         map.put("name", "");

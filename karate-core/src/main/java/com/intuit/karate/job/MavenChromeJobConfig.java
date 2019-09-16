@@ -23,52 +23,49 @@
  */
 package com.intuit.karate.job;
 
-import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.Scenario;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  *
  * @author pthomas3
  */
-public class FeatureScenarios {
-
-    private final ExecutionContext exec;
-    public final List<Scenario> scenarios;   
-    public final List<ChunkResult> chunks;    
-    private final Runnable onComplete;
-
-    public FeatureScenarios(ExecutionContext exec, List<Scenario> scenarios, Runnable onComplete) {
-        this.exec = exec;
-        this.scenarios = scenarios;
-        chunks = new ArrayList(scenarios.size());
-        this.onComplete = onComplete;
-    }
+public class MavenChromeJobConfig extends MavenJobConfig {
     
-    public boolean isComplete() {
-        if (!scenarios.isEmpty()) {
-            return false;
-        }
-        for (ChunkResult cr : chunks) {
-            if (cr.getResult() == null) {
-                return false;
-            }
-        }
-        return true;
+    private int width = 1366;
+    private int height = 768;
+    
+    public MavenChromeJobConfig(int executorCount, String host, int port) {
+        super(executorCount, host, port);
     }
 
-    public void onComplete() {
-        for (ChunkResult chunk : chunks) {
-            exec.result.addResult(chunk.getResult());
-        }
-        onComplete.run();
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
+    public void setHeight(int height) {
+        this.height = height;
+    }        
+
+    @Override
+    public String getExecutorCommand(String jobId, String jobUrl, int index) {
+        return "docker run --rm --cap-add=SYS_ADMIN -e KARATE_JOBURL=" + jobUrl
+                                + " -e KARATE_WIDTH=" + width + " -e KARATE_HEIGHT=" + height
+                                + " " + dockerImage;
+    }        
+
+    @Override
+    public List<JobCommand> getPreCommands(JobContext jc) {
+        return Collections.singletonList(new JobCommand("supervisorctl start ffmpeg"));
     }
 
     @Override
-    public String toString() {
-        return exec.featureContext.feature.toString()
-                + " (" + chunks.size() + "/" + (scenarios.size() + chunks.size()) + ")";
+    public List<JobCommand> getPostCommands(JobContext jc) {
+        List<JobCommand> list = new ArrayList();
+        list.add(new JobCommand("supervisorctl stop ffmpeg"));
+        list.add(new JobCommand("mv /tmp/karate.mp4 " + jc.getUploadDir()));
+        return list;
     }
 
 }
