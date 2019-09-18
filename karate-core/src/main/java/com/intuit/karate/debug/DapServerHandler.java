@@ -122,7 +122,12 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             if (v != null) {
                 Map<String, Object> map = new HashMap();
                 map.put("name", k);
-                map.put("value", v.getAsString());
+                try {
+                    map.put("value", v.getAsString());
+                } catch (Exception e) {
+                    logger.warn("unable to convert to string: {} - {}", k, v);
+                    map.put("value", "(unknown)");
+                }
                 map.put("type", v.getTypeAsShortString());
                 // if > 0 , this can be used  by client to request more info
                 map.put("variablesReference", 0);

@@ -53,7 +53,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
     public final long id;
     public final String name;
     public final Thread thread;
-    public final Stack<Long> stack = new Stack();    
+    public final Stack<Long> stack = new Stack();
     private final Map<Integer, Boolean> stepModes = new HashMap();
     public final DapServerHandler handler;
 
@@ -62,6 +62,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
     private boolean paused;
     private boolean interrupted;
     private boolean stopped;
+    private boolean errored;
 
     private final String appenderPrefix;
     private LogAppender appender = LogAppender.NO_OP;
@@ -80,8 +81,8 @@ public class DebugThread implements ExecutionHook, LogAppender {
 
     private boolean stop(String reason) {
         return stop(reason, null);
-    }    
-    
+    }
+
     private boolean stop(String reason, String description) {
         handler.stopEvent(id, reason, description);
         stopped = true;
@@ -93,17 +94,16 @@ public class DebugThread implements ExecutionHook, LogAppender {
                 interrupted = true;
                 return false; // exit all the things
             }
-        }        
+        }
         handler.continueEvent(id);
         // if we reached here - we have "resumed"
+        // the stepBack logic is a little faulty and can only be called BEFORE beforeStep() (yes 2 befores)
         if (stepBack) { // don't clear flag yet !
-            ScenarioContext context = getContext();
-            context.getExecutionUnit().stepBack();
+            getContext().getExecutionUnit().stepBack();
             return false; // abort and do not execute step !
-        }
+        }        
         if (stopped) {
-            ScenarioContext context = getContext();
-            context.getExecutionUnit().stepReset();
+            getContext().getExecutionUnit().stepReset();
             return false;
         }
         return true;
@@ -148,6 +148,10 @@ public class DebugThread implements ExecutionHook, LogAppender {
         if (paused) {
             paused = false;
             return stop("pause");
+        } else if (errored) {
+            errored = false;            
+            context.getExecutionUnit().stepReset();
+            return false; // TODO we have to click on the next button twice
         } else if (stepBack) {
             stepBack = false;
             return stop("step");
@@ -169,8 +173,11 @@ public class DebugThread implements ExecutionHook, LogAppender {
     @Override
     public void afterStep(StepResult result, ScenarioContext context) {
         if (result.getResult().isFailed()) {
-            handler.output("*** step failed: " + result.getErrorMessage() + "\n");
-            stop("exception", result.getErrorMessage());
+            String errorMessage = result.getErrorMessage();
+            getContext().getExecutionUnit().stepReset();
+            handler.output("*** step failed: " + errorMessage + "\n");
+            stop("exception", errorMessage);
+            errored = true;
         }
     }
 
@@ -182,11 +189,11 @@ public class DebugThread implements ExecutionHook, LogAppender {
         stepModes.clear();
         return this;
     }
-    
+
     protected DebugThread step() {
         stepModes.put(stack.size(), true);
         return this;
-    }    
+    }
 
     protected DebugThread stepOut() {
         int stackSize = stack.size();
@@ -200,8 +207,8 @@ public class DebugThread implements ExecutionHook, LogAppender {
     protected boolean isStepMode() {
         Boolean stepMode = stepModes.get(stack.size());
         return stepMode == null ? false : stepMode;
-    }        
-    
+    }
+
     protected DebugThread stepIn() {
         this.stepIn = true;
         return this;

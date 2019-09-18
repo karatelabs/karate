@@ -24,7 +24,8 @@
 package com.intuit.karate.driver;
 
 /**
- *
+ * TODO make this convert-able to JSON
+ * 
  * @author pthomas3
  */
 public class DriverElement implements Element {
@@ -51,7 +52,7 @@ public class DriverElement implements Element {
     @Override
     public String getLocator() {
         return locator;
-    }
+    }            
 
     @Override
     public boolean isExists() {

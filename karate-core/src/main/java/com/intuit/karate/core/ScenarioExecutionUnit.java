@@ -247,6 +247,7 @@ public class ScenarioExecutionUnit implements Runnable {
     private int stepIndex;
 
     public void stepBack() {
+        stopped = false;
         stepIndex -= 2;
         if (stepIndex < 0) {
             stepIndex = 0;
@@ -254,6 +255,7 @@ public class ScenarioExecutionUnit implements Runnable {
     }
     
     public void stepReset() {
+        stopped = false;
         stepIndex--;
         if (stepIndex < 0) {
             stepIndex = 0;
