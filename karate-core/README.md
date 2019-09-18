@@ -1230,9 +1230,9 @@ Plural form of the above.
 ```
 
 # Debugging
-You can use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1065602097591156736).
+You can use the [Visual Studio Karate entension](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1167533484560142336).
 
-But many a time, you would like to pause a test in the middle of a flow and look at the browser developer tools to see what CSS selectors you need to use. For this you can use [`karate.stop()`](../#karate-stop) - but of course, *NEVER* forget to remove this before you move on to something else !
+When you are in a hurry, you can pause a test in the middle of a flow just to look at the browser developer tools to see what CSS selectors you need to use. For this you can use [`karate.stop()`](../#karate-stop) - but of course, *NEVER* forget to remove this before you move on to something else !
 
 ```cucumber
 * karate.stop()

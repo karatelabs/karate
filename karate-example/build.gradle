@@ -9,6 +9,7 @@ ext {
 dependencies {
     testCompile "com.intuit.karate:karate-junit5:${karateVersion}"
     testCompile "com.intuit.karate:karate-apache:${karateVersion}"
+    testCompile "net.masterthought:cucumber-reporting:3.8.0"
 }
 
 sourceSets {

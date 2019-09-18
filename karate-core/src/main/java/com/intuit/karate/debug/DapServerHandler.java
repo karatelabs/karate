@@ -75,6 +75,19 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     }
 
     private static final String TEST_CLASSES = "/test-classes/";
+    private static final String CLASSES_TEST = "/classes/java/test/";
+    
+    private static int findPos(String path) {
+        int pos = path.indexOf(TEST_CLASSES);
+        if (pos != -1) {
+            return pos + TEST_CLASSES.length();
+        }
+        pos = path.indexOf(CLASSES_TEST);
+        if (pos != -1) {
+            return pos + CLASSES_TEST.length();
+        }
+        return -1;
+    }
 
     private SourceBreakpoints lookup(String pathEnd) {
         for (Map.Entry<String, SourceBreakpoints> entry : BREAKPOINTS.entrySet()) {
@@ -87,10 +100,10 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     protected boolean isBreakpoint(Step step, int line) {
         String path = step.getFeature().getPath().toString();
-        int pos = path.indexOf(TEST_CLASSES);
+        int pos = findPos(path);
         SourceBreakpoints sb;
         if (pos != -1) {
-            sb = lookup(path.substring(pos + TEST_CLASSES.length()));
+            sb = lookup(path.substring(pos));
         } else {
             sb = BREAKPOINTS.get(path);
         }
