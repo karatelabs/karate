@@ -160,7 +160,7 @@ Scenario Outline: using <config>
   And match driver.url == webUrlBase + '/page-03'
 
   # get html for all elements that match css selector
-  When def list = scripts('div#eg01 div', '_.innerHTML')
+  When def list = scriptAll('div#eg01 div', '_.innerHTML')
   Then match list == '#[4]'
   And match each list contains '@@data'
 
@@ -173,27 +173,27 @@ Scenario Outline: using <config>
   And match each list contains '@@data'
 
   # get html for all elements that match xpath selector
-  When def list = scripts('//option', '_.innerHTML')
+  When def list = scriptAll('//option', '_.innerHTML')
   Then match list == '#[3]'
   And match each list contains 'Option'
 
   # get text for all elements that match css selector
-  When def list = scripts('div#eg01 div', '_.textContent')
+  When def list = scriptAll('div#eg01 div', '_.textContent')
   Then match list == '#[4]'
   And match each list contains '@@data'
 
   # get text for all elements that match xpath selector
-  When def list = scripts('//option', '_.textContent')
+  When def list = scriptAll('//option', '_.textContent')
   Then match list == '#[3]'
   And match each list contains 'Option'
 
   # get value for all elements that match css selector
-  When def list = scripts("input[name='data2']", '_.value')
+  When def list = scriptAll("input[name='data2']", '_.value')
   Then match list == '#[3]'
   And match each list contains 'check'
 
   # get value for all elements that match xpath selector
-  When def list = scripts("//input[@name='data2']", '_.value')
+  When def list = scriptAll("//input[@name='data2']", '_.value')
   Then match list == '#[3]'
   And match each list contains 'check'
 

@@ -96,6 +96,7 @@
     | <a href="#scroll"><code>scroll()</code></a>
     | <a href="#mouse"><code>mouse()</code></a>
     | <a href="#highlight"><code>highlight()</code></a>
+    | <a href="#highlightall"><code>highlightAll()</code></a>
   </td>
 </tr>
 <tr>
@@ -124,7 +125,7 @@
     | <a href="#waituntil"><code>waitUntil()</code></a>    
     | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
-    | <a href="#scripts"><code>scripts()</code></a>
+    | <a href="#scriptall"><code>scriptAll()</code></a>
     | <a href="#karate-vs-the-browser">Karate vs the Browser</a>
   </td>
 </tr>
@@ -175,7 +176,7 @@
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
 * Elegant syntax for typical web-automation challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element to appear](#waitfor)
-* Execute JavaScript in the browser with [one-liners](#script) - for example to [get data out of an HTML table](#scripts)
+* Execute JavaScript in the browser with [one-liners](#script) - for example to [get data out of an HTML table](#scriptall)
 * [Compose re-usable functions](#function-composition) based on your specific environment or application needs
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
 * Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
@@ -190,7 +191,7 @@
   * use a friendly [wildcard locator](#wildcard-locators)
   * wait for an element to [be ready](#waitfor)
   * [compose functions](#function-composition) for elegant *custom* "wait" logic
-  * assert on tabular [results in the HTML](#scripts)
+  * assert on tabular [results in the HTML](#scriptall)
 * [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
 
 ## Windows
@@ -857,7 +858,7 @@ A very powerful and useful way to wait until the *number* of elements that match
 
 Most of the time, you just want to wait until a certain number of matching elements, and then move on with your flow, and in that case, the above is sufficient. If you need to actually do something with each returned `Element`, see [`findAll()`](#findall) or the option below.
 
-The second variant takes a third argument, which is going to do the same thing as the [`scripts()`](#scripts) method:
+The second variant takes a third argument, which is going to do the same thing as the [`scriptAll()`](#scriptall) method:
 
 ```cucumber
   When def list = waitForResultCount('div#eg01 div', 4, '_.innerHTML')
@@ -964,7 +965,7 @@ Also see [`waitForEnabled()`](#waitforenabled) which is the preferred short-cut 
 ### `waitUntil(function)`
 A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
 
-This is best explained with an example. Note that [`scripts()`](#scripts) will return an array, as opposed to [`script()`](#script).
+This is best explained with an example. Note that [`scriptAll()`](#scriptall) will return an array, as opposed to [`script()`](#script).
 
 ```cucumber
 When search.input('karate-logo.png')
@@ -973,7 +974,7 @@ When search.input('karate-logo.png')
 And def searchFunction =
   """
   function() {
-    var results = scripts('.js-tree-browser-result-path', '_.innerText');
+    var results = scriptAll('.js-tree-browser-result-path', '_.innerText');
     return results.size() == 2 ? results : null;
   }
   """
@@ -992,7 +993,7 @@ The above example can be re-factored in a very elegant way as follows, using Kar
 
 ```cucumber
 # this can be a global re-usable function !
-And def innerText = function(locator){ return scripts(locator, '_.innerText') }
+And def innerText = function(locator){ return scriptAll(locator, '_.innerText') }
 
 # we compose a function using another function (the one above)
 And def searchFunction =
@@ -1078,14 +1079,14 @@ And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 
 Normally you would use [`text()`](#text) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`waitUntil()`](#waituntil).
 
-Also see the plural form [`scripts()`](#scripts).
+Also see the plural form [`scriptAll()`](#scriptall).
 
-## `scripts()`
+## `scriptAll()`
 Just like [`script()`](#script), but will perform the script `eval()` on *all* matching elements (not just the first) - and return the results as a JSON array / list. This is very useful for "bulk-scraping" data out of the HTML (such as `<table>` rows) - which you can then proceed to use in [`match`](https://github.com/intuit/karate#match) assertions:
 
 ```cucumber
 # get text for all elements that match css selector
-When def list = scripts('div div', '_.textContent')
+When def list = scriptAll('div div', '_.textContent')
 Then match list == '#[3]'
 And match each list contains '@@data'
 ```
@@ -1215,10 +1216,17 @@ If you want to disable the "auto-embedding" into the HTML report, pass an additi
 ```
 
 ## `highlight()`
-To visually highlight an element in the browser, especially useful when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
+To visually highlight an element in the browser, especially useful when working in the [debugger](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin).
 
 ```cucumber
 * highlight('#eg01DivId')
+```
+
+## `highlightAll()`
+Plural form of the above.
+
+```cucumber
+* highlightAll('input')
 ```
 
 # Debugging

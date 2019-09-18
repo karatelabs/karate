@@ -364,13 +364,18 @@ public class DriverOptions {
         return "(function(){ " + text + " })()";
     }
 
-    public String highlighter(String locator) {
+    private static final String HIGHLIGHT_FN = "function(e){ var old = e.getAttribute('style');"
+            + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
+            + " setTimeout(function(){ e.setAttribute('style', old) }, 3000) }";
+
+    public String highlight(String locator) {
         String e = selector(locator);
-        String temp = "var e = " + e + ";"
-                + " var old = e.getAttribute('style');"
-                + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
-                + " setTimeout(function(){ e.setAttribute('style', old) }, 3000);";
+        String temp = "var e = " + e + "; var fun = " + HIGHLIGHT_FN + "; fun(e)";
         return wrapInFunctionInvoke(temp);
+    }
+
+    public String highlightAll(String locator) {
+        return scriptAllSelector(locator, HIGHLIGHT_FN);
     }
 
     public String optionSelector(String id, String text) {
@@ -403,12 +408,12 @@ public class DriverOptions {
         return (first == '_' || first == '!') ? "function(_){ return " + expression + " }" : expression;
     }
 
-    public String selectorScript(String locator, String expression) {
+    public String scriptSelector(String locator, String expression) {
         String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator) + "; return fun(e)";
         return wrapInFunctionInvoke(temp);
     }
 
-    public String selectorAllScript(String locator, String expression) {
+    public String scriptAllSelector(String locator, String expression) {
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
         }
@@ -510,7 +515,7 @@ public class DriverOptions {
 
     public Element waitUntil(Driver driver, String locator, String expression) {
         long startTime = System.currentTimeMillis();
-        String js = selectorScript(locator, expression);
+        String js = scriptSelector(locator, expression);
         boolean found = driver.waitUntil(js);
         if (!found) {
             long elapsedTime = System.currentTimeMillis() - startTime;
@@ -577,7 +582,7 @@ public class DriverOptions {
     }
 
     public List<Element> findAll(Driver driver, String locator) {
-        List<String> list = driver.scripts(locator, DriverOptions.KARATE_REF_GENERATOR);
+        List<String> list = driver.scriptAll(locator, DriverOptions.KARATE_REF_GENERATOR);
         List<Element> elements = new ArrayList(list.size());
         for (String karateRef : list) {
             String karateLocator = karateLocator(karateRef);

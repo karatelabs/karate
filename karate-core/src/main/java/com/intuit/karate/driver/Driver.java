@@ -156,17 +156,17 @@ public interface Driver {
     default Element waitForEnabled(String locator) {
         return waitUntil(locator, "!_.disabled");
     }
-    
+
     default List<Element> waitForResultCount(String locator, int count) {
         return (List) waitUntil(() -> {
             List<Element> list = findAll(locator);
             return list.size() == count ? list : null;
-        });        
+        });
     }
 
     default List waitForResultCount(String locator, int count, String expression) {
         return (List) waitUntil(() -> {
-            List list = scripts(locator, expression);
+            List list = scriptAll(locator, expression);
             return list.size() == count ? list : null;
         });
     }
@@ -197,8 +197,12 @@ public interface Driver {
     }
 
     default Element highlight(String locator) {
-        script(getOptions().highlighter(locator));
+        script(getOptions().highlight(locator));
         return DriverElement.locatorExists(this, locator);
+    }
+
+    default void highlightAll(String locator) {
+        script(getOptions().highlightAll(locator));
     }
 
     // friendly locators =======================================================
@@ -270,12 +274,12 @@ public interface Driver {
     }
 
     default Object script(String locator, String expression) {
-        String js = getOptions().selectorScript(locator, expression);
+        String js = getOptions().scriptSelector(locator, expression);
         return script(js);
     }
 
-    default List scripts(String locator, String expression) {
-        String js = getOptions().selectorAllScript(locator, expression);
+    default List scriptAll(String locator, String expression) {
+        String js = getOptions().scriptAllSelector(locator, expression);
         return (List) script(js);
     }
 
