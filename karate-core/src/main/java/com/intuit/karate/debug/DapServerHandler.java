@@ -65,7 +65,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     private Thread runnerThread;
 
     private final Map<String, SourceBreakpoints> BREAKPOINTS = new ConcurrentHashMap();
-    protected final Map<Long, DebugThread> THREADS = new ConcurrentHashMap();    
+    protected final Map<Long, DebugThread> THREADS = new ConcurrentHashMap();
     protected final Map<Long, ScenarioContext> FRAMES = new ConcurrentHashMap();
 
     private String launchCommand;
@@ -74,9 +74,26 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         this.server = server;
     }
 
+    private static final String TEST_CLASSES = "/test-classes/";
+
+    private SourceBreakpoints lookup(String pathEnd) {
+        for (Map.Entry<String, SourceBreakpoints> entry : BREAKPOINTS.entrySet()) {
+            if (entry.getKey().endsWith(pathEnd)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
     protected boolean isBreakpoint(Step step, int line) {
         String path = step.getFeature().getPath().toString();
-        SourceBreakpoints sb = BREAKPOINTS.get(path);
+        int pos = path.indexOf(TEST_CLASSES);
+        SourceBreakpoints sb;
+        if (pos != -1) {
+            sb = lookup(path.substring(pos + TEST_CLASSES.length()));
+        } else {
+            sb = BREAKPOINTS.get(path);
+        }
         if (sb == null) {
             return false;
         }
@@ -136,14 +153,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         });
         return list;
     }
-    
+
     private DapMessage event(String name) {
         return DapMessage.event(++nextSeq, name);
     }
 
     private DapMessage response(DapMessage req) {
         return DapMessage.response(++nextSeq, req);
-    }    
+    }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, DapMessage dm) throws Exception {
@@ -168,7 +185,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 break;
             case "setBreakpoints":
                 SourceBreakpoints sb = new SourceBreakpoints(req.getArguments());
-                BREAKPOINTS.put(sb.path, sb);                
+                BREAKPOINTS.put(sb.path, sb);
                 logger.trace("source breakpoints: {}", sb);
                 ctx.write(response(req).body("breakpoints", sb.breakpoints));
                 break;
@@ -315,14 +332,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             channel.writeAndFlush(message);
         });
     }
-    
+
     protected void continueEvent(long threadId) {
         channel.eventLoop().execute(() -> {
             DapMessage message = event("continued")
                     .body("threadId", threadId);
             channel.writeAndFlush(message);
         });
-    }   
+    }
 
     private void exit() {
         channel.eventLoop().execute(()
