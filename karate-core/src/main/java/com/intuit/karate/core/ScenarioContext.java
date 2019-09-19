@@ -219,7 +219,7 @@ public class ScenarioContext {
     }
 
     public boolean hotReload() {
-        boolean success  = false;
+        boolean success = false;
         Scenario scenario = executionUnit.scenario;
         Feature feature = scenario.getFeature();
         feature = FeatureParser.parse(feature.getResource());
@@ -310,7 +310,7 @@ public class ScenarioContext {
         bindings = new ScriptBindings(this);
         // TODO improve bindings re-use
         // for call + ui tests, extra step has to be done after bindings set
-        if (reuseParentContext && call.context.driver != null) {
+        if (call.context != null && call.context.driver != null) {
             setDriver(call.context.driver);
         }
         if (call.context == null && call.evalKarateConfig) {
