@@ -49,6 +49,7 @@ import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
+import com.intuit.karate.http.MultiValuedMap;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
 import com.intuit.karate.shell.Command;
@@ -467,12 +468,11 @@ public class ScenarioContext {
         vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, prevResponse.getStartTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_TIME, prevResponse.getResponseTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, prevResponse.getCookies());
-        if (config.isLowerCaseResponseHeaders()) {
-            Object temp = new ScriptValue(prevResponse.getHeaders()).toLowerCase();
-            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, temp);
-        } else {
-            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, prevResponse.getHeaders());
+        MultiValuedMap responseHeaders = prevResponse.getHeaders();
+        if (config.isLowerCaseResponseHeaders() && responseHeaders != null) {
+            responseHeaders = responseHeaders.tolowerCaseKeys();
         }
+        vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, responseHeaders);
         byte[] responseBytes = prevResponse.getBody();
         bindings.putAdditionalVariable(ScriptValueMap.VAR_RESPONSE_BYTES, responseBytes);
         String responseString = FileUtils.toString(responseBytes);
