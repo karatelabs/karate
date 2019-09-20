@@ -27,6 +27,7 @@ import com.intuit.karate.Actions;
 import com.intuit.karate.Runner;
 import com.intuit.karate.RunnerOptions;
 import com.intuit.karate.StepActions;
+import com.intuit.karate.StringUtils;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.ExecutionHookFactory;
@@ -205,7 +206,14 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "launch":
                 // normally a single feature full path, but can be set with any valid karate.options
                 // for e.g. "-t ~@ignore -T 5 classpath:demo.feature"
-                launchCommand = req.getArgument("feature", String.class);
+                launchCommand = StringUtils.trimToNull(req.getArgument("karateOptions", String.class));
+                if (launchCommand == null) {
+                    launchCommand = req.getArgument("feature", String.class);
+                    launchCommand = launchCommand.trim().replace('\\', '/'); // windows fix
+                    if (launchCommand.indexOf(' ') != -1) { // more windows fix
+                        launchCommand = "'" + launchCommand + "'";
+                    }
+                }                
                 start(launchCommand);
                 ctx.write(response(req));
                 break;
