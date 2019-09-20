@@ -27,6 +27,7 @@ import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import java.io.File;
 import java.io.RandomAccessFile;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import org.slf4j.Logger;
@@ -69,7 +70,7 @@ public class FileLogAppender implements LogAppender {
             ByteBuffer buf = ByteBuffer.allocate(pos - prevPos);
             channel.read(buf, prevPos);
             prevPos = pos;
-            buf.flip();
+            ((Buffer) buf).flip(); // java 8 to 9 fix
             return FileUtils.toString(buf.array());
         } catch (Exception e) {
             throw new RuntimeException(e);
