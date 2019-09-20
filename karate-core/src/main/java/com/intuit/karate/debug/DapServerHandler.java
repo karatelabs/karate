@@ -69,6 +69,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
     protected final Map<Long, DebugThread> THREADS = new ConcurrentHashMap();
     protected final Map<Long, ScenarioContext> FRAMES = new ConcurrentHashMap();
 
+    private boolean singleFeature;
     private String launchCommand;
 
     public DapServerHandler(DapServer server) {
@@ -77,7 +78,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
 
     private static final String TEST_CLASSES = "/test-classes/";
     private static final String CLASSES_TEST = "/classes/java/test/";
-    
+
     private static int findPos(String path) {
         int pos = path.indexOf(TEST_CLASSES);
         if (pos != -1) {
@@ -209,12 +210,11 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
                 launchCommand = StringUtils.trimToNull(req.getArgument("karateOptions", String.class));
                 if (launchCommand == null) {
                     launchCommand = req.getArgument("feature", String.class);
-                    launchCommand = launchCommand.trim().replace('\\', '/'); // windows fix
-                    if (launchCommand.indexOf(' ') != -1) { // more windows fix
-                        launchCommand = "'" + launchCommand + "'";
-                    }
-                }                
-                start(launchCommand);
+                    singleFeature = true;
+                    start();
+                } else {
+                    start();
+                }
                 ctx.write(response(req));
                 break;
             case "threads":
@@ -306,7 +306,7 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
             case "disconnect":
                 boolean restart = req.getArgument("restart", Boolean.class);
                 if (restart) {
-                    start(launchCommand);
+                    start();
                 } else {
                     exit();
                 }
@@ -324,9 +324,15 @@ public class DapServerHandler extends SimpleChannelInboundHandler<DapMessage> im
         return new DebugThread(Thread.currentThread(), this);
     }
 
-    private void start(String commandLine) {
-        logger.debug("command line: {}", commandLine);
-        RunnerOptions options = RunnerOptions.parseCommandLine(commandLine);
+    private void start() {
+        logger.debug("command line: {}", launchCommand);
+        RunnerOptions options;
+        if (singleFeature) {
+            options = new RunnerOptions();
+            options.addFeature(launchCommand);
+        } else {
+            options = RunnerOptions.parseCommandLine(launchCommand);
+        }
         if (runnerThread != null) {
             runnerThread.interrupt();
         }

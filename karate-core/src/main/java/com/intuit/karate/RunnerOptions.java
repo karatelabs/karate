@@ -83,6 +83,13 @@ public class RunnerOptions {
         return name;
     }
 
+    public void addFeature(String feature) {
+        if (features == null) {
+            features = new ArrayList(1);
+        }
+        features.add(feature);
+    }
+    
     public List<String> getFeatures() {
         return features;
     }
