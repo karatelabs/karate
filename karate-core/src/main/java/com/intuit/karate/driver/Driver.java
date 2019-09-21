@@ -161,7 +161,7 @@ public interface Driver {
 
     default List<Element> waitForResultCount(String locator, int count) {
         return (List) waitUntil(() -> {
-            List<Element> list = findAll(locator);
+            List<Element> list = locateAll(locator);
             return list.size() == count ? list : null;
         });
     }
@@ -188,8 +188,12 @@ public interface Driver {
     default Object waitUntil(Supplier<Object> condition) {
         return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");
     }
+    
+    default Element locate(String locator) {
+        return DriverElement.locatorUnknown(this, locator);
+    }
 
-    default List<Element> findAll(String locator) {
+    default List<Element> locateAll(String locator) {
         return getOptions().findAll(this, locator);
     }
 

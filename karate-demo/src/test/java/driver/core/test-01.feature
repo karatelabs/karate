@@ -111,8 +111,12 @@ Scenario Outline: using <config>
   * click('{:4}Click Me')
   * match text('#eg03Result') == 'BUTTON'
 
-  # find all
-  * def elements = findAll('{}Click Me')
+  # locate
+  * def element = locate('{}Click Me')
+  * assert element.exists
+
+  # locate all
+  * def elements = locateAll('{}Click Me')
   * match karate.sizeOf(elements) == 7
   * elements.get(6).click()
   * match text('#eg03Result') == 'SECOND'

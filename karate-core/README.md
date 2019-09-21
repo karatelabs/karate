@@ -109,7 +109,8 @@
     | <a href="#enabled"><code>enabled()</code></a>
     | <a href="#exists"><code>exists()</code></a>
     | <a href="#position"><code>position()</code></a>
-    | <a href="#findall"><code>findAll()</code></a>
+    | <a href="#locate"><code>locate()</code></a>
+    | <a href="#locateall"><code>locateAll()</code></a>
   </td>
 </tr>
 <tr>
@@ -856,7 +857,7 @@ A very powerful and useful way to wait until the *number* of elements that match
   * waitForResultCount('div#eg01 div', 4)  
 ```
 
-Most of the time, you just want to wait until a certain number of matching elements, and then move on with your flow, and in that case, the above is sufficient. If you need to actually do something with each returned `Element`, see [`findAll()`](#findall) or the option below.
+Most of the time, you just want to wait until a certain number of matching elements, and then move on with your flow, and in that case, the above is sufficient. If you need to actually do something with each returned `Element`, see [`locateAll()`](#locateall) or the option below.
 
 The second variant takes a third argument, which is going to do the same thing as the [`scriptAll()`](#scriptall) method:
 
@@ -1103,12 +1104,20 @@ See [Function Composition](#function-composition) for another good example. Also
 
 > Note that the JS in this case is run by Karate not the browser, so you use the Java `String.contains()` API not the JavaScript `String.includes()` one.
 
-## `findAll()`
+## `locate()`
+Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions. See also [`locateAll()`](#locateall)
+
+```
+* def e = locate('{}Click Me')
+* if (e.exists) karate.call('some.feature')
+```
+
+## `locateAll()`
 This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now use Karate's [core API](https://github.com/intuit/karate#the-karate-object) and call [chained](#chaining) methods. Here are some examples:
 
 ```cucumber
 # find all elements with the text-content "Click Me"
-* def elements = findAll('{}Click Me')
+* def elements = locateAll('{}Click Me')
 * match karate.sizeOf(elements) == 7
 * elements.get(6).click()
 * match elements.get(3).script('_.tagName') == 'BUTTON'
