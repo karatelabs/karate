@@ -106,6 +106,11 @@ public class DriverElement implements Element {
     public Element input(String[] values) {
         return driver.input(locator, values);
     }
+    
+    @Override
+    public Element input(String[] values, int delay) {
+        return driver.input(locator, values, delay);
+    }    
 
     @Override
     public Element select(String text) {

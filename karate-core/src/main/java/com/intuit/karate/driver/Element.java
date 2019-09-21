@@ -49,6 +49,8 @@ public interface Element {
     
     Element input(String[] values);
     
+    Element input(String[] values, int delay);
+    
     Element select(String text);
     
     Element select(int index);

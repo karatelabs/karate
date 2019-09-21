@@ -86,6 +86,11 @@ public class MissingElement implements Element {
     public Element input(String[] values) {
         return this;
     }
+    
+    @Override
+    public Element input(String[] values, int delay) {
+        return this;
+    }    
 
     @Override
     public Element select(String text) {

@@ -128,10 +128,17 @@ public interface Driver {
     Element click(String locator);
 
     Element input(String locator, String value);
-
+    
     default Element input(String locator, String[] values) {
+        return input(locator, values, 0);
+    }
+
+    default Element input(String locator, String[] values, int delay) {
         Element element = DriverElement.locatorUnknown(this, locator);
         for (String value : values) {
+            if (delay > 0) {
+                delay(delay);
+            }
             element = input(locator, value);
         }
         return element;

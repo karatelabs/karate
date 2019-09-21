@@ -609,6 +609,12 @@ As a convenience, there is a second form where you can pass an array as the seco
 * input('input[name=someName]', ['test', ' input', Key.ENTER])
 ```
 
+And an extra convenience third argument is a time-delay (in milliseconds) that will be applied before each array value. This is sometimes needed to "slow down" keystrokes, especially when there is a lot of JavaScript or security-validation behind the scenes.
+
+```cucumber
+* input('input[name=someName]', ['a', 'b', 'c', Key.ENTER], 200)
+```
+
 ### Special Keys
 Special keys such as `ENTER`, `TAB` etc. can be specified like this:
 
@@ -1107,7 +1113,7 @@ See [Function Composition](#function-composition) for another good example. Also
 ## `locate()`
 Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions. See also [`locateAll()`](#locateall)
 
-```
+```cucumber
 * def e = locate('{}Click Me')
 * if (e.exists) karate.call('some.feature')
 ```
