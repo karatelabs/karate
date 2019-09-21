@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -282,6 +284,17 @@ public interface Driver {
         String js = getOptions().scriptAllSelector(locator, expression);
         return (List) script(js);
     }
+    
+    default List scriptAll(String locator, String expression, Predicate predicate) {
+        List before = scriptAll(locator, expression);
+        List after = new ArrayList(before.size());
+        for (Object o : before) {
+            if (predicate.test(o)) {
+                after.add(o);
+            }
+        }
+        return after;
+    }    
 
     // for internal use ========================================================
     //

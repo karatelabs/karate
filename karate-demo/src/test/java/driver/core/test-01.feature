@@ -182,6 +182,10 @@ Scenario Outline: using <config>
   Then match list == '#[4]'
   And match each list contains '@@data'
 
+  # get text for all but only containing given text
+  When def list = scriptAll('div#eg01 div', '_.textContent', function(x){ return x.contains('data2') })
+  Then match list == ['@@data2@@']
+
   # get text for all elements that match xpath selector
   When def list = scriptAll('//option', '_.textContent')
   Then match list == '#[3]'

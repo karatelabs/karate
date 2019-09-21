@@ -1093,6 +1093,16 @@ And match each list contains '@@data'
 
 See [Function Composition](#function-composition) for another good example. Also see the singular form [`script()`](#script).
 
+### `scriptAll()` with filter
+`scriptAll()` can take a third argument which has to be a JavaScript "predicate" function, that returns a boolean `true` or `false`. This is very useful to "filter" the results that match a desired condition - typically a text comparison. For example if you want to get only the cells out of a `<table>` that contain the text "data" you can do this:
+
+```cucumber
+* def list = scriptAll('div div', '_.textContent', function(x){ return x.contains('data') })
+* match list == ['data1', 'data2']
+```
+
+> Note that the JS in this case is run by Karate not the browser, so you use the Java `String.contains()` API not the JavaScript `String.includes()` one.
+
 ## `findAll()`
 This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now use Karate's [core API](https://github.com/intuit/karate#the-karate-object) and call [chained](#chaining) methods. Here are some examples:
 
