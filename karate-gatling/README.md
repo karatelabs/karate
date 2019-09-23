@@ -150,6 +150,13 @@ And now in the feature file you can do this:
 * print __gatling.catName
 ```
 
+#### `karate.callSingle()`
+A common need is to run a routine, typically a sign-in and setting up of an `Authorization` header only *once* - for all `Feature` invocations. Keep in mind that when you use Gatling, what used to be a single `Feature` in "normal" Karate will now be multiplied by the number of users you define. So [`callonce`](https://github.com/intuit/karate#callonce) won't be sufficient anymore.
+
+You can use [`karate.callSingle()`](https://github.com/intuit/karate#hooks) in these situations and it will work as you expect. Ideally you should use [Feeders](#feeders) since `karate.callSingle()` will lock all threads - which may not play very well with Gatling. But when you want to quickly re-use existing Karate tests as performance tests, this will work nicely.
+
+Normally `karate.callSingle()` is used within the [`karate-config.js`](https://github.com/intuit/karate#karate-configjs) but it *can* be used at any point within a `Feature` if needed. Keep this in mind if you are trying to modify tests that depend on `callonce`. Also see the next section on how you can conditionally change the logic depending on whether the `Feature` is being run as a Gatling test or not.
+
 #### Detecting Gatling At Run Time
 You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) has an optional second argument to use as a "default" value if the variable does not exist or is `null`.
 

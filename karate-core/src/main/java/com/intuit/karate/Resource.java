@@ -78,7 +78,7 @@ public class Resource {
         String strippedPath = FileUtils.removePrefix(relativePath);
         URL url = sc.getResource(strippedPath);
         if (url != null) {
-            this.path = FileUtils.urlToPath(url, null);
+            this.path = FileUtils.urlToPath(url, strippedPath);
         } else {
             this.path = new File(strippedPath).toPath();
         }
