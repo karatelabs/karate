@@ -235,6 +235,11 @@ public class ScenarioExecutionUnit implements Runnable {
             if (hooks != null) {
                 hooks.forEach(h -> h.afterScenario(result, actions.context));
             }
+            // embed collection for afterScenario
+            List<Embed> embeds = actions.context.getAndClearEmbeds();
+            if (embeds != null){
+                embeds.forEach(embed -> lastStepResult.addEmbed(embed));
+            }
             // stop browser automation if running
             actions.context.stop(lastStepResult);
         }
