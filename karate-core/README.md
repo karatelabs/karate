@@ -326,7 +326,7 @@ The built-in [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarge
 Controlling this flow from Java can take a lot of complexity out your build pipeline and keep things cross-platform. And you don't need to line-up an assortment of shell-scripts to do all these things. You can potentially include the steps of deploying (and un-deploying) the application-under-test using this approach - but probably the top-level [JUnit test-suite](https://github.com/intuit/karate#parallel-execution) would be the right place for those.
 
 ### `karate-chrome`
-The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker is an image created from scratch, using just Ubuntu as a base and with the following features:
+The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker is an image created from scratch, using a Java / Maven image as a base and with the following features:
 
 * Chrome in "full" mode (non-headless)
 * [Chrome DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) exposed on port 9222
@@ -906,7 +906,7 @@ Here is a real-life example combined with the use of [`retry()`](#retry):
 * exists('#randomButton').click()
 ```
 
-If you have more than two locators you need to wait for, use the single array argument form, like this:
+If you have more than two locators you need to wait for, use the single-argument-as-array form, like this:
 
 ```cucumber
 * waitForAny(['#nextButton', '#randomButton', '#blueMoonButton'])
@@ -998,7 +998,7 @@ And def searchResults = waitUntil(searchFunction)
 Then match searchResults contains 'karate-core/src/main/resources/karate-logo.png'
 ```
 
-The above has a built-in short-cut in the form of [`waitForResultCount()`](#waitforresultcount) Also see [waits](#wait-api).
+The above logic can actually be replaced with Karate's built-in short-cut - which is [`waitForResultCount()`](#waitforresultcount) Also see [waits](#wait-api).
 
 ## Function Composition
 The above example can be re-factored in a very elegant way as follows, using Karate's [native support for JavaScript](https://github.com/intuit/karate#javascript-functions):

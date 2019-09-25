@@ -237,7 +237,7 @@ public class ScenarioExecutionUnit implements Runnable {
             }
             // embed collection for afterScenario
             List<Embed> embeds = actions.context.getAndClearEmbeds();
-            if (embeds != null){
+            if (embeds != null) {
                 embeds.forEach(embed -> lastStepResult.addEmbed(embed));
             }
             // stop browser automation if running
