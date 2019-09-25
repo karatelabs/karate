@@ -22,6 +22,7 @@ https://github.com/intuit/karate/wiki/ZIP-Release
 
 docker:
 (double check if karate-example/pom.xml is updated for the version
+make sure docker is started and is running !
 cd karate-docker/karate-chrome
 rm -rf target
 ./build.sh

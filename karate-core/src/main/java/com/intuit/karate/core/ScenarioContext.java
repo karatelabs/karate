@@ -117,9 +117,6 @@ public class ScenarioContext {
     // report embed
     private List<Embed> prevEmbeds;
 
-    // ui support
-    private Function<CallContext, FeatureResult> callable;
-
     // debug support
     private ScenarioExecutionUnit executionUnit;
 
@@ -201,14 +198,6 @@ public class ScenarioContext {
 
     public Config getConfig() {
         return config;
-    }
-
-    public void setCallable(Function<CallContext, FeatureResult> callable) {
-        this.callable = callable;
-    }
-
-    public Function<CallContext, FeatureResult> getCallable() {
-        return callable;
     }
 
     public URL getResource(String name) {

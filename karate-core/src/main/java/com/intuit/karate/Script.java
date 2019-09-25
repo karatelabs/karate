@@ -1771,17 +1771,7 @@ public class Script {
 
     private static ScriptValue evalFeatureCall(CallContext callContext) {
         // the call is always going to execute synchronously ! TODO improve  
-        FeatureResult result;
-        Function<CallContext, FeatureResult> callable = callContext.context.getCallable();
-        if (callable != null) { // only for ui called feature support
-            try {
-                result = callable.apply(callContext);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
-        }
+        FeatureResult result = Engine.executeFeatureSync(null, callContext.feature, null, callContext);
         // hack to pass call result back to caller step
         callContext.reportContext.addCallResult(result);
         result.setCallArg(callContext.callArg);
