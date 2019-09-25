@@ -215,16 +215,6 @@ java -jar karate.jar -T 5 -t ~@ignore -C src/features
 #### Debug Server
 The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/intuit/karate/wiki/Debug-Server#standalone-jar) for more details.
 
-#### UI
-The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
-```
-java -jar karate.jar
-```
-
-You can also open an existing Karate test in the UI via the command-line:
-```
-java -jar karate.jar -u my-test.feature
-```
 
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-netty.xml`](src/main/resources/logback-netty.xml)) is present within the stand-alone JAR. If you need to customize logging, set the system property `logback.configurationFile` to point to your custom config:
