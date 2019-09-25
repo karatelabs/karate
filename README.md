@@ -2120,7 +2120,7 @@ If you are wondering about the finer details of the `match` syntax, the left-han
 * variable name - e.g. `foo`
 * a 'named' JsonPath or XPath expression - e.g. `foo.bar`
 * any valid function or method call - e.g. `foo.bar()` or `foo.bar('hello').baz`
-* or anything wrapped in parantheses which will be evaluated - e.g. `(foo + bar)` or `(42)`
+* or anything wrapped in parentheses which will be evaluated - e.g. `(foo + bar)` or `(42)`
 
 And the right-hand-side can be any valid [Karate expression](#karate-expressions). Refer to the section on [JsonPath short-cuts](#jsonpath-short-cuts) for a deeper understanding of 'named' JsonPath expressions in Karate.
 
