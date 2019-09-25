@@ -1,7 +1,7 @@
 # Karate Driver
 ## UI Test Automation Made `Simple.`
 
-> This is new, and this first version 0.9.X should be considered *BETA*.
+> 0.9.5.RC3 is available ! There will be no more API changes. 0.9.5 will be "production ready".
 
 # Hello World
 
@@ -41,6 +41,7 @@
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
+    | <a href="#distributed-testing">Distributed Testing</a>
   </td>
 </tr>
 <tr>
@@ -168,6 +169,7 @@
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
+* You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
@@ -180,7 +182,7 @@
 * Execute JavaScript in the browser with [one-liners](#script) - for example to [get data out of an HTML table](#scriptall)
 * [Compose re-usable functions](#function-composition) based on your specific environment or application needs
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
-* Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
+* Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate Extension for Visual Studio Code](https://twitter.com/KarateDSL/status/1167533484560142336)
 * Traceability: detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
 * Convert HTML to PDF and capture the *entire* (scrollable) web-page as an image using the [Chrome Java API](#chrome-java-api)
 
@@ -358,6 +360,9 @@ type | default<br/>port | default<br/>executable | description
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | 4727 | `C:/Program Files (x86)/Windows Application Driver/WinAppDriver` | Windows Desktop automation, similar to Appium
 [`android`](https://github.com/appium/appium/) | 4723 | `appium` | android automation via [Appium](https://github.com/appium/appium/)
 [`ios`](https://github.com/appium/appium/) | 4723 |`appium` | iOS automation via [Appium](https://github.com/appium/appium/)
+
+# Distributed Testing
+Karate can split a test-suite across multiple machines or Docker containers for execution and aggregate the results. Please refer to the wiki: [Distributed Testing](https://github.com/intuit/karate/wiki/Distributed-Testing).
 
 # Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
@@ -1255,7 +1260,7 @@ Plural form of the above.
 ```
 
 # Debugging
-You can use the [Visual Studio Karate entension](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1167533484560142336).
+You can use the [Visual Studio Karate entension](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1167533484560142336). We recommend that you get comfortable with this because it is going to save you lots of time. And creating tests may actually turn out to be fun !
 
 When you are in a hurry, you can pause a test in the middle of a flow just to look at the browser developer tools to see what CSS selectors you need to use. For this you can use [`karate.stop()`](../#karate-stop) - but of course, *NEVER* forget to remove this before you move on to something else !
 
