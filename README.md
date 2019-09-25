@@ -270,6 +270,8 @@ If you are new to programming or test-automation, refer to this video for [getti
 
 If you *don't* want to use Java, you have the option of just downloading and extracting the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release). Try this especially if you don't have much experience with programming or test-automation. We recommend that you use the [Karate extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) - and with that, JavaScript, .NET and Python programmers will feel right at home.
 
+Visual Studio Code can be used for Java (or Maven) projects as well. One reason to use it is the excellent [*debug support* that we have for Karate](https://twitter.com/KarateDSL/status/1167533484560142336).
+
 ## Maven
 Karate is designed so that you can choose between the [Apache](https://hc.apache.org/index.html) or [Jersey](https://jersey.java.net) HTTP client implementations.
 
@@ -323,8 +325,6 @@ mvn archetype:generate \
 ```
 
 This will create a folder called `myproject` (or whatever you set the name to).
-
-> There is an issue with the `0.9.4` quickstart, please read this as well: [fix for 0.9.4 Maven archetype](https://github.com/intuit/karate/issues/823#issuecomment-509608205).
 
 ### IntelliJ Quickstart
 Refer to this video for [getting started with the free IntelliJ Community Edition](https://youtu.be/W-af7Cd8cMc). It simplifies the above process, since you only need to install IntelliJ. For Eclipse, refer to the wiki on [IDE Support](https://github.com/intuit/karate/wiki/IDE-Support).
