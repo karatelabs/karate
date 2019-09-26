@@ -1,8 +1,4 @@
 language: java
-dist: trusty
 jdk:
-  - oraclejdk8
-# sudo: false
-# install: true
+  - openjdk8
 script: mvn install -P pre-release -Dmaven.javadoc.skip=true -B -V
-
