@@ -2,11 +2,9 @@
 ## Web-Services Testing Made `Simple.`
 [![Maven Central](https://img.shields.io/maven-central/v/com.intuit.karate/karate-core.svg)](https://mvnrepository.com/artifact/com.intuit.karate/karate-core) [![Build Status](https://travis-ci.org/intuit/karate.svg?branch=master)](https://travis-ci.org/intuit/karate) [![GitHub release](https://img.shields.io/github/release/intuit/karate.svg)](https://github.com/intuit/karate/releases) [![Support Slack](https://img.shields.io/badge/support-slack-red.svg)](https://github.com/intuit/karate/wiki/Support) [![Twitter Follow](https://img.shields.io/twitter/follow/KarateDSL.svg?style=social&label=Follow)](https://twitter.com/KarateDSL)
 
-Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty) and [performance-testing](karate-gatling) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Besides powerful JSON & XML assertions, you can run tests in parallel for speed - which is critical for HTTP API testing.
+Karate is the only open-source tool to combine API test-automation, [mocks](karate-netty), [performance-testing](karate-gatling) and even [UI Automation](karate-core) into a **single**, *unified* framework. The BDD syntax popularized by Cucumber is language-neutral, and easy for even non-programmers. Besides powerful, built-in JSON & XML assertions - you can run tests in parallel for speed.
 
-You can easily build (or re-use) complex request payloads, and dynamically construct more requests from response data. The  payload and schema validation engine can perform a 'smart compare' (deep-equals) of two JSON or XML documents, and you can even ignore dynamic values where needed.
-
-Test execution and report generation feels like any standard Java project. But there's also a [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. Just write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. 
+Test execution and report generation feels like any standard Java project. But there's also a [stand-alone executable](karate-netty#standalone-jar) for teams not comfortable with Java. There is no need to compile code. Just write tests in a **simple**, *readable* syntax - carefully designed for HTTP, JSON, GraphQL and XML. And you can mix API and UI test-automation within the same test script.
 
 ## Hello World
 
@@ -228,8 +226,8 @@ And you don't need to create additional Java classes for any of the payloads tha
 * Easily invoke JDK classes, Java libraries, or re-use custom Java code if needed, for [ultimate extensibility](#calling-java)
 * Simple plug-in system for [authentication](#http-basic-authentication-example) and HTTP [header management](#configure-headers) that will handle any complex, real-world scenario
 * Future-proof 'pluggable' HTTP client abstraction supports both Apache and Jersey so that you can [choose](#maven) what works best in your project, and not be blocked by library or dependency conflicts
-* Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into existing Selenium / WebDriver test-suites](https://stackoverflow.com/q/47795762/143475).
-* [Cross-browser Web, Mobile and Desktop UI automation](karate-core) (experimental) so that you can test *all* layers of your application with the same framework
+* [Cross-browser Web, Mobile and Desktop UI automation](karate-core) so that you can test *all* layers of your application with the same framework
+* Option to invoke via a [Java API](#java-api),  which means that you can easily [mix Karate into existing Selenium / WebDriver test-suites](https://stackoverflow.com/q/47795762/143475)
 * [Save significant effort](https://twitter.com/ptrthomas/status/986463717465391104) by re-using Karate test-suites as [Gatling performance tests](karate-gatling) that deeply assert that server responses are accurate under load
 * Gatling integration can hook into [*any* custom Java code](https://github.com/intuit/karate/tree/master/karate-gatling#custom) - which means that you can perf-test even non-HTTP protocols such as [gRPC](https://github.com/thinkerou/karate-grpc)
 * [API mocks](karate-netty) or test-doubles that even [maintain CRUD 'state'](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) across multiple calls - enabling TDD for micro-services and [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDrivenContracts.html)
