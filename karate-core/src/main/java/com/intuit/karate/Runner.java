@@ -36,6 +36,7 @@ import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Tags;
 import com.intuit.karate.job.JobConfig;
 import com.intuit.karate.job.JobServer;
+import com.intuit.karate.job.ScenarioJobServer;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,7 +93,7 @@ public class Runner {
         }
 
         JobServer jobServer() {
-            return jobConfig == null ? null : new JobServer(jobConfig, reportDir);
+            return jobConfig == null ? null : new ScenarioJobServer(jobConfig, reportDir);
         }
 
         int resolveThreadCount() {

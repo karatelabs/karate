@@ -48,10 +48,10 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public abstract class JobServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private static final Logger logger = LoggerFactory.getLogger(JobServerHandler.class);
-    private final JobServer server;
+    protected static final Logger logger = LoggerFactory.getLogger(JobServerHandler.class);
+    protected final JobServer server;
 
     public JobServerHandler(JobServer server) {
         this.server = server;
@@ -136,54 +136,10 @@ public class JobServerHandler extends SimpleChannelInboundHandler<FullHttpReques
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
     
-    private void dumpLog(JobMessage jm) {
+    protected void dumpLog(JobMessage jm) {
         logger.debug("\n>>>>>>>>>>>>>>>>>>>>> {}\n{}<<<<<<<<<<<<<<<<<<<< {}", jm, jm.get("log", String.class), jm);
     }
 
-    private JobMessage handle(JobMessage jm) {        
-        String method = jm.method;
-        switch (method) {
-            case "error":           
-                dumpLog(jm);
-                return new JobMessage("error");            
-            case "heartbeat":                
-                return new JobMessage("heartbeat");
-            case "download":
-                JobMessage download = new JobMessage("download");
-                download.setBytes(server.getZipBytes());
-                int executorId = server.executorCounter.getAndIncrement();
-                download.setExecutorId(executorId + "");
-                return download;
-            case "init":
-                // dumpLog(jm);
-                JobMessage init = new JobMessage("init");
-                init.put("startupCommands", server.config.getStartupCommands());
-                init.put("shutdownCommands", server.config.getShutdownCommands());
-                init.put("environment", server.config.getEnvironment());
-                init.put(JobContext.UPLOAD_DIR, server.resolveUploadDir());
-                return init;
-            case "next":
-                // dumpLog(jm);
-                ChunkResult chunk = server.getNextChunk();
-                if (chunk == null) {
-                    logger.info("no more chunks, server responding with 'stop' message");
-                    return new JobMessage("stop");
-                }
-                String uploadDir = jm.get(JobContext.UPLOAD_DIR, String.class);
-                JobContext jc = new JobContext(chunk.scenario, server.jobId, jm.getExecutorId(), chunk.getChunkId(), uploadDir);
-                JobMessage next = new JobMessage("next")
-                        .put("preCommands", server.config.getPreCommands(jc))
-                        .put("mainCommands", server.config.getMainCommands(jc))
-                        .put("postCommands", server.config.getPostCommands(jc));
-                next.setChunkId(chunk.getChunkId());
-                return next;
-            case "upload":
-                server.saveChunkOutput(jm.getBytes(), jm.getExecutorId(), jm.getChunkId());
-                return new JobMessage("upload");
-            default:
-                logger.warn("unknown request method: {}", method);
-                return null;
-        }
-    }
+    protected abstract JobMessage handle(JobMessage request);
 
 }

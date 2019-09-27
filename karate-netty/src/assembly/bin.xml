@@ -5,6 +5,12 @@
     <formats>
         <format>zip</format>
     </formats>
+    <fileSets>
+        <fileSet>
+            <directory>../examples/zip-release</directory>
+            <outputDirectory></outputDirectory>
+        </fileSet>       
+    </fileSets>    
     <files>
         <file>
             <source>target/karate-${project.version}.jar</source>
@@ -16,19 +22,5 @@
             <outputDirectory></outputDirectory>
             <destName>.gitignore</destName>            
         </file>
-    </files>
-    <fileSets>
-        <fileSet>
-            <directory>src/test/java/demo</directory>
-            <outputDirectory>src/demo</outputDirectory>
-        </fileSet>        
-        <fileSet>
-            <directory>src/test/resources</directory>
-            <outputDirectory></outputDirectory>
-            <includes>
-                <include>karate</include>
-                <include>karate.bat</include>
-            </includes>
-        </fileSet>        
-    </fileSets>   
+    </files>  
 </assembly>

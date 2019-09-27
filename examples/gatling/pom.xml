@@ -2,8 +2,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
  
-    <groupId>com.intuit.karate</groupId>
-    <artifactId>karate-example</artifactId>
+    <groupId>com.intuit.karate.examples</groupId>
+    <artifactId>examples-gatling</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
  
@@ -12,6 +12,7 @@
         <java.version>1.8</java.version>
         <maven.compiler.version>3.6.0</maven.compiler.version>
         <karate.version>1.0.0</karate.version>
+        <gatling.plugin.version>3.0.2</gatling.plugin.version>
     </properties>    
 
     <dependencies>
@@ -19,20 +20,13 @@
             <groupId>com.intuit.karate</groupId>
             <artifactId>karate-apache</artifactId>
             <version>${karate.version}</version>
-            <scope>test</scope>
         </dependency>            
         <dependency>
             <groupId>com.intuit.karate</groupId>
-            <artifactId>karate-junit5</artifactId>
+            <artifactId>karate-gatling</artifactId>
             <version>${karate.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.masterthought</groupId>
-            <artifactId>cucumber-reporting</artifactId>
-            <version>3.8.0</version>
-            <scope>test</scope>
-        </dependency>        		
+        </dependency>		
     </dependencies>
 
     <build>
@@ -57,11 +51,25 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <groupId>io.gatling</groupId>
+                <artifactId>gatling-maven-plugin</artifactId>
+                <version>${gatling.plugin.version}</version>
+                <configuration>
+                    <simulationsFolder>src/test/java</simulationsFolder>
+                    <includes>
+                        <include>mock.CatsKarateSimulation</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>                
             </plugin>            
         </plugins>        
-    </build>       
+    </build>
     
 </project>

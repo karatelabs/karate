@@ -40,8 +40,8 @@ public class MavenJobConfig implements JobConfig {
     private final int executorCount;
     private final String host;
     private final int port;
-    private final List<String> sysPropKeys = new ArrayList(1);
-    private final List<String> envPropKeys = new ArrayList(1);
+    protected final List<String> sysPropKeys = new ArrayList(1);
+    protected final List<String> envPropKeys = new ArrayList(1);
 
     protected String dockerImage = "ptrthomas/karate-chrome";
 

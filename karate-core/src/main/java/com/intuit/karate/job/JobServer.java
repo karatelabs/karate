@@ -24,14 +24,8 @@
 package com.intuit.karate.job;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.JsonUtils;
-import com.intuit.karate.Logger;
-import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.ExecutionContext;
-import com.intuit.karate.core.FeatureExecutionUnit;
-import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioExecutionUnit;
-import com.intuit.karate.core.ScenarioResult;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -45,10 +39,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.LoggerFactory;
 
@@ -56,20 +47,17 @@ import org.slf4j.LoggerFactory;
  *
  * @author pthomas3
  */
-public class JobServer {
+public abstract class JobServer {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(JobServer.class);
+    protected static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(JobServer.class);
 
     protected final JobConfig config;
-    protected final List<FeatureScenarios> FEATURE_QUEUE = new ArrayList();
-    protected final Map<String, ChunkResult> CHUNK_RESULTS = new HashMap();
     protected final String basePath;
     protected final File ZIP_FILE;
     protected final String jobId;
     protected final String jobUrl;
     protected final String reportDir;
     protected final AtomicInteger executorCounter = new AtomicInteger(1);
-    private final AtomicInteger chunkCounter = new AtomicInteger();
 
     private final Channel channel;
     private final int port;
@@ -92,95 +80,29 @@ public class JobServer {
         }
         return this.reportDir;
     }
-
-    public void addFeature(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable onComplete) {
-        Logger logger = new Logger();
-        List<Scenario> selected = new ArrayList(units.size());
-        for (ScenarioExecutionUnit unit : units) {
-            if (FeatureExecutionUnit.isSelected(exec.featureContext, unit.scenario, logger)) {
-                selected.add(unit.scenario);
-            }
-        }
-        if (selected.isEmpty()) {
-            onComplete.run();
-        } else {
-            FeatureScenarios fs = new FeatureScenarios(exec, selected, onComplete);
-            FEATURE_QUEUE.add(fs);
-        }
-    }
-
-    public ChunkResult getNextChunk() {
-        synchronized (FEATURE_QUEUE) {
-            if (FEATURE_QUEUE.isEmpty()) {
-                return null;
-            } else {
-                FeatureScenarios feature = FEATURE_QUEUE.get(0);
-                Scenario scenario = feature.scenarios.remove(0);
-                if (feature.scenarios.isEmpty()) {
-                    FEATURE_QUEUE.remove(0);
-                }
-                LOGGER.info("features queued: {}", FEATURE_QUEUE);
-                ChunkResult chunk = new ChunkResult(feature, scenario);
-                String chunkId = chunkCounter.incrementAndGet() + "";
-                chunk.setChunkId(chunkId);
-                chunk.setStartTime(System.currentTimeMillis());
-                feature.chunks.add(chunk);
-                CHUNK_RESULTS.put(chunkId, chunk);
-                return chunk;
-            }
-        }
-    }
-
-    public byte[] getZipBytes() {
+    
+    public byte[] getDownload() {
         try {
             InputStream is = new FileInputStream(ZIP_FILE);
             return FileUtils.toBytes(is);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
+    }    
 
-    private static File getFirstFileWithExtension(File parent, String extension) {
-        File[] files = parent.listFiles((f, n) -> n.endsWith("." + extension));
-        return files.length == 0 ? null : files[0];
-    }
+    public abstract void addFeature(ExecutionContext exec, List<ScenarioExecutionUnit> units, Runnable onComplete);
 
-    public void saveChunkOutput(byte[] bytes, String executorId, String chunkId) {
+    public abstract ChunkResult getNextChunk(String executorId);
+
+    public abstract void handleUpload(File file, String executorId, String chunkId);
+    
+    protected void handleUpload(byte[] bytes, String executorId, String chunkId) {
         String chunkBasePath = basePath + File.separator + executorId + File.separator + chunkId;
         File zipFile = new File(chunkBasePath + ".zip");
         FileUtils.writeToFile(zipFile, bytes);
-        File outFile = new File(chunkBasePath);
-        JobUtils.unzip(zipFile, outFile);
-        File jsonFile = getFirstFileWithExtension(outFile, "json");
-        if (jsonFile == null) {
-            return;
-        }
-        String json = FileUtils.toString(jsonFile);
-        File videoFile = getFirstFileWithExtension(outFile, "mp4");
-        List<Map<String, Object>> list = JsonUtils.toJsonDoc(json).read("$[0].elements");
-        synchronized (CHUNK_RESULTS) {
-            ChunkResult cr = CHUNK_RESULTS.remove(chunkId);
-            LOGGER.info("chunk complete: {}, remaining: {}", chunkId, CHUNK_RESULTS.keySet());
-            if (cr == null) {
-                LOGGER.error("could not find chunk: {}", chunkId);
-                return;
-            }
-            ScenarioResult sr = new ScenarioResult(cr.scenario, list, true);
-            sr.setStartTime(cr.getStartTime());
-            sr.setEndTime(System.currentTimeMillis());
-            sr.setThreadName(executorId);
-            cr.setResult(sr);
-            if (videoFile != null) {
-                File dest = new File(FileUtils.getBuildDir()
-                        + File.separator + "cucumber-html-reports" + File.separator + chunkId + ".mp4");
-                FileUtils.copy(videoFile, dest);
-                sr.appendEmbed(Embed.forVideoFile(dest.getName()));
-            }
-            if (cr.parent.isComplete()) {
-                LOGGER.info("feature complete, calling onComplete(): {}", cr.parent);
-                cr.parent.onComplete();
-            }
-        }
+        File upload = new File(chunkBasePath);
+        JobUtils.unzip(zipFile, upload);
+        handleUpload(upload, executorId, chunkId);
     }
 
     public int getPort() {
@@ -202,7 +124,7 @@ public class JobServer {
         LOGGER.info("stop: shutdown complete");
     }
 
-    public JobServer(JobConfig config, String reportDir) {        
+    public JobServer(JobConfig config, String reportDir) {
         this.config = config;
         this.reportDir = reportDir;
         jobId = System.currentTimeMillis() + "";
@@ -224,7 +146,7 @@ public class JobServer {
                             // just to make header size more than the default
                             p.addLast(new HttpServerCodec(4096, 12288, 8192));
                             p.addLast(new HttpObjectAggregator(1048576));
-                            p.addLast(new JobServerHandler(JobServer.this));
+                            p.addLast(new ScenarioJobServerHandler(JobServer.this));
                         }
                     });
             channel = b.bind(config.getPort()).sync().channel();
