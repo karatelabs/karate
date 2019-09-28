@@ -33,7 +33,7 @@ For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](bui
 Most problems when using Karate with Gradle occur when "test-resources" are not configured properly. So make sure that all your `*.js` and `*.feature` files are copied to the "resources" folder - when you build the project.
 
 ## Sample Project:
-Refer: [https://github.com/intuit/karate/tree/master/examples/gatling](../examples/gatling)
+Refer: [`examples/gatling`](../examples/gatling)
 
 It is worth calling out that we are perf-testing [Karate test-doubles](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) here ! A truly self-contained demo.
 

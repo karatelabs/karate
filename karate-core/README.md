@@ -453,7 +453,7 @@ By default, the HTML tag that will be searched for will be `input`. While rarely
 ```
 
 ### `near()`
-The typical reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be used if the element you are seeking is diagonally offset from the [locator](#locators) you have.
+The typical reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be useful if the element you are seeking is diagonally offset from the [locator](#locators) you have.
 
 ```cucumber
  * near('{}Go to Page One').click()
@@ -463,7 +463,7 @@ The typical reason why you would need `near()` is because an `<input>` field may
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#syntax) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
 ## `driver`
-Navigates to a new page / address. If this is the first instance in a test, this step also initializes the [`driver`](#syntax) instance for future step operations as per what is [configured](#configure-driver).
+Navigates to a new page / address. If this is the first instance in a test, this step also initializes the [`driver`](#syntax) instance for all subsequent steps - using what is [configured](#configure-driver).
 
 ```cucumber
 Given driver 'https://github.com/login'
