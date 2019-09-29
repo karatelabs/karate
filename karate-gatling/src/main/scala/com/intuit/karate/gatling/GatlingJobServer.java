@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.gatling;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.ExecutionContext;
 import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.job.ChunkResult;
@@ -38,11 +39,12 @@ import java.util.Set;
  * @author pthomas3
  */
 public class GatlingJobServer extends JobServer {
-    
+
     private final Set<String> executors = new HashSet();
-    
-    public GatlingJobServer(JobConfig config, String reportDir) {
-        super(config, reportDir);
+    private final Set<String> completed = new HashSet();
+
+    public GatlingJobServer(JobConfig config) {
+        super(config, "target/gatling");
     }
 
     @Override
@@ -51,22 +53,37 @@ public class GatlingJobServer extends JobServer {
     }
 
     @Override
-    public ChunkResult getNextChunk(String executorId) {
+    public synchronized ChunkResult getNextChunk(String executorId) {
         if (executors.contains(executorId)) {
+            if (completed.size() >= executors.size()) {
+                stop();
+            }
             return null;
         }
         executors.add(executorId);
-        return new ChunkResult(null, null);
+        ChunkResult chunk = new ChunkResult(null, null);
+        chunk.setChunkId(executorId);
+        return chunk;
     }
 
     @Override
-    public void handleUpload(File upload, String executorId, String chunkId) {
+    public synchronized void handleUpload(File upload, String executorId, String chunkId) {
         String karateLog = upload.getPath() + File.separator + "karate.log";
         File karateLogFile = new File(karateLog);
         if (karateLogFile.exists()) {
             karateLogFile.renameTo(new File(karateLog + ".txt"));
         }
-        
+        String gatlingReportDir = "target" + File.separator + "reports" + File.separator;
+        File[] dirs = upload.listFiles();
+        for (File dir : dirs) {
+            if (dir.isDirectory()) {
+                File file = getFirstFileWithExtension(dir, "log");
+                if (file != null) {
+                    FileUtils.copy(file, new File(gatlingReportDir + "simulation_" + chunkId + ".log"));
+                }
+            }
+        }
+        completed.add(executorId);
     }
-    
+
 }

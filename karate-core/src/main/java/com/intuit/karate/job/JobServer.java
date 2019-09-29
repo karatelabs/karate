@@ -63,6 +63,11 @@ public abstract class JobServer {
     private final int port;
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
+    
+    public static File getFirstFileWithExtension(File parent, String extension) {
+        File[] files = parent.listFiles((f, n) -> n.endsWith("." + extension));
+        return files.length == 0 ? null : files[0];
+    }    
 
     public void startExecutors() {
         try {
