@@ -3,7 +3,6 @@ package jobtest.web;
 import common.ReportUtils;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
-import com.intuit.karate.job.MavenChromeJobConfig;
 import org.junit.jupiter.api.Test;
 
 /**

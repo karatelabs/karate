@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author pthomas3
  */
-public class SimpleRunner {
+public class GatlingRunner {
 
     public static void main(String[] args) {
         GatlingMavenJobConfig config = new GatlingMavenJobConfig(-1, "127.0.0.1", 0) {

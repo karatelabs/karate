@@ -28,19 +28,20 @@ package com.intuit.karate.job;
  * @author pthomas3
  */
 public class ScenarioJobServerHandler extends JobServerHandler {
-    
+
     public ScenarioJobServerHandler(JobServer server) {
         super(server);
     }
-    
+
     @Override
-    protected JobMessage handle(JobMessage jm) {        
+    protected JobMessage handle(JobMessage jm) {
         String method = jm.method;
         switch (method) {
-            case "error":           
+            case "error":
                 dumpLog(jm);
-                return new JobMessage("error");            
-            case "heartbeat":                
+                return new JobMessage("error");
+            case "heartbeat":
+                logger.info("hearbeat: {}", jm);
                 return new JobMessage("heartbeat");
             case "download":
                 JobMessage download = new JobMessage("download");
@@ -78,6 +79,6 @@ public class ScenarioJobServerHandler extends JobServerHandler {
                 logger.warn("unknown request method: {}", method);
                 return null;
         }
-    }    
-    
+    }
+
 }

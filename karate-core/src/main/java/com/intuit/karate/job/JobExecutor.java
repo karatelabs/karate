@@ -46,17 +46,20 @@ import java.util.Map;
  */
 public class JobExecutor {
 
+    protected final String serverUrl;
     private final Http http;
     private final Logger logger;
-    private final LogAppender appender;
+    protected final LogAppender appender;
     private final String workingDir;
-    private final String jobId;
-    private final String executorId;
+    protected final String jobId;
+    protected final String executorId;
+    protected String chunkId = null; // mutable
     private final String uploadDir;
     private final Map<String, String> environment;
     private final List<JobCommand> shutdownCommands;
 
     private JobExecutor(String serverUrl) {
+        this.serverUrl = serverUrl;
         String targetDir = FileUtils.getBuildDir();
         appender = new FileLogAppender(new File(targetDir + File.separator + "karate-executor.log"));
         logger = new Logger();
@@ -86,11 +89,13 @@ public class JobExecutor {
         environment = init.get("environment", Map.class);
         executeCommands(startupCommands, environment);
         shutdownCommands = init.getCommands("shutdownCommands");
-        logger.info("init done");
+        logger.info("init done");        
     }
 
     public static void run(String serverUrl) {
         JobExecutor je = new JobExecutor(serverUrl);
+        JobExecutorPulse pulse = new JobExecutorPulse(je);
+        pulse.start();
         try {
             je.loopNext();
             je.shutdown();
@@ -129,9 +134,7 @@ public class JobExecutor {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    String chunkId = null;
+    }    
 
     private void loopNext() {
         do {
@@ -142,6 +145,7 @@ public class JobExecutor {
             req.setChunkId(chunkId);
             JobMessage res = invokeServer(req);
             if (res.is("stop")) {
+                logger.info("stop received, shutting down");
                 break;
             }
             chunkId = res.getChunkId();
@@ -168,6 +172,7 @@ public class JobExecutor {
     private void shutdown() {
         stopBackgroundCommands();
         executeCommands(shutdownCommands, environment);
+        logger.info("shutdown complete");
     }
 
     private void executeCommands(List<JobCommand> commands, Map<String, String> environment) {
@@ -193,8 +198,12 @@ public class JobExecutor {
             }
         }
     }
-
+    
     private JobMessage invokeServer(JobMessage req) {
+        return invokeServer(http, jobId, executorId, req);
+    }
+
+    protected static JobMessage invokeServer(Http http, String jobId, String executorId, JobMessage req) {
         byte[] bytes = req.getBytes();
         ScriptValue body;
         String contentType;
