@@ -28,6 +28,7 @@ import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.netty.FeatureServer;
+import com.intuit.karate.netty.FileChangedWatcher;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -199,8 +200,12 @@ public class Main implements Callable<Void> {
             key = new File(FeatureServer.DEFAULT_KEY_NAME);
         }
         FeatureServer server = FeatureServer.start(mock, port, ssl, cert, key, null);
+        
+        // hot reload
+        FileChangedWatcher watcher = new FileChangedWatcher(mock, server, port, ssl, cert, key);
+        watcher.watch();
+        
         server.waitSync();
         return null;
     }
-
 }
