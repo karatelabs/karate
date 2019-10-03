@@ -582,6 +582,8 @@ Get the current page title for matching. Example:
 Then match driver.title == 'Test Page'
 ```
 
+Note that if you do this immediately after a page-load, in some cases you need to wait for the page to fully load. You can use a [`waitForUrl()`](#waitforurl) before attempting to access `driver.title` to make sure it works.
+
 ## `driver.dimensions`
 Set the size of the browser window:
 ```cucumber
