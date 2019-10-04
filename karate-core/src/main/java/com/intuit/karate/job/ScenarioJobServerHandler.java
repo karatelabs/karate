@@ -44,13 +44,14 @@ public class ScenarioJobServerHandler extends JobServerHandler {
                 logger.info("hearbeat: {}", jm);
                 return new JobMessage("heartbeat");
             case "download":
+                logger.info("download: {}", jm);
                 JobMessage download = new JobMessage("download");
                 download.setBytes(server.getDownload());
                 int executorId = server.executorCounter.getAndIncrement();
                 download.setExecutorId(executorId + "");
                 return download;
             case "init":
-                // dumpLog(jm);
+                logger.info("init: {}", jm);
                 JobMessage init = new JobMessage("init");
                 init.put("startupCommands", server.config.getStartupCommands());
                 init.put("shutdownCommands", server.config.getShutdownCommands());
@@ -58,7 +59,7 @@ public class ScenarioJobServerHandler extends JobServerHandler {
                 init.put(JobContext.UPLOAD_DIR, server.resolveUploadDir());
                 return init;
             case "next":
-                // dumpLog(jm);
+                logger.info("next: {}", jm);
                 ChunkResult chunk = server.getNextChunk(jm.getExecutorId());
                 if (chunk == null) {
                     logger.info("no more chunks, server responding with 'stop' message");
@@ -73,6 +74,7 @@ public class ScenarioJobServerHandler extends JobServerHandler {
                 next.setChunkId(chunk.getChunkId());
                 return next;
             case "upload":
+                logger.info("upload: {}", jm);
                 server.handleUpload(jm.getBytes(), jm.getExecutorId(), jm.getChunkId());
                 return new JobMessage("upload");
             default:

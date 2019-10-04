@@ -2,10 +2,6 @@ package jobtest;
 
 import com.intuit.karate.gatling.GatlingJobServer;
 import com.intuit.karate.gatling.GatlingMavenJobConfig;
-import com.intuit.karate.job.JobExecutor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  *
