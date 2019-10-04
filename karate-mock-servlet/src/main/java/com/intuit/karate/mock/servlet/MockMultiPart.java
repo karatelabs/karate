@@ -110,10 +110,14 @@ public class MockMultiPart implements Part {
         
     }
 
-    @Override
-    public String getHeader(String string) {
-        return headers.get(string);
-    }
+	@Override
+	public String getHeader(String string) {
+		/**
+		 * support spring boot 2 StandardMultipartHttpServletRequest implementation to
+		 * give CONTENT_DISPOSITION header details.
+		 */
+		return headers.getOrDefault(string, headers.get(string.toLowerCase()));
+	}
 
     @Override
     public Collection<String> getHeaders(String string) {
