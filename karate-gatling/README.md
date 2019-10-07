@@ -185,6 +185,23 @@ And now, whenever you need, you can add a pause between API invocations in a fea
 
 You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
 
+## `configure localAddress`
+> This is implemented only for the `karate-apache` HTTP client.
+
+Gatling has a way to bind the HTTP "protocol" to [use a specific "local address"](https://gatling.io/docs/3.2/http/http_protocol/#local-address), which is useful when you want to use an IP range to avoid triggering rate-limiting on the server under test etc. But since Karate makes the HTTP requests, you can use the [`configure`](https://github.com/intuit/karate#configure) keyword, and this can actually be done *any* time within a Karate script or `*.feature` file.
+
+```cucumber
+* configure localAddress = '123.45.67.89'
+```
+
+One easy way to achieve a "round-robin" effect is to write a simple Java static method that will return a random IP out of a pool. See [feeders](#feeders) for example code. Note that you can "conditionally" perform a `configure` by using the JavaScript API on the `karate` object:
+
+```cucumber
+* if (__gatling) karate.configure('localAddress', MyUtil.getIp())
+```
+
+Since you can [use Java code](https://github.com/intuit/karate#calling-java), any kind of logic or strategy should be possible, and you can refer to [config or variables](https://github.com/intuit/karate#configuration) if needed.
+
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.
 

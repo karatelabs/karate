@@ -56,6 +56,7 @@ public class Config {
     private String proxyUsername;
     private String proxyPassword;
     private List<String> nonProxyHosts;
+    private String localAddress;
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
     private ScriptValue responseHeaders = ScriptValue.NULL;
@@ -215,6 +216,9 @@ public class Config {
                     nonProxyHosts = (List) map.get("nonProxyHosts");
                 }
                 return true;
+            case "localAddress":
+                localAddress = value.getAsString();
+                return true;
             case "userDefined":
                 userDefined = value.getAsMap();
                 return true;
@@ -241,6 +245,7 @@ public class Config {
         proxyUsername = parent.proxyUsername;
         proxyPassword = parent.proxyPassword;
         nonProxyHosts = parent.nonProxyHosts;
+        localAddress = parent.localAddress;
         headers = parent.headers;
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
@@ -340,6 +345,10 @@ public class Config {
     public List<String> getNonProxyHosts() {
         return nonProxyHosts;
     }
+
+    public String getLocalAddress() {
+        return localAddress;
+    }        
     
     public ScriptValue getHeaders() {
         return headers;
