@@ -1,8 +1,19 @@
 package com.intuit.karate.netty;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FileChangedWatcher {
+
+  private static final Logger logger = LoggerFactory.getLogger(FileChangedWatcher.class);
 
   private File file;
   private FeatureServer server;
@@ -20,19 +31,24 @@ public class FileChangedWatcher {
     this.key = key;
   }
 
-  public void watch() throws InterruptedException {
+  public void watch() throws InterruptedException, IOException {
 
-    long currentModifiedDate = file.lastModified();
-
-    while (true) {
-
-      long newModifiedDate = file.lastModified();
-
-      if (newModifiedDate != currentModifiedDate) {
-        currentModifiedDate = newModifiedDate;
-        onModified();
+    try {
+      final Path directoryPath = file.toPath().getParent();
+      final WatchService watchService = FileSystems.getDefault().newWatchService();
+      directoryPath.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
+      while (true) {
+        final WatchKey wk = watchService.take();
+        for (WatchEvent<?> event : wk.pollEvents()) {
+          final Path fileChangedPath = (Path) event.context();
+          if (fileChangedPath.endsWith(file.getName())) {
+            onModified();
+          }
+        }
+        wk.reset();
       }
-      Thread.sleep(500);
+    } catch (Exception exception) {
+      logger.error("exception when handling change of mock file");
     }
   }
 
