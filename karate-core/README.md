@@ -1,4 +1,4 @@
-# Karate Driver
+# Karate UI
 ## UI Test Automation Made `Simple.`
 
 > 0.9.5.RC3 is available ! There will be no more API changes. 0.9.5 will be "production ready".
@@ -185,6 +185,9 @@
 * Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate Extension for Visual Studio Code](https://twitter.com/KarateDSL/status/1167533484560142336)
 * Traceability: detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
 * Convert HTML to PDF and capture the *entire* (scrollable) web-page as an image using the [Chrome Java API](#chrome-java-api)
+
+## Comparison
+To understand how Karate compares to other UI automation frameworks, this article can be a good starting point: [The world needs an alternative to Selenium - *so we built one*](https://hackernoon.com/the-world-needs-an-alternative-to-selenium-so-we-built-one-zrk3j3nyr).
 
 # Examples
 ## Web Browser
