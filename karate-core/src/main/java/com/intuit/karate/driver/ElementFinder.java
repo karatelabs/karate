@@ -64,6 +64,21 @@ public class ElementFinder implements Finder {
             default: // NEAR
                 return " var a = 0.381966 * i; var x = (s + a) * Math.cos(a); var y = (s + a) * Math.sin(a);";
         }
+    }        
+    
+    private static String exitCondition(String findTag) {
+        int pos = findTag.indexOf('}');
+        if (pos == -1) {
+            return "e.tagName == '" + findTag.toUpperCase() + "'";
+        }
+        int caretPos = findTag.indexOf('^');        
+        boolean contains = caretPos != -1 && caretPos < pos;
+        String findText = findTag.substring(pos + 1);
+        if (contains) {
+            return "e.textContent.trim().includes('" + findText + "')";
+        } else {
+            return "e.textContent.trim() == '" + findText + "'";
+        }
     }
 
     private static String findScript(Driver driver, String locator, ElementFinder.Type type, String findTag) {
@@ -81,8 +96,8 @@ public class ElementFinder implements Finder {
                 + " for (var i = 0; i < 200; i++) {"
                 + forLoopChunk(type)
                 + " var e = document.elementFromPoint(o.x + x, o.y + y);"
-                + " console.log(o.x +':' + o.y, x + ':' + y, e);"
-                + " if (e && e.tagName == '" + findTag.toUpperCase() + "') return gen(e); "
+                // + " console.log(o.x +':' + o.y + ' ' + x + ':' + y + ' ' + e.tagName + ':' + e.textContent);"
+                + " if (e && " + exitCondition(findTag) + ") return gen(e); "
                 + " } return null";
         return DriverOptions.wrapInFunctionInvoke(fun);
     }
@@ -121,5 +136,10 @@ public class ElementFinder implements Finder {
     public Element click() {
         return find().click();
     }
+
+    @Override
+    public Element highlight() {
+        return find().highlight();
+    }        
 
 }

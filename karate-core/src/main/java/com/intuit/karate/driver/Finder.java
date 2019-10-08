@@ -38,5 +38,7 @@ public interface Finder {
     Element find();
 
     Element find(String tag);
+    
+    Element highlight();
 
 }

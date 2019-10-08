@@ -72,6 +72,11 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element highlight() {
+        return driver.highlight(locator);
+    }        
+
+    @Override
     public Element focus() {
         return driver.focus(locator);
     }

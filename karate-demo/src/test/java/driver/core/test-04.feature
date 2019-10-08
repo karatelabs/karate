@@ -5,18 +5,13 @@ Scenario Outline: <type>
   * configure driver = { type: '#(type)', showDriverLog: true }
 
   * driver webUrlBase + '/page-03'
-
-  # powerful wait designed for tabular results that take time to load
-  When def list = waitForResultCount('div#eg01 div', 4)  
-  Then match list == '#[4]'
-
-  When def list = waitForResultCount('div#eg01 div', 4, '_.innerHTML')
-  Then match list == '#[4]'
-  And match each list contains '@@data'
+  * delay(100)
+  * above('{}Input On Right').find('{}Go to Page One').click()
+  * waitForUrl('/page-01')
 
 Examples:
 | type         |
 | chrome       |
-| chromedriver |
-| geckodriver  |
-| safaridriver |
+#| chromedriver |
+#| geckodriver  |
+#| safaridriver |

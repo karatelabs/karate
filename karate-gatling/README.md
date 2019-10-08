@@ -186,7 +186,7 @@ And now, whenever you need, you can add a pause between API invocations in a fea
 You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
 
 ## `configure localAddress`
-> This is implemented only for the `karate-apache` HTTP client.
+> This is implemented only for the `karate-apache` HTTP client. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
 
 Gatling has a way to bind the HTTP "protocol" to [use a specific "local address"](https://gatling.io/docs/3.2/http/http_protocol/#local-address), which is useful when you want to use an IP range to avoid triggering rate-limiting on the server under test etc. But since Karate makes the HTTP requests, you can use the [`configure`](https://github.com/intuit/karate#configure) keyword, and this can actually be done *any* time within a Karate script or `*.feature` file.
 

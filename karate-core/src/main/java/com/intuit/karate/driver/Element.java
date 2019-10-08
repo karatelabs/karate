@@ -35,6 +35,8 @@ public interface Element {
     
     boolean isEnabled(); // getter
     
+    Element highlight();
+    
     Element focus();
     
     Element clear();

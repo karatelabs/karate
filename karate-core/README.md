@@ -436,6 +436,14 @@ By default, the HTML tag that will be searched for will be `input`. While rarely
 * rightOf('{}Some Text').find('span').click()
 ```
 
+One more variation supported is that instead of an HTML tag name, you can look for the `textContent`:
+
+```cucumber
+* rightOf('{}Some Text').find('{}Click Me').click()
+```
+
+One thing to watch out for is that the "origin" of the search will be the mid-point of the whole HTML element, not just the text. So eespecially when doing `above()` or `below()`, ensure that the "search path" is aligned the way you expect.
+
 ### `rightOf()`
 ```cucumber
 * rightOf('{}Input On Right').input('input right')

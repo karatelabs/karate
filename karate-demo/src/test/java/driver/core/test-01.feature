@@ -243,6 +243,10 @@ Scenario Outline: using <config>
   * match text('#eg01Data3') == 'input above'
   * match text('#eg01Data4') == 'Some Textinput below'
 
+  # friendly locator find by visible text
+  * above('{}Input On Right').find('{}Go to Page One').click()
+  * waitForUrl('/page-01')
+
   # switch to iframe by index
   Given driver webUrlBase + '/page-04'
   And match driver.url == webUrlBase + '/page-04'
