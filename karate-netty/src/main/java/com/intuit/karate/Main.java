@@ -64,6 +64,9 @@ public class Main implements Callable<Void> {
     @Option(names = {"-p", "--port"}, description = "mock server port (required for --mock)")
     Integer port;
 
+    @Option(names = {"-w", "--watch"}, description = "watch (and hot-reload) mock server file for changes")
+    boolean watch;
+
     @Option(names = {"-s", "--ssl"}, description = "use ssl / https, will use '"
             + FeatureServer.DEFAULT_CERT_NAME + "' and '" + FeatureServer.DEFAULT_KEY_NAME
             + "' if they exist in the working directory, or generate them")
@@ -200,11 +203,11 @@ public class Main implements Callable<Void> {
             key = new File(FeatureServer.DEFAULT_KEY_NAME);
         }
         FeatureServer server = FeatureServer.start(mock, port, ssl, cert, key, null);
-        
-        // hot reload
-        FileChangedWatcher watcher = new FileChangedWatcher(mock, server, port, ssl, cert, key);
-        watcher.watch();
-        
+        if (watch) {
+            logger.info("--watch enabled, will hot-reload: {}", mock.getName());
+            FileChangedWatcher watcher = new FileChangedWatcher(mock, server, port, ssl, cert, key);
+            watcher.watch();
+        }
         server.waitSync();
         return null;
     }

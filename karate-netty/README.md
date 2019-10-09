@@ -124,6 +124,9 @@ If you *don't* enable SSL, the proxy server will still be able to tunnel HTTPS t
 java -jar karate.jar -m my-mock.feature -p 8090 -c my-cert.crt -k my-key.key
 ```
 
+#### Hot Reload
+You can hot-reload a mock feature file for changes by adding the `-w` or `--watch` option.
+
 ### Running Tests
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
 
