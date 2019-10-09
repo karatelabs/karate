@@ -220,6 +220,7 @@ public class DriverOptions {
         if (type == null) {
             logger.warn("type was null, defaulting to 'chrome'");
             type = "chrome";
+            options.put("type", type);
         }
         try { // to make troubleshooting errors easier
             switch (type) {
@@ -243,6 +244,7 @@ public class DriverOptions {
                     return IosDriver.start(context, options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
+                    options.put("type", "chrome");
                     return Chrome.start(context, options, appender);
             }
         } catch (Exception e) {
