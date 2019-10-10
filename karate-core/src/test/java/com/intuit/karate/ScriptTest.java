@@ -1715,4 +1715,10 @@ public class ScriptTest {
         assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ bar: 10 }", ctx).pass);
     }
 
+    @Test
+    public void notEqualMatchTest(){
+        Map<String, Object> result = Runner.runFeature(getClass(), "core/notEqualMatch.feature", null, true);
+        assertNotEquals(result.get("a"),result.get("b"));
+    }
+
 }

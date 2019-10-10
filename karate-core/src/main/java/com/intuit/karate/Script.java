@@ -1546,7 +1546,9 @@ public class Script {
                 }
             }
         } else if (!expObject.equals(actObject)) { // same data type, but not equal
-            if (matchType != MatchType.NOT_EQUALS) {
+            if (matchType == MatchType.NOT_EQUALS) {
+                return AssertionResult.PASS;
+            } else {
                 return matchFailed(matchType, path, actObject, expObject, "not equal (" + actObject.getClass().getSimpleName() + ")");
             }
         }
