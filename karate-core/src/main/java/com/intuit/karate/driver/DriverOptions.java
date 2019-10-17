@@ -393,7 +393,7 @@ public class DriverOptions {
         String e = selector(id);
         String temp = "var e = " + e + "; var t = \"" + text + "\";"
                 + " for (var i = 0; i < e.options.length; ++i)"
-                + " if (" + condition + ") e.options[i].selected = true";
+                + " if (" + condition + ") { e.options[i].selected = true; e.dispatchEvent(new Event('change')) }";
         return wrapInFunctionInvoke(temp);
     }
 
@@ -401,7 +401,7 @@ public class DriverOptions {
         String e = selector(id);
         String temp = "var e = " + e + "; var t = " + index + ";"
                 + " for (var i = 0; i < e.options.length; ++i)"
-                + " if (i === t) e.options[i].selected = true";
+                + " if (i === t) { e.options[i].selected = true; e.dispatchEvent(new Event('change')) }";
         return wrapInFunctionInvoke(temp);
     }
 
