@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.StringUtils;
 import java.util.Map;
 
 /**
@@ -66,18 +67,23 @@ public class ElementFinder implements Finder {
         }
     }        
     
-    private static String exitCondition(String findTag) {
+    public static String exitCondition(String findTag) {
         int pos = findTag.indexOf('}');
         if (pos == -1) {
             return "e.tagName == '" + findTag.toUpperCase() + "'";
         }
         int caretPos = findTag.indexOf('^');        
         boolean contains = caretPos != -1 && caretPos < pos;
-        String findText = findTag.substring(pos + 1);
+        if (!contains) {
+            caretPos = 0;
+        }
+        String tagName = StringUtils.trimToNull(findTag.substring(caretPos + 1, pos));
+        String suffix = tagName == null ? "" : " && e.tagName == '" + tagName.toUpperCase() + "'";
+        String findText = findTag.substring(pos + 1);        
         if (contains) {
-            return "e.textContent.trim().includes('" + findText + "')";
+            return "e.textContent.trim().includes('" + findText + "')" + suffix;
         } else {
-            return "e.textContent.trim() == '" + findText + "'";
+            return "e.textContent.trim() == '" + findText + "'" + suffix;
         }
     }
 
@@ -133,6 +139,16 @@ public class ElementFinder implements Finder {
     }
 
     @Override
+    public Element select(String value) {
+        return find("select").select(value);
+    }   
+    
+    @Override
+    public Element select(int index) {
+        return find("select").select(index);
+    }    
+
+    @Override
     public Element click() {
         return find().click();
     }
@@ -140,6 +156,21 @@ public class ElementFinder implements Finder {
     @Override
     public Element highlight() {
         return find().highlight();
-    }        
+    }     
+
+    @Override
+    public Element retry() {
+        return find().retry();
+    }
+
+    @Override
+    public Element retry(int count) {
+        return find().retry(count);
+    }
+
+    @Override
+    public Element retry(Integer count, Integer interval) {
+        return find().retry(count, interval);
+    }    
 
 }

@@ -55,7 +55,7 @@ public class MissingElement implements Element {
     @Override
     public Element highlight() {
         return this;
-    }        
+    }
 
     @Override
     public Element focus() {
@@ -91,11 +91,11 @@ public class MissingElement implements Element {
     public Element input(String[] values) {
         return this;
     }
-    
+
     @Override
     public Element input(String[] values, int delay) {
         return this;
-    }    
+    }
 
     @Override
     public Element select(String text) {
@@ -118,6 +118,21 @@ public class MissingElement implements Element {
         return this;
     }
 
+    @Override
+    public Element retry() {
+        return this;
+    }
+
+    @Override
+    public Element retry(int count) {
+        return this;
+    }
+
+    @Override
+    public Element retry(Integer count, Integer interval) {
+        return this;
+    }
+    
     @Override
     public Element waitFor() {
         return this;
@@ -166,6 +181,31 @@ public class MissingElement implements Element {
     @Override
     public void setValue(String value) {
 
+    }
+
+    @Override
+    public Finder rightOf() {
+        return null;
+    }
+
+    @Override
+    public Finder leftOf() {
+        return null;
+    }
+
+    @Override
+    public Finder above() {
+        return null;
+    }
+
+    @Override
+    public Finder below() {
+        return null;
+    }
+
+    @Override
+    public Finder near() {
+        return null;
     }
 
 }

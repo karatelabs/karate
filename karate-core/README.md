@@ -442,7 +442,13 @@ One more variation supported is that instead of an HTML tag name, you can look f
 * rightOf('{}Some Text').find('{}Click Me').click()
 ```
 
-One thing to watch out for is that the "origin" of the search will be the mid-point of the whole HTML element, not just the text. So eespecially when doing `above()` or `below()`, ensure that the "search path" is aligned the way you expect.
+One thing to watch out for is that the "origin" of the search will be the mid-point of the whole HTML element, not just the text. So especially when doing `above()` or `below()`, ensure that the "search path" is aligned the way you expect. If you get stuck trying to align the search path, especially if the "origin" is a small chunk of text that is aligned right or left - try [`near()`](#near).
+
+In addition to `<input>` fields, `<select>` boxes are directly supported like this, so internally a `find('select')` is "[chained](#chaining)" automatically:
+
+```cucumber
+* below('{}State').select(0)
+```
 
 ### `rightOf()`
 ```cucumber
@@ -464,7 +470,7 @@ One thing to watch out for is that the "origin" of the search will be the mid-po
 ```
 
 ### `near()`
-The typical reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be useful if the element you are seeking is diagonally offset from the [locator](#locators) you have.
+One reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be useful if the element you are seeking is diagonally offset from the [locator](#locators) you have.
 
 ```cucumber
  * near('{}Go to Page One').click()
@@ -1103,6 +1109,12 @@ And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 ```
 
 Normally you would use [`text()`](#text) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`waitUntil()`](#waituntil).
+
+Here is an interesting example where a JavaScript event can be triggered on a given HTML element:
+
+```cucumber
+* waitFor('#someId').script("_.dispatchEvent(new Event('change'))")
+```
 
 Also see the plural form [`scriptAll()`](#scriptall).
 

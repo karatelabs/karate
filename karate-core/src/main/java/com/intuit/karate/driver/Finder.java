@@ -30,6 +30,10 @@ package com.intuit.karate.driver;
 public interface Finder {
 
     Element input(String value);
+    
+    Element select(String value);
+    
+    Element select(int index);
 
     Element click();
 
@@ -40,5 +44,11 @@ public interface Finder {
     Element find(String tag);
     
     Element highlight();
+    
+    Element retry();
+    
+    Element retry(int count);
+    
+    Element retry(Integer count, Integer interval);
 
 }
