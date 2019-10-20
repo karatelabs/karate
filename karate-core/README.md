@@ -1406,17 +1406,17 @@ Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
 
 # Appium
+## Screen Recording
+Only supported for driver type [`android` | `ios`](#driver-types).
 
-## `Screen Recording`
-Only supported for driver type [`android | ios`](#driver-types).
 ```cucumber
 * driver.startRecordingScreen()
 # test
 * driver.saveRecordingScreen("invoice.mp4",true)
 ```
-above example would save the file and perform "auto-embedding" to HTML report.
+The above example would save the file and perform "auto-embedding" into the HTML report.
 
-you can also use `startRecordingScreen()` and `stopRecordingScreen()`, both takes recording options as JSON input.
+You can also use `startRecordingScreen()` and `stopRecordingScreen()`, and both methods take recording options as JSON input.
 
 ## `hideKeyboard()`
-Only supported for driver type [`android | ios`](#driver-types), for hide soft keyboard.
+Only supported for driver type [`android` | `ios`](#driver-types), for hiding the "soft keyboard".
