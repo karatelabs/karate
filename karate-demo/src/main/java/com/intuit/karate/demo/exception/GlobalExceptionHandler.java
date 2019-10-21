@@ -16,7 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-	/**
+    /**
      * Adding these properties will make the following code active:
      * spring.mvc.throw-exception-if-no-handler-found=true
      * spring.resources.add-mappings=false
@@ -35,4 +35,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(status.value(), uriPath, method, message);
         return new ResponseEntity<>(errorResponse, status);
     }
+    
 }

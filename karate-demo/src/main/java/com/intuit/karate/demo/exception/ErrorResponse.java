@@ -22,54 +22,36 @@ public class ErrorResponse {
         this.message = message;
     }
 
-  /**
-   * @return the code
-   */
-  public int getCode() {
-  return code;}
+    public int getCode() {
+        return code;
+    }
 
-  /**
-   * @param code the code to set
-   */
-  public void setCode(int code) {
-  this.code = code;}
+    public void setCode(int code) {
+        this.code = code;
+    }
 
-  /**
-   * @return the path
-   */
-  public String getPath() {
-  return path;}
+    public String getPath() {
+        return path;
+    }
 
-  /**
-   * @param path the path to set
-   */
-  public void setPath(String path) {
-  this.path = path;}
+    public void setPath(String path) {
+        this.path = path;
+    }
 
-  /**
-   * @return the method
-   */
-  public String getMethod() {
-  return method;}
+    public String getMethod() {
+        return method;
+    }
 
-  /**
-   * @param method the method to set
-   */
-  public void setMethod(String method) {
-  this.method = method;}
+    public void setMethod(String method) {
+        this.method = method;
+    }
 
-  /**
-   * @return the message
-   */
-  public String getMessage() {
-  return message;}
+    public String getMessage() {
+        return message;
+    }
 
-  /**
-   * @param message the message to set
-   */
-  public void setMessage(String message) {
-  this.message = message;}
+    public void setMessage(String message) {
+        this.message = message;
+    }
 
-    
 }
-

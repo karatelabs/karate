@@ -110,12 +110,10 @@ public class MockDemoConfig {
     public EchoController echoController() {
         return new EchoController();
     }    
-    
-    // Global Exception Handler ...
+
     @Bean
     public GlobalExceptionHandler globalExceptionHandler() {
         return new GlobalExceptionHandler();
     }
-
     
 }

@@ -44,7 +44,7 @@ public class MockSpringMvcServlet extends MockHttpClient {
 
     private final Servlet servlet;
     private final ServletContext servletContext;
-    
+
     public MockSpringMvcServlet(Servlet servlet, ServletContext servletContext) {
         this.servlet = servlet;
         this.servletContext = servletContext;
@@ -59,14 +59,14 @@ public class MockSpringMvcServlet extends MockHttpClient {
     protected ServletContext getServletContext() {
         return servletContext;
     }
-        
+
     private static final ServletContext SERVLET_CONTEXT = new MockServletContext();
     private static final Servlet SERVLET;
-    
+
     static {
         SERVLET = initServlet();
     }
-    
+
     private static Servlet initServlet() {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.register(MockDemoConfig.class);
@@ -80,27 +80,28 @@ public class MockSpringMvcServlet extends MockHttpClient {
             throw new RuntimeException(e);
         }
         return servlet;
-    }      
-    
+    }
+
     /**
-     * Checks if servlet is Dispatcher servlet implementation and then fetches the WebMvcProperties
-     * from spring container and configure the dispatcher servlet.
+     * Checks if servlet is Dispatcher servlet implementation and then fetches
+     * the WebMvcProperties from spring container and configure the dispatcher
+     * servlet.
      *
      * @param servlet input servlet implementation
      */
     private static void customize(Servlet servlet) {
-      if (servlet instanceof DispatcherServlet) {
-        DispatcherServlet dispatcherServlet = (DispatcherServlet) servlet;
-        WebMvcProperties mvcProperties =
-            dispatcherServlet.getWebApplicationContext().getBean(WebMvcProperties.class);
-        dispatcherServlet.setThrowExceptionIfNoHandlerFound(mvcProperties.isThrowExceptionIfNoHandlerFound());
-        dispatcherServlet.setDispatchOptionsRequest(mvcProperties.isDispatchOptionsRequest());
-        dispatcherServlet.setDispatchTraceRequest(mvcProperties.isDispatchTraceRequest());       
-      }
+        if (servlet instanceof DispatcherServlet) {
+            DispatcherServlet dispatcherServlet = (DispatcherServlet) servlet;
+            WebMvcProperties mvcProperties
+                    = dispatcherServlet.getWebApplicationContext().getBean(WebMvcProperties.class);
+            dispatcherServlet.setThrowExceptionIfNoHandlerFound(mvcProperties.isThrowExceptionIfNoHandlerFound());
+            dispatcherServlet.setDispatchOptionsRequest(mvcProperties.isDispatchOptionsRequest());
+            dispatcherServlet.setDispatchTraceRequest(mvcProperties.isDispatchTraceRequest());
+        }
     }
-    
+
     public static MockSpringMvcServlet getMock() {
         return new MockSpringMvcServlet(SERVLET, SERVLET_CONTEXT);
     }
-    
+
 }
