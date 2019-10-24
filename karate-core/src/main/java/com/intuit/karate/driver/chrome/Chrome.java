@@ -33,6 +33,7 @@ import com.intuit.karate.driver.DriverOptions;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import sun.awt.OSInfo.OSType;
 
 /**
  *
@@ -45,6 +46,8 @@ public class Chrome extends DevToolsDriver {
 
     public static final String DEFAULT_PATH_MAC = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     public static final String DEFAULT_PATH_WIN = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+    public static final String DEFAULT_PATH_LINUX = "/usr/bin/google-chrome";
+
 
     public Chrome(DriverOptions options, Command command, String webSocketUrl) {
         super(options, command, webSocketUrl);
@@ -52,7 +55,7 @@ public class Chrome extends DevToolsDriver {
 
     public static Chrome start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 9222, 
-                FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : DEFAULT_PATH_MAC);
+                FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.getOsName().equals(OSType.MACOSX)?DEFAULT_PATH_MAC:DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
         options.arg("--user-data-dir=" + options.workingDirPath);
