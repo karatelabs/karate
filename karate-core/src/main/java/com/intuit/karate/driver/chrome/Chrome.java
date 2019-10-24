@@ -33,7 +33,7 @@ import com.intuit.karate.driver.DriverOptions;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import sun.awt.OSInfo.OSType;
+
 
 /**
  *
@@ -55,7 +55,7 @@ public class Chrome extends DevToolsDriver {
 
     public static Chrome start(ScenarioContext context, Map<String, Object> map, LogAppender appender) {
         DriverOptions options = new DriverOptions(context, map, appender, 9222, 
-                FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.getOsName().equals(OSType.MACOSX)?DEFAULT_PATH_MAC:DEFAULT_PATH_LINUX);
+                FileUtils.isOsWindows() ? DEFAULT_PATH_WIN : FileUtils.isOsMacOsX()?DEFAULT_PATH_MAC:DEFAULT_PATH_LINUX);
         options.arg("--remote-debugging-port=" + options.port);
         options.arg("--no-first-run");
         options.arg("--user-data-dir=" + options.workingDirPath);
