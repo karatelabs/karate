@@ -142,7 +142,8 @@ public class ScriptBindings implements Bindings {
         } catch (KarateAbortException | KarateFileNotFoundException ke) {
             throw ke; // reduce log bloat for common file-not-found situation / handle karate.abort()
         } catch (Exception e) {
-            throw new RuntimeException("javascript evaluation failed: " + exp + ", " + e.getMessage(), e);
+            String append = e.getMessage() == null ? exp : e.getMessage();
+            throw new RuntimeException("javascript evaluation failed: " + exp + ", " + append, e);
         }
     }
 
