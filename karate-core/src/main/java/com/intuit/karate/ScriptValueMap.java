@@ -68,8 +68,10 @@ public class ScriptValueMap extends HashMap<String, ScriptValue> {
     }
 
     public ScriptValueMap copy(boolean deep) {
+        // prevent json conversion failures for gatling weirdness
+        boolean deepFixed = containsKey("__gatling") ? false : deep;
         ScriptValueMap copy = new ScriptValueMap();
-        forEach((k, v) -> copy.put(k, deep ? v.copy(true) : v));
+        forEach((k, v) -> copy.put(k, deepFixed ? v.copy(true) : v));
         return copy;
     }
 
