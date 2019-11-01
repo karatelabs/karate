@@ -352,7 +352,7 @@ To try this or especially when you need to investigate why a test is not behavin
   * this would include the `stderr` and `stdout` logs from Chrome, which can be helpful for troubleshooting
 
 ## Driver Types
-type | default<br/>port | default<br/>executable | description
+type | default port | default executable | description
 ---- | ---------------- | ---------------------- | -----------
 [`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
