@@ -105,15 +105,18 @@ public class HttpRequestBuilder {
 
     public String getUrlAndPath() {
         String temp = url;
-        if (!temp.endsWith("/")) {
-            temp = temp + "/";
-        }
         if (paths == null) {
+            if (!temp.endsWith("/")) {
+                temp = temp + "/";
+            }
             return temp;
         }
         for (String path : paths) {
             if (path.startsWith("/")) {
                 path = path.substring(1);
+            }
+            if (!temp.endsWith("/")) {
+                temp = temp + "/";
             }
             temp = temp + path;
         }
@@ -140,7 +143,7 @@ public class HttpRequestBuilder {
         }
         headers.remove(name);
     }
-    
+
     public void removeHeaderIgnoreCase(String name) {
         if (headers == null || name == null) {
             return;
@@ -150,7 +153,7 @@ public class HttpRequestBuilder {
                 .collect(Collectors.toList());
         // has to be separate step else concurrent modification exception
         list.forEach(k -> headers.remove(k));
-    }    
+    }
 
     public void setHeaders(MultiValuedMap headers) {
         this.headers = headers;
