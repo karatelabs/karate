@@ -1,14 +1,16 @@
 dev:
 mvn versions:set -DnewVersion=1.0.0
 mvn versions:commit
-(edit karate-example/pom.xml)
+(edit examples/jobserver/pom.xml)
+(edit examples/gatling/pom.xml)
 
 main:
 mvn versions:set -DnewVersion=@@@
 (edit archetype karate.version)
 (edit README.md maven 5 places)
 (edit karate-gatling/build.gradle 1 place)
-(edit karate-example/pom.xml 1 place)
+(edit examples/jobserver/pom.xml)
+(edit examples/gatling/pom.xml)
 mvn versions:commit
 mvn clean deploy -P pre-release,release
 
@@ -21,7 +23,9 @@ edit-wiki:
 https://github.com/intuit/karate/wiki/ZIP-Release
 
 docker:
-(double check if karate-example/pom.xml is updated for the version
+(double check if the below pom files are updated for the version
+(edit examples/jobserver/pom.xml)
+(edit examples/gatling/pom.xml)
 make sure docker is started and is running !
 cd karate-docker/karate-chrome
 rm -rf target
