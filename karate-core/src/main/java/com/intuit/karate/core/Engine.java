@@ -141,7 +141,13 @@ public class Engine {
         } else {
             last = null;
         }
-        Object[] args = match.convertArgs(last);
+        Object[] args;
+        try {
+            args = match.convertArgs(last);
+        } catch (ArrayIndexOutOfBoundsException ae) { // edge case where user error causes [request =] to match [request docstring]
+            KarateException e = new KarateException("no step-definition method match found for: " + text);
+            return Result.failed(0, e, step);            
+        }
         long startTime = System.nanoTime();
         try {
             match.method.invoke(actions, args);
