@@ -144,7 +144,7 @@ public class Engine {
         Object[] args;
         try {
             args = match.convertArgs(last);
-        } catch (ArrayIndexOutOfBoundsException ae) { // edge case where user error causes [request =] to match [request docstring]
+        } catch (Exception ee) { // edge case where user error causes [request =] to match [request docstring]
             KarateException e = new KarateException("no step-definition method match found for: " + text);
             return Result.failed(0, e, step);            
         }
