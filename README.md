@@ -2005,6 +2005,7 @@ You can adjust configuration settings for the HTTP client used by Karate using t
 `retry` | JSON | defaults to `{ count: 3, interval: 3000 }` - see [`retry until`](#retry-until)
 `outlineVariablesAuto` | boolean | defaults to `true`, whether each key-value pair in the `Scenario Outline` example-row is automatically injected into the context as a variable (and not just `__row`), see [`Scenario Outline` Enhancements](#scenario-outline-enhancements)
  `lowerCaseResponseHeaders` | boolean | Converts every key and value in the [`responseHeaders`](#responseheaders) to lower-case which makes it easier to validate for e.g. using [`match header`](#match-header) (default `false`) [(example)](karate-demo/src/test/java/demo/headers/content-type.feature).
+`logModifier` | Java Object | See [Log Masking](#log-masking)
 `httpClientClass` | string | See [`karate-mock-servlet`](karate-mock-servlet)
 `httpClientInstance` | Java Object | See [`karate-mock-servlet`](karate-mock-servlet)
 `userDefined` | JSON | See [`karate-mock-servlet`](karate-mock-servlet)
@@ -2062,6 +2063,26 @@ And this short-cut is also supported which will disable all logs:
 
 ```cucumber
 * configure report = false
+```
+
+Since you can use `configure` any time within a test, you have control over which requests or steps you want to show / hide.
+
+### Log Masking
+In cases where you want to "mask" values which are sensitive from a security point of view from the logs and HTML reports, you can implement the [`HttpLogModifer`](karate-core/src/main/java/com/intuit/karate/http/HttpLogModifier.java) and tell Karate to use it via the [`configure`](#configure) keyword. Here is an [example](karate-demo/src/test/java/demo/headers/DemoLogModifier.java) of an implementation. For performance reasons, you can implement  `enableForUri()` so that this "activates" only for some URL patterns.
+
+Instantiating a Java class and using this in a test is easy:
+
+```cucumber
+# if this was in karate-config.js, it would apply "globally"
+* def LM = Java.type('demo.headers.DemoLogModifier')
+* configure logModifier = new LM()
+```
+
+Or globally:
+
+```js
+var LM = Java.type('demo.headers.DemoLogModifier');
+karate.configure('logModifier', new LM());
 ```
 
 ### System Properties for SSL and HTTP proxy

@@ -40,8 +40,9 @@ public class StepResult {
     private final Step step;
     private final Result result;
     private final List<FeatureResult> callResults;
-    private final boolean hidden;
-
+    
+    private boolean hidden;
+    private boolean showLog = true;
     private List<Embed> embeds;
     private String stepLog;
 
@@ -57,8 +58,11 @@ public class StepResult {
     }
 
     public void appendToStepLog(String log) {
-        if (log == null || stepLog == null) {
+        if (log == null) {
             return;
+        }
+        if (stepLog == null) {
+            stepLog = "";
         }
         stepLog = stepLog + log;
     }
@@ -85,7 +89,6 @@ public class StepResult {
         step.setText((String) map.get("name"));
         result = new Result((Map) map.get("result"));
         callResults = null;
-        hidden = false;
     }
 
     public Map<String, Object> toMap() {
@@ -121,16 +124,27 @@ public class StepResult {
         return map;
     }
 
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
+    }        
+
     public boolean isHidden() {
         return hidden;
     }
+
+    public boolean isShowLog() {
+        return showLog;
+    }
+
+    public void setShowLog(boolean showLog) {
+        this.showLog = showLog;
+    }        
 
     public boolean isStopped() {
         return result.isFailed() || result.isAborted();
     }
 
-    public StepResult(boolean hidden, Step step, Result result, String stepLog, List<Embed> embeds, List<FeatureResult> callResults) {
-        this.hidden = hidden;
+    public StepResult(Step step, Result result, String stepLog, List<Embed> embeds, List<FeatureResult> callResults) {
         this.step = step;
         this.result = result;
         this.stepLog = stepLog;

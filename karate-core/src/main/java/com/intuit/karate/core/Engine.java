@@ -338,7 +338,7 @@ public class Engine {
         if (step.getDocString() != null) {
             sb.append(step.getDocString());
         }
-        if (stepResult.getStepLog() != null) {
+        if (stepResult.isShowLog() && stepResult.getStepLog() != null) {
             if (sb.length() > 0) {
                 sb.append('\n');
             }

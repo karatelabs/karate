@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpLogModifier;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,7 @@ public class Config {
     private Map<String, Object> driverOptions;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
+    private HttpLogModifier logModifier;
 
     // retry config
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
@@ -165,6 +167,9 @@ public class Config {
             // here on the http client has to be re-constructed ================
             case "httpClientClass":
                 clientClass = value.getAsString();
+                return true;
+            case "logModifier":
+                logModifier = value.getValue(HttpLogModifier.class);               
                 return true;
             case "httpClientInstance":
                 clientInstance = value.getValue(HttpClient.class);
@@ -266,6 +271,7 @@ public class Config {
         retryInterval = parent.retryInterval;
         retryCount = parent.retryCount;
         outlineVariablesAuto = parent.outlineVariablesAuto;
+        logModifier = parent.logModifier;
     }
         
     public void setCookies(ScriptValue cookies) {
@@ -460,6 +466,10 @@ public class Config {
 
     public void setDriverTarget(Target driverTarget) {
         this.driverTarget = driverTarget;
+    }        
+
+    public HttpLogModifier getLogModifier() {
+        return logModifier;
     }        
 
 }
