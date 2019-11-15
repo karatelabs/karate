@@ -2068,9 +2068,9 @@ And this short-cut is also supported which will disable all logs:
 Since you can use `configure` any time within a test, you have control over which requests or steps you want to show / hide.
 
 ### Log Masking
-In cases where you want to "mask" values which are sensitive from a security point of view from the logs and HTML reports, you can implement the [`HttpLogModifer`](karate-core/src/main/java/com/intuit/karate/http/HttpLogModifier.java) and tell Karate to use it via the [`configure`](#configure) keyword. Here is an [example](karate-demo/src/test/java/demo/headers/DemoLogModifier.java) of an implementation. For performance reasons, you can implement  `enableForUri()` so that this "activates" only for some URL patterns.
+In cases where you want to "mask" values which are sensitive from a security point of view from the output files, logs and HTML reports, you can implement the [`HttpLogModifer`](karate-core/src/main/java/com/intuit/karate/http/HttpLogModifier.java) and tell Karate to use it via the [`configure`](#configure) keyword. Here is an [example](karate-demo/src/test/java/demo/headers/DemoLogModifier.java) of an implementation. For performance reasons, you can implement  `enableForUri()` so that this "activates" only for some URL patterns.
 
-Instantiating a Java class and using this in a test is easy:
+Instantiating a Java class and using this in a test is easy (see [example](karate-demo/src/test/java/demo/headers/headers-masking.feature)):
 
 ```cucumber
 # if this was in karate-config.js, it would apply "globally"
