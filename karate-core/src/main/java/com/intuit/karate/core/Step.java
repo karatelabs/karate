@@ -43,12 +43,22 @@ public class Step {
     private Table table;
     
     public String getDebugInfo() {
-        String scenarioName = StringUtils.trimToNull(scenario.getName());
-        String message = "feature: " + scenario.getFeature().getRelativePath();
-        if (scenarioName != null) {
-            message = message + ", scenario: " + scenarioName;
-        }
-        return message + ", line: " + line;        
+        String message = "";
+
+        if(isBackground()) {
+            String featureName = StringUtils.trimToNull(feature.getName());
+            message = "feature: " + feature.getRelativePath();
+            if (featureName != null) {
+                message = message + ", feature: " + featureName;
+            }
+        } else {
+                String scenarioName = StringUtils.trimToNull(scenario.getName());
+                message = "feature: " + scenario.getFeature().getRelativePath();
+                if (scenarioName != null) {
+                    message = message + ", scenario: " + scenarioName;
+                }
+            }
+        return message + ", line: " + line;
     }
     
     public boolean isPrint() {
