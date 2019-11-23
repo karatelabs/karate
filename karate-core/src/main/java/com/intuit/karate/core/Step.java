@@ -30,56 +30,55 @@ import com.intuit.karate.StringUtils;
  * @author pthomas3
  */
 public class Step {
-        
+
     private final Feature feature;
     private final Scenario scenario;
     private final int index;
-            
+
     private int line;
     private int endLine;
     private String prefix;
     private String text;
     private String docString;
     private Table table;
-    
+
     public String getDebugInfo() {
-        String scenarioName = StringUtils.trimToNull(scenario.getName());
-        String message = "feature: " + scenario.getFeature().getRelativePath();
-        if (scenarioName != null) {
-            message = message + ", scenario: " + scenarioName;
+        String message = "feature: " + feature.getRelativePath();
+        if (!isBackground()) {
+            message = message + ", scenario: " + StringUtils.trimToNull(scenario.getName());
         }
-        return message + ", line: " + line;        
+        return message + ", line: " + line;
     }
-    
+
     public boolean isPrint() {
         return text != null && text.startsWith("print");
     }
-    
+
     public boolean isPrefixStar() {
         return "*".equals(prefix);
     }
-    
+
     protected Step() {
         this(null, null, -1);
     }
-    
+
     public Step(Feature feature, Scenario scenario, int index) {
         this.feature = feature;
         this.scenario = scenario;
         this.index = index;
     }
-    
+
     public boolean isBackground() {
         return scenario == null;
     }
-    
+
     public boolean isOutline() {
         return scenario != null && scenario.isOutline();
     }
 
     public Feature getFeature() {
         return feature;
-    }        
+    }
 
     public Scenario getScenario() {
         return scenario;
@@ -87,7 +86,7 @@ public class Step {
 
     public int getIndex() {
         return index;
-    }    
+    }
 
     public int getLine() {
         return line;
@@ -96,7 +95,7 @@ public class Step {
     public void setLine(int line) {
         this.line = line;
     }
-    
+
     public int getLineCount() {
         return endLine - line + 1;
     }
@@ -107,7 +106,7 @@ public class Step {
 
     public void setEndLine(int endLine) {
         this.endLine = endLine;
-    }        
+    }
 
     public String getPrefix() {
         return prefix;
@@ -115,8 +114,8 @@ public class Step {
 
     public void setPrefix(String prefix) {
         this.prefix = prefix;
-    }    
-    
+    }
+
     public String getText() {
         return text;
     }
@@ -140,17 +139,17 @@ public class Step {
     public void setTable(Table table) {
         this.table = table;
     }
-    
+
     @Override
     public String toString() {
         String temp = prefix + " " + text;
         if (docString != null) {
-            temp  = temp + "\n\"\"\"\n" + docString + "\n\"\"\"";
+            temp = temp + "\n\"\"\"\n" + docString + "\n\"\"\"";
         }
         if (table != null) {
             temp = temp + " " + table.toString();
         }
         return temp;
-    }    
-   
+    }
+
 }
