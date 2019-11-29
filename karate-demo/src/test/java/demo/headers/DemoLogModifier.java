@@ -7,6 +7,8 @@ import com.intuit.karate.http.HttpLogModifier;
  * @author pthomas3
  */
 public class DemoLogModifier implements HttpLogModifier {
+    
+    public static final HttpLogModifier INSTANCE = new DemoLogModifier();
 
     @Override
     public boolean enableForUri(String uri) {

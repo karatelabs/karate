@@ -955,10 +955,16 @@ And yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/k
 Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and *immediately* check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
 
 ## `waitUntil()`
-Wait for the JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
+Wait for the *browser* JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
 
 ```cucumber
 * waitUntil("document.readyState == 'complete'")
+```
+
+Note that the JS here has to be a "raw" string that is simply sent to the browser as-is and evaluated there. This means that you cannot use any Karate JS objects or API-s such as `karate.get()` or `driver.title`. So trying to use `driver.title == 'My Page'` will *not* work, instead you have to do this:
+
+```cucumber
+* waitUntil("document.title == 'My Page'")
 ```
 
 ### `waitUntil(locator,js)`
