@@ -967,6 +967,8 @@ Note that the JS here has to be a "raw" string that is simply sent to the browse
 * waitUntil("document.title == 'My Page'")
 ```
 
+Also see [Karate vs the Browser](#karate-vs-the-browser).
+
 ### `waitUntil(locator,js)`
 A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut boolean-expression form that begins with an underscore (or "`!`"), and Karate will inject the JavaScript DOM element reference into a variable named "`_`".
 
@@ -1000,7 +1002,7 @@ And waitUntil('#eg01WaitId', '!_.disabled')
 Also see [`waitForEnabled()`](#waitforenabled) which is the preferred short-cut for the last example above, also look at the examples for [chaining](#chaining) and then the section on [waits](#wait-api).
 
 ### `waitUntil(function)`
-A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
+A *very* powerful variation of [`waitUntil()`](#waituntil) takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
 
 This is best explained with an example. Note that [`scriptAll()`](#scriptall) will return an array, as opposed to [`script()`](#script).
 

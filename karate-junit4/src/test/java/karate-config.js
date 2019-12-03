@@ -15,6 +15,7 @@ function fn() {
   }
   config.myObject = read('classpath:test.json');
   config.myFunction = read('classpath:test.js');
+  config.myUtils = karate.call('classpath:utils.feature');
   var port = karate.properties['karate.server.port'];
   port = port || '8080';
   config.mockServerUrl = 'http://localhost:' + port + '/v1/';
