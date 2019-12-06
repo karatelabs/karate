@@ -942,12 +942,18 @@ This is designed specifically for the kind of situation described in the example
 * assert exists('#someId').exists
 ```
 
+But the above is more elegantly expressed using [`locate()`](#locate):
+
+```cucumber
+* assert locate('#someId').exists
+```
+
 But what is most useful is how you can now *click only if element exists*. As you can imagine this can handle un-predictable dialogs, advertisements and the like.
 
 ```cucumber
 * exists('#elusiveButton').click()
 # or if you need to click something else
-* if (exists('#elusivePopup').exists) click('#elusiveButton')
+* if (locate('#elusivePopup').exists) click('#elusiveButton')
 ```
 
 And yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
@@ -1153,7 +1159,14 @@ Rarely used, but when you want to just instantiate an [`Element`](src/main/java/
 
 ```cucumber
 * def e = locate('{}Click Me')
+# now you can have multiple steps refer to "e"
 * if (e.exists) karate.call('some.feature')
+```
+
+It is also useful if you just want to check if an element is present - and this is a bit more elegant than using [`exists()`](#exists):
+
+```cucumber
+* if (locate('{}Click Me').exists) karate.call('some.feature')
 ```
 
 ## `locateAll()`

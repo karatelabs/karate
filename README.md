@@ -3219,6 +3219,8 @@ When you have a sequence of HTTP calls that need to be repeated for multiple tes
 
 Here is an example of using the `call` keyword to invoke another feature file, loaded using the [`read`](#reading-files) function:
 
+> If you find this hard to understand at first, try looking at this [set of examples](karate-demo/src/test/java/demo/callfeature/call-feature.feature).
+
 ```cucumber
 Feature: which makes a 'call' to another re-usable feature
 

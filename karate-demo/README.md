@@ -28,7 +28,6 @@ This is a sample [Spring Boot](http://projects.spring.io/spring-boot/) web-appli
 [`polling.feature`](src/test/java/demo/polling/polling.feature) | [Retry support](https://github.com/intuit/karate#retry-until) is built-in to Karate, but you can also achieve this by combining JavaScript functions with a [`call` to another `*.feature` file](https://github.com/intuit/karate#calling-other-feature-files).
 [`websocket.feature`](src/test/java/demo/websocket/websocket.feature) | How to write [websocket](https://github.com/intuit/karate#websocket) tests, also see [`echo.feature`](src/test/java/demo/websocket/echo.feature).
 [`JavaApiTest.java`](src/test/java/demo/java/JavaApiTest.java) | If you need to call a Karate test from Java code you can do so using the [Java API](https://github.com/intuit/karate#java-api). This is useful in some situations, for example if you want to mix API-calls into a Selenium / WebDriver test.
-[`CatsUiRunner.java`](src/test/java/demo/cats/CatsUiRunner.java) | You can use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) to debug and step-through (and even re-play) each step of a test. Here is a video that shows the possibilities: [link](https://twitter.com/KarateDSL/status/1055148362477891584)
 
 ## Configuration and Best Practices
 | File | Demonstrates
