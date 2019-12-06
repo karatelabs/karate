@@ -253,15 +253,20 @@ public class Runner {
     private static void onFeatureDone(Results results, ExecutionContext execContext, String reportDir, int index, int count) {
         FeatureResult result = execContext.result;
         Feature feature = execContext.featureContext.feature;
-        if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
-            File file = Engine.saveResultJson(reportDir, result, null);
-            if (result.getScenarioCount() < 500) {
-                // TODO this routine simply cannot handle that size
-                Engine.saveResultXml(reportDir, result, null);
+        if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
+            try { // edge case that reports are not writable
+                File file = Engine.saveResultJson(reportDir, result, null);
+                if (result.getScenarioCount() < 500) {
+                    // TODO this routine simply cannot handle that size
+                    Engine.saveResultXml(reportDir, result, null);
+                }
+                String status = result.isFailed() ? "fail" : "pass";
+                LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
+                result.printStats(file.getPath());
+            } catch (Exception e) {
+                LOGGER.error("<<error>> unable to write report file(s): {}", e.getMessage());
+                result.printStats(null);
             }
-            String status = result.isFailed() ? "fail" : "pass";
-            LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
-            result.printStats(file.getPath());
         } else {
             results.addToSkipCount(1);
             if (LOGGER.isTraceEnabled()) {
