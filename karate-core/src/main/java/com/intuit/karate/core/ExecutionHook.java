@@ -51,7 +51,7 @@ public interface ExecutionHook {
     
     void afterAll(Results results);
     
-    void beforeStep(Step step, ScenarioContext context);
+    boolean beforeStep(Step step, ScenarioContext context);
     
     void afterStep(StepResult result, ScenarioContext context);
     

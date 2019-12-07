@@ -25,6 +25,7 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.HttpRequest;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,10 +42,12 @@ import org.apache.http.protocol.HttpContext;
 public class RequestLoggingInterceptor implements HttpRequestInterceptor {
 
     private final ScenarioContext context;
-    private final AtomicInteger counter = new AtomicInteger();
+    private final HttpLogModifier logModifier;
+    private final AtomicInteger counter = new AtomicInteger();    
 
     public RequestLoggingInterceptor(ScenarioContext context) {
         this.context = context;
+        logModifier = context.getConfig().getLogModifier();
     }
 
     public AtomicInteger getCounter() {
@@ -58,10 +61,11 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
         String uri = (String) httpContext.getAttribute(ApacheHttpClient.URI_CONTEXT_KEY);
         String method = request.getRequestLine().getMethod();
         actual.setUri(uri);
-        actual.setMethod(method);
+        actual.setMethod(method);        
         StringBuilder sb = new StringBuilder();
         sb.append("request:\n").append(id).append(" > ").append(method).append(' ').append(uri).append('\n');
-        LoggingUtils.logHeaders(sb, id, '>', request, actual);
+        HttpLogModifier requestModifier = logModifier == null ? null : logModifier.enableForUri(uri) ? logModifier : null;
+        LoggingUtils.logHeaders(requestModifier, sb, id, '>', request, actual);
         if (request instanceof HttpEntityEnclosingRequest) {
             HttpEntityEnclosingRequest entityRequest = (HttpEntityEnclosingRequest) request;
             HttpEntity entity = entityRequest.getEntity();
@@ -70,6 +74,9 @@ public class RequestLoggingInterceptor implements HttpRequestInterceptor {
                 String buffer = FileUtils.toString(wrapper.getContent());
                 if (context.getConfig().isLogPrettyRequest()) {
                     buffer = FileUtils.toPrettyString(buffer);
+                }
+                if (requestModifier != null) {
+                    buffer = requestModifier.request(uri, buffer);
                 }
                 sb.append(buffer).append('\n');
                 actual.setBody(wrapper.getBytes());

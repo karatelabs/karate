@@ -52,7 +52,7 @@ public class ChromeWebDriver extends WebDriver {
         String urlBase = "http://" + options.host + ":" + options.port;
         Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         String sessionId = http.path("session")
-                .post("{ desiredCapabilities: { browserName: 'Chrome' } }")
+                .post(options.getCapabilities())
                 .jsonPath("get[0] response..sessionId").asString();
         options.driverLogger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
@@ -123,6 +123,12 @@ public class ChromeWebDriver extends WebDriver {
     protected boolean isLocatorError(Http.Response res) {
         ScriptValue value = res.jsonPath("$.value").value();
         return value.getAsString().contains("no such element");
+    }  
+
+    @Override
+    protected boolean isCookieError(Http.Response res) {
+        ScriptValue value = res.jsonPath("$.value").value();
+        return !value.isNull() && value.getAsString().contains("unable to set cookie");
     }        
 
 }

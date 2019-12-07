@@ -240,5 +240,16 @@ public class FileUtilsTest {
             assertTrue(e instanceof KarateException);
         }
     }
+    
+    @Test
+    public void testUsingBadPath() {
+        String relativePath = "/foo/bar/feeder.feature";
+        try {
+            FeatureParser.parse(relativePath);
+            fail("we should not have reached here");
+        } catch (Exception e) {
+            assertEquals("file does not exist: /foo/bar/feeder.feature", e.getMessage());
+        }
+    }
 
 }

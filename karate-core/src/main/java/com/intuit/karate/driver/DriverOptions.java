@@ -27,6 +27,7 @@ import com.intuit.karate.Config;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
 import com.intuit.karate.Logger;
+import com.intuit.karate.core.Embed;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.driver.android.AndroidDriver;
 import com.intuit.karate.driver.chrome.Chrome;
@@ -47,9 +48,11 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,7 +74,7 @@ public class DriverOptions {
     public final String executable;
     public final String type;
     public final int port;
-    public final String host = "localhost";
+    public final String host;
     public final boolean headless;
     public final boolean showProcessLog;
     public final boolean showDriverLog;
@@ -86,7 +89,11 @@ public class DriverOptions {
     public final int maxPayloadSize;
     public final List<String> addOptions;
     public final List<String> args = new ArrayList();
+    public final Map<String, Object> proxy;
     public final Target target;
+    public final String beforeStart;
+    public final String afterStop;
+    public final String videoFile;
 
     // mutable during a test
     private boolean retryEnabled;
@@ -160,6 +167,11 @@ public class DriverOptions {
         processLogFile = workingDir.getPath() + File.separator + type + ".log";
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
+        host = get("host", "localhost");
+        proxy = get("proxy", null);
+        beforeStart = get("beforeStart", null);
+        afterStop = get("afterStop", null);
+        videoFile = get("videoFile", null);
         // do this last to ensure things like logger, start-flag and all are set
         port = resolvePort(defaultPort);
     }
@@ -181,14 +193,20 @@ public class DriverOptions {
     }
 
     public Command startProcess() {
+        if (beforeStart != null) {
+            Command.execLine(null, beforeStart);
+        }
+        Command command;
         if (target != null || !start) {
-            return null;
+            command = null;
+        } else {
+            if (addOptions != null) {
+                args.addAll(addOptions);
+            }
+            command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
+            command.start();
         }
-        if (addOptions != null) {
-            args.addAll(addOptions);
-        }
-        Command command = new Command(processLogger, uniqueName, processLogFile, workingDir, args.toArray(new String[]{}));
-        command.start();
+        // try to wait for a slow booting browser / driver process
         waitForPort(host, port);
         return command;
     }
@@ -206,6 +224,7 @@ public class DriverOptions {
         if (type == null) {
             logger.warn("type was null, defaulting to 'chrome'");
             type = "chrome";
+            options.put("type", type);
         }
         try { // to make troubleshooting errors easier
             switch (type) {
@@ -229,6 +248,7 @@ public class DriverOptions {
                     return IosDriver.start(context, options, appender);
                 default:
                     logger.warn("unknown driver type: {}, defaulting to 'chrome'", type);
+                    options.put("type", "chrome");
                     return Chrome.start(context, options, appender);
             }
         } catch (Exception e) {
@@ -240,7 +260,31 @@ public class DriverOptions {
             throw new RuntimeException(message, e);
         }
     }
+    
+    private Map<String, Object> getCapabilities(String browserName) {
+        Map<String, Object> map = new LinkedHashMap();
+        map.put("browserName", browserName);
+        if (proxy != null) {
+            map.put("proxy", proxy);
+        }
+        return Collections.singletonMap("capabilities", map);
+    }
 
+    public Map<String, Object> getCapabilities() {
+        switch (type) {
+            case "chromedriver":
+                return getCapabilities("Chrome");
+            case "geckodriver":
+                return getCapabilities("Firefox");
+            case "safaridriver":
+                return getCapabilities("Safari");
+            case "mswebdriver":
+                return getCapabilities("Edge");
+            default:
+                return null;
+        }
+    }
+    
     public static String preProcessWildCard(String locator) {
         boolean contains;
         String tag, prefix, text;
@@ -302,7 +346,7 @@ public class DriverOptions {
 
     public void setRetryInterval(Integer retryInterval) {
         this.retryInterval = retryInterval;
-    }        
+    }
 
     public int getRetryInterval() {
         if (retryInterval != null) {
@@ -350,13 +394,18 @@ public class DriverOptions {
         return "(function(){ " + text + " })()";
     }
 
-    public String highlighter(String locator) {
+    private static final String HIGHLIGHT_FN = "function(e){ var old = e.getAttribute('style');"
+            + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
+            + " setTimeout(function(){ e.setAttribute('style', old) }, 3000) }";
+
+    public String highlight(String locator) {
         String e = selector(locator);
-        String temp = "var e = " + e + ";"
-                + " var old = e.getAttribute('style');"
-                + " e.setAttribute('style', 'background: yellow; border: 2px solid red;');"
-                + " setTimeout(function(){ e.setAttribute('style', old) }, 3000);";
+        String temp = "var e = " + e + "; var fun = " + HIGHLIGHT_FN + "; fun(e)";
         return wrapInFunctionInvoke(temp);
+    }
+
+    public String highlightAll(String locator) {
+        return scriptAllSelector(locator, HIGHLIGHT_FN);
     }
 
     public String optionSelector(String id, String text) {
@@ -372,7 +421,7 @@ public class DriverOptions {
         String e = selector(id);
         String temp = "var e = " + e + "; var t = \"" + text + "\";"
                 + " for (var i = 0; i < e.options.length; ++i)"
-                + " if (" + condition + ") e.options[i].selected = true";
+                + " if (" + condition + ") { e.options[i].selected = true; e.dispatchEvent(new Event('change')) }";
         return wrapInFunctionInvoke(temp);
     }
 
@@ -380,7 +429,7 @@ public class DriverOptions {
         String e = selector(id);
         String temp = "var e = " + e + "; var t = " + index + ";"
                 + " for (var i = 0; i < e.options.length; ++i)"
-                + " if (i === t) e.options[i].selected = true";
+                + " if (i === t) { e.options[i].selected = true; e.dispatchEvent(new Event('change')) }";
         return wrapInFunctionInvoke(temp);
     }
 
@@ -389,12 +438,12 @@ public class DriverOptions {
         return (first == '_' || first == '!') ? "function(_){ return " + expression + " }" : expression;
     }
 
-    public String selectorScript(String locator, String expression) {
+    public String scriptSelector(String locator, String expression) {
         String temp = "var fun = " + fun(expression) + "; var e = " + selector(locator) + "; return fun(e)";
         return wrapInFunctionInvoke(temp);
     }
 
-    public String selectorAllScript(String locator, String expression) {
+    public String scriptAllSelector(String locator, String expression) {
         if (locator.startsWith("{")) {
             locator = preProcessWildCard(locator);
         }
@@ -468,6 +517,12 @@ public class DriverOptions {
         }
     }
 
+    public void embedContent(Embed embed) {
+        if (context != null) {
+            context.embed(embed);
+        }
+    }
+
     public static final Set<String> DRIVER_METHOD_NAMES = new HashSet();
 
     static {
@@ -490,7 +545,7 @@ public class DriverOptions {
 
     public Element waitUntil(Driver driver, String locator, String expression) {
         long startTime = System.currentTimeMillis();
-        String js = selectorScript(locator, expression);
+        String js = scriptSelector(locator, expression);
         boolean found = driver.waitUntil(js);
         if (!found) {
             long elapsedTime = System.currentTimeMillis() - startTime;
@@ -553,11 +608,11 @@ public class DriverOptions {
     }
 
     public String focusJs(String locator) {
-        return "var e = " + selector(locator) + "; e.focus(); if (e.selectionEnd) e.selectionStart = e.selectionEnd = e.value.length";
+        return "var e = " + selector(locator) + "; e.focus(); try { e.selectionStart = e.selectionEnd = e.value.length } catch(x) {}";
     }
 
     public List<Element> findAll(Driver driver, String locator) {
-        List<String> list = driver.scripts(locator, DriverOptions.KARATE_REF_GENERATOR);
+        List<String> list = driver.scriptAll(locator, DriverOptions.KARATE_REF_GENERATOR);
         List<Element> elements = new ArrayList(list.size());
         for (String karateRef : list) {
             String karateLocator = karateLocator(karateRef);

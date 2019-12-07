@@ -25,6 +25,7 @@ package com.intuit.karate.http.apache;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.http.HttpLogModifier;
 import com.intuit.karate.http.HttpRequest;
 import java.io.IOException;
 import org.apache.http.HttpEntity;
@@ -40,11 +41,13 @@ import org.apache.http.protocol.HttpContext;
 public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
 
     private final ScenarioContext context;
+    private final HttpLogModifier logModifier;
     private final RequestLoggingInterceptor requestInterceptor;
 
     public ResponseLoggingInterceptor(RequestLoggingInterceptor requestInterceptor, ScenarioContext context) {
         this.requestInterceptor = requestInterceptor;
         this.context = context;
+        logModifier = context.getConfig().getLogModifier();
     }
 
     @Override
@@ -55,13 +58,17 @@ public class ResponseLoggingInterceptor implements HttpResponseInterceptor {
         StringBuilder sb = new StringBuilder();
         sb.append("response time in milliseconds: ").append(actual.getResponseTimeFormatted()).append('\n');
         sb.append(id).append(" < ").append(response.getStatusLine().getStatusCode()).append('\n');
-        LoggingUtils.logHeaders(sb, id, '<', response);
+        HttpLogModifier responseModifier = logModifier == null ? null : logModifier.enableForUri(actual.getUri()) ? logModifier : null;
+        LoggingUtils.logHeaders(responseModifier, sb, id, '<', response);
         HttpEntity entity = response.getEntity();
         if (LoggingUtils.isPrintable(entity)) {
             LoggingEntityWrapper wrapper = new LoggingEntityWrapper(entity);
             String buffer = FileUtils.toString(wrapper.getContent());
             if (context.getConfig().isLogPrettyResponse()) {
                 buffer = FileUtils.toPrettyString(buffer);
+            }
+            if (responseModifier != null) {
+                buffer = responseModifier.response(actual.getUri(), buffer);
             }
             sb.append(buffer).append('\n');
             response.setEntity(wrapper);

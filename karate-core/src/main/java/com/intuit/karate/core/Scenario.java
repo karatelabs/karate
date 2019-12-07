@@ -52,6 +52,10 @@ public class Scenario {
     private int exampleIndex = -1;
     private String dynamicExpression;
     private boolean backgroundDone;
+    
+    protected Scenario() {
+        this(null, null, -1);
+    }
 
     public Scenario(Feature feature, FeatureSection section, int index) {
         this.feature = feature;
@@ -117,6 +121,15 @@ public class Scenario {
                 step.setTable(table.replace(token, value));
             }
         }
+    }
+    
+    public Step getStepByLine(int line) {
+        for (Step step : getStepsIncludingBackground()) {
+            if (step.getLine() == line) {
+                return step;
+            }
+        }
+        return null;
     }
 
     public String getDisplayMeta() {
@@ -260,5 +273,10 @@ public class Scenario {
     public void setExampleIndex(int exampleIndex) {
         this.exampleIndex = exampleIndex;
     }
+
+    @Override
+    public String toString() {
+        return feature.toString() + getDisplayMeta();
+    }        
 
 }

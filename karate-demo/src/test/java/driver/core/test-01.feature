@@ -78,7 +78,7 @@ Scenario Outline: using <config>
 
   # set cookie
   Given def cookie2 = { name: 'hello', value: 'world' }
-  When driver.cookie(cookie2)
+  When cookie(cookie2)
   Then match driver.cookies contains '#(^cookie2)'
 
   # delete cookie
@@ -111,8 +111,12 @@ Scenario Outline: using <config>
   * click('{:4}Click Me')
   * match text('#eg03Result') == 'BUTTON'
 
-  # find all
-  * def elements = findAll('{}Click Me')
+  # locate
+  * def element = locate('{}Click Me')
+  * assert element.exists
+
+  # locate all
+  * def elements = locateAll('{}Click Me')
   * match karate.sizeOf(elements) == 7
   * elements.get(6).click()
   * match text('#eg03Result') == 'SECOND'
@@ -160,32 +164,44 @@ Scenario Outline: using <config>
   And match driver.url == webUrlBase + '/page-03'
 
   # get html for all elements that match css selector
-  When def list = scripts('div#eg01 div', '_.innerHTML')
+  When def list = scriptAll('div#eg01 div', '_.innerHTML')
+  Then match list == '#[4]'
+  And match each list contains '@@data'
+
+  # powerful wait designed for tabular results that take time to load
+  When def list = waitForResultCount('div#eg01 div', 4)  
+  Then match list == '#[4]'
+
+  When def list = waitForResultCount('div#eg01 div', 4, '_.innerHTML')
   Then match list == '#[4]'
   And match each list contains '@@data'
 
   # get html for all elements that match xpath selector
-  When def list = scripts('//option', '_.innerHTML')
+  When def list = scriptAll('//option', '_.innerHTML')
   Then match list == '#[3]'
   And match each list contains 'Option'
 
   # get text for all elements that match css selector
-  When def list = scripts('div#eg01 div', '_.textContent')
+  When def list = scriptAll('div#eg01 div', '_.textContent')
   Then match list == '#[4]'
   And match each list contains '@@data'
 
+  # get text for all but only containing given text
+  When def list = scriptAll('div#eg01 div', '_.textContent', function(x){ return x.contains('data2') })
+  Then match list == ['@@data2@@']
+
   # get text for all elements that match xpath selector
-  When def list = scripts('//option', '_.textContent')
+  When def list = scriptAll('//option', '_.textContent')
   Then match list == '#[3]'
   And match each list contains 'Option'
 
   # get value for all elements that match css selector
-  When def list = scripts("input[name='data2']", '_.value')
+  When def list = scriptAll("input[name='data2']", '_.value')
   Then match list == '#[3]'
   And match each list contains 'check'
 
   # get value for all elements that match xpath selector
-  When def list = scripts("//input[@name='data2']", '_.value')
+  When def list = scriptAll("//input[@name='data2']", '_.value')
   Then match list == '#[3]'
   And match each list contains 'check'
 
@@ -226,6 +242,10 @@ Scenario Outline: using <config>
   * match text('#eg01Data2') == 'check1'
   * match text('#eg01Data3') == 'input above'
   * match text('#eg01Data4') == 'Some Textinput below'
+
+  # friendly locator find by visible text
+  * above('{}Input On Right').find('{}Go to Page One').click()
+  * waitForUrl('/page-01')
 
   # switch to iframe by index
   Given driver webUrlBase + '/page-04'

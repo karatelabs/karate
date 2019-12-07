@@ -30,6 +30,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,7 +129,7 @@ public class ScriptValue {
     public boolean isByteArray() {
         return type == Type.BYTE_ARRAY;
     }
-    
+
     public boolean isFeature() {
         return type == Type.FEATURE;
     }
@@ -176,7 +177,7 @@ public class ScriptValue {
     public boolean isJson() {
         return type == Type.JSON;
     }
-    
+
     public boolean isJsonLike() {
         switch (type) {
             case JSON:
@@ -208,9 +209,13 @@ public class ScriptValue {
                 String json = getValue(DocumentContext.class).jsonString();
                 return new ScriptValue(JsonPath.parse(json));
             case MAP:
-                if (deep) {
-                    String strMap = getAsJsonDocument().jsonString();
-                    return new ScriptValue(JsonPath.parse(strMap));
+                if (deep) {                    
+                    Map mapSource = getValue(Map.class);
+                    String strSource = JsonPath.parse(mapSource).jsonString();
+                    Map mapDest = JsonPath.parse(strSource).read("$");
+                    // only care about JS functions for treating specially
+                    retainRootKeyValuesWhichAreFunctions(mapSource, mapDest, false);
+                    return new ScriptValue(mapDest);
                 } else {
                     return new ScriptValue(new LinkedHashMap(getValue(Map.class)));
                 }
@@ -418,24 +423,28 @@ public class ScriptValue {
         this(value, null);
     }
 
+    private static void retainRootKeyValuesWhichAreFunctions(Map source, Map target, boolean overWriteAll) {
+        source.forEach((k, v) -> { // check if any special objects need to be preserved
+            if (v instanceof ScriptObjectMirror) {
+                ScriptObjectMirror child = (ScriptObjectMirror) v;
+                if (child.isFunction()) { // only 1st level JS functions will be retained
+                    target.put(k, child);
+                }
+            } else if (overWriteAll) { // only 1st level non-JS (e.g. Java) objects will be retained
+                target.put(k, v);
+            }
+        });
+    }
+
     public ScriptValue(Object value, String source) {
         // pre-process and convert any nashorn js objects into vanilla Map / List
         if (value instanceof ScriptObjectMirror) {
             ScriptObjectMirror som = (ScriptObjectMirror) value;
-            if (!som.isFunction()) {                
+            if (!som.isFunction()) {
                 value = JsonUtils.toJsonDoc(value).read("$"); // results in Map or List
                 if (value instanceof Map) {
                     Map map = (Map) value;
-                    som.forEach((k, v) -> { // check if any special objects need to be preserved
-                        if (v instanceof ScriptObjectMirror) {
-                            ScriptObjectMirror child = (ScriptObjectMirror) v;
-                            if (child.isFunction()) { // only 1st level JS functions will be retained
-                                map.put(k, child);
-                            }
-                        } else { // only 1st level non-JS (e.g. Java) objects will be retained
-                            map.put(k, v);
-                        }
-                    });
+                    retainRootKeyValuesWhichAreFunctions(som, map, true);
                 }
             }
         }
@@ -450,7 +459,7 @@ public class ScriptValue {
             type = Type.JSON;
         } else if (value instanceof Node) {
             mapLike = true;
-            type = Type.XML;            
+            type = Type.XML;
         } else if (value instanceof List) {
             listLike = true;
             type = Type.LIST;

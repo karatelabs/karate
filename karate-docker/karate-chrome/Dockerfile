@@ -1,4 +1,4 @@
-FROM ubuntu:bionic-20190612
+FROM maven:3-jdk-8
 
 LABEL maintainer="Peter Thomas"
 LABEL url="https://github.com/intuit/karate/tree/master/karate-docker/karate-chrome"
@@ -30,15 +30,15 @@ RUN apt-get clean \
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd karate ~/.vnc/passwd
 
-COPY supervisord.conf /etc/supervisor/conf.d/
+COPY supervisord.conf /etc
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
+
+ADD target/karate.jar /
+ADD target/repository /root/.m2/repository
 
 VOLUME ["/home/chrome"]
 
 EXPOSE 5900 9222
 
-ENV WIDTH 1366
-ENV HEIGHT 768
-
-ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
+CMD ["/bin/bash", "/entrypoint.sh"]

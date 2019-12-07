@@ -1,7 +1,7 @@
-# Karate Driver
+# Karate UI
 ## UI Test Automation Made `Simple.`
 
-> This is new, and this first version 0.9.X should be considered *BETA*.
+> 0.9.5.RC5 is available ! There will be no more API changes. 0.9.5 will be "production ready".
 
 # Hello World
 
@@ -41,6 +41,8 @@
     | <a href="#debugging">Debugging</a>
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
+    | <a href="#distributed-testing">Distributed Testing</a>
+    | <a href="#proxy">Proxy</a>
   </td>
 </tr>
 <tr>
@@ -96,6 +98,7 @@
     | <a href="#scroll"><code>scroll()</code></a>
     | <a href="#mouse"><code>mouse()</code></a>
     | <a href="#highlight"><code>highlight()</code></a>
+    | <a href="#highlightall"><code>highlightAll()</code></a>
   </td>
 </tr>
 <tr>
@@ -108,7 +111,8 @@
     | <a href="#enabled"><code>enabled()</code></a>
     | <a href="#exists"><code>exists()</code></a>
     | <a href="#position"><code>position()</code></a>
-    | <a href="#findall"><code>findAll()</code></a>
+    | <a href="#locate"><code>locate()</code></a>
+    | <a href="#locateall"><code>locateAll()</code></a>
   </td>
 </tr>
 <tr>
@@ -119,11 +123,12 @@
     | <a href="#waitforany"><code>waitForAny()</code></a>
     | <a href="#waitforurl"><code>waitForUrl()</code></a>
     | <a href="#waitfortext"><code>waitForText()</code></a>
-    | <a href="#waitforenabled"><code>waitForEnabled()</code></a>  
+    | <a href="#waitforenabled"><code>waitForEnabled()</code></a>
+    | <a href="#waitforresultcount"><code>waitForResultCount()</code></a>  
     | <a href="#waituntil"><code>waitUntil()</code></a>    
     | <a href="#delay"><code>delay()</code></a>
     | <a href="#script"><code>script()</code></a>
-    | <a href="#scripts"><code>scripts()</code></a>
+    | <a href="#scriptall"><code>scriptAll()</code></a>
     | <a href="#karate-vs-the-browser">Karate vs the Browser</a>
   </td>
 </tr>
@@ -145,6 +150,13 @@
     | <a href="#screenshotfull"><code>screenshotFull()</code></a>
   </td> 
 </tr>
+<tr>
+  <th>Appium</th>
+  <td>
+      <a href="#screen-recording">Screen Recording</a>
+    | <a href="#hideKeyboard"><code>hideKeyboard()</code></a>
+  </td> 
+</tr>
 </table>
 
 ## Capabilities
@@ -152,12 +164,13 @@
 * Simple, clean syntax that is well suited for people new to programming or test-automation
 * All-in-one framework that includes [parallel-execution](https://github.com/intuit/karate#parallel-execution), [HTML reports](https://github.com/intuit/karate#junit-html-report), [environment-switching](https://github.com/intuit/karate#switching-the-environment), and [CI integration](https://github.com/intuit/karate#test-reports)
 * Cross-platform - with even the option to run as a programming-language *neutral* [stand-alone executable](https://github.com/intuit/karate/wiki/ZIP-Release)
-* No need to learn complicated programming concepts such as "callbacks" and "`await`"
+* No need to learn complicated programming concepts such as "callbacks" "`await`" and "promises"
 * Option to use [wildcard](#wildcard-locators) and ["friendly" locators](#friendly-locators) without needing to inspect the HTML-page source, CSS, or internal XPath structure
 * Chrome-native automation using the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) (equivalent to [Puppeteer](https://pptr.dev))
 * [W3C WebDriver](https://w3c.github.io/webdriver/) support without needing any intermediate server
 * [Cross-Browser support](https://twitter.com/ptrthomas/status/1048260573513666560) including [Microsoft Edge on Windows](https://twitter.com/ptrthomas/status/1046459965668388866) and [Safari on Mac](https://twitter.com/ptrthomas/status/1047152170468954112)
 * [Parallel execution on a single node](https://twitter.com/ptrthomas/status/1159295560794308609), cloud-CI environment or [Docker](#configure-drivertarget) - without needing a "master node" or "grid"
+* You can even run tests in parallel across [different machines](#distributed-testing) - and Karate will aggregate the results
 * Embed [video-recordings of tests](#karate-chrome) into the HTML report from a Docker container
 * Windows [Desktop application automation](https://twitter.com/KarateDSL/status/1052432964804640768) using the Microsoft [WinAppDriver](https://github.com/Microsoft/WinAppDriver)
 * [Android and iOS mobile support](https://github.com/intuit/karate/issues/743) via [Appium](http://appium.io)
@@ -167,12 +180,15 @@
 * Simpler, [elegant, and *DRY* alternative](#locator-lookup) to the so-called "Page Object Model" pattern
 * Carefully designed [fluent-API](#chaining) to handle common combinations such as a [`submit()` + `click()`](#submit) action
 * Elegant syntax for typical web-automation challenges such as waiting for a [page-load](#waitforurl-instead-of-submit) or [element to appear](#waitfor)
-* Execute JavaScript in the browser with [one-liners](#script) - for example to [get data out of an HTML table](#scripts)
+* Execute JavaScript in the browser with [one-liners](#script) - for example to [get data out of an HTML table](#scriptall)
 * [Compose re-usable functions](#function-composition) based on your specific environment or application needs
 * Comprehensive support for user-input types including [key-combinations](#special-keys) and [`mouse()`](#mouse) actions
-* Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate UI](https://twitter.com/KarateDSL/status/1065602097591156736)
+* Step-debug and even *"go back in time"* to edit and re-play steps - using the unique, innovative [Karate Extension for Visual Studio Code](https://twitter.com/KarateDSL/status/1167533484560142336)
 * Traceability: detailed [wire-protocol logs](https://twitter.com/ptrthomas/status/1155958170335891467) can be enabled *in-line* with test-steps in the HTML report
 * Convert HTML to PDF and capture the *entire* (scrollable) web-page as an image using the [Chrome Java API](#chrome-java-api)
+
+## Comparison
+To understand how Karate compares to other UI automation frameworks, this article can be a good starting point: [The world needs an alternative to Selenium - *so we built one*](https://hackernoon.com/the-world-needs-an-alternative-to-selenium-so-we-built-one-zrk3j3nyr).
 
 # Examples
 ## Web Browser
@@ -182,7 +198,7 @@
   * use a friendly [wildcard locator](#wildcard-locators)
   * wait for an element to [be ready](#waitfor)
   * [compose functions](#function-composition) for elegant *custom* "wait" logic
-  * assert on tabular [results in the HTML](#scripts)
+  * assert on tabular [results in the HTML](#scriptall)
 * [Example 3](../karate-demo/src/test/java/driver/core/test-01.feature) - which is a single script that exercises *all* capabilities of Karate Driver, so is a handy reference
 
 ## Windows
@@ -228,10 +244,15 @@ key | description
 `executable` | if present, Karate will attempt to invoke this, if not in the system `PATH`, you can use a full-path instead of just the name of the executable. batch files should also work
 `start` | default `true`, Karate will attempt to start the `executable` - and if the `executable` is not defined, Karate will even try to assume the default for the OS in use
 `port` | optional, and Karate would choose the "traditional" port for the given `type`
+`host` | optional, will default to `localhost` and you normally never need to change this
 `headless` | [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) only applies to `{ type: 'chrome' }` for now, also see [`DockerTarget`](#dockertarget)
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
+`proxy` | default `null`, this will be passed as-is to the underlying WebDriver executable - refer [the spec](https://www.w3.org/TR/webdriver/#proxy), and for `chrome` - see [proxy](#proxy)
+`beforeStart` | default `null`, an OS command that will be executed before commencing a `Scenario` (and before the `executable` is invoked if applicable) typically used to start video-recording
+`afterStart` | default `null`, an OS command that will be executed after a `Scenario` completes, typically used to stop video-recording and save the video file to an output folder
+`videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
 
 For more advanced options such as for Docker, CI, headless, cloud-environments or custom needs, see [`configure driverTarget`](#configure-drivertarget).
 
@@ -310,7 +331,7 @@ The built-in [`DockerTarget`](src/main/java/com/intuit/karate/driver/DockerTarge
 Controlling this flow from Java can take a lot of complexity out your build pipeline and keep things cross-platform. And you don't need to line-up an assortment of shell-scripts to do all these things. You can potentially include the steps of deploying (and un-deploying) the application-under-test using this approach - but probably the top-level [JUnit test-suite](https://github.com/intuit/karate#parallel-execution) would be the right place for those.
 
 ### `karate-chrome`
-The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker is an image created from scratch, using just Ubuntu as a base and with the following features:
+The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker is an image created from scratch, using a Java / Maven image as a base and with the following features:
 
 * Chrome in "full" mode (non-headless)
 * [Chrome DevTools protocol](https://chromedevtools.github.io/devtools-protocol/) exposed on port 9222
@@ -321,19 +342,19 @@ The [`karate-chrome`](https://hub.docker.com/r/ptrthomas/karate-chrome) Docker i
 To try this or especially when you need to investigate why a test is not behaving properly when running within Docker, these are the steps:
 
 * start the container:
-  * `docker run -d -p 9222:9222 -p 5900:5900 --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
+  * `docker run --name karate --rm -p 9222:9222 -p 5900:5900 -e KARATE_SOCAT_START=true --cap-add=SYS_ADMIN ptrthomas/karate-chrome`
   * it is recommended to use [`--security-opt seccomp=chrome.json`](https://hub.docker.com/r/justinribeiro/chrome-headless/) instead of `--cap-add=SYS_ADMIN`
 * point your VNC client to `localhost:5900` (password: `karate`)
   * for example on a Mac you can use this command: `open vnc://localhost:5900`
 * run a test using the following [`driver` configuration](#configure-driver), and this is one of the few times you would ever need to set the [`start` flag](#configure-driver) to `false`
   * `* configure driver = { type: 'chrome', start: false, showDriverLog: true }`
-* you can even use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) to step-through a test
-* after stopping the container, you can dump the logs and video recording using this command:
-  * `docker cp <container-id>:/tmp .`
+* you can even use the [Karate VS Code extension](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) to debug and step-through a test
+* if you omit the `--rm` part in the start command, after stopping the container, you can dump the logs and video recording using this command (here `.` stands for the current working folder, change it if needed):
+  * `docker cp karate:/tmp .`
   * this would include the `stderr` and `stdout` logs from Chrome, which can be helpful for troubleshooting
 
 ## Driver Types
-type | default<br/>port | default<br/>executable | description
+type | default port | default executable | description
 ---- | ---------------- | ---------------------- | -----------
 [`chrome`](https://chromedevtools.github.io/devtools-protocol/) | 9222 | mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`<br/>win: `C:/Program Files (x86)/Google/Chrome/Application/chrome.exe` | "native" Chrome automation via the [DevTools protocol](https://chromedevtools.github.io/devtools-protocol/)
 [`chromedriver`](https://sites.google.com/a/chromium.org/chromedriver/home) | 9515 | `chromedriver` | W3C Chrome Driver
@@ -344,6 +365,9 @@ type | default<br/>port | default<br/>executable | description
 [`winappdriver`](https://github.com/Microsoft/WinAppDriver) | 4727 | `C:/Program Files (x86)/Windows Application Driver/WinAppDriver` | Windows Desktop automation, similar to Appium
 [`android`](https://github.com/appium/appium/) | 4723 | `appium` | android automation via [Appium](https://github.com/appium/appium/)
 [`ios`](https://github.com/appium/appium/) | 4723 |`appium` | iOS automation via [Appium](https://github.com/appium/appium/)
+
+# Distributed Testing
+Karate can split a test-suite across multiple machines or Docker containers for execution and aggregate the results. Please refer to the wiki: [Distributed Testing](https://github.com/intuit/karate/wiki/Distributed-Testing).
 
 # Locators
 The standard locator syntax is supported. For example for web-automation, a `/` prefix means XPath and else it would be evaluated as a "CSS selector".
@@ -414,6 +438,20 @@ By default, the HTML tag that will be searched for will be `input`. While rarely
 * rightOf('{}Some Text').find('span').click()
 ```
 
+One more variation supported is that instead of an HTML tag name, you can look for the `textContent`:
+
+```cucumber
+* rightOf('{}Some Text').find('{}Click Me').click()
+```
+
+One thing to watch out for is that the "origin" of the search will be the mid-point of the whole HTML element, not just the text. So especially when doing `above()` or `below()`, ensure that the "search path" is aligned the way you expect. If you get stuck trying to align the search path, especially if the "origin" is a small chunk of text that is aligned right or left - try [`near()`](#near).
+
+In addition to `<input>` fields, `<select>` boxes are directly supported like this, so internally a `find('select')` is "[chained](#chaining)" automatically:
+
+```cucumber
+* below('{}State').select(0)
+```
+
 ### `rightOf()`
 ```cucumber
 * rightOf('{}Input On Right').input('input right')
@@ -434,7 +472,7 @@ By default, the HTML tag that will be searched for will be `input`. While rarely
 ```
 
 ### `near()`
-The typical reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be used if the element you are seeking is diagonally offset from the [locator](#locators) you have.
+One reason why you would need `near()` is because an `<input>` field may either be on the right or below the label depending on whether the "container" element had enough width to fit both on the same horizontal line. Of course this can be useful if the element you are seeking is diagonally offset from the [locator](#locators) you have.
 
 ```cucumber
  * near('{}Go to Page One').click()
@@ -444,7 +482,7 @@ The typical reason why you would need `near()` is because an `<input>` field may
 Only one keyword sets up UI automation in Karate, typically by specifying the URL to open in a browser. And then you would use the built-in [`driver`](#syntax) JS object for all other operations, combined with Karate's [`match`](https://github.com/intuit/karate#prepare-mutate-assert) syntax for assertions where needed.
 
 ## `driver`
-Navigates to a new page / address. If this is the first instance in a test, this step also initializes the [`driver`](#syntax) instance for future step operations as per what is [configured](#configure-driver).
+Navigates to a new page / address. If this is the first instance in a test, this step also initializes the [`driver`](#syntax) instance for all subsequent steps - using what is [configured](#configure-driver).
 
 ```cucumber
 Given driver 'https://github.com/login'
@@ -563,6 +601,8 @@ Get the current page title for matching. Example:
 Then match driver.title == 'Test Page'
 ```
 
+Note that if you do this immediately after a page-load, in some cases you need to wait for the page to fully load. You can use a [`waitForUrl()`](#waitforurl) before attempting to access `driver.title` to make sure it works.
+
 ## `driver.dimensions`
 Set the size of the browser window:
 ```cucumber
@@ -593,6 +633,12 @@ As a convenience, there is a second form where you can pass an array as the seco
 
 ```cucumber
 * input('input[name=someName]', ['test', ' input', Key.ENTER])
+```
+
+And an extra convenience third argument is a time-delay (in milliseconds) that will be applied before each array value. This is sometimes needed to "slow down" keystrokes, especially when there is a lot of JavaScript or security-validation behind the scenes.
+
+```cucumber
+* input('input[name=someName]', ['a', 'b', 'c', Key.ENTER], 200)
 ```
 
 ### Special Keys
@@ -836,6 +882,25 @@ And waitForEnabled('#someId').click()
 
 Also see [waits](#wait-api).
 
+## `waitForResultCount()`
+A very powerful and useful way to wait until the *number* of elements that match a given locator is equal to a given number. This is super-useful when you need to wait for say a table of slow-loading results, and where the table may contain fewer elements at first. There are two variations. The first will simply return a `List` of [`Element`](#chaining) instances.
+
+```cucumber
+  * waitForResultCount('div#eg01 div', 4)  
+```
+
+Most of the time, you just want to wait until a certain number of matching elements, and then move on with your flow, and in that case, the above is sufficient. If you need to actually do something with each returned `Element`, see [`locateAll()`](#locateall) or the option below.
+
+The second variant takes a third argument, which is going to do the same thing as the [`scriptAll()`](#scriptall) method:
+
+```cucumber
+  When def list = waitForResultCount('div#eg01 div', 4, '_.innerHTML')
+  Then match list == '#[4]'
+  And match each list contains '@@data'
+```
+
+So in a *single step* we can wait for the number of elements to match *and* extract data as an array.
+
 ## `waitFor()`
 This is typically used for the *first* element you need to interact with on a freshly loaded page. Use this in case a [`submit()`](#submit) for the previous action is un-reliable, see the section on [`waitFor()` instead of `submit()`](#waitfor-instead-of-submit)
 
@@ -862,7 +927,7 @@ Here is a real-life example combined with the use of [`retry()`](#retry):
 * exists('#randomButton').click()
 ```
 
-If you have more than two locators you need to wait for, use the single array argument form, like this:
+If you have more than two locators you need to wait for, use the single-argument-as-array form, like this:
 
 ```cucumber
 * waitForAny(['#nextButton', '#randomButton', '#blueMoonButton'])
@@ -879,12 +944,18 @@ This is designed specifically for the kind of situation described in the example
 * assert exists('#someId').exists
 ```
 
+But the above is more elegantly expressed using [`locate()`](#locate):
+
+```cucumber
+* assert locate('#someId').exists
+```
+
 But what is most useful is how you can now *click only if element exists*. As you can imagine this can handle un-predictable dialogs, advertisements and the like.
 
 ```cucumber
 * exists('#elusiveButton').click()
 # or if you need to click something else
-* if (exists('#elusivePopup').exists) click('#elusiveButton')
+* if (locate('#elusivePopup').exists) click('#elusiveButton')
 ```
 
 And yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/karate#conditional-logic) !
@@ -892,11 +963,19 @@ And yes, you *can* use an [`if` statement in Karate](https://github.com/intuit/k
 Note that the `exists()` API is a little different from the other `Element` actions, because it will *not* honor any intent to [`retry()`](#retry) and *immediately* check the HTML for the given locator. This is important because it is designed to answer the question: "*does the element exist in the HTML page __right now__ ?*"
 
 ## `waitUntil()`
-Wait for the JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
+Wait for the *browser* JS expression to evaluate to `true`. Will poll using the [retry()](#retry) settings configured.
 
 ```cucumber
 * waitUntil("document.readyState == 'complete'")
 ```
+
+Note that the JS here has to be a "raw" string that is simply sent to the browser as-is and evaluated there. This means that you cannot use any Karate JS objects or API-s such as `karate.get()` or `driver.title`. So trying to use `driver.title == 'My Page'` will *not* work, instead you have to do this:
+
+```cucumber
+* waitUntil("document.title == 'My Page'")
+```
+
+Also see [Karate vs the Browser](#karate-vs-the-browser).
 
 ### `waitUntil(locator,js)`
 A very useful variant that takes a [locator](#locators) parameter is where you supply a JavaScript "predicate" function that will be evaluated *on* the element returned  by the locator in the HTML DOM. Most of the time you will prefer the short-cut boolean-expression form that begins with an underscore (or "`!`"), and Karate will inject the JavaScript DOM element reference into a variable named "`_`".
@@ -931,9 +1010,9 @@ And waitUntil('#eg01WaitId', '!_.disabled')
 Also see [`waitForEnabled()`](#waitforenabled) which is the preferred short-cut for the last example above, also look at the examples for [chaining](#chaining) and then the section on [waits](#wait-api).
 
 ### `waitUntil(function)`
-A *very* powerful variation of `waitUntil()` takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
+A *very* powerful variation of [`waitUntil()`](#waituntil) takes a full-fledged JavaScript function as the argument. This can loop until *any* user-defined condition and can use any variable (or Karate or [Driver JS API](#syntax)) in scope. The signal to stop the loop is to return any not-null object. And as a convenience, whatever object is returned, can be re-used in future steps.
 
-This is best explained with an example. Note that [`scripts()`](#scripts) will return an array, as opposed to [`script()`](#script).
+This is best explained with an example. Note that [`scriptAll()`](#scriptall) will return an array, as opposed to [`script()`](#script).
 
 ```cucumber
 When search.input('karate-logo.png')
@@ -942,7 +1021,7 @@ When search.input('karate-logo.png')
 And def searchFunction =
   """
   function() {
-    var results = scripts('.js-tree-browser-result-path', '_.innerText');
+    var results = scriptAll('.js-tree-browser-result-path', '_.innerText');
     return results.size() == 2 ? results : null;
   }
   """
@@ -954,14 +1033,14 @@ And def searchResults = waitUntil(searchFunction)
 Then match searchResults contains 'karate-core/src/main/resources/karate-logo.png'
 ```
 
-Also see [waits](#wait-api).
+The above logic can actually be replaced with Karate's built-in short-cut - which is [`waitForResultCount()`](#waitforresultcount) Also see [waits](#wait-api).
 
 ## Function Composition
 The above example can be re-factored in a very elegant way as follows, using Karate's [native support for JavaScript](https://github.com/intuit/karate#javascript-functions):
 
 ```cucumber
 # this can be a global re-usable function !
-And def innerText = function(locator){ return scripts(locator, '_.innerText') }
+And def innerText = function(locator){ return scriptAll(locator, '_.innerText') }
 
 # we compose a function using another function (the one above)
 And def searchFunction =
@@ -1017,6 +1096,7 @@ Script | Description
 [`waitForUrl('google.com')`](#waitforurl) | for convenience, this uses a string *contains* match - so for example you can omit the `http` or `https` prefix
 [`waitForText('#myId', 'appeared')`](#waitfortext) | frequently needed short-cut for waiting until a string appears - and this uses a "string contains" match for convenience
 [`waitForEnabled('#mySubmit')`](#waitforenabled) | frequently needed short-cut for `waitUntil(locator, '!_disabled')`
+[`waitForResultCount('.myClass', 4)`](#waitforresultcount) | wait until a certain number of rows of tabular data is present
 [`waitForAny('#myId', '#maybe')`](#waitforany) | handle if an element may or *may not* appear, and if it does, handle it - for e.g. to get rid of an ad popup or dialog
 [`waitUntil(expression)`](#waituntil) | wait until *any* user defined JavaScript statement to evaluate to `true` in the browser 
 [`waitUntil(function)`](#waituntilfunction) | use custom logic to handle *any* kind of situation where you need to wait, *and* use other API calls if needed
@@ -1046,26 +1126,57 @@ And match script('#eg01WaitId', '_.innerHTML') == 'APPEARED!'
 
 Normally you would use [`text()`](#text) to do the above, but you get the idea. Expressions follow the same short-cut rules as for [`waitUntil()`](#waituntil).
 
-Also see the plural form [`scripts()`](#scripts).
+Here is an interesting example where a JavaScript event can be triggered on a given HTML element:
 
-## `scripts()`
+```cucumber
+* waitFor('#someId').script("_.dispatchEvent(new Event('change'))")
+```
+
+Also see the plural form [`scriptAll()`](#scriptall).
+
+## `scriptAll()`
 Just like [`script()`](#script), but will perform the script `eval()` on *all* matching elements (not just the first) - and return the results as a JSON array / list. This is very useful for "bulk-scraping" data out of the HTML (such as `<table>` rows) - which you can then proceed to use in [`match`](https://github.com/intuit/karate#match) assertions:
 
 ```cucumber
 # get text for all elements that match css selector
-When def list = scripts('div div', '_.textContent')
+When def list = scriptAll('div div', '_.textContent')
 Then match list == '#[3]'
 And match each list contains '@@data'
 ```
 
 See [Function Composition](#function-composition) for another good example. Also see the singular form [`script()`](#script).
 
-## `findAll()`
+### `scriptAll()` with filter
+`scriptAll()` can take a third argument which has to be a JavaScript "predicate" function, that returns a boolean `true` or `false`. This is very useful to "filter" the results that match a desired condition - typically a text comparison. For example if you want to get only the cells out of a `<table>` that contain the text "data" you can do this:
+
+```cucumber
+* def list = scriptAll('div div', '_.textContent', function(x){ return x.contains('data') })
+* match list == ['data1', 'data2']
+```
+
+> Note that the JS in this case is run by Karate not the browser, so you use the Java `String.contains()` API not the JavaScript `String.includes()` one.
+
+## `locate()`
+Rarely used, but when you want to just instantiate an [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instance, typically when you are writing custom re-usable functions. See also [`locateAll()`](#locateall)
+
+```cucumber
+* def e = locate('{}Click Me')
+# now you can have multiple steps refer to "e"
+* if (e.exists) karate.call('some.feature')
+```
+
+It is also useful if you just want to check if an element is present - and this is a bit more elegant than using [`exists()`](#exists):
+
+```cucumber
+* if (locate('{}Click Me').exists) karate.call('some.feature')
+```
+
+## `locateAll()`
 This will return *all* elements that match the [locator](#locator) as a list of [`Element`](src/main/java/com/intuit/karate/driver/Element.java) instances. You can now use Karate's [core API](https://github.com/intuit/karate#the-karate-object) and call [chained](#chaining) methods. Here are some examples:
 
 ```cucumber
 # find all elements with the text-content "Click Me"
-* def elements = findAll('{}Click Me')
+* def elements = locateAll('{}Click Me')
 * match karate.sizeOf(elements) == 7
 * elements.get(6).click()
 * match elements.get(3).script('_.tagName') == 'BUTTON'
@@ -1183,16 +1294,23 @@ If you want to disable the "auto-embedding" into the HTML report, pass an additi
 ```
 
 ## `highlight()`
-To visually highlight an element in the browser, especially useful when working in the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI)
+To visually highlight an element in the browser, especially useful when working in the [debugger](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin).
 
 ```cucumber
 * highlight('#eg01DivId')
 ```
 
-# Debugging
-You can use the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1065602097591156736).
+## `highlightAll()`
+Plural form of the above.
 
-But many a time, you would like to pause a test in the middle of a flow and look at the browser developer tools to see what CSS selectors you need to use. For this you can use [`karate.stop()`](../#karate-stop) - but of course, *NEVER* forget to remove this before you move on to something else !
+```cucumber
+* highlightAll('input')
+```
+
+# Debugging
+You can use the [Visual Studio Karate entension](https://github.com/intuit/karate/wiki/IDE-Support#vs-code-karate-plugin) for stepping through and debugging a test. You can see a [demo video here](https://twitter.com/KarateDSL/status/1167533484560142336). We recommend that you get comfortable with this because it is going to save you lots of time. And creating tests may actually turn out to be fun !
+
+When you are in a hurry, you can pause a test in the middle of a flow just to look at the browser developer tools to see what CSS selectors you need to use. For this you can use [`karate.stop()`](../#karate-stop) - but of course, *NEVER* forget to remove this before you move on to something else !
 
 ```cucumber
 * karate.stop()
@@ -1309,3 +1427,32 @@ Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](
 
 ## `pdf()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
+
+# Proxy
+For driver type [`chrome`](#driver-types), you can use the `addOption` key to pass command-line options that [Chrome supports](https://www.linuxbabe.com/desktop-linux/configure-proxy-chromium-google-chrome-command-line):
+
+```cucumber
+* configure driver = { type: 'chrome', addOptions: [ '--proxy-server="https://somehost:5000"' ] }
+```
+
+For the WebDriver based [driver types](#driver-types) like `chromedriver`, `geckodriver` etc, you can use the [`proxy` key](#configure-driver):
+
+```cucumber
+* configure driver = { type: 'chromedriver', proxy: { proxyType: 'manual', httpProxy: 'somehost:5000' } }
+```
+
+# Appium
+## Screen Recording
+Only supported for driver type [`android` | `ios`](#driver-types).
+
+```cucumber
+* driver.startRecordingScreen()
+# test
+* driver.saveRecordingScreen("invoice.mp4",true)
+```
+The above example would save the file and perform "auto-embedding" into the HTML report.
+
+You can also use `startRecordingScreen()` and `stopRecordingScreen()`, and both methods take recording options as JSON input.
+
+## `hideKeyboard()`
+Only supported for driver type [`android` | `ios`](#driver-types), for hiding the "soft keyboard".

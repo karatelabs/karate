@@ -24,18 +24,49 @@ Refer: https://twitter.com/ptrthomas/status/986463717465391104
 
 Since the above does *not* include the [`karate-apache` (or `karate-jersey`)]((https://github.com/intuit/karate#maven)) dependency you will need to include that as well.
 
-You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling-maven-plugin), refer to the below [sample project](https://github.com/ptrthomas/karate-gatling-demo) for how to use this for a typical Karate project where feature files are in `src/test/java`. For convenience we recommend you keep even the Gatling simulation files in the same folder hierarchy, even though they are technically files with a `*.scala` extension.
+You will also need the [Gatling Maven Plugin](https://github.com/gatling/gatling-maven-plugin), refer to the [sample project](../examples/gatling) for how to use this for a typical Karate project where feature files are in `src/test/java`. For convenience we recommend you keep even the Gatling simulation files in the same folder hierarchy, even though they are technically files with a `*.scala` extension.
+
+```xml
+  <plugin>
+      <groupId>io.gatling</groupId>
+      <artifactId>gatling-maven-plugin</artifactId>
+      <version>${gatling.plugin.version}</version>
+      <configuration>
+          <simulationsFolder>src/test/java</simulationsFolder>
+          <includes>
+              <include>mock.CatsKarateSimulation</include>
+          </includes>
+      </configuration>
+      <executions>
+          <execution>
+              <phase>test</phase>
+              <goals>
+                  <goal>test</goal>
+              </goals>
+          </execution>
+      </executions>                
+  </plugin>
+```
+
+Because the `<execution>` phase is defined, just running `mvn clean test` will work. If you don't want to run Gatling tests as part of the normal Maven "test" lifecycle, you can avoid the `<executions>` section and instead manually invoke the Gatling plugin from the command-line.
+
+```
+mvn clean test-compile gatling:test
+```
+
+And in case you have multiple Gatling simulation files and you want to choose only one to run:
+
+```
+mvn clean test-compile gatling:test -Dgatling.simulationClass=mock.CatsKarateSimulation
+```
+
+It is worth calling out that in the sample project, we are perf-testing [Karate test-doubles](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) ! A truly self-contained demo.
 
 ### Gradle
 
 For those who use [Gradle](https://gradle.org), this sample [`build.gradle`](build.gradle) provides a `gatlingRun` task that executes the Gatling test of the `karate-netty` project - which you can use as a reference. The approach is fairly simple, and does not require the use of any Gradle Gatling plugins.
 
 Most problems when using Karate with Gradle occur when "test-resources" are not configured properly. So make sure that all your `*.js` and `*.feature` files are copied to the "resources" folder - when you build the project.
-
-## Sample Project:
-Refer: https://github.com/ptrthomas/karate-gatling-demo
-
-It is worth calling out that we are perf-testing [Karate test-doubles](https://hackernoon.com/api-consumer-contract-tests-and-test-doubles-with-karate-72c30ea25c18) here ! A truly self-contained demo.
 
 ## Limitations
 As of now the Gatling concept of ["throttle" and related syntax](https://gatling.io/docs/2.3/general/simulation_setup/#simulation-setup-throttling) is not supported. Most teams don't need this, but you can declare "pause" times in Karate, see [`pauseFor()`](#pausefor).
@@ -110,6 +141,31 @@ If multiple `Scenario`-s have the tag on them, they will all be executed. The or
 
 > The tag does not need to be in the `@key=value` form and you can use the plain "`@foo`" form if you want to. But using the pattern `@name=someName` is arguably more readable when it comes to giving multiple `Scenario`-s meaningful names.
 
+#### Ignore Tags
+The above [Tag Selector](#tag-selector) approach is designed for simple cases where you have to pick and run only one `Scenario` out of many. Sometimes you will need the full flexibility of [tag combinations](https://github.com/intuit/karate#tags) and "ignore". The `karateFeature()` method takes an optional (vararg) set of Strings after the first feature-path argument. For example you can do this:
+
+```scala
+  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@name=delete"))
+```
+
+To exclude:
+
+```scala
+  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "~@ignore"))
+```
+
+To run scenarios tagged `foo` OR `bar`
+
+```scala
+  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@foo,@bar"))
+```
+
+And to run scenarios tagged `foo` AND `bar`
+
+```scala
+  val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature", "@foo", "@bar"))
+```
+
 ### Gatling Session
 The Gatling session attributes and `userId` would be available in a Karate variable under the name-space `__gatling`. So you can refer to the user-id for the thread as follows:
 
@@ -150,6 +206,15 @@ And now in the feature file you can do this:
 * print __gatling.catName
 ```
 
+#### `karate.callSingle()`
+A common need is to run a routine, typically a sign-in and setting up of an `Authorization` header only *once* - for all `Feature` invocations. Keep in mind that when you use Gatling, what used to be a single `Feature` in "normal" Karate will now be multiplied by the number of users you define. So [`callonce`](https://github.com/intuit/karate#callonce) won't be sufficient anymore.
+
+> IMPORTANT ! We have seen teams bring down their identity or SSO service because they did not realize that every `Feature` for every virtual-user was making a "sign in" call to get an `Authorization` header. Please use `karate.callSingle()` or Gatling "feeders" properly as explained below.
+
+You can use [`karate.callSingle()`](https://github.com/intuit/karate#hooks) in these situations and it will work as you expect. Ideally you should use [Feeders](#feeders) since `karate.callSingle()` will lock all threads - which may not play very well with Gatling. But when you want to quickly re-use existing Karate tests as performance tests, this will work nicely.
+
+Normally `karate.callSingle()` is used within the [`karate-config.js`](https://github.com/intuit/karate#karate-configjs) but it *can* be used at any point within a `Feature` if needed. Keep this in mind if you are trying to modify tests that depend on `callonce`. Also see the next section on how you can conditionally change the logic depending on whether the `Feature` is being run as a Gatling test or not.
+
 #### Detecting Gatling At Run Time
 You would typically want your feature file to be usable when not being run via Gatling, so you can use this pattern, since [`karate.get()`](https://github.com/intuit/karate#karate-get) has an optional second argument to use as a "default" value if the variable does not exist or is `null`.
 
@@ -177,6 +242,23 @@ And now, whenever you need, you can add a pause between API invocations in a fea
 ```
 
 You can see how the `pause()` function can be a no-op when *not* a Gatling test, which is probably what you would do most of the time. You can have your "think-times" apply *only* when running as a load test.
+
+## `configure localAddress`
+> This is implemented only for the `karate-apache` HTTP client. Note that the IP address needs to be [*physically assigned* to the local machine](https://www.blazemeter.com/blog/how-to-send-jmeter-requests-from-different-ips/).
+
+Gatling has a way to bind the HTTP "protocol" to [use a specific "local address"](https://gatling.io/docs/3.2/http/http_protocol/#local-address), which is useful when you want to use an IP range to avoid triggering rate-limiting on the server under test etc. But since Karate makes the HTTP requests, you can use the [`configure`](https://github.com/intuit/karate#configure) keyword, and this can actually be done *any* time within a Karate script or `*.feature` file.
+
+```cucumber
+* configure localAddress = '123.45.67.89'
+```
+
+One easy way to achieve a "round-robin" effect is to write a simple Java static method that will return a random IP out of a pool. See [feeders](#feeders) for example code. Note that you can "conditionally" perform a `configure` by using the JavaScript API on the `karate` object:
+
+```cucumber
+* if (__gatling) karate.configure('localAddress', MyUtil.getIp())
+```
+
+Since you can [use Java code](https://github.com/intuit/karate#calling-java), any kind of logic or strategy should be possible, and you can refer to [config or variables](https://github.com/intuit/karate#configuration) if needed.
 
 ## Custom
 You can even include any custom code you write in Java into a performance test, complete with full Gatling reporting.

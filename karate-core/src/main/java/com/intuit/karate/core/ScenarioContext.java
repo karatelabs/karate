@@ -49,10 +49,13 @@ import com.intuit.karate.http.MultiPartItem;
 import com.intuit.karate.driver.Driver;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.Key;
+import com.intuit.karate.http.MultiValuedMap;
 import com.intuit.karate.netty.WebSocketClient;
 import com.intuit.karate.netty.WebSocketOptions;
+import com.intuit.karate.shell.Command;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
@@ -114,8 +117,8 @@ public class ScenarioContext {
     // report embed
     private List<Embed> prevEmbeds;
 
-    // ui support
-    private Function<CallContext, FeatureResult> callable;
+    // debug support
+    private ScenarioExecutionUnit executionUnit;
 
     // async
     private final Object LOCK = new Object();
@@ -151,6 +154,14 @@ public class ScenarioContext {
             callResults = new ArrayList();
         }
         callResults.add(callResult);
+    }
+
+    public ScenarioExecutionUnit getExecutionUnit() {
+        return executionUnit;
+    }
+
+    public void setExecutionUnit(ScenarioExecutionUnit executionUnit) {
+        this.executionUnit = executionUnit;
     }
 
     public void setScenarioError(Throwable error) {
@@ -189,20 +200,37 @@ public class ScenarioContext {
         return config;
     }
 
-    public void setCallable(Function<CallContext, FeatureResult> callable) {
-        this.callable = callable;
-    }
-
-    public Function<CallContext, FeatureResult> getCallable() {
-        return callable;
-    }
-
     public URL getResource(String name) {
         return classLoader.getResource(name);
     }
 
     public InputStream getResourceAsStream(String name) {
         return classLoader.getResourceAsStream(name);
+    }
+
+    public boolean hotReload() {
+        boolean success = false;
+        Scenario scenario = executionUnit.scenario;
+        Feature feature = scenario.getFeature();
+        feature = FeatureParser.parse(feature.getResource());
+        for (Step oldStep : executionUnit.getSteps()) {
+            Step newStep = feature.findStepByLine(oldStep.getLine());
+            if (newStep == null) {
+                continue;
+            }
+            String oldText = oldStep.getText();
+            String newText = newStep.getText();
+            if (!oldText.equals(newText)) {
+                try {
+                    FeatureParser.updateStepFromText(oldStep, newStep.getText());
+                    logger.info("hot reloaded line: {} - {}", newStep.getLine(), newStep.getText());
+                    success = true;
+                } catch (Exception e) {
+                    logger.warn("failed to hot reload step: {}", e.getMessage());
+                }
+            }
+        }
+        return success;
     }
 
     public void updateConfigCookies(Map<String, Cookie> cookies) {
@@ -234,7 +262,7 @@ public class ScenarioContext {
             appender = LogAppender.NO_OP;
         }
         logger.setLogAppender(appender);
-        this.appender = appender;        
+        this.appender = appender;
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;
         executionHooks = call.executionHooks;
@@ -254,10 +282,6 @@ public class ScenarioContext {
             vars = call.context.vars; // shared context !
             config = call.context.config;
             rootFeatureContext = call.context.rootFeatureContext;
-            driver = call.context.driver;
-            if (driver != null) { // logger re-pointing
-                driver.getOptions().setContext(this);
-            }
             webSocketClients = call.context.webSocketClients;
         } else if (call.context != null) {
             parentContext = call.context;
@@ -274,6 +298,11 @@ public class ScenarioContext {
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
+        // TODO improve bindings re-use
+        // for call + ui tests, extra step has to be done after bindings set
+        if (call.context != null && call.context.driver != null) {
+            setDriver(call.context.driver);
+        }
         if (call.context == null && call.evalKarateConfig) {
             // base config is only looked for in the classpath
             try {
@@ -428,12 +457,11 @@ public class ScenarioContext {
         vars.put(ScriptValueMap.VAR_REQUEST_TIME_STAMP, prevResponse.getStartTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_TIME, prevResponse.getResponseTime());
         vars.put(ScriptValueMap.VAR_RESPONSE_COOKIES, prevResponse.getCookies());
-        if (config.isLowerCaseResponseHeaders()) {
-            Object temp = new ScriptValue(prevResponse.getHeaders()).toLowerCase();
-            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, temp);
-        } else {
-            vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, prevResponse.getHeaders());
+        MultiValuedMap responseHeaders = prevResponse.getHeaders();
+        if (config.isLowerCaseResponseHeaders() && responseHeaders != null) {
+            responseHeaders = responseHeaders.tolowerCaseKeys();
         }
+        vars.put(ScriptValueMap.VAR_RESPONSE_HEADERS, responseHeaders);
         byte[] responseBytes = prevResponse.getBody();
         bindings.putAdditionalVariable(ScriptValueMap.VAR_RESPONSE_BYTES, responseBytes);
         String responseString = FileUtils.toString(responseBytes);
@@ -829,8 +857,8 @@ public class ScenarioContext {
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(callonce, name, arg, this);
     }
 
-    public void eval(String exp) {
-        Script.evalJsExpression(exp, this);
+    public ScriptValue eval(String exp) {
+        return Script.evalJsExpression(exp, this);
     }
 
     public List<Embed> getAndClearEmbeds() {
@@ -843,6 +871,10 @@ public class ScenarioContext {
         Embed embed = new Embed();
         embed.setBytes(bytes);
         embed.setMimeType(contentType);
+        embed(embed);
+    }
+
+    public void embed(Embed embed) {
         if (prevEmbeds == null) {
             prevEmbeds = new ArrayList();
         }
@@ -901,7 +933,8 @@ public class ScenarioContext {
         for (String methodName : DriverOptions.DRIVER_METHOD_NAMES) {
             String js = "function(){ if (arguments.length == 0) return driver." + methodName + "();"
                     + " if (arguments.length == 1) return driver." + methodName + "(arguments[0]);"
-                    + " return driver." + methodName + "(arguments[0], arguments[1]) }";
+                    + " if (arguments.length == 2) return driver." + methodName + "(arguments[0], arguments[1]);"
+                    + " return driver." + methodName + "(arguments[0], arguments[1], arguments[2]) }";
             ScriptValue sv = ScriptBindings.eval(js, bindings);
             bindings.putAdditionalVariable(methodName, sv.getValue());
         }
@@ -910,10 +943,10 @@ public class ScenarioContext {
 
     public void driver(String expression) {
         ScriptValue sv = Script.evalKarateExpression(expression, this);
-        if (driver == null) {                        
+        if (driver == null) {
             Map<String, Object> options = config.getDriverOptions();
             if (options == null) {
-                options = new HashMap();                
+                options = new HashMap();
             }
             options.put("target", config.getDriverTarget());
             if (sv.isMapLike()) {
@@ -937,20 +970,32 @@ public class ScenarioContext {
         if (webSocketClients != null) {
             webSocketClients.forEach(WebSocketClient::close);
         }
-        if (driver != null) {
+        if (callDepth == 0 && driver != null) {
             driver.quit();
-            DriverOptions options  = driver.getOptions();
+            DriverOptions options = driver.getOptions();
             if (options.target != null) {
                 logger.debug("custom target configured, attempting stop()");
                 Map<String, Object> map = options.target.stop(logger);
                 String video = (String) map.get("video");
                 if (video != null && lastStepResult != null) {
-                    logger.info("video file present, attaching to last step result: {}", video);
-                    String html = "<video controls=\"true\" width=\"100%\"><source src=\"" + video + "\" type=\"video/mp4\"/></video>";
-                    Embed embed = new Embed();                    
-                    embed.setBytes(html.getBytes());
-                    embed.setMimeType("text/html");
+                    Embed embed = Embed.forVideoFile(video);
                     lastStepResult.addEmbed(embed);
+                }
+            } else {
+                if (options.afterStop != null) {
+                    Command.execLine(null, options.afterStop);
+                }
+                if (options.videoFile != null) {
+                    File src = new File(options.videoFile);
+                    if (src.exists()) {
+                        String path = FileUtils.getBuildDir() + File.separator
+                                + "cucumber-html-reports" + File.separator + System.currentTimeMillis() + ".mp4";
+                        File dest = new File(path);
+                        FileUtils.copy(src, dest);
+                        Embed embed = Embed.forVideoFile(dest.getName());
+                        lastStepResult.addEmbed(embed);
+                        logger.debug("appended video to report: {}", dest.getPath());
+                    }
                 }
             }
             driver = null;

@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2017 Intuit Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.intuit.karate;
 
 import com.intuit.karate.core.ScenarioContext;
@@ -169,12 +192,12 @@ public class FileUtils {
             String temp = removePrefix(path);
             Path parentPath = context.featureContext.parentPath;
             Path childPath = parentPath.resolve(temp);
-            return new Resource(context, childPath);
+            return new Resource(childPath);
         } else {
             try {
                 Path parentPath = context.rootFeatureContext.parentPath;
                 Path childPath = parentPath.resolve(path);
-                return new Resource(context, childPath);
+                return new Resource(childPath);
             } catch (Exception e) {
                 LOGGER.error("feature relative path resolution failed: {}", e.getMessage());
                 throw e;
@@ -374,13 +397,14 @@ public class FileUtils {
             return CLASSPATH_COLON + toStandardPath(path.toString());
         }
         for (URL url : getAllClassPathUrls(cl)) {
-            Path rootPath = getPathFor(url, null);
-            if (path.startsWith(rootPath)) {
+            Path rootPath = urlToPath(url, null);
+            if (rootPath != null && path.startsWith(rootPath)) {
                 Path relativePath = rootPath.relativize(path);
                 return CLASSPATH_COLON + toStandardPath(relativePath.toString());
             }
         }
-        return null;
+        // we didn't find this on the classpath, fall back to absolute
+        return path.toString().replace('\\', '/');
     }
 
     public static File getDirContaining(Class clazz) {
@@ -391,11 +415,10 @@ public class FileUtils {
     public static Path getPathContaining(Class clazz) {
         String relative = packageAsPath(clazz);
         URL url = clazz.getClassLoader().getResource(relative);
-        return getPathFor(url, null);
+        return urlToPath(url, null);
     }
 
     private static String packageAsPath(Class clazz) {
-
         Package p = clazz.getPackage();
         String relative = "";
         if (p != null) {
@@ -426,7 +449,10 @@ public class FileUtils {
     public static Path fromRelativeClassPath(String relativePath, ClassLoader cl) {
         relativePath = removePrefix(relativePath);
         URL url = cl.getResource(relativePath);
-        return getPathFor(url, relativePath);
+        if (url == null) {
+            throw new RuntimeException("file does not exist: " + relativePath);
+        }
+        return urlToPath(url, relativePath);
     }
 
     public static Path fromRelativeClassPath(String relativePath, Path parentPath) {
@@ -478,7 +504,7 @@ public class FileUtils {
         return uri.toString().contains("!/");
     }
 
-    private static Path getPathFor(URL url, String relativePath) {
+    public static Path urlToPath(URL url, String relativePath) {
         try {
             URI uri = url.toURI();
             if (isJarPath(uri)) {
@@ -596,7 +622,7 @@ public class FileUtils {
             }
         }
         if (classpath) {
-            rootPath = getPathFor(url, null);
+            rootPath = urlToPath(url, null);
             if (rootPath == null) { // windows edge case
                 return;
             }
@@ -625,9 +651,9 @@ public class FileUtils {
                     }
                 }
                 String relativePath = rootPath.relativize(path.toAbsolutePath()).toString();
-                relativePath = relativePath.replaceAll("[.]{2,}", "");
+                relativePath = toStandardPath(relativePath).replaceAll("[.]+/", "");
                 String prefix = classpath ? CLASSPATH_COLON : "";
-                files.add(new Resource(path, prefix + toStandardPath(relativePath), line));
+                files.add(new Resource(path, prefix + relativePath, line));
             }
         }
     }

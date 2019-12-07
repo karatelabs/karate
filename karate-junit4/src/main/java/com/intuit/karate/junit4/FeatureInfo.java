@@ -124,8 +124,8 @@ public class FeatureInfo implements ExecutionHook {
     }
 
     @Override
-    public void beforeStep(Step step, ScenarioContext context) {
-
+    public boolean beforeStep(Step step, ScenarioContext context) {
+        return true;
     }
 
     @Override

@@ -121,11 +121,11 @@ public class NettyUtils {
         if (parentFile != null) {
             parentFile.mkdirs();
         }
-        Command.exec(parentFile, "keytool", "-genkey", "-alias", PROXY_ALIAS, "-keysize",
+        Command.exec(false, parentFile, "keytool", "-genkey", "-alias", PROXY_ALIAS, "-keysize",
                 "4096", "-validity", "36500", "-keyalg", "RSA", "-dname",
                 "CN=" + PROXY_ALIAS, "-keypass", KEYSTORE_PASSWORD, "-storepass",
                 KEYSTORE_PASSWORD, "-keystore", keyStoreFile.getName());
-        Command.exec(parentFile, "keytool", "-exportcert", "-alias", PROXY_ALIAS, "-keystore",
+        Command.exec(false, parentFile, "keytool", "-exportcert", "-alias", PROXY_ALIAS, "-keystore",
                 keyStoreFile.getName(), "-storepass", KEYSTORE_PASSWORD, "-file", keyStoreFile.getName() + ".der");
         return keyStoreFile;
     }

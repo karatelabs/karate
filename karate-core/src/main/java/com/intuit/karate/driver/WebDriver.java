@@ -92,6 +92,10 @@ public abstract class WebDriver implements Driver {
     protected boolean isLocatorError(Http.Response res) {
         return res.status() != 200;
     }
+    
+    protected boolean isCookieError(Http.Response res) {
+        return res.status() != 200;
+    }    
 
     private Element evalLocator(String locator, String dotExpression) {
         eval(prefixReturn(options.selector(locator) + "." + dotExpression));
@@ -308,7 +312,7 @@ public abstract class WebDriver implements Driver {
             logger.warn("session delete failed: {}", e.getMessage());
         }
         if (command != null) {
-            command.close();
+            command.close(true);
         }
     }
 
@@ -402,7 +406,10 @@ public abstract class WebDriver implements Driver {
 
     @Override
     public void cookie(Map<String, Object> cookie) {
-        http.path("cookie").post(Collections.singletonMap("cookie", cookie));
+        Http.Response res = http.path("cookie").post(Collections.singletonMap("cookie", cookie));
+        if (isCookieError(res)) {
+            throw new RuntimeException("set-cookie failed: " + res.body().asString());
+        }
     }
 
     @Override

@@ -27,54 +27,74 @@ package com.intuit.karate.driver;
  *
  * @author pthomas3
  */
-public interface Element {    
-    
+public interface Element {
+
     String getLocator(); // getter
-    
+
     boolean isExists(); // getter
-    
+
     boolean isEnabled(); // getter
-    
+
+    Element highlight();
+
     Element focus();
-    
+
     Element clear();
-    
+
     Element click();
-    
+
     Element submit();
-    
+
     Mouse mouse();
-    
+
     Element input(String value);
-    
+
     Element input(String[] values);
-    
+
+    Element input(String[] values, int delay);
+
     Element select(String text);
-    
+
     Element select(int index);
-    
+
     Element switchFrame();
-    
+
     Element delay(int millis);
     
+    Element retry();
+    
+    Element retry(int count);
+    
+    Element retry(Integer count, Integer interval);
+
     Element waitFor();
-    
+
     Element waitUntil(String expression);
-    
+
     Element waitForText(String text);
-    
+
     Object script(String expression);
-    
+
     String getHtml(); // getter
-    
+
     void setHtml(String html); // setter
-    
+
     String getText(); // getter
-    
+
     void setText(String text); // setter    
-    
+
     String getValue(); // getter
+
+    void setValue(String value); // setter
     
-    void setValue(String value); // setter    
+    Finder rightOf();
     
+    Finder leftOf();
+    
+    Finder above();
+    
+    Finder below();
+    
+    Finder near();
+
 }

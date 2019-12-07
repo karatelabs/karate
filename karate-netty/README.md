@@ -4,7 +4,7 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 
 ### Capabilities
 * Everything on `localhost` or within your network, no need to worry about your data leaking into the cloud
-* Super-easy 'hard-coded' mocks ([example](src/test/java/com/intuit/karate/mock/_mock.feature))
+* Super-easy 'hard-coded' mocks ([example](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Not only JSON but first-class support for XML, plain-text, binary, etc.
 * Easy HTTP request matching by path, method, headers, body etc.
@@ -43,7 +43,7 @@ We use a simplified example of a Java 'consumer' which makes HTTP calls to a Pay
 
 [ActiveMQ](http://activemq.apache.org) is being used for the sake of mixing an asynchronous flow into this example, and with the help of some [simple](../karate-demo/src/test/java/mock/contract/QueueUtils.java) [utilities](../karate-demo/src/test/java/mock/contract/QueueConsumer.java), we are able to mix asynchronous messaging into a Karate test *as well as* the test-double. Also refer to the documentation on [handling async flows in Karate](https://github.com/intuit/karate#async).
 
-A simpler stand-alone example (without ActiveMQ / messaging) is also available here: [`payment-service`](https://github.com/ptrthomas/payment-service). You should be able to clone and run this project - and compare and contrast this with how other frameworks approach [Consumer Driven Contract](https://www.thoughtworks.com/radar/techniques/consumer-driven-contract-testing) testing.
+A simpler stand-alone example (without ActiveMQ / messaging) is also available here: [`examples/consumer-driven-contracts`](../examples/consumer-driven-contracts). This is a stand-alone Maven project for convenience, and you just need to clone or download a ZIP of the Karate source code to get it. You can compare and contrast this example with how other frameworks approach [Consumer Driven Contract](https://www.thoughtworks.com/radar/techniques/consumer-driven-contract-testing) testing.
 
 | Key    | Source Code | Description |
 | ------ | ----------- | ----------- |
@@ -85,20 +85,7 @@ If you think about it, all the above are *sufficient* to implement *any* micro-s
 The only pre-requisite is the [Java Runtime Environment](http://www.oracle.com/technetwork/java/javase/downloads/index.html). Note that the "lighter" JRE is sufficient, not the JDK / Java Development Kit. At least version 1.8.0_112 or greater is required, and there's a good chance you already have Java installed. Check by typing `java -version` on the command line.
 
 ## Quick Start
-It will take you only 2 minutes to see Karate's mock-server capabilities in action ! And you can run tests as well.
-
-> Tip: Rename the file to `karate.jar` to make the commands below easier to type !
-
-* Download the latest version of the JAR file from [Bintray](https://dl.bintray.com/ptrthomas/karate/), and it will have the name: `karate-<version>.jar`
-* Download this file: [`cats-mock.feature`](../karate-demo/src/test/java/mock/web/cats-mock.feature) (or copy the text) to a local file next to the above JAR file
-* In the same directory, start the mock server with the command:
-  * `java -jar karate.jar -m cats-mock.feature -p 8080`
-* To see how this is capable of backing an HTML front-end, download this file: [`cats.html`](../karate-demo/src/test/java/mock/web/cats.html). Open it in a browser and you will be able to `POST` data. Browse to [`http://localhost:8080/cats`](http://localhost:8080/cats) - to see the saved data (state).
-* You can also run a "normal" Karate test using the stand-alone JAR. Download this file: [`cats-test.feature`](../karate-demo/src/test/java/mock/web/cats-test.feature) - and run the command (in a separate console / terminal):
-  * `java -jar karate.jar cats-test.feature`
-* You will see HTML reports in the `target/cucumber-html-reports` directory
-
-Another (possibly simpler) version of the above example is included in this demo project: [`karate-sikulix-demo`](https://github.com/ptrthomas/karate-sikulix-demo) - and you can skip the step of downloading the "sikulix" JAR. This project is quite handy if you need to demo Karate (tests, mocks and UI) to others !
+Just use the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release) and follow the insructions under the heading: [API Mocks](https://github.com/intuit/karate/wiki/ZIP-Release#api-mocks).
 
 Also try the ["World's Smallest MicroService"](#the-worlds-smallest-microservice-) !
 
@@ -136,6 +123,9 @@ If you *don't* enable SSL, the proxy server will still be able to tunnel HTTPS t
 ```
 java -jar karate.jar -m my-mock.feature -p 8090 -c my-cert.crt -k my-key.key
 ```
+
+#### Hot Reload
+You can hot-reload a mock feature file for changes by adding the `-w` or `--watch` option.
 
 ### Running Tests
 Convenient to run standard [Karate](https://github.com/intuit/karate) tests on the command-line without needing to mess around with Java or the IDE ! Great for demos or exploratory testing. Even HTML reports are generated !
@@ -192,7 +182,7 @@ If [`karate-config.js`](https://github.com/intuit/karate#configuration) exists i
 java -Dkarate.config.dir=parentdir/somedir -jar karate.jar my-test.feature
 ```
 
-If you want to pass any custom or environment variables, make sure they are *before* the `-jar` part else they are will not be passed to the JVM. For example:
+If you want to pass any custom or environment variables, make sure they are *before* the `-jar` part else they will not be passed to the JVM. For example:
 
 ```cucumber
 java -Dfoo=bar -Dbaz=ban -jar karate.jar my-test.feature
@@ -219,22 +209,15 @@ java -jar karate.jar -T 5 -t ~@ignore -o /my/custom/dir src/features
 ```
 
 #### Clean
-The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` option.
+The [output directory](#output-directory) will be deleted before the test runs if you use the `-C` or `--clean` option.
 
 ```
 java -jar karate.jar -T 5 -t ~@ignore -C src/features
 ```
 
-#### UI
-The 'default' command actually brings up the [Karate UI](https://github.com/intuit/karate/wiki/Karate-UI). So you can 'double-click' on the JAR or use this on the command-line:
-```
-java -jar karate.jar
-```
+#### Debug Server
+The `-d` or `--debug` option will start a debug server. See the [Debug Server wiki](https://github.com/intuit/karate/wiki/Debug-Server#standalone-jar) for more details.
 
-You can also open an existing Karate test in the UI via the command-line:
-```
-java -jar karate.jar -u my-test.feature
-```
 
 ## Logging
 A default [logback configuration file](https://logback.qos.ch/manual/configuration.html) (named [`logback-netty.xml`](src/main/resources/logback-netty.xml)) is present within the stand-alone JAR. If you need to customize logging, set the system property `logback.configurationFile` to point to your custom config:
@@ -286,6 +269,13 @@ The static `start()` method returns a `FeatureServer` object on which you can ca
 And a `FeatureServer` instance has a `stop()` method that will [stop](#stopping) the server.
 
 You can look at this demo example for reference: [ConsumerUsingMockTest.java](../karate-demo/src/test/java/mock/contract/ConsumerUsingMockTest.java) - note how the dynamic port number can be retrieved and passed to other elements in your test set-up.
+
+## Continuous Integration
+To include mocks into a test-suite that consists mostly of Karate tests, the easiest way is to use JUnit with the above approach, and ensure that the JUnit class is "included" in your test run. One way is to ensure that the JUnit "runner" follows the naming convention (`*Test.java`) or you can explicity include the mock "runners" in your Maven setup.
+
+You will also need to ensure that your mock feature is *not* picked up by the regular test-runners, and an `@ignore` [tag](https://github.com/intuit/karate#tags) typically does the job.
+
+For more details, refer to this [answer on Stack Overflow](https://stackoverflow.com/a/57746457/143475).
 
 ## Within a Karate Test
 Teams that are using the [standalone JAR](#standalone-jar) and *don't* want to use Java at all can directly start a mock from within a Karate test script using the `karate.start()` API. The argument can be a string or JSON. If a string, it is processed as the path to the mock feature file, and behaves like the [`read()`](https://github.com/intuit/karate#reading-files) function.

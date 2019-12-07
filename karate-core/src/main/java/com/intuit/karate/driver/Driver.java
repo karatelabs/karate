@@ -23,8 +23,10 @@
  */
 package com.intuit.karate.driver;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -80,7 +82,7 @@ public interface Driver {
     }
 
     Map<String, Object> cookie(String name);
-    
+
     void cookie(Map<String, Object> cookie);
 
     void deleteCookie(String name);
@@ -126,10 +128,17 @@ public interface Driver {
     Element click(String locator);
 
     Element input(String locator, String value);
-
+    
     default Element input(String locator, String[] values) {
+        return input(locator, values, 0);
+    }
+
+    default Element input(String locator, String[] values, int delay) {
         Element element = DriverElement.locatorUnknown(this, locator);
         for (String value : values) {
+            if (delay > 0) {
+                delay(delay);
+            }
             element = input(locator, value);
         }
         return element;
@@ -152,10 +161,24 @@ public interface Driver {
     default Element waitForText(String locator, String expected) {
         return waitUntil(locator, "_.textContent.includes('" + expected + "')");
     }
-    
+
     default Element waitForEnabled(String locator) {
         return waitUntil(locator, "!_.disabled");
-    }    
+    }
+
+    default List<Element> waitForResultCount(String locator, int count) {
+        return (List) waitUntil(() -> {
+            List<Element> list = locateAll(locator);
+            return list.size() == count ? list : null;
+        });
+    }
+
+    default List waitForResultCount(String locator, int count, String expression) {
+        return (List) waitUntil(() -> {
+            List list = scriptAll(locator, expression);
+            return list.size() == count ? list : null;
+        });
+    }
 
     default Element waitForAny(String locator1, String locator2) {
         return getOptions().waitForAny(this, new String[]{locator1, locator2});
@@ -172,8 +195,12 @@ public interface Driver {
     default Object waitUntil(Supplier<Object> condition) {
         return getOptions().retry(() -> condition.get(), o -> o != null, "waitUntil (function)");
     }
+    
+    default Element locate(String locator) {
+        return DriverElement.locatorUnknown(this, locator);
+    }
 
-    default List<Element> findAll(String locator) {
+    default List<Element> locateAll(String locator) {
         return getOptions().findAll(this, locator);
     }
 
@@ -183,8 +210,12 @@ public interface Driver {
     }
 
     default Element highlight(String locator) {
-        script(getOptions().highlighter(locator));
+        script(getOptions().highlight(locator));
         return DriverElement.locatorExists(this, locator);
+    }
+
+    default void highlightAll(String locator) {
+        script(getOptions().highlightAll(locator));
     }
 
     // friendly locators =======================================================
@@ -256,14 +287,25 @@ public interface Driver {
     }
 
     default Object script(String locator, String expression) {
-        String js = getOptions().selectorScript(locator, expression);
+        String js = getOptions().scriptSelector(locator, expression);
         return script(js);
     }
 
-    default List scripts(String locator, String expression) {
-        String js = getOptions().selectorAllScript(locator, expression);
+    default List scriptAll(String locator, String expression) {
+        String js = getOptions().scriptAllSelector(locator, expression);
         return (List) script(js);
     }
+    
+    default List scriptAll(String locator, String expression, Predicate predicate) {
+        List before = scriptAll(locator, expression);
+        List after = new ArrayList(before.size());
+        for (Object o : before) {
+            if (predicate.test(o)) {
+                after.add(o);
+            }
+        }
+        return after;
+    }    
 
     // for internal use ========================================================
     //

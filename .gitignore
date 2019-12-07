@@ -4,13 +4,16 @@ target/
 .project
 .settings
 .classpath
+.vscode
 *.iml
 build/
+bin/
 .gradle
 gradle
 gradlew
 gradlew.*
 dependency-reduced-pom.xml
+examples/zip-release/*.jar
 karate-demo/activemq-data/
 karate-demo/*.pem
 karate-demo/*.jks

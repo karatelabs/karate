@@ -73,8 +73,8 @@ public class CliExecutionHook implements ExecutionHook {
     }      
 
     @Override
-    public void beforeStep(Step step, ScenarioContext context) {
-
+    public boolean beforeStep(Step step, ScenarioContext context) {
+        return true;
     }
 
     @Override
@@ -86,7 +86,7 @@ public class CliExecutionHook implements ExecutionHook {
     public boolean beforeScenario(Scenario scenario, ScenarioContext context) {
         if (intellij && context.callDepth == 0) {
             Path absolutePath = scenario.getFeature().getResource().getPath().toAbsolutePath();
-            log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), absolutePath + ":" + scenario.getLine(), scenario.getNameForReport()));
+            log(String.format(TEMPLATE_TEST_STARTED, getCurrentTime(), absolutePath + ":" + scenario.getLine(), escape(scenario.getNameForReport())));
             // log(String.format(TEMPLATE_SCENARIO_STARTED, getCurrentTime()));
         }
         return true;
@@ -98,9 +98,9 @@ public class CliExecutionHook implements ExecutionHook {
             Scenario scenario = result.getScenario();
             if (result.isFailed()) {
                 StringUtils.Pair error = details(result.getError());
-                log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), scenario.getNameForReport(), ""));
+                log(String.format(TEMPLATE_TEST_FAILED, getCurrentTime(), escape(error.right), escape(error.left), escape(scenario.getNameForReport()), ""));
             }
-            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), result.getDurationNanos() / 1000000, scenario.getNameForReport()));
+            log(String.format(TEMPLATE_TEST_FINISHED, getCurrentTime(), result.getDurationNanos() / 1000000, escape(scenario.getNameForReport())));
         }
     }
 
@@ -108,7 +108,7 @@ public class CliExecutionHook implements ExecutionHook {
     public boolean beforeFeature(Feature feature, ExecutionContext context) {
         if (intellij && context.callContext.callDepth == 0) {
             Path absolutePath = feature.getResource().getPath().toAbsolutePath();
-            log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), absolutePath + ":" + feature.getLine(), feature.getNameForReport()));
+            log(String.format(TEMPLATE_TEST_SUITE_STARTED, getCurrentTime(), absolutePath + ":" + feature.getLine(), escape(feature.getNameForReport())));
         }
         return true;
     }
@@ -119,7 +119,10 @@ public class CliExecutionHook implements ExecutionHook {
             return;
         }
         if (intellij) {
-            log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), result.getFeature().getNameForReport()));
+            log(String.format(TEMPLATE_TEST_SUITE_FINISHED, getCurrentTime(), escape(result.getFeature().getNameForReport())));
+        }
+        if (result.getScenarioCount() == 0) {
+            return;
         }
         if (htmlReport) {
             Engine.saveResultHtml(targetDir, result, null);

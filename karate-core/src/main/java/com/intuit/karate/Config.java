@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.driver.DockerTarget;
 import com.intuit.karate.driver.Target;
 import com.intuit.karate.http.HttpClient;
+import com.intuit.karate.http.HttpLogModifier;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ public class Config {
     private String proxyUsername;
     private String proxyPassword;
     private List<String> nonProxyHosts;
+    private String localAddress;
     private ScriptValue headers = ScriptValue.NULL;
     private ScriptValue cookies = ScriptValue.NULL;
     private ScriptValue responseHeaders = ScriptValue.NULL;
@@ -72,6 +74,7 @@ public class Config {
     private Map<String, Object> driverOptions;
     private ScriptValue afterScenario = ScriptValue.NULL;
     private ScriptValue afterFeature = ScriptValue.NULL;
+    private HttpLogModifier logModifier;
 
     // retry config
     private int retryInterval = DEFAULT_RETRY_INTERVAL;
@@ -165,6 +168,9 @@ public class Config {
             case "httpClientClass":
                 clientClass = value.getAsString();
                 return true;
+            case "logModifier":
+                logModifier = value.getValue(HttpLogModifier.class);               
+                return true;
             case "httpClientInstance":
                 clientInstance = value.getValue(HttpClient.class);
                 return true;
@@ -215,6 +221,9 @@ public class Config {
                     nonProxyHosts = (List) map.get("nonProxyHosts");
                 }
                 return true;
+            case "localAddress":
+                localAddress = value.getAsString();
+                return true;
             case "userDefined":
                 userDefined = value.getAsMap();
                 return true;
@@ -241,6 +250,7 @@ public class Config {
         proxyUsername = parent.proxyUsername;
         proxyPassword = parent.proxyPassword;
         nonProxyHosts = parent.nonProxyHosts;
+        localAddress = parent.localAddress;
         headers = parent.headers;
         cookies = parent.cookies;
         responseHeaders = parent.responseHeaders;
@@ -261,6 +271,7 @@ public class Config {
         retryInterval = parent.retryInterval;
         retryCount = parent.retryCount;
         outlineVariablesAuto = parent.outlineVariablesAuto;
+        logModifier = parent.logModifier;
     }
         
     public void setCookies(ScriptValue cookies) {
@@ -340,6 +351,10 @@ public class Config {
     public List<String> getNonProxyHosts() {
         return nonProxyHosts;
     }
+
+    public String getLocalAddress() {
+        return localAddress;
+    }        
     
     public ScriptValue getHeaders() {
         return headers;
@@ -451,6 +466,10 @@ public class Config {
 
     public void setDriverTarget(Target driverTarget) {
         this.driverTarget = driverTarget;
+    }        
+
+    public HttpLogModifier getLogModifier() {
+        return logModifier;
     }        
 
 }

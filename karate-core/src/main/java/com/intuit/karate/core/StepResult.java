@@ -38,16 +38,31 @@ public class StepResult {
     private static final Map<String, Object> DUMMY_MATCH;
 
     private final Step step;
-    private final Result result;    
+    private final Result result;
     private final List<FeatureResult> callResults;
-    private final boolean hidden;
     
+    private boolean hidden;
+    private boolean showLog = true;
     private List<Embed> embeds;
     private String stepLog;
 
+    // short cut to re-use when converting from json
+    private Map<String, Object> json;
+
+    public String getErrorMessage() {
+        if (result == null) {
+            return null;
+        }
+        Throwable error = result.getError();
+        return error == null ? null : error.getMessage();
+    }
+
     public void appendToStepLog(String log) {
-        if (log == null || stepLog == null) {
+        if (log == null) {
             return;
+        }
+        if (stepLog == null) {
+            stepLog = "";
         }
         stepLog = stepLog + log;
     }
@@ -66,8 +81,21 @@ public class StepResult {
         return map;
     }
 
+    public StepResult(Map<String, Object> map) {
+        json = map;
+        step = new Step();
+        step.setLine((Integer) map.get("line"));
+        step.setPrefix((String) map.get("prefix"));
+        step.setText((String) map.get("name"));
+        result = new Result((Map) map.get("result"));
+        callResults = null;
+    }
+
     public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap(6);
+        if (json != null) {
+            return json;
+        }
+        Map<String, Object> map = new HashMap(7);
         map.put("line", step.getLine());
         map.put("keyword", step.getPrefix());
         map.put("name", step.getText());
@@ -89,26 +117,34 @@ public class StepResult {
         if (embeds != null) {
             List<Map> embedList = new ArrayList(embeds.size());
             for (Embed embed : embeds) {
-                Map embedMap = new HashMap(2);
-                embedMap.put("data", embed.getBase64());
-                embedMap.put("mime_type", embed.getMimeType());
-                embedList.add(embedMap);
+                embedList.add(embed.toMap());
             }
             map.put("embeddings", embedList);
         }
         return map;
     }
 
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
+    }        
+
     public boolean isHidden() {
         return hidden;
     }
+
+    public boolean isShowLog() {
+        return showLog;
+    }
+
+    public void setShowLog(boolean showLog) {
+        this.showLog = showLog;
+    }        
 
     public boolean isStopped() {
         return result.isFailed() || result.isAborted();
     }
 
-    public StepResult(boolean hidden, Step step, Result result, String stepLog, List<Embed> embeds, List<FeatureResult> callResults) {
-        this.hidden = hidden;
+    public StepResult(Step step, Result result, String stepLog, List<Embed> embeds, List<FeatureResult> callResults) {
         this.step = step;
         this.result = result;
         this.stepLog = stepLog;
@@ -131,7 +167,7 @@ public class StepResult {
     public List<Embed> getEmbeds() {
         return embeds;
     }
-    
+
     public void addEmbed(Embed embed) {
         if (embeds == null) {
             embeds = new ArrayList();

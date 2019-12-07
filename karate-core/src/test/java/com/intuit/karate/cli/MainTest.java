@@ -24,7 +24,6 @@
 package com.intuit.karate.cli;
 
 import com.intuit.karate.StringUtils;
-import com.intuit.karate.cli.Main;
 import static org.junit.Assert.*;
 import org.junit.Test;
 

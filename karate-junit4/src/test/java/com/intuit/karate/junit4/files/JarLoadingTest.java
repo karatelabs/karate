@@ -1,10 +1,13 @@
 package com.intuit.karate.junit4.files;
 
+import com.intuit.karate.CallContext;
 import com.intuit.karate.Resource;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.Runner;
+import com.intuit.karate.core.FeatureContext;
+import com.intuit.karate.core.ScenarioContext;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -31,7 +34,7 @@ public class JarLoadingTest {
 
     private static final Logger logger = LoggerFactory.getLogger(JarLoadingTest.class);
 
-    private static ClassLoader getJarClassLoader() throws Exception {
+    private static ClassLoader getJarClassLoader1() throws Exception {
         File jar = new File("../karate-core/src/test/resources/karate-test.jar");
         assertTrue(jar.exists());
         return new URLClassLoader(new URL[]{jar.toURI().toURL()});
@@ -39,7 +42,7 @@ public class JarLoadingTest {
 
     @Test
     public void testRunningFromJarFile() throws Exception {
-        ClassLoader cl = getJarClassLoader();
+        ClassLoader cl = getJarClassLoader1();
         Class main = cl.loadClass("demo.jar1.Main");
         Method meth = main.getMethod("hello");
         Object result = meth.invoke(null);
@@ -64,7 +67,7 @@ public class JarLoadingTest {
     public void testFileUtilsForJarFile() throws Exception {
         File file = new File("src/test/java/common.feature");
         assertTrue(!FileUtils.isJarPath(file.toPath().toUri()));
-        ClassLoader cl = getJarClassLoader();
+        ClassLoader cl = getJarClassLoader1();
         Class main = cl.loadClass("demo.jar1.Main");
         Path path = FileUtils.getPathContaining(main);
         assertTrue(FileUtils.isJarPath(path.toUri()));
@@ -73,11 +76,32 @@ public class JarLoadingTest {
         path = FileUtils.fromRelativeClassPath("classpath:demo/jar1", cl);
         assertEquals(path.toString(), "/demo/jar1");
     }
+    
+    private static ClassLoader getJarClassLoader2() throws Exception {
+        File jar = new File("../karate-core/src/test/resources/karate-test2.jar");
+        assertTrue(jar.exists());
+        return new URLClassLoader(new URL[]{jar.toURI().toURL()});
+    }    
+    
+    private ScenarioContext getContext() throws Exception {
+        Path featureDir = FileUtils.getPathContaining(getClass());
+        FeatureContext featureContext = FeatureContext.forWorkingDir("dev", featureDir.toFile());
+        CallContext callContext = new CallContext(null, true);
+        return new ScenarioContext(featureContext, callContext, getJarClassLoader2(), null, null);
+    }    
+
+    @Test
+    public void testClassPathJarResource() throws Exception {
+        String relativePath = "classpath:example/dependency.feature";
+        Resource resource = new Resource(getContext(), relativePath);
+        String temp = resource.getAsString();
+        logger.debug("string: {}", temp);
+    }
 
     @Test
     public void testUsingKarateBase() throws Exception {
         String relativePath = "classpath:demo/jar1/caller.feature";
-        ClassLoader cl = getJarClassLoader();
+        ClassLoader cl = getJarClassLoader1();
         ExecutorService executor = Executors.newFixedThreadPool(10);
         List<Callable<Boolean>> list = new ArrayList();
         for (int i = 0; i < 10; i++) {

@@ -86,7 +86,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         close();
         if (command != null) {
             // TODO this does not work because the command never blocks on windows
-            command.close();
+            command.close(true);
         }
     }
 }

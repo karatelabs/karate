@@ -13,7 +13,7 @@ public class MockRunner {
     
     @Test
     public void testStart() {
-        File file = FileUtils.getFileRelativeTo(Test01UiRunner.class, "_mock.feature");
+        File file = FileUtils.getFileRelativeTo(MockRunner.class, "_mock.feature");
         FeatureServer server = FeatureServer.start(file, 8080, false, null);    
         server.waitSync();
     }

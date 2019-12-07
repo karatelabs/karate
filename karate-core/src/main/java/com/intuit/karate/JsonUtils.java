@@ -24,6 +24,8 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
+import com.intuit.karate.driver.DriverElement;
+import com.intuit.karate.driver.Element;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -91,11 +93,21 @@ public class JsonUtils {
         }
 
     }
+    
+    private static class ElementJsonWriter implements JsonWriterI<Element> {
+
+        @Override
+        public <E extends Element> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
+            JsonWriter.toStringWriter.writeJSONString("\"" + value.getLocator() + "\"", out, compression);                    
+        }
+        
+    }
 
     static {
         // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
         JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
         JSONValue.registerWriter(Feature.class, new FeatureJsonWriter());
+        JSONValue.registerWriter(DriverElement.class, new ElementJsonWriter());
         // ensure that even if jackson (databind?) is on the classpath, don't switch provider
         Configuration.setDefaults(new Configuration.Defaults() {
 

@@ -50,7 +50,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import com.intuit.karate.StepActions;
 import cucumber.api.java.en.When;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
@@ -138,7 +141,13 @@ public class Engine {
         } else {
             last = null;
         }
-        Object[] args = match.convertArgs(last);
+        Object[] args;
+        try {
+            args = match.convertArgs(last);
+        } catch (Exception ee) { // edge case where user error causes [request =] to match [request docstring]
+            KarateException e = new KarateException("no step-definition method match found for: " + text);
+            return Result.failed(0, e, step);            
+        }
         long startTime = System.nanoTime();
         try {
             match.method.invoke(actions, args);
@@ -329,7 +338,7 @@ public class Engine {
         if (step.getDocString() != null) {
             sb.append(step.getDocString());
         }
-        if (stepResult.getStepLog() != null) {
+        if (stepResult.isShowLog() && stepResult.getStepLog() != null) {
             if (sb.length() > 0) {
                 sb.append('\n');
             }
@@ -441,6 +450,7 @@ public class Engine {
         List<ScenarioResult> scenarioResults = results.getScenarioResults();
         List<Map> items = new ArrayList(scenarioResults.size());
         int id = 1;
+        DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss.SSS");
         for (ScenarioResult sr : scenarioResults) {
             String threadName = sr.getThreadName();
             Integer groupId = groupsMap.get(threadName);
@@ -458,11 +468,14 @@ public class Engine {
             item.put("content", content);
             item.put("start", sr.getStartTime());
             item.put("end", sr.getEndTime());
+            String startTime = dateFormat.format(new Date(sr.getStartTime()));
+            String endTime = dateFormat.format(new Date(sr.getEndTime()));
+            content = content + " " + startTime + "-" + endTime;
             String scenarioTitle = StringUtils.trimToEmpty(s.getName());
             if (!scenarioTitle.isEmpty()) {
                 content = content + " " + scenarioTitle;
             }
-            item.put("title", content + " " + sr.getStartTime() + "-" + sr.getEndTime());
+            item.put("title", content);
         }
         List<Map> groups = new ArrayList(groupsMap.size());
         groupsMap.forEach((k, v) -> {

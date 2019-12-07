@@ -24,6 +24,7 @@
 package com.intuit.karate.driver;
 
 /**
+ * TODO make this convert-able to JSON
  *
  * @author pthomas3
  */
@@ -71,6 +72,11 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element highlight() {
+        return driver.highlight(locator);
+    }
+
+    @Override
     public Element focus() {
         return driver.focus(locator);
     }
@@ -107,6 +113,11 @@ public class DriverElement implements Element {
     }
 
     @Override
+    public Element input(String[] values, int delay) {
+        return driver.input(locator, values, delay);
+    }
+
+    @Override
     public Element select(String text) {
         return driver.select(locator, text);
     }
@@ -125,6 +136,24 @@ public class DriverElement implements Element {
     @Override
     public Element delay(int millis) {
         driver.delay(millis);
+        return this;
+    }
+
+    @Override
+    public Element retry() {
+        driver.retry();
+        return this;
+    }
+
+    @Override
+    public Element retry(int count) {
+        driver.retry(count);
+        return this;
+    }
+
+    @Override
+    public Element retry(Integer count, Integer interval) {
+        driver.retry(count, interval);
         return this;
     }
 
@@ -179,6 +208,31 @@ public class DriverElement implements Element {
     @Override
     public void setValue(String value) {
         driver.value(locator, value);
+    }
+
+    @Override
+    public Finder rightOf() {
+        return driver.rightOf(locator);
+    }
+
+    @Override
+    public Finder leftOf() {
+        return driver.leftOf(locator);
+    }
+
+    @Override
+    public Finder above() {
+        return driver.above(locator);
+    }
+
+    @Override
+    public Finder below() {
+        return driver.below(locator);
+    }
+
+    @Override
+    public Finder near() {
+        return driver.near(locator);
     }
 
 }

@@ -35,6 +35,7 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,23 +52,38 @@ public class Command extends Thread {
     private final boolean sharedAppender;
     private final LogAppender appender;
 
+    private boolean useLineFeed;
+    private Map<String, String> environment;
     private Process process;
     private int exitCode = -1;
 
-    public static String exec(File workingDir, String... args) {
+    public void setEnvironment(Map<String, String> environment) {
+        this.environment = environment;
+    }        
+
+    public void setUseLineFeed(boolean useLineFeed) {
+        this.useLineFeed = useLineFeed;
+    }        
+
+    public static String exec(boolean useLineFeed, File workingDir, String... args) {
         Command command = new Command(workingDir, args);
+        command.setUseLineFeed(useLineFeed);
         command.start();
         command.waitSync();
         return command.appender.collect();
     }
-
-    public static String execLine(File workingDir, String command) {
+    
+    public static String[] tokenize(String command) {
         StringTokenizer st = new StringTokenizer(command);
         String[] args = new String[st.countTokens()];
         for (int i = 0; st.hasMoreTokens(); i++) {
             args[i] = st.nextToken();
-        }
-        return exec(workingDir, args);
+        } 
+        return args;
+    }
+
+    public static String execLine(File workingDir, String command) {
+        return exec(false, workingDir, tokenize(command));
     }
 
     public static String getBuildDir() {
@@ -148,7 +164,7 @@ public class Command extends Thread {
         }
         argList = Arrays.asList(args);
         if (logFile == null) {
-            appender = new StringLogAppender();
+            appender = new StringLogAppender(useLineFeed);
             sharedAppender = false;
         } else { // don't create new file if re-using an existing appender
             LogAppender temp = this.logger.getLogAppender();
@@ -161,6 +177,18 @@ public class Command extends Thread {
             }
         }
     }
+    
+    public Map<String, String> getEnvironment() {
+        return environment;
+    }
+
+    public File getWorkingDir() {
+        return workingDir;
+    }       
+
+    public List getArgList() {
+        return argList;
+    }       
 
     public Logger getLogger() {
         return logger;
@@ -187,19 +215,28 @@ public class Command extends Thread {
         }
     }
 
-    public void close() {
+    public void close(boolean force) {
         LOGGER.debug("closing command: {}", uniqueName);
-        process.destroyForcibly();
+        if (force) {
+            process.destroyForcibly();
+        } else {
+            process.destroy();
+        }        
     }
 
+    @Override
     public void run() {
         try {
             logger.debug("command: {}", argList);
             ProcessBuilder pb = new ProcessBuilder(args);
-            logger.debug("env PATH: {}", pb.environment().get("PATH"));
+            if (environment != null) {
+                pb.environment().putAll(environment);
+                environment = pb.environment();
+            }
+            logger.trace("env PATH: {}", pb.environment().get("PATH"));
             if (workingDir != null) {
                 pb.directory(workingDir);
-            }
+            }            
             pb.redirectErrorStream(true);
             process = pb.start();
             BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));

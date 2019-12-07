@@ -35,6 +35,8 @@ import com.intuit.karate.demo.controller.SearchController;
 import com.intuit.karate.demo.controller.SignInController;
 import com.intuit.karate.demo.controller.SoapController;
 import com.intuit.karate.demo.controller.UploadController;
+import com.intuit.karate.demo.exception.GlobalExceptionHandler;
+
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -108,5 +110,10 @@ public class MockDemoConfig {
     public EchoController echoController() {
         return new EchoController();
     }    
+
+    @Bean
+    public GlobalExceptionHandler globalExceptionHandler() {
+        return new GlobalExceptionHandler();
+    }
     
 }

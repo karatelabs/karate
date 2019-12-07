@@ -72,7 +72,19 @@ public class Feature {
         }
     }
 
-    // the logger arg is important and can be coming from the UI
+    public Step findStepByLine(int line) {
+        for (FeatureSection section : sections) {
+            List<Step> steps = section.isOutline()
+                    ? section.getScenarioOutline().getSteps() : section.getScenario().getStepsIncludingBackground();
+            for (Step step : steps) {
+                if (step.getLine() == line) {
+                    return step;
+                }
+            }
+        }
+        return null;
+    }
+
     public List<ScenarioExecutionUnit> getScenarioExecutionUnits(ExecutionContext exec) {
         List<ScenarioExecutionUnit> units = new ArrayList();
         for (FeatureSection section : sections) {
@@ -303,5 +315,10 @@ public class Feature {
     public void setSections(List<FeatureSection> sections) {
         this.sections = sections;
     }
+
+    @Override
+    public String toString() {
+        return resource.toString();
+    }        
 
 }

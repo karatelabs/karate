@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.driver;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.Logger;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.Command;
@@ -56,7 +57,7 @@ public class DockerTarget implements Target {
             Integer vncPort = (Integer) options.get("vncPort");
             String secComp = (String) options.get("secComp");
             StringBuilder sb = new StringBuilder();
-            sb.append("docker run -d");
+            sb.append("docker run -d -e KARATE_SOCAT_START=true");
             if (secComp == null) {
                 sb.append(" --cap-add=SYS_ADMIN");
             } else {
@@ -66,9 +67,9 @@ public class DockerTarget implements Target {
                 sb.append(" -p ").append(vncPort).append(":5900");
             }
             if (imageId != null) {
-                if (imageId.startsWith("justinribeiro/chrome-headless")) {
+                if (imageId.contains("/chrome-headless")) {
                     command = p -> sb.toString() + " -p " + p + ":9222 " + imageId;
-                } else if (imageId.startsWith("ptrthomas/karate-chrome")) {
+                } else if (imageId.contains("/karate-chrome")) {
                     karateChrome = true;
                     command = p -> sb.toString() + " -p " + p + ":9222 " + imageId;
                 }
@@ -124,7 +125,10 @@ public class DockerTarget implements Target {
             logger.warn("video file missing: {}", file);
             return Collections.EMPTY_MAP;
         }
-        return Collections.singletonMap("video", file.getAbsolutePath());
+        File copy = new File(Command.getBuildDir() + File.separator 
+                + "cucumber-html-reports" + File.separator + dirName + ".mp4");
+        FileUtils.copy(file, copy);
+        return Collections.singletonMap("video", copy.getName());
     }
 
 }

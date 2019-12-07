@@ -32,6 +32,12 @@ import com.intuit.karate.LogAppender;
 public class StringLogAppender implements LogAppender {
     
     private final StringBuilder sb = new StringBuilder();
+    
+    private final boolean useLineFeed;
+    
+    public StringLogAppender(boolean useLineFeed) {
+        this.useLineFeed = useLineFeed;
+    }
 
     @Override
     public String collect() {
@@ -43,6 +49,9 @@ public class StringLogAppender implements LogAppender {
     @Override
     public void append(String text) {
         sb.append(text);
+        if (useLineFeed) {
+            sb.append('\n');
+        }
     }
 
     @Override

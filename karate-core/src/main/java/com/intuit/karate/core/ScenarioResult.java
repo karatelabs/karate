@@ -39,17 +39,45 @@ public class ScenarioResult {
     private final Scenario scenario;
 
     private StepResult failedStep;
-    
+
     private String threadName;
     private long startTime;
     private long endTime;
-    private long durationNanos;     
-    
+    private long durationNanos;
+
+    private Map<String, Object> backgroundJson;
+    private Map<String, Object> json;
+
     public void reset() {
         stepResults = new ArrayList();
         failedStep = null;
     }
+
+    public void appendEmbed(Embed embed) {
+        if (json != null) {
+            List<Map<String, Object>> steps = (List) json.get("steps");
+            if (steps == null || steps.isEmpty()) {
+                return;
+            }
+            Map<String, Object> map = steps.get(steps.size() - 1);           
+            List<Map<String, Object>> embedList = (List) map.get("embeddings");
+            if (embedList == null) {
+                embedList = new ArrayList();
+                map.put("embeddings", embedList);
+            }
+            embedList.add(embed.toMap());
+        } else {
+            getLastStepResult().addEmbed(embed);
+        }
+    }
     
+    public StepResult getLastStepResult() {
+        if (stepResults.isEmpty()) {
+            return null;
+        }
+        return stepResults.get(stepResults.size() - 1);
+    }
+
     public StepResult getStepResult(int index) {
         if (stepResults.size() > index) {
             return stepResults.get(index);
@@ -57,7 +85,7 @@ public class ScenarioResult {
             return null;
         }
     }
-    
+
     public void setStepResult(int index, StepResult sr) {
         if (sr.getResult().isFailed()) {
             failedStep = sr;
@@ -81,13 +109,13 @@ public class ScenarioResult {
         String featureName = scenario.getFeature().getResource().getRelativePath();
         return featureName + ":" + step.getLine() + " " + step.getText();
     }
-    
+
     public void addError(String message, Throwable error) {
         Step step = new Step(scenario.getFeature(), scenario, -1);
         step.setLine(scenario.getLine());
         step.setPrefix("*");
         step.setText(message);
-        StepResult sr = new StepResult(false, step, Result.failed(0, error, step), null, null, null);
+        StepResult sr = new StepResult(step, Result.failed(0, error, step), null, null, null);
         addStepResult(sr);
     }
 
@@ -100,15 +128,16 @@ public class ScenarioResult {
         }
     }
 
-    private static void recurse(List<Map> list, StepResult stepResult, int depth) {        
-        if (stepResult.getCallResults() != null) {            
+    private static void recurse(List<Map> list, StepResult stepResult, int depth) {
+        if (stepResult.getCallResults() != null) {
             for (FeatureResult fr : stepResult.getCallResults()) {
                 Step call = new Step(stepResult.getStep().getFeature(), stepResult.getStep().getScenario(), -1);
                 call.setLine(stepResult.getStep().getLine());
                 call.setPrefix(StringUtils.repeat('>', depth));
                 call.setText(fr.getCallName());
-                call.setDocString(fr.getCallArgPretty());                     
-                StepResult callResult = new StepResult(stepResult.isHidden(), call, Result.passed(0), null, null, null);
+                call.setDocString(fr.getCallArgPretty());
+                StepResult callResult = new StepResult(call, Result.passed(0), null, null, null);
+                callResult.setHidden(stepResult.isHidden());
                 list.add(callResult.toMap());
                 for (StepResult sr : fr.getStepResults()) { // flattened
                     if (sr.isHidden()) {
@@ -138,7 +167,13 @@ public class ScenarioResult {
         return list;
     }
 
-    public Map<String, Object> backgroundToMap() {
+    public Map<String, Object> backgroundToMap() {        
+        if (backgroundJson != null) {
+            return backgroundJson;
+        }
+        if (!scenario.getFeature().isBackgroundPresent()) {
+            return null;
+        }
         Map<String, Object> map = new HashMap();
         map.put("name", "");
         map.put("steps", getStepResults(true));
@@ -150,6 +185,9 @@ public class ScenarioResult {
     }
 
     public Map<String, Object> toMap() {
+        if (json != null) {
+            return json;
+        }
         Map<String, Object> map = new HashMap();
         map.put("name", scenario.getName());
         map.put("steps", getStepResults(false));
@@ -171,6 +209,34 @@ public class ScenarioResult {
         }
     }
 
+    private void addStepsFromJson(Map<String, Object> parentJson) {
+        if (parentJson == null) {
+            return;
+        }
+        List<Map<String, Object>> list = (List) parentJson.get("steps");
+        if (list == null) {
+            return;
+        }
+        for (Map<String, Object> stepMap : list) {
+            addStepResult(new StepResult(stepMap));
+        }
+    }
+
+    // for converting cucumber-json to result server-executor mode
+    public ScenarioResult(Scenario scenario, List<Map<String, Object>> jsonList, boolean dummy) {
+        this.scenario = scenario;
+        if (jsonList != null && !jsonList.isEmpty()) {
+            if (jsonList.size() > 1) {
+                backgroundJson = jsonList.get(0);
+                json = jsonList.get(1);
+            } else {
+                json = jsonList.get(0);
+            }
+            addStepsFromJson(backgroundJson);
+            addStepsFromJson(json);
+        }
+    }
+
     public Scenario getScenario() {
         return scenario;
     }
@@ -185,7 +251,7 @@ public class ScenarioResult {
 
     public StepResult getFailedStep() {
         return failedStep;
-    }        
+    }
 
     public Throwable getError() {
         return failedStep == null ? null : failedStep.getResult().getError();

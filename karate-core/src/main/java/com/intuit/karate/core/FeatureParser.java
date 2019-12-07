@@ -26,6 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.Resource;
 import com.intuit.karate.StringUtils;
+import com.intuit.karate.exception.KarateException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -57,23 +58,21 @@ public class FeatureParser extends KarateParserBaseListener {
     private final ParserErrorListener errorListener = new ParserErrorListener();
 
     private final Feature feature;
+
+    static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
+
+    public static Feature parse(String relativePath) {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        Path path = FileUtils.fromRelativeClassPath(relativePath, cl);
+        return parse(new Resource(path, relativePath, -1));
+    }    
     
-    static final List<String> prefix = Arrays.asList("*","Given","When","Then","And","But");
-
     public static Feature parse(File file) {
-        Resource resource = new Resource(file, file.getPath());
-        return new FeatureParser(resource).feature;
-    }
-
+        return parse(new Resource(file.toPath()));
+    }    
+    
     public static Feature parse(Resource resource) {
         return new FeatureParser(resource).feature;
-    }
-
-    public static Feature parse(String path) {
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        Path file = FileUtils.fromRelativeClassPath(path, cl);
-        Resource resource = new Resource(file, path, -1);
-        return FeatureParser.parse(resource);
     }
 
     public static Feature parseText(Feature old, String text) {
@@ -85,29 +84,29 @@ public class FeatureParser extends KarateParserBaseListener {
         feature.setLines(StringUtils.toStringLines(text));
         return feature;
     }
-    
-    public static boolean updateStepFromText(Step step, String text) {
+
+    public static void updateStepFromText(Step step, String text) throws Exception {
         Feature feature = new Feature(step.getFeature().getResource());
-        final String stepText = text;
-        boolean hasPrefix = prefix.stream().anyMatch(prefixValue -> stepText.trim().startsWith(prefixValue));
+        final String stepText = text.trim();
+        boolean hasPrefix = PREFIXES.stream().anyMatch(prefixValue -> stepText.startsWith(prefixValue));
         // to avoid parser considering text without prefix as Scenario comments/Doc-string
         if (!hasPrefix) {
-        	return false;
+            text = "* " + stepText;
         }
         text = "Feature:\nScenario:\n" + text;
         FeatureParser fp = new FeatureParser(feature, FileUtils.toInputStream(text));
-        if (!fp.errorListener.isFail()) {
-        	feature = fp.feature;
-            Step temp = feature.getStep(0, -1, 0);
-        	if (temp != null) {
-        		step.setPrefix(temp.getPrefix());
-                step.setText(temp.getText());
-                step.setDocString(temp.getDocString());
-                step.setTable(temp.getTable());
-                return true;
-        	}
+        if (fp.errorListener.isFail()) {
+            throw new KarateException(fp.errorListener.getMessage());
         }
-        return false;
+        feature = fp.feature;
+        Step temp = feature.getStep(0, -1, 0);
+        if (temp == null) {
+            throw new KarateException("invalid expression: " + text);
+        }
+        step.setPrefix(temp.getPrefix());
+        step.setText(temp.getText());
+        step.setDocString(temp.getDocString());
+        step.setTable(temp.getTable());
     }
 
     private static InputStream toStream(File file) {
@@ -127,7 +126,7 @@ public class FeatureParser extends KarateParserBaseListener {
     }
 
     private FeatureParser(Feature feature, InputStream is) {
-    	this.feature = feature;
+        this.feature = feature;
         CharStream stream;
         try {
             stream = CharStreams.fromStream(is, StandardCharsets.UTF_8);
@@ -181,9 +180,9 @@ public class FeatureParser extends KarateParserBaseListener {
     private static Table toTable(KarateParser.TableContext ctx) {
         List<TerminalNode> nodes = ctx.TABLE_ROW();
         int rowCount = nodes.size();
-        if(rowCount < 1) {
-        	// if scenario outline found without examples
-        	return null;
+        if (rowCount < 1) {
+            // if scenario outline found without examples
+            return null;
         }
         List<List<String>> rows = new ArrayList(rowCount);
         List<Integer> lineNumbers = new ArrayList(rowCount);

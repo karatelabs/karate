@@ -27,11 +27,16 @@ import com.intuit.karate.core.ExecutionHook;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.Engine;
 import com.intuit.karate.core.ExecutionContext;
+import com.intuit.karate.core.ExecutionHookFactory;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureExecutionUnit;
 import com.intuit.karate.core.FeatureParser;
 import com.intuit.karate.core.FeatureResult;
+import com.intuit.karate.core.ScenarioExecutionUnit;
 import com.intuit.karate.core.Tags;
+import com.intuit.karate.job.JobConfig;
+import com.intuit.karate.job.JobServer;
+import com.intuit.karate.job.ScenarioJobServer;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +47,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.LoggerFactory;
 
@@ -57,35 +63,84 @@ public class Runner {
 
         Class optionsClass;
         int threadCount;
+        int timeoutMinutes;
         String reportDir;
         String scenarioName;
         List<String> tags = new ArrayList();
         List<String> paths = new ArrayList();
         List<Resource> resources;
         Collection<ExecutionHook> hooks;
+        ExecutionHookFactory hookFactory;
+        JobConfig jobConfig;
 
+        String tagSelector() {
+            return Tags.fromKarateOptionsTags(tags);
+        }
+
+        List<Resource> resolveResources() {
+            if (resources == null) {
+                return FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
+            }
+            return resources;
+        }
+
+        String resolveReportDir() {
+            if (reportDir == null) {
+                reportDir = FileUtils.getBuildDir() + File.separator + ScriptBindings.SUREFIRE_REPORTS;
+            }
+            new File(reportDir).mkdirs();
+            return reportDir;
+        }
+
+        JobServer jobServer() {
+            return jobConfig == null ? null : new ScenarioJobServer(jobConfig, reportDir);
+        }
+
+        int resolveThreadCount() {
+            if (threadCount < 1) {
+                threadCount = 1;
+            }
+            return threadCount;
+        }
+
+        //======================================================================
+        //
         public Builder path(String... paths) {
             this.paths.addAll(Arrays.asList(paths));
             return this;
         }
-        
+
         public Builder path(List<String> paths) {
             if (paths != null) {
                 this.paths.addAll(paths);
             }
             return this;
-        }   
-        
+        }
+
         public Builder tags(List<String> tags) {
             if (tags != null) {
                 this.tags.addAll(tags);
             }
             return this;
-        }        
+        }
 
         public Builder tags(String... tags) {
             this.tags.addAll(Arrays.asList(tags));
             return this;
+        }
+
+        public Builder resources(Collection<Resource> resources) {
+            if (resources != null) {
+                if (this.resources == null) {
+                    this.resources = new ArrayList();
+                }
+                this.resources.addAll(resources);
+            }
+            return this;
+        }
+
+        public Builder resources(Resource... resources) {
+            return resources(Arrays.asList(resources));
         }
 
         public Builder forClass(Class clazz) {
@@ -103,6 +158,11 @@ public class Runner {
             return this;
         }
 
+        public Builder timeoutMinutes(int timeoutMinutes) {
+            this.timeoutMinutes = timeoutMinutes;
+            return this;
+        }
+
         public Builder hook(ExecutionHook hook) {
             if (hooks == null) {
                 hooks = new ArrayList();
@@ -111,19 +171,19 @@ public class Runner {
             return this;
         }
 
-        String tagSelector() {
-            return Tags.fromKarateOptionsTags(tags);
-        }
-
-        List<Resource> resources() {
-            if (resources == null) {
-                return FileUtils.scanForFeatureFiles(paths, Thread.currentThread().getContextClassLoader());
-            }
-            return resources;
+        public Builder hookFactory(ExecutionHookFactory hookFactory) {
+            this.hookFactory = hookFactory;
+            return this;
         }
 
         public Results parallel(int threadCount) {
             this.threadCount = threadCount;
+            return Runner.parallel(this);
+        }
+
+        public Results startServerAndWait(JobConfig config) {
+            this.jobConfig = config;
+            this.threadCount = 1;
             return Runner.parallel(this);
         }
 
@@ -132,12 +192,12 @@ public class Runner {
     public static Builder path(String... paths) {
         Builder builder = new Builder();
         return builder.path(paths);
-    }   
-    
+    }
+
     public static Builder path(List<String> paths) {
         Builder builder = new Builder();
         return builder.path(paths);
-    }     
+    }
 
     //==========================================================================
     //
@@ -190,17 +250,36 @@ public class Runner {
         return options.parallel(threadCount);
     }
 
+    private static void onFeatureDone(Results results, ExecutionContext execContext, String reportDir, int index, int count) {
+        FeatureResult result = execContext.result;
+        Feature feature = execContext.featureContext.feature;
+        if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags
+            try { // edge case that reports are not writable
+                File file = Engine.saveResultJson(reportDir, result, null);
+                if (result.getScenarioCount() < 500) {
+                    // TODO this routine simply cannot handle that size
+                    Engine.saveResultXml(reportDir, result, null);
+                }
+                String status = result.isFailed() ? "fail" : "pass";
+                LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
+                result.printStats(file.getPath());
+            } catch (Exception e) {
+                LOGGER.error("<<error>> unable to write report file(s): {}", e.getMessage());
+                result.printStats(null);
+            }
+        } else {
+            results.addToSkipCount(1);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
+            }
+        }
+    }
+
     public static Results parallel(Builder options) {
-        int threadCount = options.threadCount;
-        if (threadCount < 1) {
-            threadCount = 1;
-        }
-        String reportDir = options.reportDir;
-        if (reportDir == null) {
-            reportDir = FileUtils.getBuildDir() + File.separator + ScriptBindings.SUREFIRE_REPORTS;
-            new File(reportDir).mkdirs();
-        }
-        final String finalReportDir = reportDir;
+        String reportDir = options.resolveReportDir();
+        // order matters, server depends on reportDir resolution
+        JobServer jobServer = options.jobServer();
+        int threadCount = options.resolveThreadCount();
         Results results = Results.startTimer(threadCount);
         results.setReportDir(reportDir);
         if (options.hooks != null) {
@@ -208,7 +287,7 @@ public class Runner {
         }
         ExecutorService featureExecutor = Executors.newFixedThreadPool(threadCount, Executors.privilegedThreadFactory());
         ExecutorService scenarioExecutor = Executors.newWorkStealingPool(threadCount);
-        List<Resource> resources = options.resources();
+        List<Resource> resources = options.resolveResources();
         try {
             int count = resources.size();
             CountDownLatch latch = new CountDownLatch(count);
@@ -220,33 +299,38 @@ public class Runner {
                 feature.setCallName(options.scenarioName);
                 feature.setCallLine(resource.getLine());
                 FeatureContext featureContext = new FeatureContext(null, feature, options.tagSelector());
-                CallContext callContext = CallContext.forAsync(feature, options.hooks, null, false);
+                CallContext callContext = CallContext.forAsync(feature, options.hooks, options.hookFactory, null, false);
                 ExecutionContext execContext = new ExecutionContext(results, results.getStartTime(), featureContext, callContext, reportDir,
                         r -> featureExecutor.submit(r), scenarioExecutor, Thread.currentThread().getContextClassLoader());
                 featureResults.add(execContext.result);
-                FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
-                unit.setNext(() -> {
-                    FeatureResult result = execContext.result;
-                    if (result.getScenarioCount() > 0) { // possible that zero scenarios matched tags                   
-                        File file = Engine.saveResultJson(finalReportDir, result, null);
-                        if (result.getScenarioCount() < 500) {
-                            // TODO this routine simply cannot handle that size
-                            Engine.saveResultXml(finalReportDir, result, null);
-                        }
-                        String status = result.isFailed() ? "fail" : "pass";
-                        LOGGER.info("<<{}>> feature {} of {}: {}", status, index, count, feature.getRelativePath());
-                        result.printStats(file.getPath());
-                    } else {
-                        results.addToSkipCount(1);
-                        if (LOGGER.isTraceEnabled()) {
-                            LOGGER.trace("<<skip>> feature {} of {}: {}", index, count, feature.getRelativePath());
-                        }
-                    }
-                    latch.countDown();
-                });
-                featureExecutor.submit(unit);
+                if (jobServer != null) {
+                    List<ScenarioExecutionUnit> units = feature.getScenarioExecutionUnits(execContext);
+                    jobServer.addFeature(execContext, units, () -> {
+                        onFeatureDone(results, execContext, reportDir, index, count);
+                        latch.countDown();
+                    });
+                } else {
+                    FeatureExecutionUnit unit = new FeatureExecutionUnit(execContext);
+                    unit.setNext(() -> {
+                        onFeatureDone(results, execContext, reportDir, index, count);
+                        latch.countDown();
+                    });
+                    featureExecutor.submit(unit);
+                }
             }
-            latch.await();
+            if (jobServer != null) {
+                jobServer.startExecutors();
+            }
+            LOGGER.info("waiting for parallel features to complete ...");
+            if (options.timeoutMinutes > 0) {
+                latch.await(options.timeoutMinutes, TimeUnit.MINUTES);
+                if (latch.getCount() > 0) {
+                    LOGGER.warn("parallel execution timed out after {} minutes, features remaining: {}",
+                            options.timeoutMinutes, latch.getCount());
+                }
+            } else {
+                latch.await();
+            }
             results.stopTimer();
             for (FeatureResult result : featureResults) {
                 int scenarioCount = result.getScenarioCount();
@@ -270,10 +354,10 @@ public class Runner {
         }
         results.printStats(threadCount);
         Engine.saveStatsJson(reportDir, results, null);
-        Engine.saveTimelineHtml(reportDir, results, null);        
+        Engine.saveTimelineHtml(reportDir, results, null);
         if (options.hooks != null) {
             options.hooks.forEach(h -> h.afterAll(results));
-        }        
+        }
         return results;
     }
 
@@ -302,10 +386,11 @@ public class Runner {
     }
 
     // this is called by karate-gatling !
-    public static void callAsync(String path, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
+    public static void callAsync(String path, List<String> tags, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
-        FeatureContext featureContext = new FeatureContext(null, feature, null);
-        CallContext callContext = CallContext.forAsync(feature, Collections.singletonList(hook), arg, true);
+        String tagSelector = Tags.fromKarateOptionsTags(tags);
+        FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
+        CallContext callContext = CallContext.forAsync(feature, Collections.singletonList(hook), null, arg, true);
         ExecutionContext executionContext = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, system, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
         exec.setNext(next);

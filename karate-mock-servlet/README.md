@@ -41,7 +41,6 @@ Use the test configuration for this `karate-mock-servlet` project as a reference
 ## Limitations
 Most teams would not run into these, but if you do, please [consider contributing](https://github.com/intuit/karate/projects/3#card-22529274) !
 
-* Servlet filters that may be "default" in "real" spring / boot apps etc will be missing, for e.g. encoding and error handling. Currently we lack a way to add custom filters to the "fake" servlet.
 * File Upload is not supported.
 * Other similar edge-cases (such as redirects) are not supported.
 

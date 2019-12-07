@@ -41,11 +41,11 @@ import java.util.Map;
 public class ScenarioExecutionUnit implements Runnable {
 
     public final Scenario scenario;
-    private final ExecutionContext exec;
-    private final Collection<ExecutionHook> hooks;
+    private final ExecutionContext exec;    
     public final ScenarioResult result;
     private boolean executed = false;
 
+    private Collection<ExecutionHook> hooks;
     private List<Step> steps;
     private StepActions actions;
     private boolean stopped = false;
@@ -53,11 +53,18 @@ public class ScenarioExecutionUnit implements Runnable {
     private StepResult lastStepResult;
     private Runnable next;
     private boolean last;
+    private Step currentStep;
 
     private LogAppender appender;
 
+    // for UI
     public void setAppender(LogAppender appender) {
         this.appender = appender;
+    }
+
+    // for debug
+    public Step getCurrentStep() {
+        return currentStep;
     }
 
     private static final ThreadLocal<LogAppender> APPENDER = new ThreadLocal<LogAppender>() {
@@ -84,8 +91,7 @@ public class ScenarioExecutionUnit implements Runnable {
         }
         if (exec.callContext.perfMode) {
             appender = LogAppender.NO_OP;
-        }
-        hooks = exec.callContext.executionHooks;
+        }        
     }
 
     public ScenarioContext getContext() {
@@ -133,6 +139,8 @@ public class ScenarioExecutionUnit implements Runnable {
                 result.addError("scenario init failed", e);
             }
         }
+        // this is not done in the constructor as we need to be on the "executor" thread
+        hooks = exec.callContext.resolveHooks();
         // before-scenario hook, important: actions.context will be null if initFailed
         if (!initFailed && hooks != null) {
             try {
@@ -181,14 +189,26 @@ public class ScenarioExecutionUnit implements Runnable {
         return result;
     }
 
-    // extracted for karate UI
+    // extracted for debug
     public StepResult execute(Step step) {
+        currentStep = step;
+        actions.context.setExecutionUnit(this);// just for deriving call stack        
         if (hooks != null) {
-            hooks.forEach(h -> h.beforeStep(step, actions.context));
+            boolean shouldExecute = true;
+            for (ExecutionHook hook : hooks) {
+                if (!hook.beforeStep(step, actions.context)) {
+                    shouldExecute = false;
+                }
+            }
+            if (!shouldExecute) {
+                return null;
+            }
         }
         boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
         if (stopped) {
-            return afterStep(new StepResult(hidden, step, aborted ? Result.passed(0) : Result.skipped(), null, null, null));
+            StepResult sr = new StepResult(step, aborted ? Result.passed(0) : Result.skipped(), null, null, null);
+            sr.setHidden(hidden);
+            return afterStep(sr);
         } else {
             Result execResult = Engine.executeStep(step, actions);
             List<FeatureResult> callResults = actions.context.getAndClearCallResults();
@@ -203,7 +223,10 @@ public class ScenarioExecutionUnit implements Runnable {
             // log appender collection for each step happens here
             String stepLog = StringUtils.trimToNull(appender.collect());
             boolean showLog = actions.context.getConfig().isShowLog();
-            return afterStep(new StepResult(hidden, step, execResult, showLog ? stepLog : null, embeds, callResults));
+            StepResult sr = new StepResult(step, execResult, stepLog, embeds, callResults);
+            sr.setHidden(hidden);
+            sr.setShowLog(showLog);
+            return afterStep(sr);
         }
     }
 
@@ -217,6 +240,11 @@ public class ScenarioExecutionUnit implements Runnable {
             if (hooks != null) {
                 hooks.forEach(h -> h.afterScenario(result, actions.context));
             }
+            // embed collection for afterScenario
+            List<Embed> embeds = actions.context.getAndClearEmbeds();
+            if (embeds != null) {
+                embeds.forEach(embed -> lastStepResult.addEmbed(embed));
+            }
             // stop browser automation if running
             actions.context.stop(lastStepResult);
         }
@@ -224,6 +252,28 @@ public class ScenarioExecutionUnit implements Runnable {
             String stepLog = StringUtils.trimToNull(appender.collect());
             lastStepResult.appendToStepLog(stepLog);
         }
+    }
+
+    private int stepIndex;
+
+    public void stepBack() {
+        stopped = false;
+        stepIndex -= 2;
+        if (stepIndex < 0) {
+            stepIndex = 0;
+        }
+    }
+    
+    public void stepReset() {
+        stopped = false;
+        stepIndex--;
+        if (stepIndex < 0) {
+            stepIndex = 0;
+        }        
+    }    
+
+    private int nextStepIndex() {
+        return stepIndex++;
     }
 
     @Override
@@ -234,8 +284,14 @@ public class ScenarioExecutionUnit implements Runnable {
         if (steps == null) {
             init();
         }
-        for (Step step : steps) {
+        int count = steps.size();
+        int index = 0;
+        while ((index = nextStepIndex()) < count) {
+            Step step = steps.get(index);
             lastStepResult = execute(step);
+            if (lastStepResult == null) { // debug step-back !
+                continue;
+            }
             result.addStepResult(lastStepResult);
             if (lastStepResult.isStopped()) {
                 stopped = true;

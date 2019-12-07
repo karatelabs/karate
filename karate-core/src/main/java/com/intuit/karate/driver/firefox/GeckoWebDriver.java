@@ -50,7 +50,7 @@ public class GeckoWebDriver extends WebDriver {
         String urlBase = "http://" + options.host + ":" + options.port;
         Http http = Http.forUrl(options.driverLogger.getLogAppender(), urlBase);
         String sessionId = http.path("session")
-                .post("{ desiredCapabilities: { browserName: 'Firefox' } }")
+                .post(options.getCapabilities())
                 .jsonPath("get[0] response..sessionId").asString();
         options.driverLogger.debug("init session id: {}", sessionId);
         http.url(urlBase + "/session/" + sessionId);
