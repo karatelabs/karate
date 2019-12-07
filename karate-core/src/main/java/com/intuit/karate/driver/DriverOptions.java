@@ -48,9 +48,11 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -87,6 +89,7 @@ public class DriverOptions {
     public final int maxPayloadSize;
     public final List<String> addOptions;
     public final List<String> args = new ArrayList();
+    public final Map<String, Object> proxy;
     public final Target target;
     public final String beforeStart;
     public final String afterStop;
@@ -165,6 +168,7 @@ public class DriverOptions {
         maxPayloadSize = get("maxPayloadSize", 4194304);
         target = get("target", null);
         host = get("host", "localhost");
+        proxy = get("proxy", null);
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
@@ -256,7 +260,31 @@ public class DriverOptions {
             throw new RuntimeException(message, e);
         }
     }
+    
+    private Map<String, Object> getCapabilities(String browserName) {
+        Map<String, Object> map = new LinkedHashMap();
+        map.put("browserName", browserName);
+        if (proxy != null) {
+            map.put("proxy", proxy);
+        }
+        return Collections.singletonMap("capabilities", map);
+    }
 
+    public Map<String, Object> getCapabilities() {
+        switch (type) {
+            case "chromedriver":
+                return getCapabilities("Chrome");
+            case "geckodriver":
+                return getCapabilities("Firefox");
+            case "safaridriver":
+                return getCapabilities("Safari");
+            case "mswebdriver":
+                return getCapabilities("Edge");
+            default:
+                return null;
+        }
+    }
+    
     public static String preProcessWildCard(String locator) {
         boolean contains;
         String tag, prefix, text;

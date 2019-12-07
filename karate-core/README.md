@@ -42,6 +42,7 @@
     | <a href="#retry">Retries</a>
     | <a href="#wait-api">Waits</a>
     | <a href="#distributed-testing">Distributed Testing</a>
+    | <a href="#proxy">Proxy</a>
   </td>
 </tr>
 <tr>
@@ -248,6 +249,7 @@ key | description
 `showDriverLog` | default `false`, will include webdriver HTTP traffic in Karate report, useful for troubleshooting or bug reports
 `showProcessLog` | default `false`, will include even executable (webdriver or browser) logs in the Karate report
 `addOptions` | default `null`, has to be a list / JSON array that will be appended as additional CLI arguments to the `executable`, e.g. `['--no-sandbox', '--windows-size=1920,1080']`
+`proxy` | default `null`, this will be passed as-is to the underlying WebDriver executable - refer [the spec](https://www.w3.org/TR/webdriver/#proxy), and for `chrome` - see [proxy](#proxy)
 `beforeStart` | default `null`, an OS command that will be executed before commencing a `Scenario` (and before the `executable` is invoked if applicable) typically used to start video-recording
 `afterStart` | default `null`, an OS command that will be executed after a `Scenario` completes, typically used to stop video-recording and save the video file to an output folder
 `videoFile` | default `null`, the path to the video file that will be added to the end of the test report, if it does not exist, it will be ignored
@@ -1425,6 +1427,19 @@ Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](
 
 ## `pdf()`
 Only supported for driver type [`chrome`](#driver-types). See [Chrome Java API](#chrome-java-api).
+
+# Proxy
+For driver type [`chrome`](#driver-types), you can use the `addOption` key to pass command-line options that [Chrome supports](https://www.linuxbabe.com/desktop-linux/configure-proxy-chromium-google-chrome-command-line):
+
+```cucumber
+* configure driver = { type: 'chrome', addOptions: [ '--proxy-server="https://somehost:5000"' ] }
+```
+
+For the WebDriver based [driver types](#driver-types) like `chromedriver`, `geckodriver` etc, you can use the [`proxy` key](#configure-driver):
+
+```cucumber
+* configure driver = { type: 'chromedriver', proxy: { proxyType: 'manual', httpProxy: 'somehost:5000' } }
+```
 
 # Appium
 ## Screen Recording
