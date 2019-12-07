@@ -970,7 +970,7 @@ public class ScenarioContext {
         if (webSocketClients != null) {
             webSocketClients.forEach(WebSocketClient::close);
         }
-        if (driver != null) {
+        if (callDepth == 0 && driver != null) {
             driver.quit();
             DriverOptions options = driver.getOptions();
             if (options.target != null) {
