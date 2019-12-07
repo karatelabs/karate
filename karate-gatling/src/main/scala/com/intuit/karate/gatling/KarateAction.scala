@@ -34,7 +34,7 @@ class KarateActor extends Actor {
   }
 }
 
-class KarateAction(val name: String, val protocol: KarateProtocol, val system: ActorSystem,
+class KarateAction(val name: String, val tags: Seq[String], val protocol: KarateProtocol, val system: ActorSystem,
                    val statsEngine: StatsEngine, val clock: Clock, val next: Action) extends ExitableAction {
 
   def getActor(): ActorRef = {
@@ -91,7 +91,7 @@ class KarateAction(val name: String, val protocol: KarateProtocol, val system: A
     val attribs: Object = (session.attributes + ("userId" -> session.userId) + ("pause" -> pauseFunction))
       .asInstanceOf[Map[String, AnyRef]].asJava
     val arg = Collections.singletonMap("__gatling", attribs)
-    Runner.callAsync(name, arg, executionHook, asyncSystem, asyncNext)
+    Runner.callAsync(name, tags.asJava, arg, executionHook, asyncSystem, asyncNext)
 
   }
 

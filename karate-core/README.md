@@ -1,7 +1,7 @@
 # Karate UI
 ## UI Test Automation Made `Simple.`
 
-> 0.9.5.RC3 is available ! There will be no more API changes. 0.9.5 will be "production ready".
+> 0.9.5.RC5 is available ! There will be no more API changes. 0.9.5 will be "production ready".
 
 # Hello World
 

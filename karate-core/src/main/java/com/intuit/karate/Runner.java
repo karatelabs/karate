@@ -386,9 +386,10 @@ public class Runner {
     }
 
     // this is called by karate-gatling !
-    public static void callAsync(String path, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
+    public static void callAsync(String path, List<String> tags, Map<String, Object> arg, ExecutionHook hook, Consumer<Runnable> system, Runnable next) {
         Feature feature = FileUtils.parseFeatureAndCallTag(path);
-        FeatureContext featureContext = new FeatureContext(null, feature, null);
+        String tagSelector = Tags.fromKarateOptionsTags(tags);
+        FeatureContext featureContext = new FeatureContext(null, feature, tagSelector);
         CallContext callContext = CallContext.forAsync(feature, Collections.singletonList(hook), null, arg, true);
         ExecutionContext executionContext = new ExecutionContext(null, System.currentTimeMillis(), featureContext, callContext, null, system, null);
         FeatureExecutionUnit exec = new FeatureExecutionUnit(executionContext);
