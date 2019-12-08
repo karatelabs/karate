@@ -1,6 +1,5 @@
 package demo;
 
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import java.io.File;
@@ -18,7 +17,7 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@KarateOptions(tags = {"~@ignore"}) // important: do not use @RunWith(Karate.class) !
+// important: do not use @RunWith(Karate.class) !
 public class DemoTestParallel {
     
     @BeforeClass
@@ -29,7 +28,7 @@ public class DemoTestParallel {
     @Test
     public void testParallel() {
         System.setProperty("karate.env", "demo"); // ensure reset if other tests (e.g. mock) had set env in CI
-        Results results = Runner.parallel(getClass(), 5);
+        Results results = Runner.path("classpath:demo").tags("~@ignore").parallel(5);
         generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
     }

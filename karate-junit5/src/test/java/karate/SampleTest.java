@@ -1,24 +1,23 @@
 package karate;
 
 import com.intuit.karate.junit5.Karate;
+import static com.intuit.karate.junit5.Karate.karate;
 
 class SampleTest {
 
     @Karate.Test
     Karate testSample() {
-        return new Karate().feature("sample").relativeTo(getClass());
+        return karate("sample").relativeTo(getClass());
     }
     
     @Karate.Test
     Karate testTags() {
-        return new Karate().feature("tags").tags("@second").relativeTo(getClass());
+        return karate("tags").tags("@second").relativeTo(getClass());
     }
 
     @Karate.Test
     Karate testFullPath() {
-        return new Karate()
-                .feature("classpath:karate/tags.feature")
-                .tags("@first");
+        return karate("classpath:karate/tags.feature").tags("@first");
     }
 
 }

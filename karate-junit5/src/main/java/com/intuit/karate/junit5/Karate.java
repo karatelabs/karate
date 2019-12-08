@@ -53,6 +53,11 @@ public class Karate implements Iterable<DynamicNode> {
     private final List<String> tags = new ArrayList();
     private final List<String> paths = new ArrayList();
     private Class clazz;
+    
+    // short cut for new Karate().feature()
+    public static Karate karate(String... paths) {
+        return new Karate().feature(paths);
+    }
 
     public Karate relativeTo(Class clazz) {
         this.clazz = clazz;

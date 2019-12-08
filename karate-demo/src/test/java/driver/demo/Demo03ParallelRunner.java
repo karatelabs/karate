@@ -1,6 +1,5 @@
 package driver.demo;
 
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import demo.DemoTestParallel;
@@ -9,7 +8,6 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-@KarateOptions(features = "classpath:driver/demo/demo-03.feature")
 public class Demo03ParallelRunner {
     
     @BeforeClass
@@ -19,7 +17,7 @@ public class Demo03ParallelRunner {
 
     @Test
     public void testParallel() {
-        Results results = Runner.parallel(getClass(), 5, "target/driver-demo");
+        Results results = Runner.path("classpath:driver/demo/demo-03.feature").reportDir("target/driver-demo").parallel(5);
         DemoTestParallel.generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
