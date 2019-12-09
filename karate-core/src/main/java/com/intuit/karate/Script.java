@@ -881,6 +881,9 @@ public class Script {
                         if (expression.startsWith("?")) {
                             expression = "'#" + expression + "'";
                         } else if (expression.startsWith("#")) {
+                            if (expression.startsWith("#regex")) { // hack for horrible edge case
+                                expression = expression.replaceAll("\\\\", "\\\\\\\\");
+                            }
                             expression = "'" + expression + "'";
                         } else {
                             if (isWithinParentheses(expression)) {
