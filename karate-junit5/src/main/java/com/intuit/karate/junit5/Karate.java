@@ -37,6 +37,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.api.TestFactory;
@@ -55,7 +57,7 @@ public class Karate implements Iterable<DynamicNode> {
     private Class clazz;
     
     // short cut for new Karate().feature()
-    public static Karate karate(String... paths) {
+    public static Karate run(String... paths) {
         return new Karate().feature(paths);
     }
 
@@ -92,6 +94,9 @@ public class Karate implements Iterable<DynamicNode> {
             String testName = feature.getResource().getFileNameWithoutExtension();
             DynamicNode node = DynamicContainer.dynamicContainer(testName, featureNode);
             list.add(node);
+        }
+        if (list.isEmpty()) {
+            Assertions.fail("no features or scenarios found: " + options.getFeatures());
         }
         return list.iterator();
     }
