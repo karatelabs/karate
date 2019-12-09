@@ -23,7 +23,6 @@
  */
 package driver.core;
 
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import demo.DemoTestParallel;
@@ -35,13 +34,12 @@ import static org.junit.Assert.assertTrue;
  *
  * @author pthomas3
  */
-@KarateOptions(features = "classpath:driver/core/test-03.feature")
 public class Test03ParallelRunner {
 
     @Test
     public void testParallel() {
         System.setProperty("karate.env", "mock");
-        Results results = Runner.parallel(getClass(), 5, "target/driver-demo-03");
+        Results results = Runner.path("classpath:driver/core/test-03.feature").reportDir("target/driver-demo-03").parallel(5);
         DemoTestParallel.generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
     }

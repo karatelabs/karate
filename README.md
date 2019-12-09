@@ -444,7 +444,7 @@ Refer to your IDE documentation for how to run a JUnit class.  Typically right-c
 > Karate will traverse sub-directories and look for `*.feature` files. For example if you have the JUnit class in the `com.mycompany` package, `*.feature` files in `com.mycompany.foo` and `com.mycompany.bar` will also be run. This is one reason why you may want to prefer a 'flat' directory structure as [explained above](#naming-conventions).
 
 ## JUnit 5
-Karate supports JUnit 5 and the advantage is that you can have multiple methods in a test-class. Only one `import` is needed, and instead of a class-level annotation, you use a nice [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and [fluent-api](https://en.wikipedia.org/wiki/Fluent_interface) to express which tests and tags you want to use.
+Karate supports JUnit 5 and the advantage is that you can have multiple methods in a test-class. Only two `import`-s are needed, and instead of a class-level annotation, you use a nice [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and [fluent-api](https://en.wikipedia.org/wiki/Fluent_interface) to express which tests and tags you want to use.
 
 Note that the Java class does not need to be `public` and even the test methods do not need to be `public` - so tests end up being very concise.
 
@@ -454,24 +454,23 @@ Here is an [example](karate-junit5/src/test/java/karate/SampleTest.java):
 package karate;
 
 import com.intuit.karate.junit5.Karate;
+import static com.intuit.karate.junit5.Karate.karate;
 
 class SampleTest {
 
     @Karate.Test
     Karate testSample() {
-        return new Karate().feature("sample").relativeTo(getClass());
+        return karate("sample").relativeTo(getClass());
     }
     
     @Karate.Test
     Karate testTags() {
-        return new Karate().feature("tags").tags("@second").relativeTo(getClass());
+        return karate("tags").tags("@second").relativeTo(getClass());
     }
 
     @Karate.Test
     Karate testFullPath() {
-        return new Karate()
-                .feature("classpath:karate/tags.feature")
-                .tags("@first");
+        return karate("classpath:karate/tags.feature").tags("@first");
     }
 
 }
@@ -486,8 +485,6 @@ You should be able to right-click and run a single method using your IDE - which
     <version>2.22.2</version>
 </plugin>
 ```
-
-> There is an issue with the `0.9.4` JUnit 5 dependencies, you will need to manually add [`junit-jupiter-engine` as a dependency](https://github.com/intuit/karate/issues/823#issuecomment-509608205).
 
 To run a single test method, for example the `testTags()` in the example above, you can do this:
 
@@ -637,8 +634,9 @@ The big drawback of the approach above is that you cannot run tests in parallel.
 And most importantly - you can run tests in parallel without having to depend on third-party hacks that introduce code-generation and config 'bloat' into your `pom.xml` or `build.gradle`.
 
 ## Parallel Execution
-Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle. Look at both the examples below - that show different ways of "choosing" features to run.
+Karate can run tests in parallel, and dramatically cut down execution time. This is a 'core' feature and does not depend on JUnit, Maven or Gradle. 
 
+* You can easily "choose" features and tags to run and compose test-suites in a very flexible manner.
 * You can use the returned `Results` object to check if any scenarios failed, and to even summarize the errors
 * [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports will be generated in the "`reportDir`" path you specify, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/surefire-reports/*.xml`)
 * [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`
@@ -647,33 +645,37 @@ Karate can run tests in parallel, and dramatically cut down execution time. This
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class !
 
 ```java
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
-@KarateOptions(tags = {"~@ignore"})
 public class TestParallel {
     
     @Test
     public void testParallel() {
-        Results results = Runner.parallel(getClass(), 5, "target/surefire-reports");
+        Results results = Runner.path("classpath:some/package").tags("~@ignore").parallel(5);
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);
     }
     
 }
 ```
 
-* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method) using the `Runner.parallel()` static method in `karate-core`.
-* The first argument to the `parallel()` method can be any class that marks the 'root package' in which `*.feature` files will be looked for, and sub-directories will be also scanned. As shown above you would typically refer to the enclosing test-class itself. If the class you refer to has a `@KarateOptions` annotation, it will be processed.
-* Options passed to `@KarateOptions` would work as expected, provided you point the `Runner` to the annotated class as the first argument. Note that in this example, any `*.feature` file tagged as `@ignore` will be skipped. You can also specify tags on the [command-line](#test-suites).
-* The second argument is the number of threads to use.
-* The third argument is optional, and is the `reportDir` [mentioned above](#parallel-execution).
-* The `@KarateOptions` can be limiting in some cases when you want to inherit from other test classes - or when you want to dynamically and programmatically determine the tags and features to be included. See the [JUnit 5 example](#junit-5-parallel-execution) for an alternative form of the `Runner.parallel()` API. 
+* You don't use a JUnit runner (no `@RunWith` annotation), and you write a plain vanilla JUnit test (it could even be a normal Java class with a `main` method)
+* The `Runner.path()` "builder" method in `karate-core` is how you refer to the package you want to execute, and all feature files within sub-directories will be picked up
+* `Runner.path()` takes multiple string parameters, so you can refer to multiple packages or even individual `*.feature` files and easily "compose" a test-suite
+  * e.g. `Runner.path("classpath:animals", "classpath:some/other/package.feature")`
+* To [choose tags](#tags), call the `tags()` API, note that in the example above, any `*.feature` file tagged as `@ignore` will be skipped - as the `~` prefix means a "NOT" operation. You can also specify tags on the [command-line](#test-suites). The `tags()` method also takes multiple arguments, for e.g.
+  * this is an "AND" operation: `tags("@customer", "@smoke")`
+  * and this is an "OR" operation: `tags("@customer,@smoke")`
+* There is an optional `reportDir()` method if you want to customize the directory to which the [XML and JSON](#parallel-execution) will be output, it defaults to `target/surefire-reports`
+* If you want to dynamically and programmatically determine the tags and features to be included - the API also accepts `List<String>` as the `path()` and `tags()` methods arguments 
+* `parallel()` *has* to be the last method called, and you pass the number of parallel threads needed. It returns a `Results` object that has all the information you need - such as the number of passed or failed tests.
 
 ### JUnit 5 Parallel Execution
-For [JUnit 5](#junit-5) you can omit the `public` modifier for the class and method, and there are some changes to `import` package names. The method signature of the `assertTrue` has flipped around a bit.
+For [JUnit 5](#junit-5) you can omit the `public` modifier for the class and method, and there are some changes to `import` package names. The method signature of the `assertTrue` has flipped around a bit. Also note that you don't use `@Karate.Test` for the method, and you just use the *normal* JUnit 5 `@Test` annotation.
+
+Else the `Runner.path()` "builder" API is the same, refer the description above for [JUnit 4](#junit-4-parallel-execution).
 
 ```java
 import com.intuit.karate.Results;
@@ -685,21 +687,12 @@ class TestParallel {
 
     @Test
     void testParallel() {
-        Results results = Runner.parallel("target/surefire-reports", 5, "~@ignore", "classpath:animals");
+        Results results = Runner.path("classpath:animals").tags("~@ignore").parallel(5);
         assertEquals(0, results.getFailCount(), results.getErrorMessages());
     }
 
 }
 ```
-
-* You don't use `@Karate.Test` for the method, and you just use the JUnit 5 `@Test` annotation.
-* Instead of using the [`@KarateOptions`](#karate-options) annotation (which will also work), you can use an alternate form of the `Runner.parallel()` API that takes tags and feature paths as the last "var arg" argument.
-* The report output directory will default to `target/surefire-reports`, so you can use a shorter API that starts with the parallel thread count, e.g.:
-  * `Runner.parallel(5, "~@ignore", "classpath:animals")`.
-* [Tags (or tag combinations)](#tags) are detected if an argument starts with a `@` or a `~`. You can expicitly refer to multiple features relative to the [`classpath:`](#classpath) or to a folder (or folders), giving you great flexibility to "compose" tests, e.g:
-  * `Runner.parallel(5, "~@ignore", "@smoke1,@smoke2", "classpath:animals/cats/crud.feature", "classpath:animals/dogs")`
-
-> To programmatically choose and run a set of features (and tags) at run time, refer to this example [`DemoTestSelected.java`](karate-demo/src/test/java/demo/DemoTestSelected.java) for yet another alternative API that uses a `List<String>` of tags and paths.
 
 ### Parallel Stats
 For convenience, some stats are logged to the console when execution completes, which should look something like this:

@@ -24,7 +24,6 @@
 package driver.core;
 
 import com.intuit.karate.FileUtils;
-import com.intuit.karate.KarateOptions;
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
 import com.intuit.karate.netty.FeatureServer;
@@ -39,7 +38,6 @@ import org.junit.Test;
  *
  * @author pthomas3
  */
-@KarateOptions(features = "classpath:driver/core/test-01.feature")
 public class Test01ParallelRunner {
     
     @BeforeClass
@@ -52,7 +50,7 @@ public class Test01ParallelRunner {
 
     @Test
     public void testParallel() {
-        Results results = Runner.parallel(getClass(), 5, "target/driver-demo");
+        Results results = Runner.path("classpath:driver/core/test-01.feature").reportDir("target/driver-demo").parallel(5);
         DemoTestParallel.generateReport(results.getReportDir());
         assertTrue(results.getErrorMessages(), results.getFailCount() == 0);        
     }
