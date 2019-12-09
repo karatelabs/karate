@@ -184,6 +184,10 @@ public class ScenarioContext {
         return prevRequest;
     }
 
+    public HttpResponse getPrevResponse() {
+        return prevResponse;
+    }        
+
     public HttpClient getHttpClient() {
         return client;
     }
