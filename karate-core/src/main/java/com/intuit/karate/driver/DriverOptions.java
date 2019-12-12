@@ -322,13 +322,16 @@ public class DriverOptions {
         if (!tag.startsWith("/")) {
             tag = "//" + tag;
         }
-        String suffix = index == 0 ? "" : "[" + index + "]";
+        String xpath;
         if (contains) {
-            return tag + "[contains(normalize-space(text()),'" + text + "')]" + suffix;
+            xpath = tag + "[contains(normalize-space(text()),'" + text + "')]";
         } else {
-            return tag + "[normalize-space(text())='" + text + "']" + suffix;
+            xpath = tag + "[normalize-space(text())='" + text + "']";
         }
-
+        if (index == 0) {
+            return xpath;
+        }
+        return "/(" + xpath + ")[" + index + "]";
     }
 
     public String selector(String locator) {
@@ -339,6 +342,9 @@ public class DriverOptions {
             locator = preProcessWildCard(locator);
         }
         if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
+            if (locator.startsWith("/(")) {
+                locator = locator.substring(1); // hack for wildcard with index (see preProcessWildCard last line)
+            }
             return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
         }
         return "document.querySelector(\"" + locator + "\")";
