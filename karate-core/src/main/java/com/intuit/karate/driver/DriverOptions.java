@@ -75,6 +75,8 @@ public class DriverOptions {
     public final String type;
     public final int port;
     public final String host;
+    public final int pollAttempts;
+    public final int pollInterval;
     public final boolean headless;
     public final boolean showProcessLog;
     public final boolean showDriverLog;
@@ -172,6 +174,8 @@ public class DriverOptions {
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
+        pollAttempts = get("pollAttempts", 20);
+        pollInterval = get("pollInterval", 250);
         // do this last to ensure things like logger, start-flag and all are set
         port = resolvePort(defaultPort);
     }
@@ -495,9 +499,9 @@ public class DriverOptions {
                 sock.close();
                 return true;
             } catch (IOException e) {
-                sleep(250);
+                sleep(pollInterval);
             }
-        } while (attempts++ < 19);
+        } while (attempts++ < pollAttempts);
         return false;
     }
 
