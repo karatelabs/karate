@@ -7,6 +7,7 @@
 * Leverage Karate's powerful assertion capabilities to check that server responses are as expected under load - which is much harder to do in Gatling and other performance testing tools
 * API invocation sequences that represent end-user workflows are much easier to express in Karate
 * [*Anything*](#custom) that can be written in Java can be performance tested !
+* Option to scale out by [distributing a test](#distributed-testing) over multiple hardware nodes or Docker containers
 
 ## Demo Video
 Refer: https://twitter.com/ptrthomas/status/986463717465391104
@@ -184,7 +185,7 @@ val feeder = Iterator.continually(Map("catName" -> MockUtils.getNextCatName, "so
 val create = scenario("create").feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
 ```
 
-There is some [Java code behind the scenes](https://github.com/ptrthomas/karate-gatling-demo/blob/master/src/test/java/mock/MockUtils.java) that takes care of dispensing a new `catName` every time `getNextCatName()` is invoked:
+There is some [Java code behind the scenes](../examples/gatling/src/test/java/mock/MockUtils.java) that takes care of dispensing a new `catName` every time `getNextCatName()` is invoked:
 
 ```java
 private static final AtomicInteger counter = new AtomicInteger();
@@ -222,7 +223,7 @@ You would typically want your feature file to be usable when not being run via G
 * def name = karate.get('__gatling.catName', 'Billie')
 ```
 
-For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](https://github.com/ptrthomas/karate-gatling-demo/tree/master/src/test/java/mock).
+For a full, working, stand-alone example, refer to the [`karate-gatling-demo`](../examples/gatling/src/test/java/mock).
 
 #### Think Time
 Gatling provides a way to [`pause()`](https://gatling.io/docs/current/general/scenario/#scenario-pause) between HTTP requests, to simulate user "think time". But when you have all your requests in a Karate feature file, this can be difficult to simulate - and you may think that adding `java.lang.Thread.sleep()` here and there will do the trick. But no, what a `Thread.sleep()` will do is *block threads* - which is a very bad thing in a load simulation. This will get in the way of Gatling, which is specialized to generate load in a non-blocking fashion.
@@ -306,3 +307,6 @@ Scenario: fifty
 The `karate` object happens to implement the `PerfContext` interface and keeps your code simple. Note how the `myRpc` method has been implemented to accept a `Map` (auto-converted from JSON) and the `PerfContext` as arguments. 
 
 Like the built-in HTTP support, any test failures are automatically linked to the previous "perf event" captured.
+
+## Distributed Testing
+See wiki: [Distributed Testing](https://github.com/intuit/karate/wiki/Distributed-Testing#gatling)

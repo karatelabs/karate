@@ -284,7 +284,7 @@ So you need two `<dependencies>`:
 </dependency>
 <dependency>
     <groupId>com.intuit.karate</groupId>
-    <artifactId>karate-junit4</artifactId>
+    <artifactId>karate-junit5</artifactId>
     <version>0.9.4</version>
     <scope>test</scope>
 </dependency>
@@ -292,13 +292,13 @@ So you need two `<dependencies>`:
 
 And if you run into class-loading conflicts, for example if an older version of the Apache libraries are being used within your project - then use `karate-jersey` instead of `karate-apache`.
 
-If you want to use [JUnit 5](#junit-5), use `karate-junit5` instead of `karate-junit4`.
+If you want to use [JUnit 4](#junit-4), use `karate-junit4` instead of `karate-junit5`.
 
 ## Gradle
 Alternatively for [Gradle](https://gradle.org) you need these two entries:
 
 ```yml
-    testCompile 'com.intuit.karate:karate-junit4:0.9.4'
+    testCompile 'com.intuit.karate:karate-junit5:0.9.4'
     testCompile 'com.intuit.karate:karate-apache:0.9.4'
 ```
 
@@ -425,6 +425,8 @@ In some cases, for large payloads and especially when the default system encodin
 ``` 
 
 ## JUnit 4
+> If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`.
+
 To run a script `*.feature` file from your Java IDE, you just need the following empty test-class in the same package. The name of the class doesn't matter, and it will automatically run any `*.feature` file in the same package. This comes in useful because depending on how you organize your files and folders - you can have multiple feature files executed by a single JUnit test-class.
 
 ```java
@@ -507,7 +509,7 @@ You can easily select (double-click), copy and paste this `file:` URL into your 
 ## Karate Options
 To run only a specific feature file from a JUnit 4 test even if there are multiple `*.feature` files in the same folder (or sub-folders), use the `@KarateOptions` annotation.
 
-> The [JUnit 5 support](#junit-5) does not require a class-level annotation to specify the feature(s) and tags to use.
+> > If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`. The [JUnit 5 support](#junit-5) does not require a class-level annotation to specify the feature(s) and tags to use.
 
 ```java
 package animals.cats;
@@ -641,7 +643,7 @@ Karate can run tests in parallel, and dramatically cut down execution time. This
 * [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) will be generated side-by-side with the JUnit XML reports and with the same name, except that the extension will be `.json` instead of `.xml`
 
 ### JUnit 4 Parallel Execution
-> Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class !
+> Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class ! If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`.
 
 ```java
 import com.intuit.karate.Results;

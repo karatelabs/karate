@@ -10,4 +10,4 @@ Please refer to the wiki: [Docker](https://github.com/intuit/karate/wiki/Docker)
 
 # Gradle
 
-This project also has a sample [`build.gradle`](build.gradle).
+This project also has a sample [`build.gradle`](build.gradle). Also see the wiki: [Gradle](https://github.com/intuit/karate/wiki/Gradle).

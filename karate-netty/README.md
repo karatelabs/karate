@@ -7,6 +7,9 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Super-easy 'hard-coded' mocks ([example](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Not only JSON but first-class support for XML, plain-text, binary, etc.
+* Convert JSON or XML into dynamic responses with ease
+* Maintain and read large payloads from the file-system if needed
+* Mocks are plain-text files - easily collaborate within or across teams using Git / SCM
 * Easy HTTP request matching by path, method, headers, body etc.
 * Use the full power of JavaScript expressions for HTTP request matching
 * SSL / HTTPS with built-in self-signed certificate

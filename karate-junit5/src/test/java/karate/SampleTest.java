@@ -18,5 +18,10 @@ class SampleTest {
     Karate testFullPath() {
         return Karate.run("classpath:karate/tags.feature").tags("@first");
     }
+    
+    @Karate.Test
+    Karate testAll() {
+        return Karate.run().relativeTo(getClass());
+    }    
 
 }
