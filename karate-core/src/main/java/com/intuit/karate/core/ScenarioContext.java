@@ -176,7 +176,7 @@ public class ScenarioContext {
         this.prevResponse = prevResponse;
     }
 
-    public HttpRequestBuilder getRequest() {
+    public HttpRequestBuilder getRequestBuilder() {
         return request;
     }
 
