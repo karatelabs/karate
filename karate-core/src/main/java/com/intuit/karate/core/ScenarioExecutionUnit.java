@@ -206,13 +206,13 @@ public class ScenarioExecutionUnit implements Runnable {
         }
         boolean hidden = step.isPrefixStar() && !step.isPrint() && !actions.context.getConfig().isShowAllSteps();
         if (stopped) {
-            Result result;
+            Result stepResult;
             if (aborted && actions.context.getConfig().isAbortedStepsShouldPass()) {
-                result = Result.passed(0);
+                stepResult = Result.passed(0);
             } else {
-                result = Result.skipped();
+                stepResult = Result.skipped();
             }
-            StepResult sr = new StepResult(step, result, null, null, null);
+            StepResult sr = new StepResult(step, stepResult, null, null, null);
             sr.setHidden(hidden);
             return afterStep(sr);
         } else {

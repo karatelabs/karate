@@ -446,7 +446,7 @@ Scenario: pathMatches('/v1/headers') && headerContains('val', 'foo')
 ```
 
 ## `bodyPath()`
-A very powerful helper function that can run JsonPath or XPath expressions agains the request body or payload.
+A very powerful helper function that can run JsonPath or XPath expressions against the request body or payload.
 
 JSON example:
 
