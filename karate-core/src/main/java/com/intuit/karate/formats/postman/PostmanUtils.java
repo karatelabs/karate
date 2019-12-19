@@ -98,10 +98,12 @@ public class PostmanUtils {
         }
         Map<String, Object> bodyInfo = (Map) requestInfo.get("body");
         String body = null;
-        if (bodyInfo.containsKey("raw")) {
-            body = ((String) bodyInfo.get("raw")).replace(System.lineSeparator(), "");
-        } else if (bodyInfo.containsKey("formdata")) {
-            body = ((List) bodyInfo.get("formdata")).toString().replace(System.lineSeparator(), "");
+        if (bodyInfo != null) {
+            if (bodyInfo.containsKey("raw")) {
+                body = ((String) bodyInfo.get("raw")).replace(System.lineSeparator(), "");
+            } else if (bodyInfo.containsKey("formdata")) {
+                body = ((List) bodyInfo.get("formdata")).toString().replace(System.lineSeparator(), "");
+            }
         }
         PostmanRequest request = new PostmanRequest();
         request.setUrl(url);
