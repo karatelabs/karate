@@ -144,7 +144,7 @@ public class DriverOptions {
         this.options = options;
         this.appender = appender;
         logger = new Logger(getClass());
-        logger.setLogAppender(appender);
+        logger.setAppender(appender);
         timeout = get("timeout", DEFAULT_TIMEOUT);
         type = get("type", null);
         start = get("start", true);

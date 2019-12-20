@@ -50,7 +50,7 @@ public class EdgeDevToolsDriver extends DevToolsDriver {
         options.arg(options.port + "");
         options.arg("about:blank");
         Command command = options.startProcess();
-        Http http = Http.forUrl(options.driverLogger.getLogAppender(), "http://" + options.host + ":" + options.port);
+        Http http = Http.forUrl(options.driverLogger.getAppender(), "http://" + options.host + ":" + options.port);
         String webSocketUrl = http.path("json", "list").get()
                 .jsonPath("get[0] $[?(@.type=='Page')].webSocketDebuggerUrl").asString();
         EdgeDevToolsDriver edge = new EdgeDevToolsDriver(options, command, webSocketUrl);

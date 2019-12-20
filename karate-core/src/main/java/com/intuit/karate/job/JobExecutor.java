@@ -63,7 +63,7 @@ public class JobExecutor {
         String targetDir = FileUtils.getBuildDir();
         appender = new FileLogAppender(new File(targetDir + File.separator + "karate-executor.log"));
         logger = new Logger();
-        logger.setLogAppender(appender);
+        logger.setAppender(appender);
         if (!Command.waitForHttp(serverUrl)) {
             logger.error("unable to connect to server, aborting");
             System.exit(1);

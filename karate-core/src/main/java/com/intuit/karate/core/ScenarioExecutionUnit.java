@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.LogAppender;
+import com.intuit.karate.Logger;
 import com.intuit.karate.StepActions;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.shell.FileLogAppender;
@@ -56,11 +57,6 @@ public class ScenarioExecutionUnit implements Runnable {
     private Step currentStep;
 
     private LogAppender appender;
-
-    // for UI
-    public void setAppender(LogAppender appender) {
-        this.appender = appender;
-    }
 
     // for debug
     public Step getCurrentStep() {
@@ -138,6 +134,10 @@ public class ScenarioExecutionUnit implements Runnable {
                 initFailed = true;
                 result.addError("scenario init failed", e);
             }
+        } else { // dynamic scenario outline, hack to swap logger for current thread
+            Logger logger = new Logger();
+            logger.setAppender(appender);
+            actions.context.setLogger(logger);
         }
         // this is not done in the constructor as we need to be on the "executor" thread
         hooks = exec.callContext.resolveHooks();

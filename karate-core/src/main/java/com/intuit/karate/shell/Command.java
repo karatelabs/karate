@@ -167,13 +167,13 @@ public class Command extends Thread {
             appender = new StringLogAppender(useLineFeed);
             sharedAppender = false;
         } else { // don't create new file if re-using an existing appender
-            LogAppender temp = this.logger.getLogAppender();
+            LogAppender temp = this.logger.getAppender();
             sharedAppender = temp != null;
             if (sharedAppender) {
                 appender = temp;
             } else {
                 appender = new FileLogAppender(new File(logFile));
-                this.logger.setLogAppender(appender);
+                this.logger.setAppender(appender);
             }
         }
     }
