@@ -91,7 +91,7 @@ public class PostmanItem {
     public String convert() {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(parent.isPresent() ? "# " : "Scenario: ");
+        sb.append(parent.isPresent() ? "# " : "\tScenario: ");
         sb.append(name).append(System.lineSeparator());
         if (items.isPresent()) {
             for (PostmanItem item : items.get()) {
