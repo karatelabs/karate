@@ -127,7 +127,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
             handler.THREADS.put(id, this);
         }
         appender = context.appender;
-        context.logger.setLogAppender(this); // wrap       
+        context.logger.setAppender(this); // wrap       
         return true;
     }
 
@@ -137,7 +137,7 @@ public class DebugThread implements ExecutionHook, LogAppender {
         if (context.callDepth == 0) {
             handler.THREADS.remove(id);
         }
-        context.logger.setLogAppender(appender); // unwrap        
+        context.logger.setAppender(appender); // unwrap        
     }
 
     @Override

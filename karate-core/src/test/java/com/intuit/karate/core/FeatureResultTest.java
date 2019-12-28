@@ -82,15 +82,16 @@ public class FeatureResultTest {
     public void testAbortMultiScenarioFeature() throws Exception {        
         FeatureResult result = result("aborted.feature");
         assertEquals(0, result.getFailedCount());
-        assertEquals(3, result.getScenarioCount());
+        assertEquals(4, result.getScenarioCount());
         String contents = xml(result);
 
         // skip-pass and skip-fail both should have all steps as skipped
         // TODO: generate the expected content string, below code puts a hard dependency
         // with KarateJunitFormatter$TestCase.addStepAndResultListing()
         assertTrue(contents.contains("* karate.abort() .......................................................... passed"));
-        assertTrue(contents.contains("* assert a == 1 ........................................................... passed"));
-        assertTrue(contents.contains("* assert a == 2 ........................................................... passed"));
+        assertTrue(contents.contains("* assert a == 1 ........................................................... skipped"));
+        assertTrue(contents.contains("* assert a == 2 ........................................................... skipped"));
+        assertTrue(contents.contains("* assert a == 5 ........................................................... passed"));
 
         // noskip should have both steps as passed
         assertTrue(contents.contains("Then assert a != 3 ........................................................ passed"));

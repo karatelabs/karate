@@ -192,6 +192,14 @@ public abstract class HttpClient<T> {
                 if (mediaType == null) {
                     mediaType = MULTIPART_FORM_DATA;
                 }
+                if (request.isRetry()) { // make streams re-readable
+                    for (MultiPartItem item : request.getMultiPartItems()) {
+                        ScriptValue sv = item.getValue();
+                        if (sv.isStream()) {
+                            item.setValue(new ScriptValue(sv.getAsByteArray()));
+                        }
+                    }
+                }
                 return getEntity(request.getMultiPartItems(), mediaType);
             } else if (request.getFormFields() != null) {
                 if (mediaType == null) {

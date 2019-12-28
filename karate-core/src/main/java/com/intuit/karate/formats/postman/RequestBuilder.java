@@ -37,10 +37,10 @@ public class RequestBuilder {
     private String headers;
     private String body;
 
-    private final String REQUEST_TEMPLATE = "Given url " + "%s" + // url
-            "%s" +                                                // Headers
-            "%s" +                                                // Body
-            "When method %s" + System.lineSeparator();            // Method
+    private final String REQUEST_TEMPLATE = "\t\tGiven url " + "%s" + // url
+            "%s" +                                                    // Headers
+            "%s" +                                                    // Body
+            "\t\tWhen method %s" + System.lineSeparator();            // Method
 
     public RequestBuilder addUrl(String url) {
         if (url != null) {
@@ -63,7 +63,7 @@ public class RequestBuilder {
     public RequestBuilder addHeaders(Map<String, String> headers) {
         this.headers = "";
         for (Map.Entry<String, String> entry : headers.entrySet()) {
-            this.headers += "And header " + entry.getKey() + " = " + "'" +
+            this.headers += "\t\tAnd header " + entry.getKey() + " = " + "'" +
                     entry.getValue() + "'" + System.lineSeparator();
         }
         return this;
@@ -71,7 +71,7 @@ public class RequestBuilder {
 
     public RequestBuilder addBody(String body) {
         if (body != null) {
-            this.body = "And request " + body + System.lineSeparator();
+            this.body = "\t\tAnd request " + body + System.lineSeparator();
         } else {
             this.body = "";
         }

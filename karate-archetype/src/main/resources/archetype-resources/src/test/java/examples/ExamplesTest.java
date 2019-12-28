@@ -8,7 +8,7 @@ class ExamplesTest {
     // see https://github.com/intuit/karate#naming-conventions   
     @Karate.Test
     Karate testAll() {
-        return new Karate().relativeTo(getClass());
+        return Karate.run().relativeTo(getClass());
     }
     
 }

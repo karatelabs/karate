@@ -56,9 +56,14 @@ public class FeatureBackend {
     private final String featureName;
 
     private static void putBinding(String name, ScenarioContext context) {
-        String function = "function(s){ return " + ScriptBindings.KARATE + "." + name + "(s) }";
+        String function = "function(a){ return " + ScriptBindings.KARATE + "." + name + "(a) }";
         context.vars.put(name, Script.evalJsExpression(function, context));
     }
+    
+    private static void putBinding2(String name, ScenarioContext context) {
+        String function = "function(a, b){ return " + ScriptBindings.KARATE + "." + name + "(a, b) }";
+        context.vars.put(name, Script.evalJsExpression(function, context));
+    }    
 
     public boolean isCorsEnabled() {
         return corsEnabled;
@@ -84,6 +89,7 @@ public class FeatureBackend {
         putBinding(ScriptBindings.PARAM_VALUE, context);
         putBinding(ScriptBindings.TYPE_CONTAINS, context);
         putBinding(ScriptBindings.ACCEPT_CONTAINS, context);
+        putBinding2(ScriptBindings.HEADER_CONTAINS, context);
         putBinding(ScriptBindings.BODY_PATH, context);
         if (arg != null) {
             arg.forEach((k, v) -> context.vars.put(k, v));

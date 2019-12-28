@@ -25,13 +25,13 @@ public class DriverOptionsTest {
         test("{^}hi", "//*[contains(normalize-space(text()),'hi')]");
         test("{^:}hi", "//*[contains(normalize-space(text()),'hi')]");
         test("{^:0}hi", "//*[contains(normalize-space(text()),'hi')]");
-        test("{^:2}hi", "//*[contains(normalize-space(text()),'hi')][2]");
-        test("{:2}hi", "//*[normalize-space(text())='hi'][2]");
+        test("{^:2}hi", "/(//*[contains(normalize-space(text()),'hi')])[2]");
+        test("{:2}hi", "/(//*[normalize-space(text())='hi'])[2]");
         test("{a}hi", "//a[normalize-space(text())='hi']");
-        test("{a:2}hi", "//a[normalize-space(text())='hi'][2]");        
+        test("{a:2}hi", "/(//a[normalize-space(text())='hi'])[2]");        
         test("{^a:}hi", "//a[contains(normalize-space(text()),'hi')]");
         test("{^a/p}hi", "//a/p[contains(normalize-space(text()),'hi')]");
-        test("{^a:2}hi", "//a[contains(normalize-space(text()),'hi')][2]");
+        test("{^a:2}hi", "/(//a[contains(normalize-space(text()),'hi')])[2]");
     }
     
     private ScenarioContext getContext() {

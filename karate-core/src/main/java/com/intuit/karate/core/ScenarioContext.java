@@ -72,8 +72,10 @@ import java.util.function.Function;
  */
 public class ScenarioContext {
 
-    public final Logger logger;
-    public final LogAppender appender;
+    // public but mutable, just for dynamic scenario outline, see who calls setLogger()
+    public Logger logger;
+    public LogAppender appender;
+    
     public final ScriptBindings bindings;
     public final int callDepth;
     public final boolean reuseParentContext;
@@ -127,6 +129,11 @@ public class ScenarioContext {
     // websocket    
     private List<WebSocketClient> webSocketClients;
 
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+        this.appender = logger.getAppender();
+    }        
+
     public void logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent != null && executionHooks != null) {
             if (failureMessage != null) {
@@ -176,13 +183,17 @@ public class ScenarioContext {
         this.prevResponse = prevResponse;
     }
 
-    public HttpRequestBuilder getRequest() {
+    public HttpRequestBuilder getRequestBuilder() {
         return request;
     }
 
     public HttpRequest getPrevRequest() {
         return prevRequest;
     }
+
+    public HttpResponse getPrevResponse() {
+        return prevResponse;
+    }        
 
     public HttpClient getHttpClient() {
         return client;
@@ -261,7 +272,7 @@ public class ScenarioContext {
         if (appender == null) {
             appender = LogAppender.NO_OP;
         }
-        logger.setLogAppender(appender);
+        logger.setAppender(appender);
         this.appender = appender;
         callDepth = call.callDepth;
         reuseParentContext = call.reuseParentContext;

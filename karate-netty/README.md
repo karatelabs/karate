@@ -7,6 +7,9 @@ And [Consumer Driven Contracts](https://martinfowler.com/articles/consumerDriven
 * Super-easy 'hard-coded' mocks ([example](../karate-junit4/src/test/java/com/intuit/karate/mock/_mock.feature))
 * Stateful mocks that can fully simulate CRUD for a micro-service ([example](../karate-demo/src/test/java/mock/proxy/demo-mock.feature))
 * Not only JSON but first-class support for XML, plain-text, binary, etc.
+* Convert JSON or XML into dynamic responses with ease
+* Maintain and read large payloads from the file-system if needed
+* Mocks are plain-text files - easily collaborate within or across teams using Git / SCM
 * Easy HTTP request matching by path, method, headers, body etc.
 * Use the full power of JavaScript expressions for HTTP request matching
 * SSL / HTTPS with built-in self-signed certificate
@@ -376,7 +379,7 @@ Everything on the right side of the "base URL" (see above). This will include ev
 The HTTP method, for e.g. `GET`. It will be in capital letters. Instead of doing things like: `requestMethod == 'GET'` - "best practice" is to use the [`methodIs()`](#methodis) helper function for request matching.
 
 ## `requestHeaders`
-Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains) and [`acceptContains()`](#acceptcontains) helpers are what you would use most of the time.
+Note that this will be a Map of List-s. For request matching, the [`typeContains()`](#typecontains), [`acceptContains()`](#acceptcontains) or [`headerContains()`](#headercontains) helpers are what you would use most of the time.
 
 If you really need to "route" to a `Scenario` based on a custom header value, you can use the [`karate.get()`](https://github.com/intuit/karate#karate-get) API - which will gracefully return `null` if the JsonPath does not exist. For example, the following would match a header of the form: `val: foo`
 
@@ -433,8 +436,17 @@ Scenario: pathMatches('/cats/{id}') && acceptContains('xml')
     * def response = <cat><id>#(cat.id)</id><name>#(cat.name)</name></cat>
 ```
 
+## `headerContains()`
+This should be sufficient to test that a particular header has a certain value, even though between the scenes it does a string "contains" check which can be convenient. If you really need an "exact" match, see [`requestHeaders`](#requestheaders).
+
+For example, the following would match a header of the form: `val: foo`
+
+```cucumber
+Scenario: pathMatches('/v1/headers') && headerContains('val', 'foo')
+```
+
 ## `bodyPath()`
-A very powerful helper function that can run JsonPath or XPath expressions agains the request body or payload.
+A very powerful helper function that can run JsonPath or XPath expressions against the request body or payload.
 
 JSON example:
 

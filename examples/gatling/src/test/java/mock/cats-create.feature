@@ -6,7 +6,7 @@ Feature: cats crud
   Scenario: create, get and update cat
     # example of using the gatling session / feeder data
     # note how this can still work as a normal test, without gatling
-    * def name = karate.get('__gatling') ? __gatling.catName : 'Billie'
+    * def name = karate.get('__gatling.catName', 'Billie')
     Given request { name: '#(name)' }
     When method post
     Then status 200

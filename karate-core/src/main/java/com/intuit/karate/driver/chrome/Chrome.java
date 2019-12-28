@@ -63,7 +63,7 @@ public class Chrome extends DevToolsDriver {
         }
         Command command = options.startProcess();
         String url = "http://" + options.host + ":" + options.port;
-        Http http = Http.forUrl(options.driverLogger.getLogAppender(), url);
+        Http http = Http.forUrl(options.driverLogger.getAppender(), url);
         Http.Response res = http.path("json").get();
         if (res.body().asList().isEmpty()) {
             if (command != null) {

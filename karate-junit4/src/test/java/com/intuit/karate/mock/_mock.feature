@@ -79,7 +79,7 @@ Scenario: pathMatches('/v1/form')
 Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == 'foo'
     * def response = { val: 'foo' }
 
-Scenario: pathMatches('/v1/headers') && karate.get('requestHeaders.val[0]') == 'bar'
+Scenario: pathMatches('/v1/headers') && headerContains('val', 'bar')
     * def response = { val: 'bar' }
 
 Scenario: pathMatches('/v1/malformed')

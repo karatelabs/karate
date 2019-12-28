@@ -110,6 +110,8 @@ Scenario Outline: using <config>
   * match text('#eg03Result') == 'NESTED'
   * click('{:4}Click Me')
   * match text('#eg03Result') == 'BUTTON'
+  * click("{^button:2}Item")
+  * match text('#eg03Result') == 'ITEM2'
 
   # locate
   * def element = locate('{}Click Me')

@@ -75,6 +75,8 @@ public class DriverOptions {
     public final String type;
     public final int port;
     public final String host;
+    public final int pollAttempts;
+    public final int pollInterval;
     public final boolean headless;
     public final boolean showProcessLog;
     public final boolean showDriverLog;
@@ -142,7 +144,7 @@ public class DriverOptions {
         this.options = options;
         this.appender = appender;
         logger = new Logger(getClass());
-        logger.setLogAppender(appender);
+        logger.setAppender(appender);
         timeout = get("timeout", DEFAULT_TIMEOUT);
         type = get("type", null);
         start = get("start", true);
@@ -172,6 +174,8 @@ public class DriverOptions {
         beforeStart = get("beforeStart", null);
         afterStop = get("afterStop", null);
         videoFile = get("videoFile", null);
+        pollAttempts = get("pollAttempts", 20);
+        pollInterval = get("pollInterval", 250);
         // do this last to ensure things like logger, start-flag and all are set
         port = resolvePort(defaultPort);
     }
@@ -322,13 +326,16 @@ public class DriverOptions {
         if (!tag.startsWith("/")) {
             tag = "//" + tag;
         }
-        String suffix = index == 0 ? "" : "[" + index + "]";
+        String xpath;
         if (contains) {
-            return tag + "[contains(normalize-space(text()),'" + text + "')]" + suffix;
+            xpath = tag + "[contains(normalize-space(text()),'" + text + "')]";
         } else {
-            return tag + "[normalize-space(text())='" + text + "']" + suffix;
+            xpath = tag + "[normalize-space(text())='" + text + "']";
         }
-
+        if (index == 0) {
+            return xpath;
+        }
+        return "/(" + xpath + ")[" + index + "]";
     }
 
     public String selector(String locator) {
@@ -339,6 +346,9 @@ public class DriverOptions {
             locator = preProcessWildCard(locator);
         }
         if (locator.startsWith("/")) { // XPathResult.FIRST_ORDERED_NODE_TYPE = 9
+            if (locator.startsWith("/(")) {
+                locator = locator.substring(1); // hack for wildcard with index (see preProcessWildCard last line)
+            }
             return "document.evaluate(\"" + locator + "\", document, null, 9, null).singleNodeValue";
         }
         return "document.querySelector(\"" + locator + "\")";
@@ -489,9 +499,9 @@ public class DriverOptions {
                 sock.close();
                 return true;
             } catch (IOException e) {
-                sleep(250);
+                sleep(pollInterval);
             }
-        } while (attempts++ < 19);
+        } while (attempts++ < pollAttempts);
         return false;
     }
 

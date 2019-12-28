@@ -44,16 +44,16 @@ public class Logger {
     // not static, has to be per thread
     private final DateFormat dateFormatter = new SimpleDateFormat("HH:mm:ss.SSS");
 
-    private LogAppender logAppender = LogAppender.NO_OP;
+    private LogAppender appender = LogAppender.NO_OP;
 
     private boolean appendOnly;
 
-    public void setLogAppender(LogAppender logAppender) {
-        this.logAppender = logAppender;
+    public void setAppender(LogAppender appender) {
+        this.appender = appender;
     }
 
-    public LogAppender getLogAppender() {
-        return logAppender;
+    public LogAppender getAppender() {
+        return appender;
     }
 
     public boolean isTraceEnabled() {
@@ -133,7 +133,7 @@ public class Logger {
     }
 
     private void formatAndAppend(String format, Object... arguments) {
-        if (logAppender == null) {
+        if (appender == null) {
             return;
         }
         FormattingTuple tp = MessageFormatter.arrayFormat(format, arguments);
@@ -143,7 +143,7 @@ public class Logger {
     private void append(String message) {
         StringBuilder buf = new StringBuilder();
         buf.append(getFormattedDate()).append(' ').append(message).append('\n');
-        logAppender.append(buf.toString());
+        appender.append(buf.toString());
     }
 
 }
