@@ -472,10 +472,10 @@ public class Script {
                         } else if (!sv.isJsonLike()) {
                             // only substitute primitives ! 
                             // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
-                            root.set(path, sv.getValue());
+                            root.set(path, sv.isStream() ? sv.getAsString() : sv.getValue());
                         }
                     } else {
-                        root.set(path, sv.getValue());
+                        root.set(path, sv.isStream() ? sv.getAsString() : sv.getValue());
                     }
                 } catch (Exception e) {
                     context.logger.trace("embedded json eval failed, path: {}, reason: {}", path, e.getMessage());

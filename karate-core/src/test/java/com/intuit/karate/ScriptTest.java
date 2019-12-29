@@ -6,6 +6,7 @@ import com.intuit.karate.core.ScenarioContext;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
+import java.io.ByteArrayInputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -256,6 +257,14 @@ public class ScriptTest {
         Script.assign("bar", "{ hello: '#(foo.a)', world: '##(foo.b)'  }", ctx);
         assertTrue(Script.matchNamed(MatchType.EQUALS, "bar", null, "{ hello: null }", ctx).pass);
     }
+    
+    @Test
+    public void testEvalEmbeddedExpressionStream() {
+         ScenarioContext ctx = getContext();
+         ctx.vars.put("inputStream", new ScriptValue(new ByteArrayInputStream("hello world".getBytes())));
+         Script.assign("doc", "{ foo: '#(inputStream)' }", ctx);
+         assertTrue(Script.matchNamed(MatchType.EQUALS, "doc", null, "{ foo: 'hello world' }", ctx).pass);
+     }    
 
     @Test
     public void testVariableNameValidation() {
