@@ -3,9 +3,12 @@ package com.intuit.karate;
 import com.intuit.karate.core.MatchType;
 import com.intuit.karate.core.FeatureContext;
 import com.intuit.karate.core.ScenarioContext;
+import com.intuit.karate.exception.KarateException;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
+
+import java.io.ByteArrayInputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1721,4 +1724,12 @@ public class ScriptTest {
         assertNotEquals(result.get("a"),result.get("b"));
     }
 
+    @Test(expected = KarateException.class)
+    public void testExceptionIsThrownWhenInputStreamShouldBeEmbeddedIntoJson() {
+        ScenarioContext ctx = getContext();
+        ctx.vars.put("inputStream", new ScriptValue(new ByteArrayInputStream(new byte[10])));
+
+        DocumentContext doc = JsonUtils.toJsonDoc("{ foo: '#(inputStream)' }");
+        Script.evalJsonEmbeddedExpressions(doc, ctx);
+    }
 }

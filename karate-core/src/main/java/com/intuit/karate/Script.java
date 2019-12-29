@@ -46,6 +46,8 @@ import com.intuit.karate.validator.Validator;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
+
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -474,10 +476,15 @@ public class Script {
                             // preserve optional JSON chunk schema-like references as-is, they are needed for future match attempts
                             root.set(path, sv.getValue());
                         }
+                    } else if(sv.getValue() instanceof InputStream){
+                        throw new KarateException("Tried to embed an InputStream into json as a string. InputStreams are used when file type cannot be identified as text. Make sure to use a file format.");
                     } else {
                         root.set(path, sv.getValue());
                     }
                 } catch (Exception e) {
+                    if (e instanceof KarateException) {
+                        throw ((KarateException) e);
+                    }
                     context.logger.trace("embedded json eval failed, path: {}, reason: {}", path, e.getMessage());
                 }
             }
