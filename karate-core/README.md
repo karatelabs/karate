@@ -355,6 +355,8 @@ To try this or especially when you need to investigate why a test is not behavin
   * `docker cp karate:/tmp .`
   * this would include the `stderr` and `stdout` logs from Chrome, which can be helpful for troubleshooting
 
+For more information on the Docker containers for Karate and how to use them, refer to the wiki: [Docker](https://github.com/intuit/karate/wiki/Docker).
+
 ## Driver Types
 type | default port | default executable | description
 ---- | ---------------- | ---------------------- | -----------
