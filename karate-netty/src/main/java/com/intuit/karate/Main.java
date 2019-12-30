@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.cli.CliExecutionHook;
 import com.intuit.karate.debug.DapServer;
 import com.intuit.karate.exception.KarateException;
+import com.intuit.karate.formats.postman.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.netty.FileChangedWatcher;
@@ -106,6 +107,9 @@ public class Main implements Callable<Void> {
     @Option(names = {"-j", "--jobserver"}, description = "job server url")
     String jobServerUrl;
 
+    @Option(names = {"-i", "--import"}, description = "import and convert a file")
+    String importFile;
+
     public static void main(String[] args) {
         boolean isOutputArg = false;
         String outputDir = DEFAULT_OUTPUT_DIR;
@@ -169,7 +173,7 @@ public class Main implements Callable<Void> {
                     .path(fixed).tags(tags).scenarioName(name)
                     .reportDir(jsonOutputDir).hook(hook).parallel(threads);
             Collection<File> jsonFiles = org.apache.commons.io.FileUtils.listFiles(new File(jsonOutputDir), new String[]{"json"}, true);
-            List<String> jsonPaths = new ArrayList(jsonFiles.size());
+            List<String> jsonPaths = new ArrayList<>(jsonFiles.size());
             jsonFiles.forEach(file -> jsonPaths.add(file.getAbsolutePath()));
             Configuration config = new Configuration(new File(output), new Date() + "");
             ReportBuilder reportBuilder = new ReportBuilder(jsonPaths, config);
@@ -182,6 +186,10 @@ public class Main implements Callable<Void> {
                 ke.setStackTrace(newTrace);
                 throw ke;
             }
+            return null;
+        }
+        if (importFile != null) {
+            new PostmanConverter().convert(importFile);
             return null;
         }
         if (clean) {
