@@ -10,14 +10,15 @@ import java.util.List;
 public class PostmanConverter {
 
     /**
-     * Contains the logic required to convert a single Postman collection
+     * Run the logic required to convert a single Postman collection
      * file from the disk into a Karate feature file and write it to Karate's
      * output directory as a new file.
      *
      * @param importFile the (String) path to the file to import
+     * @param outputDir  the (String) path to the output directory
      * @return boolean - true if successful, false otherwise
      */
-    public boolean convert(final String importFile) {
+    public boolean convert(final String importFile, final String outputDir) {
         try {
             final Path pathTo = Paths.get(importFile);
             if (!Files.exists(pathTo)) {
@@ -30,7 +31,7 @@ public class PostmanConverter {
                 .replace(".postman_collection", "")
                 .replace(".json", "");
             final String converted = PostmanUtils.toKarateFeature(collectionName, items);
-            final Path outputFilePath = Paths.get(System.getProperty("karate.output.dir"), collectionName + ".feature");
+            final Path outputFilePath = Paths.get(outputDir, collectionName + ".feature");
             Files.write(outputFilePath, converted.getBytes());
             System.out.println("Converted feature file available at " + outputFilePath.toAbsolutePath().toString());
             return true;

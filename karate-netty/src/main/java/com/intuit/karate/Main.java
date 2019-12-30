@@ -30,13 +30,6 @@ import com.intuit.karate.formats.postman.PostmanConverter;
 import com.intuit.karate.job.JobExecutor;
 import com.intuit.karate.netty.FeatureServer;
 import com.intuit.karate.netty.FileChangedWatcher;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.stream.Collectors;
 import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 import org.slf4j.Logger;
@@ -44,6 +37,14 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -189,7 +190,7 @@ public class Main implements Callable<Void> {
             return null;
         }
         if (importFile != null) {
-            new PostmanConverter().convert(importFile);
+            new PostmanConverter().convert(importFile, System.getProperty("karate.output.dir"));
             return null;
         }
         if (clean) {
