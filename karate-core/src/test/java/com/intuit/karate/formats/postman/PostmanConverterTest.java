@@ -34,7 +34,7 @@ public class PostmanConverterTest {
         Assert.assertTrue(successful);
 
         // load the expected output from the resources
-        is = getClass().getResourceAsStream("expected-converted.feature");
+        is = getClass().getResourceAsStream("expected-converted.txt");
         String expectedConverted = FileUtils.toString(is);
 
         // load the actual output form the disk
